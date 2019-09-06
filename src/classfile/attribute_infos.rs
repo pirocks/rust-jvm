@@ -1,3 +1,6 @@
+use classfile::AttributeInfo;
+use classfile::parsing_util::ParsingContext;
+
 pub struct SourceFile{
     //todo
 }
@@ -126,3 +129,6 @@ pub enum AttributeType{
     RuntimeInvisibleTypeAnnotations
 }
 
+pub fn parse_attributes(p :& mut ParsingContext, num_attributes: u16 ) -> Vec<AttributeInfo>{
+    return todo!()
+}

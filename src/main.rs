@@ -39,7 +39,7 @@ fn main() {
     }
 
     if verbose {
-        println!("main_class_name is {}", main_class_name);
+        println!("main_class_name is {}", main_class_path);
     }
 
 }
