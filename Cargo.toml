@@ -1,0 +1,7 @@
+[package]
+name = "rust-jvm"
+version = "0.1.0"
+authors = ["Francis Nixon <13nixonf@gmail.com>"]
+
+[dependencies]
+argparse = "0.2.2"
