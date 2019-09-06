@@ -3,5 +3,10 @@ name = "rust-jvm"
 version = "0.1.0"
 authors = ["Francis Nixon <13nixonf@gmail.com>"]
 
+
+[lib]
+name = "classfile"
+path = "src/lib.rs"
+
 [dependencies]
 argparse = "0.2.2"

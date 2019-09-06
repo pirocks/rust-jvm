@@ -1,3 +1,6 @@
 
 /target/
 **/*.rs.bk
+.idea/*
+!.idea/codeStyles/codeStyleConfig.xml
+rust-jvm.iml
