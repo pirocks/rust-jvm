@@ -1,7 +1,3 @@
-use std::mem::size_of;
-
-use num::Integer;
-
 #[allow(non_camel_case_types)]
 #[repr(u8)]
 pub enum InstructionType {
@@ -211,7 +207,7 @@ pub enum InstructionType {
 
 pub struct InterpreterState {
     pub local_vars: Vec<u32>,
-    pub operand_stack: Vec<u64>,
+    pub operand_stack: Vec<u32>,
 }
 
 pub fn read_opcode(b: u8) -> InstructionType {
@@ -229,7 +225,7 @@ macro_rules! null_pointer_check {
 }
 
 macro_rules! array_out_of_bounds_check {
-    ($index:ident,$array_length:ident) => {if $index >= $array_length {
+    ($index:expr,$array_length:ident) => {if ($index as u32) >= ($array_length as u32) {
             unimplemented!("handle array out of bounds exceptions")
         }};
 }
@@ -237,16 +233,17 @@ macro_rules! array_out_of_bounds_check {
 macro_rules! load {
     ($type_:ident,$state:ident) => {
         let index = $state.operand_stack.pop().expect(EXECUTION_ERROR);
-        let array_ref = $state.operand_stack.pop().expect(EXECUTION_ERROR);
+        let array_ref = pop_long($state);
         null_pointer_check!(array_ref);
         let array_elem:$type_ = unsafe {
             let array_64: *mut u64 = ::std::mem::transmute(array_ref);
             let array_length: u64 = *array_64.offset(-1);
             let array_type:* mut $type_ = array_ref as * mut $type_;
-            array_out_of_bounds_check!(index,array_length);
+            array_out_of_bounds_check!(index as u64,array_length);
             *(array_type.offset(index as isize)) as $type_
         };
-        $state.operand_stack.push(array_elem as u64);
+        //todo this is more complicated in the u64 case
+        $state.operand_stack.push(array_elem as u32);
     };
 }
 
@@ -254,12 +251,12 @@ macro_rules! store {
     ($type_:ident,$state:ident) => {
         let value : $type_= $state.operand_stack.pop().expect(EXECUTION_ERROR) as $type_;
         let index = $state.operand_stack.pop().expect(EXECUTION_ERROR);
-        let array_ref = $state.operand_stack.pop().expect(EXECUTION_ERROR);
+        let array_ref = pop_long($state);
         null_pointer_check!(array_ref);
         unsafe {
             let array: *mut u64 = ::std::mem::transmute(array_ref);
             let array_length: u64 = *array.offset(-1);
-            array_out_of_bounds_check!(index,array_length);
+            array_out_of_bounds_check!(index as u64,array_length);
             let array_type : *mut $type_ = array_ref as *mut $type_;
             *(array_type.offset(index as isize)) = value;
         }
@@ -269,9 +266,13 @@ macro_rules! store {
 pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     let opcode = read_opcode(code[0]);
     match opcode {
-        InstructionType::aaload => { load!(u64,state); }/*do_aaload(state)*/
-        InstructionType::aastore => { store!(u64,state); }/*do_aastore(state)*/
-        InstructionType::aconst_null => { state.operand_stack.push(0 as u64) }
+        InstructionType::aaload => {
+            load_u64(state)
+        }
+        InstructionType::aastore => {
+            store_u64(state)
+        }
+        InstructionType::aconst_null => { push_long(0,state) }
         InstructionType::aload => {
             let var_index = code[1];
             load_n_64(state,var_index as u64);
@@ -307,7 +308,7 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::bastore => { store!(u8,state); }
         InstructionType::bipush => {
             let byte = state.operand_stack.pop().expect(EXECUTION_ERROR) as i8;
-            state.operand_stack.push(byte as i64 as u64);
+            state.operand_stack.push(byte as i32 as u32);
         }
         InstructionType::caload => { load!(u16,state); }
         InstructionType::castore => { store!(u16,state); }
@@ -315,26 +316,26 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
             unimplemented!("Need to increase pc by 3 and get constant pool involved");
         }
         InstructionType::d2f => {
-            let double = pop_as_double(state);
+            let double = pop_double(state);
             let converted_to_float = unsafe {
-                let converted: u64 = ::std::mem::transmute(double as f32 as f64);
+                let converted: u32 = ::std::mem::transmute(double as f32);
                 converted
             };
             state.operand_stack.push(converted_to_float);
         }
         InstructionType::d2i => {
-            let double = pop_as_double(state);
-            state.operand_stack.push(double as u32 as u64)
+            let double = pop_double(state);
+            state.operand_stack.push(double as u32)
         }
         InstructionType::d2l => {
-            let double = pop_as_double(state);
-            state.operand_stack.push(double as u64)
+            let double = pop_double(state);
+            push_long(double as u64,state)
         }
         InstructionType::dadd => {
-            let a = pop_as_double(state);
-            let b = pop_as_double(state);
+            let a = pop_double(state);
+            let b = pop_double(state);
             let sum = a + b;
-            state.operand_stack.push(unsafe { ::std::mem::transmute(sum) })
+            push_long(unsafe { ::std::mem::transmute(sum) },state)
         }
         InstructionType::daload => {
             load!(f64,state);
@@ -355,8 +356,8 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
             push_double(1.0, state)
         }
         InstructionType::ddiv => {
-            let bottom = pop_as_double(state);
-            let top = pop_as_double(state);
+            let bottom = pop_double(state);
+            let top = pop_double(state);
             push_double(bottom / top, state)
         }
         InstructionType::dload => {
@@ -377,17 +378,17 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
             load_n_64(state,3);
         }
         InstructionType::dmul => {
-            let a = pop_as_double(state);
-            let b = pop_as_double(state);
+            let a = pop_double(state);
+            let b = pop_double(state);
             push_double(a * b, state);
         }
         InstructionType::dneg => {
-            let a = pop_as_double(state);
+            let a = pop_double(state);
             push_double(-1.0 * a, state);
         }
         InstructionType::drem => {
-            let a = pop_as_double(state);
-            let b = pop_as_double(state);
+            let a = pop_double(state);
+            let b = pop_double(state);
             push_double(a % b, state);//todo not sure if that is correct since rem is non-standard in java
         }
         InstructionType::dreturn => {
@@ -411,8 +412,8 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
             store_n_64(state,3);
         }
         InstructionType::dsub => {
-            let value2 = pop_as_double(state);
-            let value1 = pop_as_double(state);
+            let value2 = pop_double(state);
+            let value1 = pop_double(state);
             push_double(value1 - value2, state);
         }
         InstructionType::dup => {
@@ -428,62 +429,152 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
             state.operand_stack.push(value1);
         }
         InstructionType::dup_x2 => {
-            unimplemented!("Need to get typeinfo in here, to determine which type of operation to do and/or refactor the operand stack")
+            let value1 = state.operand_stack.pop().expect(EXECUTION_ERROR);
+            let value2 = pop_long(state);
+            state.operand_stack.push(value1);
+            push_long(value2, state);
+            state.operand_stack.push(value1);
+
         }
         InstructionType::dup2 => {
-            unimplemented!("Need to get typeinfo in here, to determine which type of operation to do and/or refactor the operand stack")
+            let value1 = pop_long(state);
+            push_long(value1,state);
+            push_long(value1,state);
+
         }
         InstructionType::dup2_x1 => {
-            unimplemented!("Need to get typeinfo in here, to determine which type of operation to do and/or refactor the operand stack")
+            let value1 = pop_long(state);
+            let value2 = state.operand_stack.pop().expect(EXECUTION_ERROR);
+            push_long(value1,state);
+            state.operand_stack.push(value2);
+            push_long(value1,state);
         }
         InstructionType::dup2_x2 => {
-            unimplemented!("Need to get typeinfo in here, to determine which type of operation to do and/or refactor the operand stack")
+            let value1 = pop_long(state);
+            let value2 = pop_long(state);
+            push_long(value1,state);
+            push_long(value2,state);
+            push_long(value1,state);
         }
         InstructionType::f2d => {
-            let float = pop_as_float(state);
+            let float = pop_float(state);
             push_double(float as f64,state);
         }
         InstructionType::f2i => {
-            let float = pop_as_float(state);
-            state.operand_stack.push(float as u32 as u64);
+            let float = pop_float(state);
+            state.operand_stack.push(float as u32);
         }
         InstructionType::f2l => {
-            let float = pop_as_float(state);
-            state.operand_stack.push(float as u64);
+            let float = pop_float(state);
+            push_long(float as u64,state);
         }
-        InstructionType::fadd => {}
-        InstructionType::faload => {}
-        InstructionType::fastore => {}
+        InstructionType::fadd => {
+            let a = pop_float(state);
+            let b = pop_float(state);
+            push_float(a + b,state)
+        }
+        InstructionType::faload => {
+            load!(f32,state)
+        }
+        InstructionType::fastore => {
+            store!(f32,state)
+        }
         InstructionType::fcmpg => {
             unimplemented!("This one is kinda annoying to implement for now")
         }
         InstructionType::fcmpl => {
             unimplemented!("This one is kinda annoying to implement for now")
         }
-        InstructionType::fconst_0 => {}
-        InstructionType::fconst_1 => {}
-        InstructionType::fconst_2 => {}
-        InstructionType::fdiv => {}
-        InstructionType::fload => {}
-        InstructionType::fload_0 => {}
-        InstructionType::fload_1 => {}
-        InstructionType::fload_2 => {}
-        InstructionType::fload_3 => {}
-        InstructionType::fmul => {}
-        InstructionType::fneg => {}
-        InstructionType::frem => {}
-        InstructionType::freturn => {}
-        InstructionType::fstore => {}
-        InstructionType::fstore_0 => {}
-        InstructionType::fstore_1 => {}
-        InstructionType::fstore_2 => {}
-        InstructionType::fstore_3 => {}
-        InstructionType::fsub => {}
-        InstructionType::getfield => {}
-        InstructionType::getstatic => {}
-        InstructionType::goto_ => {}
-        InstructionType::goto_w => {}
-        InstructionType::i2b => {}
+        InstructionType::fconst_0 => {
+            push_float(0.0,state)
+        }
+        InstructionType::fconst_1 => {
+            push_float(1.0,state)
+        }
+        InstructionType::fconst_2 => {
+            push_float(2.0,state)
+        }
+        InstructionType::fdiv => {
+            let value2 = pop_float(state);
+            let value1 =  pop_float(state);
+            push_float(value1/ value2,state)
+        }
+        InstructionType::fload => {
+            let index = code[1];
+            load_n_32(state,index as u64);
+            unimplemented!("need pc by 2")
+        }
+        InstructionType::fload_0 => {
+            load_n_32(state,0)
+        }
+        InstructionType::fload_1 => {
+            load_n_32(state,1)
+        }
+        InstructionType::fload_2 => {
+            load_n_32(state,2)
+        }
+        InstructionType::fload_3 => {
+            load_n_32(state,3)
+        }
+        InstructionType::fmul => {
+            let value2 = pop_float(state);
+            let value1 = pop_float(state);
+            push_float(value1 + value2,state)
+        }
+        InstructionType::fneg => {
+            push_float(-pop_float(state),state)
+        }
+        InstructionType::frem => {
+            unimplemented!("not sure about differences with standard rem")
+        }
+        InstructionType::freturn => {
+            unimplemented!("function return")
+        }
+        InstructionType::fstore => {
+            let index = code[1];
+            store_n_32(state,index  as u64)
+        }
+        InstructionType::fstore_0 => {
+            store_n_32(state,0)
+        }
+        InstructionType::fstore_1 => {
+            store_n_32(state,1)
+        }
+        InstructionType::fstore_2 => {
+            store_n_32(state,2)
+        }
+        InstructionType::fstore_3 => {
+            store_n_32(state,3)
+        }
+        InstructionType::fsub => {
+            let value2 = pop_float(state);
+            let value1 = pop_float(state);
+            push_float(value1 - value2,state)
+        }
+        InstructionType::getfield => {
+            unimplemented!("constant pool")
+        }
+        InstructionType::getstatic => {
+            unimplemented!("constant pool")
+        }
+        InstructionType::goto_ => {
+            let branchbyte1 = code[1];
+            let branchbyte2 = code[2];
+            (branchbyte1 << 8) | branchbyte2;
+            unimplemented!("todo branching")
+        }
+        InstructionType::goto_w => {
+            let branchbyte1 = code[1];
+            let branchbyte2 = code[2];
+            let branchbyte3 = code[3];
+            let branchbyte4 = code[4];
+            (branchbyte1 << 24) | (branchbyte2 << 16)
+                | (branchbyte3 << 8) | branchbyte4;
+            unimplemented!("todo branching")
+        }
+        InstructionType::i2b => {
+
+        }
         InstructionType::i2c => {}
         InstructionType::i2d => {}
         InstructionType::i2f => {}
@@ -602,12 +693,51 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     }
 }
 
-
-fn push_float(to_push: f32, state: &mut InterpreterState) {
-    state.operand_stack.push(unsafe { ::std::mem::transmute(to_push as u64) })
+fn store_u64(state: &mut InterpreterState){
+    let value : u64 = pop_long(state);
+    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    let array_ref = pop_long(state);
+    null_pointer_check!(array_ref);
+    unsafe {
+        let array: *mut u64 = ::std::mem::transmute(array_ref);
+        let array_length: u64 = *array.offset(-1);
+        array_out_of_bounds_check!(index as u64,array_length);
+        let array_type : *mut u64 = array_ref as *mut u64;
+        *(array_type.offset(index as isize)) = value;//todo maybe do this more explicitly
+    }
 }
 
-fn pop_as_float(state: &mut InterpreterState) -> f32 {
+fn load_u64(state: &mut InterpreterState){
+    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    let array_ref = pop_long(state);
+    null_pointer_check!(array_ref);
+    let array_elem: u64 = unsafe {
+        let array_64: *mut u64 = ::std::mem::transmute(array_ref);
+        let array_length: u64 = *array_64.offset(-1);
+        let array_type:* mut u64 = array_ref as *mut u64;
+        array_out_of_bounds_check!(index as u64,array_length);
+        *(array_type.offset(index as isize)) as u64
+    };
+    push_long(array_elem,state);
+}
+
+fn pop_long(state: &mut InterpreterState) -> u64 {
+    let lower = state.operand_stack.pop().expect(EXECUTION_ERROR) as u64;
+    let upper = state.operand_stack.pop().expect(EXECUTION_ERROR) as u64;
+    return (upper << 32) | lower
+
+}
+
+fn push_long(to_push: u64, state: &mut InterpreterState) {
+    state.operand_stack.push( (to_push >> 32) as u32);
+    state.operand_stack.push( ((to_push << 32) >> 32) as u32);
+}
+
+fn push_float(to_push: f32, state: &mut InterpreterState) {
+    state.operand_stack.push(unsafe { ::std::mem::transmute(to_push) })
+}
+
+fn pop_float(state: &mut InterpreterState) -> f32 {
     let value = state.operand_stack.pop().expect(EXECUTION_ERROR) as u32;
     return unsafe {
         ::std::mem::transmute(value)
@@ -616,11 +746,11 @@ fn pop_as_float(state: &mut InterpreterState) -> f32 {
 
 
 fn push_double(to_push: f64, state: &mut InterpreterState) {
-    state.operand_stack.push(unsafe { ::std::mem::transmute(to_push) })
+    push_long(unsafe { ::std::mem::transmute(to_push) },state)
 }
 
-fn pop_as_double(state: &mut InterpreterState) -> f64 {
-    let value = state.operand_stack.pop().expect(EXECUTION_ERROR);
+fn pop_double(state: &mut InterpreterState) -> f64 {
+    let value = pop_long(state);
     return unsafe {
         ::std::mem::transmute(value)
     }
@@ -633,36 +763,37 @@ fn store_n_32(state: &mut InterpreterState, n: u64) {
 
 
 fn store_n_64(state: &mut InterpreterState, n: u64) {
-    let reference = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    let reference = pop_long(state);
     state.local_vars[n as usize] = reference as u32;
-    state.local_vars[(n + 1) as usize] = (reference >> 32) as u32;
+    state.local_vars[(n + 1) as usize] = (reference >> 32) as u32;//todo is this really the correct order
 }
 
 fn load_n_32(state: &mut InterpreterState, n: u64) {
     let reference = state.local_vars[n as usize];
-    state.operand_stack.push(reference as u64)
+    state.operand_stack.push(reference as u32)
 }
 
 fn load_n_64(state: &mut InterpreterState, n: u64) {
-    let least_significant = state.local_vars[n as usize] as u64;
-    let most_significant = state.local_vars[(n + 1) as usize] as u64;
-    state.operand_stack.push((most_significant << 32) | least_significant)
+    let least_significant = state.local_vars[n as usize];
+    let most_significant = state.local_vars[(n + 1) as usize];
+    state.operand_stack.push(most_significant );
+    state.operand_stack.push(least_significant );
 }
 
 
 fn do_arraylength(state: &mut InterpreterState) -> () {
-    let array_ref = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    let array_ref = pop_long(state);
     let length = unsafe {
         let array: *mut u64 = ::std::mem::transmute(array_ref);
         *(array.offset(-1 as isize)) as u64
     };
-    state.operand_stack.push(length)
+    push_long(length,state)
 }
 
 fn do_aastore(state: &mut InterpreterState) -> () {
-    let value = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    let value = pop_long(state);
     let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    let array_ref = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    let array_ref = pop_long(state);
     null_pointer_check!(array_ref);
     unsafe {
         let array: *mut u64 = ::std::mem::transmute(array_ref);
@@ -688,7 +819,7 @@ fn do_aastore(state: &mut InterpreterState) -> () {
 
 fn do_aaload(state: &mut InterpreterState) -> () {
     let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    let array_ref = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    let array_ref = pop_long(state);
     null_pointer_check!(array_ref);
     let array_elem = unsafe {
         let array: *mut u64 = ::std::mem::transmute(array_ref);
@@ -696,5 +827,5 @@ fn do_aaload(state: &mut InterpreterState) -> () {
         array_out_of_bounds_check!(index,array_length);
         *(array.offset(index as isize)) as u64
     };
-    state.operand_stack.push(array_elem);
+    push_long(array_elem,state);
 }
