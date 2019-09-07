@@ -4,3 +4,4 @@
 .idea/*
 !.idea/codeStyles/codeStyleConfig.xml
 rust-jvm.iml
+resources/test/simple-java-project/simple-java-project.iml
