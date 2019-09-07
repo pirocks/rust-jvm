@@ -299,7 +299,6 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
 
 pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) -> Vec<ConstantInfo> {
     let mut constants = Vec::with_capacity(constant_pool_count as usize);
-    let invalid_constant = ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) };
     let mut skip_next_iter = true;
     //skip first loop iteration b/c the first element of the constant pool isn't a thing
     for _ in 0..constant_pool_count {

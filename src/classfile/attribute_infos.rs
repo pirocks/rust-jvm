@@ -306,7 +306,7 @@ fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_lengt
         exception_table.push(parse_exception_table_entry(p));
     }
     let attributes_count = read16(p);
-    let mut attributes = parse_attributes(p, attributes_count,constant_pool);
+    let attributes = parse_attributes(p, attributes_count,constant_pool);
     return AttributeInfo {
         attribute_name_index,
         attribute_length,

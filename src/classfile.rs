@@ -156,7 +156,6 @@ pub fn parse_class_file(p: &mut ParsingContext) -> Classfile {
     let minor_version: u16 = read16(p);
     let major_version: u16 = read16(p);
     let constant_pool_count: u16 = read16(p);
-    dbg!(minor_version,major_version,constant_pool_count);
     let constant_pool = parse_constant_infos(p, constant_pool_count);
     let access_flags: u16 = read16(p);
     let this_class: u16 = read16(p);
