@@ -210,7 +210,7 @@ pub enum InstructionType {
 }
 
 pub struct InterpreterState {
-    pub local_vars: Vec<u64>,
+    pub local_vars: Vec<u32>,
     pub operand_stack: Vec<u64>,
 }
 
@@ -266,7 +266,6 @@ macro_rules! store {
     };
 }
 
-
 pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     let opcode = read_opcode(code[0]);
     match opcode {
@@ -275,14 +274,13 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::aconst_null => { state.operand_stack.push(0 as u64) }
         InstructionType::aload => {
             let var_index = code[1];
-            let reference = state.local_vars[var_index as usize];
-            state.operand_stack.push(reference);
+            load_n_64(state,var_index as u64);
             unimplemented!("Need to increase pc by 2")
         }
-        InstructionType::aload_0 => { aload_n(state, 0) }
-        InstructionType::aload_1 => { aload_n(state, 1) }
-        InstructionType::aload_2 => { aload_n(state, 2) }
-        InstructionType::aload_3 => { aload_n(state, 3) }
+        InstructionType::aload_0 => { load_n_64(state, 0) }
+        InstructionType::aload_1 => { load_n_64(state, 1) }
+        InstructionType::aload_2 => { load_n_64(state, 2) }
+        InstructionType::aload_3 => { load_n_64(state, 3) }
         InstructionType::anewarray => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
@@ -296,15 +294,14 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         }
         InstructionType::arraylength => do_arraylength(state),
         InstructionType::astore => {
-            let reference = state.operand_stack.pop().expect(EXECUTION_ERROR);
             let index = code[1];
-            state.local_vars[index as usize] = reference;
+            store_n_32(state,index as u64);
             unimplemented!("Need to increase pc by 2");
         }
-        InstructionType::astore_0 => { astore_n(state, 0) }
-        InstructionType::astore_1 => { astore_n(state, 1) }
-        InstructionType::astore_2 => { astore_n(state, 2) }
-        InstructionType::astore_3 => { astore_n(state, 3) }
+        InstructionType::astore_0 => { store_n_64(state, 0) }
+        InstructionType::astore_1 => { store_n_64(state, 1) }
+        InstructionType::astore_2 => { store_n_64(state, 2) }
+        InstructionType::astore_3 => { store_n_64(state, 3) }
         InstructionType::athrow => { unimplemented!("Need to pass in  exception handlers somehow"); }
         InstructionType::baload => { load!(u8,state); }
         InstructionType::bastore => { store!(u8,state); }
@@ -317,46 +314,152 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::checkcast => {
             unimplemented!("Need to increase pc by 3 and get constant pool involved");
         }
-        InstructionType::d2f => {}
-        InstructionType::d2i => {}
-        InstructionType::d2l => {}
-        InstructionType::dadd => {}
-        InstructionType::daload => {}
-        InstructionType::dastore => {}
-        InstructionType::dcmpg => {}
-        InstructionType::dcmpl => {}
-        InstructionType::dconst_0 => {}
-        InstructionType::dconst_1 => {}
-        InstructionType::ddiv => {}
-        InstructionType::dload => {}
-        InstructionType::dload_0 => {}
-        InstructionType::dload_1 => {}
-        InstructionType::dload_2 => {}
-        InstructionType::dload_3 => {}
-        InstructionType::dmul => {}
-        InstructionType::dneg => {}
-        InstructionType::drem => {}
-        InstructionType::dreturn => {}
-        InstructionType::dstore => {}
-        InstructionType::dstore_0 => {}
-        InstructionType::dstore_1 => {}
-        InstructionType::dstore_2 => {}
-        InstructionType::dstore_3 => {}
-        InstructionType::dsub => {}
-        InstructionType::dup => {}
-        InstructionType::dup_x1 => {}
-        InstructionType::dup_x2 => {}
-        InstructionType::dup2 => {}
-        InstructionType::dup2_x1 => {}
-        InstructionType::dup2_x2 => {}
-        InstructionType::f2d => {}
-        InstructionType::f2i => {}
-        InstructionType::f2l => {}
+        InstructionType::d2f => {
+            let double = pop_as_double(state);
+            let converted_to_float = unsafe {
+                let converted: u64 = ::std::mem::transmute(double as f32 as f64);
+                converted
+            };
+            state.operand_stack.push(converted_to_float);
+        }
+        InstructionType::d2i => {
+            let double = pop_as_double(state);
+            state.operand_stack.push(double as u32 as u64)
+        }
+        InstructionType::d2l => {
+            let double = pop_as_double(state);
+            state.operand_stack.push(double as u64)
+        }
+        InstructionType::dadd => {
+            let a = pop_as_double(state);
+            let b = pop_as_double(state);
+            let sum = a + b;
+            state.operand_stack.push(unsafe { ::std::mem::transmute(sum) })
+        }
+        InstructionType::daload => {
+            load!(f64,state);
+        }
+        InstructionType::dastore => {
+            store!(f64,state);
+        }
+        InstructionType::dcmpg => {
+            unimplemented!("This one is kinda annoying to implement for now")
+        }
+        InstructionType::dcmpl => {
+            unimplemented!("This one is also kinda annoying to implement for now")
+        }
+        InstructionType::dconst_0 => {
+            push_double(0.0, state)
+        }
+        InstructionType::dconst_1 => {
+            push_double(1.0, state)
+        }
+        InstructionType::ddiv => {
+            let bottom = pop_as_double(state);
+            let top = pop_as_double(state);
+            push_double(bottom / top, state)
+        }
+        InstructionType::dload => {
+            let var_index = code[1];
+            load_n_64(state,var_index as u64);
+            unimplemented!("Need to increase pc by 2")
+        }
+        InstructionType::dload_0 => {
+            load_n_64(state,0);
+        }
+        InstructionType::dload_1 => {
+            load_n_64(state,1);
+        }
+        InstructionType::dload_2 => {
+            load_n_64(state,2);
+        }
+        InstructionType::dload_3 => {
+            load_n_64(state,3);
+        }
+        InstructionType::dmul => {
+            let a = pop_as_double(state);
+            let b = pop_as_double(state);
+            push_double(a * b, state);
+        }
+        InstructionType::dneg => {
+            let a = pop_as_double(state);
+            push_double(-1.0 * a, state);
+        }
+        InstructionType::drem => {
+            let a = pop_as_double(state);
+            let b = pop_as_double(state);
+            push_double(a % b, state);//todo not sure if that is correct since rem is non-standard in java
+        }
+        InstructionType::dreturn => {
+            unimplemented!("need to figure out functions")
+        }
+        InstructionType::dstore => {
+            let var_index = code[1];
+            store_n_64(state,var_index as u64);
+            unimplemented!("Need to increase pc by 2")
+        }
+        InstructionType::dstore_0 => {
+            store_n_64(state,0);
+        }
+        InstructionType::dstore_1 => {
+            store_n_64(state,1);
+        }
+        InstructionType::dstore_2 => {
+            store_n_64(state,2);
+        }
+        InstructionType::dstore_3 => {
+            store_n_64(state,3);
+        }
+        InstructionType::dsub => {
+            let value2 = pop_as_double(state);
+            let value1 = pop_as_double(state);
+            push_double(value1 - value2, state);
+        }
+        InstructionType::dup => {
+            let to_dup = state.operand_stack.pop().expect(EXECUTION_ERROR);
+            state.operand_stack.push(to_dup);
+            state.operand_stack.push(to_dup);
+        }
+        InstructionType::dup_x1 => {
+            let value1 = state.operand_stack.pop().expect(EXECUTION_ERROR);
+            let value2 = state.operand_stack.pop().expect(EXECUTION_ERROR);
+            state.operand_stack.push(value1);
+            state.operand_stack.push(value2);
+            state.operand_stack.push(value1);
+        }
+        InstructionType::dup_x2 => {
+            unimplemented!("Need to get typeinfo in here, to determine which type of operation to do and/or refactor the operand stack")
+        }
+        InstructionType::dup2 => {
+            unimplemented!("Need to get typeinfo in here, to determine which type of operation to do and/or refactor the operand stack")
+        }
+        InstructionType::dup2_x1 => {
+            unimplemented!("Need to get typeinfo in here, to determine which type of operation to do and/or refactor the operand stack")
+        }
+        InstructionType::dup2_x2 => {
+            unimplemented!("Need to get typeinfo in here, to determine which type of operation to do and/or refactor the operand stack")
+        }
+        InstructionType::f2d => {
+            let float = pop_as_float(state);
+            push_double(float as f64,state);
+        }
+        InstructionType::f2i => {
+            let float = pop_as_float(state);
+            state.operand_stack.push(float as u32 as u64);
+        }
+        InstructionType::f2l => {
+            let float = pop_as_float(state);
+            state.operand_stack.push(float as u64);
+        }
         InstructionType::fadd => {}
         InstructionType::faload => {}
         InstructionType::fastore => {}
-        InstructionType::fcmpg => {}
-        InstructionType::fcmpl => {}
+        InstructionType::fcmpg => {
+            unimplemented!("This one is kinda annoying to implement for now")
+        }
+        InstructionType::fcmpl => {
+            unimplemented!("This one is kinda annoying to implement for now")
+        }
         InstructionType::fconst_0 => {}
         InstructionType::fconst_1 => {}
         InstructionType::fconst_2 => {}
@@ -499,6 +602,54 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     }
 }
 
+
+fn push_float(to_push: f32, state: &mut InterpreterState) {
+    state.operand_stack.push(unsafe { ::std::mem::transmute(to_push as u64) })
+}
+
+fn pop_as_float(state: &mut InterpreterState) -> f32 {
+    let value = state.operand_stack.pop().expect(EXECUTION_ERROR) as u32;
+    return unsafe {
+        ::std::mem::transmute(value)
+    }
+}
+
+
+fn push_double(to_push: f64, state: &mut InterpreterState) {
+    state.operand_stack.push(unsafe { ::std::mem::transmute(to_push) })
+}
+
+fn pop_as_double(state: &mut InterpreterState) -> f64 {
+    let value = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    return unsafe {
+        ::std::mem::transmute(value)
+    }
+}
+
+fn store_n_32(state: &mut InterpreterState, n: u64) {
+    let reference = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    state.local_vars[n as usize] = reference as u32;
+}
+
+
+fn store_n_64(state: &mut InterpreterState, n: u64) {
+    let reference = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    state.local_vars[n as usize] = reference as u32;
+    state.local_vars[(n + 1) as usize] = (reference >> 32) as u32;
+}
+
+fn load_n_32(state: &mut InterpreterState, n: u64) {
+    let reference = state.local_vars[n as usize];
+    state.operand_stack.push(reference as u64)
+}
+
+fn load_n_64(state: &mut InterpreterState, n: u64) {
+    let least_significant = state.local_vars[n as usize] as u64;
+    let most_significant = state.local_vars[(n + 1) as usize] as u64;
+    state.operand_stack.push((most_significant << 32) | least_significant)
+}
+
+
 fn do_arraylength(state: &mut InterpreterState) -> () {
     let array_ref = state.operand_stack.pop().expect(EXECUTION_ERROR);
     let length = unsafe {
@@ -506,16 +657,6 @@ fn do_arraylength(state: &mut InterpreterState) -> () {
         *(array.offset(-1 as isize)) as u64
     };
     state.operand_stack.push(length)
-}
-
-fn astore_n(state: &mut InterpreterState, n: u64) {
-    let reference = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    state.local_vars[n as usize] = reference;
-}
-
-fn aload_n(state: &mut InterpreterState, n: u64) {
-    let reference = state.local_vars[n as usize];
-    state.operand_stack.push(reference)
 }
 
 fn do_aastore(state: &mut InterpreterState) -> () {
