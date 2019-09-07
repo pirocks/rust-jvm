@@ -50,12 +50,9 @@ pub struct ConstantValue{
 pub struct Code{
     //todo
     pub attributes: Vec<AttributeInfo>,
-    pub attributes_count: u16,
     pub max_stack: u16,
     pub max_locals: u16,
-    pub code_length: u32,
     pub code: Vec<u8>,
-    pub exception_table_length: u16,
     pub exception_table: Vec<ExceptionTableElem>
 }
 
@@ -126,14 +123,12 @@ pub struct RuntimeInvisibleAnnotations{
 #[derive(Debug)]
 pub struct LineNumberTable{
     //todo
-    pub line_number_table_length: u16,
     pub line_number_table: Vec<LineNumberTableEntry>
 }
 
 #[derive(Debug)]
 pub struct LocalVariableTable{
     //todo
-    pub local_variable_table_length: u16,
     pub local_variable_table: Vec<LocalVariableTableEntry>
 }
 
@@ -243,7 +238,6 @@ fn parse_local_variable_table(p: &mut ParsingContext, attribute_name_index: u16,
         attribute_length,
         attribute_type: AttributeType::LocalVariableTable(
             LocalVariableTable {
-                local_variable_table_length,
                 local_variable_table,
             }
         ),
@@ -276,7 +270,6 @@ fn parse_line_number_table(p: &mut ParsingContext, attribute_name_index: u16, at
         attribute_length,
         attribute_type: AttributeType::LineNumberTable(
             LineNumberTable {
-                line_number_table_length,
                 line_number_table,
             }
         ),
@@ -321,11 +314,8 @@ fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_lengt
         attribute_type: AttributeType::Code(Code {
             max_stack,
             max_locals,
-            code_length,
             code,
-            exception_table_length,
             exception_table,
-            attributes_count,
             attributes,
         }),
     }

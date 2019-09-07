@@ -250,7 +250,7 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
                 buffer.push(read8(p))
             }
             buffer.push('\0' as u8);
-            ConstantKind::Utf8( Utf8 { length : length, bytes:buffer } )
+            ConstantKind::Utf8( Utf8 { length, bytes : buffer } )
         },
         INTEGER_CONST_NUM => { unimplemented!() },
         FLOAT_CONST_NUM => { unimplemented!() },
@@ -295,7 +295,7 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
             unimplemented!();
         }
     };
-    return ConstantInfo {kind: result_kind };
+    return ConstantInfo { kind: result_kind };
 }
 
 

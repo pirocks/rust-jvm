@@ -19,8 +19,7 @@ pub struct FieldInfo {
     pub access_flags: u16,
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub attributes_count: u16,
-    pub attributes: Vec<AttributeInfo>,//[attributes_count];
+    pub attributes: Vec<AttributeInfo>
 }
 
 #[derive(Debug)]
@@ -28,9 +27,7 @@ pub struct MethodInfo {
     pub access_flags: u16,
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub attributes_count: u16,
-    pub attributes: Vec<AttributeInfo>,// [attributes_count];
-//    struct Code_attribute * code_attribute;
+    pub attributes: Vec<AttributeInfo>
 }
 
 
@@ -66,20 +63,13 @@ pub struct Classfile {
     pub magic: u32,
     pub minor_version: u16,
     pub major_version: u16,
-    pub constant_pool_count: u16,
     pub constant_pool: Vec<ConstantInfo>,
-    //    pub access_flags: ClassAccessFlags,
     pub access_flags: u16,
     pub this_class: u16,
     pub super_class: u16,
-    pub interfaces_count: u16,
     pub interfaces: Vec<u16>,
-    //todo use vec with capacity
-    pub fields_count: u16,
     pub fields: Vec<FieldInfo>,
-    pub methods_count: u16,
     pub methods: Vec<MethodInfo>,
-    pub attributes_count: u16,
     pub attributes: Vec<AttributeInfo>,
 }
 
@@ -135,7 +125,7 @@ pub fn parse_field(p: &mut ParsingContext) -> FieldInfo {
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
     let attributes = parse_attributes(p, attributes_count);
-    return FieldInfo { access_flags, name_index, descriptor_index, attributes_count, attributes }
+    return FieldInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
 pub fn parse_field_infos(p: &mut ParsingContext, fields_count: u16) -> Vec<FieldInfo> {
@@ -152,7 +142,7 @@ pub fn parse_method(p: &mut ParsingContext) -> MethodInfo{
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
     let attributes = parse_attributes(p,attributes_count);
-    return MethodInfo { access_flags, name_index, descriptor_index, attributes_count, attributes }
+    return MethodInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
 pub fn parse_methods(p: &mut ParsingContext, methods_count: u16) -> Vec<MethodInfo> {
@@ -186,18 +176,13 @@ pub fn parse_class_file(p: &mut ParsingContext) -> Classfile {
         magic,
         minor_version,
         major_version,
-        constant_pool_count,
         constant_pool: Vec::new(),//todo for when understand borrow checker
         access_flags,
         this_class,
         super_class,
-        interfaces_count,
         interfaces,
-        fields_count,
         fields,
-        methods_count,
         methods,
-        attributes_count,
         attributes,
     };
 }
