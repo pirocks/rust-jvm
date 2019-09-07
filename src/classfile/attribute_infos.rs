@@ -193,22 +193,19 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
     let attribute_name_index = read16(p);
     let attribute_length = read32(p);
 //    uint64_t cur = ;
-    let name = constant_pool[attribute_name_index as usize].borrow();
-    dbg!(&name.kind);
-    assert!(is_utf8(&name.kind).is_some());
-    let name_struct = is_utf8(&name.kind).expect("Classfile may be corrupted, invalid constant encountered.");
-    let name_bytes = &name_struct.bytes;
-    let without_null_terminator = &name_bytes[0..(name_struct.length as usize)];
-    if without_null_terminator == "Code".as_bytes() {
+    let name_pool = constant_pool[attribute_name_index as usize].borrow();
+    assert!(is_utf8(&name_pool.kind).is_some());
+    let name_struct = is_utf8(&name_pool.kind).expect("Classfile may be corrupted, invalid constant encountered.");
+    let name = &name_struct.string;
+    if name == "Code" {
         return parse_code(p, attribute_name_index, attribute_length,constant_pool)
-    } else if without_null_terminator == "LineNumberTable".as_bytes() {
+    } else if name == "LineNumberTable" {
         return parse_line_number_table(p, attribute_name_index, attribute_length)
-    } else if without_null_terminator == "LocalVariableTable".as_bytes() {
+    } else if name == "LocalVariableTable" {
         return parse_local_variable_table(p, attribute_name_index, attribute_length)
-    } else if without_null_terminator == "SourceFile".as_bytes() {
-        parse_sourcefile(p, attribute_name_index, attribute_length)
+    } else if name == "SourceFile" {
+        return parse_sourcefile(p, attribute_name_index, attribute_length)
     } else {
-        dbg!(without_null_terminator);
         unimplemented!()
     }
 }

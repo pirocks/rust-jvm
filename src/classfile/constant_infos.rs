@@ -4,7 +4,7 @@ use std::any::Any;
 #[derive(Debug)]
 pub struct Utf8 {
     pub length : u16,
-    pub bytes: Vec<u8>,
+    pub string: String,
 }
 
 #[derive(Debug)]
@@ -34,7 +34,7 @@ pub struct Class{
 }
 
 #[derive(Debug)]
-pub struct String{
+pub struct String_{
     //unimplemented!()
     pub string_index: u16
 }
@@ -105,7 +105,7 @@ pub enum ConstantKind {
     Long(Long),
     Double(Double),
     Class(Class),
-    String(String),
+    String(String_),
     Fieldref(Fieldref),
     Methodref(Methodref),
     InterfaceMethodref(InterfaceMethodref),
@@ -247,8 +247,8 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
             for _ in 0..length{
                 buffer.push(read8(p))
             }
-            buffer.push('\0' as u8);
-            ConstantKind::Utf8( Utf8 { length, bytes : buffer } )
+            let str_ = String::from_utf8(buffer).expect("Invalid utf8 in constant pool");
+            ConstantKind::Utf8( Utf8 { length, string: str_ } )
         },
         INTEGER_CONST_NUM => { unimplemented!() },
         FLOAT_CONST_NUM => { unimplemented!() },
@@ -260,7 +260,7 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
         },
         STRING_CONST_NUM => {
             let string_index = read16(p);
-            ConstantKind::String( String { string_index } )
+            ConstantKind::String( String_ { string_index } )
         },
         FIELDREF_CONST_NUM => {
             let class_index = read16(p);

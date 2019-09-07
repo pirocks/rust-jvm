@@ -11,3 +11,4 @@ path = "src/lib.rs"
 #edition = "2018"
 [dependencies]
 argparse = "0.2.2"
+num = "0.2.0"
