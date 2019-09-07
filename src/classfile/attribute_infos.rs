@@ -1,134 +1,341 @@
-use classfile::AttributeInfo;
-use classfile::parsing_util::ParsingContext;
+use std::any::Any;
+use std::borrow::Borrow;
 
+use classfile::AttributeInfo;
+use classfile::constant_infos::{ConstantKind, is_utf8};
+use classfile::parsing_util::{ParsingContext, read16, read32, read8};
+
+#[derive(Debug)]
 pub struct SourceFile{
     //todo
+    pub sourcefile_index: u16
 }
 
+#[derive(Debug)]
 pub struct InnerClasses{
     //todo
 }
 
+#[derive(Debug)]
 pub struct EnclosingMethod{
     //todo
 }
 
+#[derive(Debug)]
 pub struct SourceDebugExtension{
     //todo
 }
 
+#[derive(Debug)]
 pub struct BootstrapMethods{
     //todo
 }
 
+#[derive(Debug)]
 pub struct Module{
     //todo
 }
 
+#[derive(Debug)]
 pub struct NestHost{
     //todo
 }
 
+#[derive(Debug)]
 pub struct ConstantValue{
     //todo
 }
 
+#[derive(Debug)]
 pub struct Code{
     //todo
+    pub attributes: Vec<AttributeInfo>,
+    pub attributes_count: u16,
+    pub max_stack: u16,
+    pub max_locals: u16,
+    pub code_length: u32,
+    pub code: Vec<u8>,
+    pub exception_table_length: u16,
+    pub exception_table: Vec<ExceptionTableElem>
 }
 
+#[derive(Debug)]
+pub struct ExceptionTableElem {
+    pub start_pc: u16,
+    pub end_pc: u16,
+    pub handler_pc: u16,
+    pub catch_type: u16,
+}
+
+#[derive(Debug)]
+pub struct LineNumberTableEntry {
+    pub start_pc: u16,
+    pub line_number: u16,
+}
+
+#[derive(Debug)]
 pub struct Exceptions{
     //todo
 }
 
+#[derive(Debug)]
 pub struct RuntimeVisibleParameterAnnotations{
     //todo
 }
 
+#[derive(Debug)]
 pub struct RuntimeInvisibleParameterAnnotations{
     //todo
 }
 
+#[derive(Debug)]
 pub struct AnnotationDefault{
     //todo
 }
 
+#[derive(Debug)]
 pub struct MethodParameters{
     //todo
 }
 
+#[derive(Debug)]
 pub struct Synthetic{
     //todo
 }
 
+#[derive(Debug)]
 pub struct Deprecated{
     //todo
 }
 
+#[derive(Debug)]
 pub struct Signature{
     //todo
 }
 
+#[derive(Debug)]
 pub struct RuntimeVisibleAnnotations{
     //todo
 }
 
+#[derive(Debug)]
 pub struct RuntimeInvisibleAnnotations{
     //todo
 }
 
+#[derive(Debug)]
 pub struct LineNumberTable{
     //todo
+    pub line_number_table_length: u16,
+    pub line_number_table: Vec<LineNumberTableEntry>
 }
 
+#[derive(Debug)]
 pub struct LocalVariableTable{
     //todo
+    pub local_variable_table_length: u16,
+    pub local_variable_table: Vec<LocalVariableTableEntry>
 }
 
+#[derive(Debug)]
+pub struct LocalVariableTableEntry {
+    pub start_pc: u16,
+    pub length: u16,
+    pub name_index: u16,
+    pub descriptor_index: u16,
+    pub index: u16
+}
+
+#[derive(Debug)]
 pub struct LocalVariableTypeTable{
     //todo
 }
 
+#[derive(Debug)]
 pub struct StackMapTable{
     //todo
 }
 
+#[derive(Debug)]
 pub struct RuntimeVisibleTypeAnnotations{
     //todo
 }
 
+#[derive(Debug)]
 pub struct RuntimeInvisibleTypeAnnotations{
     //todo
 }
 
+#[derive(Debug)]
 pub enum AttributeType{
-    SourceFile,
-    InnerClasses,
-    EnclosingMethod,
-    SourceDebugExtension,
-    BootstrapMethods,
-    Module,
-    NestHost,
-    ConstantValue,
-    Code,
-    Exceptions,
-    RuntimeVisibleParameterAnnotations,
-    RuntimeInvisibleParameterAnnotations,
-    AnnotationDefault,
-    MethodParameters,
-    Synthetic,
-    Deprecated,
-    Signature,
-    RuntimeVisibleAnnotations,
-    RuntimeInvisibleAnnotations,
-    LineNumberTable,
-    LocalVariableTable,
-    LocalVariableTypeTable,
-    StackMapTable,
-    RuntimeVisibleTypeAnnotations,
-    RuntimeInvisibleTypeAnnotations
+    SourceFile(SourceFile),
+    InnerClasses(InnerClasses),
+    EnclosingMethod(EnclosingMethod),
+    SourceDebugExtension(SourceDebugExtension),
+    BootstrapMethods(BootstrapMethods),
+    Module(Module),
+    NestHost(NestHost),
+    ConstantValue(ConstantValue),
+    Code(Code),
+    Exceptions(Exceptions),
+    RuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations),
+    RuntimeInvisibleParameterAnnotations(RuntimeInvisibleParameterAnnotations),
+    AnnotationDefault(AnnotationDefault),
+    MethodParameters(MethodParameters),
+    Synthetic(Synthetic),
+    Deprecated(Deprecated),
+    Signature(Signature),
+    RuntimeVisibleAnnotations(RuntimeVisibleAnnotations),
+    RuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations),
+    LineNumberTable(LineNumberTable),
+    LocalVariableTable(LocalVariableTable),
+    LocalVariableTypeTable(LocalVariableTypeTable),
+    StackMapTable(StackMapTable),
+    RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations),
+    RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
 }
 
-pub fn parse_attributes(p :& mut ParsingContext, num_attributes: u16 ) -> Vec<AttributeInfo>{
-    return todo!()
+pub fn parse_attribute(p: &mut ParsingContext) -> AttributeInfo {
+    let attribute_name_index = read16(p);
+    let attribute_length = read32(p);
+//    uint64_t cur = ;
+    let name = p.constants[attribute_name_index as usize].borrow();
+    dbg!(&name.kind);
+    assert!(is_utf8(&name.kind).is_some());
+    let name_struct = is_utf8(&name.kind).expect("Classfile may be corrupted, invalid constant encountered.");
+    let name_bytes = &name_struct.bytes;
+    let without_null_terminator = &name_bytes[0..(name_struct.length as usize)];
+    if without_null_terminator == "Code".as_bytes() {
+        return parse_code(p, attribute_name_index, attribute_length)
+    } else if without_null_terminator == "LineNumberTable".as_bytes() {
+        return parse_line_number_table(p, attribute_name_index, attribute_length)
+    } else if without_null_terminator == "LocalVariableTable".as_bytes() {
+        return parse_local_variable_table(p, attribute_name_index, attribute_length)
+    } else if without_null_terminator == "SourceFile".as_bytes() {
+        parse_sourcefile(p, attribute_name_index, attribute_length)
+    } else {
+        dbg!(without_null_terminator);
+        unimplemented!()
+    }
+}
+
+fn parse_sourcefile(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+    let sourcefile_index = read16(p);
+    return AttributeInfo {
+        attribute_name_index,
+        attribute_length,
+        attribute_type: AttributeType::SourceFile(
+            SourceFile {
+                sourcefile_index
+            }
+        ),
+    }
+}
+
+fn parse_local_variable_table(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+    let local_variable_table_length = read16(p);
+    let mut local_variable_table = Vec::with_capacity(local_variable_table_length as usize);
+    for _ in 0..local_variable_table_length {
+        local_variable_table.push(read_local_variable_table_entry(p));
+    }
+    return AttributeInfo {
+        attribute_name_index,
+        attribute_length,
+        attribute_type: AttributeType::LocalVariableTable(
+            LocalVariableTable {
+                local_variable_table_length,
+                local_variable_table,
+            }
+        ),
+    }
+}
+
+fn read_local_variable_table_entry(p: &mut ParsingContext) -> LocalVariableTableEntry {
+    let start_pc = read16(p);
+    let length = read16(p);
+    let name_index = read16(p);
+    let descriptor_index = read16(p);
+    let index = read16(p);
+    return LocalVariableTableEntry {
+        start_pc,
+        length,
+        name_index,
+        descriptor_index,
+        index,
+    };
+}
+
+fn parse_line_number_table(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+    let line_number_table_length = read16(p);
+    let mut line_number_table = Vec::with_capacity(line_number_table_length as usize);
+    for _ in 0..line_number_table_length {
+        line_number_table.push(parse_line_number_table_entry(p));
+    }
+    return AttributeInfo {
+        attribute_name_index,
+        attribute_length,
+        attribute_type: AttributeType::LineNumberTable(
+            LineNumberTable {
+                line_number_table_length,
+                line_number_table,
+            }
+        ),
+    }
+}
+
+fn parse_line_number_table_entry(p: &mut ParsingContext) -> LineNumberTableEntry {
+    let start_pc = read16(p);
+    let line_number = read16(p);
+    return LineNumberTableEntry {
+        start_pc,
+        line_number,
+    };
+}
+
+fn parse_exception_table_entry(p: &mut ParsingContext) -> ExceptionTableElem {
+    let start_pc = read16(p);
+    let end_pc = read16(p);
+    let handler_pc = read16(p);
+    let catch_type = read16(p);
+    return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type }
+}
+
+fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+    let max_stack = read16(p);
+    let max_locals = read16(p);
+    let code_length = read32(p);
+    let mut code = Vec::with_capacity(code_length as usize);
+    for _ in 0..code_length {
+        code.push(read8(p));
+    }
+    let exception_table_length = read16(p);
+    let mut exception_table = Vec::with_capacity(exception_table_length as usize);
+    for _ in 0..exception_table_length {
+        exception_table.push(parse_exception_table_entry(p));
+    }
+    let attributes_count = read16(p);
+    let mut attributes = parse_attributes(p, attributes_count);
+    return AttributeInfo {
+        attribute_name_index,
+        attribute_length,
+        attribute_type: AttributeType::Code(Code {
+            max_stack,
+            max_locals,
+            code_length,
+            code,
+            exception_table_length,
+            exception_table,
+            attributes_count,
+            attributes,
+        }),
+    }
+}
+
+
+pub fn parse_attributes(p: &mut ParsingContext, num_attributes: u16) -> Vec<AttributeInfo> {
+    let mut res = Vec::with_capacity(num_attributes as usize);
+    for _ in 0..num_attributes {
+        res.push(parse_attribute(p));
+    }
+    return res;
 }

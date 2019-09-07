@@ -2,16 +2,19 @@ use classfile::attribute_infos::parse_attributes;
 use classfile::constant_infos::{ConstantInfo, parse_constant_infos};
 use classfile::parsing_util::{read16, read32};
 use classfile::parsing_util::ParsingContext;
+use std::borrow::{Borrow, BorrowMut};
 
 mod constant_infos;
 mod attribute_infos;
 
+#[derive(Debug)]
 pub struct AttributeInfo {
     pub attribute_name_index: u16,
     pub attribute_length: u32,
     pub attribute_type: attribute_infos::AttributeType,
 }
 
+#[derive(Debug)]
 pub struct FieldInfo {
     pub access_flags: u16,
     pub name_index: u16,
@@ -20,6 +23,7 @@ pub struct FieldInfo {
     pub attributes: Vec<AttributeInfo>,//[attributes_count];
 }
 
+#[derive(Debug)]
 pub struct MethodInfo {
     pub access_flags: u16,
     pub name_index: u16,
@@ -57,6 +61,7 @@ const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 //    }
 //}
 
+#[derive(Debug)]
 pub struct Classfile {
     pub magic: u32,
     pub minor_version: u16,
@@ -79,12 +84,14 @@ pub struct Classfile {
 }
 
 
-mod parsing_util {
+pub mod parsing_util {
     use std::fs::File;
     use std::io::prelude::*;
+    use classfile::constant_infos::ConstantInfo;
 
     pub struct ParsingContext {
-        pub f: File
+        pub f: File,
+        pub constants : Vec<ConstantInfo>
     }
 
     const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";
@@ -100,7 +107,7 @@ mod parsing_util {
         let mut buffer = [0; 2];
         let bytes_read = p.f.read(&mut buffer).expect(IO_ERROR_MSG);
         assert!(bytes_read == 2);
-        return u16::from_be(((buffer[0] as u16) << 8) | buffer[1] as u16);
+        return u16::from_be(((buffer[1] as u16) << 8) | buffer[0] as u16);
     }
 
     pub fn read32(p: &mut ParsingContext) -> u32 {
@@ -122,20 +129,48 @@ pub fn parse_interfaces(p: &mut ParsingContext, interfaces_count: u16) -> Vec<u1
     return res;
 }
 
+pub fn parse_field(p: &mut ParsingContext) -> FieldInfo {
+    let access_flags = read16(p);
+    let name_index = read16(p);
+    let descriptor_index = read16(p);
+    let attributes_count = read16(p);
+    let attributes = parse_attributes(p, attributes_count);
+    return FieldInfo { access_flags, name_index, descriptor_index, attributes_count, attributes }
+}
+
 pub fn parse_field_infos(p: &mut ParsingContext, fields_count: u16) -> Vec<FieldInfo> {
-    return todo!();
+    let mut res = Vec::with_capacity(fields_count as usize);
+    for _ in 0..fields_count {
+        res.push(parse_field(p))
+    }
+    return res;
+}
+
+pub fn parse_method(p: &mut ParsingContext) -> MethodInfo{
+    let access_flags = read16(p);
+    let name_index = read16(p);
+    let descriptor_index = read16(p);
+    let attributes_count = read16(p);
+    let attributes = parse_attributes(p,attributes_count);
+    return MethodInfo { access_flags, name_index, descriptor_index, attributes_count, attributes }
 }
 
 pub fn parse_methods(p: &mut ParsingContext, methods_count: u16) -> Vec<MethodInfo> {
-    return todo!();
+    let mut res = Vec::with_capacity(methods_count as usize);
+    for _ in 0..methods_count {
+        res.push(parse_method(p))
+    }
+    return res;
 }
 
 pub fn parse_class_file(p: &mut ParsingContext) -> Classfile {
     let magic: u32 = read32(p);
+    assert!(magic == EXPECTED_CLASSFILE_MAGIC);
     let minor_version: u16 = read16(p);
     let major_version: u16 = read16(p);
     let constant_pool_count: u16 = read16(p);
-    let constant_pool: Vec<ConstantInfo> = parse_constant_infos(p, constant_pool_count);
+    dbg!(minor_version,major_version,constant_pool_count);
+    parse_constant_infos(p, constant_pool_count);
     let access_flags: u16 = read16(p);
     let this_class: u16 = read16(p);
     let super_class: u16 = read16(p);
@@ -152,7 +187,7 @@ pub fn parse_class_file(p: &mut ParsingContext) -> Classfile {
         minor_version,
         major_version,
         constant_pool_count,
-        constant_pool,
+        constant_pool: Vec::new(),//todo for when understand borrow checker
         access_flags,
         this_class,
         super_class,

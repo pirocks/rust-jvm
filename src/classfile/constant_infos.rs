@@ -1,78 +1,105 @@
-use classfile::parsing_util::{ParsingContext, read8};
+use classfile::parsing_util::{ParsingContext, read8, read16};
 use std::any::Any;
+use std::io::Read;
+use classfile::attribute_infos::AttributeType::ConstantValue;
 
+#[derive(Debug)]
 pub struct Utf8 {
-    pub utf8_string: String,
+    pub length : u16,
     pub bytes: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub struct Integer{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct Float{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct Long{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct Double{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct Class{
-    //todo
+    //unimplemented!()
+    pub name_index: u16
 }
 
+#[derive(Debug)]
 pub struct String{
-    //todo
+    //unimplemented!()
+    pub string_index: u16
 }
 
+#[derive(Debug)]
 pub struct Fieldref{
-    //todo
+    //unimplemented!()
+    pub class_index: u16,
+    pub name_and_type_index: u16
 }
 
+#[derive(Debug)]
 pub struct Methodref{
-    //todo
+    pub class_index: u16,
+    pub name_and_type_index: u16
 }
 
+#[derive(Debug)]
 pub struct InterfaceMethodref{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct NameAndType{
-    //todo
+    //unimplemented!()
+    pub name_index: u16,
+    pub descriptor_index: u16
 }
 
+#[derive(Debug)]
 pub struct MethodHandle{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct MethodType{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct Dynamic{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct InvokeDynamic{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct Module{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct Package{
-    //todo
+    //unimplemented!()
 }
 
+#[derive(Debug)]
 pub struct InvalidConstant {}
 
-
+#[derive(Debug)]
 pub enum ConstantKind {
     Utf8(Utf8),
     Integer(Integer),
@@ -94,6 +121,14 @@ pub enum ConstantKind {
     InvalidConstant(InvalidConstant),
 }
 
+pub fn is_utf8(utf8 : &ConstantKind) -> Option<&Utf8>{
+    return match utf8 {
+        ConstantKind::Utf8(s) => { Some(s) },
+        _ => { None }
+    }
+}
+
+#[derive(Debug)]
 pub struct ConstantInfo {
     pub kind: ConstantKind,
 }
@@ -150,7 +185,6 @@ struct cp_info readCPInfo(FILE *file) {
             break;
         case CONSTANT_Utf8:
             result.constantUtf8Info.length = read16(file);
-            //todo free
             result.constantUtf8Info.bytes = malloc(result.constantUtf8Info.length * sizeof(uint8_t)
                                                    + sizeof(char));//+1 byte for null termiator
             memset(result.constantUtf8Info.bytes,
@@ -208,43 +242,71 @@ const INVALID_CONSTANT_CONST_NUM: u8 = 21;
 
 pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
     let kind = read8(p);
-    match kind {
-        UTF8_CONST_NUM => { todo!() },
-        INTEGER_CONST_NUM => { todo!() },
-        FLOAT_CONST_NUM => { todo!() },
-        LONG_CONST_NUM => { todo!() },
-        DOUBLE_CONST_NUM => { todo!() },
-        CLASS_CONST_NUM => { todo!() },
-        STRING_CONST_NUM => { todo!() },
-        FIELDREF_CONST_NUM => { todo!() },
-        METHODREF_CONST_NUM => { todo!() },
-        INTERFACE_METHODREF_CONST_NUM => { todo!() },
-        NAME_AND_TYPE_CONST_NUM => { todo!() },
-        METHOD_HANDLE_CONST_NUM => { todo!() },
-        METHOD_TYPE_CONST_NUM => { todo!() },
-        DYNAMIC_CONST_NUM => { todo!() },
-        INVOKE_DYNAMIC_CONST_NUM => { todo!() },
-        MODULE_CONST_NUM => { todo!() },
-        PACKAGE_CONST_NUM => { todo!() },
+    let result_kind = match kind {
+        UTF8_CONST_NUM => {
+            let length = read16(p);
+            let mut buffer = Vec::new();
+            for _ in 0..length{
+                buffer.push(read8(p))
+            }
+            buffer.push('\0' as u8);
+            ConstantKind::Utf8( Utf8 { length : length, bytes:buffer } )
+        },
+        INTEGER_CONST_NUM => { unimplemented!() },
+        FLOAT_CONST_NUM => { unimplemented!() },
+        LONG_CONST_NUM => { unimplemented!() },
+        DOUBLE_CONST_NUM => { unimplemented!() },
+        CLASS_CONST_NUM => {
+            let name_index = read16(p);
+            ConstantKind::Class( Class { name_index } )
+        },
+        STRING_CONST_NUM => {
+            let string_index = read16(p);
+            ConstantKind::String( String { string_index } )
+        },
+        FIELDREF_CONST_NUM => {
+            let class_index = read16(p);
+            let name_and_type_index = read16(p);
+            ConstantKind::Fieldref( Fieldref {class_index,name_and_type_index})
+        },
+        METHODREF_CONST_NUM => {
+            let class_index = read16(p);
+            let name_and_type_index = read16(p);
+            ConstantKind::Methodref( Methodref {class_index,name_and_type_index})
+        },
+        INTERFACE_METHODREF_CONST_NUM => { unimplemented!() },
+        NAME_AND_TYPE_CONST_NUM => {
+            let name_index = read16(p);
+            let descriptor_index = read16(p);
+            ConstantKind::NameAndType( NameAndType { name_index,descriptor_index } )
+        },
+        METHOD_HANDLE_CONST_NUM => { unimplemented!() },
+        METHOD_TYPE_CONST_NUM => { unimplemented!() },
+        DYNAMIC_CONST_NUM => { unimplemented!() },
+        INVOKE_DYNAMIC_CONST_NUM => { unimplemented!() },
+        MODULE_CONST_NUM => { unimplemented!() },
+        PACKAGE_CONST_NUM => { unimplemented!() },
         INVALID_CONSTANT_CONST_NUM => {
             assert!(false);
+            unimplemented!();
         },
         _ => {
             assert!(false);
+            unimplemented!();
         }
-    }
-    todo!()
+    };
+    return ConstantInfo {kind: result_kind };
 }
 
 
-pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) -> Vec<ConstantInfo> {
-    let mut res = Vec::with_capacity(constant_pool_count as usize);
+pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) {
+    p.constants = Vec::with_capacity(constant_pool_count as usize);
     let invalid_constant = ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) };
     let mut skip_next_iter = true;
     //skip first loop iteration b/c the first element of the constant pool isn't a thing
     for _ in 0..constant_pool_count {
         if skip_next_iter {
-            res.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
+            p.constants.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
             skip_next_iter = false;
             continue
         }
@@ -252,7 +314,6 @@ pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) ->
         if (constant_info).kind.type_id() == ConstantKind::Double.type_id() || (constant_info).kind.type_id() == ConstantKind::Long.type_id() {
             skip_next_iter = true;
         }
-        res.push(constant_info);
+        p.constants.push(constant_info);
     }
-    return res;
 }
