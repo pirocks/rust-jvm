@@ -2,7 +2,6 @@ use classfile::attribute_infos::parse_attributes;
 use classfile::constant_infos::{ConstantInfo, parse_constant_infos};
 use classfile::parsing_util::{read16, read32};
 use classfile::parsing_util::ParsingContext;
-use std::borrow::{Borrow, BorrowMut};
 
 mod constant_infos;
 mod attribute_infos;
@@ -77,11 +76,9 @@ pub struct Classfile {
 pub mod parsing_util {
     use std::fs::File;
     use std::io::prelude::*;
-    use classfile::constant_infos::ConstantInfo;
 
     pub struct ParsingContext {
-        pub f: File,
-        pub constants : Vec<ConstantInfo>
+        pub f: File
     }
 
     const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";
@@ -119,36 +116,36 @@ pub fn parse_interfaces(p: &mut ParsingContext, interfaces_count: u16) -> Vec<u1
     return res;
 }
 
-pub fn parse_field(p: &mut ParsingContext) -> FieldInfo {
+pub fn parse_field(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> FieldInfo {
     let access_flags = read16(p);
     let name_index = read16(p);
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count);
+    let attributes = parse_attributes(p, attributes_count,constant_pool);
     return FieldInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
-pub fn parse_field_infos(p: &mut ParsingContext, fields_count: u16) -> Vec<FieldInfo> {
+pub fn parse_field_infos(p: &mut ParsingContext, fields_count: u16, constant_pool: &Vec<ConstantInfo>) -> Vec<FieldInfo> {
     let mut res = Vec::with_capacity(fields_count as usize);
     for _ in 0..fields_count {
-        res.push(parse_field(p))
+        res.push(parse_field(p,constant_pool))
     }
     return res;
 }
 
-pub fn parse_method(p: &mut ParsingContext) -> MethodInfo{
+pub fn parse_method(p: &mut ParsingContext,  constant_pool: &Vec<ConstantInfo>) -> MethodInfo{
     let access_flags = read16(p);
     let name_index = read16(p);
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p,attributes_count);
+    let attributes = parse_attributes(p,attributes_count, constant_pool);
     return MethodInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
-pub fn parse_methods(p: &mut ParsingContext, methods_count: u16) -> Vec<MethodInfo> {
+pub fn parse_methods(p: &mut ParsingContext, methods_count: u16,  constant_pool: &Vec<ConstantInfo>) -> Vec<MethodInfo> {
     let mut res = Vec::with_capacity(methods_count as usize);
     for _ in 0..methods_count {
-        res.push(parse_method(p))
+        res.push(parse_method(p,constant_pool))
     }
     return res;
 }
@@ -160,23 +157,23 @@ pub fn parse_class_file(p: &mut ParsingContext) -> Classfile {
     let major_version: u16 = read16(p);
     let constant_pool_count: u16 = read16(p);
     dbg!(minor_version,major_version,constant_pool_count);
-    parse_constant_infos(p, constant_pool_count);
+    let constant_pool = parse_constant_infos(p, constant_pool_count);
     let access_flags: u16 = read16(p);
     let this_class: u16 = read16(p);
     let super_class: u16 = read16(p);
     let interfaces_count: u16 = read16(p);
     let interfaces: Vec<u16> = parse_interfaces(p, interfaces_count);
     let fields_count: u16 = read16(p);
-    let fields: Vec<FieldInfo> = parse_field_infos(p, fields_count);
+    let fields: Vec<FieldInfo> = parse_field_infos(p, fields_count,&constant_pool);
     let methods_count: u16 = read16(p);
-    let methods: Vec<MethodInfo> = parse_methods(p, methods_count);
+    let methods: Vec<MethodInfo> = parse_methods(p, methods_count,&constant_pool);
     let attributes_count: u16 = read16(p);
-    let attributes: Vec<AttributeInfo> = parse_attributes(p, attributes_count);
+    let attributes: Vec<AttributeInfo> = parse_attributes(p, attributes_count,&constant_pool);
     return Classfile {
         magic,
         minor_version,
         major_version,
-        constant_pool: Vec::new(),//todo for when understand borrow checker
+        constant_pool,
         access_flags,
         this_class,
         super_class,

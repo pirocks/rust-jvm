@@ -1,7 +1,5 @@
 use classfile::parsing_util::{ParsingContext, read8, read16};
 use std::any::Any;
-use std::io::Read;
-use classfile::attribute_infos::AttributeType::ConstantValue;
 
 #[derive(Debug)]
 pub struct Utf8 {
@@ -299,14 +297,14 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
 }
 
 
-pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) {
-    p.constants = Vec::with_capacity(constant_pool_count as usize);
+pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) -> Vec<ConstantInfo> {
+    let mut constants = Vec::with_capacity(constant_pool_count as usize);
     let invalid_constant = ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) };
     let mut skip_next_iter = true;
     //skip first loop iteration b/c the first element of the constant pool isn't a thing
     for _ in 0..constant_pool_count {
         if skip_next_iter {
-            p.constants.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
+            constants.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
             skip_next_iter = false;
             continue
         }
@@ -314,6 +312,7 @@ pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) {
         if (constant_info).kind.type_id() == ConstantKind::Double.type_id() || (constant_info).kind.type_id() == ConstantKind::Long.type_id() {
             skip_next_iter = true;
         }
-        p.constants.push(constant_info);
+        constants.push(constant_info);
     }
+    return constants;
 }

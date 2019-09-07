@@ -10,7 +10,7 @@ pub fn basic_class_file_parse() {
     let mut test_resources_path = get_test_resources();
     test_resources_path.push("Main.class");
 
-    let mut p = ParsingContext { f : File::open(test_resources_path.as_os_str()).unwrap(), constants: Vec::new() };
+    let mut p = ParsingContext { f : File::open(test_resources_path.as_os_str()).unwrap() };
     let parsed = parse_class_file(&mut p);
     dbg!(parsed);
     //todo asserts

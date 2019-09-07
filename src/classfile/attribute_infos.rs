@@ -1,8 +1,7 @@
-use std::any::Any;
 use std::borrow::Borrow;
 
 use classfile::AttributeInfo;
-use classfile::constant_infos::{ConstantKind, is_utf8};
+use classfile::constant_infos::{ConstantInfo, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
 
 #[derive(Debug)]
@@ -190,18 +189,18 @@ pub enum AttributeType{
     RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
 }
 
-pub fn parse_attribute(p: &mut ParsingContext) -> AttributeInfo {
+pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> AttributeInfo {
     let attribute_name_index = read16(p);
     let attribute_length = read32(p);
 //    uint64_t cur = ;
-    let name = p.constants[attribute_name_index as usize].borrow();
+    let name = constant_pool[attribute_name_index as usize].borrow();
     dbg!(&name.kind);
     assert!(is_utf8(&name.kind).is_some());
     let name_struct = is_utf8(&name.kind).expect("Classfile may be corrupted, invalid constant encountered.");
     let name_bytes = &name_struct.bytes;
     let without_null_terminator = &name_bytes[0..(name_struct.length as usize)];
     if without_null_terminator == "Code".as_bytes() {
-        return parse_code(p, attribute_name_index, attribute_length)
+        return parse_code(p, attribute_name_index, attribute_length,constant_pool)
     } else if without_null_terminator == "LineNumberTable".as_bytes() {
         return parse_line_number_table(p, attribute_name_index, attribute_length)
     } else if without_null_terminator == "LocalVariableTable".as_bytes() {
@@ -293,7 +292,7 @@ fn parse_exception_table_entry(p: &mut ParsingContext) -> ExceptionTableElem {
     return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type }
 }
 
-fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32, constant_pool: &Vec<ConstantInfo>) -> AttributeInfo {
     let max_stack = read16(p);
     let max_locals = read16(p);
     let code_length = read32(p);
@@ -307,7 +306,7 @@ fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_lengt
         exception_table.push(parse_exception_table_entry(p));
     }
     let attributes_count = read16(p);
-    let mut attributes = parse_attributes(p, attributes_count);
+    let mut attributes = parse_attributes(p, attributes_count,constant_pool);
     return AttributeInfo {
         attribute_name_index,
         attribute_length,
@@ -322,10 +321,10 @@ fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_lengt
 }
 
 
-pub fn parse_attributes(p: &mut ParsingContext, num_attributes: u16) -> Vec<AttributeInfo> {
+pub fn parse_attributes(p: &mut ParsingContext, num_attributes: u16, constant_pool: &Vec<ConstantInfo>) -> Vec<AttributeInfo> {
     let mut res = Vec::with_capacity(num_attributes as usize);
     for _ in 0..num_attributes {
-        res.push(parse_attribute(p));
+        res.push(parse_attribute(p,constant_pool));
     }
     return res;
 }
