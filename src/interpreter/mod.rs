@@ -1,3 +1,9 @@
+use interpreter::interpreter_util::{pop_int, push_int, store_n_32, load_n_64, push_long, EXECUTION_ERROR, pop_long};
+
+#[macro_use]
+
+
+
 #[allow(non_camel_case_types)]
 #[repr(u8)]
 pub enum InstructionType {
@@ -217,56 +223,19 @@ pub fn read_opcode(b: u8) -> InstructionType {
     return unsafe { ::std::mem::transmute(b) };
 }
 
-const EXECUTION_ERROR: &str = "Fatal Error, when executing, this is a bug.";
-
-macro_rules! null_pointer_check {
-    ($var_name:ident) => {
-        if $var_name == 0 {
-                unimplemented!("handle null pointers exceptions")
-            }
-    };
-}
-
-macro_rules! array_out_of_bounds_check {
-    ($index:expr,$array_length:ident) => {if ($index as u32) >= ($array_length as u32) {
-            unimplemented!("handle array out of bounds exceptions")
-        }};
-}
-
-macro_rules! load {
-    ($type_:ident,$state:ident) => {
-        let index = $state.operand_stack.pop().expect(EXECUTION_ERROR);
-        let array_ref = pop_long($state);
-        null_pointer_check!(array_ref);
-        let array_elem:$type_ = unsafe {
-            let array_64: *mut u64 = ::std::mem::transmute(array_ref);
-            let array_length: u64 = *array_64.offset(-1);
-            let array_type:* mut $type_ = array_ref as * mut $type_;
-            array_out_of_bounds_check!(index as u64,array_length);
-            *(array_type.offset(index as isize)) as $type_
-        };
-        //todo this is more complicated in the u64 case
-        $state.operand_stack.push(array_elem as u32);
-    };
-}
-
-macro_rules! store {
-    ($type_:ident,$state:ident) => {
-        let value : $type_= $state.operand_stack.pop().expect(EXECUTION_ERROR) as $type_;
-        let index = $state.operand_stack.pop().expect(EXECUTION_ERROR);
-        let array_ref = pop_long($state);
-        null_pointer_check!(array_ref);
-        unsafe {
-            let array: *mut u64 = ::std::mem::transmute(array_ref);
-            let array_length: u64 = *array.offset(-1);
-            array_out_of_bounds_check!(index as u64,array_length);
-            let array_type : *mut $type_ = array_ref as *mut $type_;
-            *(array_type.offset(index as isize)) = value;
-        }
-    };
-}
-
+#[macro_use]
 pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
+    use ::load;
+    use ::store;
+    use interpreter::interpreter_util::*;
+    use interpreter::branch_instructions::*;
+    use interpreter::double_instructions::*;
+    use interpreter::dup_instructions::*;
+    use interpreter::float_instructions::*;
+    use interpreter::integer_instructions::*;
+    use interpreter::long_instructions::*;
+
+
     let opcode = read_opcode(code[0]);
     state.pc_offset = 1;//offset the opcode which was just read
     match opcode {
@@ -335,8 +304,8 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::f2i => do_f2i(state),
         InstructionType::f2l => do_f2l(state),
         InstructionType::fadd => do_fadd(state),
-        InstructionType::faload => { load!(f32,state) }
-        InstructionType::fastore => { store!(f32,state) }
+        InstructionType::faload => { load!(f32,state); }
+        InstructionType::fastore => { store!(f32,state); }
         InstructionType::fcmpg => {
             unimplemented!("This one is kinda annoying to implement for now")
         }
@@ -385,13 +354,13 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::i2s => push_int(pop_int(state) as u16 as i16 as i32 as u32, state),
         InstructionType::iadd => do_iadd(state),
         InstructionType::iaload => {
-            load!(u32,state)
+            load!(u32,state);
         }
         InstructionType::iand => do_iand(state),
         InstructionType::iastore => {
             store!(u32,state);
         }
-        InstructionType::iconst_m1 => push_int(-1 as u32, state),
+        InstructionType::iconst_m1 => push_int((0-1) as u32, state),
         InstructionType::iconst_0 => push_int(0, state),
         InstructionType::iconst_1 => push_int(1, state),
         InstructionType::iconst_2 => push_int(2, state),
@@ -448,7 +417,7 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
             unimplemented!("idk how to branch yet")
         }
         InstructionType::iinc => {
-            state.local_vars[code[1]] += code[2];
+            state.local_vars[code[1] as usize] += code[2] as u32;
             unimplemented!("Increase pc by 2")
         }
         InstructionType::iload => {
@@ -556,265 +525,48 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     }
 }
 
-fn do_ladd(state: &mut InterpreterState) -> () {
-    let value2 = pop_long(state) as i64;
-    let value1 = pop_long(state) as i64;
-    push_long((value2 + value1) as u64, state)
+pub mod double_instructions;
+
+pub mod integer_instructions;
+
+pub mod long_instructions{
+    use interpreter::{InterpreterState};
+    use interpreter::interpreter_util::{push_long, pop_long};
+
+    pub fn do_ladd(state: &mut InterpreterState) -> () {
+        let value2 = pop_long(state) as i64;
+        let value1 = pop_long(state) as i64;
+        push_long((value2 + value1) as u64, state)
+    }
 }
 
-fn do_ixor(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state);
-    let value1 = pop_int(state);
-    push_int(value1 ^ value2, state);
+pub mod branch_instructions{
+    pub fn do_goto_w(code: &[u8]) -> ! {
+        let branchbyte1 = code[1] as u32;
+        let branchbyte2 = code[2] as u32;
+        let branchbyte3 = code[3] as u32;
+        let branchbyte4 = code[4] as u32;
+        (branchbyte1 << 24) | (branchbyte2 << 16)
+            | (branchbyte3 << 8) | branchbyte4;
+        unimplemented!("todo branching")
+    }
+
+    pub fn do_goto(code: &[u8]) -> ! {
+        let branchbyte1 = code[1] as u16;
+        let branchbyte2 = code[2] as u16;
+        (branchbyte1 << 8) | branchbyte2;
+        unimplemented!("todo branching")
+    }
+
 }
 
-fn do_iushr(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state);
-    let value1 = pop_int(state);
-    let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
-    push_int((value1 >> shift_smount) as u32, state)
-}
 
-fn do_isub(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state) as i32;
-    let value1 = pop_int(state) as i32;
-    push_int((value1 - value2) as u32, state)
-}
+pub mod float_instructions;
 
-fn do_istore(code: &[u8], state: &mut InterpreterState) -> () {
-    load_n_32(state, code[1] as n64);
-    state.pc_offset += 1; //offset code[]
-}
+pub mod dup_instructions;
 
-fn do_ishr(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state);
-    let value1 = pop_int(state) as i32;
-    let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
-    push_int((value1 >> shift_smount) as u32, state)
-}
-
-fn do_ishl(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state);
-    let value1 = pop_int(state) as i32;
-    let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
-    push_int((value1 << shift_smount) as u32, state)
-}
-
-fn do_irem(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state) as i32;
-    let value1 = pop_int(state) as i32;
-    push_int((value1 % value2) as u32, state);
-}
-
-fn do_ior(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state);
-    let value1 = pop_int(state);
-    push_int(value1 | value2, state);
-}
-
-fn do_ineg(state: &mut InterpreterState) -> () {
-    let value = pop_int(state) as i32;
-    push_int((-value) as u32, state)
-}
-
-fn do_imul(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state) as i32;
-    let value1 = pop_int(state) as i32;
-    push_int((value1 * value2) as u32, state);
-}
-
-fn do_idiv(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state) as i32;
-    let value1 = pop_int(state) as i32;
-    push_int((value1 / value2) as u32, state);
-}
-
-fn do_iand(state: &mut InterpreterState) -> () {
-    let value2 = pop_int(state);
-    let value1 = pop_int(state);
-    push_int(value1 & value2, state);
-}
-
-fn do_iadd(state: &mut InterpreterState) -> () {
-    let a = pop_int(state) as i32;
-    let b = pop_int(state) as i32;
-    push_int((a + b) as u32, state);
-}
-
-fn do_goto_w(code: &[u8]) -> ! {
-    let branchbyte1 = code[1];
-    let branchbyte2 = code[2];
-    let branchbyte3 = code[3];
-    let branchbyte4 = code[4];
-    (branchbyte1 << 24) | (branchbyte2 << 16)
-        | (branchbyte3 << 8) | branchbyte4;
-    unimplemented!("todo branching")
-}
-
-fn do_goto(code: &[u8]) -> ! {
-    let branchbyte1 = code[1];
-    let branchbyte2 = code[2];
-    (branchbyte1 << 8) | branchbyte2;
-    unimplemented!("todo branching")
-}
-
-fn do_fsub(state: &mut InterpreterState) -> () {
-    let value2 = pop_float(state);
-    let value1 = pop_float(state);
-    push_float(value1 - value2, state)
-}
-
-fn do_fneg(state: &mut InterpreterState) -> () {
-    push_float(-pop_float(state), state)
-}
-
-fn do_fmul(state: &mut InterpreterState) -> () {
-    let value2 = pop_float(state);
-    let value1 = pop_float(state);
-    push_float(value1 + value2, state)
-}
-
-fn do_fload(code: &[u8], state: &mut InterpreterState) -> ! {
-    let index = code[1];
-    load_n_32(state, index as u64);
-    unimplemented!("need pc by 2")
-}
-
-fn do_fdiv(state: &mut InterpreterState) -> () {
-    let value2 = pop_float(state);
-    let value1 = pop_float(state);
-    push_float(value1 / value2, state)
-}
-
-fn do_fadd(state: &mut InterpreterState) -> () {
-    let a = pop_float(state);
-    let b = pop_float(state);
-    push_float(a + b, state)
-}
-
-fn do_f2l(state: &mut InterpreterState) -> () {
-    let float = pop_float(state);
-    push_long(float as u64, state);
-}
-
-fn do_f2i(state: &mut InterpreterState) -> () {
-    let float = pop_float(state);
-    state.operand_stack.push(float as u32);
-}
-
-fn do_f2d(state: &mut InterpreterState) -> () {
-    let float = pop_float(state);
-    push_double(float as f64, state);
-}
-
-fn do_dup2_x1(state: &mut InterpreterState) -> () {
-    let value1 = pop_long(state);
-    let value2 = pop_long(state);
-    push_long(value1, state);
-    push_long(value2, state);
-    push_long(value1, state);
-    //todo us this the correct one?
-}
-
-fn do_dup2_x2(state: &mut InterpreterState) -> () {
-    let value1 = pop_long(state);
-    let value2 = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    push_long(value1, state);
-    state.operand_stack.push(value2);
-    push_long(value1, state);
-}
-
-fn do_dup2(state: &mut InterpreterState) -> () {
-    let value1 = pop_long(state);
-    push_long(value1, state);
-    push_long(value1, state);
-}
-
-fn do_dup_x2(state: &mut InterpreterState) -> () {
-    let value1 = pop_int(state);
-    let value2 = pop_long(state);
-    push_int(value1, state);
-    push_long(value2, state);
-    push_int(value1, state);
-}
-
-fn do_dup_x1(state: &mut InterpreterState) -> () {
-    let value1 = pop_int(state);
-    let value2 = pop_int(state);
-    push_int(value1, state);
-    push_int(value2, state);
-    push_int(value1, state);
-}
-
-fn do_dup(state: &mut InterpreterState) -> () {
-    let to_dup = pop_int(state);
-    push_int(to_dup, state);
-    push_int(to_dup, state);
-}
-
-fn do_dsub(state: &mut InterpreterState) -> () {
-    let value2 = pop_double(state);
-    let value1 = pop_double(state);
-    push_double(value1 - value2, state);
-}
-
-fn do_dstore(code: &[u8], state: &mut InterpreterState) -> ! {
-    let var_index = code[1];
-    store_n_64(state, var_index as u64);
-    unimplemented!("Need to increase pc by 2")
-}
-
-fn do_drem(state: &mut InterpreterState) -> () {
-    let a = pop_double(state);
-    let b = pop_double(state);
-    push_double(a % b, state);//todo not sure if that is correct since rem is non-standard in java
-}
-
-fn do_dneg(state: &mut InterpreterState) -> () {
-    let a = pop_double(state);
-    push_double(-1.0 * a, state);
-}
-
-fn do_dmul(state: &mut InterpreterState) -> () {
-    let a = pop_double(state);
-    let b = pop_double(state);
-    push_double(a * b, state);
-}
-
-fn do_dload(code: &[u8], state: &mut InterpreterState) -> ! {
-    let var_index = code[1];
-    load_n_64(state, var_index as u64);
-    unimplemented!("Need to increase pc by 2")
-}
-
-fn do_ddiv(state: &mut InterpreterState) -> () {
-    let bottom = pop_double(state);
-    let top = pop_double(state);
-    push_double(bottom / top, state)
-}
-
-fn do_dadd(state: &mut InterpreterState) -> () {
-    let a = pop_double(state);
-    let b = pop_double(state);
-    let sum = a + b;
-    push_double(sum, state)
-}
-
-fn do_d2l(state: &mut InterpreterState) -> () {
-    let double = pop_double(state);
-    push_long(double as u64, state)
-}
-
-fn do_d2i(state: &mut InterpreterState) -> () {
-    let double = pop_double(state);
-    state.operand_stack.push(double as u32)
-}
-
-fn do_d2f(state: &mut InterpreterState) -> () {
-    let double = pop_double(state);
-    let converted_to_float = double as f32;
-    push_float(converted_to_float, state);
-}
+#[macro_use]
+pub mod interpreter_util;
 
 fn do_bipush(state: &mut InterpreterState) -> () {
     let byte = pop_int(state) as i8;
@@ -840,121 +592,6 @@ fn do_aload(code: &[u8], state: &mut InterpreterState) -> ! {
     let var_index = code[1];
     load_n_64(state, var_index as u64);
     unimplemented!("Need to increase pc by 2")
-}
-
-fn store_u64(state: &mut InterpreterState){
-    let value : u64 = pop_long(state);
-    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    let array_ref = pop_long(state);
-    null_pointer_check!(array_ref);
-    unsafe {
-        let array: *mut u64 = ::std::mem::transmute(array_ref);
-        let array_length: u64 = *array.offset(-1);
-        array_out_of_bounds_check!(index as u64,array_length);
-        let array_type : *mut u64 = array_ref as *mut u64;
-        *(array_type.offset(index as isize)) = value;//todo maybe do this more explicitly
-    }
-}
-
-fn load_u64(state: &mut InterpreterState){
-    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    let array_ref = pop_long(state);
-    null_pointer_check!(array_ref);
-    let array_elem: u64 = unsafe {
-        let array_64: *mut u64 = ::std::mem::transmute(array_ref);
-        let array_length: u64 = *array_64.offset(-1);
-        let array_type:* mut u64 = array_ref as *mut u64;
-        array_out_of_bounds_check!(index as u64,array_length);
-        *(array_type.offset(index as isize)) as u64
-    };
-    push_long(array_elem,state);
-}
-
-fn pop_long(state: &mut InterpreterState) -> u64 {
-    let lower = state.operand_stack.pop().expect(EXECUTION_ERROR) as u64;
-    let upper = state.operand_stack.pop().expect(EXECUTION_ERROR) as u64;
-    return (upper << 32) | lower
-
-}
-
-fn push_long(to_push: u64, state: &mut InterpreterState) {
-    state.operand_stack.push( (to_push >> 32) as u32);
-    state.operand_stack.push( ((to_push << 32) >> 32) as u32);
-}
-
-fn push_byte(to_push: u8, state: &mut InterpreterState) {
-    state.operand_stack.push(to_push as u32)
-}
-
-fn pop_byte(state: &mut InterpreterState) -> u8 {
-    return state.operand_stack.pop().expect(EXECUTION_ERROR) as u8;
-}
-
-
-
-fn push_short(to_push: u16, state: &mut InterpreterState) {
-    state.operand_stack.push(to_push as u32)
-}
-
-fn pop_short(state: &mut InterpreterState) -> u16 {
-    return state.operand_stack.pop().expect(EXECUTION_ERROR) as u16;
-}
-
-
-fn push_int(to_push: u32, state: &mut InterpreterState) {
-    state.operand_stack.push(to_push)
-}
-
-fn pop_int(state: &mut InterpreterState) -> u32 {
-    return state.operand_stack.pop().expect(EXECUTION_ERROR);
-}
-
-
-fn push_float(to_push: f32, state: &mut InterpreterState) {
-    state.operand_stack.push(unsafe { ::std::mem::transmute(to_push) })
-}
-
-fn pop_float(state: &mut InterpreterState) -> f32 {
-    let value = state.operand_stack.pop().expect(EXECUTION_ERROR) as u32;
-    return unsafe {
-        ::std::mem::transmute(value)
-    }
-}
-
-
-fn push_double(to_push: f64, state: &mut InterpreterState) {
-    push_long(unsafe { ::std::mem::transmute(to_push) },state)
-}
-
-fn pop_double(state: &mut InterpreterState) -> f64 {
-    let value = pop_long(state);
-    return unsafe {
-        ::std::mem::transmute(value)
-    }
-}
-
-fn store_n_32(state: &mut InterpreterState, n: u64) {
-    let reference = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    state.local_vars[n as usize] = reference as u32;
-}
-
-
-fn store_n_64(state: &mut InterpreterState, n: u64) {
-    let reference = pop_long(state);
-    state.local_vars[n as usize] = reference as u32;
-    state.local_vars[(n + 1) as usize] = (reference >> 32) as u32;//todo is this really the correct order
-}
-
-fn load_n_32(state: &mut InterpreterState, n: u64) {
-    let reference = state.local_vars[n as usize];
-    state.operand_stack.push(reference as u32)
-}
-
-fn load_n_64(state: &mut InterpreterState, n: u64) {
-    let least_significant = state.local_vars[n as usize];
-    let most_significant = state.local_vars[(n + 1) as usize];
-    state.operand_stack.push(most_significant );
-    state.operand_stack.push(least_significant );
 }
 
 
