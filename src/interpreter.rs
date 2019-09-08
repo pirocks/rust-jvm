@@ -208,6 +208,9 @@ pub enum InstructionType {
 pub struct InterpreterState {
     pub local_vars: Vec<u32>,
     pub operand_stack: Vec<u32>,
+    pub pc: usize,
+    //the pc_offset is set by every instruction. branch instructions and others may us it to jump
+    pub pc_offset: isize
 }
 
 pub fn read_opcode(b: u8) -> InstructionType {
@@ -265,262 +268,92 @@ macro_rules! store {
 
 pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     let opcode = read_opcode(code[0]);
+    state.pc_offset = 1;//offset the opcode which was just read
     match opcode {
-        InstructionType::aaload => {
-            load_u64(state)
-        }
-        InstructionType::aastore => {
-            store_u64(state)
-        }
-        InstructionType::aconst_null => { push_long(0,state) }
-        InstructionType::aload => {
-            let var_index = code[1];
-            load_n_64(state,var_index as u64);
-            unimplemented!("Need to increase pc by 2")
-        }
-        InstructionType::aload_0 => { load_n_64(state, 0) }
-        InstructionType::aload_1 => { load_n_64(state, 1) }
-        InstructionType::aload_2 => { load_n_64(state, 2) }
-        InstructionType::aload_3 => { load_n_64(state, 3) }
-        InstructionType::anewarray => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            (indexbyte1 << 8) | indexbyte2;
-            let count = state.operand_stack.pop().expect(EXECUTION_ERROR);
-            unimplemented!("Need to figure out how to get the constant pool in here.");
-            unimplemented!("Need to increase pc by 3");
-        }
+        InstructionType::aaload => load_u64(state),
+        InstructionType::aastore => store_u64(state),
+        InstructionType::aconst_null => push_long(0, state),
+        InstructionType::aload => do_aload(code, state),
+        InstructionType::aload_0 => load_n_64(state, 0),
+        InstructionType::aload_1 => load_n_64(state, 1),
+        InstructionType::aload_2 => load_n_64(state, 2),
+        InstructionType::aload_3 => load_n_64(state, 3),
+        InstructionType::anewarray => do_anewarray(code, state),
         InstructionType::areturn => {
             unimplemented!("Need to figure out function calls/returning from functions.");
         }
         InstructionType::arraylength => do_arraylength(state),
-        InstructionType::astore => {
-            let index = code[1];
-            store_n_32(state,index as u64);
-            unimplemented!("Need to increase pc by 2");
-        }
-        InstructionType::astore_0 => { store_n_64(state, 0) }
-        InstructionType::astore_1 => { store_n_64(state, 1) }
-        InstructionType::astore_2 => { store_n_64(state, 2) }
-        InstructionType::astore_3 => { store_n_64(state, 3) }
+        InstructionType::astore => do_astore(code, state),
+        InstructionType::astore_0 => store_n_64(state, 0),
+        InstructionType::astore_1 => store_n_64(state, 1),
+        InstructionType::astore_2 => store_n_64(state, 2),
+        InstructionType::astore_3 => store_n_64(state, 3),
         InstructionType::athrow => { unimplemented!("Need to pass in  exception handlers somehow"); }
         InstructionType::baload => { load!(u8,state); }
         InstructionType::bastore => { store!(u8,state); }
-        InstructionType::bipush => {
-            let byte = pop_int(state) as i8;
-            push_int(byte as i32 as u32,state);
-        }
+        InstructionType::bipush => do_bipush(state),
         InstructionType::caload => { load!(u16,state); }
         InstructionType::castore => { store!(u16,state); }
         InstructionType::checkcast => {
             unimplemented!("Need to increase pc by 3 and get constant pool involved");
         }
-        InstructionType::d2f => {
-            let double = pop_double(state);
-            let converted_to_float = double as f32;
-            push_float(converted_to_float, state);
-        }
-        InstructionType::d2i => {
-            let double = pop_double(state);
-            state.operand_stack.push(double as u32)
-        }
-        InstructionType::d2l => {
-            let double = pop_double(state);
-            push_long(double as u64,state)
-        }
-        InstructionType::dadd => {
-            let a = pop_double(state);
-            let b = pop_double(state);
-            let sum = a + b;
-            push_double(sum,state)
-        }
-        InstructionType::daload => {
-            load!(f64,state);
-        }
-        InstructionType::dastore => {
-            store!(f64,state);
-        }
-        InstructionType::dcmpg => {
-            unimplemented!("This one is kinda annoying to implement for now")
-        }
-        InstructionType::dcmpl => {
-            unimplemented!("This one is also kinda annoying to implement for now")
-        }
-        InstructionType::dconst_0 => {
-            push_double(0.0, state)
-        }
-        InstructionType::dconst_1 => {
-            push_double(1.0, state)
-        }
-        InstructionType::ddiv => {
-            let bottom = pop_double(state);
-            let top = pop_double(state);
-            push_double(bottom / top, state)
-        }
-        InstructionType::dload => {
-            let var_index = code[1];
-            load_n_64(state,var_index as u64);
-            unimplemented!("Need to increase pc by 2")
-        }
-        InstructionType::dload_0 => {
-            load_n_64(state,0);
-        }
-        InstructionType::dload_1 => {
-            load_n_64(state,1);
-        }
-        InstructionType::dload_2 => {
-            load_n_64(state,2);
-        }
-        InstructionType::dload_3 => {
-            load_n_64(state,3);
-        }
-        InstructionType::dmul => {
-            let a = pop_double(state);
-            let b = pop_double(state);
-            push_double(a * b, state);
-        }
-        InstructionType::dneg => {
-            let a = pop_double(state);
-            push_double(-1.0 * a, state);
-        }
-        InstructionType::drem => {
-            let a = pop_double(state);
-            let b = pop_double(state);
-            push_double(a % b, state);//todo not sure if that is correct since rem is non-standard in java
-        }
+        InstructionType::d2f => do_d2f(state),
+        InstructionType::d2i => do_d2i(state),
+        InstructionType::d2l => do_d2l(state),
+        InstructionType::dadd => do_dadd(state),
+        InstructionType::daload => { load!(f64,state); }
+        InstructionType::dastore => { store!(f64,state); }
+        InstructionType::dcmpg => { unimplemented!("This one is kinda annoying to implement for now") }
+        InstructionType::dcmpl => { unimplemented!("This one is also kinda annoying to implement for now") }
+        InstructionType::dconst_0 => push_double(0.0, state),
+        InstructionType::dconst_1 => push_double(1.0, state),
+        InstructionType::ddiv => do_ddiv(state),
+        InstructionType::dload => do_dload(code, state),
+        InstructionType::dload_0 => load_n_64(state, 0),
+        InstructionType::dload_1 => load_n_64(state, 1),
+        InstructionType::dload_2 => load_n_64(state, 2),
+        InstructionType::dload_3 => load_n_64(state, 3),
+        InstructionType::dmul => do_dmul(state),
+        InstructionType::dneg => do_dneg(state),
+        InstructionType::drem => do_drem(state),
         InstructionType::dreturn => {
             unimplemented!("need to figure out functions")
         }
-        InstructionType::dstore => {
-            let var_index = code[1];
-            store_n_64(state,var_index as u64);
-            unimplemented!("Need to increase pc by 2")
-        }
-        InstructionType::dstore_0 => {
-            store_n_64(state,0);
-        }
-        InstructionType::dstore_1 => {
-            store_n_64(state,1);
-        }
-        InstructionType::dstore_2 => {
-            store_n_64(state,2);
-        }
-        InstructionType::dstore_3 => {
-            store_n_64(state,3);
-        }
-        InstructionType::dsub => {
-            let value2 = pop_double(state);
-            let value1 = pop_double(state);
-            push_double(value1 - value2, state);
-        }
-        InstructionType::dup => {
-            let to_dup = pop_int(state);
-            push_int(to_dup,state);
-            push_int(to_dup,state);
-        }
-        InstructionType::dup_x1 => {
-            let value1 = pop_int(state);
-            let value2 = pop_int(state);
-            push_int(value1,state);
-            push_int(value2,state);
-            push_int(value1,state);
-        }
-        InstructionType::dup_x2 => {
-            let value1 = pop_int(state);
-            let value2 = pop_long(state);
-            push_int(value1,state);
-            push_long(value2, state);
-            push_int(value1,state);
-
-        }
-        InstructionType::dup2 => {
-            let value1 = pop_long(state);
-            push_long(value1,state);
-            push_long(value1,state);
-
-        }
-        InstructionType::dup2_x1 => {
-            let value1 = pop_long(state);
-            let value2 = state.operand_stack.pop().expect(EXECUTION_ERROR);
-            push_long(value1,state);
-            state.operand_stack.push(value2);
-            push_long(value1,state);
-        }
-        InstructionType::dup2_x2 => {
-            let value1 = pop_long(state);
-            let value2 = pop_long(state);
-            push_long(value1,state);
-            push_long(value2,state);
-            push_long(value1,state);
-        }
-        InstructionType::f2d => {
-            let float = pop_float(state);
-            push_double(float as f64,state);
-        }
-        InstructionType::f2i => {
-            let float = pop_float(state);
-            state.operand_stack.push(float as u32);
-        }
-        InstructionType::f2l => {
-            let float = pop_float(state);
-            push_long(float as u64,state);
-        }
-        InstructionType::fadd => {
-            let a = pop_float(state);
-            let b = pop_float(state);
-            push_float(a + b,state)
-        }
-        InstructionType::faload => {
-            load!(f32,state)
-        }
-        InstructionType::fastore => {
-            store!(f32,state)
-        }
+        InstructionType::dstore => do_dstore(code, state),
+        InstructionType::dstore_0 => store_n_64(state, 0),
+        InstructionType::dstore_1 => store_n_64(state, 1),
+        InstructionType::dstore_2 => store_n_64(state, 2),
+        InstructionType::dstore_3 => store_n_64(state, 3),
+        InstructionType::dsub => do_dsub(state),
+        InstructionType::dup => do_dup(state),
+        InstructionType::dup_x1 => do_dup_x1(state),
+        InstructionType::dup_x2 => do_dup_x2(state),
+        InstructionType::dup2 => do_dup2(state),
+        InstructionType::dup2_x1 => do_dup2_x1(state),
+        InstructionType::dup2_x2 => do_dup2_x2(state),
+        InstructionType::f2d => do_f2d(state),
+        InstructionType::f2i => do_f2i(state),
+        InstructionType::f2l => do_f2l(state),
+        InstructionType::fadd => do_fadd(state),
+        InstructionType::faload => { load!(f32,state) }
+        InstructionType::fastore => { store!(f32,state) }
         InstructionType::fcmpg => {
             unimplemented!("This one is kinda annoying to implement for now")
         }
         InstructionType::fcmpl => {
             unimplemented!("This one is kinda annoying to implement for now")
         }
-        InstructionType::fconst_0 => {
-            push_float(0.0,state)
-        }
-        InstructionType::fconst_1 => {
-            push_float(1.0,state)
-        }
-        InstructionType::fconst_2 => {
-            push_float(2.0,state)
-        }
-        InstructionType::fdiv => {
-            let value2 = pop_float(state);
-            let value1 =  pop_float(state);
-            push_float(value1/ value2,state)
-        }
-        InstructionType::fload => {
-            let index = code[1];
-            load_n_32(state,index as u64);
-            unimplemented!("need pc by 2")
-        }
-        InstructionType::fload_0 => {
-            load_n_32(state,0)
-        }
-        InstructionType::fload_1 => {
-            load_n_32(state,1)
-        }
-        InstructionType::fload_2 => {
-            load_n_32(state,2)
-        }
-        InstructionType::fload_3 => {
-            load_n_32(state,3)
-        }
-        InstructionType::fmul => {
-            let value2 = pop_float(state);
-            let value1 = pop_float(state);
-            push_float(value1 + value2,state)
-        }
-        InstructionType::fneg => {
-            push_float(-pop_float(state),state)
-        }
+        InstructionType::fconst_0 => push_float(0.0, state),
+        InstructionType::fconst_1 => push_float(1.0, state),
+        InstructionType::fconst_2 => push_float(2.0, state),
+        InstructionType::fdiv => do_fdiv(state),
+        InstructionType::fload => do_fload(code, state),
+        InstructionType::fload_0 => load_n_32(state, 0),
+        InstructionType::fload_1 => load_n_32(state, 1),
+        InstructionType::fload_2 => load_n_32(state, 2),
+        InstructionType::fload_3 => load_n_32(state, 3),
+        InstructionType::fmul => do_fmul(state),
+        InstructionType::fneg => do_fneg(state),
         InstructionType::frem => {
             unimplemented!("not sure about differences with standard rem")
         }
@@ -531,104 +364,41 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
             let index = code[1];
             store_n_32(state,index  as u64)
         }
-        InstructionType::fstore_0 => {
-            store_n_32(state,0)
-        }
-        InstructionType::fstore_1 => {
-            store_n_32(state,1)
-        }
-        InstructionType::fstore_2 => {
-            store_n_32(state,2)
-        }
-        InstructionType::fstore_3 => {
-            store_n_32(state,3)
-        }
-        InstructionType::fsub => {
-            let value2 = pop_float(state);
-            let value1 = pop_float(state);
-            push_float(value1 - value2,state)
-        }
+        InstructionType::fstore_0 => store_n_32(state, 0),
+        InstructionType::fstore_1 => store_n_32(state, 1),
+        InstructionType::fstore_2 => store_n_32(state, 2),
+        InstructionType::fstore_3 => store_n_32(state, 3),
+        InstructionType::fsub => do_fsub(state),
         InstructionType::getfield => {
             unimplemented!("constant pool")
         }
         InstructionType::getstatic => {
             unimplemented!("constant pool")
         }
-        InstructionType::goto_ => {
-            let branchbyte1 = code[1];
-            let branchbyte2 = code[2];
-            (branchbyte1 << 8) | branchbyte2;
-            unimplemented!("todo branching")
-        }
-        InstructionType::goto_w => {
-            let branchbyte1 = code[1];
-            let branchbyte2 = code[2];
-            let branchbyte3 = code[3];
-            let branchbyte4 = code[4];
-            (branchbyte1 << 24) | (branchbyte2 << 16)
-                | (branchbyte3 << 8) | branchbyte4;
-            unimplemented!("todo branching")
-        }
-        InstructionType::i2b => {
-            push_int(pop_byte(state) as i8 as i32 as u32,state)
-        }
-        InstructionType::i2c => {
-            push_int(pop_short(state) as u32, state)
-        }
-        InstructionType::i2d => {
-            push_double(pop_int(state) as f64,state)
-        }
-        InstructionType::i2f => {
-            push_float(pop_int(state) as f32, state)
-        }
-        InstructionType::i2l => {
-            push_long(pop_float(state) as i32 as i64 as u64,state)
-        }
-        InstructionType::i2s => {
-            push_int(pop_int(state) as u16 as i16 as i32 as u32,state);
-        }
-        InstructionType::iadd => {
-            let a = pop_int(state) as i32;
-            let b = pop_int(state) as i32;
-            push_int((a + b) as u32,state);
-        }
+        InstructionType::goto_ => do_goto(code),
+        InstructionType::goto_w => do_goto_w(code),
+        InstructionType::i2b => push_int(pop_byte(state) as i8 as i32 as u32, state),
+        InstructionType::i2c => push_int(pop_short(state) as u32, state),
+        InstructionType::i2d => push_double(pop_int(state) as f64, state),
+        InstructionType::i2f => push_float(pop_int(state) as f32, state),
+        InstructionType::i2l => push_long(pop_float(state) as i32 as i64 as u64, state),
+        InstructionType::i2s => push_int(pop_int(state) as u16 as i16 as i32 as u32, state),
+        InstructionType::iadd => do_iadd(state),
         InstructionType::iaload => {
             load!(u32,state)
         }
-        InstructionType::iand => {
-            let value2 = pop_int(state);
-            let value1 = pop_int(state);
-            push_int(value1 & value2, state);
-        }
+        InstructionType::iand => do_iand(state),
         InstructionType::iastore => {
             store!(u32,state);
         }
-        InstructionType::iconst_m1 => {
-            push_int(-1 as u32, state)
-        }
-        InstructionType::iconst_0 => {
-            push_int(0,state);
-        }
-        InstructionType::iconst_1 => {
-            push_int(1,state);
-        }
-        InstructionType::iconst_2 => {
-            push_int(2,state);
-        }
-        InstructionType::iconst_3 => {
-            push_int(3,state);
-        }
-        InstructionType::iconst_4 => {
-            push_int(4,state);
-        }
-        InstructionType::iconst_5 => {
-            push_int(5,state);
-        }
-        InstructionType::idiv => {
-            let value2 = pop_int(state) as i32;
-            let value1 = pop_int(state) as i32;
-            push_int((value1/value2) as u32, state);
-        }
+        InstructionType::iconst_m1 => push_int(-1 as u32, state),
+        InstructionType::iconst_0 => push_int(0, state),
+        InstructionType::iconst_1 => push_int(1, state),
+        InstructionType::iconst_2 => push_int(2, state),
+        InstructionType::iconst_3 => push_int(3, state),
+        InstructionType::iconst_4 => push_int(4, state),
+        InstructionType::iconst_5 => push_int(5, state),
+        InstructionType::idiv => do_idiv(state),
         InstructionType::if_acmpeq => {
             unimplemented!("idk how to branch yet")
         }
@@ -685,27 +455,12 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
             load_n_32(state,code[1] as u64);
             unimplemented!("Increase pc by 2")
         }
-        InstructionType::iload_0 => {
-            load_n_32(state,0)
-        }
-        InstructionType::iload_1 => {
-            load_n_32(state,1)
-        }
-        InstructionType::iload_2 => {
-            load_n_32(state,2)
-        }
-        InstructionType::iload_3 => {
-            load_n_32(state,3)
-        }
-        InstructionType::imul => {
-            let value2 = pop_int(state) as i32;
-            let value1 = pop_int(state) as i32;
-            push_int((value1*value2) as u32, state);
-        }
-        InstructionType::ineg => {
-            let value = pop_int(state) as i32;
-            push_int((-value) as u32 ,state)
-        }
+        InstructionType::iload_0 => load_n_32(state, 0),
+        InstructionType::iload_1 => load_n_32(state, 1),
+        InstructionType::iload_2 => load_n_32(state, 2),
+        InstructionType::iload_3 => load_n_32(state, 3),
+        InstructionType::imul => do_imul(state),
+        InstructionType::ineg => do_ineg(state),
         InstructionType::instanceof => {
             unimplemented!("needs constant pool")
         }
@@ -724,83 +479,31 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::invokevirtual => {
             unimplemented!("needs constant pool")
         }
-        InstructionType::ior => {
-            let value2 = pop_int(state);
-            let value1 = pop_int(state);
-            push_int(value1 | value2, state);
-        }
-        InstructionType::irem => {
-            let value2 = pop_int(state) as i32;
-            let value1 = pop_int(state) as i32;
-            push_int((value1 % value2) as u32, state);
-        }
+        InstructionType::ior => do_ior(state),
+        InstructionType::irem => do_irem(state),
         InstructionType::ireturn => {
             unimplemented!("functions need implementing")
         }
-        InstructionType::ishl => {
-            let value2 = pop_int(state);
-            let value1 = pop_int(state) as i32;
-            let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
-            push_int((value1 << shift_smount) as u32, state)
-        }
-        InstructionType::ishr => {
-            let value2 = pop_int(state);
-            let value1 = pop_int(state) as i32;
-            let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
-            push_int((value1 >> shift_smount) as u32, state)
-        }
-        InstructionType::istore => {
-            load_n_32(state,code[1] as n64);
-            unimplemented!("program counter")
-        }
-        InstructionType::istore_0 => {
-            load_n_32(state,0);
-        }
-        InstructionType::istore_1 => {
-            load_n_32(state,1);
-        }
-        InstructionType::istore_2 => {
-            load_n_32(state,2);
-        }
-        InstructionType::istore_3 => {
-            load_n_32(state,3);
-        }
-        InstructionType::isub => {
-            let value2 = pop_int(state) as i32;
-            let value1 = pop_int(state) as i32;
-            push_int((value1 - value2) as u32, state)
-        }
-        InstructionType::iushr => {
-            let value2 = pop_int(state);
-            let value1 = pop_int(state);
-            let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
-            push_int((value1 >> shift_smount) as u32, state)
-        }
-        InstructionType::ixor => {
-            let value2 = pop_int(state);
-            let value1 = pop_int(state);
-            push_int(value1 ^ value2, state);
-        }
+        InstructionType::ishl => do_ishl(state),
+        InstructionType::ishr => do_ishr(state),
+        InstructionType::istore => do_istore(code, state),
+        InstructionType::istore_0 => load_n_32(state, 0),
+        InstructionType::istore_1 => load_n_32(state, 1),
+        InstructionType::istore_2 => load_n_32(state, 2),
+        InstructionType::istore_3 => load_n_32(state, 3),
+        InstructionType::isub => do_isub(state),
+        InstructionType::iushr => do_iushr(state),
+        InstructionType::ixor => do_ixor(state),
         InstructionType::jsr => {
             unimplemented!("functions")
         }
         InstructionType::jsr_w => {
             unimplemented!("functions")
         }
-        InstructionType::l2d => {
-            push_double(pop_long(state) as f64,state)
-        }
-        InstructionType::l2f => {
-            push_float(pop_long(state) as f32,state)
-        }
-        InstructionType::l2i => {
-            push_int(pop_long(state) as u32,state)
-        }
-        InstructionType::ladd => {
-            let value2 = pop_long(state) as i64;
-            let value1 = pop_long(state) as i64;
-            push_long((value2 + value1) as u64,state)
-        }
+        InstructionType::l2d => push_double(pop_long(state) as f64, state),
+        InstructionType::l2f => push_float(pop_long(state) as f32, state),
+        InstructionType::l2i => push_int(pop_long(state) as u32, state),
+        InstructionType::ladd => do_ladd(state),
         InstructionType::laload => {}
         InstructionType::land => {}
         InstructionType::lastore => {}
@@ -851,6 +554,292 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::tableswitch => {}
         InstructionType::wide => {}
     }
+}
+
+fn do_ladd(state: &mut InterpreterState) -> () {
+    let value2 = pop_long(state) as i64;
+    let value1 = pop_long(state) as i64;
+    push_long((value2 + value1) as u64, state)
+}
+
+fn do_ixor(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state);
+    let value1 = pop_int(state);
+    push_int(value1 ^ value2, state);
+}
+
+fn do_iushr(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state);
+    let value1 = pop_int(state);
+    let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
+    push_int((value1 >> shift_smount) as u32, state)
+}
+
+fn do_isub(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state) as i32;
+    let value1 = pop_int(state) as i32;
+    push_int((value1 - value2) as u32, state)
+}
+
+fn do_istore(code: &[u8], state: &mut InterpreterState) -> () {
+    load_n_32(state, code[1] as n64);
+    state.pc_offset += 1; //offset code[]
+}
+
+fn do_ishr(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state);
+    let value1 = pop_int(state) as i32;
+    let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
+    push_int((value1 >> shift_smount) as u32, state)
+}
+
+fn do_ishl(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state);
+    let value1 = pop_int(state) as i32;
+    let shift_amount = ((value2 << (32 - 5)) >> (32 - 5)) as i32;
+    push_int((value1 << shift_smount) as u32, state)
+}
+
+fn do_irem(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state) as i32;
+    let value1 = pop_int(state) as i32;
+    push_int((value1 % value2) as u32, state);
+}
+
+fn do_ior(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state);
+    let value1 = pop_int(state);
+    push_int(value1 | value2, state);
+}
+
+fn do_ineg(state: &mut InterpreterState) -> () {
+    let value = pop_int(state) as i32;
+    push_int((-value) as u32, state)
+}
+
+fn do_imul(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state) as i32;
+    let value1 = pop_int(state) as i32;
+    push_int((value1 * value2) as u32, state);
+}
+
+fn do_idiv(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state) as i32;
+    let value1 = pop_int(state) as i32;
+    push_int((value1 / value2) as u32, state);
+}
+
+fn do_iand(state: &mut InterpreterState) -> () {
+    let value2 = pop_int(state);
+    let value1 = pop_int(state);
+    push_int(value1 & value2, state);
+}
+
+fn do_iadd(state: &mut InterpreterState) -> () {
+    let a = pop_int(state) as i32;
+    let b = pop_int(state) as i32;
+    push_int((a + b) as u32, state);
+}
+
+fn do_goto_w(code: &[u8]) -> ! {
+    let branchbyte1 = code[1];
+    let branchbyte2 = code[2];
+    let branchbyte3 = code[3];
+    let branchbyte4 = code[4];
+    (branchbyte1 << 24) | (branchbyte2 << 16)
+        | (branchbyte3 << 8) | branchbyte4;
+    unimplemented!("todo branching")
+}
+
+fn do_goto(code: &[u8]) -> ! {
+    let branchbyte1 = code[1];
+    let branchbyte2 = code[2];
+    (branchbyte1 << 8) | branchbyte2;
+    unimplemented!("todo branching")
+}
+
+fn do_fsub(state: &mut InterpreterState) -> () {
+    let value2 = pop_float(state);
+    let value1 = pop_float(state);
+    push_float(value1 - value2, state)
+}
+
+fn do_fneg(state: &mut InterpreterState) -> () {
+    push_float(-pop_float(state), state)
+}
+
+fn do_fmul(state: &mut InterpreterState) -> () {
+    let value2 = pop_float(state);
+    let value1 = pop_float(state);
+    push_float(value1 + value2, state)
+}
+
+fn do_fload(code: &[u8], state: &mut InterpreterState) -> ! {
+    let index = code[1];
+    load_n_32(state, index as u64);
+    unimplemented!("need pc by 2")
+}
+
+fn do_fdiv(state: &mut InterpreterState) -> () {
+    let value2 = pop_float(state);
+    let value1 = pop_float(state);
+    push_float(value1 / value2, state)
+}
+
+fn do_fadd(state: &mut InterpreterState) -> () {
+    let a = pop_float(state);
+    let b = pop_float(state);
+    push_float(a + b, state)
+}
+
+fn do_f2l(state: &mut InterpreterState) -> () {
+    let float = pop_float(state);
+    push_long(float as u64, state);
+}
+
+fn do_f2i(state: &mut InterpreterState) -> () {
+    let float = pop_float(state);
+    state.operand_stack.push(float as u32);
+}
+
+fn do_f2d(state: &mut InterpreterState) -> () {
+    let float = pop_float(state);
+    push_double(float as f64, state);
+}
+
+fn do_dup2_x1(state: &mut InterpreterState) -> () {
+    let value1 = pop_long(state);
+    let value2 = pop_long(state);
+    push_long(value1, state);
+    push_long(value2, state);
+    push_long(value1, state);
+    //todo us this the correct one?
+}
+
+fn do_dup2_x2(state: &mut InterpreterState) -> () {
+    let value1 = pop_long(state);
+    let value2 = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    push_long(value1, state);
+    state.operand_stack.push(value2);
+    push_long(value1, state);
+}
+
+fn do_dup2(state: &mut InterpreterState) -> () {
+    let value1 = pop_long(state);
+    push_long(value1, state);
+    push_long(value1, state);
+}
+
+fn do_dup_x2(state: &mut InterpreterState) -> () {
+    let value1 = pop_int(state);
+    let value2 = pop_long(state);
+    push_int(value1, state);
+    push_long(value2, state);
+    push_int(value1, state);
+}
+
+fn do_dup_x1(state: &mut InterpreterState) -> () {
+    let value1 = pop_int(state);
+    let value2 = pop_int(state);
+    push_int(value1, state);
+    push_int(value2, state);
+    push_int(value1, state);
+}
+
+fn do_dup(state: &mut InterpreterState) -> () {
+    let to_dup = pop_int(state);
+    push_int(to_dup, state);
+    push_int(to_dup, state);
+}
+
+fn do_dsub(state: &mut InterpreterState) -> () {
+    let value2 = pop_double(state);
+    let value1 = pop_double(state);
+    push_double(value1 - value2, state);
+}
+
+fn do_dstore(code: &[u8], state: &mut InterpreterState) -> ! {
+    let var_index = code[1];
+    store_n_64(state, var_index as u64);
+    unimplemented!("Need to increase pc by 2")
+}
+
+fn do_drem(state: &mut InterpreterState) -> () {
+    let a = pop_double(state);
+    let b = pop_double(state);
+    push_double(a % b, state);//todo not sure if that is correct since rem is non-standard in java
+}
+
+fn do_dneg(state: &mut InterpreterState) -> () {
+    let a = pop_double(state);
+    push_double(-1.0 * a, state);
+}
+
+fn do_dmul(state: &mut InterpreterState) -> () {
+    let a = pop_double(state);
+    let b = pop_double(state);
+    push_double(a * b, state);
+}
+
+fn do_dload(code: &[u8], state: &mut InterpreterState) -> ! {
+    let var_index = code[1];
+    load_n_64(state, var_index as u64);
+    unimplemented!("Need to increase pc by 2")
+}
+
+fn do_ddiv(state: &mut InterpreterState) -> () {
+    let bottom = pop_double(state);
+    let top = pop_double(state);
+    push_double(bottom / top, state)
+}
+
+fn do_dadd(state: &mut InterpreterState) -> () {
+    let a = pop_double(state);
+    let b = pop_double(state);
+    let sum = a + b;
+    push_double(sum, state)
+}
+
+fn do_d2l(state: &mut InterpreterState) -> () {
+    let double = pop_double(state);
+    push_long(double as u64, state)
+}
+
+fn do_d2i(state: &mut InterpreterState) -> () {
+    let double = pop_double(state);
+    state.operand_stack.push(double as u32)
+}
+
+fn do_d2f(state: &mut InterpreterState) -> () {
+    let double = pop_double(state);
+    let converted_to_float = double as f32;
+    push_float(converted_to_float, state);
+}
+
+fn do_bipush(state: &mut InterpreterState) -> () {
+    let byte = pop_int(state) as i8;
+    push_int(byte as i32 as u32, state);
+}
+
+fn do_astore(code: &[u8], state: &mut InterpreterState) -> ! {
+    let index = code[1];
+    store_n_32(state, index as u64);
+    unimplemented!("Need to increase pc by 2");
+}
+
+fn do_anewarray(code: &[u8], state: &mut InterpreterState) -> ! {
+    let indexbyte1 = code[1] as u16;
+    let indexbyte2 = code[2] as u16;
+    (indexbyte1 << 8) | indexbyte2;
+    let count = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    unimplemented!("Need to figure out how to get the constant pool in here.");
+    unimplemented!("Need to increase pc by 3");
+}
+
+fn do_aload(code: &[u8], state: &mut InterpreterState) -> ! {
+    let var_index = code[1];
+    load_n_64(state, var_index as u64);
+    unimplemented!("Need to increase pc by 2")
 }
 
 fn store_u64(state: &mut InterpreterState){
