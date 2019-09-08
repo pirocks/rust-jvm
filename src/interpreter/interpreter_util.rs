@@ -1,5 +1,5 @@
 use interpreter::{InterpreterState};
-
+use ::std::mem::transmute;
 
 pub const EXECUTION_ERROR: &str = "Fatal Error, when executing, this is a bug.";
 
@@ -58,42 +58,42 @@ macro_rules! store {
 };
 }
 
-pub(crate) fn store_u64(state: &mut InterpreterState){
-    let value : u64 = pop_long(state);
+pub fn store_i64(state: &mut InterpreterState){
+    let value  = pop_long(state);
     let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
     let array_ref = pop_long(state);
     null_pointer_check!(array_ref);
     unsafe {
-        let array: *mut u64 = ::std::mem::transmute(array_ref);
-        let array_length: u64 = *array.offset(-1);
+        let array: *mut i64 = transmute(array_ref);
+        let array_length: i64 = *array.offset(-1);
         array_out_of_bounds_check!(index as u64,array_length);
-        let array_type : *mut u64 = array_ref as *mut u64;
-        *(array_type.offset(index as isize)) = value;//todo maybe do this more explicitly
+        let array_type : *mut i64 = array_ref as *mut i64;
+        *(array_type.offset(index as isize)) = value;
     }
 }
 
-pub(crate) fn load_u64(state: &mut InterpreterState){
+pub fn load_u64(state: &mut InterpreterState){
     let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
     let array_ref = pop_long(state);
     null_pointer_check!(array_ref);
-    let array_elem: u64 = unsafe {
-        let array_64: *mut u64 = ::std::mem::transmute(array_ref);
-        let array_length: u64 = *array_64.offset(-1);
-        let array_type:* mut u64 = array_ref as *mut u64;
+    let array_elem: i64 = unsafe {
+        let array_64: *mut i64 = transmute(array_ref);
+        let array_length: i64 = *array_64.offset(-1);
+        let array_type:* mut i64 = array_ref as *mut i64;
         array_out_of_bounds_check!(index as u64,array_length);
-        *(array_type.offset(index as isize)) as u64
+        *(array_type.offset(index as isize))
     };
     push_long(array_elem,state);
 }
 
-pub(crate) fn pop_long(state: &mut InterpreterState) -> u64 {
+pub fn pop_long(state: &mut InterpreterState) -> i64 {
     let lower = state.operand_stack.pop().expect(EXECUTION_ERROR) as u64;
     let upper = state.operand_stack.pop().expect(EXECUTION_ERROR) as u64;
-    return (upper << 32) | lower
+    return unsafe { transmute((upper << 32) | lower) }
 
 }
 
-pub(crate) fn push_long(to_push: u64, state: &mut InterpreterState) {
+pub fn push_long(to_push: i64, state: &mut InterpreterState) {
     state.operand_stack.push( (to_push >> 32) as u32);
     state.operand_stack.push( ((to_push << 32) >> 32) as u32);
 }
@@ -170,4 +170,71 @@ pub(crate) fn load_n_64(state: &mut InterpreterState, n: u64) {
     let most_significant = state.local_vars[(n + 1) as usize];
     state.operand_stack.push(most_significant );
     state.operand_stack.push(least_significant );
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn test_int_pop_push() {
+        let int_ = 654545864;
+        let state: &mut InterpreterState = &mut InterpreterState {
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+        };
+        push_int(int_,state);
+        assert_eq!(int_,pop_int(state));
+    }
+
+    #[test]
+    fn test_long_pop_push() {
+        let long_ = -654545864*435657687;
+        let state: &mut InterpreterState = &mut InterpreterState {
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+        };
+        push_long(long_,state);
+        assert_eq!(long_,pop_long(state));
+    }
+
+    #[test]
+    fn test_char_pop_push() {
+        let char_ = 'g';
+        let state: &mut InterpreterState = &mut InterpreterState {
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+        };
+        push_short(char_ as u16,state);
+        assert_eq!(char_ as u16,pop_short(state));//todo needs actual pop_char
+    }
+
+    #[test]
+    fn test_double_pop_push() {
+        let double_ = 0.4546545613512652;
+        let state: &mut InterpreterState = &mut InterpreterState {
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+        };
+        push_double(double_,state);
+        assert_eq!(double_,pop_double(state));
+    }
+
+
+    #[test]
+    fn test_float_pop_push() {
+        let float_ = 56.045f32;
+        let state: &mut InterpreterState = &mut InterpreterState {
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+        };
+        push_float(float_,state);
+        assert_eq!(float_,pop_float(state));
+    }
+
+    #[test]
+    fn test_byte_pop_push() {
+        let byte_  = 120i8;
+        let state: &mut InterpreterState = &mut InterpreterState {
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+        };
+        push_byte(byte_ as u8,state);//todo need to pop push i8
+        assert_eq!(byte_ as u8,pop_byte(state));
+    }
+
 }

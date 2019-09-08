@@ -37,7 +37,7 @@ pub fn do_fadd(state: &mut InterpreterState) -> () {
 
 pub fn do_f2l(state: &mut InterpreterState) -> () {
     let float = pop_float(state);
-    push_long(float as u64, state);
+    push_long(float as i64, state);
 }
 
 pub fn do_f2i(state: &mut InterpreterState) -> () {

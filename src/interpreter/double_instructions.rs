@@ -51,7 +51,7 @@ pub fn do_dadd(state: &mut InterpreterState) -> () {
 
 pub fn do_d2l(state: &mut InterpreterState) -> () {
     let double = pop_double(state);
-    push_long(double as u64, state)
+    push_long(double as i64, state)
 }
 
 pub fn do_d2i(state: &mut InterpreterState) -> () {

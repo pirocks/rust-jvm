@@ -1,4 +1,5 @@
 use interpreter::interpreter_util::{pop_int, push_int, store_n_32, load_n_64, push_long, EXECUTION_ERROR, pop_long};
+use std::mem::transmute;
 
 #[macro_use]
 
@@ -240,7 +241,7 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     state.pc_offset = 1;//offset the opcode which was just read
     match opcode {
         InstructionType::aaload => load_u64(state),
-        InstructionType::aastore => store_u64(state),
+        InstructionType::aastore => store_i64(state),
         InstructionType::aconst_null => push_long(0, state),
         InstructionType::aload => do_aload(code, state),
         InstructionType::aload_0 => load_n_64(state, 0),
@@ -350,7 +351,7 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::i2c => push_int(pop_short(state) as u32, state),
         InstructionType::i2d => push_double(pop_int(state) as f64, state),
         InstructionType::i2f => push_float(pop_int(state) as f32, state),
-        InstructionType::i2l => push_long(pop_float(state) as i32 as i64 as u64, state),
+        InstructionType::i2l => push_long(pop_float(state) as i32 as i64, state),
         InstructionType::i2s => push_int(pop_int(state) as u16 as i16 as i32 as u32, state),
         InstructionType::iadd => do_iadd(state),
         InstructionType::iaload => {
@@ -536,7 +537,7 @@ pub mod long_instructions{
     pub fn do_ladd(state: &mut InterpreterState) -> () {
         let value2 = pop_long(state) as i64;
         let value1 = pop_long(state) as i64;
-        push_long((value2 + value1) as u64, state)
+        push_long((value2 + value1), state)
     }
 }
 
@@ -559,12 +560,8 @@ pub mod branch_instructions{
     }
 
 }
-
-
 pub mod float_instructions;
-
 pub mod dup_instructions;
-
 #[macro_use]
 pub mod interpreter_util;
 
@@ -598,8 +595,8 @@ fn do_aload(code: &[u8], state: &mut InterpreterState) -> ! {
 fn do_arraylength(state: &mut InterpreterState) -> () {
     let array_ref = pop_long(state);
     let length = unsafe {
-        let array: *mut u64 = ::std::mem::transmute(array_ref);
-        *(array.offset(-1 as isize)) as u64
+        let array: *mut i64 = transmute(array_ref);
+        *(array.offset(-1 as isize)) as i64
     };
     push_long(length,state)
 }
@@ -610,10 +607,10 @@ fn do_aastore(state: &mut InterpreterState) -> () {
     let array_ref = pop_long(state);
     null_pointer_check!(array_ref);
     unsafe {
-        let array: *mut u64 = ::std::mem::transmute(array_ref);
+        let array: *mut u64 = transmute(array_ref);
         let array_length: u64 = *array.offset(-1);
         array_out_of_bounds_check!(index,array_length);
-        *(array.offset(index as isize)) = value;
+        *(array.offset(index as isize)) = (value as u64);//todo
     }
 }
 
@@ -636,10 +633,10 @@ fn do_aaload(state: &mut InterpreterState) -> () {
     let array_ref = pop_long(state);
     null_pointer_check!(array_ref);
     let array_elem = unsafe {
-        let array: *mut u64 = ::std::mem::transmute(array_ref);
-        let array_length: u64 = *array.offset(-1);
+        let array: *mut i64 = ::std::mem::transmute(array_ref);
+        let array_length: i64 = *array.offset(-1);
         array_out_of_bounds_check!(index,array_length);
-        *(array.offset(index as isize)) as u64
+        *(array.offset(index as isize)) as i64
     };
     push_long(array_elem,state);
 }
