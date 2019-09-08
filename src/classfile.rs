@@ -2,11 +2,13 @@ use classfile::attribute_infos::parse_attributes;
 use classfile::constant_infos::{ConstantInfo, parse_constant_infos};
 use classfile::parsing_util::{read16, read32};
 use classfile::parsing_util::ParsingContext;
+use std::hash::Hasher;
 
-mod constant_infos;
-mod attribute_infos;
+pub mod constant_infos;
+pub mod attribute_infos;
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct AttributeInfo {
     pub attribute_name_index: u16,
     pub attribute_length: u32,
@@ -14,6 +16,7 @@ pub struct AttributeInfo {
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct FieldInfo {
     pub access_flags: u16,
     pub name_index: u16,
@@ -22,6 +25,7 @@ pub struct FieldInfo {
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct MethodInfo {
     pub access_flags: u16,
     pub name_index: u16,
@@ -32,32 +36,34 @@ pub struct MethodInfo {
 
 const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 
-//bitflag! {
-//    pub struct ClassAccessFlags{
-//        //TODO THIS NEEDS TO BE DIFFERENT FOR DIFFERNT TYPES
-//        //todo probably should just use u16 + arithmeti
-//    //maybe not but at very least is incomplete
-//    ACC_PUBLIC = 0X0001,
-//    ACC_PRIVATE = 0x0002,
-//    ACC_PROTECTED = 0x0004,
-//    ACC_STATIC = 0x0008,
-//    ACC_FINAL = 0X0010,
-//    ACC_SUPER = 0X0020,
-//    ACC_BRIDGE = 0X0040,
-//    ACC_VOLATILE = 0x0040,
-//    ACC_TRANSIENT = 0x0080,
-//    ACC_NATIVE = 0x0100,
-//    ACC_INTERFACE = 0X0200,
-//    ACC_ABSTRACT = 0X0400,
-//    ACC_STRICT = 0x0800,
-//    ACC_SYNTHETIC = 0X1000,
-//    ACC_ANNOTATION = 0X2000,
-//    ACC_ENUM = 0X4000,
-//    ACC_MODULE = 0X8000
-//    }
+
+//#[repr(u16)]
+//pub enum ClassAccessFlags {
+//TODO THIS NEEDS TO BE DIFFERENT FOR DIFFERNT TYPES
+//todo probably should just use u16 + arithmeti
+//maybe not but at very least is incomplete
+pub const ACC_PUBLIC: u16 = 0x0001;
+pub const ACC_PRIVATE: u16 = 0x0002;
+pub const ACC_PROTECTED: u16 = 0x0004;
+pub const ACC_STATIC: u16 = 0x0008;
+pub const ACC_FINAL: u16 = 0x0010;
+pub const ACC_SUPER: u16 = 0x0020;
+pub const ACC_BRIDGE: u16 = 0x0040;
+pub const ACC_VOLATILE: u16 = 0x0040;
+pub const ACC_TRANSIENT: u16 = 0x0080;
+pub const ACC_NATIVE: u16 = 0x0100;
+pub const ACC_INTERFACE: u16 = 0x0200;
+pub const ACC_ABSTRACT: u16 = 0x0400;
+pub const ACC_STRICT: u16 = 0x0800;
+pub const ACC_SYNTHETIC: u16 = 0x1000;
+pub const ACC_ANNOTATION: u16 = 0x2000;
+pub const ACC_ENUM: u16 = 0x4000;
+pub const ACC_MODULE: u16 = 0x8000;
 //}
 
+
 #[derive(Debug)]
+#[derive(Eq)]
 pub struct Classfile {
     pub magic: u32,
     pub minor_version: u16,
@@ -72,6 +78,37 @@ pub struct Classfile {
     pub attributes: Vec<AttributeInfo>,
 }
 
+impl std::cmp::PartialEq for Classfile{
+    fn eq(&self, other: &Self) -> bool {
+        self.magic == other.magic &&
+        self.minor_version  == other.minor_version &&
+        self.major_version == other.major_version &&
+        self.constant_pool == other.constant_pool &&
+        self.access_flags == other.access_flags &&
+        self.this_class == other.this_class &&
+        self.super_class == other.super_class &&
+        self.interfaces == other.interfaces &&
+        self.fields == other.fields &&
+        self.methods == other.methods &&
+        self.attributes == other.attributes
+    }
+}
+
+impl std::hash::Hash for Classfile{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u32(self.magic);
+        state.write_u16(self.minor_version);
+        state.write_u16(self.major_version);
+        //todo constant_pool
+        state.write_u16(self.access_flags);
+        state.write_u16(self.this_class);
+        state.write_u16(self.super_class);
+        //todo interfaces
+        //todo fields
+        //todo methods
+        //todo attributes
+    }
+}
 
 pub mod parsing_util {
     use std::fs::File;

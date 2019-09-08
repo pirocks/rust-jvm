@@ -2,44 +2,59 @@ use classfile::parsing_util::{ParsingContext, read8, read16};
 use std::any::Any;
 
 #[derive(Debug)]
+#[derive(Eq)]
 pub struct Utf8 {
     pub length : u16,
     pub string: String,
 }
 
+impl PartialEq for Utf8{
+    fn eq(&self, other: &Self) -> bool {
+        return self.length == other.length &&
+            self.string == other.string;
+    }
+}
+
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Integer{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Float{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Long{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Double{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Class{
     //unimplemented!()
     pub name_index: u16
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct String_{
     //unimplemented!()
     pub string_index: u16
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Fieldref{
     //unimplemented!()
     pub class_index: u16,
@@ -47,17 +62,20 @@ pub struct Fieldref{
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Methodref{
     pub class_index: u16,
     pub name_and_type_index: u16
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct InterfaceMethodref{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct NameAndType{
     //unimplemented!()
     pub name_index: u16,
@@ -65,39 +83,47 @@ pub struct NameAndType{
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct MethodHandle{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct MethodType{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Dynamic{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct InvokeDynamic{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Module{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Package{
     //unimplemented!()
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct InvalidConstant {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub enum ConstantKind {
     Utf8(Utf8),
     Integer(Integer),
@@ -127,11 +153,16 @@ pub fn is_utf8(utf8 : &ConstantKind) -> Option<&Utf8>{
 }
 
 #[derive(Debug)]
+#[derive(Eq)]
 pub struct ConstantInfo {
     pub kind: ConstantKind,
 }
 
-
+impl PartialEq for ConstantInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+    }
+}
 
 /*
 struct cp_info readCPInfo(FILE *file) {

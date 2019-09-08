@@ -5,47 +5,56 @@ use classfile::constant_infos::{ConstantInfo, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct SourceFile{
     //todo
     pub sourcefile_index: u16
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct InnerClasses{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct EnclosingMethod{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct SourceDebugExtension{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct BootstrapMethods{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Module{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct NestHost{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct ConstantValue{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Code{
     //todo
     pub attributes: Vec<AttributeInfo>,
@@ -56,6 +65,7 @@ pub struct Code{
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct ExceptionTableElem {
     pub start_pc: u16,
     pub end_pc: u16,
@@ -64,74 +74,88 @@ pub struct ExceptionTableElem {
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct LineNumberTableEntry {
     pub start_pc: u16,
     pub line_number: u16,
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Exceptions{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleParameterAnnotations{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleParameterAnnotations{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct AnnotationDefault{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct MethodParameters{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Synthetic{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Deprecated{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Signature{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleAnnotations{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleAnnotations{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct LineNumberTable{
     //todo
     pub line_number_table: Vec<LineNumberTableEntry>
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct LocalVariableTable{
     //todo
     pub local_variable_table: Vec<LocalVariableTableEntry>
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct LocalVariableTableEntry {
     pub start_pc: u16,
     pub length: u16,
@@ -141,26 +165,31 @@ pub struct LocalVariableTableEntry {
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct LocalVariableTypeTable{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct StackMapTable{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleTypeAnnotations{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleTypeAnnotations{
     //todo
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub enum AttributeType{
     SourceFile(SourceFile),
     InnerClasses(InnerClasses),

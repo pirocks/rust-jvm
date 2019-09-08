@@ -11,6 +11,19 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "bimap"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cfg-if"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "num"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -85,12 +98,15 @@ name = "rust-jvm"
 version = "0.1.0"
 dependencies = [
  "argparse 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bimap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [metadata]
 "checksum argparse 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3f8ebf5827e4ac4fd5946560e6a99776ea73b596d80898f357007317a7141e47"
 "checksum autocfg 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "b671c8fb71b457dd4ae18c4ba1e59aa81793daacc361d82fcd410cef0d491875"
+"checksum bimap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "783204f24fd7724ea274d327619cfa6a6018047bb0561a68aadff6f56787591b"
+"checksum cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "b486ce3ccf7ffd79fdeb678eac06a9e6c09fc88d33836340becb8fffe87c5e33"
 "checksum num 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cf4825417e1e1406b3782a8ce92f4d53f26ec055e3622e1881ca8e9f5f9e08db"
 "checksum num-bigint 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "f9c3f34cdd24f334cb265d9bf8bfa8a241920d026916785747a92f0e55541a1a"
 "checksum num-complex 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "fcb0cf31fb3ff77e6d2a6ebd6800df7fdcd106f2ad89113c9130bcd07f93dffc"

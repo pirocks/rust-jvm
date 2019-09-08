@@ -1,5 +1,6 @@
 extern crate core;
 extern crate num;
+extern crate bimap;
 
 pub mod classfile;
 pub mod jit;

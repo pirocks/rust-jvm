@@ -12,3 +12,4 @@ path = "src/lib.rs"
 [dependencies]
 argparse = "0.2.2"
 num = "0.2.0"
+bimap = "0.4"
