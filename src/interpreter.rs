@@ -347,12 +347,12 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         }
         InstructionType::goto_ => do_goto(code),
         InstructionType::goto_w => do_goto_w(code),
-        InstructionType::i2b => push_int(pop_byte(state) as i8 as i32 as u32, state),
-        InstructionType::i2c => push_int(pop_short(state) as u32, state),
+        InstructionType::i2b => push_int(pop_byte(state) as i8 as i32, state),
+        InstructionType::i2c => push_int(pop_short(state) as u32 as i32, state),
         InstructionType::i2d => push_double(pop_int(state) as f64, state),
         InstructionType::i2f => push_float(pop_int(state) as f32, state),
         InstructionType::i2l => push_long(pop_float(state) as i32 as i64, state),
-        InstructionType::i2s => push_int(pop_int(state) as u16 as i16 as i32 as u32, state),
+        InstructionType::i2s => push_short(pop_int(state) as u16 as i16, state),//todo check
         InstructionType::iadd => do_iadd(state),
         InstructionType::iaload => {
             load!(u32,state);
@@ -361,7 +361,7 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::iastore => {
             store!(u32,state);
         }
-        InstructionType::iconst_m1 => push_int((0-1) as u32, state),
+        InstructionType::iconst_m1 => push_int(-1, state),
         InstructionType::iconst_0 => push_int(0, state),
         InstructionType::iconst_1 => push_int(1, state),
         InstructionType::iconst_2 => push_int(2, state),
@@ -472,7 +472,7 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         }
         InstructionType::l2d => push_double(pop_long(state) as f64, state),
         InstructionType::l2f => push_float(pop_long(state) as f32, state),
-        InstructionType::l2i => push_int(pop_long(state) as u32, state),
+        InstructionType::l2i => push_int(pop_long(state) as i32, state),//todo check truncation
         InstructionType::ladd => do_ladd(state),
         InstructionType::laload => {}
         InstructionType::land => {}
@@ -567,7 +567,7 @@ pub mod interpreter_util;
 
 fn do_bipush(state: &mut InterpreterState) -> () {
     let byte = pop_int(state) as i8;
-    push_int(byte as i32 as u32, state);
+    push_int(byte as i32, state);
 }
 
 fn do_astore(code: &[u8], state: &mut InterpreterState) -> ! {

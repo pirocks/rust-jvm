@@ -1,5 +1,6 @@
-use interpreter::{InterpreterState};
 use ::std::mem::transmute;
+
+use interpreter::InterpreterState;
 
 pub const EXECUTION_ERROR: &str = "Fatal Error, when executing, this is a bug.";
 
@@ -98,47 +99,52 @@ pub fn push_long(to_push: i64, state: &mut InterpreterState) {
     state.operand_stack.push( ((to_push << 32) >> 32) as u32);
 }
 
-pub fn push_byte(to_push: u8, state: &mut InterpreterState) {
+pub fn push_byte(to_push: i8, state: &mut InterpreterState) {
     state.operand_stack.push(to_push as u32)
 }
 
-pub fn pop_byte(state: &mut InterpreterState) -> u8 {
-    return state.operand_stack.pop().expect(EXECUTION_ERROR) as u8;
+pub fn pop_byte(state: &mut InterpreterState) -> i8 {
+    return state.operand_stack.pop().expect(EXECUTION_ERROR) as i8;
 }
 
-
-pub fn push_short(to_push: u16, state: &mut InterpreterState) {
+pub fn push_char(to_push: u16, state: &mut InterpreterState) {
     state.operand_stack.push(to_push as u32)
 }
 
-pub fn pop_short(state: &mut InterpreterState) -> u16 {
+pub fn pop_char(state: &mut InterpreterState) -> u16 {
     return state.operand_stack.pop().expect(EXECUTION_ERROR) as u16;
 }
 
-
-pub(crate) fn push_int(to_push: u32, state: &mut InterpreterState) {
-    state.operand_stack.push(to_push)
+pub fn push_short(to_push: i16, state: &mut InterpreterState) {
+    state.operand_stack.push(to_push as u32)
 }
 
-pub fn pop_int(state: &mut InterpreterState) -> u32 {
-    return state.operand_stack.pop().expect(EXECUTION_ERROR);
+pub fn pop_short(state: &mut InterpreterState) -> i16 {
+    return state.operand_stack.pop().expect(EXECUTION_ERROR) as i16;
 }
 
 
-pub(crate) fn push_float(to_push: f32, state: &mut InterpreterState) {
+pub fn push_int(to_push: i32, state: &mut InterpreterState) {
+    state.operand_stack.push(unsafe { transmute(to_push) })
+}
+
+pub fn pop_int(state: &mut InterpreterState) -> i32 {
+    return unsafe { transmute(state.operand_stack.pop().expect(EXECUTION_ERROR)) };
+}
+
+
+pub fn push_float(to_push: f32, state: &mut InterpreterState) {
     state.operand_stack.push(unsafe { ::std::mem::transmute(to_push) })
 }
 
 pub fn pop_float(state: &mut InterpreterState) -> f32 {
     let value = state.operand_stack.pop().expect(EXECUTION_ERROR) as u32;
-    return unsafe {
-        ::std::mem::transmute(value)
-    }
+    return unsafe { transmute(value) }
 }
 
 
-pub(crate) fn push_double(to_push: f64, state: &mut InterpreterState) {
-    push_long(unsafe { ::std::mem::transmute(to_push) },state)
+pub fn push_double(to_push: f64, state: &mut InterpreterState) {
+    push_long(unsafe { transmute(to_push) }, state)
 }
 
 pub fn pop_double(state: &mut InterpreterState) -> f64 {
@@ -148,24 +154,24 @@ pub fn pop_double(state: &mut InterpreterState) -> f64 {
     }
 }
 
-pub(crate) fn store_n_32(state: &mut InterpreterState, n: u64) {
+pub fn store_n_32(state: &mut InterpreterState, n: u64) {
     let reference = state.operand_stack.pop().expect(EXECUTION_ERROR);
     state.local_vars[n as usize] = reference as u32;
 }
 
 
-pub(crate) fn store_n_64(state: &mut InterpreterState, n: u64) {
+pub fn store_n_64(state: &mut InterpreterState, n: u64) {
     let reference = pop_long(state);
     state.local_vars[n as usize] = reference as u32;
     state.local_vars[(n + 1) as usize] = (reference >> 32) as u32;//todo is this really the correct order
 }
 
-pub(crate) fn load_n_32(state: &mut InterpreterState, n: u64) {
+pub fn load_n_32(state: &mut InterpreterState, n: u64) {
     let reference = state.local_vars[n as usize];
     state.operand_stack.push(reference as u32)
 }
 
-pub(crate) fn load_n_64(state: &mut InterpreterState, n: u64) {
+pub fn load_n_64(state: &mut InterpreterState, n: u64) {
     let least_significant = state.local_vars[n as usize];
     let most_significant = state.local_vars[(n + 1) as usize];
     state.operand_stack.push(most_significant );
@@ -173,12 +179,12 @@ pub(crate) fn load_n_64(state: &mut InterpreterState, n: u64) {
 }
 
 #[cfg(test)]
-mod tests{
+pub mod tests{
     use super::*;
 
     #[test]
     fn test_int_pop_push() {
-        let int_ = 654545864;
+        let int_ = -654545864;
         let state: &mut InterpreterState = &mut InterpreterState {
             pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
         };
@@ -202,8 +208,8 @@ mod tests{
         let state: &mut InterpreterState = &mut InterpreterState {
             pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
         };
-        push_short(char_ as u16,state);
-        assert_eq!(char_ as u16,pop_short(state));//todo needs actual pop_char
+        push_char(char_ as u16, state);
+        assert_eq!(char_ as u16, pop_char(state));
     }
 
     #[test]
@@ -219,7 +225,7 @@ mod tests{
 
     #[test]
     fn test_float_pop_push() {
-        let float_ = 56.045f32;
+        let float_ = -56.045f32;
         let state: &mut InterpreterState = &mut InterpreterState {
             pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
         };
@@ -229,12 +235,12 @@ mod tests{
 
     #[test]
     fn test_byte_pop_push() {
-        let byte_  = 120i8;
+        let byte_  = -120i8;
         let state: &mut InterpreterState = &mut InterpreterState {
             pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
         };
-        push_byte(byte_ as u8,state);//todo need to pop push i8
-        assert_eq!(byte_ as u8,pop_byte(state));
+        push_byte(byte_, state);//todo need to pop push i8
+        assert_eq!(byte_, pop_byte(state));
     }
 
 }
