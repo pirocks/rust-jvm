@@ -1,5 +1,4 @@
 use std::borrow::Borrow;
-use std::fmt::Formatter;
 use std::io::{BufWriter, Write};
 
 use bimap::BiMap;
@@ -7,6 +6,7 @@ use bimap::BiMap;
 use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, MethodInfo};
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
+use std::io;
 
 pub struct PrologGenContext {
     pub class_files: Vec<Classfile>,
@@ -34,16 +34,17 @@ classIsTypeSafe(Class) :-\
     checklist(methodIsTypeSafe(Class), Methods).\
 ";
 
-pub fn gen_prolog<S: Write>(context: &PrologGenContext, w :&mut BufWriter<S>  ){
-    write_class_name(context,w);
-    write_is_interface(context,w);
-    write_class_is_not_final(context,w);
-    write_class_super_class_name(context,w);
-    write_class_interfaces(context,w);
-    write_class_methods(context,w);
-    write_method_name(context,w);
-    write_class_attributes(context,w);
-    write_method_access_flags(context,w);
+pub fn gen_prolog<S: Write>(context: &PrologGenContext, w :&mut BufWriter<S>  )-> Result<(),io::Error>{
+    write_class_name(context,w)?;
+    write_is_interface(context,w)?;
+    write_class_is_not_final(context,w)?;
+    write_class_super_class_name(context,w)?;
+    write_class_interfaces(context,w)?;
+    write_class_methods(context,w)?;
+    write_method_name(context,w)?;
+    write_class_attributes(context,w)?;
+    write_method_access_flags(context,w)?;
+    Ok(())
 }
 
 fn class_name(class: &Classfile) -> String {
@@ -64,11 +65,12 @@ fn class_prolog_name(class_: &String) -> String {
 // Extracts the name, ClassName , of the class Class .
 //classClassName(Class, ClassName)
 //todo function for class object name
-fn write_class_name(context: &PrologGenContext, w: &mut dyn Write) -> () {
+fn write_class_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
     for class_file  in context.class_files.iter() {
         let class_name = class_name(class_file);
-        write!(w, "classClassName({},'{}').\n", class_prolog_name(&class_name), class_name);
+        write!(w, "classClassName({},'{}').\n", class_prolog_name(&class_name), class_name)?;
     }
+    Ok(())
 }
 
 fn is_interface(class: &Classfile) -> bool {
@@ -81,23 +83,25 @@ fn is_final(class: &Classfile) -> bool {
 
 //classIsInterface(Class)
 // True iff the class, Class , is an interface.
-fn write_is_interface(context: &PrologGenContext, w: &mut dyn Write) -> () {
+fn write_is_interface(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
     for class_file in context.class_files.iter() {
         if is_interface(class_file.borrow()) {
-            write!(w, "classIsInterface({}).\n", class_prolog_name(&class_name(&class_file)));
+            write!(w, "classIsInterface({}).\n", class_prolog_name(&class_name(&class_file)))?;
         }
     }
+    Ok(())
 }
 
 //classIsNotFinal(Class)
 // True iff the class, Class , is not a final class.
 
-fn write_class_is_not_final(context: &PrologGenContext, w: &mut dyn Write) {
+fn write_class_is_not_final(context: &PrologGenContext, w: &mut dyn Write)-> Result<(),io::Error> {
     for class_file in context.class_files.iter() {
         if !is_final(&class_file) {
-            write!(w, "classIsNotFinal({}).\n", class_prolog_name(&class_name(&class_file)));
+            write!(w, "classIsNotFinal({}).\n", class_prolog_name(&class_name(&class_file)))?;
         }
     }
+    Ok(())
 }
 
 //todo this should go at top
@@ -132,63 +136,68 @@ fn has_super_class(class: &Classfile) -> bool {
 //classSuperClassName(Class, SuperClassName)
 // Extracts the name, SuperClassName , of the superclass of class Class .
 
-fn write_class_super_class_name(context: &PrologGenContext, w: &mut dyn Write) {
+fn write_class_super_class_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
     //todo check if has super class
     for class_file in context.class_files.iter() {
         if has_super_class(&class_file) {
             let super_class_name = get_super_class_name(&class_file);
             let base_class = class_prolog_name(&class_name(&class_file));
-            write!(w, "classSuperClassName({},'{}').\n", base_class, super_class_name);
+            write!(w, "classSuperClassName({},'{}').\n", base_class, super_class_name)?;
         }
     }
+    Ok(())
 }
 
 //classInterfaces(Class, Interfaces)
 // Extracts a list, Interfaces , of the direct superinterfaces of the class Class .
 
-fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) {
+fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
     for class_file in context.class_files.iter() {
-        write!(w, "classInterfaces({},[", class_prolog_name(&class_name(&class_file)));
+        write!(w, "classInterfaces({},[", class_prolog_name(&class_name(&class_file)))?;
         for (i, interface) in class_file.interfaces.iter().enumerate() {
             let interface_name = extract_string_from_utf8(&class_file.constant_pool[*interface as usize]);
             let prolog_interface_name = class_prolog_name(&interface_name);
             if i == class_file.interfaces.len() - 1 {
-                write!(w, "{}", prolog_interface_name);
+                write!(w, "{}", prolog_interface_name)?;
             } else {
-                write!(w, "{},", prolog_interface_name);
+                write!(w, "{},", prolog_interface_name)?;
             }
         }
-        write!(w, "]).\n");
+        write!(w, "]).\n")?;
     }
+    Ok(())
 }
 
 
-fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) {
+fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write)-> Result<(),io::Error> {
     let method_name_utf8 = &class_file.constant_pool[method_info.name_index as usize];
     let method_name = extract_string_from_utf8(method_name_utf8);
-    write!(w, "prolog_name__{}__Method_{}", class_name(class_file), method_name);
+    write!(w, "prolog_name__{}__Method_{}", class_name(class_file), method_name)?;
+    Ok(())
 }
 
 //classMethods(Class, Methods)
 // Extracts a list, Methods , of the methods declared in the class Class .
-fn write_class_methods(context: &PrologGenContext, w: &mut dyn Write) {
+fn write_class_methods(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
     for class_file in context.class_files.iter() {
-        write!(w, "classMethods({},[", class_prolog_name(&class_name(&class_file)));
+        write!(w, "classMethods({},[", class_prolog_name(&class_name(&class_file)))?;
         for (i, method_info) in class_file.methods.iter().enumerate() {
-            write_method_prolog_name(&class_file, method_info, w);
+            write_method_prolog_name(&class_file, method_info, w)?;
             if class_file.methods.len() - 1 != i {
-                write!(w, ",");
+                write!(w, ",")?;
             }
         }
-        write!(w, "]).\n");
+        write!(w, "]).\n")?;
     }
+    Ok(())
 }
 
 //classAttributes(Class, Attributes)
 
-fn write_attribute(attribute_info: &AttributeInfo, w: &mut dyn Write) {
+fn write_attribute(attribute_info: &AttributeInfo, w: &mut dyn Write)-> Result<(),io::Error> {
     let name = get_attribute_name(attribute_info);
-    write!(w, "{}", name);
+    write!(w, "{}", name)?;
+    Ok(())
 }
 
 //todo
@@ -222,17 +231,18 @@ fn get_attribute_name(attribute_info: &AttributeInfo) -> String {
     }.to_string()
 }
 
-fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write) {
+fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write)-> Result<(),io::Error> {
     for class_file in context.class_files.iter() {
-        write!(w, "classAttributes({}, [", class_prolog_name(&class_name(&class_file)));
+        write!(w, "classAttributes({}, [", class_prolog_name(&class_name(&class_file)))?;
         for (i,attribute) in class_file.attributes.iter().enumerate() {
-            write_attribute(&attribute, w);
+            write_attribute(&attribute, w)?;
             if class_file.attributes.len() - 1 != i {
-                write!(w, ",");
+                write!(w, ",")?;
             }
         }
-        write!(w, "]).\n");
+        write!(w, "]).\n")?;
     }
+    Ok(())
 }
 
 // Extracts a list, Attributes , of the attributes of the class Class .
@@ -271,14 +281,15 @@ fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write) {
 //methodName(Method, Name)
 // Extracts the name, Name , of the method Method .
 
-fn write_method_name( context: &PrologGenContext, w: &mut dyn Write) {
+fn write_method_name( context: &PrologGenContext, w: &mut dyn Write)-> Result<(),io::Error> {
     for class_file in context.class_files.iter(){
         for method in class_file.methods.iter(){
-            write!(w,"methodName(");
-            write_method_prolog_name(class_file,&method,w);
-            write!(w, ",'{}').",extract_string_from_utf8( &class_file.constant_pool[method.name_index as usize]));
+            write!(w,"methodName(")?;
+            write_method_prolog_name(class_file,&method,w)?;
+            write!(w, ",'{}').",extract_string_from_utf8( &class_file.constant_pool[method.name_index as usize]))?;
         }
     }
+    Ok(())
 }
 
 
@@ -286,84 +297,86 @@ fn write_method_name( context: &PrologGenContext, w: &mut dyn Write) {
 //)
 // Extracts the access flags, AccessFlags , of the method Method .
 
-fn before_method_access_flags(class_file: &Classfile,method_info: &MethodInfo, w: &mut dyn Write){
-    write!(w,"methodAccessFlags(");
-    write_method_prolog_name(class_file, method_info,w);
+fn before_method_access_flags(class_file: &Classfile,method_info: &MethodInfo, w: &mut dyn Write)-> Result<(),io::Error>{
+    write!(w,"methodAccessFlags(")?;
+    write_method_prolog_name(class_file, method_info,w)?;
+    Ok(())
 }
 
-fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) {
+fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
     for class_file in context.class_files.iter() {
         for method_info in class_file.methods.iter() {
             if (method_info.access_flags & ACC_PUBLIC) > 0 {
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", public).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", public).\n")?;
             }
             if (method_info.access_flags & ACC_PRIVATE) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", private).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", private).\n")?;
             }
             if (method_info.access_flags & ACC_PROTECTED) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", protected).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", protected).\n")?;
             }
             if (method_info.access_flags & ACC_STATIC) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", static).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", static).\n")?;
             }
             if (method_info.access_flags & ACC_FINAL) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", final).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", final).\n")?;
             }
             if (method_info.access_flags & ACC_SUPER) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", super).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", super).\n")?;
             }
             if (method_info.access_flags & ACC_BRIDGE) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", bridge).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", bridge).\n")?;
             }
             if (method_info.access_flags & ACC_VOLATILE) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", volatile).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", volatile).\n")?;
             }
             if (method_info.access_flags & ACC_TRANSIENT) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", transient).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", transient).\n")?;
             }
             if (method_info.access_flags & ACC_NATIVE) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", native).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", native).\n")?;
             }
             if (method_info.access_flags & ACC_INTERFACE) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", interface).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", interface).\n")?;
             }
             if (method_info.access_flags & ACC_ABSTRACT) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", abstract).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", abstract).\n")?;
             }
             if (method_info.access_flags & ACC_STRICT) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", strict).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", strict).\n")?;
             }
             if (method_info.access_flags & ACC_SYNTHETIC) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", synthetic).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", synthetic).\n")?;
             }
             if (method_info.access_flags & ACC_ANNOTATION) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", annotation).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", annotation).\n")?;
             }
             if (method_info.access_flags & ACC_ENUM) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", enum).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", enum).\n")?;
             }
             if (method_info.access_flags & ACC_MODULE) > 0{
-                before_method_access_flags(class_file,method_info, w);
-                write!(w, ", module).\n");
+                before_method_access_flags(class_file,method_info, w)?;
+                write!(w, ", module).\n")?;
             }
         }
     }
+    Ok(())
 }
 
 //methodDescriptor(Method, Descriptor

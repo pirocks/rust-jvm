@@ -5,6 +5,7 @@ use std::fs::File;
 use classfile::classfile::parse_class_file;
 use classfile::verification::PrologGenContext;
 use std::io::{BufWriter, Write};
+use std::io;
 
 #[test]
 pub fn basic_class_file_parse() {
@@ -29,7 +30,7 @@ fn get_test_resources() -> PathBuf {
 extern crate bimap;
 
 #[test]
-pub fn basic_class_file_prolog_output() {
+pub fn basic_class_file_prolog_output() -> Result<(),io::Error>{
     use bimap::BiMap;
     use classfile::classfile::parsing_util::ParsingContext;
     let mut test_resources_path = get_test_resources();
@@ -43,8 +44,8 @@ pub fn basic_class_file_prolog_output() {
     use classfile::verification::gen_prolog;
     let mut writer = BufWriter::new(std::io::stdout());
 
-    gen_prolog(&prolog_context, &mut writer);
-    writer.flush();
+    gen_prolog(&prolog_context, &mut writer)?;
+    writer.flush()?;
 //    assert!(false);
-    return;
+    return Ok(());
 }

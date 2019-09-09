@@ -1,7 +1,6 @@
 use interpreter::interpreter_util::{pop_int, push_int, store_n_32, load_n_64, push_long, EXECUTION_ERROR, pop_long};
 use std::mem::transmute;
 
-#[macro_use]
 
 
 
@@ -224,7 +223,6 @@ pub fn read_opcode(b: u8) -> InstructionType {
     return unsafe { ::std::mem::transmute(b) };
 }
 
-#[macro_use]
 pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     use ::load;
     use ::store;
