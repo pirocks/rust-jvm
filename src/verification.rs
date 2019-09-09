@@ -45,10 +45,11 @@ pub fn gen_prolog<S: Write>(context: &PrologGenContext, w :&mut BufWriter<S>  )-
     write_class_attributes(context,w)?;
     write_method_access_flags(context,w)?;
     write_is_init_and_is_not_init(context,w)?;
+    write_is_and_is_not_attributes_method(context, w)?;
     Ok(())
 }
 
-fn class_name(class: &Classfile) -> String {
+pub fn class_name(class: &Classfile) -> String {
     let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
         ConstantKind::Class(c) => { c }
         _ => { panic!() }
@@ -106,7 +107,7 @@ fn write_class_is_not_final(context: &PrologGenContext, w: &mut dyn Write)-> Res
 }
 
 //todo this should go at top
-fn extract_string_from_utf8(utf8: &ConstantInfo) -> String {
+pub fn extract_string_from_utf8(utf8: &ConstantInfo) -> String {
     match &(utf8).kind {
         ConstantKind::Utf8(s) => {
             return s.string.clone();
@@ -115,7 +116,7 @@ fn extract_string_from_utf8(utf8: &ConstantInfo) -> String {
     }
 }
 
-fn get_super_class_name(class: &Classfile) -> String {
+pub fn get_super_class_name(class: &Classfile) -> String {
     let class_info = match &(class.constant_pool[class.super_class as usize]).kind {
         ConstantKind::Class(c) => {
             c
@@ -412,48 +413,33 @@ fn write_is_init_and_is_not_init(context: &PrologGenContext, w: &mut dyn Write) 
 
 //isNotFinal(Method, Class)
 
-//void writeIsNotFinalMethod(struct ClassFile classFile, struct method_info methodInfo, FILE *out) {
-//if (methodInfo.access_flags & ACC_FINAL) {
-//fprintf(out, "isFinal(");
-//} else {
-//fprintf(out, "isNotFinal(");
-//}
-//write_method_name(classFile, methodInfo, out);
-//fprintf(out, ",");
-////    write_class_name(0, out);//todo
-//fprintf(out, ").");
-//}
+macro_rules! write_attribute {
+    ($flag: ident, $isCaseString: expr,$isNotCaseString:expr,$method_info:ident,$class_file:ident,$w:ident) => {
+        if ($method_info.access_flags & $flag) > 0 {
+            write!($w, $isCaseString)?;
+            write!($w,"(")?;
+        } else {
+            write!($w, $isNotCaseString)?;
+            write!($w,"(")?;
+        }
+        write_method_prolog_name($class_file, $method_info, $w)?;
+        write!($w, ",{}).\n", class_prolog_name(&class_name($class_file)))?;
+    };
+}
 
-//void writeIsNotFinal(struct ClassFile classFile, FILE *out) {
-//for (size_t i = 0; i < classFile.methods_count; + + i) {
-//struct method_info methodInfo = classFile.methods[i];
-//writeIsNotFinalMethod(classFile, methodInfo, out);
-//}
-//}
+fn write_is_and_is_not_attributes_method(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
+    for class_file in context.class_files.iter() {
+        for method_info in class_file.methods.iter() {
+            write_attribute!(ACC_FINAL,"isFinal","isNotFinal",method_info,class_file,w);
+            write_attribute!(ACC_STATIC,"isStatic","isNotStatic",method_info,class_file,w);
+            write_attribute!(ACC_PRIVATE,"isPrivate","isNotPrivate",method_info,class_file,w);
+        }
+    }
+    Ok(())
+}
 
 // True iff Method in class Class is not final .
 //isStatic(Method, Class)
-
-//void writeIsStaticMethod(struct ClassFile classFile, struct method_info methodInfo, FILE *out) {
-//if (methodInfo.access_flags & ACC_STATIC) {
-//fprintf(out, "isStatic(");
-//} else {
-//fprintf(out, "isNotStatic(");
-//}
-//write_method_name(classFile, methodInfo, out);
-//fprintf(out, ",");
-////    write_class_name(0, out);//todo
-//fprintf(out, ").");
-//}
-
-//void writeIsStatic(struct ClassFile classFile, FILE *out) {
-//for (size_t i = 0; i < classFile.methods_count; + + i) {
-//struct method_info methodInfo = classFile.methods[i];
-//writeIsStaticMethod(classFile, methodInfo, out);
-//}
-//}
-
-
 // True iff Method in class Class is static .
 //isNotStatic(Method, Class)
 // True iff Method in class Class is not static .
@@ -462,50 +448,15 @@ fn write_is_init_and_is_not_init(context: &PrologGenContext, w: &mut dyn Write) 
 //isNotPrivate(Method, Class)
 // True iff Method in class Class is not private .
 
-//void writeIsPrivateMethod(struct ClassFile classFile, struct method_info methodInfo, FILE *out) {
-//if (methodInfo.access_flags & ACC_PRIVATE) {
-//fprintf(out, "isPrivate(");
-//} else {
-//fprintf(out, "isNotPrivate(");
-//}
-//write_method_name(classFile, methodInfo, out);
-//fprintf(out, ",");
-////    write_class_name(0, out);//todo
-//fprintf(out, ").");
-//}
+pub mod types;
+pub mod method_descriptor_parser;
 
-//void writeIsPrivate(struct ClassFile classFile, FILE *out) {
-//for (size_t i = 0; i < classFile.methods_count; + + i) {
-//struct method_info methodInfo = classFile.methods[i];
-//writeIsPrivateMethod(classFile, methodInfo, out);
-//}
-//}
-
+pub mod instruction_parser;
 
 //isProtected(MemberClass, MemberName, MemberDescriptor)
 // True iff there is a member named MemberName with descriptor
 // MemberDescriptor in the class MemberClass and it is protected .
 //isNotProtected(MemberClass, MemberName, MemberDescriptor)
-
-
-//void writeIsProtectedMethod(struct ClassFile classFile, struct method_info methodInfo, FILE *out) {
-//if (methodInfo.access_flags & ACC_PROTECTED) {
-//fprintf(out, "isProtected(");
-//} else {
-//fprintf(out, "isNotProtected(");
-//}
-//write_method_name(classFile, methodInfo, out);
-//fprintf(out, ",");
-////    write_class_name(0, out);//todo
-//fprintf(out, ").");
-//}
-
-//void writeIsProtected(struct ClassFile classFile, FILE *out) {
-//for (size_t i = 0; i < classFile.methods_count; + + i) {
-//struct method_info methodInfo = classFile.methods[i];
-//writeIsProtectedMethod(classFile, methodInfo, out);
-//}
-//}
 
 //void print_type_byte(FILE * out){
 //fprintf(out, "byte");
