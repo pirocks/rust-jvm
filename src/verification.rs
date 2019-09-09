@@ -1,12 +1,12 @@
 use std::borrow::Borrow;
 use std::io::{BufWriter, Write};
+use std::io;
 
 use bimap::BiMap;
 
 use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, MethodInfo};
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
-use std::io;
 
 pub struct PrologGenContext {
     pub class_files: Vec<Classfile>,
@@ -44,6 +44,7 @@ pub fn gen_prolog<S: Write>(context: &PrologGenContext, w :&mut BufWriter<S>  )-
     write_method_name(context,w)?;
     write_class_attributes(context,w)?;
     write_method_access_flags(context,w)?;
+    write_is_init_and_is_not_init(context,w)?;
     Ok(())
 }
 
@@ -171,8 +172,8 @@ fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Resu
 
 fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write)-> Result<(),io::Error> {
     let method_name_utf8 = &class_file.constant_pool[method_info.name_index as usize];
-    let method_name = extract_string_from_utf8(method_name_utf8);
-    write!(w, "prolog_name__{}__Method_{}", class_name(class_file), method_name)?;
+    let method_name = extract_string_from_utf8(method_name_utf8).replace("<init>","__init");
+    write!(w, "prolog_name__{}__Method_{}", class_prolog_name(&class_name(class_file)), method_name)?;
     Ok(())
 }
 
@@ -286,7 +287,7 @@ fn write_method_name( context: &PrologGenContext, w: &mut dyn Write)-> Result<()
         for method in class_file.methods.iter(){
             write!(w,"methodName(")?;
             write_method_prolog_name(class_file,&method,w)?;
-            write!(w, ",'{}').",extract_string_from_utf8( &class_file.constant_pool[method.name_index as usize]))?;
+            write!(w, ",'{}').\n",extract_string_from_utf8( &class_file.constant_pool[method.name_index as usize]))?;
         }
     }
     Ok(())
@@ -391,22 +392,22 @@ fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) -> R
 // True iff Method (regardless of class) is <init> .
 //isNotInit(Method)
 // True iff Method (regardless of class) is not <init> .
-//fn writeIsInitAndIsNotInit(ClassFile classFile, FILE *out) {
-//    for (size_t i = 0; i < classFile.methods_count; + + i) {
-//    struct cp_info method_name_info = classFile.constant_pool[classFile.methods[i].name_index];
-//    assert(method_name_info.tag == CONSTANT_Utf8);
-//    uint16_t method_name_length = method_name_info.constantUtf8Info.length;
-//    uint8_t * method_name = method_name_info.constantUtf8Info.bytes;
-//    if (0 == strncmp(method_name, "<init>", method_name_length)) {
-//    fprintf(out, "isInit(");
-//    } else {
-//    fprintf(out, "isNotInit(");
-//    }
-//    write_method_name(classFile, classFile.methods[i], out);
-//    fprintf(out, ").");
-//}
-//
-//}
+fn write_is_init_and_is_not_init(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
+    for class_file in context.class_files.iter() {
+        for method_info in class_file.methods.iter(){
+            let method_name_info = &class_file.constant_pool[method_info.name_index as usize];
+            let method_name = extract_string_from_utf8(method_name_info);
+            if method_name == "<init>".to_string() {
+                write!(w, "isInit(")?;
+            } else {
+                write!(w, "isNotInit(")?;
+            }
+            write_method_prolog_name(&class_file, &method_info, w)?;
+            write!(w, ").\n")?;
+        }
+    }
+    Ok(())
+}
 
 
 //isNotFinal(Method, Class)
