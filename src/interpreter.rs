@@ -537,7 +537,7 @@ pub mod long_instructions{
     pub fn do_ladd(state: &mut InterpreterState) -> () {
         let value2 = pop_long(state) as i64;
         let value1 = pop_long(state) as i64;
-        push_long((value2 + value1), state)
+        push_long(value2 + value1, state)
     }
 }
 
@@ -610,7 +610,7 @@ fn do_aastore(state: &mut InterpreterState) -> () {
         let array: *mut u64 = transmute(array_ref);
         let array_length: u64 = *array.offset(-1);
         array_out_of_bounds_check!(index,array_length);
-        *(array.offset(index as isize)) = (value as u64);//todo
+        *(array.offset(index as isize)) = value as u64;//todo
     }
 }
 

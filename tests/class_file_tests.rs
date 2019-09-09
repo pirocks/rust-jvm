@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::fs::File;
 use classfile::classfile::parse_class_file;
 use classfile::verification::PrologGenContext;
-use std::fmt::Formatter;
 use std::io::{BufWriter, Write};
 
 #[test]

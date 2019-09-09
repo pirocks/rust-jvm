@@ -28,14 +28,14 @@ pub fn do_istore(code: &[u8], state: &mut InterpreterState) -> () {
 pub fn do_ishr(state: &mut InterpreterState) -> () {
     let value2 = pop_int(state);
     let value1 = pop_int(state);
-    let shift_amount = ((value2 << (32 - 5)) >> (32 - 5));
+    let shift_amount = (value2 << (32 - 5)) >> (32 - 5);
     push_int(value1 >> shift_amount, state)
 }
 
 pub fn do_ishl(state: &mut InterpreterState) -> () {
     let value2 = pop_int(state);
     let value1 = pop_int(state);
-    let shift_amount = ((value2 << (32 - 5)) >> (32 - 5));
+    let shift_amount = (value2 << (32 - 5)) >> (32 - 5);
     push_int(value1 << shift_amount, state)
 }
 
