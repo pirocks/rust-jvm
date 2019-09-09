@@ -3,6 +3,9 @@ extern crate classfile;
 use std::path::PathBuf;
 use std::fs::File;
 use classfile::classfile::parse_class_file;
+use classfile::verification::PrologGenContext;
+use std::fmt::Formatter;
+use std::io::{BufWriter, Write};
 
 #[test]
 pub fn basic_class_file_parse() {
@@ -24,3 +27,23 @@ fn get_test_resources() -> PathBuf {
     test_resources_path
 }
 
+extern crate bimap;
+
+#[test]
+pub fn basic_class_file_prolog_output() {
+    use bimap::BiMap;
+    use classfile::classfile::parsing_util::ParsingContext;
+    let mut test_resources_path = get_test_resources();
+    test_resources_path.push("Main.class");
+
+    let mut p = ParsingContext { f : File::open(test_resources_path.as_os_str()).unwrap() };
+    let parsed = parse_class_file(&mut p);
+    let mut class_files = Vec::new();
+    class_files.push(parsed);
+    let prolog_context = PrologGenContext{class_files,name_to_classfile:(BiMap::new()) };
+    use classfile::verification::gen_prolog;
+    let mut writer = BufWriter::new(File::open("/dev/stdout").expect("no /dev/stdout found"));
+
+    gen_prolog(&prolog_context, &mut writer);
+    return;
+}
