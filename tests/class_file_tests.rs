@@ -42,8 +42,10 @@ pub fn basic_class_file_prolog_output() {
     class_files.push(parsed);
     let prolog_context = PrologGenContext{class_files,name_to_classfile:(BiMap::new()) };
     use classfile::verification::gen_prolog;
-    let mut writer = BufWriter::new(File::open("/dev/stdout").expect("no /dev/stdout found"));
+    let mut writer = BufWriter::new(std::io::stdout());
 
     gen_prolog(&prolog_context, &mut writer);
+    writer.flush();
+//    assert!(false);
     return;
 }

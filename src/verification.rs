@@ -1,14 +1,14 @@
 use std::borrow::Borrow;
-use std::fmt::{Formatter};
+use std::fmt::Formatter;
 use std::fmt::Pointer;
+use std::io::{BufWriter, Write};
 
 use bimap::BiMap;
 
-use classfile::{ACC_FINAL, ACC_INTERFACE, AttributeInfo, Classfile, MethodInfo, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_SUPER, ACC_BRIDGE, ACC_VOLATILE, ACC_TRANSIENT, ACC_NATIVE, ACC_ABSTRACT, ACC_STRICT, ACC_SYNTHETIC, ACC_ANNOTATION, ACC_ENUM, ACC_MODULE};
+use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, MethodInfo};
+use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
 use interpreter::InstructionType::ret;
-use classfile::attribute_infos::AttributeType;
-use std::io::{BufWriter, Write};
 
 pub struct PrologGenContext {
     pub class_files: Vec<Classfile>,
@@ -47,17 +47,17 @@ pub fn gen_prolog<s: Write>(context: &PrologGenContext,w :&mut BufWriter<s>  ){
 }
 
 fn class_name(class: &Classfile) -> String {
-    match &(class.constant_pool[class.this_class as usize]).kind {
-        ConstantKind::Utf8(s) => {
-            return s.string.clone();
-        },
+    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
+        ConstantKind::Class(c) => { c }
         _ => { panic!() }
-    }
+    };
+    return extract_string_from_utf8((&class.constant_pool[class_info_entry.name_index as usize]));
+
 }
 
 fn class_prolog_name(class_: &String) -> String {
     let mut base = "prolog_name__".to_string();
-    base.push_str(class_);
+    base.push_str(class_.replace("/","__").as_str());
     return base
 }
 
