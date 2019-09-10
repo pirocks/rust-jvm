@@ -64,6 +64,7 @@ pub const ACC_MODULE: u16 = 0x8000;
 
 #[derive(Debug)]
 #[derive(Eq)]
+//#[derive(Copy, Clone)]
 pub struct Classfile {
     pub magic: u32,
     pub minor_version: u16,

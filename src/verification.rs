@@ -8,6 +8,10 @@ use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, A
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
 
+pub fn verify(c : &Classfile){
+
+}
+
 pub struct PrologGenContext {
     pub class_files: Vec<Classfile>,
     pub name_to_classfile: BiMap<String, Classfile>,//todo need to init

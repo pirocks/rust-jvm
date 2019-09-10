@@ -23,12 +23,15 @@ fn main() {
         ap.refer(&mut main_class_name)
             .add_option(&["--main"], Store,
                         "Main class");
-        ap.refer(&mut main_class_path)
-            .add_option(&["--main-file"], Store,
-                        "Main class specified as a file path");
+//        ap.refer(&mut main_class_path)
+//            .add_option(&["--main-file"], Store,
+//                        "Main class specified as a file path");
+//        ap.refer(&mut print_only_mode)
+//            .add_option(&["--print-only"], Store,
+//                        "only print main class dissasembly.");
         ap.refer(&mut print_only_mode)
-            .add_option(&["--print-only"], Store,
-                        "only print main class dissasembly.");
+            .add_option(&["--classpath-file"], Store,
+                        "path of file contains class path entries. Separated by :, only include .class files");
 //        ap.refer(&mut main_class_name)
 //            .add_option(&["--class-path-jar"], Store,
 //                        "Include a jar in the classpath");
@@ -43,4 +46,6 @@ fn main() {
     }
 
 }
+
+
 
