@@ -12,8 +12,12 @@ public class Main {
 	    System.out.println("here");
 	    System.out.println("also here");
 	    int a_var = 0;
-	    int another_var = a_var + 1;
-	    char a_char_var = 'g';
-	    double a_double  = a_var;
+	    if(Math.random() > 0){
+			int another_var = a_var + 1;
+			char a_char_var = 'g';
+			double a_double  = a_var;
+		}else {
+	    	a_var += 1;
+		}
     }
 }
