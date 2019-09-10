@@ -124,6 +124,7 @@ pub struct InvalidConstant {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+//#[derive(Copy, Clone)]
 pub enum ConstantKind {
     Utf8(Utf8),
     Integer(Integer),
@@ -154,6 +155,7 @@ pub fn is_utf8(utf8 : &ConstantKind) -> Option<&Utf8>{
 
 #[derive(Debug)]
 #[derive(Eq)]
+//#[derive(Copy, Clone)]
 pub struct ConstantInfo {
     pub kind: ConstantKind,
 }

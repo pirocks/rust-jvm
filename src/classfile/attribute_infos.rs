@@ -172,8 +172,120 @@ pub struct LocalVariableTypeTable{
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+pub struct TopVariableInfo {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct IntegerVariableInfo {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct FloatVariableInfo {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct LongVariableInfo {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct DoubleVariableInfo {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct NullVariableInfo {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct UninitializedThisVariableInfo {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct ObjectVariableInfo {
+    pub cpool_index: u16
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct UninitializedVariableInfo {
+    pub offset: u16
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub enum VerificationTypeInfo {
+    Top(TopVariableInfo),
+    Integer(IntegerVariableInfo),
+    Float(FloatVariableInfo),
+    Long(LongVariableInfo),
+    Double(DoubleVariableInfo),
+    Null(NullVariableInfo),
+    UninitializedThis(UninitializedThisVariableInfo),
+    Object(ObjectVariableInfo),
+    Uninitialized(UninitializedVariableInfo),
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct SameFrame {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct SameLocals1StackItemFrame {
+    pub stack: VerificationTypeInfo
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct SameLocals1StackItemFrameExtended {
+    pub offset_delta: u16,
+    pub stack: VerificationTypeInfo,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct ChopFrame {
+    pub offset_delta: u16
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct SameFrameExtended {
+    pub offset_delta: u16
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct AppendFrame {
+    pub offset_delta: u16,
+    pub locals: Vec<VerificationTypeInfo>,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct FullFrame {
+    pub offset_delta: u16,
+    pub number_of_locals: u16,
+    pub locals: Vec<VerificationTypeInfo>,
+    pub number_of_stack_items: u16,
+    pub stack: Vec<VerificationTypeInfo>,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub enum StackMapFrame {
+    SameFrame(SameFrame),
+    SameLocals1StackItemFrame(SameLocals1StackItemFrame),
+    SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended),
+    ChopFrame(ChopFrame),
+    SameFrameExtended(SameFrameExtended),
+    AppendFrame(AppendFrame),
+    FullFrame(FullFrame),
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct StackMapTable{
-    //todo
+    pub entries: Vec<StackMapFrame>
 }
 
 #[derive(Debug)]
@@ -234,8 +346,55 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
         return parse_local_variable_table(p, attribute_name_index, attribute_length)
     } else if name == "SourceFile" {
         return parse_sourcefile(p, attribute_name_index, attribute_length)
+    } else if name == "StackMapTable" {
+        return parse_stack_map_table(p, attribute_name_index, attribute_length)
     } else {
         unimplemented!()
+    }
+}
+
+fn parse_stack_map_table(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+    let number_of_entries = read16(p);
+    let mut entries = Vec::with_capacity(number_of_entries as usize);
+    for _ in 0..number_of_entries {
+        entries.push(parse_stack_map_table_entry(p));
+    }
+    return AttributeInfo {
+        attribute_name_index,
+        attribute_length,
+        attribute_type: AttributeType::StackMapTable(StackMapTable { entries }),
+    }
+}
+
+fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
+    let type_of_frame = read8(p);
+    //todo magic constants
+    match type_of_frame {
+        0..63 => {
+            StackMapFrame::SameFrame(SameFrame {})
+        }
+        252..254 => {
+            let offset_delta = read16(p);
+            let locals_size = type_of_frame - 251;
+            let mut locals = Vec::with_capacity(locals_size as usize);
+            for _ in 0..locals_size {
+                locals.push(parse_verification_type_info(p))
+            }
+            StackMapFrame::AppendFrame(AppendFrame {
+                offset_delta,
+                locals,
+            })
+        },
+        _ => { unimplemented!("{}", type_of_frame) }
+    }
+}
+
+fn parse_verification_type_info(p: &mut ParsingContext) -> VerificationTypeInfo{
+    let type_ = read8(p);
+    //todo magic constants
+    match type_ {
+        1 => VerificationTypeInfo::Integer(IntegerVariableInfo {}),
+        _ => { unimplemented!("{}", type_) }
     }
 }
 
@@ -333,6 +492,8 @@ fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_lengt
     }
     let attributes_count = read16(p);
     let attributes = parse_attributes(p, attributes_count,constant_pool);
+    //todo add empty stackmap table
+    dbg!(&attributes);
     return AttributeInfo {
         attribute_name_index,
         attribute_length,
