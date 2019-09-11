@@ -2,6 +2,8 @@ package io.github.pirocks;
 
 public class Main {
 
+	public long a_thing = 0;
+
 	public Main() {
 		long a_long_var = 1L;
 		long a_long_var_2 = 1L;

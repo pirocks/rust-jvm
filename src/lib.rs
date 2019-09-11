@@ -3,6 +3,7 @@
 extern crate core;
 extern crate num;
 extern crate bimap;
+extern crate argparse;
 
 pub mod classfile;
 pub mod jit;

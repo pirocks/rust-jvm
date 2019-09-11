@@ -6,6 +6,7 @@ use classfile::classfile::parse_class_file;
 use classfile::verification::PrologGenContext;
 use std::io::{BufWriter, Write};
 use std::io;
+use std::collections::HashMap;
 
 #[test]
 pub fn basic_class_file_parse() {
@@ -40,7 +41,7 @@ pub fn basic_class_file_prolog_output() -> Result<(),io::Error>{
     let parsed = parse_class_file(&mut p);
     let mut class_files = Vec::new();
     class_files.push(parsed);
-    let prolog_context = PrologGenContext{class_files,name_to_classfile:(BiMap::new()) };
+    let prolog_context = PrologGenContext{ to_load: class_files,name_to_classfile:(BiMap::new()) ,using_bootsrap_loader:true, existing_classfiles: HashMap::new()};
     use classfile::verification::gen_prolog;
     let mut writer = BufWriter::new(std::io::stdout());
 

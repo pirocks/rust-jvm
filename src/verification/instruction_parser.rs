@@ -2,7 +2,6 @@ use std::io::{Error, Write};
 
 use classfile::attribute_infos::Code;
 use interpreter::{InstructionType, read_opcode};
-use verification::PrologGenContext;
 
 
 fn instruction_to_string(i: usize, code: &Vec<u8>) -> (&str, u64) {

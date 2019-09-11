@@ -10,16 +10,15 @@
         //load superclass
 
 
-use std::iter::Map;
-use std::path::Path;
-use std::fs::File;
-use std::collections::{HashMap, HashSet};
-use classfile::parsing_util::ParsingContext;
-use classfile::{parse_class_file, Classfile};
 use std::borrow::BorrowMut;
-use verification::{class_name, get_super_class_name, extract_string_from_utf8, verify};
-use std::hash::Hasher;
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::path::Path;
+
+use classfile::{Classfile, parse_class_file};
 use classfile::constant_infos::ConstantKind;
+use classfile::parsing_util::ParsingContext;
+use verification::{class_name, extract_string_from_utf8, get_super_class_name, verify};
 
 struct JVMClassesState {
     //whether we are using bootstrap loader.
