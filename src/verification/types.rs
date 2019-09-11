@@ -66,16 +66,19 @@ pub fn parse_base_type(str_: &str) -> Option<(&str, Type)> {
 
 pub fn parse_object_type(str_: &str) -> Option<(&str, Type)> {
     match str_.chars().nth(0)? {
-        '[' => {
-            let str_without_brace = eat_one(str_);
-            let end_index = str_without_brace.find(';').expect("unterminated object in descriptor");
-            assert!(str_.chars().nth(end_index).expect("") == ';');
+        'L' => {
+            let str_without_l = eat_one(str_);
+            let end_index = str_without_l.find(';').expect("unterminated object in descriptor");
+            assert!(str_without_l.chars().nth(end_index).expect("") == ';');
             let class_name = str_[0..end_index].to_string();
             dbg!(&class_name);
-            let remaining_to_parse = &str_without_brace[end_index..str_without_brace.len()];
+            let remaining_to_parse = &str_without_l[(end_index + 1)..str_without_l.len()];
             Some((remaining_to_parse, Type::ReferenceType(Reference { class_name:Box::new(class_name) })))
         }
-        _ => return None
+        _ => {
+            panic!("{}",str_);
+            return None
+        }
     }
 }
 
@@ -93,7 +96,10 @@ pub fn parse_array_type(str_: &str) -> Option<(&str, Type)> {
 pub fn parse_field_type(str_: &str) -> Option<(&str, Type)> {
     parse_array_type(str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
-            parse_object_type(str_)
+            parse_object_type(str_).or_else(|| {
+                panic!("{}",str_)
+
+            })
         })
     })
 }
@@ -117,15 +123,17 @@ pub fn parse_component_type(str_: &str) -> Option<(&str, Type)> {
 
 pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
     if str_.chars().nth(0)? != '(' {
+        panic!();
         return None
     }
     let mut remaining_to_parse = eat_one(str_);
     let mut parameter_types = Vec::new();
-    while remaining_to_parse.chars().nth(0)? == ')' {
+    while remaining_to_parse.chars().nth(0)? != ')' {
         if let Some((rem,type_)) = parse_field_type(remaining_to_parse){
             remaining_to_parse = rem;
             parameter_types.push(type_);
         }else {
+            panic!();
             return None
         }
     }
@@ -134,9 +142,11 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
         if should_be_empty.is_empty() {
             Some(MethodDescriptor{ return_type, parameter_types})
         } else {
+            panic!();
             None
         }
     }else {
+        panic!();
         None
     }
 }
@@ -158,7 +168,7 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, Type)> {
     })
 }
 
-pub fn write_type_prolog(context: &PrologGenContext,type_: Type,  w: &mut dyn Write) -> Result<(), io::Error>{
+pub fn write_type_prolog(context: &PrologGenContext,type_: &Type,  w: &mut dyn Write) -> Result<(), io::Error>{
     match type_{
         Type::ByteType(_) => {
             write!(w,"byte")?;
@@ -195,7 +205,7 @@ pub fn write_type_prolog(context: &PrologGenContext,type_: Type,  w: &mut dyn Wr
         },
         Type::ArrayReferenceType(arr) => {
             write!(w, "arrayOf(")?;
-            write_type_prolog(context, *arr.sub_type, w)?;
+            write_type_prolog(context, &arr.sub_type, w)?;
             write!(w, ")")?;
         },
         Type::VoidType(_) => {

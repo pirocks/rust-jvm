@@ -9,7 +9,7 @@ use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, A
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
 use classfile::parsing_util::ParsingContext;
-use verification::types::{parse_field_descriptor, write_type_prolog};
+use verification::types::{parse_field_descriptor, write_type_prolog, parse_method_descriptor};
 
 pub fn verify(c : &Classfile){
 
@@ -80,6 +80,7 @@ pub fn gen_prolog<S: Write>(context: &PrologGenContext, w :&mut BufWriter<S>  )-
     write_is_and_is_not_attributes_method(context, w)?;
     write_is_and_is_not_protected(context,w)?;
     write_parse_field_descriptor(context,w)?;
+    write_parse_method_descriptor(context,w)?;
     Ok(())
 }
 
@@ -560,8 +561,6 @@ pub fn prolog_field_descriptor(class_file: &Classfile, field_info: &FieldInfo ,w
 
 // True iff there is a member named MemberName with descriptor
 // MemberDescriptor in the class MemberClass and it is not protected .
-//parseFieldDescriptor(Descriptor, Type
-//)
 
 pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_load.iter(){
@@ -580,6 +579,11 @@ pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Wri
     Ok(())
 }
 
+//parseFieldDescriptor(Descriptor, Type
+//)
+// Converts a field descriptor, Descriptor , into the corresponding verification
+// type Type (§4.10.1.2).
+
 pub fn write_parse_field_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_load.iter(){
         for field_info in class_file.fields.iter(){
@@ -588,40 +592,44 @@ pub fn write_parse_field_descriptor(context: &PrologGenContext, w: &mut dyn Writ
             let descriptor_string = extract_string_from_utf8(&class_file.constant_pool[field_info.descriptor_index as usize]);
             let parsed_type = parse_field_descriptor(descriptor_string.as_str()).expect("Error parsing field descriptor");
             write!(w,",")?;
-            write_type_prolog(context, parsed_type.field_type,w)?;
+            write_type_prolog(context, &parsed_type.field_type,w)?;
             write!(w,").\n")?;
         }
     }
     Ok(())
 }
 
-//void writeMethodDescriptor(struct ClassFile classFile, struct field_info fieldInfo){
-//classFile.constant_pool[fieldInfo.descriptor_index].constantUtf8Info
-//}
-
-// Converts a field descriptor, Descriptor , into the corresponding verification
-// type Type (§4.10.1.2).
-// 1954.10
-// Verification of class Files
-// THE CLASS FILE FORMAT
 //descriptor name, list of types and return type
-//parseMethodDescriptor(Descriptor, ArgTypeList, ReturnType
-//)
-
-//void writeMethodDescriptor(struct ClassFile classFile, struct method_info methodInfo){
-//classFile.constant_pool[methodInfo.descriptor_index].constantUtf8Info
-//}
-
+//parseMethodDescriptor(Descriptor, ArgTypeList, ReturnType)
 // Converts a method descriptor, Descriptor , into a list of verification types,
 // ArgTypeList , corresponding to the method argument types, and a verification
 // type, ReturnType , corresponding to the return type.
+
+
+pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error>{
+    for class_file in context.to_load.iter(){
+        for method_info in class_file.methods.iter() {
+            write!(w,"parseMethodDescriptor(")?;
+            prolog_method_descriptor(class_file, method_info, w)?;
+            let method_descriptor_str = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
+            let method_descriptor = parse_method_descriptor(method_descriptor_str.as_str()).expect("Error parsing method descriptor");
+            write!(w,",[")?;
+            for parameter_type in method_descriptor.parameter_types.iter(){
+                write_type_prolog(context, &parameter_type,w);
+                write!(w,",")?;//todo last comma ignored?
+            }
+            write!(w,"],")?;
+            write_type_prolog(context,&method_descriptor.return_type,w)?;
+            write!(w, ").\n")?;
+        }
+    }
+    Ok(())
+}
+
+
+
 //parseCodeAttribute(Class, Method, FrameSize, MaxStack, ParsedCode, Handlers, StackMap
 //)
-
-//void writeFrame(){
-////todo when stackmap becomes a thing
-//}
-
 //void writeParseCodeAttribute(struct ClassFile classFile, struct method_info methodInfo){
 //assert(methodInfo.code_attribute != NULL);
 //uint16_t max_stack = methodInfo.code_attribute -> max_stack;
