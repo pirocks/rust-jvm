@@ -537,7 +537,6 @@ fn write_is_and_is_not_attributes_method(context: &PrologGenContext, w: &mut dyn
 // True iff Method in class Class is not private .
 
 pub mod types;
-pub mod method_descriptor_parser;
 
 pub mod instruction_parser;
 
