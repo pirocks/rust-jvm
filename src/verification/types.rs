@@ -68,11 +68,11 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, Type)> {
     match str_.chars().nth(0)? {
         'L' => {
             let str_without_l = eat_one(str_);
-            let end_index = str_without_l.find(';').expect("unterminated object in descriptor");
-            assert!(str_without_l.chars().nth(end_index).expect("") == ';');
+            let end_index = str_without_l.find(';').expect("unterminated object in descriptor") + 1;
+            assert!(str_without_l.chars().nth(end_index - 1).expect("") == ';');
             let class_name = str_[0..end_index].to_string();
             dbg!(&class_name);
-            let remaining_to_parse = &str_without_l[(end_index + 1)..str_without_l.len()];
+            let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
             Some((remaining_to_parse, Type::ReferenceType(Reference { class_name:Box::new(class_name) })))
         }
         _ => {
