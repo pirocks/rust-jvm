@@ -451,7 +451,7 @@ pub fn output_instruction_info_for_code(code: &Code, w: &mut dyn Write) -> Resul
         write!(w, "{}", i)?;
         let (string, skip_copy) = instruction_to_string(i, &code.code);
         skip = skip_copy;
-        write!(w, ", {})\n", string)?;
+        write!(w, ", {})", string)?;
 
     }
     write!(w,"],")?;

@@ -33,7 +33,7 @@ pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write)
             write!(w, "],")?;
 
             write_stack_map_frames(class_file, method_info, w)?;
-            write!(w, ")")?;
+            write!(w, ").\n")?;
         }
     }
     Ok(())
@@ -154,7 +154,6 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     //todo dup
     let str_ = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
     let parsed_descriptor = parse_method_descriptor(str_.as_str()).expect("Error parsing method descriptor");
-    dbg!(&parsed_descriptor.parameter_types);
     locals = to_verification_type_array(&parsed_descriptor.parameter_types);
 
     let mut current_offset = 0;
