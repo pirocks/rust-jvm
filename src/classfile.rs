@@ -1,4 +1,4 @@
-use classfile::attribute_infos::parse_attributes;
+use classfile::attribute_infos::{parse_attributes, Code, AttributeType, StackMapTable};
 use classfile::constant_infos::{ConstantInfo, parse_constant_infos};
 use classfile::parsing_util::{read16, read32};
 use classfile::parsing_util::ParsingContext;
@@ -33,6 +33,29 @@ pub struct MethodInfo {
     pub attributes: Vec<AttributeInfo>
 }
 
+pub fn stack_map_table_attribute(method_info: & MethodInfo) -> Option<&StackMapTable> {
+    for attr in method_info.attributes.iter(){
+        match &attr.attribute_type {
+            AttributeType::StackMapTable(table) => {
+                return Some(table);//todo
+            },
+            _ => {}
+        }
+    }
+    None
+}
+
+pub fn code_attribute(method_info: & MethodInfo)-> &Code{
+    for attr in method_info.attributes.iter(){
+        match &attr.attribute_type {
+            AttributeType::Code(code) => {
+                return code;
+            },
+            _ => {}
+        }
+    }
+    panic!("Method has no code attribute, which is unusual given code is sorta the point of a method.")
+}
 
 const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 
@@ -177,7 +200,14 @@ pub fn parse_method(p: &mut ParsingContext,  constant_pool: &Vec<ConstantInfo>) 
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
     let attributes = parse_attributes(p,attributes_count, constant_pool);
-    return MethodInfo { access_flags, name_index, descriptor_index, attributes }
+    let mut res = MethodInfo { access_flags, name_index, descriptor_index, attributes };
+    if let None = stack_map_table_attribute(&res){
+        //todo hacky
+        res.attributes.push(AttributeInfo{ attribute_name_index: 0, attribute_length: 0, attribute_type:AttributeType::StackMapTable(StackMapTable {entries : Vec::new()} )});
+        res
+    }else {
+        res
+    }
 }
 
 pub fn parse_methods(p: &mut ParsingContext, methods_count: u16,  constant_pool: &Vec<ConstantInfo>) -> Vec<MethodInfo> {

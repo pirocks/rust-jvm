@@ -2,32 +2,45 @@ use std::io::Write;
 use std::io;
 use verification::{PrologGenContext, BOOTSTRAP_LOADER_NAME};
 
+#[derive(Debug)]
 pub struct Byte {}
 
+#[derive(Debug)]
 pub struct Char {}
 
+#[derive(Debug)]
 pub struct Double {}
 
+#[derive(Debug)]
 pub struct Float {}
 
+#[derive(Debug)]
 pub struct Int {}
 
+#[derive(Debug)]
 pub struct Long {}
 
+#[derive(Debug)]
 pub struct Reference {
+//    pub cp_index: u16,
     pub class_name: Box<String>
 }
 
+#[derive(Debug)]
 pub struct Short {}
 
+#[derive(Debug)]
 pub struct Boolean {}
 
+#[derive(Debug)]
 pub struct ArrayReference {
     pub sub_type: Box<Type>
 }
 
+#[derive(Debug)]
 pub struct Void {}
 
+#[derive(Debug)]
 pub enum Type {
     ByteType(Byte),
     CharType(Char),
@@ -42,6 +55,7 @@ pub enum Type {
     VoidType(Void),
 }
 
+#[derive(Debug)]
 pub struct MethodDescriptor{ pub parameter_types: Vec<Type>, pub return_type: Type }
 
 pub struct FieldDescriptor{ pub field_type: Type }
@@ -73,10 +87,9 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, Type)> {
             let class_name = str_[0..end_index].to_string();
             dbg!(&class_name);
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            Some((remaining_to_parse, Type::ReferenceType(Reference { class_name:Box::new(class_name) })))
+            Some((remaining_to_parse, Type::ReferenceType(Reference {class_name:Box::new(class_name) })))
         }
         _ => {
-            panic!("{}",str_);
             return None
         }
     }
@@ -123,7 +136,6 @@ pub fn parse_component_type(str_: &str) -> Option<(&str, Type)> {
 
 pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
     if str_.chars().nth(0)? != '(' {
-        panic!();
         return None
     }
     let mut remaining_to_parse = eat_one(str_);
@@ -133,7 +145,6 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
             remaining_to_parse = rem;
             parameter_types.push(type_);
         }else {
-            panic!();
             return None
         }
     }
@@ -142,11 +153,9 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
         if should_be_empty.is_empty() {
             Some(MethodDescriptor{ return_type, parameter_types})
         } else {
-            panic!();
             None
         }
     }else {
-        panic!();
         None
     }
 }

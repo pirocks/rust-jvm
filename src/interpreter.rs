@@ -545,15 +545,15 @@ pub mod branch_instructions{
         let branchbyte2 = code[2] as u32;
         let branchbyte3 = code[3] as u32;
         let branchbyte4 = code[4] as u32;
-        (branchbyte1 << 24) | (branchbyte2 << 16)
-            | (branchbyte3 << 8) | branchbyte4;
+        let _offset = ((branchbyte1 << 24) | (branchbyte2 << 16)
+            | (branchbyte3 << 8) | branchbyte4) as i16;
         unimplemented!("todo branching")
     }
 
     pub fn do_goto(code: &[u8]) -> ! {
         let branchbyte1 = code[1] as u16;
         let branchbyte2 = code[2] as u16;
-        (branchbyte1 << 8) | branchbyte2;
+        let _offset = ((branchbyte1 << 8) | branchbyte2) as i16;
         unimplemented!("todo branching")
     }
 
@@ -577,8 +577,8 @@ fn do_astore(code: &[u8], state: &mut InterpreterState) -> ! {
 fn do_anewarray(code: &[u8], state: &mut InterpreterState) -> ! {
     let indexbyte1 = code[1] as u16;
     let indexbyte2 = code[2] as u16;
-    (indexbyte1 << 8) | indexbyte2;
-    let count = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    let _index = (indexbyte1 << 8) | indexbyte2;
+    let _count = state.operand_stack.pop().expect(EXECUTION_ERROR);
     unimplemented!("Need to figure out how to get the constant pool in here.");
     unimplemented!("Need to increase pc by 3");
 }
@@ -598,19 +598,19 @@ fn do_arraylength(state: &mut InterpreterState) -> () {
     };
     push_long(length,state)
 }
-
-fn do_aastore(state: &mut InterpreterState) -> () {
-    let value = pop_long(state);
-    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    let array_ref = pop_long(state);
-    null_pointer_check!(array_ref);
-    unsafe {
-        let array: *mut u64 = transmute(array_ref);
-        let array_length: u64 = *array.offset(-1);
-        array_out_of_bounds_check!(index,array_length);
-        *(array.offset(index as isize)) = value as u64;//todo
-    }
-}
+//
+//fn do_aastore(state: &mut InterpreterState) -> () {
+//    let value = pop_long(state);
+//    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
+//    let array_ref = pop_long(state);
+//    null_pointer_check!(array_ref);
+//    unsafe {
+//        let array: *mut u64 = transmute(array_ref);
+//        let array_length: u64 = *array.offset(-1);
+//        array_out_of_bounds_check!(index,array_length);
+//        *(array.offset(index as isize)) = value as u64;//todo
+//    }
+//}
 
 //fn load<Type>(state: &mut InterpreterState) -> () where Type : Integer{
 //    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
@@ -625,16 +625,16 @@ fn do_aastore(state: &mut InterpreterState) -> () {
 //    };
 //    state.operand_stack.push(array_elem as u64);
 //}
-
-fn do_aaload(state: &mut InterpreterState) -> () {
-    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    let array_ref = pop_long(state);
-    null_pointer_check!(array_ref);
-    let array_elem = unsafe {
-        let array: *mut i64 = ::std::mem::transmute(array_ref);
-        let array_length: i64 = *array.offset(-1);
-        array_out_of_bounds_check!(index,array_length);
-        *(array.offset(index as isize)) as i64
-    };
-    push_long(array_elem,state);
-}
+//
+//fn do_aaload(state: &mut InterpreterState) -> () {
+//    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
+//    let array_ref = pop_long(state);
+//    null_pointer_check!(array_ref);
+//    let array_elem = unsafe {
+//        let array: *mut i64 = ::std::mem::transmute(array_ref);
+//        let array_length: i64 = *array.offset(-1);
+//        array_out_of_bounds_check!(index,array_length);
+//        *(array.offset(index as isize)) as i64
+//    };
+//    push_long(array_elem,state);
+//}

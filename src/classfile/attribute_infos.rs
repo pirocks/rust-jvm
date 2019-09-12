@@ -169,39 +169,40 @@ pub struct LocalVariableTableEntry {
 pub struct LocalVariableTypeTable{
     //todo
 }
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct TopVariableInfo {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct IntegerVariableInfo {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct FloatVariableInfo {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct LongVariableInfo {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct DoubleVariableInfo {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct NullVariableInfo {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct UninitializedThisVariableInfo {}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//pub struct TopVariableInfo {}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//pub struct IntegerVariableInfo {}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//pub struct FloatVariableInfo {}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//pub struct LongVariableInfo {}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//pub struct DoubleVariableInfo {}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//pub struct NullVariableInfo {}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//pub struct UninitializedThisVariableInfo {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ObjectVariableInfo {
-    pub cpool_index: u16
+    pub cpool_index: Option<u16>,
+    pub class_name: Box<String>
 }
 
 #[derive(Debug)]
@@ -212,25 +213,38 @@ pub struct UninitializedVariableInfo {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum VerificationTypeInfo {
-    Top(TopVariableInfo),
-    Integer(IntegerVariableInfo),
-    Float(FloatVariableInfo),
-    Long(LongVariableInfo),
-    Double(DoubleVariableInfo),
-    Null(NullVariableInfo),
-    UninitializedThis(UninitializedThisVariableInfo),
-    Object(ObjectVariableInfo),
-    Uninitialized(UninitializedVariableInfo),
+pub struct ArrayVariableInfo{
+    pub sub_type: Box<VerificationTypeInfo>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct SameFrame {}
+pub enum VerificationTypeInfo {
+    Top,
+    Integer,
+    Float,
+    Long,
+    Double,
+    Null,
+    UninitializedThis,
+    Object(ObjectVariableInfo),
+    Uninitialized(UninitializedVariableInfo),
+    Array(ArrayVariableInfo),
+
+}
+
+
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct SameFrame {
+    pub offset_delta: u16
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SameLocals1StackItemFrame {
+    pub offset_delta: u16,
     pub stack: VerificationTypeInfo
 }
 
@@ -371,7 +385,7 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
     //todo magic constants
     match type_of_frame {
         0..63 => {
-            StackMapFrame::SameFrame(SameFrame {})
+            StackMapFrame::SameFrame(SameFrame { offset_delta: type_of_frame as u16 })
         }
         252..254 => {
             let offset_delta = read16(p);
@@ -393,7 +407,7 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> VerificationTypeInfo{
     let type_ = read8(p);
     //todo magic constants
     match type_ {
-        1 => VerificationTypeInfo::Integer(IntegerVariableInfo {}),
+        1 => VerificationTypeInfo::Integer,
         _ => { unimplemented!("{}", type_) }
     }
 }

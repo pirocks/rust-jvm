@@ -80,5 +80,4 @@ fn load_class(classes: &mut JVMClassesState, indexed_classpath: &HashMap<&str,&P
     }else {
         unimplemented!()
     }
-    return;
 }

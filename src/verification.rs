@@ -5,13 +5,13 @@ use std::io;
 
 use bimap::BiMap;
 
-use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, MethodInfo, FieldInfo, parse_field};
-use classfile::attribute_infos::AttributeType;
+use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, FieldInfo, MethodInfo};
+use classfile::attribute_infos::{AttributeType};
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
-use classfile::parsing_util::ParsingContext;
-use verification::types::{parse_field_descriptor, write_type_prolog, parse_method_descriptor};
+use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
+use verification::code_verification::write_parse_code_attribute;
 
-pub fn verify(c : &Classfile){
+pub fn verify(_c : &Classfile){
 
 }
 
@@ -81,6 +81,7 @@ pub fn gen_prolog<S: Write>(context: &PrologGenContext, w :&mut BufWriter<S>  )-
     write_is_and_is_not_protected(context,w)?;
     write_parse_field_descriptor(context,w)?;
     write_parse_method_descriptor(context,w)?;
+    write_parse_code_attribute(context,w)?;
     Ok(())
 }
 
@@ -103,7 +104,12 @@ pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Resu
 }
 
 pub fn write_is_bootstrap_loader(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
-    write!(w, "isBootstrapLoader({})", BOOTSTRAP_LOADER_NAME)?;
+    if context.using_bootsrap_loader {
+        write!(w, "isBootstrapLoader({})", BOOTSTRAP_LOADER_NAME)?;
+    }
+    else{
+        unimplemented!()
+    }
     Ok(())
 }
 
@@ -614,9 +620,11 @@ pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Wri
             let method_descriptor_str = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
             let method_descriptor = parse_method_descriptor(method_descriptor_str.as_str()).expect("Error parsing method descriptor");
             write!(w,",[")?;
-            for parameter_type in method_descriptor.parameter_types.iter(){
-                write_type_prolog(context, &parameter_type,w);
-                write!(w,",")?;//todo last comma ignored?
+            for (i, parameter_type) in method_descriptor.parameter_types.iter().enumerate() {
+                write_type_prolog(context, &parameter_type, w)?;
+                if i != method_descriptor.parameter_types.len() - 1 {
+                    write!(w, ",")?;
+                }
             }
             write!(w,"],")?;
             write_type_prolog(context,&method_descriptor.return_type,w)?;
@@ -626,64 +634,5 @@ pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Wri
     Ok(())
 }
 
+pub mod code_verification;
 
-
-//parseCodeAttribute(Class, Method, FrameSize, MaxStack, ParsedCode, Handlers, StackMap
-//)
-//void writeParseCodeAttribute(struct ClassFile classFile, struct method_info methodInfo){
-//assert(methodInfo.code_attribute != NULL);
-//uint16_t max_stack = methodInfo.code_attribute -> max_stack;
-//uint16_t frame_size = methodInfo.code_attribute -> max_locals;
-////for now assume no stack map todo
-////still need to handle parsed code and handlers
-////handler(Start, End, Target, ClassName)
-//for (size_t i = 0; i < methodInfo.attributes_count; + + i) {
-//struct ExceptionTableElem handler = methodInfo.code_attribute -> exception_table[i];//...
-//}
-//    if(methodInfo.code_attribute->stack_map_table == NULL){
-//        //then use empty stack map
-//    }
-//stackMap(Offset, TypeState)
-
-//Offset is an integer indicating the bytecode offset at which the stack map frame
-//applies (§4.7.4).
-//The order of bytecode offsets in this list must be the same as in the class file.
-
-//stackMap(Offset, frame(Locals, OperandStack, Flags))
-//• Locals is a list of verification types, such that the i'th element of the list (with
-//0-based indexing) represents the type of local variable i.
-//Types of size 2 ( long and double ) are represented by two local variables
-//(§2.6.1), with the first local variable being the type itself and the second local
-//variable being top (§4.10.1.7).
-//• OperandStack is a list of verification types, such that the first element of the list
-//represents the type of the top of the operand stack, and the types of stack entries
-//below the top follow in the list in the appropriate order.
-//Types of size 2 ( long and double ) are represented by two stack entries, with the
-//first entry being top and the second entry being the type itself.
-//For example, a stack with a double value, an int value, and a long value is represented
-//in a type state as a stack with five entries: top and double entries for the double
-//value, an int entry for the int value, and top and long entries for the long value.
-//Accordingly, OperandStack is the list [top, double, int, top, long] .
-//• Flags is a list which may either be empty or have the single element
-//flagThisUninit .
-//If any local variable in Locals has the type uninitializedThis , then Flags has
-//the single element flagThisUninit , otherwise Flags is an empty list.
-//flagThisUninit is used in constructors to mark type states where initialization of this
-//has not yet been completed. In such type states, it is illegal to return from the method.
-
-//}
-
-
-// Extracts the instruction stream, ParsedCode , of the method Method in Class ,
-// as well as the maximum operand stack size, MaxStack , the maximal number
-// of local variables, FrameSize , the exception handlers, Handlers , and the stack
-// map StackMap .
-// The representation of the instruction stream and stack map attribute must be as
-// specified in §4.10.1.3 and §4.10.1.4.
-//samePackageName(Class1, Class2
-//)
-// True iff the package names of Class1 and Class2 are the same.
-//differentPack
-// ageName(Class1, Class2
-//)
-//  True iff the package names of Class1 and Class2 are different.
