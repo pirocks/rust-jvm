@@ -4,8 +4,8 @@ use std::io;
 use std::io::Write;
 
 use classfile::{Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
-use classfile::attribute_infos::{Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, VerificationTypeInfo, ArrayVariableInfo};
-use verification::{class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name};
+use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, VerificationTypeInfo, UninitializedVariableInfo};
+use verification::{class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name, BOOTSTRAP_LOADER_NAME};
 use verification::types::{parse_method_descriptor, Type};
 
 pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -31,7 +31,6 @@ pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write)
                 }
             }
             write!(w, "],")?;
-
             write_stack_map_frames(class_file, method_info, w)?;
             write!(w, ").\n")?;
         }
@@ -56,7 +55,7 @@ fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
         Type::ReferenceType(r) => {
             VerificationTypeInfo::Object(ObjectVariableInfo {
                 cpool_index: None,
-                class_name: r.class_name.clone()
+                class_name: r.class_name.to_string()
             })
         }
         Type::ShortType(_) => { VerificationTypeInfo::Integer }
@@ -66,8 +65,8 @@ fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
     }
 }
 
-fn to_verification_type_array(parameter_types: &Vec<Type>) -> Vec<VerificationTypeInfo> {
-    let mut res = Vec::new();
+fn to_verification_type_array(parameter_types: &Vec<Type>, locals: &mut Vec<VerificationTypeInfo>) -> () {
+    let mut res = locals;
     for parameter_type in parameter_types {
         match parameter_type {
             Type::ByteType(_) => {
@@ -80,14 +79,14 @@ fn to_verification_type_array(parameter_types: &Vec<Type>) -> Vec<VerificationTy
                 res.push(VerificationTypeInfo::Top);
                 res.push(VerificationTypeInfo::Double)
             }
-            Type::FloatType(_) => { res.push(VerificationTypeInfo::Float) }
-            Type::IntType(_) => { res.push(VerificationTypeInfo::Integer) }
+            Type::FloatType(_) => { res.push(VerificationTypeInfo::Float); }
+            Type::IntType(_) => { res.push(VerificationTypeInfo::Integer); }
             Type::LongType(_) => {
                 res.push(VerificationTypeInfo::Top);
-                res.push(VerificationTypeInfo::Long)
+                res.push(VerificationTypeInfo::Long);
             }
             Type::ReferenceType(r) => {
-                res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None, class_name:r.class_name.clone() }))
+                res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None.clone(), class_name: r.class_name.to_string() }))
             }
             Type::ShortType(_) => {
                 res.push(VerificationTypeInfo::Integer);
@@ -96,13 +95,13 @@ fn to_verification_type_array(parameter_types: &Vec<Type>) -> Vec<VerificationTy
                 res.push(VerificationTypeInfo::Integer);
             }
             Type::ArrayReferenceType(art) => {
-                    let sub_type = &art.sub_type;
-                    res.push(VerificationTypeInfo::Array(ArrayVariableInfo { sub_type:Box::new(to_verification_type_helper(sub_type)) }))
+                let sub_type = &art.sub_type;
+                res.push(VerificationTypeInfo::Array(ArrayVariableInfo { sub_type: Box::new(to_verification_type_helper(sub_type)) }));
             }
             Type::VoidType(_) => { panic!() }
         }
     }
-    return res;
+    ()
 }
 
 fn write_locals(locals: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -128,7 +127,9 @@ fn verification_type_as_string(verification_type: &VerificationTypeInfo) -> Stri
         VerificationTypeInfo::Double => { "double".to_string() }
         VerificationTypeInfo::Null => { "null".to_string() }
         VerificationTypeInfo::UninitializedThis => { unimplemented!() }
-        VerificationTypeInfo::Object(_) => { unimplemented!() }
+        VerificationTypeInfo::Object(o) => {
+            format!("classOf({},{})",o.class_name,BOOTSTRAP_LOADER_NAME)
+        }
         VerificationTypeInfo::Uninitialized(_) => { unimplemented!() }
         VerificationTypeInfo::Array(a) => {
             let sub_str = verification_type_as_string(&a.sub_type);
@@ -143,52 +144,112 @@ fn write_operand_stack(operand_stack: &Vec<VerificationTypeInfo>, w: &mut dyn Wr
 
 fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(), io::Error> {
     let code: &Code = code_attribute(method_info);
-    let stack_map: &StackMapTable = stack_map_table_attribute(method_info).expect("No stack msp table, this is a bug");
-
+    let empty_stack_map = StackMapTable { entries: Vec::new() };
+    let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let mut operand_stack = Vec::new();
-    let mut locals = Vec::new();
-    for _ in 0..code.max_locals {
-        //top is the desired default type, as stated on 217 of the jvms12
-        locals.push(VerificationTypeInfo::Top)
-    }
+//    let mut locals = Vec::new();
+//    for _ in 0..code.max_locals {
+//    top is the desired default type , as stated on 217 of the jvms12
+//        locals.push(Top)
+//    }
     //todo dup
     let str_ = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
     let parsed_descriptor = parse_method_descriptor(str_.as_str()).expect("Error parsing method descriptor");
-    locals = to_verification_type_array(&parsed_descriptor.parameter_types);
+
+    let mut locals = Vec::new();
+    to_verification_type_array(&parsed_descriptor.parameter_types, &mut locals);
 
     let mut current_offset = 0;
-    write!(w,"[");
+    write!(w,"[")?;
     for (i, entry) in stack_map.entries.iter().enumerate() {
         write!(w, "stackMap(")?;
         match entry {
             StackMapFrame::SameFrame(s) => {
                 current_offset += s.offset_delta;
-                write!(w, "{},frame(", current_offset)?;
-                write_locals(&locals, w)?;
-                write!(w, ",")?;
-                write_operand_stack(&operand_stack, w)?;
-                write!(w, ",[])")?;
-                //todo check if flags needed and then write
             }
             StackMapFrame::AppendFrame(append_frame) => {
-                unimplemented!();
-
                 current_offset += append_frame.offset_delta;
-                write!(w, "{},frame(", current_offset)?;
+                for new_local in append_frame.locals.iter() {
+                    add_new_local(&mut locals, new_local)
+                }
             }
             _ => {
                 dbg!(entry);
                 unimplemented!()
             }
         }
+        write!(w, "{},frame(", current_offset)?;
+        write_locals(&locals, w)?;
+        write!(w, ",")?;
+        write_operand_stack(&operand_stack, w)?;
+        write!(w, ",[])")?;
         write!(w, ")")?;
+        //todo check if flags needed and then write
+
 
         if i != stack_map.entries.len() - 1 {
             write!(w, ",")?;
         }
     }
-    write!(w,"]");
+    write!(w,"]")?;
     Ok(())
+}
+
+fn add_new_local(locals: &mut Vec<VerificationTypeInfo>, new_local: &VerificationTypeInfo) -> () {
+    match copy_recurse(new_local) {
+        VerificationTypeInfo::Double => {
+            locals.push(VerificationTypeInfo::Double);
+            locals.push(VerificationTypeInfo::Top);
+        }
+        VerificationTypeInfo::Long => {
+            locals.push(VerificationTypeInfo::Double);
+            locals.push(VerificationTypeInfo::Top);
+        }
+        VerificationTypeInfo::Top => {
+            locals.push(VerificationTypeInfo::Top);
+        }
+        VerificationTypeInfo::Integer => {
+            locals.push(VerificationTypeInfo::Integer);
+        }
+        VerificationTypeInfo::Float => {
+            locals.push(VerificationTypeInfo::Float);
+        }
+        VerificationTypeInfo::Null => {
+            locals.push(VerificationTypeInfo::Null)
+        }
+        VerificationTypeInfo::UninitializedThis => {
+            locals.push(VerificationTypeInfo::UninitializedThis)
+        }
+        VerificationTypeInfo::Object(o) => {
+            locals.push(VerificationTypeInfo::Object(o))
+        }
+        VerificationTypeInfo::Uninitialized(u) => {
+            locals.push(VerificationTypeInfo::Uninitialized(u))
+        }
+        VerificationTypeInfo::Array(a) => {
+            locals.push(VerificationTypeInfo::Array(a))
+        }
+    }
+}
+
+fn copy_recurse(to_copy : &VerificationTypeInfo)-> VerificationTypeInfo{
+    match to_copy {
+        VerificationTypeInfo::Object(o) => {VerificationTypeInfo::Object(ObjectVariableInfo { class_name: o.class_name.clone(), cpool_index: o.cpool_index })},
+        VerificationTypeInfo::Uninitialized(u) => {
+            VerificationTypeInfo::Uninitialized(UninitializedVariableInfo { offset: u.offset })
+        },
+        VerificationTypeInfo::Array(a) => {
+            VerificationTypeInfo::Array(ArrayVariableInfo { sub_type: Box::new(copy_recurse(&a.sub_type)) })
+        },
+
+        VerificationTypeInfo::Top => {VerificationTypeInfo::Top}
+        VerificationTypeInfo::Integer => {VerificationTypeInfo::Integer}
+        VerificationTypeInfo::Float => {VerificationTypeInfo::Float}
+        VerificationTypeInfo::Long => {VerificationTypeInfo::Long}
+        VerificationTypeInfo::Double => {VerificationTypeInfo::Double}
+        VerificationTypeInfo::Null => {VerificationTypeInfo::Null}
+        VerificationTypeInfo::UninitializedThis => {VerificationTypeInfo::UninitializedThis}
+    }
 }
 
 //stackMap(Offset, TypeState)

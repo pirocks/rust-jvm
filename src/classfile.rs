@@ -33,8 +33,8 @@ pub struct MethodInfo {
     pub attributes: Vec<AttributeInfo>
 }
 
-pub fn stack_map_table_attribute(method_info: & MethodInfo) -> Option<&StackMapTable> {
-    for attr in method_info.attributes.iter(){
+pub fn stack_map_table_attribute(code: & Code) -> Option<&StackMapTable> {
+    for attr in code.attributes.iter(){
         match &attr.attribute_type {
             AttributeType::StackMapTable(table) => {
                 return Some(table);//todo
@@ -200,14 +200,7 @@ pub fn parse_method(p: &mut ParsingContext,  constant_pool: &Vec<ConstantInfo>) 
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
     let attributes = parse_attributes(p,attributes_count, constant_pool);
-    let mut res = MethodInfo { access_flags, name_index, descriptor_index, attributes };
-    if let None = stack_map_table_attribute(&res){
-        //todo hacky
-        res.attributes.push(AttributeInfo{ attribute_name_index: 0, attribute_length: 0, attribute_type:AttributeType::StackMapTable(StackMapTable {entries : Vec::new()} )});
-        res
-    }else {
-        res
-    }
+    MethodInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
 pub fn parse_methods(p: &mut ParsingContext, methods_count: u16,  constant_pool: &Vec<ConstantInfo>) -> Vec<MethodInfo> {

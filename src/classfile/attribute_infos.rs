@@ -169,6 +169,21 @@ pub struct LocalVariableTableEntry {
 pub struct LocalVariableTypeTable{
     //todo
 }
+//pub struct UninitializedThisVariableInfo {}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct ObjectVariableInfo {
+    pub cpool_index: Option<u16>,
+    pub class_name: String,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct ArrayVariableInfo {
+    pub sub_type: Box<VerificationTypeInfo>
+}
+
 //
 //#[derive(Debug)]
 //#[derive(Eq, PartialEq)]
@@ -196,25 +211,11 @@ pub struct LocalVariableTypeTable{
 //
 //#[derive(Debug)]
 //#[derive(Eq, PartialEq)]
-//pub struct UninitializedThisVariableInfo {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct ObjectVariableInfo {
-    pub cpool_index: Option<u16>,
-    pub class_name: Box<String>
-}
-
+//#[derive(Copy, Clone)]
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct UninitializedVariableInfo {
     pub offset: u16
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct ArrayVariableInfo{
-    pub sub_type: Box<VerificationTypeInfo>
 }
 
 #[derive(Debug)]
@@ -383,23 +384,22 @@ fn parse_stack_map_table(p: &mut ParsingContext, attribute_name_index: u16, attr
 fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
     let type_of_frame = read8(p);
     //todo magic constants
-    match type_of_frame {
-        0..63 => {
+//    match type_of_frame {
+    if 0 <= type_of_frame && type_of_frame <= 63 {//todo <= or <
             StackMapFrame::SameFrame(SameFrame { offset_delta: type_of_frame as u16 })
+    } else if 252 <= type_of_frame && type_of_frame <= 254 { //todo <= or <
+        let offset_delta = read16(p);
+        let locals_size = type_of_frame - 251;
+        let mut locals = Vec::with_capacity(locals_size as usize);
+        for _ in 0..locals_size {
+            locals.push(parse_verification_type_info(p))
         }
-        252..254 => {
-            let offset_delta = read16(p);
-            let locals_size = type_of_frame - 251;
-            let mut locals = Vec::with_capacity(locals_size as usize);
-            for _ in 0..locals_size {
-                locals.push(parse_verification_type_info(p))
-            }
-            StackMapFrame::AppendFrame(AppendFrame {
-                offset_delta,
-                locals,
-            })
-        },
-        _ => { unimplemented!("{}", type_of_frame) }
+        StackMapFrame::AppendFrame(AppendFrame {
+            offset_delta,
+            locals,
+        })
+    } else {
+        unimplemented!("{}", type_of_frame)
     }
 }
 
@@ -507,8 +507,7 @@ fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_lengt
     let attributes_count = read16(p);
     let attributes = parse_attributes(p, attributes_count,constant_pool);
     //todo add empty stackmap table
-    dbg!(&attributes);
-    return AttributeInfo {
+    AttributeInfo {
         attribute_name_index,
         attribute_length,
         attribute_type: AttributeType::Code(Code {

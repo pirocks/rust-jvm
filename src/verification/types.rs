@@ -21,9 +21,8 @@ pub struct Int {}
 pub struct Long {}
 
 #[derive(Debug)]
-pub struct Reference {
-//    pub cp_index: u16,
-    pub class_name: Box<String>
+pub struct Reference<'l> {
+    pub class_name: &'l str
 }
 
 #[derive(Debug)]
@@ -33,32 +32,32 @@ pub struct Short {}
 pub struct Boolean {}
 
 #[derive(Debug)]
-pub struct ArrayReference {
-    pub sub_type: Box<Type>
+pub struct ArrayReference<'l> {
+    pub sub_type: Box<Type<'l>>
 }
 
 #[derive(Debug)]
 pub struct Void {}
 
 #[derive(Debug)]
-pub enum Type {
+pub enum Type<'l> {
     ByteType(Byte),
     CharType(Char),
     DoubleType(Double),
     FloatType(Float),
     IntType(Int),
     LongType(Long),
-    ReferenceType(Reference),
+    ReferenceType(Reference<'l>),
     ShortType(Short),
     BooleanType(Boolean),
-    ArrayReferenceType(ArrayReference),
+    ArrayReferenceType(ArrayReference<'l>),
     VoidType(Void),
 }
 
 #[derive(Debug)]
-pub struct MethodDescriptor{ pub parameter_types: Vec<Type>, pub return_type: Type }
+pub struct MethodDescriptor<'l>{ pub parameter_types: Vec<Type<'l>>, pub return_type: Type<'l> }
 
-pub struct FieldDescriptor{ pub field_type: Type }
+pub struct FieldDescriptor<'l>{ pub field_type: Type<'l> }
 
 pub fn eat_one(str_: &str) -> &str {
     &str_[1..str_.len()]
@@ -84,10 +83,10 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, Type)> {
             let str_without_l = eat_one(str_);
             let end_index = str_without_l.find(';').expect("unterminated object in descriptor") + 1;
             assert!(str_without_l.chars().nth(end_index - 1).expect("") == ';');
-            let class_name = str_[0..end_index].to_string();
+            let class_name = &str_without_l[0..end_index - 1];
             dbg!(&class_name);
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            Some((remaining_to_parse, Type::ReferenceType(Reference {class_name:Box::new(class_name) })))
+            Some((remaining_to_parse, Type::ReferenceType(Reference { class_name })))
         }
         _ => {
             return None

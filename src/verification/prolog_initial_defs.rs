@@ -1,7 +1,7 @@
 use std::io::{Write};
 
 pub fn prolog_initial_defs(w :&mut dyn Write){
-
+    unimplemented!()
 }
 
 const CLASS_IS_TYPE_SAFE: &str = "

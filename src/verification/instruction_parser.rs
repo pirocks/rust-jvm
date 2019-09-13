@@ -418,7 +418,7 @@ fn instruction_to_string(i: usize, code: &Vec<u8>) -> (String, u64) {
             (format!("putstatic({})",index), 2)
         },
         InstructionType::ret => { ("ret".to_string(), 0) },
-        InstructionType::return_ => { ("return_".to_string(), 0) },
+        InstructionType::return_ => { ("return".to_string(), 0) },
         InstructionType::saload => { ("saload".to_string(), 0) },
         InstructionType::sastore => { ("sastore".to_string(), 0) },
         InstructionType::sipush => {
@@ -440,7 +440,8 @@ fn instruction_to_string(i: usize, code: &Vec<u8>) -> (String, u64) {
 pub fn output_instruction_info_for_code(code: &Code, w: &mut dyn Write) -> Result<(), Error> {
     let mut skip = 0;
     write!(w,"[")?;
-    for (i, code_byte) in code.code.iter().enumerate() {
+    //todo simplify
+    for (i, _) in code.code.iter().enumerate() {
         if skip > 0 {
             skip = skip - 1;
             continue

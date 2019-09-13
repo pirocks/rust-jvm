@@ -1,4 +1,4 @@
-#![feature(exclusive_range_pattern)]
+//#![feature(exclusive_range_pattern)]
 
 extern crate core;
 extern crate num;
