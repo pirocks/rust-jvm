@@ -43,8 +43,8 @@ fn class_entry(classfile: &Classfile) -> ClassEntry{
     unimplemented!()
 }
 
-fn class_entry_from_string(str: String) -> ClassEntry{
-    let splitted : Vec<String> = str.split('/').map(|s| {s.to_string()}).collect();
+pub fn class_entry_from_string(str: &String) -> ClassEntry{
+    let splitted : Vec<String> = str.clone().split('/').map(|s| {s.to_string()}).collect();
     let packages = Vec::from(&splitted[0..splitted.len() - 1]);
     let name = splitted.last().expect("This is a bug");
     ClassEntry {
@@ -52,7 +52,7 @@ fn class_entry_from_string(str: String) -> ClassEntry{
     }
 }
 
-fn load_class(classes: &mut JVMClassesState, class_name_with_package : ClassEntry){
+pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : ClassEntry){
     //todo this function is going to be long af
     if classes.using_bootstrap_loader {
         if classes.bootstrap_loaded_classes.contains_key(&class_name_with_package) {
@@ -77,22 +77,20 @@ fn load_class(classes: &mut JVMClassesState, class_name_with_package : ClassEntr
             unimplemented!("Throw LinkageError")//but this will never happen see above comment
         }
 
-
-
         if parsed.super_class == 0 {
             unimplemented!("Load Object")
         }else{
             let super_class_name = get_super_class_name(&parsed);
 
             classes.loading_in_progress.insert(class_name_with_package);
-            load_class(classes,class_entry_from_string(super_class_name));
+            load_class(classes,class_entry_from_string(&super_class_name));
             for interface_idx in &parsed.interfaces {
                 let interface = match &parsed.constant_pool[*interface_idx as usize].kind {
                     ConstantKind::Class(c) => {c}
                     _ => {panic!()}
                 };
                 let interface_name = extract_string_from_utf8(&parsed.constant_pool[interface.name_index  as usize]);
-                load_class(classes,class_entry_from_string(interface_name))
+                load_class(classes,class_entry_from_string(&interface_name))
             };
         }
         verify(classes);
@@ -109,3 +107,4 @@ fn load_verified_class(classes: &mut JVMClassesState,class: Classfile) {
     classes.loading_in_progress.remove(&entry);
     classes.bootstrap_loaded_classes.insert(entry, Box::new(class));
 }
+

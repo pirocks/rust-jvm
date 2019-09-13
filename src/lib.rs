@@ -4,6 +4,7 @@ extern crate core;
 extern crate num;
 extern crate bimap;
 extern crate argparse;
+extern crate log;
 
 pub mod classfile;
 pub mod jit;
