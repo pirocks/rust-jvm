@@ -1,17 +1,36 @@
 use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 use std::io;
+use std::fs::File;
 
 use bimap::BiMap;
 
-use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, FieldInfo, MethodInfo};
-use classfile::attribute_infos::{AttributeType};
+use class_loading::JVMClassesState;
+use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, FieldInfo, MethodInfo, parse_class_file};
+use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
-use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
 use verification::code_verification::write_parse_code_attribute;
+use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
+use classfile::parsing_util::ParsingContext;
 
-pub fn verify(_c : &Classfile){
+pub fn verify(state: &JVMClassesState) {
+    use std::process::Command;
+
+    let prolog = Command::new("/usr/bin/prolog").spawn().expect("Failed to spawn prolog");
+    let process_output = prolog.stdout.expect("error reading prolog prolog output");
+    let mut process_input = prolog.stdin.expect("error getting prolog input stream");
+
+
+    let mut to_verify = Vec::new();
+    for class_entry in &state.loading_in_progress{
+        let path = &state.indexed_classpath[class_entry];
+        let mut p = ParsingContext { f:File::open(path).expect("This is a bug") };
+        let class_file = parse_class_file(&mut p);
+        to_verify.push(class_file)
+    }
+
+    let context: PrologGenContext = PrologGenContext { state, to_verify };
+    gen_prolog(&context, &mut process_input);
 
 }
 
@@ -56,14 +75,12 @@ True iff the package names of Class1 and Class2 are different.
 
 pub mod prolog_initial_defs;
 
-pub struct PrologGenContext {
-    pub using_bootsrap_loader: bool,
-    pub to_load: Vec<Classfile>,
-    pub name_to_classfile: BiMap<String, Classfile>,//todo need to init
-    pub existing_classfiles: HashMap<Box<String>, Box<Classfile>>
+pub struct PrologGenContext<'l> {
+    pub state: &'l JVMClassesState,
+    pub to_verify: Vec<Classfile>
 }
 
-pub fn gen_prolog<S: Write>(context: &PrologGenContext, w :&mut BufWriter<S>  )-> Result<(),io::Error>{
+pub fn gen_prolog(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     write_class_name(context,w)?;
     write_is_interface(context,w)?;
     write_class_is_not_final(context,w)?;
@@ -88,13 +105,13 @@ pub fn gen_prolog<S: Write>(context: &PrologGenContext, w :&mut BufWriter<S>  )-
 const BOOTSTRAP_LOADER_NAME: &str = "bootstraploader";
 
 pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
-    if context.using_bootsrap_loader {
-        let to_load_classes = context.to_load.iter();
-        let already_loaded_classes =context.existing_classfiles.iter();
+    if context.state.using_bootstrap_loader {
+        let to_load_classes = context.to_verify.iter();
+        let already_loaded_classes = context.state.bootstrap_loaded_classes.values();
         for class_file in to_load_classes {
             write!(w,"loadedClass({},{}, ClassDefinition).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME )?;
         }
-        for (_,class_file) in already_loaded_classes{
+        for class_file in already_loaded_classes {
             write!(w,"loadedClass({},{}, ClassDefinition).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME )?;//todo duplication
         }
     } else {
@@ -104,7 +121,7 @@ pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Resu
 }
 
 pub fn write_is_bootstrap_loader(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
-    if context.using_bootsrap_loader {
+    if context.state.using_bootstrap_loader {
         write!(w, "isBootstrapLoader({})", BOOTSTRAP_LOADER_NAME)?;
     }
     else{
@@ -115,8 +132,8 @@ pub fn write_is_bootstrap_loader(context: &PrologGenContext, w: &mut dyn Write) 
 
 
 pub fn write_class_defining_loader(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
-    for class_file in context.to_load.iter() {
-        if context.using_bootsrap_loader {
+    for class_file in context.to_verify.iter() {
+        if context.state.using_bootstrap_loader {
             write!(w, "classDefiningLoader({},{}).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME)?;
         } else {
             unimplemented!();
@@ -144,7 +161,7 @@ fn class_prolog_name(class_: &String) -> String {
 //classClassName(Class, ClassName)
 //todo function for class object name
 fn write_class_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         let class_name = class_name(class_file);
         write!(w, "classClassName({},'{}').\n", class_prolog_name(&class_name), class_name)?;
     }
@@ -162,7 +179,7 @@ fn is_final(class: &Classfile) -> bool {
 //classIsInterface(Class)
 // True iff the class, Class , is an interface.
 fn write_is_interface(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         if is_interface(class_file.borrow()) {
             write!(w, "classIsInterface({}).\n", class_prolog_name(&class_name(&class_file)))?;
         }
@@ -174,7 +191,7 @@ fn write_is_interface(context: &PrologGenContext, w: &mut dyn Write) -> Result<(
 // True iff the class, Class , is not a final class.
 
 fn write_class_is_not_final(context: &PrologGenContext, w: &mut dyn Write)-> Result<(),io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         if !is_final(&class_file) {
             write!(w, "classIsNotFinal({}).\n", class_prolog_name(&class_name(&class_file)))?;
         }
@@ -216,7 +233,7 @@ fn has_super_class(class: &Classfile) -> bool {
 
 fn write_class_super_class_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
     //todo check if has super class
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         if has_super_class(&class_file) {
             let super_class_name = get_super_class_name(&class_file);
             let base_class = class_prolog_name(&class_name(&class_file));
@@ -230,7 +247,7 @@ fn write_class_super_class_name(context: &PrologGenContext, w: &mut dyn Write) -
 // Extracts a list, Interfaces , of the direct superinterfaces of the class Class .
 
 fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         write!(w, "classInterfaces({},[", class_prolog_name(&class_name(&class_file)))?;
         for (i, interface) in class_file.interfaces.iter().enumerate() {
             let interface_name = extract_string_from_utf8(&class_file.constant_pool[*interface as usize]);
@@ -257,7 +274,7 @@ fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w:
 //classMethods(Class, Methods)
 // Extracts a list, Methods , of the methods declared in the class Class .
 fn write_class_methods(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         write!(w, "classMethods({},[", class_prolog_name(&class_name(&class_file)))?;
         for (i, method_info) in class_file.methods.iter().enumerate() {
             write_method_prolog_name(&class_file, method_info, w)?;
@@ -310,7 +327,7 @@ fn get_attribute_name(attribute_info: &AttributeInfo) -> String {
 }
 
 fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write)-> Result<(),io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         write!(w, "classAttributes({}, [", class_prolog_name(&class_name(&class_file)))?;
         for (i,attribute) in class_file.attributes.iter().enumerate() {
             write_attribute(&attribute, w)?;
@@ -360,7 +377,7 @@ fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write)-> Resul
 // Extracts the name, Name , of the method Method .
 
 fn write_method_name( context: &PrologGenContext, w: &mut dyn Write)-> Result<(),io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         for method in class_file.methods.iter(){
             write!(w,"methodName(")?;
             write_method_prolog_name(class_file,&method,w)?;
@@ -382,7 +399,7 @@ fn before_method_access_flags(class_file: &Classfile,method_info: &MethodInfo, w
 }
 
 fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter() {
             if (method_info.access_flags & ACC_PUBLIC) > 0 {
                 before_method_access_flags(class_file,method_info, w)?;
@@ -468,7 +485,7 @@ pub fn prolog_method_descriptor(class_file: &Classfile, method_info: & MethodInf
 }
 
 pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
-    for class_file in context.to_load.iter(){
+    for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter(){
             let method_name = class_prolog_name(&class_name(class_file));
             write!(w, "methodDescriptor({},", method_name)?;
@@ -489,7 +506,7 @@ pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) ->
 //isNotInit(Method)
 // True iff Method (regardless of class) is not <init> .
 fn write_is_init_and_is_not_init(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter(){
             let method_name_info = &class_file.constant_pool[method_info.name_index as usize];
             let method_name = extract_string_from_utf8(method_name_info);
@@ -523,7 +540,7 @@ macro_rules! write_attribute {
 }
 
 fn write_is_and_is_not_attributes_method(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter() {
             write_attribute!(ACC_FINAL,"isFinal","isNotFinal",method_info,class_file,w);
             write_attribute!(ACC_STATIC,"isStatic","isNotStatic",method_info,class_file,w);
@@ -569,7 +586,7 @@ pub fn prolog_field_descriptor(class_file: &Classfile, field_info: &FieldInfo ,w
 // MemberDescriptor in the class MemberClass and it is not protected .
 
 pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
-    for class_file in context.to_load.iter(){
+    for class_file in context.to_verify.iter() {
         for field_info in class_file.fields.iter(){
             if(field_info.access_flags & ACC_PROTECTED) > 0 {
                 write!(w,"isProtected({},",class_name(class_file))?;
@@ -591,7 +608,7 @@ pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Wri
 // type Type (§4.10.1.2).
 
 pub fn write_parse_field_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
-    for class_file in context.to_load.iter(){
+    for class_file in context.to_verify.iter() {
         for field_info in class_file.fields.iter(){
             write!(w,"parseFieldDescriptor(")?;
             prolog_field_descriptor(class_file,field_info,w)?;
@@ -613,7 +630,7 @@ pub fn write_parse_field_descriptor(context: &PrologGenContext, w: &mut dyn Writ
 
 
 pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error>{
-    for class_file in context.to_load.iter(){
+    for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter() {
             write!(w,"parseMethodDescriptor(")?;
             prolog_method_descriptor(class_file, method_info, w)?;

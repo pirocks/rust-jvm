@@ -9,7 +9,7 @@ use verification::{class_name, class_prolog_name, extract_string_from_utf8, Prol
 use verification::types::{parse_method_descriptor, Type};
 
 pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
-    for class_file in context.to_load.iter() {
+    for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter() {
             write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name(class_file)))?;
             write_method_prolog_name(class_file, method_info, w)?;

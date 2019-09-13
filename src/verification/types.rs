@@ -203,7 +203,7 @@ pub fn write_type_prolog(context: &PrologGenContext,type_: &Type,  w: &mut dyn W
             write!(w,"boolean")?;
         },
         Type::ReferenceType(ref_) => {
-            if context.using_bootsrap_loader {
+            if context.state.using_bootstrap_loader {
                 write!(w,"class('")?;
                 write!(w,"{}",ref_.class_name)?;
                 write!(w,"',{})",BOOTSTRAP_LOADER_NAME)?;
