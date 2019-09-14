@@ -1,4 +1,3 @@
-use std::any::Any;
 
 use classfile::parsing_util::{ParsingContext, read16, read8, read32};
 
@@ -370,8 +369,8 @@ pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) ->
             continue
         }
         let constant_info = parse_constant_info(p);
-        dbg!(&constant_info);
-        dbg!(i);
+//        dbg!(&constant_info);
+//        dbg!(i);
         match constant_info.kind{
             ConstantKind::Long(_) | ConstantKind::Double(_)  => {
                 skip_next_iter = true;

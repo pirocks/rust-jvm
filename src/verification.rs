@@ -1,23 +1,29 @@
 use std::borrow::Borrow;
-use std::io::Write;
-use std::io;
+use std::collections::HashMap;
 use std::fs::File;
+use std::io;
+use std::io::{Write, BufWriter};
+use std::process::Stdio;
 
 use class_loading::JVMClassesState;
 use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, FieldInfo, MethodInfo, parse_class_file};
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
+use classfile::parsing_util::ParsingContext;
 use verification::code_verification::write_parse_code_attribute;
 use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
-use classfile::parsing_util::ParsingContext;
-use std::collections::HashMap;
+use std::thread::sleep;
+use std::time::Duration;
 
 pub fn verify(state: &JVMClassesState) -> (){
     use std::process::Command;
-
-    let prolog = Command::new("/usr/bin/prolog").spawn().expect("Failed to spawn prolog");
-    let process_output = prolog.stdout.expect("error reading prolog prolog output");
-    let mut process_input = prolog.stdin.expect("error getting prolog input stream");
+    let mut prolog = Command::new("/usr/bin/prolog")
+        .stdin(Stdio::piped())
+//        .stdout(Stdio::inherit())
+        .spawn()
+        .expect("Failed to spawn prolog");
+    let mut prolog_input = prolog.stdin.as_mut().expect("error getting prolog input stream");
+//    let process_output = prolog.stdout.as_mut().expect("error reading prolog prolog output");
 
 
     let mut to_verify = Vec::new();
@@ -29,8 +35,14 @@ pub fn verify(state: &JVMClassesState) -> (){
     }
 
     let context: PrologGenContext = PrologGenContext { state, to_verify };
-    gen_prolog(&context, &mut process_input);
-    ()
+    use std::io::stdout;
+    gen_prolog(&context, &mut stdout());
+    stdout().flush();
+    gen_prolog(&context, &mut prolog_input);
+    prolog_input.flush();
+
+    sleep(Duration::from_secs(10));
+    unimplemented!()
 }
 
 /**

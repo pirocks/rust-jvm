@@ -92,8 +92,8 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             unimplemented!("Throw class circularity error.")
         }
 
-        dbg!(&classes.indexed_classpath);
-        dbg!(&class_name_with_package);
+//        dbg!(&classes.indexed_classpath);
+//        dbg!(&class_name_with_package);
         let candidate_file = File::open(classes.indexed_classpath.get(&class_name_with_package).unwrap()).expect("Error opening class file");
         let mut p = ParsingContext {f: candidate_file };
         let parsed = parse_class_file(p.borrow_mut());
@@ -109,7 +109,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
         }
 
         if parsed.super_class == 0 {
-            unimplemented!("Load Object")
+            trace!("Parsed Object.class")
         }else{
             let super_class_name = get_super_class_name(&parsed);
 

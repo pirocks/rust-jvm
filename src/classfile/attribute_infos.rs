@@ -16,6 +16,7 @@ pub struct SourceFile{
 #[derive(Eq, PartialEq)]
 pub struct InnerClasses{
     //todo
+    pub classes: Vec<InnerClass>
 }
 
 #[derive(Debug)]
@@ -34,6 +35,7 @@ pub struct SourceDebugExtension{
 #[derive(Eq, PartialEq)]
 pub struct BootstrapMethods{
     //todo
+    pub bootstrap_methods: Vec<BootstrapMethod>
 }
 
 #[derive(Debug)]
@@ -85,6 +87,7 @@ pub struct LineNumberTableEntry {
 #[derive(Eq, PartialEq)]
 pub struct Exceptions{
     //todo
+    pub exception_index_table: Vec<u16>
 }
 
 #[derive(Debug)]
@@ -134,6 +137,7 @@ pub struct Signature{
 #[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleAnnotations{
     //todo
+    pub annotations: Vec<Annotation>
 }
 
 #[derive(Debug)]
@@ -355,52 +359,143 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
     assert!(is_utf8(&name_pool.kind).is_some());
     let name_struct = is_utf8(&name_pool.kind).expect("Classfile may be corrupted, invalid constant encountered.");
     let name = &name_struct.string;
-    if name == "Code" {
-        return parse_code(p, attribute_name_index, attribute_length,constant_pool)
+    let attribute_type = if name == "Code" {
+        parse_code(p, constant_pool)
     } else if name == "LineNumberTable" {
-        return parse_line_number_table(p, attribute_name_index, attribute_length)
+        parse_line_number_table(p)
     } else if name == "LocalVariableTable" {
-        return parse_local_variable_table(p, attribute_name_index, attribute_length)
+        parse_local_variable_table(p)
     } else if name == "SourceFile" {
-        return parse_sourcefile(p, attribute_name_index, attribute_length)
+        parse_sourcefile(p)
     } else if name == "StackMapTable" {
-        return parse_stack_map_table(p, attribute_name_index, attribute_length)
+        parse_stack_map_table(p)
     } else if name == "RuntimeVisibleAnnotations" {
-        return parse_runtime_visible_annotations(p, attribute_name_index, attribute_length)
+        parse_runtime_visible_annotations(p)
     } else if name == "Signature" {
-        return parse_signature(p, attribute_name_index, attribute_length)
+        parse_signature(p)
+    } else if name == "Exceptions" {
+        parse_exceptions(p)
+    } else if name == "Deprecated" {
+        parse_deprecated(p)
+    } else if name == "InnerClasses" {
+        parse_inner_classes(p)
+    } else if name == "BootstrapMethods"{
+        parse_bootstrap_methods(p)
     } else {
         unimplemented!("{}", name);
+    };
+    AttributeInfo {
+        attribute_name_index,
+        attribute_length,
+        attribute_type
     }
 }
 
-fn parse_signature(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
-    return AttributeInfo {
-        attribute_name_index,
-        attribute_length,
-        attribute_type: AttributeType::Signature(Signature { signature_index: read16(p) }),
+fn parse_bootstrap_methods(p: &mut ParsingContext) -> AttributeType {
+    let num_bootstrap_methods = read16(p);
+    let mut bootstrap_methods = Vec::with_capacity(num_bootstrap_methods as usize);
+    bootstrap_methods.push(parse_bootstrap_method(p));
+    AttributeType::BootstrapMethods(BootstrapMethods {
+        bootstrap_methods
+    })
+}
+
+type BootstrapArg = u16;
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct BootstrapMethod{
+    pub bootstrap_method_ref: u16,
+    pub bootstrap_arguments: Vec<BootstrapArg>
+
+}
+
+fn parse_bootstrap_method(p: &mut ParsingContext) -> BootstrapMethod{
+    let bootstrap_method_ref = read16(p);
+    let num_bootstrap_args = read16(p);
+    let mut bootstrap_arguments = Vec::with_capacity(num_bootstrap_args as usize);
+    for _ in 0..num_bootstrap_args{
+        bootstrap_arguments.push(read16(p));
     }
+    BootstrapMethod { bootstrap_arguments, bootstrap_method_ref}
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct InnerClass {
+    pub inner_class_info_index: u16,
+    pub outer_class_info_index: u16,
+    pub inner_name_index: u16,
+    pub inner_class_access_flags: u16,
+}
+
+fn parse_inner_class(p: &mut ParsingContext) -> InnerClass {
+    let inner_class_info_index = read16(p);
+    let outer_class_info_index = read16(p);
+    let inner_name_index = read16(p);
+    let inner_class_access_flags = read16(p);
+    InnerClass { inner_class_access_flags, inner_class_info_index, inner_name_index, outer_class_info_index }
+}
+
+fn parse_inner_classes(p: &mut ParsingContext) -> AttributeType {
+    let number_of_classes = read16(p);
+    let mut classes = Vec::with_capacity(number_of_classes as usize);
+    for _ in 0..number_of_classes {
+        classes.push(parse_inner_class(p))
+    }
+    AttributeType::InnerClasses(
+        InnerClasses {
+            classes
+        }
+    )
+}
+
+fn parse_deprecated(p: &mut ParsingContext) -> AttributeType {
+    AttributeType::Deprecated(Deprecated {})
+}
+
+fn parse_exceptions(p: &mut ParsingContext) -> AttributeType {
+    let num_exceptions = read16(p);
+    let mut exception_index_table = Vec::new();
+    for _ in 0..num_exceptions {
+        exception_index_table.push(read16(p));
+    }
+    AttributeType::Exceptions(Exceptions { exception_index_table })
+}
+
+fn parse_signature(p: &mut ParsingContext) -> AttributeType {
+    return AttributeType::Signature(Signature { signature_index: read16(p) })
 }
 
 type CPIndex = u16;//todo use this more
 
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct EnumConstValue {
     pub type_name_index: u16,
     pub const_name_index: u16,
 }
 
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct ClassInfoIndex {
     pub class_info_index: u16
 }
 
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct AnnotationValue {
     pub annotation: Annotation
 }
 
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct ArrayValue {
     pub values: Vec<ElementValue>
 }
 
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub enum ElementValue {
     Byte(CPIndex),
     Char(CPIndex),
@@ -417,11 +512,15 @@ pub enum ElementValue {
     ArrayType(ArrayValue),
 }
 
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct ElementValuePair {
     pub element_name_index: u16,
     pub value: ElementValue,
 }
 
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Annotation {
     pub type_index: u16,
     pub num_element_value_pairs: u16,
@@ -433,6 +532,10 @@ fn parse_element_value(p: &mut ParsingContext) -> ElementValue {
     match tag {
         'B' => { unimplemented!() }
         'C' => { unimplemented!() }
+        'S' => { unimplemented!() }
+        's' => {
+            ElementValue::String(read16(p))
+        }
         _ => { unimplemented!("{}", tag) }
     }
 }
@@ -460,31 +563,23 @@ fn parse_annotation(p: &mut ParsingContext) -> Annotation {
     }
 }
 
-fn parse_runtime_visible_annotations(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+fn parse_runtime_visible_annotations(p: &mut ParsingContext) -> AttributeType {
     let num_annotations = read16(p);
     let mut annotations = Vec::with_capacity(num_annotations as usize);
     for _ in 0..num_annotations {
         annotations.push(parse_annotation(p));
     }
-    return AttributeInfo {
-        attribute_name_index,
-        attribute_length,
-        attribute_type: AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations {}),
-    }
+    return AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations });
 }
 
 
-fn parse_stack_map_table(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+fn parse_stack_map_table(p: &mut ParsingContext) -> AttributeType {
     let number_of_entries = read16(p);
     let mut entries = Vec::with_capacity(number_of_entries as usize);
     for _ in 0..number_of_entries {
         entries.push(parse_stack_map_table_entry(p));
     }
-    return AttributeInfo {
-        attribute_name_index,
-        attribute_length,
-        attribute_type: AttributeType::StackMapTable(StackMapTable { entries }),
-    }
+    return AttributeType::StackMapTable(StackMapTable { entries });
 }
 
 fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
@@ -523,34 +618,26 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> VerificationTypeInfo{
     }
 }
 
-fn parse_sourcefile(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+fn parse_sourcefile(p: &mut ParsingContext) -> AttributeType {
     let sourcefile_index = read16(p);
-    return AttributeInfo {
-        attribute_name_index,
-        attribute_length,
-        attribute_type: AttributeType::SourceFile(
-            SourceFile {
-                sourcefile_index
-            }
-        ),
-    }
+    return AttributeType::SourceFile(
+        SourceFile {
+            sourcefile_index
+        }
+    );
 }
 
-fn parse_local_variable_table(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+fn parse_local_variable_table(p: &mut ParsingContext) -> AttributeType {
     let local_variable_table_length = read16(p);
     let mut local_variable_table = Vec::with_capacity(local_variable_table_length as usize);
     for _ in 0..local_variable_table_length {
         local_variable_table.push(read_local_variable_table_entry(p));
     }
-    return AttributeInfo {
-        attribute_name_index,
-        attribute_length,
-        attribute_type: AttributeType::LocalVariableTable(
-            LocalVariableTable {
-                local_variable_table,
-            }
-        ),
-    }
+    return AttributeType::LocalVariableTable(
+        LocalVariableTable {
+            local_variable_table,
+        }
+    );
 }
 
 fn read_local_variable_table_entry(p: &mut ParsingContext) -> LocalVariableTableEntry {
@@ -568,21 +655,18 @@ fn read_local_variable_table_entry(p: &mut ParsingContext) -> LocalVariableTable
     };
 }
 
-fn parse_line_number_table(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+fn parse_line_number_table(p: &mut ParsingContext) -> AttributeType {
     let line_number_table_length = read16(p);
     let mut line_number_table = Vec::with_capacity(line_number_table_length as usize);
     for _ in 0..line_number_table_length {
         line_number_table.push(parse_line_number_table_entry(p));
     }
-    return AttributeInfo {
-        attribute_name_index,
-        attribute_length,
-        attribute_type: AttributeType::LineNumberTable(
-            LineNumberTable {
-                line_number_table,
-            }
-        ),
-    }
+    return AttributeType::LineNumberTable(
+        LineNumberTable {
+            line_number_table,
+        }
+    );
+
 }
 
 fn parse_line_number_table_entry(p: &mut ParsingContext) -> LineNumberTableEntry {
@@ -602,7 +686,7 @@ fn parse_exception_table_entry(p: &mut ParsingContext) -> ExceptionTableElem {
     return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type }
 }
 
-fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32, constant_pool: &Vec<ConstantInfo>) -> AttributeInfo {
+fn parse_code(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> AttributeType {
     let max_stack = read16(p);
     let max_locals = read16(p);
     let code_length = read32(p);
@@ -618,17 +702,13 @@ fn parse_code(p: &mut ParsingContext, attribute_name_index: u16, attribute_lengt
     let attributes_count = read16(p);
     let attributes = parse_attributes(p, attributes_count,constant_pool);
     //todo add empty stackmap table
-    AttributeInfo {
-        attribute_name_index,
-        attribute_length,
-        attribute_type: AttributeType::Code(Code {
+    AttributeType::Code(Code {
             max_stack,
             max_locals,
             code,
             exception_table,
             attributes,
-        }),
-    }
+    })
 }
 
 
