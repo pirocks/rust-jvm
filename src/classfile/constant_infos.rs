@@ -1,5 +1,6 @@
-use classfile::parsing_util::{ParsingContext, read8, read16};
 use std::any::Any;
+
+use classfile::parsing_util::{ParsingContext, read16, read8, read32};
 
 #[derive(Debug)]
 #[derive(Eq)]
@@ -19,6 +20,7 @@ impl PartialEq for Utf8{
 #[derive(Eq, PartialEq)]
 pub struct Integer{
     //unimplemented!()
+    pub bytes: u32
 }
 
 #[derive(Debug)]
@@ -31,6 +33,8 @@ pub struct Float{
 #[derive(Eq, PartialEq)]
 pub struct Long{
     //unimplemented!()
+    pub low_bytes: u32,
+    pub high_bytes: u32
 }
 
 #[derive(Debug)]
@@ -86,6 +90,8 @@ pub struct NameAndType{
 #[derive(Eq, PartialEq)]
 pub struct MethodHandle{
     //unimplemented!()
+    pub reference_kind: u8,
+    pub reference_index: u16
 }
 
 #[derive(Debug)]
@@ -104,6 +110,8 @@ pub struct Dynamic{
 #[derive(Eq, PartialEq)]
 pub struct InvokeDynamic{
     //unimplemented!()
+    pub bootstrap_method_attr_index: u16,
+    pub name_and_type_index: u16
 }
 
 #[derive(Debug)]
@@ -283,9 +291,16 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
             let str_ = String::from_utf8(buffer).expect("Invalid utf8 in constant pool");
             ConstantKind::Utf8( Utf8 { length, string: str_ } )
         },
-        INTEGER_CONST_NUM => { unimplemented!() },
+        INTEGER_CONST_NUM => {
+            let bytes = read32(p);
+            ConstantKind::Integer(Integer {bytes})
+        },
         FLOAT_CONST_NUM => { unimplemented!() },
-        LONG_CONST_NUM => { unimplemented!() },
+        LONG_CONST_NUM => {
+            let high_bytes = read32(p);
+            let low_bytes = read32(p);
+            ConstantKind::Long(Long {high_bytes, low_bytes })
+        },
         DOUBLE_CONST_NUM => { unimplemented!() },
         CLASS_CONST_NUM => {
             let name_index = read16(p);
@@ -311,10 +326,23 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
             let descriptor_index = read16(p);
             ConstantKind::NameAndType( NameAndType { name_index,descriptor_index } )
         },
-        METHOD_HANDLE_CONST_NUM => { unimplemented!() },
+        METHOD_HANDLE_CONST_NUM => {
+            let reference_kind = read8(p);
+            let reference_index = read16(p);
+            ConstantKind::MethodHandle(MethodHandle {
+                reference_kind, reference_index
+            })
+        },
         METHOD_TYPE_CONST_NUM => { unimplemented!() },
         DYNAMIC_CONST_NUM => { unimplemented!() },
-        INVOKE_DYNAMIC_CONST_NUM => { unimplemented!() },
+        INVOKE_DYNAMIC_CONST_NUM => {
+            let bootstrap_method_attr_index = read16(p);
+            let name_and_type_index = read16(p);
+            ConstantKind::InvokeDynamic(InvokeDynamic {
+                bootstrap_method_attr_index,
+                name_and_type_index,
+            })
+        },
         MODULE_CONST_NUM => { unimplemented!() },
         PACKAGE_CONST_NUM => { unimplemented!() },
         INVALID_CONSTANT_CONST_NUM => {
@@ -322,6 +350,7 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
             unimplemented!();
         },
         _ => {
+            dbg!(kind);
             assert!(false);
             unimplemented!();
         }
@@ -334,15 +363,20 @@ pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) ->
     let mut constants = Vec::with_capacity(constant_pool_count as usize);
     let mut skip_next_iter = true;
     //skip first loop iteration b/c the first element of the constant pool isn't a thing
-    for _ in 0..constant_pool_count {
+    for i in 0..constant_pool_count {
         if skip_next_iter {
             constants.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
             skip_next_iter = false;
             continue
         }
         let constant_info = parse_constant_info(p);
-        if (constant_info).kind.type_id() == ConstantKind::Double.type_id() || (constant_info).kind.type_id() == ConstantKind::Long.type_id() {
-            skip_next_iter = true;
+        dbg!(&constant_info);
+        dbg!(i);
+        match constant_info.kind{
+            ConstantKind::Long(_) | ConstantKind::Double(_)  => {
+                skip_next_iter = true;
+            },
+            _ => {}
         }
         constants.push(constant_info);
     }

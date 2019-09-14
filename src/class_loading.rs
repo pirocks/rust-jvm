@@ -14,17 +14,32 @@ use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::Path;
+use std::fmt;
 
 use classfile::{Classfile, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
-use verification::{class_name, extract_string_from_utf8, get_super_class_name, verify};
+use verification::{extract_string_from_utf8, get_super_class_name, verify, class_name};
+#[macro_use]
+use log::{trace, info, warn};
 
 #[derive(Eq, PartialEq)]
+#[derive(Debug)]
 #[derive(Hash)]
 pub struct ClassEntry{
     pub name : String,
     pub packages : Vec<String>
+}
+
+impl std::fmt::Display for ClassEntry {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(")?;
+        for s in self.packages.iter() {
+            write!(f, "{}.", s)?;
+        }
+        write!(f, ", {})", self.name)?;
+        Ok(())
+    }
 }
 
 pub struct JVMClassesState {
@@ -40,19 +55,30 @@ pub struct JVMClassesState {
 }
 
 fn class_entry(classfile: &Classfile) -> ClassEntry{
-    unimplemented!()
+//    dbg!(extract_string_from_utf8(&classfile.constant_pool[classfile.this_class as usize]));
+    let mut name = class_name(classfile);
+    class_entry_from_string(&name, false)
 }
 
-pub fn class_entry_from_string(str: &String) -> ClassEntry{
+pub fn class_entry_from_string(str: &String, look_for_java_base: bool) -> ClassEntry{
     let splitted : Vec<String> = str.clone().split('/').map(|s| {s.to_string()}).collect();
-    let packages = Vec::from(&splitted[0..splitted.len() - 1]);
-    let name = splitted.last().expect("This is a bug");
+    let mut packages = Vec::from(&splitted[0..splitted.len() - 1]);
+    if look_for_java_base {
+        if let Some(start_of_packages) = packages.iter().position(|s|{**s == "java.base".to_string()}) {
+            packages = Vec::from(&packages[(start_of_packages + 1)..packages.len()]);
+        } else {
+            packages = Vec::new();
+        }
+    }
+
+    let name = splitted.last().expect("This is a bug").replace(".class", "");//todo validate that this is replacing the last few strings
     ClassEntry {
         packages,name: name.clone()
     }
 }
 
 pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : ClassEntry){
+    trace!("Starting loading for {}", &class_name_with_package);
     //todo this function is going to be long af
     if classes.using_bootstrap_loader {
         if classes.bootstrap_loaded_classes.contains_key(&class_name_with_package) {
@@ -62,19 +88,24 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             return;//class already loaded
         }
 
-
         if classes.loading_in_progress.contains(&class_name_with_package) {
             unimplemented!("Throw class circularity error.")
         }
 
+        dbg!(&classes.indexed_classpath);
+        dbg!(&class_name_with_package);
         let candidate_file = File::open(classes.indexed_classpath.get(&class_name_with_package).unwrap()).expect("Error opening class file");
         let mut p = ParsingContext {f: candidate_file };
         let parsed = parse_class_file(p.borrow_mut());
         if class_name_with_package != class_entry(&parsed){
+            dbg!(class_name_with_package);
+            dbg!(class_entry(&parsed));
             unimplemented!("Throw no class def found.")
         }
-        if !classes.bootstrap_loaded_classes.contains_key(&class_name_with_package) {
-            unimplemented!("Throw LinkageError")//but this will never happen see above comment
+        if classes.bootstrap_loaded_classes.contains_key(&class_name_with_package) {
+            dbg!(&classes.bootstrap_loaded_classes);
+            dbg!(&class_name_with_package);
+            unimplemented!("Throw LinkageError,but this will never happen see above comment")
         }
 
         if parsed.super_class == 0 {
@@ -83,19 +114,18 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             let super_class_name = get_super_class_name(&parsed);
 
             classes.loading_in_progress.insert(class_name_with_package);
-            load_class(classes,class_entry_from_string(&super_class_name));
+            load_class(classes,class_entry_from_string(&super_class_name,false));
             for interface_idx in &parsed.interfaces {
                 let interface = match &parsed.constant_pool[*interface_idx as usize].kind {
                     ConstantKind::Class(c) => {c}
                     _ => {panic!()}
                 };
                 let interface_name = extract_string_from_utf8(&parsed.constant_pool[interface.name_index  as usize]);
-                load_class(classes,class_entry_from_string(&interface_name))
+                load_class(classes,class_entry_from_string(&interface_name,false))
             };
         }
         verify(classes);
         load_verified_class( classes,parsed);
-        //todo add to registry of loaded classes
         return ()
     }else {
         unimplemented!()

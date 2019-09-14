@@ -1,4 +1,3 @@
-package io.github.pirocks;
 
 public class Main {
 

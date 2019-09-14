@@ -66,7 +66,7 @@ fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
 }
 
 fn to_verification_type_array(parameter_types: &Vec<Type>, locals: &mut Vec<VerificationTypeInfo>) -> () {
-    let mut res = locals;
+    let res = locals;
     for parameter_type in parameter_types {
         match parameter_type {
             Type::ByteType(_) => {

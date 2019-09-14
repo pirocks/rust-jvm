@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::fs::read;
 
 use classfile::AttributeInfo;
 use classfile::constant_infos::{ConstantInfo, is_utf8};
@@ -126,6 +127,7 @@ pub struct Deprecated{
 #[derive(Eq, PartialEq)]
 pub struct Signature{
     //todo
+    pub signature_index: u16
 }
 
 #[derive(Debug)]
@@ -363,10 +365,114 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
         return parse_sourcefile(p, attribute_name_index, attribute_length)
     } else if name == "StackMapTable" {
         return parse_stack_map_table(p, attribute_name_index, attribute_length)
+    } else if name == "RuntimeVisibleAnnotations" {
+        return parse_runtime_visible_annotations(p, attribute_name_index, attribute_length)
+    } else if name == "Signature" {
+        return parse_signature(p, attribute_name_index, attribute_length)
     } else {
-        unimplemented!()
+        unimplemented!("{}", name);
     }
 }
+
+fn parse_signature(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+    return AttributeInfo {
+        attribute_name_index,
+        attribute_length,
+        attribute_type: AttributeType::Signature(Signature { signature_index: read16(p) }),
+    }
+}
+
+type CPIndex = u16;//todo use this more
+
+pub struct EnumConstValue {
+    pub type_name_index: u16,
+    pub const_name_index: u16,
+}
+
+pub struct ClassInfoIndex {
+    pub class_info_index: u16
+}
+
+pub struct AnnotationValue {
+    pub annotation: Annotation
+}
+
+pub struct ArrayValue {
+    pub values: Vec<ElementValue>
+}
+
+pub enum ElementValue {
+    Byte(CPIndex),
+    Char(CPIndex),
+    Double(CPIndex),
+    Float(CPIndex),
+    Int(CPIndex),
+    Long(CPIndex),
+    Short(CPIndex),
+    Boolean(CPIndex),
+    String(CPIndex),
+    EnumType(EnumConstValue),
+    Class(ClassInfoIndex),
+    AnnotationType(AnnotationValue),
+    ArrayType(ArrayValue),
+}
+
+pub struct ElementValuePair {
+    pub element_name_index: u16,
+    pub value: ElementValue,
+}
+
+pub struct Annotation {
+    pub type_index: u16,
+    pub num_element_value_pairs: u16,
+    pub element_value_pairs: Vec<ElementValuePair>,
+}
+
+fn parse_element_value(p: &mut ParsingContext) -> ElementValue {
+    let tag = read8(p) as char;
+    match tag {
+        'B' => { unimplemented!() }
+        'C' => { unimplemented!() }
+        _ => { unimplemented!("{}", tag) }
+    }
+}
+
+fn parse_element_value_pair(p: &mut ParsingContext) -> ElementValuePair {
+    let element_name_index = read16(p);
+    let value = parse_element_value(p);
+    return ElementValuePair {
+        element_name_index,
+        value,
+    }
+}
+
+fn parse_annotation(p: &mut ParsingContext) -> Annotation {
+    let type_index = read16(p);
+    let num_element_value_pairs = read16(p);
+    let mut element_value_pairs: Vec<ElementValuePair> = Vec::with_capacity(num_element_value_pairs as usize);
+    for _ in 0..num_element_value_pairs {
+        element_value_pairs.push(parse_element_value_pair(p));
+    }
+    return Annotation {
+        type_index,
+        num_element_value_pairs,
+        element_value_pairs,
+    }
+}
+
+fn parse_runtime_visible_annotations(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
+    let num_annotations = read16(p);
+    let mut annotations = Vec::with_capacity(num_annotations as usize);
+    for _ in 0..num_annotations {
+        annotations.push(parse_annotation(p));
+    }
+    return AttributeInfo {
+        attribute_name_index,
+        attribute_length,
+        attribute_type: AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations {}),
+    }
+}
+
 
 fn parse_stack_map_table(p: &mut ParsingContext, attribute_name_index: u16, attribute_length: u32) -> AttributeInfo {
     let number_of_entries = read16(p);
@@ -385,8 +491,13 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
     let type_of_frame = read8(p);
     //todo magic constants
 //    match type_of_frame {
-    if 0 <= type_of_frame && type_of_frame <= 63 {//todo <= or <
-            StackMapFrame::SameFrame(SameFrame { offset_delta: type_of_frame as u16 })
+    if type_of_frame <= 63 {//todo <= or <
+        StackMapFrame::SameFrame(SameFrame { offset_delta: type_of_frame as u16 })
+    } else if 64 <= type_of_frame && type_of_frame <= 127 {
+        StackMapFrame::SameLocals1StackItemFrame(SameLocals1StackItemFrame {
+            offset_delta: (type_of_frame - 64) as u16,
+            stack: parse_verification_type_info(p),
+        })
     } else if 252 <= type_of_frame && type_of_frame <= 254 { //todo <= or <
         let offset_delta = read16(p);
         let locals_size = type_of_frame - 251;

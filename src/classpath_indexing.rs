@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::Read;
 use class_loading::{class_entry_from_string, ClassEntry};
-use std::collections::{HashSet, HashMap};
+use std::collections::HashMap;
 
 fn parse_classpath_file(path : &Path) -> Vec<Box<String>>{
     let mut f = File::open(path).expect("Error opening classpath file");
@@ -21,8 +21,8 @@ pub fn index_class_path(classfile_path : &Path) -> HashMap<ClassEntry,Box<Path>>
         let mut path_buf = PathBuf::new();
         path_buf.push(s.as_str());
         let path = path_buf.into_boxed_path();
-        //todo read entry form classfile, b/c its easier that way.
-        (class_entry_from_string(s),path)
+        //todo read entry from classfile, b/c its easier that way.
+        (class_entry_from_string(s,true),path)
     }).collect()
 }
 

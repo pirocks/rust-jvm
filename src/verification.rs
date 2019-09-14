@@ -3,8 +3,6 @@ use std::io::Write;
 use std::io;
 use std::fs::File;
 
-use bimap::BiMap;
-
 use class_loading::JVMClassesState;
 use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, FieldInfo, MethodInfo, parse_class_file};
 use classfile::attribute_infos::AttributeType;
@@ -12,8 +10,9 @@ use classfile::constant_infos::{ConstantInfo, ConstantKind};
 use verification::code_verification::write_parse_code_attribute;
 use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
 use classfile::parsing_util::ParsingContext;
+use std::collections::HashMap;
 
-pub fn verify(state: &JVMClassesState) {
+pub fn verify(state: &JVMClassesState) -> (){
     use std::process::Command;
 
     let prolog = Command::new("/usr/bin/prolog").spawn().expect("Failed to spawn prolog");
@@ -23,7 +22,7 @@ pub fn verify(state: &JVMClassesState) {
 
     let mut to_verify = Vec::new();
     for class_entry in &state.loading_in_progress{
-        let path = &state.indexed_classpath[class_entry];
+        let path = state.indexed_classpath.get(class_entry).unwrap();
         let mut p = ParsingContext { f:File::open(path).expect("This is a bug") };
         let class_file = parse_class_file(&mut p);
         to_verify.push(class_file)
@@ -31,7 +30,7 @@ pub fn verify(state: &JVMClassesState) {
 
     let context: PrologGenContext = PrologGenContext { state, to_verify };
     gen_prolog(&context, &mut process_input);
-
+    ()
 }
 
 /**
