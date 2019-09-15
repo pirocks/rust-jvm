@@ -3,16 +3,16 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::process::Stdio;
+use std::thread::sleep;
+use std::time::Duration;
 
 use class_loading::JVMClassesState;
-use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, FieldInfo, MethodInfo, parse_class_file, code_attribute};
+use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, code_attribute, FieldInfo, MethodInfo, parse_class_file};
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
 use classfile::parsing_util::ParsingContext;
 use verification::code_verification::write_parse_code_attribute;
 use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
-use std::thread::sleep;
-use std::time::Duration;
 
 pub fn verify(state: &JVMClassesState) -> (){
     use std::process::Command;
@@ -419,74 +419,60 @@ fn before_method_access_flags(class_file: &Classfile,method_info: &MethodInfo, w
 fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
     for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter() {
+            before_method_access_flags(class_file, method_info, w)?;
+            write!(w, ",[ignore_this")?;
             if (method_info.access_flags & ACC_PUBLIC) > 0 {
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", public).\n")?;
+                write!(w, ", public")?;
             }
             if (method_info.access_flags & ACC_PRIVATE) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", private).\n")?;
+                write!(w, ", private")?;
             }
             if (method_info.access_flags & ACC_PROTECTED) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", protected).\n")?;
+                write!(w, ", protected")?;
             }
             if (method_info.access_flags & ACC_STATIC) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", static).\n")?;
+                write!(w, ", static")?;
             }
             if (method_info.access_flags & ACC_FINAL) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", final).\n")?;
+                write!(w, ", final")?;
             }
             if (method_info.access_flags & ACC_SUPER) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", super).\n")?;
+                write!(w, ", super")?;
             }
             if (method_info.access_flags & ACC_BRIDGE) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", bridge).\n")?;
+                write!(w, ", bridge")?;
             }
             if (method_info.access_flags & ACC_VOLATILE) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", volatile).\n")?;//todo wrong
+                write!(w, ", volatile")?;//todo wrong
             }
             if (method_info.access_flags & ACC_TRANSIENT) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", transient).\n")?;
+                write!(w, ", transient")?;
             }
             if (method_info.access_flags & ACC_NATIVE) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", native).\n")?;
+                write!(w, ", native")?;
             }
             if (method_info.access_flags & ACC_INTERFACE) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", interface).\n")?;
+                write!(w, ", interface")?;
             }
             if (method_info.access_flags & ACC_ABSTRACT) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", abstract).\n")?;
+                write!(w, ", abstract")?;
             }
             if (method_info.access_flags & ACC_STRICT) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", strict).\n")?;
+                write!(w, ", strict")?;
             }
             if (method_info.access_flags & ACC_SYNTHETIC) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", synthetic).\n")?;
+                write!(w, ", synthetic")?;
             }
             if (method_info.access_flags & ACC_ANNOTATION) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", annotation).\n")?;
+                write!(w, ", annotation")?;
             }
             if (method_info.access_flags & ACC_ENUM) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", enum).\n")?;
+                write!(w, ", enum")?;
             }
             if (method_info.access_flags & ACC_MODULE) > 0{
-                before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", module).\n")?;
+                write!(w, ", module")?;
             }
+            write!(w, "]).\n")?;
         }
     }
     Ok(())
@@ -531,16 +517,24 @@ pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) ->
 fn write_method_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
     for class_file in context.to_verify.iter(){
         for method_info in class_file.methods.iter(){
-            for attribute in method_info.attributes.iter(){
-                match &attribute.attribute_type{
-                    AttributeType::Code(c) => {
-                        write!(w,"methodAttributes(")?;
-                        write_method_prolog_name(class_file,method_info,w)?;
-                        write!(w,", '').\n",)?;
-                    },
-                    _ => {/* only attribute that matters is code*/}
-                }
+            match code_attribute(method_info) {
+                None => {},
+                Some(c) => {
+                    write!(w, "methodAttributes(")?;
+                    write_method_prolog_name(class_file,method_info,w)?;
+                    write!(w,", [attribute('Code','')]).\n",)?;
+                },
             }
+
+//            for attribute in method_info.attributes.iter(){
+//                match &attribute.attribute_type{
+//                    AttributeType::Code(c) => {
+//                        write!(w,"methodAttributes(")?;
+//                        write_method_prolog_name(class_file,method_info,w)?;
+//                        write!(w,", '').\n",)?;
+//                    },
+//                    _ => {/* only attribute that matters is code*/}
+//                }
         }
     }
     Ok(())
@@ -616,7 +610,9 @@ pub mod instruction_parser;
 
 pub fn prolog_field_name(class_file: &Classfile, field_info: &FieldInfo ,w: &mut dyn Write) -> Result<(), io::Error> {
     let field_name = extract_string_from_utf8(&class_file.constant_pool[field_info.name_index as usize]);
-    write!(w, "f_n__{}__F_{}", class_prolog_name(&class_name(class_file)), field_name)?;
+    write!(w, "field({},'{}',", class_prolog_name(&class_name(class_file)), field_name)?;
+    prolog_field_descriptor(class_file, field_info, w)?;
+    write!(w, ")")?;
     Ok(())
 }
 
