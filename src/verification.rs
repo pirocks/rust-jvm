@@ -5,7 +5,7 @@ use std::io::Write;
 use std::process::Stdio;
 
 use class_loading::JVMClassesState;
-use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, FieldInfo, MethodInfo, parse_class_file};
+use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, FieldInfo, MethodInfo, parse_class_file, code_attribute};
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
 use classfile::parsing_util::ParsingContext;
@@ -449,7 +449,7 @@ fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) -> R
             }
             if (method_info.access_flags & ACC_VOLATILE) > 0{
                 before_method_access_flags(class_file,method_info, w)?;
-                write!(w, ", volatile).\n")?;
+                write!(w, ", volatile).\n")?;//todo wrong
             }
             if (method_info.access_flags & ACC_TRANSIENT) > 0{
                 before_method_access_flags(class_file,method_info, w)?;
@@ -497,9 +497,8 @@ fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) -> R
 // Extracts the descriptor, Descriptor , of the method Method .
 
 pub fn prolog_method_descriptor(class_file: &Classfile, method_info: & MethodInfo, w: &mut dyn Write) -> Result<(),io::Error>{
-    let method_name = method_prolog_name(class_file, method_info);
-    //todo dup
-    write!(w,"d__{}__{}",class_name(class_file).replace("/","__").replace("<init>","__init").replace("<clinit>","__clinit"),method_name)?;
+    let descriptor= extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
+    write!(w,"'{}'",descriptor)?;
     Ok(())
 }
 
@@ -622,8 +621,8 @@ pub fn prolog_field_name(class_file: &Classfile, field_info: &FieldInfo ,w: &mut
 }
 
 pub fn prolog_field_descriptor(class_file: &Classfile, field_info: &FieldInfo ,w: &mut dyn Write) -> Result<(), io::Error> {
-    let field_name = extract_string_from_utf8(&class_file.constant_pool[field_info.name_index as usize]);
-    write!(w, "f_d__{}__F_{}", class_prolog_name(&class_name(class_file)), field_name)?;
+    let descriptor = extract_string_from_utf8(&class_file.constant_pool[field_info.descriptor_index as usize]);
+    write!(w, "'{}'", descriptor)?;
     Ok(())
 }
 
