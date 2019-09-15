@@ -84,7 +84,7 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, Type)> {
             let end_index = str_without_l.find(';').expect("unterminated object in descriptor") + 1;
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
-            dbg!(&class_name);
+//            dbg!(&class_name);
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
             Some((remaining_to_parse, Type::ReferenceType(Reference { class_name })))
         }

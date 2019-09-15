@@ -1,8 +1,7 @@
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io;
-use std::io::{Write, BufWriter};
+use std::io::Write;
 use std::process::Stdio;
 
 use class_loading::JVMClassesState;
@@ -36,8 +35,13 @@ pub fn verify(state: &JVMClassesState) -> (){
 
     let context: PrologGenContext = PrologGenContext { state, to_verify };
     use std::io::stdout;
+    use self::prolog_initial_defs::prolog_initial_defs;
+
+    prolog_initial_defs(&mut stdout());
+    stdout().flush();
     gen_prolog(&context, &mut stdout());
     stdout().flush();
+    prolog_initial_defs(&mut prolog_input);
     gen_prolog(&context, &mut prolog_input);
     prolog_input.flush();
 
@@ -133,7 +137,7 @@ pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Resu
 
 pub fn write_is_bootstrap_loader(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     if context.state.using_bootstrap_loader {
-        write!(w, "isBootstrapLoader({})", BOOTSTRAP_LOADER_NAME)?;
+        write!(w, "isBootstrapLoader({}).\n", BOOTSTRAP_LOADER_NAME)?;
     }
     else{
         unimplemented!()
@@ -510,7 +514,23 @@ pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) ->
 //methodAttributes(Method, Attributes
 //)
 // Extracts a list, Attributes , of the attributes of the method Method .
-//todo method attributes
+fn write_method_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
+    for class_file in context.to_verify.iter(){
+        for method_info in class_file.methods.iter(){
+            for attribute in method_info.attributes.iter(){
+                match &attribute.attribute_type{
+                    AttributeType::Code(c) => {
+                        write!(w,"methodAttributes(")?;
+                        write_method_prolog_name(class_file,method_info,w)?;
+                        write!(w,", '').\n",)?;
+                    },
+                    _ => {/* only attribute that matters is code*/}
+                }
+            }
+        }
+    }
+    Ok(())
+}
 
 //isInit(Method)
 // True iff Method (regardless of class) is <init> .

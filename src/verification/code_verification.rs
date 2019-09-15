@@ -14,7 +14,10 @@ pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write)
             write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name(class_file)))?;
             write_method_prolog_name(class_file, method_info, w)?;
 
-            let code = code_attribute(method_info);
+            let code = match code_attribute(method_info){
+                None => {continue;},
+                Some(c) => {c},
+            };
             let max_stack = code.max_stack;
             let frame_size = code.max_locals;
             write!(w, ",{},{},", frame_size, max_stack)?;
@@ -143,7 +146,7 @@ fn write_operand_stack(operand_stack: &Vec<VerificationTypeInfo>, w: &mut dyn Wr
 }
 
 fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(), io::Error> {
-    let code: &Code = code_attribute(method_info);
+    let code: &Code = code_attribute(method_info).expect("This method won't be called for non-code attribute function. If you see this , this is a bug");
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let mut operand_stack = Vec::new();

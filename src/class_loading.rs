@@ -42,6 +42,7 @@ impl std::fmt::Display for ClassEntry {
     }
 }
 
+#[derive(Debug)]
 pub struct JVMClassesState {
     //whether we are using bootstrap loader.
     //todo in future there will be map to loader state
@@ -108,12 +109,12 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             unimplemented!("Throw LinkageError,but this will never happen see above comment")
         }
 
+        classes.loading_in_progress.insert(class_name_with_package);
         if parsed.super_class == 0 {
-            trace!("Parsed Object.class")
+            trace!("Parsed Object.class");
         }else{
             let super_class_name = get_super_class_name(&parsed);
 
-            classes.loading_in_progress.insert(class_name_with_package);
             load_class(classes,class_entry_from_string(&super_class_name,false));
             for interface_idx in &parsed.interfaces {
                 let interface = match &parsed.constant_pool[*interface_idx as usize].kind {
@@ -124,6 +125,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
                 load_class(classes,class_entry_from_string(&interface_name,false))
             };
         }
+        dbg!(&classes.loading_in_progress);
         verify(classes);
         load_verified_class( classes,parsed);
         return ()

@@ -45,11 +45,21 @@ pub fn stack_map_table_attribute(code: & Code) -> Option<&StackMapTable> {
     None
 }
 
-pub fn code_attribute(method_info: & MethodInfo)-> &Code{
+pub fn code_attribute(method_info: & MethodInfo)-> Option<&Code>{
+    /*
+    If the method is either native or abstract , and is not a class or interface
+initialization method, then its method_info structure must not have a Code attribute
+in its attributes table.
+    */
+
+    if (method_info.access_flags & ACC_ABSTRACT) > 0 || (method_info.access_flags & ACC_NATIVE) > 0 {
+        return None
+    }
+
     for attr in method_info.attributes.iter(){
         match &attr.attribute_type {
             AttributeType::Code(code) => {
-                return code;
+                return Some(code);
             },
             _ => {}
         }

@@ -1,5 +1,4 @@
 use std::borrow::Borrow;
-use std::fs::read;
 
 use classfile::AttributeInfo;
 use classfile::constant_infos::{ConstantInfo, is_utf8};
