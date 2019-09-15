@@ -352,7 +352,7 @@ notInitHandler(Environment, Handler) :-
     isInit(Method),
     member(instruction(_, invokespecial(CP)), Instructions),
     CP = method(MethodClassName, MethodName, Descriptor),
-    MethodName \= ' <init> '.
+    MethodName \= '<init>'.
 
 initHandlerIsLegal(Environment, Handler) :-
     isInitHandler(Environment, Handler),
@@ -364,7 +364,7 @@ isInitHandler(Environment, Handler) :-
     Environment = environment(_Class, Method, _, Instructions, _, _),
     isInit(Method),
     member(instruction(_, invokespecial(CP)), Instructions),
-    CP = method(MethodClassName, ' <init> ', Descriptor).
+    CP = method(MethodClassName, '<init>', Descriptor).
 
 isApplicableInstruction(HandlerStart, instruction(Offset, _)) :-
     Offset >= HandlerStart.
@@ -424,7 +424,7 @@ methodInitialThisType(_Class, Method, []) :-
     methodAccessFlags(Method, AccessFlags),
     member(static, AccessFlags),
     methodName(Method, MethodName),
-    MethodName \= ' <init> '.
+    MethodName \= '<init>'.
 
 methodInitialThisType(Class, Method, [This]) :-
     methodAccessFlags(Method, AccessFlags),
@@ -432,13 +432,13 @@ methodInitialThisType(Class, Method, [This]) :-
     instanceMethodInitialThisType(Class, Method, This).
 
 instanceMethodInitialThisType(Class, Method, class('java/lang/Object', L)) :-
-    methodName(Method, ' <init> '),
+    methodName(Method, '<init>'),
     classDefiningLoader(Class, L),
     isBootstrapLoader(L),
     classClassName(Class, 'java/lang/Object').
 
 instanceMethodInitialThisType(Class, Method, uninitializedThis) :-
-    methodName(Method, ' <init> '),
+    methodName(Method, '<init>'),
     classClassName(Class, ClassName),
     classDefiningLoader(Class, CurrentLoader),
     superclassChain(ClassName, CurrentLoader, Chain),
@@ -446,7 +446,7 @@ instanceMethodInitialThisType(Class, Method, uninitializedThis) :-
 
 instanceMethodInitialThisType(Class, Method, class(ClassName, L)) :-
     methodName(Method, MethodName),
-    MethodName \= ' <init> ',
+    MethodName \= '<init>',
     classDefiningLoader(Class, L),
     classClassName(Class, ClassName).
 
@@ -456,9 +456,7 @@ mergedCodeIsTypeSafe(Environment, [stackMap(Offset, MapFrame) | MoreCode], frame
     mergedCodeIsTypeSafe(Environment, MoreCode, MapFrame).
 
 mergedCodeIsTypeSafe(Environment, [instruction(Offset, Parse) | MoreCode], frame(Locals, OperandStack, Flags)) :-
-    instructionIsTypeSafe(Parse, Environment, Offset,
-    frame(Locals, OperandStack, Flags),
-    NextStackFrame, ExceptionStackFrame),
+    instructionIsTypeSafe(Parse, Environment, Offset,frame(Locals, OperandStack, Flags),NextStackFrame, ExceptionStackFrame),
     instructionSatisfiesHandlers(Environment, Offset, ExceptionStackFrame),
     mergedCodeIsTypeSafe(Environment, MoreCode, NextStackFrame).
 
@@ -1150,7 +1148,7 @@ instructionIsTypeSafe(instanceof(CP), Environment, _Offset, StackFrame,NextStack
 
 instructionIsTypeSafe(invokedynamic(CP,0,0), Environment, _Offset,StackFrame, NextStackFrame, ExceptionStackFrame) :-
     CP = dmethod(CallSiteName, Descriptor),
-    CallSiteName \= ' <init> ',
+    CallSiteName \= '<init>',
     CallSiteName \= ' <clinit> ',
     parseMethodDescriptor(Descriptor, OperandArgList, ReturnType),
     reverse(OperandArgList, StackArgList),
@@ -1161,7 +1159,7 @@ instructionIsTypeSafe(invokedynamic(CP,0,0), Environment, _Offset,StackFrame, Ne
 
 instructionIsTypeSafe(invokeinterface(CP, Count, 0), Environment, _Offset,StackFrame, NextStackFrame, ExceptionStackFrame) :-
     CP = imethod(MethodIntfName, MethodName, Descriptor),
-    MethodName \= ' <init> ',
+    MethodName \= '<init>',
     MethodName \= ' <clinit> ',
     parseMethodDescriptor(Descriptor, OperandArgList, ReturnType),
     currentClassLoader(Environment, CurrentLoader),
@@ -1183,7 +1181,7 @@ countIsValid(Count, InputFrame, OutputFrame) :-
 
 instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
     CP = method(MethodClassName, MethodName, Descriptor),
-    MethodName \= ' <init> ',
+    MethodName \= '<init>',
     MethodName \= ' <clinit> ',
     parseMethodDescriptor(Descriptor, OperandArgList, ReturnType),
     thisClass(Environment, class(CurrentClassName, CurrentLoader)),
@@ -1201,7 +1199,7 @@ instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,NextSt
 
 instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,
     NextStackFrame, ExceptionStackFrame) :-
-    CP = method(MethodClassName, ' <init> ', Descriptor),
+    CP = method(MethodClassName, '<init>', Descriptor),
     parseMethodDescriptor(Descriptor, OperandArgList, void),
     reverse(OperandArgList, StackArgList),
     canPop(StackFrame, StackArgList, TempFrame),
@@ -1217,7 +1215,7 @@ instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,
 
 instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,
     NextStackFrame, ExceptionStackFrame) :-
-    CP = method(MethodClassName, ' <init> ', Descriptor),
+    CP = method(MethodClassName, '<init>', Descriptor),
     parseMethodDescriptor(Descriptor, OperandArgList, void),
     reverse(OperandArgList, StackArgList),
     canPop(StackFrame, StackArgList, TempFrame),
@@ -1230,7 +1228,7 @@ instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,
     substitute(uninitialized(Address), This, Locals, NextLocals),
     NextStackFrame = frame(NextLocals, NextOperandStack, NextFlags),
     ExceptionStackFrame = frame(Locals, [], Flags),
-    passesProtectedCheck(Environment, MethodClassName, ' <init> ',
+    passesProtectedCheck(Environment, MethodClassName, '<init>',
     Descriptor, NextStackFrame).
 
 rewrittenUninitializedType(uninitializedThis, Environment,MethodClass, MethodClass) :-
@@ -1262,7 +1260,7 @@ substitute(Old, New, [From1 | FromRest], [From1 | ToRest]) :-
 
 instructionIsTypeSafe(invokestatic(CP), Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
     CP = method(_MethodClassName, MethodName, Descriptor),
-    MethodName \= ' <init> ',
+    MethodName \= '<init>',
     MethodName \= ' <clinit> ',
     parseMethodDescriptor(Descriptor, OperandArgList, ReturnType),
     reverse(OperandArgList, StackArgList),
@@ -1272,7 +1270,7 @@ instructionIsTypeSafe(invokestatic(CP), Environment, _Offset, StackFrame,NextSta
 
 instructionIsTypeSafe(invokevirtual(CP), Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
     CP = method(MethodClassName, MethodName, Descriptor),
-    MethodName \= ' <init> ',
+    MethodName \= '<init>',
     MethodName \= ' <clinit> ',
     parseMethodDescriptor(Descriptor, OperandArgList, ReturnType),
     reverse(OperandArgList, ArgList),

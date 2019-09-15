@@ -3,10 +3,10 @@
 use std::io;
 use std::io::Write;
 
-use classfile::{Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
+use classfile::{Classfile, code_attribute, MethodInfo, stack_map_table_attribute, ACC_STATIC};
 use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
 use verification::{BOOTSTRAP_LOADER_NAME, class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name};
-use verification::types::{parse_method_descriptor, Type};
+use verification::types::{parse_method_descriptor, Type, Reference};
 use std::path::Prefix::Verbatim;
 
 pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -68,43 +68,53 @@ fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
     }
 }
 
-fn to_verification_type_array(parameter_types: &Vec<Type>, locals: &mut Vec<VerificationTypeInfo>) -> () {
+fn to_verification_type_array(parameter_types: &Vec<Type>, locals: &mut Vec<VerificationTypeInfo>, this_pointer: Option<Type>) -> () {
     let res = locals;
+    match this_pointer {
+        None => {},
+        Some(t) => {
+            push_converted_verification_type(res,&t)
+        },
+    }
     for parameter_type in parameter_types {
-        match parameter_type {
-            Type::ByteType(_) => {
-                res.push(VerificationTypeInfo::Integer);
-            }
-            Type::CharType(_) => {
-                res.push(VerificationTypeInfo::Integer);
-            }
-            Type::DoubleType(_) => {
-                res.push(VerificationTypeInfo::Top);
-                res.push(VerificationTypeInfo::Double)
-            }
-            Type::FloatType(_) => { res.push(VerificationTypeInfo::Float); }
-            Type::IntType(_) => { res.push(VerificationTypeInfo::Integer); }
-            Type::LongType(_) => {
-                res.push(VerificationTypeInfo::Top);
-                res.push(VerificationTypeInfo::Long);
-            }
-            Type::ReferenceType(r) => {
-                res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None.clone(), class_name: r.class_name.to_string() }))
-            }
-            Type::ShortType(_) => {
-                res.push(VerificationTypeInfo::Integer);
-            }
-            Type::BooleanType(_) => {
-                res.push(VerificationTypeInfo::Integer);
-            }
-            Type::ArrayReferenceType(art) => {
-                let sub_type = &art.sub_type;
-                res.push(VerificationTypeInfo::Array(ArrayVariableInfo { sub_type: Box::new(to_verification_type_helper(sub_type)) }));
-            }
-            Type::VoidType(_) => { panic!() }
-        }
+        push_converted_verification_type(res, parameter_type)
     }
     ()
+}
+
+fn push_converted_verification_type(res: &mut Vec<VerificationTypeInfo>, parameter_type: &Type) -> () {
+    match parameter_type {
+        Type::ByteType(_) => {
+            res.push(VerificationTypeInfo::Integer);
+        }
+        Type::CharType(_) => {
+            res.push(VerificationTypeInfo::Integer);
+        }
+        Type::DoubleType(_) => {
+            res.push(VerificationTypeInfo::Top);
+            res.push(VerificationTypeInfo::Double)
+        }
+        Type::FloatType(_) => { res.push(VerificationTypeInfo::Float); }
+        Type::IntType(_) => { res.push(VerificationTypeInfo::Integer); }
+        Type::LongType(_) => {
+            res.push(VerificationTypeInfo::Top);
+            res.push(VerificationTypeInfo::Long);
+        }
+        Type::ReferenceType(r) => {
+            res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None.clone(), class_name: r.class_name.to_string() }))
+        }
+        Type::ShortType(_) => {
+            res.push(VerificationTypeInfo::Integer);
+        }
+        Type::BooleanType(_) => {
+            res.push(VerificationTypeInfo::Integer);
+        }
+        Type::ArrayReferenceType(art) => {
+            let sub_type = &art.sub_type;
+            res.push(VerificationTypeInfo::Array(ArrayVariableInfo { sub_type: Box::new(to_verification_type_helper(sub_type)) }));
+        }
+        Type::VoidType(_) => { panic!() }
+    }
 }
 
 fn write_locals(locals: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -146,21 +156,21 @@ fn write_operand_stack(operand_stack: &Vec<VerificationTypeInfo>, w: &mut dyn Wr
 }
 
 fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(), io::Error> {
-    let code: &Code = code_attribute(method_info).expect("This method won't be called for non-code attribute function. If you see this , this is a bug");
+    let code: &Code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let mut operand_stack = Vec::new();
-//    let mut locals = Vec::new();
-//    for _ in 0..code.max_locals {
-//    top is the desired default type , as stated on 217 of the jvms12
-//        locals.push(Top)
-//    }
-    //todo dup
-    let str_ = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
-    let parsed_descriptor = parse_method_descriptor(str_.as_str()).expect("Error parsing method descriptor");
+    let descriptor_str = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
+    let parsed_descriptor = parse_method_descriptor(descriptor_str.as_str()).expect("Error parsing method descriptor");
+
+    let this_pointer = if method_info.access_flags & ACC_STATIC > 0{
+        Some(Type::ReferenceType(Reference {class_name:class_name(class_file) }))
+    }else {
+        None
+    };
 
     let mut locals = Vec::new();
-    to_verification_type_array(&parsed_descriptor.parameter_types, &mut locals);
+    to_verification_type_array(&parsed_descriptor.parameter_types, &mut locals,this_pointer);
 
     let mut current_offset = 0;
     write!(w,"[")?;

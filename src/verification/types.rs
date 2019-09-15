@@ -21,8 +21,8 @@ pub struct Int {}
 pub struct Long {}
 
 #[derive(Debug)]
-pub struct Reference<'l> {
-    pub class_name: &'l str
+pub struct Reference {
+    pub class_name: String
 }
 
 #[derive(Debug)]
@@ -32,32 +32,32 @@ pub struct Short {}
 pub struct Boolean {}
 
 #[derive(Debug)]
-pub struct ArrayReference<'l> {
-    pub sub_type: Box<Type<'l>>
+pub struct ArrayReference {
+    pub sub_type: Box<Type>
 }
 
 #[derive(Debug)]
 pub struct Void {}
 
 #[derive(Debug)]
-pub enum Type<'l> {
+pub enum Type {
     ByteType(Byte),
     CharType(Char),
     DoubleType(Double),
     FloatType(Float),
     IntType(Int),
     LongType(Long),
-    ReferenceType(Reference<'l>),
+    ReferenceType(Reference),
     ShortType(Short),
     BooleanType(Boolean),
-    ArrayReferenceType(ArrayReference<'l>),
+    ArrayReferenceType(ArrayReference),
     VoidType(Void),
 }
 
 #[derive(Debug)]
-pub struct MethodDescriptor<'l>{ pub parameter_types: Vec<Type<'l>>, pub return_type: Type<'l> }
+pub struct MethodDescriptor{ pub parameter_types: Vec<Type>, pub return_type: Type }
 
-pub struct FieldDescriptor<'l>{ pub field_type: Type<'l> }
+pub struct FieldDescriptor{ pub field_type: Type }
 
 pub fn eat_one(str_: &str) -> &str {
     &str_[1..str_.len()]
@@ -86,7 +86,7 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, Type)> {
             let class_name = &str_without_l[0..end_index - 1];
 //            dbg!(&class_name);
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            Some((remaining_to_parse, Type::ReferenceType(Reference { class_name })))
+            Some((remaining_to_parse, Type::ReferenceType(Reference { class_name:class_name.to_string() })))
         }
         _ => {
             return None
