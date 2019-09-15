@@ -258,7 +258,7 @@ finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     member(method(_, Name, Descriptor), SuperMethodList),
     isNotFinal(Method, Superclass),
     isPrivate(Method, Superclass),
-    doesNotOverrideFinalMethodOfSuperclass(Superclass, Method).
+    doesNotOverrideFinalMethod(Superclass, Method).
 
 finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     methodName(Method, Name),
@@ -266,7 +266,7 @@ finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     member(method(_, Name, Descriptor), SuperMethodList),
     isNotFinal(Method, Superclass),
     isStatic(Method, Superclass),
-    doesNotOverrideFinalMethodOfSuperclass(Superclass, Method).
+    doesNotOverrideFinalMethod(Superclass, Method).
 
 finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     methodName(Method, Name),
@@ -280,7 +280,7 @@ finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     methodName(Method, Name),
     methodDescriptor(Method, Descriptor),
     notMember(method(_, Name, Descriptor), SuperMethodList),
-    doesNotOverrideFinalMethodOfSuperclass(Superclass, Method).
+    doesNotOverrideFinalMethod(Superclass, Method).
 
 
 methodIsTypeSafe(Class, Method) :-

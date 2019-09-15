@@ -112,8 +112,10 @@ pub fn gen_prolog(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), i
     write_is_and_is_not_attributes_method(context, w)?;
     write_is_and_is_not_protected(context,w)?;
     write_parse_field_descriptor(context,w)?;
+    write_method_descriptor(context,w)?;
     write_parse_method_descriptor(context,w)?;
     write_parse_code_attribute(context,w)?;
+    write_method_attributes(context,w)?;
     Ok(())
 }
 
@@ -124,10 +126,10 @@ pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Resu
         let to_load_classes = context.to_verify.iter();
         let already_loaded_classes = context.state.bootstrap_loaded_classes.values();
         for class_file in to_load_classes {
-            write!(w,"loadedClass({},{}, ClassDefinition).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME )?;
+            write!(w,"loadedClass('{}',{}, {}).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME , class_prolog_name(&class_name(class_file)))?;
         }
         for class_file in already_loaded_classes {
-            write!(w,"loadedClass({},{}, ClassDefinition).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME )?;//todo duplication
+            write!(w,"loadedClass('{}',{}, ClassDefinition).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME )?;//todo duplication
         }
     } else {
         unimplemented!()
@@ -167,9 +169,10 @@ pub fn class_name(class: &Classfile) -> String {
 }
 
 fn class_prolog_name(class_: &String) -> String {
-    let mut base = "prolog_name__".to_string();
-    base.push_str(class_.replace("/","__").as_str());
-    return base
+//    let mut base = "n__".to_string();
+//    base.push_str(class_.replace("/","__").as_str());
+    //todo , if using bootstrap loader and the like
+    return format!("class('{}', {})",class_,BOOTSTRAP_LOADER_NAME)
 }
 
 // Extracts the name, ClassName , of the class Class .
@@ -280,9 +283,9 @@ fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Resu
 
 
 fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write)-> Result<(),io::Error> {
-    let method_name_utf8 = &class_file.constant_pool[method_info.name_index as usize];
-    let method_name = extract_string_from_utf8(method_name_utf8).replace("<init>","__init");
-    write!(w, "prolog_name__{}__Method_{}", class_prolog_name(&class_name(class_file)), method_name)?;
+    write!(w, "method({},'{}',", class_prolog_name(&class_name(class_file)), method_name(class_file, method_info))?;
+    prolog_method_descriptor(class_file,method_info,w)?;
+    write!(w,")")?;
     Ok(())
 }
 
@@ -494,16 +497,28 @@ fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) -> R
 // Extracts the descriptor, Descriptor , of the method Method .
 
 pub fn prolog_method_descriptor(class_file: &Classfile, method_info: & MethodInfo, w: &mut dyn Write) -> Result<(),io::Error>{
-    write!(w,"descriptor__")?;
-    write_method_prolog_name(class_file,method_info,w)?;
+    let method_name = method_prolog_name(class_file, method_info);
+    //todo dup
+    write!(w,"d__{}__{}",class_name(class_file).replace("/","__").replace("<init>","__init").replace("<clinit>","__clinit"),method_name)?;
     Ok(())
+}
+
+fn method_name(class_file: &Classfile, method_info: &MethodInfo) -> String{
+    let method_name_utf8 = &class_file.constant_pool[method_info.name_index as usize];
+    let method_name = extract_string_from_utf8(method_name_utf8);
+    method_name
+}
+
+fn method_prolog_name(class_file: &Classfile, method_info: &MethodInfo) -> String {
+    method_name(class_file,method_info).replace("<clinit>", "__clinit").replace("<init>","__init")
 }
 
 pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
     for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter(){
-            let method_name = class_prolog_name(&class_name(class_file));
-            write!(w, "methodDescriptor({},", method_name)?;
+            write!(w, "methodDescriptor(")?;
+            write_method_prolog_name(class_file,method_info,w)?;
+            write!(w,",")?;
             prolog_method_descriptor(class_file,method_info,w)?;
             write!(w,").\n")?;
         }
@@ -602,13 +617,13 @@ pub mod instruction_parser;
 
 pub fn prolog_field_name(class_file: &Classfile, field_info: &FieldInfo ,w: &mut dyn Write) -> Result<(), io::Error> {
     let field_name = extract_string_from_utf8(&class_file.constant_pool[field_info.name_index as usize]);
-    write!(w, "prolog_name__{}__Field_{}", class_prolog_name(&class_name(class_file)), field_name)?;
+    write!(w, "f_n__{}__F_{}", class_prolog_name(&class_name(class_file)), field_name)?;
     Ok(())
 }
 
 pub fn prolog_field_descriptor(class_file: &Classfile, field_info: &FieldInfo ,w: &mut dyn Write) -> Result<(), io::Error> {
     let field_name = extract_string_from_utf8(&class_file.constant_pool[field_info.name_index as usize]);
-    write!(w, "prolog_descriptor__{}__Field_{}", class_prolog_name(&class_name(class_file)), field_name)?;
+    write!(w, "f_d__{}__F_{}", class_prolog_name(&class_name(class_file)), field_name)?;
     Ok(())
 }
 

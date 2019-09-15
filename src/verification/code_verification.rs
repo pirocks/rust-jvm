@@ -4,27 +4,27 @@ use std::io;
 use std::io::Write;
 
 use classfile::{Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
-use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, VerificationTypeInfo, UninitializedVariableInfo};
-use verification::{class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name, BOOTSTRAP_LOADER_NAME};
+use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
+use verification::{BOOTSTRAP_LOADER_NAME, class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name};
 use verification::types::{parse_method_descriptor, Type};
+use std::path::Prefix::Verbatim;
 
 pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter() {
-            write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name(class_file)))?;
-            write_method_prolog_name(class_file, method_info, w)?;
-
             let code = match code_attribute(method_info){
                 None => {continue;},
                 Some(c) => {c},
             };
+            write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name(class_file)))?;
+            write_method_prolog_name(class_file, method_info, w)?;
+
             let max_stack = code.max_stack;
             let frame_size = code.max_locals;
             write!(w, ",{},{},", frame_size, max_stack)?;
 
             use verification::instruction_parser::output_instruction_info_for_code;
             output_instruction_info_for_code(code, w)?;
-
 
             write!(w, "[")?;
             for (i, exception_entry) in code.exception_table.iter().enumerate() {
@@ -175,6 +175,11 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
                 for new_local in append_frame.locals.iter() {
                     add_new_local(&mut locals, new_local)
                 }
+            }
+            StackMapFrame::SameLocals1StackItemFrame(s) => {
+                current_offset += s.offset_delta;
+                operand_stack.clear();
+                operand_stack.push(copy_recurse(&s.stack))
             }
             _ => {
                 dbg!(entry);
