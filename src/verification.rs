@@ -119,7 +119,7 @@ pub fn gen_prolog(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), i
     Ok(())
 }
 
-const BOOTSTRAP_LOADER_NAME: &str = "bootstraploader";
+const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
 pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     if context.state.using_bootstrap_loader {
