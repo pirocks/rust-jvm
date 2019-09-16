@@ -1574,6 +1574,6 @@ instructionIsTypeSafe(tableswitch(Targets, Keys), Environment, _Offset,StackFram
 
 instructionHasEquivalentTypeRule(wide(WidenedInstruction),WidenedInstruction).
 
-
+classIsInterface(todo).
 
 

@@ -24,7 +24,7 @@ pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write)
             write!(w, ",{},{},", frame_size, max_stack)?;
 
             use verification::instruction_parser::output_instruction_info_for_code;
-            output_instruction_info_for_code(code, w)?;
+            output_instruction_info_for_code(class_file,code, w)?;
 
             write!(w, "[")?;
             for (i, exception_entry) in code.exception_table.iter().enumerate() {

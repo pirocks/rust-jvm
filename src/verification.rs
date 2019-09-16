@@ -223,7 +223,10 @@ pub fn extract_string_from_utf8(utf8: &ConstantInfo) -> String {
         ConstantKind::Utf8(s) => {
             return s.string.clone();
         },
-        _ => { panic!() }
+        other => {
+            dbg!(other);
+            panic!()
+        }
     }
 }
 
