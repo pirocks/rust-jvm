@@ -53,6 +53,10 @@ notMember(_, []).
 
 notMember(X, [A | More]) :- X \= A, notMember(X, More).
 
+isAssignable(X,X).
+
+% isAssignable(v, X) :- isAssignable(the_direct_supertype_of_v, X).
+
 isAssignable(oneWord, top).
 isAssignable(twoWord, top).
 
