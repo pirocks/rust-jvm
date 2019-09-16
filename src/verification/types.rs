@@ -179,10 +179,10 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, Type)> {
 pub fn write_type_prolog(context: &PrologGenContext,type_: &Type,  w: &mut dyn Write) -> Result<(), io::Error>{
     match type_{
         Type::ByteType(_) => {
-            write!(w,"byte")?;
+            write!(w,"int")?;
         },
         Type::CharType(_) => {
-            write!(w,"char")?;
+            write!(w,"int")?;
         },
         Type::DoubleType(_) => {
             write!(w,"double")?;
@@ -197,10 +197,10 @@ pub fn write_type_prolog(context: &PrologGenContext,type_: &Type,  w: &mut dyn W
             write!(w,"long")?;
         },
         Type::ShortType(_) => {
-            write!(w,"short")?;
+            write!(w,"int")?;
         },
         Type::BooleanType(_) => {
-            write!(w,"boolean")?;
+            write!(w,"int")?;
         },
         Type::ReferenceType(ref_) => {
             if context.state.using_bootstrap_loader {
