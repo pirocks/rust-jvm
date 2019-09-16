@@ -5,7 +5,7 @@ use std::io::Write;
 
 use classfile::{Classfile, code_attribute, MethodInfo, stack_map_table_attribute, ACC_STATIC};
 use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
-use verification::{BOOTSTRAP_LOADER_NAME, class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name};
+use verification::{BOOTSTRAP_LOADER_NAME, class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name, method_name};
 use verification::types::{parse_method_descriptor, Type, Reference};
 use std::path::Prefix::Verbatim;
 
@@ -174,6 +174,8 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
 
     let mut current_offset = 0;
     write!(w,"[")?;
+    //the fact that this variable needs to exist is dumb, but the spec says so
+    let mut previous_frame_is_first_frame = true;
     for (i, entry) in stack_map.entries.iter().enumerate() {
         write!(w, "stackMap(")?;
         match entry {
@@ -195,6 +197,11 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
                 dbg!(entry);
                 unimplemented!()
             }
+        }
+        if previous_frame_is_first_frame {
+            previous_frame_is_first_frame = false;
+        }else{
+            current_offset += 1;
         }
         write!(w, "{},frame(", current_offset)?;
         write_locals(&locals, w)?;

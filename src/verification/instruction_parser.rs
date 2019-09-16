@@ -441,6 +441,7 @@ pub fn output_instruction_info_for_code(code: &Code, w: &mut dyn Write) -> Resul
     let mut skip = 0;
     write!(w,"[")?;
     //todo simplify
+    let mut final_offset = 0;
     for (i, _) in code.code.iter().enumerate() {
         if skip > 0 {
             skip = skip - 1;
@@ -453,8 +454,9 @@ pub fn output_instruction_info_for_code(code: &Code, w: &mut dyn Write) -> Resul
         let (string, skip_copy) = instruction_to_string(i, &code.code);
         skip = skip_copy;
         write!(w, ", {})", string)?;
-
+        final_offset = i;
     }
+    write!(w,",endOfCode({})",final_offset)?;
     write!(w,"],")?;
     Ok(())
 }
