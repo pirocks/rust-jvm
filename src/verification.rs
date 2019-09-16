@@ -151,7 +151,7 @@ pub fn write_is_bootstrap_loader(context: &PrologGenContext, w: &mut dyn Write) 
 pub fn write_class_defining_loader(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         if context.state.using_bootstrap_loader {
-            write!(w, "classDefiningLoader('{}',{}).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME)?;
+            write!(w, "classDefiningLoader({},{}).\n", class_prolog_name(&class_name(class_file)), BOOTSTRAP_LOADER_NAME)?;
         } else {
             unimplemented!();
         }
