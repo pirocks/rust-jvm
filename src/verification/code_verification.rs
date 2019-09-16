@@ -91,14 +91,14 @@ fn push_converted_verification_type(res: &mut Vec<VerificationTypeInfo>, paramet
             res.push(VerificationTypeInfo::Integer);
         }
         Type::DoubleType(_) => {
+            res.push(VerificationTypeInfo::Double);
             res.push(VerificationTypeInfo::Top);
-            res.push(VerificationTypeInfo::Double)
         }
         Type::FloatType(_) => { res.push(VerificationTypeInfo::Float); }
         Type::IntType(_) => { res.push(VerificationTypeInfo::Integer); }
         Type::LongType(_) => {
-            res.push(VerificationTypeInfo::Top);
             res.push(VerificationTypeInfo::Long);
+            res.push(VerificationTypeInfo::Top);
         }
         Type::ReferenceType(r) => {
             res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None.clone(), class_name: r.class_name.to_string() }))
@@ -227,7 +227,7 @@ fn add_new_local(locals: &mut Vec<VerificationTypeInfo>, new_local: &Verificatio
             locals.push(VerificationTypeInfo::Top);
         }
         VerificationTypeInfo::Long => {
-            locals.push(VerificationTypeInfo::Double);
+            locals.push(VerificationTypeInfo::Long);
             locals.push(VerificationTypeInfo::Top);
         }
         VerificationTypeInfo::Top => {
