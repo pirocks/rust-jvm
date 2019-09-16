@@ -6,8 +6,9 @@ use interpreter::{InstructionType, read_opcode};
 
 //todo for stuff which refers to CP, need to use functor representation. See 4.10.1.3.
 
-fn instruction_to_string(i: usize, code: &Vec<u8>) -> (String, u64) {
-    match read_opcode(code[i]) {
+fn instruction_to_string(i: usize, whole_code: &Vec<u8>) -> (String, u64) {
+    let code = &whole_code[i..whole_code.len()];
+    match read_opcode(whole_code[i]) {
         InstructionType::aaload => { ("aaload".to_string(), 0) },
         InstructionType::aastore => { ("aastore".to_string(), 0) },
         InstructionType::aconst_null => { ("aconst_null".to_string(), 0) },
@@ -137,7 +138,7 @@ fn instruction_to_string(i: usize, code: &Vec<u8>) -> (String, u64) {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("goto({})",index), 2)
+            (format!("goto({})",index + i as i16), 2)
         },
         InstructionType::goto_w => {
             let branchbyte1 = code[1] as u32;
@@ -146,7 +147,7 @@ fn instruction_to_string(i: usize, code: &Vec<u8>) -> (String, u64) {
             let branchbyte4 = code[4] as u32;
             let branch = ((branchbyte1 << 24) | (branchbyte2 << 16)
                 | (branchbyte3 << 8) | branchbyte4) as i32;
-            (format!("goto_w({})",branch), 4)
+            (format!("goto_w({})",branch + i as i32), 4)//todo overflow risk here and other places where +i is used
         },
         InstructionType::i2b => { ("i2b".to_string(), 0) },
         InstructionType::i2c => { ("i2c".to_string(), 0) },
@@ -170,97 +171,97 @@ fn instruction_to_string(i: usize, code: &Vec<u8>) -> (String, u64) {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_acmpeq({})",index), 2)//todo duplication
+            (format!("if_acmpeq({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::if_acmpne => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_acmpne({})",index), 2)//todo duplication
+            (format!("if_acmpne({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::if_icmpeq => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmpeq({})",index), 2)//todo duplication
+            (format!("if_icmpeq({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::if_icmpne => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmpne({})",index), 2)//todo duplication
+            (format!("if_icmpne({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::if_icmplt => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmplt({})",index), 2)//todo duplication
+            (format!("if_icmplt({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::if_icmpge => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmpge({})",index), 2)//todo duplication
+            (format!("if_icmpge({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::if_icmpgt => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmpgt({})",index), 2)//todo duplication
+            (format!("if_icmpgt({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::if_icmple => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmple({})",index), 2)//todo duplication
+            (format!("if_icmple({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::ifeq => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifeq({})",index), 2)//todo duplication
+            (format!("ifeq({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::ifne => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifne({})",index), 2)//todo duplication
+            (format!("ifne({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::iflt => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("iflt({})",index), 2)//todo duplication
+            (format!("iflt({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::ifge => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifge({})",index), 2)//todo duplication
+            (format!("ifge({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::ifgt => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifgt({})",index), 2)//todo duplication
+            (format!("ifgt({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::ifle => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifle({})",index), 2)//todo duplication
+            (format!("ifle({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::ifnonnull => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifnonnull({})",index), 2)//todo duplication
+            (format!("ifnonnull({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::ifnull => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifnull({})",index), 2)//todo duplication
+            (format!("ifnull({})",index + i as i16), 2)//todo duplication
         },
         InstructionType::iinc => {
             let index = code[1];
