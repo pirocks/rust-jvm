@@ -141,7 +141,7 @@ fn verification_type_as_string(verification_type: &VerificationTypeInfo) -> Stri
         VerificationTypeInfo::Null => { "null".to_string() }
         VerificationTypeInfo::UninitializedThis => { unimplemented!() }
         VerificationTypeInfo::Object(o) => {
-            format!("class({},{})",o.class_name,BOOTSTRAP_LOADER_NAME)
+            format!("class('{}',{})",o.class_name,BOOTSTRAP_LOADER_NAME)
         }
         VerificationTypeInfo::Uninitialized(_) => { unimplemented!() }
         VerificationTypeInfo::Array(a) => {
