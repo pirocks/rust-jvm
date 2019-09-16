@@ -164,9 +164,9 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     let parsed_descriptor = parse_method_descriptor(descriptor_str.as_str()).expect("Error parsing method descriptor");
 
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0{
-        Some(Type::ReferenceType(Reference {class_name:class_name(class_file) }))
-    }else {
         None
+    }else {
+        Some(Type::ReferenceType(Reference {class_name:class_name(class_file) }))
     };
 
     let mut locals = Vec::new();
