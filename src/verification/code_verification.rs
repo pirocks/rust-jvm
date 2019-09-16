@@ -134,7 +134,7 @@ fn write_locals(locals: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result
 fn verification_type_as_string(verification_type: &VerificationTypeInfo) -> String {
     match verification_type {
         VerificationTypeInfo::Top => { "top".to_string() }
-        VerificationTypeInfo::Integer => { "integer".to_string() }
+        VerificationTypeInfo::Integer => { "int".to_string() }
         VerificationTypeInfo::Float => { "float".to_string() }
         VerificationTypeInfo::Long => { "long".to_string() }
         VerificationTypeInfo::Double => { "double".to_string() }
