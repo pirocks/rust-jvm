@@ -33,16 +33,16 @@ pub fn verify(state: &JVMClassesState) -> (){
         to_verify.push(class_file)
     }
 
-    let context: PrologGenContext = PrologGenContext { state, to_verify };
+    let mut context: PrologGenContext = PrologGenContext { state, to_verify, extra: ExtraDescriptors { extra_method_descriptors:Vec::new(), extra_field_descriptors:Vec::new() } };
     use std::io::stdout;
     use self::prolog_initial_defs::prolog_initial_defs;
 
     prolog_initial_defs(&mut stdout());
     stdout().flush();
-    gen_prolog(&context, &mut stdout());
+    gen_prolog(&mut context, &mut stdout());
     stdout().flush();
     prolog_initial_defs(&mut prolog_input);
-    gen_prolog(&context, &mut prolog_input);
+    gen_prolog(&mut context, &mut prolog_input);
     prolog_input.flush();
 
     sleep(Duration::from_secs(10));
@@ -90,12 +90,18 @@ True iff the package names of Class1 and Class2 are different.
 
 pub mod prolog_initial_defs;
 
-pub struct PrologGenContext<'l> {
-    pub state: &'l JVMClassesState,
-    pub to_verify: Vec<Classfile>
+pub struct ExtraDescriptors {
+    pub extra_method_descriptors: Vec<String>,
+    pub extra_field_descriptors : Vec<String>
 }
 
-pub fn gen_prolog(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
+pub struct PrologGenContext<'l> {
+    pub state: &'l JVMClassesState,
+    pub to_verify: Vec<Classfile>,
+    pub extra: ExtraDescriptors
+}
+
+pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     write_class_name(context,w)?;
     write_is_interface(context,w)?;
     write_class_is_not_final(context,w)?;
@@ -111,15 +117,43 @@ pub fn gen_prolog(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), i
     write_is_init_and_is_not_init(context,w)?;
     write_is_and_is_not_attributes_method(context, w)?;
     write_is_and_is_not_protected(context,w)?;
-    write_parse_field_descriptor(context,w)?;
+    write_parse_field_descriptors(context, w)?;
     write_method_descriptor(context,w)?;
     write_parse_method_descriptor(context,w)?;
     write_parse_code_attribute(context,w)?;
     write_method_attributes(context,w)?;
+    write_extra_descriptors(context,w)?;
     Ok(())
 }
 
 const BOOTSTRAP_LOADER_NAME: &str = "bl";
+
+pub fn write_extra_descriptors(context: &PrologGenContext,w: &mut dyn Write) ->  Result<(), io::Error>{
+    let extra_descriptors = &context.extra;
+    for field_descriptor in extra_descriptors.extra_field_descriptors.iter(){
+        //todo dup
+        write!(w,"parseFieldDescriptor('{}',",field_descriptor)?;
+        let parsed_type = parse_field_descriptor(field_descriptor.as_str()).expect("Error parsing field descriptor");
+        write_type_prolog(context, &parsed_type.field_type,w)?;
+        write!(w,").\n")?;
+    }
+    for method_descriptor in extra_descriptors.extra_method_descriptors.iter(){
+        //todo dup
+        write!(w,"parseMethodDescriptor('{}'",method_descriptor)?;
+        let method_descriptor = parse_method_descriptor(method_descriptor.as_str()).expect("Error parsing method descriptor");
+        write!(w,",[")?;
+        for (i, parameter_type) in method_descriptor.parameter_types.iter().enumerate() {
+            write_type_prolog(context, &parameter_type, w)?;
+            if i != method_descriptor.parameter_types.len() - 1 {
+                write!(w, ",")?;
+            }
+        }
+        write!(w,"],")?;
+        write_type_prolog(context,&method_descriptor.return_type,w)?;
+        write!(w, ").\n")?;
+    }
+    Ok(())
+}
 
 pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     if context.state.using_bootstrap_loader {
@@ -651,7 +685,7 @@ pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Wri
 // Converts a field descriptor, Descriptor , into the corresponding verification
 // type Type (§4.10.1.2).
 
-pub fn write_parse_field_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
+pub fn write_parse_field_descriptors(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         for field_info in class_file.fields.iter(){
             write!(w,"parseFieldDescriptor(")?;

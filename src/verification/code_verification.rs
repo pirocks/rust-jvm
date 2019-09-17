@@ -9,32 +9,32 @@ use verification::{BOOTSTRAP_LOADER_NAME, class_name, class_prolog_name, extract
 use verification::types::{parse_method_descriptor, Type, Reference};
 use std::path::Prefix::Verbatim;
 
-pub fn write_parse_code_attribute(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
+pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter() {
-            let code = match code_attribute(method_info){
+            let code = match code_attribute(&method_info){
                 None => {continue;},
                 Some(c) => {c},
             };
-            write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name(class_file)))?;
-            write_method_prolog_name(class_file, method_info, w)?;
+            write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name(&class_file)))?;
+            write_method_prolog_name(&class_file, &method_info, w)?;
 
             let max_stack = code.max_stack;
             let frame_size = code.max_locals;
             write!(w, ",{},{},", frame_size, max_stack)?;
 
             use verification::instruction_parser::output_instruction_info_for_code;
-            output_instruction_info_for_code(class_file,code, w)?;
+            output_instruction_info_for_code(&mut context.extra,&class_file,code, w)?;
 
             write!(w, "[")?;
             for (i, exception_entry) in code.exception_table.iter().enumerate() {
-                write_exception_handler(class_file, exception_entry, w)?;
+                write_exception_handler(&class_file, exception_entry, w)?;
                 if i != code.exception_table.len() - 1 {
                     write!(w, ",")?;
                 }
             }
             write!(w, "],")?;
-            write_stack_map_frames(class_file, method_info, w)?;
+            write_stack_map_frames(&class_file, &method_info, w)?;
             write!(w, ").\n")?;
         }
     }

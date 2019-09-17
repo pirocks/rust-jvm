@@ -4,7 +4,7 @@ use classfile::attribute_infos::{Code, AttributeType, BootstrapMethods};
 use classfile::Classfile;
 use classfile::constant_infos::{Class, ConstantKind, NameAndType, Fieldref};
 use interpreter::{InstructionType, read_opcode};
-use verification::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME};
+use verification::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, PrologGenContext, ExtraDescriptors};
 
 //todo for stuff which refers to CP, need to use functor representation. See 4.10.1.3.
 
@@ -57,7 +57,7 @@ fn bootstrap_methods(class_file: &Classfile) -> &BootstrapMethods  {
 }
 
 
-fn cp_elem_to_string(class_file: &Classfile, cp_index: u16) -> String {
+fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Classfile, cp_index: u16) -> String {
     let mut res = String::new();
     use std::fmt::Write;
     match &class_file.constant_pool[cp_index as usize].kind {
@@ -66,16 +66,19 @@ fn cp_elem_to_string(class_file: &Classfile, cp_index: u16) -> String {
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, class_file);
             write!(&mut res, "method('{}', '{}', '{}')", class_name, method_name, descriptor);
+            extra_descriptors.extra_method_descriptors.push(descriptor);
         },
         ConstantKind::InvokeDynamic(i) => {
             let (method_name, descriptor) = name_and_type_extractor(i.name_and_type_index, class_file);
             write!(&mut res, "dmethod('{}', '{}')",method_name,descriptor);
+            extra_descriptors.extra_method_descriptors.push(descriptor);
         },
         ConstantKind::Fieldref(f) => {
             let (field_name, descriptor) = name_and_type_extractor(f.name_and_type_index, class_file);
             let c = extract_class_from_constant_pool(f.class_index, class_file);
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
             write!(&mut res, "field('{}','{}', '{}')",class_name,field_name,descriptor);
+            extra_descriptors.extra_field_descriptors.push(descriptor);
         },
         ConstantKind::String(s) => {
             let string = extract_string_from_utf8(&class_file.constant_pool[s.string_index as usize]);
@@ -100,7 +103,7 @@ fn cp_elem_to_string(class_file: &Classfile, cp_index: u16) -> String {
     res
 }
 
-fn instruction_to_string(class_file: &Classfile, i: usize, whole_code: &Vec<u8>) -> (String, u64) {
+fn instruction_to_string(prolog_context: &mut ExtraDescriptors,class_file: &Classfile, i: usize, whole_code: &Vec<u8>) -> (String, u64) {
     let code = &whole_code[i..whole_code.len()];
     match read_opcode(whole_code[i]) {
         InstructionType::aaload => { ("aaload".to_string(), 0) },
@@ -118,7 +121,7 @@ fn instruction_to_string(class_file: &Classfile, i: usize, whole_code: &Vec<u8>)
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = (indexbyte1 << 8) | indexbyte2;
-            (format!("anewarray({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("anewarray({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::areturn => { ("areturn".to_string(), 0) },
         InstructionType::arraylength => { ("arraylength".to_string(), 0) },
@@ -143,7 +146,7 @@ fn instruction_to_string(class_file: &Classfile, i: usize, whole_code: &Vec<u8>)
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = (indexbyte1 << 8) | indexbyte2;
-            (format!("checkcast({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("checkcast({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::d2f => { ("d2f".to_string(), 0) },
         InstructionType::d2i => { ("d2i".to_string(), 0) },
@@ -220,13 +223,13 @@ fn instruction_to_string(class_file: &Classfile, i: usize, whole_code: &Vec<u8>)
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = (indexbyte1 << 8) | indexbyte2;
-            (format!("getfield({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("getfield({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::getstatic => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = (indexbyte1 << 8) | indexbyte2;
-            (format!("getstatic({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("getstatic({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::goto_ => {
             let indexbyte1 = code[1] as u16;
@@ -376,38 +379,38 @@ fn instruction_to_string(class_file: &Classfile, i: usize, whole_code: &Vec<u8>)
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("instanceof({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("instanceof({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::invokedynamic => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("invokedynamic({},0,0)", cp_elem_to_string(class_file, cp_index)), 4)
+            (format!("invokedynamic({},0,0)", cp_elem_to_string(prolog_context,class_file, cp_index)), 4)
         },
         InstructionType::invokeinterface => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
             let count = code[3];
-            (format!("invokeinterface({}, {}, 0)", cp_elem_to_string(class_file, cp_index), count), 4)
+            (format!("invokeinterface({}, {}, 0)", cp_elem_to_string(prolog_context,class_file, cp_index), count), 4)
         },
         InstructionType::invokespecial => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("invokespecial({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("invokespecial({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::invokestatic => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("invokestatic({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("invokestatic({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::invokevirtual => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("invokevirtual({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("invokevirtual({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::ior => { ("ior".to_string(), 0) },
         InstructionType::irem => { ("irem".to_string(), 0) },
@@ -437,19 +440,19 @@ fn instruction_to_string(class_file: &Classfile, i: usize, whole_code: &Vec<u8>)
         InstructionType::lconst_0 => { ("lconst_0".to_string(), 0) },
         InstructionType::lconst_1 => { ("lconst_1".to_string(), 0) },
         InstructionType::ldc => {
-            (format!("ldc({})", cp_elem_to_string(class_file, code[1] as u16)), 1)
+            (format!("ldc({})", cp_elem_to_string(prolog_context,class_file, code[1] as u16)), 1)
         },
         InstructionType::ldc_w => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("ldc_w({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("ldc_w({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::ldc2_w => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("ldc2_w({})", cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("ldc2_w({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::ldiv => { ("ldiv".to_string(), 0) },
         InstructionType::lload => {
@@ -492,7 +495,7 @@ fn instruction_to_string(class_file: &Classfile, i: usize, whole_code: &Vec<u8>)
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
             let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("new({})",cp_elem_to_string(class_file, cp_index)), 2)
+            (format!("new({})",cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::newarray => {
             let typecode = code[1];
@@ -533,7 +536,7 @@ fn instruction_to_string(class_file: &Classfile, i: usize, whole_code: &Vec<u8>)
     }
 }
 
-pub fn output_instruction_info_for_code(class_file: &Classfile, code: &Code, w: &mut dyn Write) -> Result<(), Error> {
+pub fn output_instruction_info_for_code(prolog_context: &mut ExtraDescriptors, class_file: &Classfile, code: &Code, w: &mut dyn Write) -> Result<(), Error> {
     let mut skip = 0;
     write!(w,"[")?;
     //todo simplify
@@ -547,7 +550,7 @@ pub fn output_instruction_info_for_code(class_file: &Classfile, code: &Code, w: 
         }
         write!(w, "instruction(")?;
         write!(w, "{}", i)?;
-        let (string, skip_copy) = instruction_to_string(class_file, i, &code.code);
+        let (string, skip_copy) = instruction_to_string(prolog_context,class_file, i, &code.code);
         skip = skip_copy;
         write!(w, ", {})", string)?;
         final_offset = i;
