@@ -93,7 +93,7 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
         },
         ConstantKind::Class(c) => {
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
-            write!(&mut res, "class({},{})", class_name,BOOTSTRAP_LOADER_NAME);
+            write!(&mut res, "class('{}',{})", class_name,BOOTSTRAP_LOADER_NAME);
         }
         a => {
             dbg!(a);
