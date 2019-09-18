@@ -75,6 +75,8 @@ pub struct Methodref{
 #[derive(Eq, PartialEq)]
 pub struct InterfaceMethodref{
     //unimplemented!()
+    pub class_index: u16,
+    pub nt_index: u16
 }
 
 #[derive(Debug)]
@@ -97,6 +99,7 @@ pub struct MethodHandle{
 #[derive(Eq, PartialEq)]
 pub struct MethodType{
     //unimplemented!()
+    pub descriptor_index: u16
 }
 
 #[derive(Debug)]
@@ -319,7 +322,11 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
             let name_and_type_index = read16(p);
             ConstantKind::Methodref( Methodref {class_index,name_and_type_index})
         },
-        INTERFACE_METHODREF_CONST_NUM => { unimplemented!() },
+        INTERFACE_METHODREF_CONST_NUM => {
+            let class_index = read16(p);
+            let nt_index = read16(p);
+            ConstantKind::InterfaceMethodref(InterfaceMethodref { class_index, nt_index })
+        },
         NAME_AND_TYPE_CONST_NUM => {
             let name_index = read16(p);
             let descriptor_index = read16(p);
@@ -332,7 +339,12 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
                 reference_kind, reference_index
             })
         },
-        METHOD_TYPE_CONST_NUM => { unimplemented!() },
+        METHOD_TYPE_CONST_NUM => {
+            let descriptor_index = read16(p);
+            ConstantKind::MethodType(MethodType {
+                descriptor_index
+            })
+        },
         DYNAMIC_CONST_NUM => { unimplemented!() },
         INVOKE_DYNAMIC_CONST_NUM => {
             let bootstrap_method_attr_index = read16(p);

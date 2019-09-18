@@ -1,12 +1,13 @@
-use class_loading::JVMClassesState;
-use classfile::{Classfile, ACC_INTERFACE, ACC_FINAL, AttributeInfo, ACC_SUPER, ACC_BRIDGE, ACC_STRICT, FieldInfo, MethodInfo, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_VOLATILE, ACC_NATIVE, ACC_ABSTRACT, ACC_SYNTHETIC, ACC_ANNOTATION, ACC_MODULE, ACC_ENUM, ACC_TRANSIENT, code_attribute};
-use std::io::Write;
-use std::io;
-use verification::code_verification::write_parse_code_attribute;
 use std::borrow::Borrow;
+use std::io;
+use std::io::Write;
+
+use class_loading::JVMClassesState;
+use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, code_attribute, FieldInfo, MethodInfo};
 use classfile::attribute_infos::AttributeType;
-use classfile::constant_infos::{ConstantKind, ConstantInfo};
-use verification::types::{write_type_prolog, parse_field_descriptor, parse_method_descriptor};
+use classfile::constant_infos::{ConstantInfo, ConstantKind};
+use verification::code_verification::write_parse_code_attribute;
+use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -76,15 +77,21 @@ pub fn write_extra_descriptors(context: &PrologGenContext,w: &mut dyn Write) -> 
 
 pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     if context.state.using_bootstrap_loader {
-        let to_load_classes = context.to_verify.iter();
         let already_loaded_classes = context.state.bootstrap_loaded_classes.values();
-        for class_file in to_load_classes {
+        for class_file in context.to_verify.iter() {
             write!(w,"loadedClass('{}',{}, {}).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME , class_prolog_name(&class_name(class_file)))?;
         }
         for class_file in already_loaded_classes {
             write!(w,"loadedClass('{}',{}, ClassDefinition).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME )?;//todo duplication
         }
-        write!(w, "loadedClass(ClassName,_,_) :- write('Need to load:'),writeln(ClassName),fail.\n")?;
+        write!(w, "loadedClass(ClassName,_,_) :- ")?;
+        for class_file in context.to_verify.iter() {
+            write!(w, "ClassName \\= '{}',", class_name(class_file))?;
+        }
+        for class_file in context.state.bootstrap_loaded_classes.values() {
+            write!(w, "ClassName \\= '{}',", class_name(class_file))?;
+        }
+        write!(w, "write('Need to load:'),writeln(ClassName),fail.\n")?;
     } else {
         unimplemented!()
     }
@@ -225,7 +232,12 @@ fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Resu
     for class_file in context.to_verify.iter() {
         write!(w, "classInterfaces({},[", class_prolog_name(&class_name(&class_file)))?;
         for (i, interface) in class_file.interfaces.iter().enumerate() {
-            let interface_name = extract_string_from_utf8(&class_file.constant_pool[*interface as usize]);
+            //todo getrid of this kind bs
+            let interface_name_index = match &class_file.constant_pool[(*interface) as usize].kind {
+                ConstantKind::Class(c) => { c.name_index }
+                _ => { panic!() }
+            };
+            let interface_name = extract_string_from_utf8(&class_file.constant_pool[interface_name_index as usize]);
             let prolog_interface_name = class_prolog_name(&interface_name);
             if i == class_file.interfaces.len() - 1 {
                 write!(w, "{}", prolog_interface_name)?;
@@ -298,6 +310,7 @@ fn get_attribute_name(attribute_info: &AttributeInfo) -> String {
         AttributeType::StackMapTable(_) => {"StackMapTable"},
         AttributeType::RuntimeVisibleTypeAnnotations(_) => {"RuntimeVisibleTypeAnnotations"},
         AttributeType::RuntimeInvisibleTypeAnnotations(_) => {"RuntimeInvisibleTypeAnnotations"},
+        AttributeType::NestMembers(_) => { "NestMembers" }
     }.to_string()
 }
 
@@ -583,9 +596,9 @@ pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Wri
     for class_file in context.to_verify.iter() {
         for field_info in class_file.fields.iter(){
             if(field_info.access_flags & ACC_PROTECTED) > 0 {
-                write!(w,"isProtected({},",class_name(class_file))?;
+                write!(w,"isProtected('{}',",class_name(class_file))?;
             }else {
-                write!(w,"isNotProtected({},",class_name(class_file))?;
+                write!(w,"isNotProtected('{}',",class_name(class_file))?;
             }
             prolog_field_name(class_file,field_info,w)?;
             write!(w,",")?;

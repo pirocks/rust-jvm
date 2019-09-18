@@ -71,6 +71,7 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
     }
 
     write!(&mut prolog_input, "classIsTypeSafe(class('java/lang/Object', bl)).\n",).unwrap();
+    write!(&mut prolog_input, "\n\n").unwrap();
     prolog_input.flush().unwrap();
 
     let loading_attempt_res = read_true_false_another_class(&mut output_lines);

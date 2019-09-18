@@ -42,8 +42,12 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
 }
 
 fn write_exception_handler(class_file: &Classfile, exception_handler: &ExceptionTableElem, w: &mut dyn Write) -> Result<(), io::Error> {
-    let class_name = extract_string_from_utf8(&class_file.constant_pool[exception_handler.catch_type as usize]);
-    write!(w, "handler({},{},{},{})", exception_handler.start_pc, exception_handler.end_pc, exception_handler.handler_pc, class_name)?;
+    if exception_handler.catch_type == 0{
+        write!(w, "handler({},{},{},0)", exception_handler.start_pc, exception_handler.end_pc, exception_handler.handler_pc)?;
+    }else {
+        let class_name = extract_string_from_utf8(&class_file.constant_pool[exception_handler.catch_type as usize]);
+        write!(w, "handler({},{},{},'{}')", exception_handler.start_pc, exception_handler.end_pc, exception_handler.handler_pc, class_name)?;
+    }
     Ok(())
 }
 
@@ -181,21 +185,39 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
         match entry {
             StackMapFrame::SameFrame(s) => {
                 current_offset += s.offset_delta;
-            }
+            },
             StackMapFrame::AppendFrame(append_frame) => {
                 current_offset += append_frame.offset_delta;
                 for new_local in append_frame.locals.iter() {
                     add_new_local(&mut locals, new_local)
                 }
-            }
+            },
             StackMapFrame::SameLocals1StackItemFrame(s) => {
                 current_offset += s.offset_delta;
                 operand_stack.clear();
                 operand_stack.push(copy_recurse(&s.stack))
+            },
+            StackMapFrame::FullFrame(f) => {
+                current_offset += f.offset_delta;
+                locals.clear();
+                for new_local in f.locals.iter(){
+                    add_new_local(&mut locals, new_local);
+                }
+                operand_stack.clear();
+                for new_stack_member in f.stack.iter(){
+                    add_new_local(&mut operand_stack, new_stack_member);
+                }
+            }
+            StackMapFrame::ChopFrame(f) => {
+                current_offset += f.offset_delta;
+                operand_stack.clear();
+                for _ in 0..f.k_frames_to_chop{
+                    locals.remove(locals.len() - 1);
+                }
             }
             _ => {
                 dbg!(entry);
-                unimplemented!()
+                unimplemented!();
             }
         }
         if previous_frame_is_first_frame {

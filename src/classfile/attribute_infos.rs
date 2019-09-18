@@ -53,6 +53,7 @@ pub struct NestHost{
 #[derive(Eq, PartialEq)]
 pub struct ConstantValue{
     //todo
+    pub constant_value_index: u16
 }
 
 #[derive(Debug)]
@@ -264,7 +265,8 @@ pub struct SameLocals1StackItemFrameExtended {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ChopFrame {
-    pub offset_delta: u16
+    pub offset_delta: u16,
+    pub k_frames_to_chop: u8
 }
 
 #[derive(Debug)]
@@ -322,6 +324,12 @@ pub struct RuntimeInvisibleTypeAnnotations{
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+pub struct NestMembers{
+    pub classes: Vec<u16>
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub enum AttributeType{
     SourceFile(SourceFile),
     InnerClasses(InnerClasses),
@@ -330,6 +338,7 @@ pub enum AttributeType{
     BootstrapMethods(BootstrapMethods),
     Module(Module),
     NestHost(NestHost),
+    NestMembers(NestMembers),
     ConstantValue(ConstantValue),
     Code(Code),
     Exceptions(Exceptions),
@@ -380,6 +389,11 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
         parse_inner_classes(p)
     } else if name == "BootstrapMethods"{
         parse_bootstrap_methods(p)
+    } else if name == "ConstantValue" {
+        parse_constant_value_index(p)
+    } else if name == "NestMembers"{
+        //todo validate at most one constraints
+        parse_nest_members(p)
     } else {
         unimplemented!("{}", name);
     };
@@ -388,6 +402,22 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
         attribute_length,
         attribute_type
     }
+}
+
+fn parse_nest_members(p: &mut ParsingContext) -> AttributeType {
+    let number_of_classes = read16(p);
+    let mut classes = Vec::with_capacity(number_of_classes as usize);
+    for _ in 0..number_of_classes {
+        classes.push(read16(p));
+    }
+    AttributeType::NestMembers(NestMembers { classes })
+}
+
+fn parse_constant_value_index(p: &mut ParsingContext) -> AttributeType {
+    let constant_value_index = read16(p);
+    AttributeType::ConstantValue(ConstantValue {
+        constant_value_index
+    })
 }
 
 fn parse_bootstrap_methods(p: &mut ParsingContext) -> AttributeType {
@@ -603,6 +633,29 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
             offset_delta,
             locals,
         })
+    } else if type_of_frame == 255 {
+        let offset_delta = read16(p);
+        let number_of_locals = read16(p);
+        let mut locals = Vec::with_capacity(number_of_locals as usize);
+        for _ in 0..number_of_locals {
+            locals.push(parse_verification_type_info(p));
+        }
+        let number_of_stack_items = read16(p);
+        let mut stack = Vec::with_capacity(number_of_stack_items as usize);
+        for _ in 0..number_of_stack_items {
+            stack.push(parse_verification_type_info(p));
+        }
+        StackMapFrame::FullFrame(FullFrame {
+            offset_delta,
+            number_of_locals,
+            locals,
+            number_of_stack_items,
+            stack,
+        })
+    } else if type_of_frame >= 248 && type_of_frame <= 250 {
+        let offset_delta = read16(p);
+        let k_frames_to_chop = 251 - type_of_frame;
+        StackMapFrame::ChopFrame(ChopFrame { offset_delta, k_frames_to_chop })
     } else {
         unimplemented!("{}", type_of_frame)
     }
@@ -613,6 +666,10 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> VerificationTypeInfo{
     //todo magic constants
     match type_ {
         1 => VerificationTypeInfo::Integer,
+        7 => VerificationTypeInfo::Object(ObjectVariableInfo {
+            cpool_index: Some(read16(p)),
+            class_name: "".to_string(),//todo do better than this
+        }),
         _ => { unimplemented!("{}", type_) }
     }
 }

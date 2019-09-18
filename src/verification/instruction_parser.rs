@@ -79,7 +79,7 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
         },
         ConstantKind::String(s) => {
             let string = extract_string_from_utf8(&class_file.constant_pool[s.string_index as usize]);
-            write!(&mut res, "string('{}')",string).unwrap();
+            write!(&mut res, "string('{}')",string.replace("\\","\\\\")).unwrap();
         },
         ConstantKind::Integer(i) => {
             write!(&mut res, "int({})",i.bytes).unwrap();
@@ -91,6 +91,13 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
         ConstantKind::Class(c) => {
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
             write!(&mut res, "class('{}',{})", class_name,BOOTSTRAP_LOADER_NAME).unwrap();
+        }
+        ConstantKind::InterfaceMethodref(im) => {
+            let (method_name, descriptor) = name_and_type_extractor(im.nt_index, class_file);
+            let c = extract_class_from_constant_pool(im.class_index, class_file);
+            let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
+            write!(&mut res, "imethod('{}', '{}', '{}')", class_name, method_name, descriptor).unwrap();
+            extra_descriptors.extra_method_descriptors.push(descriptor);
         }
         a => {
             dbg!(a);
