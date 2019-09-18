@@ -1577,3 +1577,13 @@ instructionHasEquivalentTypeRule(wide(WidenedInstruction),WidenedInstruction).
 classIsInterface(todo).
 
 
+:- discontiguous isNotStatic/2.
+:- discontiguous isStatic/2.
+:- discontiguous isNotPrivate/2.
+:- discontiguous isPrivate/2.
+:- discontiguous isNotFinal/2.
+:- discontiguous isFinal/2.
+:- discontiguous isNotInit/1.
+:- discontiguous isInit/1.
+:- discontiguous parseMethodDescriptor/3.
+:- discontiguous parseFieldDescriptor/2.

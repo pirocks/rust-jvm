@@ -5,6 +5,8 @@ extern crate num;
 extern crate bimap;
 extern crate argparse;
 extern crate log;
+extern crate tempfile;
+extern crate regex;
 
 pub mod classfile;
 pub mod jit;

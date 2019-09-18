@@ -3,7 +3,7 @@ extern crate classfile;
 use std::path::PathBuf;
 use std::fs::File;
 use classfile::classfile::parse_class_file;
-use classfile::verification::PrologGenContext;
+use classfile::verification::{PrologGenContext, ExtraDescriptors};
 use std::io::{BufWriter, Write};
 use std::io;
 use std::collections::{HashMap, HashSet};
@@ -41,11 +41,11 @@ pub fn basic_class_file_prolog_output() -> Result<(),io::Error>{
     let parsed = parse_class_file(&mut p);
     let mut class_files = Vec::new();
     class_files.push(parsed);
-    let prolog_context = PrologGenContext{ to_verify:class_files, state:&JVMClassesState { indexed_classpath:HashMap::new(), loading_in_progress: HashSet::new(),using_bootstrap_loader:true, bootstrap_loaded_classes:HashMap::new()}};
+    let mut prolog_context = PrologGenContext{ to_verify:class_files, state:&JVMClassesState { indexed_classpath:HashMap::new(), loading_in_progress: HashSet::new(),using_bootstrap_loader:true, bootstrap_loaded_classes:HashMap::new()}, extra: ExtraDescriptors { extra_method_descriptors: Vec::new(), extra_field_descriptors: Vec::new() } };
     use classfile::verification::gen_prolog;
     let mut writer = BufWriter::new(std::io::stdout());
 
-    gen_prolog(&prolog_context, &mut writer)?;
+    gen_prolog(&mut prolog_context, &mut writer)?;
     writer.flush()?;
 //    assert!(false);
     return Ok(());

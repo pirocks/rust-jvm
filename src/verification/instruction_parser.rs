@@ -2,12 +2,9 @@ use std::io::{Error, Write};
 
 use classfile::attribute_infos::{Code, AttributeType, BootstrapMethods};
 use classfile::Classfile;
-use classfile::constant_infos::{Class, ConstantKind, NameAndType, Fieldref};
+use classfile::constant_infos::{Class, ConstantKind, Fieldref};
 use interpreter::{InstructionType, read_opcode};
-use verification::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, PrologGenContext, ExtraDescriptors};
-
-//todo for stuff which refers to CP, need to use functor representation. See 4.10.1.3.
-
+use verification::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
 
 fn name_and_type_extractor(i: u16, class_file: &Classfile) -> (String, String) {
     let mut nt;
@@ -65,35 +62,35 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
             let c = extract_class_from_constant_pool(m.class_index, class_file);
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, class_file);
-            write!(&mut res, "method('{}', '{}', '{}')", class_name, method_name, descriptor);
+            write!(&mut res, "method('{}', '{}', '{}')", class_name, method_name, descriptor).unwrap();
             extra_descriptors.extra_method_descriptors.push(descriptor);
         },
         ConstantKind::InvokeDynamic(i) => {
             let (method_name, descriptor) = name_and_type_extractor(i.name_and_type_index, class_file);
-            write!(&mut res, "dmethod('{}', '{}')",method_name,descriptor);
+            write!(&mut res, "dmethod('{}', '{}')",method_name,descriptor).unwrap();
             extra_descriptors.extra_method_descriptors.push(descriptor);
         },
         ConstantKind::Fieldref(f) => {
             let (field_name, descriptor) = name_and_type_extractor(f.name_and_type_index, class_file);
             let c = extract_class_from_constant_pool(f.class_index, class_file);
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
-            write!(&mut res, "field('{}','{}', '{}')",class_name,field_name,descriptor);
+            write!(&mut res, "field('{}','{}', '{}')",class_name,field_name,descriptor).unwrap();
             extra_descriptors.extra_field_descriptors.push(descriptor);
         },
         ConstantKind::String(s) => {
             let string = extract_string_from_utf8(&class_file.constant_pool[s.string_index as usize]);
-            write!(&mut res, "string('{}')",string);
+            write!(&mut res, "string('{}')",string).unwrap();
         },
         ConstantKind::Integer(i) => {
-            write!(&mut res, "int({})",i.bytes);
+            write!(&mut res, "int({})",i.bytes).unwrap();
         },
         ConstantKind::Long(l) => {
             let long = (((l.high_bytes as u64) << 32) | (l.low_bytes as u64)) as i64;
-            write!(&mut res, "long({})",long);
+            write!(&mut res, "long({})",long).unwrap();
         },
         ConstantKind::Class(c) => {
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
-            write!(&mut res, "class('{}',{})", class_name,BOOTSTRAP_LOADER_NAME);
+            write!(&mut res, "class('{}',{})", class_name,BOOTSTRAP_LOADER_NAME).unwrap();
         }
         a => {
             dbg!(a);

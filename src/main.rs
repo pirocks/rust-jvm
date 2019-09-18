@@ -1,10 +1,9 @@
 
 extern crate argparse;
 extern crate classfile;
-#[macro_use]
 extern crate log;
 extern crate simple_logger;
-use log::{trace, warn,info};
+use log::{trace, info};
 
 
 use argparse::{ArgumentParser, Store, StoreTrue};
@@ -17,7 +16,6 @@ fn main() {
     simple_logger::init().unwrap();
     let mut verbose = false;
     let mut debug = false;
-    let mut print_only_mode = false;
     let mut main_class_name = "".to_string();
 //    let mut main_class_path = "".to_string();
     let mut class_path_file = "".to_string();

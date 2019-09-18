@@ -20,7 +20,6 @@ use classfile::{Classfile, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
 use verification::{extract_string_from_utf8, get_super_class_name, verify, class_name};
-#[macro_use]
 use log::{trace, info, warn};
 
 #[derive(Eq, PartialEq)]
@@ -29,6 +28,12 @@ use log::{trace, info, warn};
 pub struct ClassEntry{
     pub name : String,
     pub packages : Vec<String>
+}
+
+impl Clone for ClassEntry{
+    fn clone(&self) -> Self {
+        Self { name: self.name.clone(), packages: self.packages.iter().map(|s|{s.clone()}).collect() }
+    }
 }
 
 impl std::fmt::Display for ClassEntry {
@@ -109,7 +114,8 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             unimplemented!("Throw LinkageError,but this will never happen see above comment")
         }
 
-        classes.loading_in_progress.insert(class_name_with_package);
+        //todo use lifetimes instead of clone
+        classes.loading_in_progress.insert(class_name_with_package.clone());
         if parsed.super_class == 0 {
             trace!("Parsed Object.class");
         }else{
@@ -125,8 +131,15 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
                 load_class(classes,class_entry_from_string(&interface_name,false))
             };
         }
-        dbg!(&classes.loading_in_progress);
-        verify(classes);
+        match verify(classes){
+            None => {
+                //class verified successfully.
+            },
+            Some(s) => {
+                load_class(classes,class_entry_from_string(&s,false));
+                load_class(classes,class_name_with_package);//todo, fix the concept of class ame with package.
+            },
+        }
         load_verified_class( classes,parsed);
         return ()
     }else {

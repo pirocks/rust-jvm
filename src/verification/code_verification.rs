@@ -5,9 +5,8 @@ use std::io::Write;
 
 use classfile::{Classfile, code_attribute, MethodInfo, stack_map_table_attribute, ACC_STATIC};
 use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
-use verification::{BOOTSTRAP_LOADER_NAME, class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name, method_name};
+use verification::{BOOTSTRAP_LOADER_NAME, class_name, class_prolog_name, extract_string_from_utf8, PrologGenContext, write_method_prolog_name};
 use verification::types::{parse_method_descriptor, Type, Reference};
-use std::path::Prefix::Verbatim;
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
