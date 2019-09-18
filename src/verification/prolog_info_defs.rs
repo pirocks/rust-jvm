@@ -8,6 +8,7 @@ use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
 use verification::code_verification::write_parse_code_attribute;
 use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
+use verification::instruction_parser::extract_class_from_constant_pool;
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -42,6 +43,7 @@ pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(
     write_parse_code_attribute(context,w)?;
     write_method_attributes(context,w)?;
     write_extra_descriptors(context,w)?;
+    write_assignable_direct_supertype(context,w)?;
     w.flush()?;
     Ok(())
 }
@@ -251,8 +253,12 @@ fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Resu
 }
 
 
-pub(crate) fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(),io::Error> {
-    write!(w, "method({},'{}',", class_prolog_name(&class_name(class_file)), method_name(class_file, method_info))?;
+pub(crate) fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write, suppress_class: bool) -> Result<(), io::Error> {
+    let class_functor = if !suppress_class {
+        class_prolog_name(&class_name(class_file))
+    } else { "_".to_string() };
+
+    write!(w, "method({},'{}',", class_functor, method_name(class_file, method_info))?;
     prolog_method_descriptor(class_file,method_info,w)?;
     write!(w,")")?;
     Ok(())
@@ -264,7 +270,7 @@ fn write_class_methods(context: &PrologGenContext, w: &mut dyn Write) -> Result<
     for class_file in context.to_verify.iter() {
         write!(w, "classMethods({},[", class_prolog_name(&class_name(&class_file)))?;
         for (i, method_info) in class_file.methods.iter().enumerate() {
-            write_method_prolog_name(&class_file, method_info, w)?;
+            write_method_prolog_name(&class_file, method_info, w, false)?;
             if class_file.methods.len() - 1 != i {
                 write!(w, ",")?;
             }
@@ -368,7 +374,7 @@ fn write_method_name( context: &PrologGenContext, w: &mut dyn Write)-> Result<()
     for class_file in context.to_verify.iter() {
         for method in class_file.methods.iter(){
             write!(w,"methodName(")?;
-            write_method_prolog_name(class_file,&method,w)?;
+            write_method_prolog_name(class_file,&method,w,false)?;
             write!(w, ",'{}').\n",extract_string_from_utf8( &class_file.constant_pool[method.name_index as usize]))?;
         }
     }
@@ -382,7 +388,7 @@ fn write_method_name( context: &PrologGenContext, w: &mut dyn Write)-> Result<()
 
 fn before_method_access_flags(class_file: &Classfile,method_info: &MethodInfo, w: &mut dyn Write)-> Result<(),io::Error>{
     write!(w,"methodAccessFlags(")?;
-    write_method_prolog_name(class_file, method_info,w)?;
+    write_method_prolog_name(class_file, method_info,w,false)?;
     Ok(())
 }
 
@@ -472,7 +478,7 @@ pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) ->
     for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter(){
             write!(w, "methodDescriptor(")?;
-            write_method_prolog_name(class_file,method_info,w)?;
+            write_method_prolog_name(class_file,method_info,w,false)?;
             write!(w,",")?;
             prolog_method_descriptor(class_file,method_info,w)?;
             write!(w,").\n")?;
@@ -491,7 +497,7 @@ fn write_method_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Res
                 None => {},
                 Some(c) => {
                     write!(w, "methodAttributes(")?;
-                    write_method_prolog_name(class_file,method_info,w)?;
+                    write_method_prolog_name(class_file,method_info,w,false)?;
                     write!(w,", [attribute('Code','')]).\n",)?;
                 },
             }
@@ -524,7 +530,7 @@ fn write_is_init_and_is_not_init(context: &PrologGenContext, w: &mut dyn Write) 
             } else {
                 write!(w, "isNotInit(")?;
             }
-            write_method_prolog_name(&class_file, &method_info, w)?;
+            write_method_prolog_name(&class_file, &method_info, w,true)?;
             write!(w, ").\n")?;
         }
     }
@@ -543,7 +549,7 @@ macro_rules! write_attribute {
         write!($w, $isNotCaseString)?;
         write!($w,"(")?;
     }
-    write_method_prolog_name($class_file, $method_info, $w)?;
+    write_method_prolog_name($class_file, $method_info, $w,true)?;
     write!($w, ",{}).\n", class_prolog_name(&class_name($class_file)))?;
 };
 }
@@ -659,3 +665,51 @@ pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Wri
 }
 
 
+pub fn write_assignable_direct_supertype(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error>{
+    write!(w,r#"
+
+isAssignable(X,X).
+
+isAssignable(oneWord, top).
+isAssignable(twoWord, top).
+
+isAssignable(int, X) :- isAssignable(oneWord, X).
+isAssignable(float, X) :- isAssignable(oneWord, X).
+isAssignable(long, X) :- isAssignable(twoWord, X).
+isAssignable(double, X) :- isAssignable(twoWord, X).
+
+isAssignable(reference, X) :- isAssignable(oneWord, X).
+isAssignable(class(_, _), X) :- isAssignable(reference, X).
+isAssignable(arrayOf(_), X) :- isAssignable(reference, X).
+
+isAssignable(uninitialized, X) :- isAssignable(reference, X).
+isAssignable(uninitializedThis, X) :- isAssignable(uninitialized, X).
+isAssignable(uninitialized(_), X) :- isAssignable(uninitialized, X).
+
+isAssignable(null, class(_, _)).
+isAssignable(null, arrayOf(_)).
+isAssignable(null, X) :-
+    isAssignable(class('java/lang/Object', BL), X),
+    isBootstrapLoader(BL).
+
+
+isAssignable(class(X, Lx), class(Y, Ly)) :-
+    isJavaAssignable(class(X, Lx), class(Y, Ly)).
+
+isAssignable(arrayOf(X), class(Y, L)) :-
+    isJavaAssignable(arrayOf(X), class(Y, L)).
+
+isAssignable(arrayOf(X), arrayOf(Y)) :-
+    isJavaAssignable(arrayOf(X), arrayOf(Y)).
+
+"#)?;
+    for class_file in context.to_verify.iter(){
+        if class_file.super_class == 0 {
+            continue;
+        }
+        let direct_super_type_class = extract_class_from_constant_pool(class_file.super_class,class_file);
+        let direct_super_type_name  = class_prolog_name(&extract_string_from_utf8(&class_file.constant_pool[direct_super_type_class.name_index as usize]));
+        write!(w,"isAssignable({}, X) :- isAssignable({}, X).\n",class_prolog_name(&class_name(class_file)),direct_super_type_name)?;
+    }
+    Ok(())
+}

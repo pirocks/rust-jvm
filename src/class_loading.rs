@@ -138,7 +138,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             },
             Some(s) => {
                 load_class(classes,class_entry_from_string(&s,false));
-                load_class(classes,class_name_with_package);//todo, fix the concept of class ame with package.
+                load_class(classes,class_name_with_package);//todo, fix the concept of class name with package.
             },
         }
         load_verified_class( classes,parsed);

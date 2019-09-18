@@ -17,7 +17,7 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
                 Some(c) => {c},
             };
             write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name(&class_file)))?;
-            write_method_prolog_name(&class_file, &method_info, w)?;
+            write_method_prolog_name(&class_file, &method_info, w,false)?;
 
             let max_stack = code.max_stack;
             let frame_size = code.max_locals;

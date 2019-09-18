@@ -52,43 +52,40 @@ currentClassLoader(Environment, Loader) :-
 notMember(_, []).
 
 notMember(X, [A | More]) :- X \= A, notMember(X, More).
-
-isAssignable(X,X).
-
-% isAssignable(v, X) :- isAssignable(the_direct_supertype_of_v, X).
-
-isAssignable(oneWord, top).
-isAssignable(twoWord, top).
-
-isAssignable(int, X) :- isAssignable(oneWord, X).
-isAssignable(float, X) :- isAssignable(oneWord, X).
-isAssignable(long, X) :- isAssignable(twoWord, X).
-isAssignable(double, X) :- isAssignable(twoWord, X).
-
-isAssignable(reference, X) :- isAssignable(oneWord, X).
-isAssignable(class(_, _), X) :- isAssignable(reference, X).
-isAssignable(arrayOf(_), X) :- isAssignable(reference, X).
-
-isAssignable(uninitialized, X) :- isAssignable(reference, X).
-isAssignable(uninitializedThis, X) :- isAssignable(uninitialized, X).
-isAssignable(uninitialized(_), X) :- isAssignable(uninitialized, X).
-
-isAssignable(null, class(_, _)).
-isAssignable(null, arrayOf(_)).
-isAssignable(null, X) :-
-    isAssignable(class('java/lang/Object', BL), X),
-    isBootstrapLoader(BL).
-
-
-isAssignable(class(X, Lx), class(Y, Ly)) :-
-    isJavaAssignable(class(X, Lx), class(Y, Ly)).
-
-isAssignable(arrayOf(X), class(Y, L)) :-
-    isJavaAssignable(arrayOf(X), class(Y, L)).
-
-isAssignable(arrayOf(X), arrayOf(Y)) :-
-    isJavaAssignable(arrayOf(X), arrayOf(Y)).
-
+%
+%isAssignable(X,X).
+%
+%isAssignable(oneWord, top).
+%isAssignable(twoWord, top).
+%
+%isAssignable(int, X) :- isAssignable(oneWord, X).
+%isAssignable(float, X) :- isAssignable(oneWord, X).
+%isAssignable(long, X) :- isAssignable(twoWord, X).
+%isAssignable(double, X) :- isAssignable(twoWord, X).
+%
+%isAssignable(reference, X) :- isAssignable(oneWord, X).
+%isAssignable(class(_, _), X) :- isAssignable(reference, X).
+%isAssignable(arrayOf(_), X) :- isAssignable(reference, X).
+%
+%isAssignable(uninitialized, X) :- isAssignable(reference, X).
+%isAssignable(uninitializedThis, X) :- isAssignable(uninitialized, X).
+%isAssignable(uninitialized(_), X) :- isAssignable(uninitialized, X).
+%
+%isAssignable(null, class(_, _)).
+%isAssignable(null, arrayOf(_)).
+%isAssignable(null, X) :-
+%    isAssignable(class('java/lang/Object', BL), X),
+%    isBootstrapLoader(BL).
+%
+%
+%isAssignable(class(X, Lx), class(Y, Ly)) :-
+%    isJavaAssignable(class(X, Lx), class(Y, Ly)).
+%
+%isAssignable(arrayOf(X), class(Y, L)) :-
+%    isJavaAssignable(arrayOf(X), class(Y, L)).
+%
+%isAssignable(arrayOf(X), arrayOf(Y)) :-
+%    isJavaAssignable(arrayOf(X), arrayOf(Y)).
 
 isJavaAssignable(class(_, _), class(To, L)) :-
     loadedClass(To, L, ToClass),
@@ -1235,18 +1232,19 @@ instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,
     passesProtectedCheck(Environment, MethodClassName, '<init>',
     Descriptor, NextStackFrame).
 
-rewrittenUninitializedType(uninitializedThis, Environment,MethodClass, MethodClass) :-
+rewrittenUninitializedType(uninitializedThis, Environment,MethodClass, This) :-
     MethodClass = class(MethodClassName, CurrentLoader),
-    thisClass(Environment, MethodClass).
+    thisClass(Environment, This).
 
-rewrittenUninitializedType(uninitializedThis, Environment,MethodClass, MethodClass) :-
+rewrittenUninitializedType(uninitializedThis, Environment,MethodClass, This) :-
     MethodClass = class(MethodClassName, CurrentLoader),
-    thisClass(Environment, class(thisClassName, thisLoader)),
-    superclassChain(thisClassName, thisLoader, [MethodClass | Rest]).
+    thisClass(Environment, class(ThisClassName, ThisLoader)),
+    superclassChain(ThisClassName, ThisLoader, [MethodClass | Rest]),
+    This = class(ThisClassName, ThisLoader).
 
-rewrittenUninitializedType(uninitialized(Address), Environment,MethodClass, MethodClass) :-
+rewrittenUninitializedType(uninitialized(Address), Environment,MethodClass, This) :-
     allInstructions(Environment, Instructions),
-    member(instruction(Address, new(MethodClass)), Instructions).
+    member(instruction(Address, new(This)), Instructions).
 
 rewrittenInitializationFlags(uninitializedThis, _Flags, []).
 

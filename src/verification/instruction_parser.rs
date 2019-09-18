@@ -19,7 +19,7 @@ fn name_and_type_extractor(i: u16, class_file: &Classfile) -> (String, String) {
     return (method_name, descriptor)
 }
 
-fn extract_class_from_constant_pool(i: u16, class_file: &Classfile) -> &Class {
+pub fn extract_class_from_constant_pool(i: u16, class_file: &Classfile) -> &Class {
     match &class_file.constant_pool[i as usize].kind {
         ConstantKind::Class(c) => {
             return c;
@@ -511,8 +511,8 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors,class_file: &Clas
         InstructionType::putfield => {
             let indexbyte1 = code[1] as u16;
             let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("putfield({})",index), 2)
+            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
+            (format!("putfield({})",cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
         },
         InstructionType::putstatic => {
             let indexbyte1 = code[1] as u16;

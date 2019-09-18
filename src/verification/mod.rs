@@ -1,9 +1,9 @@
 use std::borrow::Borrow;
 use std::fs::File;
 use std::io;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Write, BufWriter};
 use std::io::Lines;
-use std::process::{ChildStdout, Stdio};
+use std::process::{ChildStdout, Stdio, Child, ChildStdin};
 use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
@@ -29,27 +29,11 @@ pub struct NeedsToLoadAnotherClass {
     pub another_class: Box<String>
 }
 
+/**
+We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
+*/
 pub fn verify(state: &JVMClassesState) -> Option<String> {
-    let mut prolog = Command::new("/usr/bin/prolog")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("Failed to spawn prolog");
-    let mut prolog_output = BufReader::new(prolog.stdout.take().expect("error reading prolog output"));
-    let mut prolog_input = prolog.stdin.take().expect("error getting prolog input stream");
-    let mut output_lines = prolog_output.lines();
-    let mut context = init_prolog_context(&state);
-
-    prolog_initial_defs(&mut prolog_input).unwrap();
-    let initial_defs_written = read_true_false_another_class(&mut output_lines);
-    match initial_defs_written {
-        True => {
-            trace!("Initial prolog defs accepted by prolog.");
-        },
-        PrologOutput::False => { panic!() },
-        NeedsAnotherClass(_) => { panic!() },
-    }
+    let (mut prolog, mut prolog_input, mut output_lines, mut context) = init_prolog(&state);
 
     let mut generated_prolog_defs_file = NamedTempFile::new().expect("Error creating tempfile");
     trace!("tempfile for prolog defs created at: {}", generated_prolog_defs_file.path().as_os_str().to_str().expect("Could not convert path to str"));
@@ -70,22 +54,54 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
         NeedsAnotherClass(_) => { panic!() },
     }
 
-    write!(&mut prolog_input, "classIsTypeSafe(class('java/lang/Object', bl)).\n",).unwrap();
-    write!(&mut prolog_input, "\n\n").unwrap();
-    prolog_input.flush().unwrap();
+    for current_class_to_verify in state.loading_in_progress.iter(){
+        let current_name = &current_class_to_verify.name;
+        let mut current_class_package = current_class_to_verify.packages.join("/");
+        if current_class_package.len() != 0 {
+            current_class_package.push_str("/");
+        }
+        trace!("Verifying '{}{}'",current_class_package,current_name);
+        write!(&mut prolog_input, "classIsTypeSafe(class('{}{}', bl)).\n", current_class_package, current_name).unwrap();
+        write!(&mut prolog_input,"\n\n").unwrap();
+        prolog_input.flush().unwrap();
 
-    let loading_attempt_res = read_true_false_another_class(&mut output_lines);
-    prolog.kill().expect("Unable to kill prolog");
-    match loading_attempt_res {
+        let loading_attempt_res = read_true_false_another_class(&mut output_lines);
+        prolog.kill().expect("Unable to kill prolog");
+        match loading_attempt_res {
+            True => {},
+            PrologOutput::False => {
+                sleep(Duration::from_secs(10000));
+                panic!() },
+            NeedsAnotherClass(s) => {
+                trace!("Need to load {} first",s);
+                return Some(s);
+            },
+        }
+    }
+    return None//verification was successful
+}
+
+fn init_prolog(state: &JVMClassesState) -> (Child, BufWriter<ChildStdin>, Lines<BufReader<ChildStdout>>, PrologGenContext) {
+    let mut prolog = Command::new("/usr/bin/prolog")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("Failed to spawn prolog");
+    let mut prolog_output = BufReader::new(prolog.stdout.take().expect("error reading prolog output"));
+    let mut prolog_input = BufWriter::new(prolog.stdin.take().expect("error getting prolog input stream"));
+    let mut output_lines = prolog_output.lines();
+    let mut context = init_prolog_context(&state);
+    prolog_initial_defs(&mut prolog_input).unwrap();
+    let initial_defs_written = read_true_false_another_class(&mut output_lines);
+    match initial_defs_written {
         True => {
-            return None;
+            trace!("Initial prolog defs accepted by prolog.");
         },
         PrologOutput::False => { panic!() },
-        NeedsAnotherClass(s) => {
-            trace!("Need to load {} first",s);
-            return Some(s);
-        },
+        NeedsAnotherClass(_) => { panic!() },
     }
+    (prolog, prolog_input, output_lines, context)
 }
 
 enum PrologOutput {
@@ -101,11 +117,11 @@ fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> P
         dbg!(&cur);
         let r = cur.unwrap();
         let s = r.unwrap();
-        if s.contains("true.") {
-            assert!(!s.contains("false."));
+        if s.contains("true") {
+            assert!(!s.contains("false"));
             return PrologOutput::True;
-        } else if s.contains("false.") {
-            assert!(!s.contains("true."));
+        } else if s.contains("false") {
+            assert!(!s.contains("true"));
             dbg!("false");
             return PrologOutput::False;
         } else if need_to_load_regex.is_match(s.as_str()) {//todo pattern needs string const
@@ -131,10 +147,7 @@ fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
 }
 
 pub mod prolog_initial_defs;
-
 pub mod prolog_info_defs;
 pub mod code_verification;
-
 pub mod types;
-
 pub mod instruction_parser;
