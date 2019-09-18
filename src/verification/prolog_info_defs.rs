@@ -1,164 +1,12 @@
-use std::borrow::Borrow;
-use std::fs::File;
-use std::io;
-use std::io::{BufRead, BufReader, Write};
-use std::io::Lines;
-use std::process::{ChildStdout, Stdio};
-use std::process::Command;
-use std::thread::sleep;
-use std::time::Duration;
-
-use log::{info, trace, warn};
-use regex::Regex;
-use tempfile::NamedTempFile;
-
 use class_loading::JVMClassesState;
-use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, code_attribute, FieldInfo, MethodInfo, parse_class_file};
-use classfile::attribute_infos::AttributeType;
-use classfile::constant_infos::{ConstantInfo, ConstantKind};
-use classfile::parsing_util::ParsingContext;
+use classfile::{Classfile, ACC_INTERFACE, ACC_FINAL, AttributeInfo, ACC_SUPER, ACC_BRIDGE, ACC_STRICT, FieldInfo, MethodInfo, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_VOLATILE, ACC_NATIVE, ACC_ABSTRACT, ACC_SYNTHETIC, ACC_ANNOTATION, ACC_MODULE, ACC_ENUM, ACC_TRANSIENT, code_attribute};
+use std::io::Write;
+use std::io;
 use verification::code_verification::write_parse_code_attribute;
-use verification::PrologOutput::{NeedsAnotherClass, True};
-use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
-
-use self::prolog_initial_defs::prolog_initial_defs;
-
-#[derive(Debug)]
-pub struct NeedsToLoadAnotherClass {
-    pub another_class: Box<String>
-}
-
-pub fn verify(state: &JVMClassesState) -> Option<String> {
-    let mut prolog = Command::new("/usr/bin/prolog")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("Failed to spawn prolog");
-    let mut prolog_output = BufReader::new(prolog.stdout.take().expect("error reading prolog output"));
-    let mut prolog_input = prolog.stdin.take().expect("error getting prolog input stream");
-    let mut output_lines = prolog_output.lines();
-
-    let mut context = init_prolog_context(&state);
-    let mut generated_prolog_defs_file = NamedTempFile::new().expect("Error creating tempfile");
-    trace!("tempfile for prolog defs created at: {}", generated_prolog_defs_file.path().as_os_str().to_str().expect("Could not convert path to str"));
-
-    prolog_initial_defs(&mut prolog_input).unwrap();
-    let initial_defs_written = read_true_false_another_class(&mut output_lines);
-    match initial_defs_written {
-        True => {},
-        PrologOutput::False => { panic!() },
-        NeedsAnotherClass(_) => { panic!() },
-    }
-
-    gen_prolog(&mut context, &mut generated_prolog_defs_file.as_file()).unwrap();
-    write!(&mut prolog_input, "['{}'].\n", generated_prolog_defs_file.path().as_os_str().to_os_string().to_str().expect("Could not convert path to string")).unwrap();
-
-    prolog_input.flush().unwrap();
-    let generated_defs_res = read_true_false_another_class(&mut output_lines);
-    match generated_defs_res {
-        True => {},
-        PrologOutput::False => { panic!() },
-        NeedsAnotherClass(_) => { panic!() },
-    }
-
-    write!(&mut prolog_input, "classIsTypeSafe(class('java/lang/Object', bl)).\n").unwrap();
-    prolog_input.flush().unwrap();
-
-    let loading_attempt_res = read_true_false_another_class(&mut output_lines);
-    prolog.kill().expect("Unable to kill prolog");
-    match loading_attempt_res {
-        True => {
-            return None;
-        },
-        PrologOutput::False => { panic!() },
-        NeedsAnotherClass(s) => {
-            return Some(s);
-        },
-    }
-}
-
-enum PrologOutput {
-    True,
-    False,
-    NeedsAnotherClass(String),
-}
-
-fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> PrologOutput {
-    let need_to_load_regex = Regex::new("Need to load:('([A-Za-z/]+)'|([A-Za-z/]+))").expect("Error parsing regex.");
-    loop {
-        let cur = lines.next();
-        dbg!(&cur);
-        let r = cur.unwrap();
-        let s = r.unwrap();
-        if s.contains("true.") {
-            assert!(!s.contains("false."));
-            return PrologOutput::True;
-        } else if s.contains("false.") {
-            assert!(!s.contains("true."));
-            dbg!("false");
-            return PrologOutput::False;
-        } else if need_to_load_regex.is_match(s.as_str()) {//todo pattern needs string const
-            let captures = need_to_load_regex.captures(s.as_str()).unwrap();
-            dbg!(&captures);
-            let class_name = captures.get(3).unwrap().as_str().to_string();
-            dbg!("got class name");
-            return PrologOutput::NeedsAnotherClass(class_name);
-        }
-    }
-}
-
-fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
-    let mut to_verify = Vec::new();
-    for class_entry in &state.loading_in_progress {
-        let path = state.indexed_classpath.get(class_entry).unwrap();
-        let mut p = ParsingContext { f: File::open(path).expect("This is a bug") };
-        let class_file = parse_class_file(&mut p);
-        to_verify.push(class_file)
-    }
-    let mut context: PrologGenContext<'s> = PrologGenContext { state, to_verify, extra: ExtraDescriptors { extra_method_descriptors: Vec::new(), extra_field_descriptors: Vec::new() } };
-    (context)
-}
-
-/**
-loadedClass(Name, InitiatingLoader, ClassDefinition)
-True iff there exists a class named Name whose representation (in accordance
-with this specification) when loaded by the class loader InitiatingLoader is
-methodDescriptor(Method, Descriptor)
-Extracts the descriptor, Descriptor , of the method Method .
-methodAttributes(Method, Attributes)
-Extracts a list, Attributes , of the attributes of the method Method .
-isProtected(MemberClass, MemberName, MemberDescriptor)
-True iff there is a member named MemberName with descriptor
-MemberDescriptor in the class MemberClass and it is protected .
-isNotProtected(MemberClass, MemberName, MemberDescriptor)
-True iff there is a member named MemberName with descriptor
-MemberDescriptor in the class MemberClass and it is not protected .
-parseFieldDescriptor(Descriptor, Type)
-Converts a field descriptor, Descriptor , into the corresponding verification
-type Type (§4.10.1.2).
-1954.10
-Verification of class Files
-THE CLASS FILE FORMAT
-parseMethodDescriptor(Descriptor, ArgTypeList, ReturnType)
-Converts a method descriptor, Descriptor , into a list of verification types,
-ArgTypeList , corresponding to the method argument types, and a verification
-type, ReturnType , corresponding to the return type.
-parseCodeAttribute(Class, Method, FrameSize, MaxStack, ParsedCode,
-Handlers, StackMap)
-Extracts the instruction stream, ParsedCode , of the method Method in Class ,
-as well as the maximum operand stack size, MaxStack , the maximal number
-of local variables, FrameSize , the exception handlers, Handlers , and the stack
-map StackMap .
-The representation of the instruction stream and stack map attribute must be as
-specified in §4.10.1.3 and §4.10.1.4.
-samePackageName(Class1, Class2)
-True iff the package names of Class1 and Class2 are the same.
-differentPackageName(Class1, Class2)
-True iff the package names of Class1 and Class2 are different.
-
-*/
-
-pub mod prolog_initial_defs;
+use std::borrow::Borrow;
+use classfile::attribute_infos::AttributeType;
+use classfile::constant_infos::{ConstantKind, ConstantInfo};
+use verification::types::{write_type_prolog, parse_field_descriptor, parse_method_descriptor};
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -197,7 +45,7 @@ pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(
     Ok(())
 }
 
-const BOOTSTRAP_LOADER_NAME: &str = "bl";
+pub(crate) const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
 pub fn write_extra_descriptors(context: &PrologGenContext,w: &mut dyn Write) ->  Result<(), io::Error>{
     let extra_descriptors = &context.extra;
@@ -274,7 +122,7 @@ pub fn class_name(class: &Classfile) -> String {
 
 }
 
-fn class_prolog_name(class_: &String) -> String {
+pub(crate) fn class_prolog_name(class_: &String) -> String {
 //    let mut base = "n__".to_string();
 //    base.push_str(class_.replace("/","__").as_str());
     //todo , if using bootstrap loader and the like
@@ -391,7 +239,7 @@ fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Resu
 }
 
 
-fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write)-> Result<(),io::Error> {
+pub(crate) fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(),io::Error> {
     write!(w, "method({},'{}',", class_prolog_name(&class_name(class_file)), method_name(class_file, method_info))?;
     prolog_method_descriptor(class_file,method_info,w)?;
     write!(w,")")?;
@@ -674,17 +522,17 @@ fn write_is_init_and_is_not_init(context: &PrologGenContext, w: &mut dyn Write) 
 //isNotFinal(Method, Class)
 
 macro_rules! write_attribute {
-    ($flag: ident, $isCaseString: expr,$isNotCaseString:expr,$method_info:ident,$class_file:ident,$w:ident) => {
-        if ($method_info.access_flags & $flag) > 0 {
-            write!($w, $isCaseString)?;
-            write!($w,"(")?;
-        } else {
-            write!($w, $isNotCaseString)?;
-            write!($w,"(")?;
-        }
-        write_method_prolog_name($class_file, $method_info, $w)?;
-        write!($w, ",{}).\n", class_prolog_name(&class_name($class_file)))?;
-    };
+($flag: ident, $isCaseString: expr,$isNotCaseString:expr,$method_info:ident,$class_file:ident,$w:ident) => {
+    if ($method_info.access_flags & $flag) > 0 {
+        write!($w, $isCaseString)?;
+        write!($w,"(")?;
+    } else {
+        write!($w, $isNotCaseString)?;
+        write!($w,"(")?;
+    }
+    write_method_prolog_name($class_file, $method_info, $w)?;
+    write!($w, ",{}).\n", class_prolog_name(&class_name($class_file)))?;
+};
 }
 
 fn write_is_and_is_not_attributes_method(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -707,10 +555,6 @@ fn write_is_and_is_not_attributes_method(context: &PrologGenContext, w: &mut dyn
 // True iff Method in class Class is private .
 //isNotPrivate(Method, Class)
 // True iff Method in class Class is not private .
-
-pub mod types;
-
-pub mod instruction_parser;
 
 //isProtected(MemberClass, MemberName, MemberDescriptor)
 // True iff there is a member named MemberName with descriptor
@@ -801,5 +645,4 @@ pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Wri
     Ok(())
 }
 
-pub mod code_verification;
 

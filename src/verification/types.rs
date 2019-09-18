@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::io;
-use verification::{PrologGenContext, BOOTSTRAP_LOADER_NAME};
+use verification::{PrologGenContext};
+use verification::prolog_info_defs::BOOTSTRAP_LOADER_NAME;
 
 #[derive(Debug)]
 pub struct Byte {}

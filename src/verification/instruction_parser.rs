@@ -4,7 +4,7 @@ use classfile::attribute_infos::{Code, AttributeType, BootstrapMethods};
 use classfile::Classfile;
 use classfile::constant_infos::{Class, ConstantKind, Fieldref};
 use interpreter::{InstructionType, read_opcode};
-use verification::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
+use verification::prolog_info_defs::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
 
 fn name_and_type_extractor(i: u16, class_file: &Classfile) -> (String, String) {
     let mut nt;

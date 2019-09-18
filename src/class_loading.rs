@@ -19,8 +19,9 @@ use std::fmt;
 use classfile::{Classfile, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
-use verification::{extract_string_from_utf8, get_super_class_name, verify, class_name};
+use verification::prolog_info_defs::{class_name, get_super_class_name, extract_string_from_utf8};
 use log::{trace, info, warn};
+use verification::verify;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -94,9 +95,9 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             return;//class already loaded
         }
 
-        if classes.loading_in_progress.contains(&class_name_with_package) {
-            unimplemented!("Throw class circularity error.")
-        }
+//        if classes.loading_in_progress.contains(&class_name_with_package) {
+//            unimplemented!("Throw class circularity error.")//todo
+//        }
 
 //        dbg!(&classes.indexed_classpath);
 //        dbg!(&class_name_with_package);
