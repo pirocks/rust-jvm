@@ -480,7 +480,7 @@ fn parse_inner_classes(p: &mut ParsingContext) -> AttributeType {
     )
 }
 
-fn parse_deprecated(p: &mut ParsingContext) -> AttributeType {
+fn parse_deprecated(_: &mut ParsingContext) -> AttributeType {
     AttributeType::Deprecated(Deprecated {})
 }
 

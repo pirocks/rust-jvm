@@ -6,21 +6,17 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
 
-use log::{info, trace, warn};
+use log::{trace};
 use regex::Regex;
 use tempfile::NamedTempFile;
 
 use class_loading::JVMClassesState;
-use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, code_attribute, FieldInfo, MethodInfo, parse_class_file};
-use classfile::attribute_infos::AttributeType;
-use classfile::constant_infos::{ConstantInfo, ConstantKind};
 use classfile::parsing_util::ParsingContext;
-use verification::code_verification::write_parse_code_attribute;
 use verification::PrologOutput::{NeedsAnotherClass, True};
-use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
 
 use self::prolog_initial_defs::prolog_initial_defs;
 use verification::prolog_info_defs::{PrologGenContext, ExtraDescriptors, class_name, gen_prolog};
+use classfile::{Classfile, parse_class_file};
 
 #[derive(Debug)]
 pub struct NeedsToLoadAnotherClass {
@@ -33,7 +29,7 @@ We can only verify one class at a time, all needed classes need to be in jvm sta
 pub fn verify(state: &JVMClassesState) -> Option<String> {
     let (mut prolog, mut prolog_input, mut output_lines, mut context) = init_prolog(&state);
 
-    let mut generated_prolog_defs_file = NamedTempFile::new().expect("Error creating tempfile");
+    let generated_prolog_defs_file = NamedTempFile::new().expect("Error creating tempfile");
     trace!("tempfile for prolog defs created at: {}", generated_prolog_defs_file.path().as_os_str().to_str().expect("Could not convert path to str"));
     gen_prolog(&mut context, &mut generated_prolog_defs_file.as_file()).unwrap();
     write!(&mut prolog_input, "['{}'].\n", generated_prolog_defs_file.path().as_os_str().to_os_string().to_str().expect("Could not convert path to string")).unwrap();
@@ -86,10 +82,10 @@ fn init_prolog(state: &JVMClassesState) -> (Child, BufWriter<ChildStdin>, Lines<
         .stderr(Stdio::null())
         .spawn()
         .expect("Failed to spawn prolog");
-    let mut prolog_output = BufReader::new(prolog.stdout.take().expect("error reading prolog output"));
+    let prolog_output = BufReader::new(prolog.stdout.take().expect("error reading prolog output"));
     let mut prolog_input = BufWriter::new(prolog.stdin.take().expect("error getting prolog input stream"));
     let mut output_lines = prolog_output.lines();
-    let mut context = init_prolog_context(&state);
+    let context = init_prolog_context(&state);
     prolog_initial_defs(&mut prolog_input).unwrap();
     let initial_defs_written = read_true_false_another_class(&mut output_lines);
     match initial_defs_written {
@@ -143,7 +139,7 @@ fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
         let class_file = parse_class_file(&mut p);
         to_verify.push(class_file)
     }
-    let mut context: PrologGenContext<'s> = PrologGenContext { state, to_verify, extra: ExtraDescriptors { extra_method_descriptors: Vec::new(), extra_field_descriptors: Vec::new() } };
+    let context: PrologGenContext<'s> = PrologGenContext { state, to_verify, extra: ExtraDescriptors { extra_method_descriptors: Vec::new(), extra_field_descriptors: Vec::new() } };
     (context)
 }
 

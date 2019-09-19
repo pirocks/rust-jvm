@@ -1,6 +1,5 @@
 use std::io::Write;
 use std::io;
-use verification::{PrologGenContext};
 use verification::prolog_info_defs::BOOTSTRAP_LOADER_NAME;
 
 #[derive(Debug)]

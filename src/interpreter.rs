@@ -580,7 +580,7 @@ fn do_anewarray(code: &[u8], state: &mut InterpreterState) -> ! {
     let _index = (indexbyte1 << 8) | indexbyte2;
     let _count = state.operand_stack.pop().expect(EXECUTION_ERROR);
     unimplemented!("Need to figure out how to get the constant pool in here.");
-    unimplemented!("Need to increase pc by 3");
+//    unimplemented!("Need to increase pc by 3");
 }
 
 fn do_aload(code: &[u8], state: &mut InterpreterState) -> ! {

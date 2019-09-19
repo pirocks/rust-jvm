@@ -20,7 +20,7 @@ use classfile::{Classfile, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
 use verification::prolog_info_defs::{class_name, get_super_class_name, extract_string_from_utf8};
-use log::{trace, info, warn};
+use log::{trace};
 use verification::verify;
 
 #[derive(Eq, PartialEq)]
@@ -63,7 +63,7 @@ pub struct JVMClassesState {
 
 fn class_entry(classfile: &Classfile) -> ClassEntry{
 //    dbg!(extract_string_from_utf8(&classfile.constant_pool[classfile.this_class as usize]));
-    let mut name = class_name(classfile);
+    let name = class_name(classfile);
     class_entry_from_string(&name, false)
 }
 

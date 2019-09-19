@@ -470,10 +470,6 @@ fn method_name(class_file: &Classfile, method_info: &MethodInfo) -> String{
     method_name
 }
 
-fn method_prolog_name(class_file: &Classfile, method_info: &MethodInfo) -> String {
-    method_name(class_file,method_info).replace("<clinit>", "__clinit").replace("<init>","__init")
-}
-
 pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
     for class_file in context.to_verify.iter() {
         for method_info in class_file.methods.iter(){
@@ -499,7 +495,7 @@ fn write_method_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Res
                 None => {
                     write!(w,", []).\n")?;
                 },
-                Some(c) => {
+                Some(_) => {
                     write!(w,", [attribute('Code','')]).\n",)?;
                 },
             }

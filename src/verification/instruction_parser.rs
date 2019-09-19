@@ -1,13 +1,13 @@
 use std::io::{Error, Write};
 
-use classfile::attribute_infos::{Code, AttributeType, BootstrapMethods};
+use classfile::attribute_infos::{Code};
 use classfile::Classfile;
-use classfile::constant_infos::{Class, ConstantKind, Fieldref};
+use classfile::constant_infos::{Class, ConstantKind};
 use interpreter::{InstructionType, read_opcode};
 use verification::prolog_info_defs::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
 
 fn name_and_type_extractor(i: u16, class_file: &Classfile) -> (String, String) {
-    let mut nt;
+    let nt;
     match &class_file.constant_pool[i as usize].kind {
         ConstantKind::NameAndType(nt_) => {
             nt = nt_;
@@ -30,6 +30,7 @@ pub fn extract_class_from_constant_pool(i: u16, class_file: &Classfile) -> &Clas
     }
 }
 
+/*
 fn extract_field_from_constant_pool(i: u16, class_file: &Classfile) -> &Fieldref {
     match &class_file.constant_pool[i as usize].kind {
         ConstantKind::Fieldref(f) => {
@@ -40,7 +41,9 @@ fn extract_field_from_constant_pool(i: u16, class_file: &Classfile) -> &Fieldref
         }
     }
 }
+*/
 
+/*
 fn bootstrap_methods(class_file: &Classfile) -> &BootstrapMethods  {
     for attr in class_file.attributes.iter() {
         match &attr.attribute_type {
@@ -52,6 +55,7 @@ fn bootstrap_methods(class_file: &Classfile) -> &BootstrapMethods  {
     }
     panic!("No bootstrap methods found");
 }
+*/
 
 
 fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Classfile, cp_index: u16) -> String {
@@ -468,9 +472,9 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors,class_file: &Clas
         InstructionType::lload_3 => { ("lload_3".to_string(), 0) },
         InstructionType::lmul => { ("lmul".to_string(), 0) },
         InstructionType::lneg => { ("lneg".to_string(), 0) },
-        InstructionType::lookupswitch => {
+        /*InstructionType::lookupswitch => {
             ("lookupswitch(Targets, Keys)".to_string(), unimplemented!())
-        },
+        },*/
         InstructionType::lor => { ("lor".to_string(), 0) },
         InstructionType::lrem => { ("lrem".to_string(), 0) },
         InstructionType::lreturn => { ("lreturn".to_string(), 0) },
@@ -531,12 +535,13 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors,class_file: &Clas
             (format!("sipush({})",value), 2)
         },
         InstructionType::swap => { ("swap".to_string(), 0) },
-        InstructionType::tableswitch => {
+        /*InstructionType::tableswitch => {
             ("tableswitch(Targets, Keys)".to_string(), unimplemented!())
-        },
-        InstructionType::wide => {
+        },*/
+        /*InstructionType::wide => {
             ("wide(WidenedInstruction)".to_string(), unimplemented!())
-        },
+        },*/
+        _ => unimplemented!()
     }
 }
 

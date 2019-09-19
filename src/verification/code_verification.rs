@@ -5,11 +5,10 @@ use std::io::Write;
 
 use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
 use classfile::attribute_infos::{AppendFrame, ArrayVariableInfo, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
-use classfile::constant_infos::{Double, Float, Long};
 use verification::{class_name, PrologGenContext, types};
 use verification::instruction_parser::extract_class_from_constant_pool;
 use verification::prolog_info_defs::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
-use verification::types::{ArrayReference, Byte, Char, Int, parse_field_descriptor, parse_method_descriptor, Reference, Type, write_type_prolog, Void};
+use verification::types::{ArrayReference, Byte, Char, Int, parse_field_descriptor, parse_method_descriptor, Reference, Type, Void, write_type_prolog};
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
@@ -60,30 +59,6 @@ struct Frame {
     stack: Vec<VerificationTypeInfo>,
     max_locals: u16,
     current_offset: u16,
-}
-
-
-fn to_verification_type_helper(parameter_types: Type) -> VerificationTypeInfo {
-    match parameter_types {
-        Type::ByteType(_) => { VerificationTypeInfo::Integer }
-        Type::CharType(_) => { VerificationTypeInfo::Integer }
-        Type::DoubleType(_) => { VerificationTypeInfo::Double }
-        Type::FloatType(_) => { VerificationTypeInfo::Float }
-        Type::IntType(_) => { VerificationTypeInfo::Integer }
-        Type::LongType(_) => { VerificationTypeInfo::Long }
-        Type::ReferenceType(r) => {
-            VerificationTypeInfo::Object(ObjectVariableInfo {
-                cpool_index: None,
-                class_name: r.class_name.to_string()
-            })
-        }
-        Type::ShortType(_) => { VerificationTypeInfo::Integer }
-        Type::BooleanType(_) => { VerificationTypeInfo::Integer }
-        Type::ArrayReferenceType(a) => {
-            VerificationTypeInfo::Array(ArrayVariableInfo { array_type: Type::ArrayReferenceType(a) })
-        }
-        Type::VoidType(_) => { panic!() }
-    }
 }
 
 fn init_frame(parameter_types: Vec<Type>, this_pointer: Option<Type>, max_locals: u16) -> Frame {
@@ -296,7 +271,7 @@ fn handle_same_frame(frame: &mut Frame, s: &SameFrame) {
     frame.current_offset += s.offset_delta;
 }
 
-fn write_stack_map_frame(class_file: &Classfile, w: &mut Write, frame: &Frame) -> Result<(),io::Error>{
+fn write_stack_map_frame(class_file: &Classfile, w: &mut dyn Write, frame: &Frame) -> Result<(),io::Error>{
     write!(w, "stackMap({},frame(", frame.current_offset)?;
     write_locals(class_file, frame, w)?;
     write!(w, ",")?;
@@ -361,21 +336,21 @@ fn copy_recurse(classfile:&Classfile,to_copy : &VerificationTypeInfo)-> Verifica
 
 fn copy_type_recurse(type_: &Type) -> Type {
     match type_ {
-        Type::ByteType(t) => { Type::ByteType(Byte {}) },
-        Type::CharType(t) => { Type::CharType(Char {}) },
-        Type::DoubleType(t) => { Type::DoubleType(types::Double {}) },
-        Type::FloatType(t) => { Type::FloatType(types::Float {}) },
-        Type::IntType(t) => { Type::IntType(Int {}) },
-        Type::LongType(t) => { Type::LongType(types::Long {}) },
-        Type::ShortType(t) => { Type::ShortType(types::Short {}) },
+        Type::ByteType(_) => { Type::ByteType(Byte {}) },
+        Type::CharType(_) => { Type::CharType(Char {}) },
+        Type::DoubleType(_) => { Type::DoubleType(types::Double {}) },
+        Type::FloatType(_) => { Type::FloatType(types::Float {}) },
+        Type::IntType(_) => { Type::IntType(Int {}) },
+        Type::LongType(_) => { Type::LongType(types::Long {}) },
+        Type::ShortType(_) => { Type::ShortType(types::Short {}) },
         Type::ReferenceType(t) => {
             Type::ReferenceType(types::Reference { class_name: t.class_name.clone() })
         },
-        Type::BooleanType(t) => { Type::BooleanType(types::Boolean {}) },
+        Type::BooleanType(_) => { Type::BooleanType(types::Boolean {}) },
         Type::ArrayReferenceType(t) => {
             Type::ArrayReferenceType(ArrayReference { sub_type: Box::new(copy_type_recurse(&t.sub_type)) })
         },
-        Type::VoidType(t) => {
+        Type::VoidType(_) => {
             Type::VoidType(Void{})
         },
     }
