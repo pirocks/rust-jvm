@@ -1,6 +1,4 @@
-use std::borrow::Borrow;
 use std::fs::File;
-use std::io;
 use std::io::{BufRead, BufReader, Write, BufWriter};
 use std::io::Lines;
 use std::process::{ChildStdout, Stdio, Child, ChildStdin};

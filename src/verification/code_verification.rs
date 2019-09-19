@@ -8,6 +8,7 @@ use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, Ob
 use verification::{class_name, PrologGenContext};
 use verification::types::{parse_method_descriptor, Type, Reference};
 use verification::prolog_info_defs::{extract_string_from_utf8,write_method_prolog_name,class_prolog_name,BOOTSTRAP_LOADER_NAME};
+use verification::instruction_parser::extract_class_from_constant_pool;
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
@@ -45,7 +46,8 @@ fn write_exception_handler(class_file: &Classfile, exception_handler: &Exception
     if exception_handler.catch_type == 0{
         write!(w, "handler({},{},{},0)", exception_handler.start_pc, exception_handler.end_pc, exception_handler.handler_pc)?;
     }else {
-        let class_name = extract_string_from_utf8(&class_file.constant_pool[exception_handler.catch_type as usize]);
+        let c = extract_class_from_constant_pool(exception_handler.catch_type,class_file);
+        let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
         write!(w, "handler({},{},{},'{}')", exception_handler.start_pc, exception_handler.end_pc, exception_handler.handler_pc, class_name)?;
     }
     Ok(())
@@ -121,10 +123,10 @@ fn push_converted_verification_type(res: &mut Vec<VerificationTypeInfo>, paramet
     }
 }
 
-fn write_locals(locals: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
+fn write_locals(classfile: &Classfile,locals: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
     for (i, local) in locals.iter().enumerate() {
-        let verification_type_as_string = verification_type_as_string(local);
+        let verification_type_as_string = verification_type_as_string(classfile,local);
         write!(w, "{}", verification_type_as_string)?;
         if i != locals.len() - 1 {
             write!(w, ",")?;
@@ -135,7 +137,7 @@ fn write_locals(locals: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result
 }
 
 //todo this should really be a write function
-fn verification_type_as_string(verification_type: &VerificationTypeInfo) -> String {
+fn verification_type_as_string(classfile: &Classfile,verification_type: &VerificationTypeInfo) -> String {
     match verification_type {
         VerificationTypeInfo::Top => { "top".to_string() }
         VerificationTypeInfo::Integer => { "int".to_string() }
@@ -145,18 +147,26 @@ fn verification_type_as_string(verification_type: &VerificationTypeInfo) -> Stri
         VerificationTypeInfo::Null => { "null".to_string() }
         VerificationTypeInfo::UninitializedThis => { unimplemented!() }
         VerificationTypeInfo::Object(o) => {
-            format!("class('{}',{})",o.class_name,BOOTSTRAP_LOADER_NAME)
+            let class_name = match o.cpool_index{
+                None => {o.class_name.clone()},
+                Some(i) => {
+                    let c = extract_class_from_constant_pool(i,classfile);
+                    extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize])
+                },
+            };
+            assert_ne!(class_name, "".to_string());
+            format!("class('{}',{})",class_name,BOOTSTRAP_LOADER_NAME)
         }
         VerificationTypeInfo::Uninitialized(_) => { unimplemented!() }
         VerificationTypeInfo::Array(a) => {
-            let sub_str = verification_type_as_string(&a.sub_type);
+            let sub_str = verification_type_as_string(classfile,&a.sub_type);
             format!("arrayOf({})", sub_str)
         }
     }
 }
 
-fn write_operand_stack(operand_stack: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
-    write_locals(operand_stack, w)
+fn write_operand_stack(classfile:&Classfile,operand_stack: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
+    write_locals(classfile,operand_stack, w)
 }
 
 fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -226,9 +236,9 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
             current_offset += 1;
         }
         write!(w, "{},frame(", current_offset)?;
-        write_locals(&locals, w)?;
+        write_locals(class_file,&locals, w)?;
         write!(w, ",")?;
-        write_operand_stack(&operand_stack, w)?;
+        write_operand_stack(class_file,&operand_stack, w)?;
         write!(w, ",[])")?;
         write!(w, ")")?;
         //todo check if flags needed and then write
