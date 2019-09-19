@@ -7,6 +7,8 @@ extern crate argparse;
 extern crate log;
 extern crate tempfile;
 extern crate regex;
+extern crate walkdir;
+extern crate pathdiff;
 
 pub mod classfile;
 pub mod jit;

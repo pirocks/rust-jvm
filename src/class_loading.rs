@@ -12,15 +12,16 @@
 
 use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::path::Path;
 use std::fmt;
+use std::fs::File;
+use std::path::{Path, MAIN_SEPARATOR};
+
+use log::trace;
 
 use classfile::{Classfile, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
-use verification::prolog_info_defs::{class_name, get_super_class_name, extract_string_from_utf8};
-use log::{trace};
+use verification::prolog_info_defs::{class_name, extract_string_from_utf8, get_super_class_name};
 use verification::verify;
 
 #[derive(Eq, PartialEq)]
@@ -64,21 +65,14 @@ pub struct JVMClassesState {
 fn class_entry(classfile: &Classfile) -> ClassEntry{
 //    dbg!(extract_string_from_utf8(&classfile.constant_pool[classfile.this_class as usize]));
     let name = class_name(classfile);
-    class_entry_from_string(&name, false)
+    class_entry_from_string(&name,false)
 }
 
-pub fn class_entry_from_string(str: &String, look_for_java_base: bool) -> ClassEntry{
-    let splitted : Vec<String> = str.clone().split('/').map(|s| {s.to_string()}).collect();
-    let mut packages = Vec::from(&splitted[0..splitted.len() - 1]);
-    if look_for_java_base {
-        if let Some(start_of_packages) = packages.iter().position(|s|{**s == "java.base".to_string()}) {
-            packages = Vec::from(&packages[(start_of_packages + 1)..packages.len()]);
-        } else {
-            packages = Vec::new();
-        }
-    }
-
-    let name = splitted.last().expect("This is a bug").replace(".class", "");//todo validate that this is replacing the last few strings
+pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry{
+    let split_on = if use_dots {'.'} else {MAIN_SEPARATOR};
+    let splitted : Vec<String> = str.clone().split(split_on).map(|s| {s.to_string()}).collect();
+    let packages = Vec::from(&splitted[0..splitted.len() - 1]);
+    let name = splitted.last().expect("This is a bug").replace(".class", "");//todo validate that this is replacing the last few chars
     ClassEntry {
         packages,name: name.clone()
     }
@@ -94,13 +88,10 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             //user facing wrapper.
             return;//class already loaded
         }
-
 //        if classes.loading_in_progress.contains(&class_name_with_package) {
 //            unimplemented!("Throw class circularity error.")//todo
 //        }
 
-//        dbg!(&classes.indexed_classpath);
-//        dbg!(&class_name_with_package);
         let candidate_file = File::open(classes.indexed_classpath.get(&class_name_with_package).unwrap()).expect("Error opening class file");
         let mut p = ParsingContext {f: candidate_file };
         let parsed = parse_class_file(p.borrow_mut());
@@ -126,7 +117,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             for interface_idx in &parsed.interfaces {
                 let interface = match &parsed.constant_pool[*interface_idx as usize].kind {
                     ConstantKind::Class(c) => {c}
-                    _ => {panic!()}
+                    _ => { panic!() }
                 };
                 let interface_name = extract_string_from_utf8(&parsed.constant_pool[interface.name_index  as usize]);
                 load_class(classes,class_entry_from_string(&interface_name,false))
@@ -138,7 +129,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             },
             Some(s) => {
                 load_class(classes,class_entry_from_string(&s,false));
-                load_class(classes,class_name_with_package);//todo, fix the concept of class name with package.
+                load_class(classes,class_name_with_package);
             },
         }
         load_verified_class( classes,parsed);

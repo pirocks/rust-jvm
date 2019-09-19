@@ -73,7 +73,6 @@ const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 //#[repr(u16)]
 //pub enum ClassAccessFlags {
 //TODO THIS NEEDS TO BE DIFFERENT FOR DIFFERNT TYPES
-//todo probably should just use u16 + arithmeti
 //maybe not but at very least is incomplete
 pub const ACC_PUBLIC: u16 = 0x0001;
 pub const ACC_PRIVATE: u16 = 0x0002;
