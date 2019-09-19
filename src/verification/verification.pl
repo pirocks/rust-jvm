@@ -213,8 +213,8 @@ canPop(frame(Locals, OperandStack, Flags), Types, frame(Locals, PoppedOperandSta
     popMatchingList(OperandStack, Types, PoppedOperandStack).
 
 
-nth1OperandStackIs(i, frame(_Locals, OperandStack, _Flags), Element) :-
-    nth1(i, OperandStack, Element).
+nth1OperandStackIs(I, frame(_Locals, OperandStack, _Flags), Element) :-
+    nth1(I, OperandStack, Element).
 
 
 
@@ -259,7 +259,7 @@ finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     member(method(_, Name, Descriptor), SuperMethodList),
     isNotFinal(Method, Superclass),
     isPrivate(Method, Superclass),
-    doesNotOverrideFinalMethodOfSuperclass(Superclass, Method).
+    doesNotOverrideFinalMethod(Superclass, Method).
 
 finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     methodName(Method, Name),
@@ -267,7 +267,7 @@ finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     member(method(_, Name, Descriptor), SuperMethodList),
     isNotFinal(Method, Superclass),
     isStatic(Method, Superclass),
-    doesNotOverrideFinalMethodOfSuperclass(Superclass, Method).
+    doesNotOverrideFinalMethod(Superclass, Method).
 
 finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     methodName(Method, Name),
@@ -281,7 +281,7 @@ finalMethodNotOverridden(Method, Superclass, SuperMethodList) :-
     methodName(Method, Name),
     methodDescriptor(Method, Descriptor),
     notMember(method(_, Name, Descriptor), SuperMethodList),
-    doesNotOverrideFinalMethodOfSuperclass(Superclass, Method).
+    doesNotOverrideFinalMethod(Superclass, Method).
 
 
 methodIsTypeSafe(Class, Method) :-
@@ -616,6 +616,9 @@ instructionIsTypeSafe(aaload, Environment, _Offset, StackFrame,NextStackFrame, E
     isBootstrapLoader(BL),
     validTypeTransition(Environment,[int, arrayOf(class('java/lang/Object', BL))],ComponentType, StackFrame, NextStackFrame),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
+
+arrayComponentType(arrayOf(X), X).
+arrayComponentType(null, null).
 
 instructionIsTypeSafe(aastore, _Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
     isBootstrapLoader(BL),
