@@ -665,7 +665,11 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> VerificationTypeInfo{
     let type_ = read8(p);
     //todo magic constants
     match type_ {
+        0 => VerificationTypeInfo::Top,
         1 => VerificationTypeInfo::Integer,
+        2 => VerificationTypeInfo::Float,
+        3 => VerificationTypeInfo::Double,
+        4 => VerificationTypeInfo::Long,
         7 => VerificationTypeInfo::Object(ObjectVariableInfo {
             cpool_index: Some(read16(p)),
             class_name: "".to_string(),//todo do better than this
