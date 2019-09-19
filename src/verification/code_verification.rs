@@ -4,11 +4,11 @@ use std::io;
 use std::io::Write;
 
 use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
-use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
+use classfile::attribute_infos::{AppendFrame, ArrayVariableInfo, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo, ChopFrame};
 use verification::{class_name, PrologGenContext};
 use verification::instruction_parser::extract_class_from_constant_pool;
 use verification::prolog_info_defs::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
-use verification::types::{parse_method_descriptor, Reference, Type, parse_field_descriptor};
+use verification::types::{parse_field_descriptor, parse_method_descriptor, Reference, Type};
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
@@ -42,6 +42,7 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
     Ok(())
 }
 
+
 fn write_exception_handler(class_file: &Classfile, exception_handler: &ExceptionTableElem, w: &mut dyn Write) -> Result<(), io::Error> {
     if exception_handler.catch_type == 0{
         write!(w, "handler({},{},{},0)", exception_handler.start_pc, exception_handler.end_pc, exception_handler.handler_pc)?;
@@ -52,6 +53,15 @@ fn write_exception_handler(class_file: &Classfile, exception_handler: &Exception
     }
     Ok(())
 }
+
+struct Frame {
+    locals: Vec<VerificationTypeInfo>,
+    stack: Vec<VerificationTypeInfo>,
+    max_locals: u16,
+    current_offset: u16,
+}
+
+
 
 fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
     match parameter_types {
@@ -76,22 +86,22 @@ fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
     }
 }
 
-fn to_verification_type_array(parameter_types: &Vec<Type>, locals: &mut Vec<VerificationTypeInfo>, this_pointer: Option<Type>) -> () {
-    let res = locals;
+fn init_frame(parameter_types: &Vec<Type>, this_pointer: Option<Type>, max_locals: u16) -> Frame {
+    let mut locals = Vec::with_capacity(max_locals as usize);
     match this_pointer {
-        None => {},
+        None => {},//class is static etc.
         Some(t) => {
-            push_converted_verification_type(res,&t)
+            locals_push_convert_type(&mut locals, &t)
         },
     }
     for parameter_type in parameter_types {
-        push_converted_verification_type(res, parameter_type)
+        locals_push_convert_type(&mut locals,parameter_type)
     }
-    ()
+    Frame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
 }
 
-fn push_converted_verification_type(res: &mut Vec<VerificationTypeInfo>, parameter_type: &Type) -> () {
-    match parameter_type {
+fn locals_push_convert_type(res: &mut Vec<VerificationTypeInfo>, type_: &Type) -> () {
+    match type_ {
         Type::ByteType(_) => {
             res.push(VerificationTypeInfo::Integer);
         }
@@ -102,15 +112,19 @@ fn push_converted_verification_type(res: &mut Vec<VerificationTypeInfo>, paramet
             res.push(VerificationTypeInfo::Double);
             res.push(VerificationTypeInfo::Top);
         }
-        Type::FloatType(_) => { res.push(VerificationTypeInfo::Float); }
-        Type::IntType(_) => { res.push(VerificationTypeInfo::Integer); }
+        Type::FloatType(_) => {
+            res.push(VerificationTypeInfo::Float);
+        }
+        Type::IntType(_) => {
+            res.push(VerificationTypeInfo::Integer);
+        }
         Type::LongType(_) => {
             res.push(VerificationTypeInfo::Long);
             res.push(VerificationTypeInfo::Top);
         }
         Type::ReferenceType(r) => {
             assert_ne!(r.class_name.chars().nth(0).unwrap(),'[');
-            res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None.clone(), class_name: r.class_name.to_string() }))
+            res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None.clone(), class_name: r.class_name.to_string() }));
         }
         Type::ShortType(_) => {
             res.push(VerificationTypeInfo::Integer);
@@ -126,14 +140,20 @@ fn push_converted_verification_type(res: &mut Vec<VerificationTypeInfo>, paramet
     }
 }
 
-fn write_locals(classfile: &Classfile,locals: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
+fn write_locals(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
-    for (i, local) in locals.iter().enumerate() {
+    for (i, local) in frame.locals.iter().enumerate() {
         let verification_type_as_string = verification_type_as_string(classfile,local);
         write!(w, "{}", verification_type_as_string)?;
-        if i != locals.len() - 1 {
+        if i != frame.locals.len() - 1 {
             write!(w, ",")?;
         }
+    }
+    for _ in 0..(frame.max_locals - frame.locals.len() as u16) {
+        if !frame.locals.is_empty() {
+            write!(w, ",")?;
+        }
+        write!(w, "top")?;
     }
     write!(w, "]")?;
     Ok(())
@@ -174,15 +194,23 @@ fn object_get_class_name(classfile: &Classfile, o: &ObjectVariableInfo) -> Strin
     class_name
 }
 
-fn write_operand_stack(classfile:&Classfile,operand_stack: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
-    write_locals(classfile,operand_stack, w)
+fn write_operand_stack(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Result<(), io::Error> {
+    write!(w, "[")?;
+    for (i, local) in frame.stack.iter().enumerate() {
+        let verification_type_as_string = verification_type_as_string(classfile, local);
+        write!(w, "{}", verification_type_as_string)?;
+        if i != frame.stack.len() - 1 {
+            write!(w, ",")?;
+        }
+    }
+    write!(w, "]")?;
+    Ok(())
 }
 
 fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(), io::Error> {
     let code: &Code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
-    let mut operand_stack = Vec::new();
     let descriptor_str = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
     let parsed_descriptor = parse_method_descriptor(descriptor_str.as_str()).expect("Error parsing method descriptor");
 
@@ -192,48 +220,20 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
         Some(Type::ReferenceType(Reference {class_name:class_name(class_file) }))
     };
 
-    let mut locals = Vec::new();
-    to_verification_type_array(&parsed_descriptor.parameter_types, &mut locals,this_pointer);
+    let mut frame = init_frame(&parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
-    let mut current_offset = 0;
     write!(w,"[")?;
     //the fact that this variable needs to exist is dumb, but the spec says so
     let mut previous_frame_is_first_frame = true;
     for (i, entry) in stack_map.entries.iter().enumerate() {
-        write!(w, "stackMap(")?;
         match entry {
             StackMapFrame::SameFrame(s) => {
-                current_offset += s.offset_delta;
+                handle_same_frame(&mut frame, s);
             },
-            StackMapFrame::AppendFrame(append_frame) => {
-                current_offset += append_frame.offset_delta;
-                for new_local in append_frame.locals.iter() {
-                    add_new_local(class_file,&mut locals, new_local)
-                }
-            },
-            StackMapFrame::SameLocals1StackItemFrame(s) => {
-                current_offset += s.offset_delta;
-                operand_stack.clear();
-                add_new_local(class_file,&mut operand_stack,&s.stack);
-            },
-            StackMapFrame::FullFrame(f) => {
-                current_offset += f.offset_delta;
-                locals.clear();
-                for new_local in f.locals.iter(){
-                    add_new_local(class_file,&mut locals, new_local);
-                }
-                operand_stack.clear();
-                for new_stack_member in f.stack.iter(){
-                    add_new_local(class_file,&mut operand_stack, new_stack_member);
-                }
-            }
-            StackMapFrame::ChopFrame(f) => {
-                current_offset += f.offset_delta;
-                operand_stack.clear();
-                for _ in 0..f.k_frames_to_chop{
-                    locals.remove(locals.len() - 1);
-                }
-            }
+            StackMapFrame::AppendFrame(append_frame) => handle_append_frame(class_file, &mut frame, append_frame),
+            StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(class_file, &mut frame, s),
+            StackMapFrame::FullFrame(f) => handle_full_frame(class_file, &mut frame, f),
+            StackMapFrame::ChopFrame(f) => handle_chop_frame(&mut frame, f),
             _ => {
                 dbg!(entry);
                 unimplemented!();
@@ -242,15 +242,9 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
         if previous_frame_is_first_frame {
             previous_frame_is_first_frame = false;
         }else{
-            current_offset += 1;
+            frame.current_offset += 1;
         }
-        write!(w, "{},frame(", current_offset)?;
-        write_locals(class_file,&locals, w)?;
-        write!(w, ",")?;
-        write_operand_stack(class_file,&operand_stack, w)?;
-        write!(w, ",[])")?;
-        write!(w, ")")?;
-        //todo check if flags needed and then write
+        write_stack_map_frame(class_file, w, &frame)?;
 
 
         if i != stack_map.entries.len() - 1 {
@@ -261,8 +255,65 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     Ok(())
 }
 
-fn add_new_local(classfile: &Classfile,locals: &mut Vec<VerificationTypeInfo>, new_local: &VerificationTypeInfo) -> () {
-    match copy_recurse(new_local) {
+fn handle_chop_frame(mut frame: &mut Frame, f: &ChopFrame) -> () {
+    frame.current_offset += f.offset_delta;
+    frame.stack.clear();
+    for _ in 0..f.k_frames_to_chop {
+        frame.locals.remove(frame.locals.len() - 1);
+    }
+}
+
+fn handle_full_frame(class_file: &Classfile, frame: &mut Frame, f: &FullFrame) -> () {
+    frame.current_offset += f.offset_delta;
+    frame.locals.clear();
+    for new_local in f.locals.iter() {
+        add_new_local(class_file, frame, new_local);
+    }
+
+    frame.stack.clear();
+    for new_stack_member in f.stack.iter() {
+        push_to_stack(class_file, frame, new_stack_member);
+    }
+}
+
+fn handle_same_locals_1_stack(class_file: &Classfile, frame: &mut Frame, s: &SameLocals1StackItemFrame) -> () {
+    frame.current_offset += s.offset_delta;
+    frame.stack.clear();
+    push_to_stack(class_file, frame, &s.stack);
+}
+
+fn handle_append_frame(class_file: &Classfile, frame: &mut Frame, append_frame: &AppendFrame) -> () {
+    frame.current_offset += append_frame.offset_delta;
+    for new_local in append_frame.locals.iter() {
+        add_new_local(class_file, frame, new_local)
+    }
+}
+
+fn handle_same_frame(frame: &mut Frame, s: &SameFrame) {
+    frame.current_offset += s.offset_delta;
+}
+
+fn write_stack_map_frame(class_file: &Classfile, w: &mut Write, frame: &Frame) -> Result<(),io::Error>{
+    write!(w, "stackMap({},frame(", frame.current_offset)?;
+    write_locals(class_file, frame, w)?;
+    write!(w, ",")?;
+    write_operand_stack(class_file, frame, w)?;
+    write!(w, ",[]))")?;
+    Ok(())
+//todo check if flags needed and then write
+}
+
+
+fn push_to_stack(classfile: &Classfile,frame: &mut Frame, new_local: &VerificationTypeInfo){
+    add_verification_type_to_array(classfile,&mut frame.stack, new_local)
+}
+
+fn add_new_local(classfile: &Classfile,frame: &mut Frame, new_local: &VerificationTypeInfo){
+    add_verification_type_to_array(classfile,&mut frame.locals, new_local)
+}
+
+fn add_verification_type_to_array(classfile: &Classfile,locals: &mut Vec<VerificationTypeInfo>, new_local: &VerificationTypeInfo) -> () {
+    match copy_recurse(classfile,new_local) {
         VerificationTypeInfo::Double => {
             locals.push(VerificationTypeInfo::Double);
             locals.push(VerificationTypeInfo::Top);
@@ -271,48 +322,28 @@ fn add_new_local(classfile: &Classfile,locals: &mut Vec<VerificationTypeInfo>, n
             locals.push(VerificationTypeInfo::Long);
             locals.push(VerificationTypeInfo::Top);
         }
-        VerificationTypeInfo::Top => {
-            locals.push(VerificationTypeInfo::Top);
-        }
-        VerificationTypeInfo::Integer => {
-            locals.push(VerificationTypeInfo::Integer);
-        }
-        VerificationTypeInfo::Float => {
-            locals.push(VerificationTypeInfo::Float);
-        }
-        VerificationTypeInfo::Null => {
-            locals.push(VerificationTypeInfo::Null)
-        }
-        VerificationTypeInfo::UninitializedThis => {
-            locals.push(VerificationTypeInfo::UninitializedThis)
-        }
-        VerificationTypeInfo::Object(o) => {
-            let class_name = object_get_class_name(classfile,&o);
-            if class_name.chars().nth(0).unwrap() == '[' {
-                //actually an array
-                let descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing type");
-                locals.push(to_verification_type_helper(&descriptor.field_type));
-            }else {
-                locals.push(VerificationTypeInfo::Object(o))
-            }
-        }
-        VerificationTypeInfo::Uninitialized(u) => {
-            locals.push(VerificationTypeInfo::Uninitialized(u))
-        }
-        VerificationTypeInfo::Array(a) => {
-            locals.push(VerificationTypeInfo::Array(a))
-        }
+        new => { locals.push(new); }
     }
 }
 
-fn copy_recurse(to_copy : &VerificationTypeInfo)-> VerificationTypeInfo{
+fn copy_recurse(classfile:&Classfile,to_copy : &VerificationTypeInfo)-> VerificationTypeInfo{
     match to_copy {
-        VerificationTypeInfo::Object(o) => {VerificationTypeInfo::Object(ObjectVariableInfo { class_name: o.class_name.clone(), cpool_index: o.cpool_index })},
+        VerificationTypeInfo::Object(o) => {
+            let class_name = object_get_class_name(classfile,o);
+            if class_name.chars().nth(0).unwrap() == '[' {
+                let type_ = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
+                let mut temp  = Vec::with_capacity(1);
+                locals_push_convert_type(&mut temp,&type_);
+                return copy_recurse(classfile,&temp[0]);
+            }
+
+            VerificationTypeInfo::Object(ObjectVariableInfo { class_name, cpool_index: o.cpool_index })
+        },
         VerificationTypeInfo::Uninitialized(u) => {
             VerificationTypeInfo::Uninitialized(UninitializedVariableInfo { offset: u.offset })
         },
         VerificationTypeInfo::Array(a) => {
-            VerificationTypeInfo::Array(ArrayVariableInfo { sub_type: Box::new(copy_recurse(&a.sub_type)) })
+            VerificationTypeInfo::Array(ArrayVariableInfo { sub_type: Box::new(copy_recurse(classfile,&a.sub_type)) })
         },
 
         VerificationTypeInfo::Top => {VerificationTypeInfo::Top}
@@ -325,46 +356,3 @@ fn copy_recurse(to_copy : &VerificationTypeInfo)-> VerificationTypeInfo{
     }
 }
 
-//stackMap(Offset, TypeState)
-//
-//Offset is an integer indicating the bytecode offset at which the stack map frame
-//applies (§4.7.4).
-//The order of bytecode offsets in this list must be the same as in the class file.
-
-//stackMap(Offset, frame(Locals, OperandStack, Flags))
-//• Locals is a list of verification types, such that the i'th element of the list (with
-//0-based indexing) represents the type of local variable i.
-//Types of size 2 ( long and double ) are represented by two local variables
-//(§2.6.1), with the first local variable being the type itself and the second local
-//variable being top (§4.10.1.7).
-//• OperandStack is a list of verification types, such that the first element of the list
-//represents the type of the top of the operand stack, and the types of stack entries
-//below the top follow in the list in the appropriate order.
-//Types of size 2 ( long and double ) are represented by two stack entries, with the
-//first entry being top and the second entry being the type itself.
-//For example, a stack with a double value, an int value, and a long value is represented
-//in a type state as a stack with five entries: top and double entries for the double
-//value, an int entry for the int value, and top and long entries for the long value.
-//Accordingly, OperandStack is the list [top, double, int, top, long] .
-//• Flags is a list which may either be empty or have the single element
-//flagThisUninit .
-//If any local variable in Locals has the type uninitializedThis , then Flags has
-//the single element flagThisUninit , otherwise Flags is an empty list.
-//flagThisUninit is used in constructors to mark type states where initialization of this
-//has not yet been completed. In such type states, it is illegal to return from the method.
-
-//}
-
-
-// Extracts the instruction stream, ParsedCode , of the method Method in Class ,
-// as well as the maximum operand stack size, MaxStack , the maximal number
-// of local variables, FrameSize , the exception handlers, Handlers , and the stack
-// map StackMap .
-// The representation of the instruction stream and stack map attribute must be as
-// specified in §4.10.1.3 and §4.10.1.4.
-//samePackageName(Class1, Class2)
-// True iff the package names of Class1 and Class2 are the same.
-//differentPack
-// ageName(Class1, Class2
-//)
-//  True iff the package names of Class1 and Class2 are different.

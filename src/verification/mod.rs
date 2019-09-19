@@ -113,7 +113,10 @@ fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> P
     loop {
         let cur = lines.next();
         dbg!(&cur);
-        let r = cur.unwrap();
+        let r = match cur {
+            None => {/* sleep(Duration::from_secs(10000));panic!()*/ continue },
+            Some(res) => {res},
+        };
         let s = r.unwrap();
         if s.contains("true") {
             assert!(!s.contains("false"));
