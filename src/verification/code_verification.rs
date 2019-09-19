@@ -3,12 +3,12 @@
 use std::io;
 use std::io::Write;
 
-use classfile::{Classfile, code_attribute, MethodInfo, stack_map_table_attribute, ACC_STATIC};
+use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
 use classfile::attribute_infos::{ArrayVariableInfo, Code, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
 use verification::{class_name, PrologGenContext};
-use verification::types::{parse_method_descriptor, Type, Reference};
-use verification::prolog_info_defs::{extract_string_from_utf8,write_method_prolog_name,class_prolog_name,BOOTSTRAP_LOADER_NAME};
 use verification::instruction_parser::extract_class_from_constant_pool;
+use verification::prolog_info_defs::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
+use verification::types::{parse_method_descriptor, Reference, Type, parse_field_descriptor};
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
@@ -69,7 +69,9 @@ fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
         }
         Type::ShortType(_) => { VerificationTypeInfo::Integer }
         Type::BooleanType(_) => { VerificationTypeInfo::Integer }
-        Type::ArrayReferenceType(_) => { unimplemented!() }
+        Type::ArrayReferenceType(a) => {
+            VerificationTypeInfo::Array(ArrayVariableInfo { sub_type:Box::new(to_verification_type_helper(&a.sub_type)) })
+        }
         Type::VoidType(_) => { panic!() }
     }
 }
@@ -107,6 +109,7 @@ fn push_converted_verification_type(res: &mut Vec<VerificationTypeInfo>, paramet
             res.push(VerificationTypeInfo::Top);
         }
         Type::ReferenceType(r) => {
+            assert_ne!(r.class_name.chars().nth(0).unwrap(),'[');
             res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None.clone(), class_name: r.class_name.to_string() }))
         }
         Type::ShortType(_) => {
@@ -147,15 +150,9 @@ fn verification_type_as_string(classfile: &Classfile,verification_type: &Verific
         VerificationTypeInfo::Null => { "null".to_string() }
         VerificationTypeInfo::UninitializedThis => { unimplemented!() }
         VerificationTypeInfo::Object(o) => {
-            let class_name = match o.cpool_index{
-                None => {o.class_name.clone()},
-                Some(i) => {
-                    let c = extract_class_from_constant_pool(i,classfile);
-                    extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize])
-                },
-            };
-            assert_ne!(class_name, "".to_string());
-            format!("class('{}',{})",class_name,BOOTSTRAP_LOADER_NAME)
+            let class_name = object_get_class_name(&classfile, o);
+            assert_ne!(class_name.chars().nth(0).unwrap(), '[');
+            format!("class('{}',{})", class_name, BOOTSTRAP_LOADER_NAME)
         }
         VerificationTypeInfo::Uninitialized(_) => { unimplemented!() }
         VerificationTypeInfo::Array(a) => {
@@ -163,6 +160,18 @@ fn verification_type_as_string(classfile: &Classfile,verification_type: &Verific
             format!("arrayOf({})", sub_str)
         }
     }
+}
+
+fn object_get_class_name(classfile: &Classfile, o: &ObjectVariableInfo) -> String {
+    let class_name = match o.cpool_index {
+        None => { o.class_name.clone() },
+        Some(i) => {
+            let c = extract_class_from_constant_pool(i, classfile);
+            extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize])
+        },
+    };
+    assert_ne!(class_name, "".to_string());
+    class_name
 }
 
 fn write_operand_stack(classfile:&Classfile,operand_stack: &Vec<VerificationTypeInfo>, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -199,23 +208,23 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
             StackMapFrame::AppendFrame(append_frame) => {
                 current_offset += append_frame.offset_delta;
                 for new_local in append_frame.locals.iter() {
-                    add_new_local(&mut locals, new_local)
+                    add_new_local(class_file,&mut locals, new_local)
                 }
             },
             StackMapFrame::SameLocals1StackItemFrame(s) => {
                 current_offset += s.offset_delta;
                 operand_stack.clear();
-                operand_stack.push(copy_recurse(&s.stack))
+                add_new_local(class_file,&mut operand_stack,&s.stack);
             },
             StackMapFrame::FullFrame(f) => {
                 current_offset += f.offset_delta;
                 locals.clear();
                 for new_local in f.locals.iter(){
-                    add_new_local(&mut locals, new_local);
+                    add_new_local(class_file,&mut locals, new_local);
                 }
                 operand_stack.clear();
                 for new_stack_member in f.stack.iter(){
-                    add_new_local(&mut operand_stack, new_stack_member);
+                    add_new_local(class_file,&mut operand_stack, new_stack_member);
                 }
             }
             StackMapFrame::ChopFrame(f) => {
@@ -252,7 +261,7 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     Ok(())
 }
 
-fn add_new_local(locals: &mut Vec<VerificationTypeInfo>, new_local: &VerificationTypeInfo) -> () {
+fn add_new_local(classfile: &Classfile,locals: &mut Vec<VerificationTypeInfo>, new_local: &VerificationTypeInfo) -> () {
     match copy_recurse(new_local) {
         VerificationTypeInfo::Double => {
             locals.push(VerificationTypeInfo::Double);
@@ -278,7 +287,14 @@ fn add_new_local(locals: &mut Vec<VerificationTypeInfo>, new_local: &Verificatio
             locals.push(VerificationTypeInfo::UninitializedThis)
         }
         VerificationTypeInfo::Object(o) => {
-            locals.push(VerificationTypeInfo::Object(o))
+            let class_name = object_get_class_name(classfile,&o);
+            if class_name.chars().nth(0).unwrap() == '[' {
+                //actually an array
+                let descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing type");
+                locals.push(to_verification_type_helper(&descriptor.field_type));
+            }else {
+                locals.push(VerificationTypeInfo::Object(o))
+            }
         }
         VerificationTypeInfo::Uninitialized(u) => {
             locals.push(VerificationTypeInfo::Uninitialized(u))

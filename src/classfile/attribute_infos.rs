@@ -670,10 +670,13 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> VerificationTypeInfo{
         2 => VerificationTypeInfo::Float,
         3 => VerificationTypeInfo::Double,
         4 => VerificationTypeInfo::Long,
-        7 => VerificationTypeInfo::Object(ObjectVariableInfo {
+        7 => {
+            VerificationTypeInfo::Object(ObjectVariableInfo {
             cpool_index: Some(read16(p)),
             class_name: "".to_string(),//todo do better than this
-        }),
+            })
+        },
+
         _ => { unimplemented!("{}", type_) }
     }
 }
