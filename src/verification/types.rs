@@ -4,43 +4,55 @@ use verification::{PrologGenContext};
 use verification::prolog_info_defs::BOOTSTRAP_LOADER_NAME;
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Byte {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Char {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Double {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Float {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Int {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Long {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Reference {
     pub class_name: String
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Short {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Boolean {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct ArrayReference {
     pub sub_type: Box<Type>
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct Void {}
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub enum Type {
     ByteType(Byte),
     CharType(Char),
@@ -177,7 +189,7 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, Type)> {
     })
 }
 
-pub fn write_type_prolog(context: &PrologGenContext,type_: &Type,  w: &mut dyn Write) -> Result<(), io::Error>{
+pub fn write_type_prolog(type_: &Type,  w: &mut dyn Write) -> Result<(), io::Error>{
     match type_{
         Type::ByteType(_) => {
             write!(w,"int")?;
@@ -204,17 +216,17 @@ pub fn write_type_prolog(context: &PrologGenContext,type_: &Type,  w: &mut dyn W
             write!(w,"int")?;
         },
         Type::ReferenceType(ref_) => {
-            if context.state.using_bootstrap_loader {
+//            if context.state.using_bootstrap_loader {
                 write!(w,"class('")?;
                 write!(w,"{}",ref_.class_name)?;
                 write!(w,"',{})",BOOTSTRAP_LOADER_NAME)?;
-            } else {
-                unimplemented!()
-            }
+//            } else {
+//                unimplemented!()
+//            }
         },
         Type::ArrayReferenceType(arr) => {
             write!(w, "arrayOf(")?;
-            write_type_prolog(context, &arr.sub_type, w)?;
+            write_type_prolog(&arr.sub_type, w)?;
             write!(w, ")")?;
         },
         Type::VoidType(_) => {

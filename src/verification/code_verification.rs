@@ -4,11 +4,12 @@ use std::io;
 use std::io::Write;
 
 use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
-use classfile::attribute_infos::{AppendFrame, ArrayVariableInfo, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo, ChopFrame};
-use verification::{class_name, PrologGenContext};
+use classfile::attribute_infos::{AppendFrame, ArrayVariableInfo, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
+use classfile::constant_infos::{Double, Float, Long};
+use verification::{class_name, PrologGenContext, types};
 use verification::instruction_parser::extract_class_from_constant_pool;
 use verification::prolog_info_defs::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
-use verification::types::{parse_field_descriptor, parse_method_descriptor, Reference, Type};
+use verification::types::{ArrayReference, Byte, Char, Int, parse_field_descriptor, parse_method_descriptor, Reference, Type, write_type_prolog, Void};
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
@@ -62,8 +63,7 @@ struct Frame {
 }
 
 
-
-fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
+fn to_verification_type_helper(parameter_types: Type) -> VerificationTypeInfo {
     match parameter_types {
         Type::ByteType(_) => { VerificationTypeInfo::Integer }
         Type::CharType(_) => { VerificationTypeInfo::Integer }
@@ -80,18 +80,18 @@ fn to_verification_type_helper(parameter_types: &Type) -> VerificationTypeInfo {
         Type::ShortType(_) => { VerificationTypeInfo::Integer }
         Type::BooleanType(_) => { VerificationTypeInfo::Integer }
         Type::ArrayReferenceType(a) => {
-            VerificationTypeInfo::Array(ArrayVariableInfo { sub_type:Box::new(to_verification_type_helper(&a.sub_type)) })
+            VerificationTypeInfo::Array(ArrayVariableInfo { array_type: Type::ArrayReferenceType(a) })
         }
         Type::VoidType(_) => { panic!() }
     }
 }
 
-fn init_frame(parameter_types: &Vec<Type>, this_pointer: Option<Type>, max_locals: u16) -> Frame {
+fn init_frame(parameter_types: Vec<Type>, this_pointer: Option<Type>, max_locals: u16) -> Frame {
     let mut locals = Vec::with_capacity(max_locals as usize);
     match this_pointer {
         None => {},//class is static etc.
         Some(t) => {
-            locals_push_convert_type(&mut locals, &t)
+            locals_push_convert_type(&mut locals, t)
         },
     }
     for parameter_type in parameter_types {
@@ -100,7 +100,7 @@ fn init_frame(parameter_types: &Vec<Type>, this_pointer: Option<Type>, max_local
     Frame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
 }
 
-fn locals_push_convert_type(res: &mut Vec<VerificationTypeInfo>, type_: &Type) -> () {
+fn locals_push_convert_type(res: &mut Vec<VerificationTypeInfo>, type_: Type) -> () {
     match type_ {
         Type::ByteType(_) => {
             res.push(VerificationTypeInfo::Integer);
@@ -133,8 +133,7 @@ fn locals_push_convert_type(res: &mut Vec<VerificationTypeInfo>, type_: &Type) -
             res.push(VerificationTypeInfo::Integer);
         }
         Type::ArrayReferenceType(art) => {
-            let sub_type = &art.sub_type;
-            res.push(VerificationTypeInfo::Array(ArrayVariableInfo { sub_type: Box::new(to_verification_type_helper(sub_type)) }));
+            res.push(VerificationTypeInfo::Array(ArrayVariableInfo { array_type: Type::ArrayReferenceType(art) }));
         }
         Type::VoidType(_) => { panic!() }
     }
@@ -143,8 +142,7 @@ fn locals_push_convert_type(res: &mut Vec<VerificationTypeInfo>, type_: &Type) -
 fn write_locals(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
     for (i, local) in frame.locals.iter().enumerate() {
-        let verification_type_as_string = verification_type_as_string(classfile,local);
-        write!(w, "{}", verification_type_as_string)?;
+        verification_type_as_string(classfile, local, w)?;
         if i != frame.locals.len() - 1 {
             write!(w, ",")?;
         }
@@ -160,26 +158,32 @@ fn write_locals(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Resu
 }
 
 //todo this should really be a write function
-fn verification_type_as_string(classfile: &Classfile,verification_type: &VerificationTypeInfo) -> String {
+fn verification_type_as_string(classfile: &Classfile, verification_type: &VerificationTypeInfo, w: &mut dyn Write) -> Result<(), io::Error> {
     match verification_type {
-        VerificationTypeInfo::Top => { "top".to_string() }
-        VerificationTypeInfo::Integer => { "int".to_string() }
-        VerificationTypeInfo::Float => { "float".to_string() }
-        VerificationTypeInfo::Long => { "long".to_string() }
-        VerificationTypeInfo::Double => { "double".to_string() }
-        VerificationTypeInfo::Null => { "null".to_string() }
+        VerificationTypeInfo::Top => { write!(w, "top")?; }
+        VerificationTypeInfo::Integer => { write!(w, "int")?; }
+        VerificationTypeInfo::Float => { write!(w, "float")?; }
+        VerificationTypeInfo::Long => { write!(w, "long")?; }
+        VerificationTypeInfo::Double => { write!(w, "double")?; }
+        VerificationTypeInfo::Null => { write!(w, "null")?; }
         VerificationTypeInfo::UninitializedThis => { unimplemented!() }
         VerificationTypeInfo::Object(o) => {
             let class_name = object_get_class_name(&classfile, o);
-            assert_ne!(class_name.chars().nth(0).unwrap(), '[');
-            format!("class('{}',{})", class_name, BOOTSTRAP_LOADER_NAME)
+            if class_name.chars().nth(0).unwrap() == '[' {
+                let parsed_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing a descriptor").field_type;
+                write_type_prolog(&parsed_descriptor, w)?;
+                return Ok(())
+            }
+            write!(w, "class('{}',{})", class_name, BOOTSTRAP_LOADER_NAME)?;
         }
         VerificationTypeInfo::Uninitialized(_) => { unimplemented!() }
         VerificationTypeInfo::Array(a) => {
-            let sub_str = verification_type_as_string(classfile,&a.sub_type);
-            format!("arrayOf({})", sub_str)
+//            write!(w,"arrayOf(")?;
+            write_type_prolog(&a.array_type, w)?;
+//            write!(w,")")?;
         }
     }
+    Ok(())
 }
 
 fn object_get_class_name(classfile: &Classfile, o: &ObjectVariableInfo) -> String {
@@ -197,8 +201,7 @@ fn object_get_class_name(classfile: &Classfile, o: &ObjectVariableInfo) -> Strin
 fn write_operand_stack(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
     for (i, local) in frame.stack.iter().enumerate() {
-        let verification_type_as_string = verification_type_as_string(classfile, local);
-        write!(w, "{}", verification_type_as_string)?;
+        verification_type_as_string(classfile, local, w)?;
         if i != frame.stack.len() - 1 {
             write!(w, ",")?;
         }
@@ -220,7 +223,7 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
         Some(Type::ReferenceType(Reference {class_name:class_name(class_file) }))
     };
 
-    let mut frame = init_frame(&parsed_descriptor.parameter_types, this_pointer, code.max_locals);
+    let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
     write!(w,"[")?;
     //the fact that this variable needs to exist is dumb, but the spec says so
@@ -330,12 +333,12 @@ fn copy_recurse(classfile:&Classfile,to_copy : &VerificationTypeInfo)-> Verifica
     match to_copy {
         VerificationTypeInfo::Object(o) => {
             let class_name = object_get_class_name(classfile,o);
-            if class_name.chars().nth(0).unwrap() == '[' {
+            /*if class_name.chars().nth(0).unwrap() == '[' {
                 let type_ = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
                 let mut temp  = Vec::with_capacity(1);
                 locals_push_convert_type(&mut temp,&type_);
                 return copy_recurse(classfile,&temp[0]);
-            }
+            }*/
 
             VerificationTypeInfo::Object(ObjectVariableInfo { class_name, cpool_index: o.cpool_index })
         },
@@ -343,7 +346,7 @@ fn copy_recurse(classfile:&Classfile,to_copy : &VerificationTypeInfo)-> Verifica
             VerificationTypeInfo::Uninitialized(UninitializedVariableInfo { offset: u.offset })
         },
         VerificationTypeInfo::Array(a) => {
-            VerificationTypeInfo::Array(ArrayVariableInfo { sub_type: Box::new(copy_recurse(classfile,&a.sub_type)) })
+            VerificationTypeInfo::Array(ArrayVariableInfo { array_type: copy_type_recurse(&a.array_type) })
         },
 
         VerificationTypeInfo::Top => {VerificationTypeInfo::Top}
@@ -356,3 +359,24 @@ fn copy_recurse(classfile:&Classfile,to_copy : &VerificationTypeInfo)-> Verifica
     }
 }
 
+fn copy_type_recurse(type_: &Type) -> Type {
+    match type_ {
+        Type::ByteType(t) => { Type::ByteType(Byte {}) },
+        Type::CharType(t) => { Type::CharType(Char {}) },
+        Type::DoubleType(t) => { Type::DoubleType(types::Double {}) },
+        Type::FloatType(t) => { Type::FloatType(types::Float {}) },
+        Type::IntType(t) => { Type::IntType(Int {}) },
+        Type::LongType(t) => { Type::LongType(types::Long {}) },
+        Type::ShortType(t) => { Type::ShortType(types::Short {}) },
+        Type::ReferenceType(t) => {
+            Type::ReferenceType(types::Reference { class_name: t.class_name.clone() })
+        },
+        Type::BooleanType(t) => { Type::BooleanType(types::Boolean {}) },
+        Type::ArrayReferenceType(t) => {
+            Type::ArrayReferenceType(ArrayReference { sub_type: Box::new(copy_type_recurse(&t.sub_type)) })
+        },
+        Type::VoidType(t) => {
+            Type::VoidType(Void{})
+        },
+    }
+}

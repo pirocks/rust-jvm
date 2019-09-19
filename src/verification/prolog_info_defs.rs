@@ -56,7 +56,7 @@ pub fn write_extra_descriptors(context: &PrologGenContext,w: &mut dyn Write) -> 
         //todo dup
         write!(w,"parseFieldDescriptor('{}',",field_descriptor)?;
         let parsed_type = parse_field_descriptor(field_descriptor.as_str()).expect("Error parsing field descriptor");
-        write_type_prolog(context, &parsed_type.field_type,w)?;
+        write_type_prolog(&parsed_type.field_type,w)?;
         write!(w,").\n")?;
     }
     for method_descriptor in extra_descriptors.extra_method_descriptors.iter(){
@@ -65,13 +65,13 @@ pub fn write_extra_descriptors(context: &PrologGenContext,w: &mut dyn Write) -> 
         let method_descriptor = parse_method_descriptor(method_descriptor.as_str()).expect("Error parsing method descriptor");
         write!(w,",[")?;
         for (i, parameter_type) in method_descriptor.parameter_types.iter().enumerate() {
-            write_type_prolog(context, &parameter_type, w)?;
+            write_type_prolog(&parameter_type, w)?;
             if i != method_descriptor.parameter_types.len() - 1 {
                 write!(w, ",")?;
             }
         }
         write!(w,"],")?;
-        write_type_prolog(context,&method_descriptor.return_type,w)?;
+        write_type_prolog(&method_descriptor.return_type,w)?;
         write!(w, ").\n")?;
     }
     Ok(())
@@ -630,7 +630,7 @@ pub fn write_parse_field_descriptors(context: &PrologGenContext, w: &mut dyn Wri
             let descriptor_string = extract_string_from_utf8(&class_file.constant_pool[field_info.descriptor_index as usize]);
             let parsed_type = parse_field_descriptor(descriptor_string.as_str()).expect("Error parsing field descriptor");
             write!(w,",")?;
-            write_type_prolog(context, &parsed_type.field_type,w)?;
+            write_type_prolog( &parsed_type.field_type,w)?;
             write!(w,").\n")?;
         }
     }
@@ -653,13 +653,13 @@ pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Wri
             let method_descriptor = parse_method_descriptor(method_descriptor_str.as_str()).expect("Error parsing method descriptor");
             write!(w,",[")?;
             for (i, parameter_type) in method_descriptor.parameter_types.iter().enumerate() {
-                write_type_prolog(context, &parameter_type, w)?;
+                write_type_prolog( &parameter_type, w)?;
                 if i != method_descriptor.parameter_types.len() - 1 {
                     write!(w, ",")?;
                 }
             }
             write!(w,"],")?;
-            write_type_prolog(context,&method_descriptor.return_type,w)?;
+            write_type_prolog(&method_descriptor.return_type,w)?;
             write!(w, ").\n")?;
         }
     }
