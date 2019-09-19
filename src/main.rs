@@ -63,7 +63,8 @@ fn main() {
         bootstrap_loaded_classes:HashMap::new(),
         using_bootstrap_loader:true,
         loading_in_progress:HashSet::new(),
-        indexed_classpath
+        indexed_classpath,
+        partial_load:HashSet::new()
     };
     load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name,true))
 

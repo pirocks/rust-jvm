@@ -58,12 +58,12 @@ pub struct JVMClassesState {
     pub bootstrap_loaded_classes: HashMap<ClassEntry,Box<Classfile>>,
     //classes which are being loaded.
     pub loading_in_progress : HashSet<ClassEntry>,
+    pub partial_load : HashSet<ClassEntry>,
     //where classes are
     pub indexed_classpath: HashMap<ClassEntry,Box<Path>>
 }
 
 fn class_entry(classfile: &Classfile) -> ClassEntry{
-//    dbg!(extract_string_from_utf8(&classfile.constant_pool[classfile.this_class as usize]));
     let name = class_name(classfile);
     class_entry_from_string(&name,false)
 }
@@ -128,7 +128,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
                 //class verified successfully.
             },
             Some(s) => {
-                load_class(classes,class_entry_from_string(&s,false));
+                classes.partial_load.insert(class_entry_from_string(&s,false));
                 load_class(classes,class_name_with_package);
             },
         }
