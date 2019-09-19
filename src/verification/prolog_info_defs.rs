@@ -493,11 +493,13 @@ pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) ->
 fn write_method_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Result<(),io::Error>{
     for class_file in context.to_verify.iter(){
         for method_info in class_file.methods.iter(){
+            write!(w, "methodAttributes(")?;
+            write_method_prolog_name(class_file,method_info,w,false)?;
             match code_attribute(method_info) {
-                None => {},
+                None => {
+                    write!(w,", []).\n")?;
+                },
                 Some(c) => {
-                    write!(w, "methodAttributes(")?;
-                    write_method_prolog_name(class_file,method_info,w,false)?;
                     write!(w,", [attribute('Code','')]).\n",)?;
                 },
             }
