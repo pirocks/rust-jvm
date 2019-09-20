@@ -83,9 +83,6 @@ pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Resu
         for class_file in context.to_verify.iter() {
             write!(w,"loadedClass('{}',{}, {}).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME , class_prolog_name(&class_name(class_file)))?;
         }
-        for class_file in already_loaded_classes {
-            write!(w,"loadedClass('{}',{}, ClassDefinition).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME )?;//todo duplication
-        }
         write!(w, "loadedClass(ClassName,_,_) :- ")?;
         for class_file in context.to_verify.iter() {
             write!(w, "ClassName \\= '{}',", class_name(class_file))?;

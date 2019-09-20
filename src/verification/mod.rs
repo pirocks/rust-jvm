@@ -64,7 +64,7 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
         prolog.wait().expect("Unable to await prolog death");
         match loading_attempt_res {
             True => {},
-            PrologOutput::False => { panic!() },
+            PrologOutput::False => { sleep(Duration::from_secs(20000));panic!() },
             NeedsAnotherClass(s) => {
                 trace!("Need to load {} first",s);
                 return Some(s);
@@ -109,7 +109,7 @@ fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> P
         let cur = lines.next();
         dbg!(&cur);
         let r = match cur {
-            None => { sleep(Duration::from_secs(10000));panic!()/* continue*/ },
+            None => { panic!()/* continue*/ },
             Some(res) => {res},
         };
         let s = r.unwrap();
@@ -136,6 +136,9 @@ fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
         add_to_verify(state, &mut to_verify, class_entry)
     }
     for class_entry in &state.partial_load {
+        add_to_verify(state, &mut to_verify, class_entry)
+    }
+    for class_entry in state.bootstrap_loaded_classes.keys().into_iter() {
         add_to_verify(state, &mut to_verify, class_entry)
     }
     let context: PrologGenContext<'s> = PrologGenContext { state, to_verify, extra: ExtraDescriptors { extra_method_descriptors: Vec::new(), extra_field_descriptors: Vec::new() } };
