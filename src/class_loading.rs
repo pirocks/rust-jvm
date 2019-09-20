@@ -14,16 +14,16 @@ use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs::File;
-use std::path::{Path, MAIN_SEPARATOR};
+use std::path::{MAIN_SEPARATOR, Path};
 
 use log::trace;
 
-use classfile::{Classfile, parse_class_file, MethodInfo};
+use classfile::{Classfile, MethodInfo, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
+use execution::run_static_method_no_args;
 use verification::prolog_info_defs::{class_name, extract_string_from_utf8, get_super_class_name};
 use verification::verify;
-use execution::run_static_method_no_args;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -79,7 +79,7 @@ pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry{
     }
 }
 
-pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : ClassEntry){
+pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassEntry, only_verify: bool) {
     trace!("Starting loading for {}", &class_name_with_package);
     //todo this function is going to be long af
     if classes.using_bootstrap_loader {
@@ -92,8 +92,15 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
 //        if classes.loading_in_progress.contains(&class_name_with_package) {
 //            unimplemented!("Throw class circularity error.")//todo
 //        }
+//        dbg!(&classes.indexed_classpath);
+        let path_of_class_to_load = classes.indexed_classpath.get(&class_name_with_package).or_else(|| {
+                trace!("Unable to find: {}", &class_name_with_package);
+            dbg!(&class_name_with_package);
+                panic!();
+            }
+        ).unwrap();
 
-        let candidate_file = File::open(classes.indexed_classpath.get(&class_name_with_package).unwrap()).expect("Error opening class file");
+        let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
         let mut p = ParsingContext {f: candidate_file };
         let parsed = parse_class_file(p.borrow_mut());
         if class_name_with_package != class_entry(&parsed){
@@ -114,14 +121,14 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
         }else{
             let super_class_name = get_super_class_name(&parsed);
 
-            load_class(classes,class_entry_from_string(&super_class_name,false));
+            load_class(classes, class_entry_from_string(&super_class_name, false), only_verify);
             for interface_idx in &parsed.interfaces {
                 let interface = match &parsed.constant_pool[*interface_idx as usize].kind {
                     ConstantKind::Class(c) => {c}
                     _ => { panic!() }
                 };
                 let interface_name = extract_string_from_utf8(&parsed.constant_pool[interface.name_index  as usize]);
-                load_class(classes,class_entry_from_string(&interface_name,false))
+                load_class(classes, class_entry_from_string(&interface_name, false), only_verify)
             };
         }
         match verify(classes){
@@ -130,10 +137,12 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
             },
             Some(s) => {
                 classes.partial_load.insert(class_entry_from_string(&s,false));
-                load_class(classes,class_name_with_package);
+                load_class(classes, class_name_with_package, only_verify);
             },
         }
-        load_verified_class( classes,parsed);
+        if !only_verify {
+            load_verified_class(classes, parsed);
+        }
         return ()
     }else {
         unimplemented!()

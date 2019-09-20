@@ -19,7 +19,7 @@ pub fn basic_class_file_parse() {
 
     let mut p = ParsingContext { f : File::open(test_resources_path.as_os_str()).unwrap() };
     let parsed = parse_class_file(&mut p);
-    dbg!(parsed);
+//    dbg!(parsed);
     //todo asserts
 //    assert!(false);
     return;

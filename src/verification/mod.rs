@@ -148,6 +148,7 @@ fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
 }
 
 fn add_to_verify(state: &JVMClassesState, to_verify: &mut Vec<Classfile>, class_entry: &ClassEntry) -> () {
+    dbg!(class_entry);
     let path = state.indexed_classpath.get(class_entry).unwrap();
     let mut p = ParsingContext { f: File::open(path).expect("This is a bug") };
     let class_file = parse_class_file(&mut p);

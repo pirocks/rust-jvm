@@ -69,6 +69,6 @@ pub fn run_static_method_no_args(classfile: &Classfile, method: &MethodInfo) {
     };
 
     while !interpreter_state.terminate {
-        do_instruction(code.code.as_slice(), &mut interpreter_state);
+        do_instruction(code.code.as_slice(), &mut interpreter_state,panic!());
     }
 }
