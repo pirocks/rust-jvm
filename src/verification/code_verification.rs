@@ -54,14 +54,14 @@ fn write_exception_handler(class_file: &Classfile, exception_handler: &Exception
     Ok(())
 }
 
-struct Frame {
-    locals: Vec<VerificationTypeInfo>,
-    stack: Vec<VerificationTypeInfo>,
-    max_locals: u16,
-    current_offset: u16,
+pub struct Frame {
+    pub locals: Vec<VerificationTypeInfo>,
+    pub stack: Vec<VerificationTypeInfo>,
+    pub max_locals: u16,
+    pub current_offset: u16,
 }
 
-fn init_frame(parameter_types: Vec<Type>, this_pointer: Option<Type>, max_locals: u16) -> Frame {
+pub fn init_frame(parameter_types: Vec<Type>, this_pointer: Option<Type>, max_locals: u16) -> Frame {
     let mut locals = Vec::with_capacity(max_locals as usize);
     match this_pointer {
         None => {},//class is static etc.

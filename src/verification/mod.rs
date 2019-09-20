@@ -63,7 +63,9 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
         prolog.kill().expect("Unable to kill prolog");
         prolog.wait().expect("Unable to await prolog death");
         match loading_attempt_res {
-            True => {},
+            True => {
+                trace!("Successfully verified {}",current_class_to_verify);
+            },
             PrologOutput::False => { sleep(Duration::from_secs(20000));panic!() },
             NeedsAnotherClass(s) => {
                 trace!("Need to load {} first",s);
@@ -107,7 +109,7 @@ fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> P
     let need_to_load_regex = Regex::new("Need to load:('([A-Za-z/]+)'|([A-Za-z/]+))").expect("Error parsing regex.");
     loop {
         let cur = lines.next();
-        dbg!(&cur);
+//        dbg!(&cur);
         let r = match cur {
             None => { panic!()/* continue*/ },
             Some(res) => {res},

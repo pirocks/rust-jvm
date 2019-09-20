@@ -1,11 +1,10 @@
-use interpreter::interpreter_util::{pop_int, push_int, store_n_32, load_n_64, push_long, EXECUTION_ERROR, pop_long};
-use std::mem::transmute;
-
-
-
+use execution::JavaValue;
+use classfile::Classfile;
+use classfile::constant_infos::ConstantInfo;
 
 #[allow(non_camel_case_types)]
 #[repr(u8)]
+#[derive(Debug)]
 pub enum InstructionType {
     aaload = 50,
     aastore = 83,
@@ -216,16 +215,15 @@ pub struct InterpreterState {
     pub operand_stack: Vec<u32>,
     pub pc: usize,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
-    pub pc_offset: isize
+    pub pc_offset: isize,
+    pub terminate: bool,
 }
 
 pub fn read_opcode(b: u8) -> InstructionType {
     return unsafe { ::std::mem::transmute(b) };
 }
 
-pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
-    use ::load;
-    use ::store;
+pub fn do_instruction(code: &[u8], state: &mut InterpreterState, constant_pool: &Vec<ConstantInfo>) {
     use interpreter::interpreter_util::*;
     use interpreter::branch_instructions::*;
     use interpreter::double_instructions::*;
@@ -238,7 +236,7 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
     let opcode = read_opcode(code[0]);
     state.pc_offset = 1;//offset the opcode which was just read
     match opcode {
-        InstructionType::aaload => load_u64(state),
+        /*InstructionType::aaload => load_u64(state),
         InstructionType::aastore => store_i64(state),
         InstructionType::aconst_null => push_long(0, state),
         InstructionType::aload => do_aload(code, state),
@@ -440,11 +438,12 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         }
         InstructionType::invokespecial => {
             unimplemented!("needs constant pool")
-        }
+        }*/
         InstructionType::invokestatic => {
+
             unimplemented!("needs constant pool")
         }
-        InstructionType::invokevirtual => {
+        /*InstructionType::invokevirtual => {
             unimplemented!("needs constant pool")
         }
         InstructionType::ior => do_ior(state),
@@ -520,7 +519,8 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState) {
         InstructionType::sipush => {}
         InstructionType::swap => {}
         InstructionType::tableswitch => {}
-        InstructionType::wide => {}
+        InstructionType::wide => {}*/
+        _ => {dbg!(opcode);unimplemented!()}
     }
 }
 
@@ -528,113 +528,10 @@ pub mod double_instructions;
 
 pub mod integer_instructions;
 
-pub mod long_instructions{
-    use interpreter::{InterpreterState};
-    use interpreter::interpreter_util::{push_long, pop_long};
+pub mod long_instructions;
 
-    pub fn do_ladd(state: &mut InterpreterState) -> () {
-        let value2 = pop_long(state) as i64;
-        let value1 = pop_long(state) as i64;
-        push_long(value2 + value1, state)
-    }
-}
-
-pub mod branch_instructions{
-    pub fn do_goto_w(code: &[u8]) -> ! {
-        let branchbyte1 = code[1] as u32;
-        let branchbyte2 = code[2] as u32;
-        let branchbyte3 = code[3] as u32;
-        let branchbyte4 = code[4] as u32;
-        let _offset = ((branchbyte1 << 24) | (branchbyte2 << 16)
-            | (branchbyte3 << 8) | branchbyte4) as i16;
-        unimplemented!("todo branching")
-    }
-
-    pub fn do_goto(code: &[u8]) -> ! {
-        let branchbyte1 = code[1] as u16;
-        let branchbyte2 = code[2] as u16;
-        let _offset = ((branchbyte1 << 8) | branchbyte2) as i16;
-        unimplemented!("todo branching")
-    }
-
-}
+pub mod branch_instructions;
 pub mod float_instructions;
 pub mod dup_instructions;
 #[macro_use]
 pub mod interpreter_util;
-
-fn do_bipush(state: &mut InterpreterState) -> () {
-    let byte = pop_int(state) as i8;
-    push_int(byte as i32, state);
-}
-
-fn do_astore(code: &[u8], state: &mut InterpreterState) -> ! {
-    let index = code[1];
-    store_n_32(state, index as u64);
-    unimplemented!("Need to increase pc by 2");
-}
-
-fn do_anewarray(code: &[u8], state: &mut InterpreterState) -> ! {
-    let indexbyte1 = code[1] as u16;
-    let indexbyte2 = code[2] as u16;
-    let _index = (indexbyte1 << 8) | indexbyte2;
-    let _count = state.operand_stack.pop().expect(EXECUTION_ERROR);
-    unimplemented!("Need to figure out how to get the constant pool in here.");
-//    unimplemented!("Need to increase pc by 3");
-}
-
-fn do_aload(code: &[u8], state: &mut InterpreterState) -> ! {
-    let var_index = code[1];
-    load_n_64(state, var_index as u64);
-    unimplemented!("Need to increase pc by 2")
-}
-
-
-fn do_arraylength(state: &mut InterpreterState) -> () {
-    let array_ref = pop_long(state);
-    let length = unsafe {
-        let array: *mut i64 = transmute(array_ref);
-        *(array.offset(-1 as isize)) as i64
-    };
-    push_long(length,state)
-}
-//
-//fn do_aastore(state: &mut InterpreterState) -> () {
-//    let value = pop_long(state);
-//    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    let array_ref = pop_long(state);
-//    null_pointer_check!(array_ref);
-//    unsafe {
-//        let array: *mut u64 = transmute(array_ref);
-//        let array_length: u64 = *array.offset(-1);
-//        array_out_of_bounds_check!(index,array_length);
-//        *(array.offset(index as isize)) = value as u64;//todo
-//    }
-//}
-
-//fn load<Type>(state: &mut InterpreterState) -> () where Type : Integer{
-//    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    let array_ref = state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    null_pointer_check!(array_ref);
-//    let array_elem:Type = unsafe {
-//        let array_64: *mut u64 = ::std::mem::transmute(array_ref);
-//        let array_length: u64 = *array_64.offset(-1);
-//        let array_type:* mut Type = array_ref as * mut Type;
-//        array_out_of_bounds_check!(index,array_length);
-//        *(array_type.offset(index as isize)) as Type
-//    };
-//    state.operand_stack.push(array_elem as u64);
-//}
-//
-//fn do_aaload(state: &mut InterpreterState) -> () {
-//    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    let array_ref = pop_long(state);
-//    null_pointer_check!(array_ref);
-//    let array_elem = unsafe {
-//        let array: *mut i64 = ::std::mem::transmute(array_ref);
-//        let array_length: i64 = *array.offset(-1);
-//        array_out_of_bounds_check!(index,array_length);
-//        *(array.offset(index as isize)) as i64
-//    };
-//    push_long(array_elem,state);
-//}

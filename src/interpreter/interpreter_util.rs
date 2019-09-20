@@ -178,6 +178,44 @@ pub fn load_n_64(state: &mut InterpreterState, n: u64) {
     state.operand_stack.push(least_significant );
 }
 
+
+pub(crate) fn do_bipush(state: &mut InterpreterState) -> () {
+    let byte = pop_int(state) as i8;
+    push_int(byte as i32, state);
+}
+
+pub(crate) fn do_astore(code: &[u8], state: &mut InterpreterState) -> ! {
+    let index = code[1];
+    store_n_32(state, index as u64);
+    unimplemented!("Need to increase pc by 2");
+}
+
+pub(crate) fn do_anewarray(code: &[u8], state: &mut InterpreterState) -> ! {
+    let indexbyte1 = code[1] as u16;
+    let indexbyte2 = code[2] as u16;
+    let _index = (indexbyte1 << 8) | indexbyte2;
+    let _count = state.operand_stack.pop().expect(EXECUTION_ERROR);
+    unimplemented!("Need to figure out how to get the constant pool in here.");
+//    unimplemented!("Need to increase pc by 3");
+}
+
+pub(crate) fn do_aload(code: &[u8], state: &mut InterpreterState) -> ! {
+    let var_index = code[1];
+    load_n_64(state, var_index as u64);
+    unimplemented!("Need to increase pc by 2")
+}
+
+
+pub(crate) fn do_arraylength(state: &mut InterpreterState) -> () {
+    let array_ref = pop_long(state);
+    let length = unsafe {
+        let array: *mut i64 = transmute(array_ref);
+        *(array.offset(-1 as isize)) as i64
+    };
+    push_long(length,state)
+}
+
+
 #[cfg(test)]
 pub mod tests{
     use super::*;
@@ -186,7 +224,8 @@ pub mod tests{
     fn test_int_pop_push() {
         let int_ = -654545864;
         let state: &mut InterpreterState = &mut InterpreterState {
-            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
+            terminate: false
         };
         push_int(int_,state);
         assert_eq!(int_,pop_int(state));
@@ -196,7 +235,8 @@ pub mod tests{
     fn test_long_pop_push() {
         let long_ = -654545864*435657687;
         let state: &mut InterpreterState = &mut InterpreterState {
-            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
+            terminate: false
         };
         push_long(long_,state);
         assert_eq!(long_,pop_long(state));
@@ -206,7 +246,8 @@ pub mod tests{
     fn test_char_pop_push() {
         let char_ = 'g';
         let state: &mut InterpreterState = &mut InterpreterState {
-            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
+            terminate: false
         };
         push_char(char_ as u16, state);
         assert_eq!(char_ as u16, pop_char(state));
@@ -216,7 +257,8 @@ pub mod tests{
     fn test_double_pop_push() {
         let double_ = 0.4546545613512652;
         let state: &mut InterpreterState = &mut InterpreterState {
-            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
+            terminate: false
         };
         push_double(double_,state);
         assert_eq!(double_,pop_double(state));
@@ -227,7 +269,8 @@ pub mod tests{
     fn test_float_pop_push() {
         let float_ = -56.045f32;
         let state: &mut InterpreterState = &mut InterpreterState {
-            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
+            terminate: false
         };
         push_float(float_,state);
         assert_eq!(float_,pop_float(state));
@@ -237,7 +280,8 @@ pub mod tests{
     fn test_byte_pop_push() {
         let byte_  = -120i8;
         let state: &mut InterpreterState = &mut InterpreterState {
-            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new()
+            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
+            terminate: false
         };
         push_byte(byte_, state);//todo need to pop push i8
         assert_eq!(byte_, pop_byte(state));

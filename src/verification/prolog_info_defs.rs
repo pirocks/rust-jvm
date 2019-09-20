@@ -79,7 +79,6 @@ pub fn write_extra_descriptors(context: &PrologGenContext,w: &mut dyn Write) -> 
 
 pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     if context.state.using_bootstrap_loader {
-        let already_loaded_classes = context.state.bootstrap_loaded_classes.values();
         for class_file in context.to_verify.iter() {
             write!(w,"loadedClass('{}',{}, {}).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME , class_prolog_name(&class_name(class_file)))?;
         }

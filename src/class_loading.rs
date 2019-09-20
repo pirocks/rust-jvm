@@ -18,11 +18,12 @@ use std::path::{Path, MAIN_SEPARATOR};
 
 use log::trace;
 
-use classfile::{Classfile, parse_class_file};
+use classfile::{Classfile, parse_class_file, MethodInfo};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
 use verification::prolog_info_defs::{class_name, extract_string_from_utf8, get_super_class_name};
 use verification::verify;
+use execution::run_static_method_no_args;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -139,9 +140,20 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package : Class
     }
 }
 
+fn clinit(class: &Classfile) -> &MethodInfo{
+    for method_info in class.methods.iter(){
+        let name = extract_string_from_utf8(&class.constant_pool[method_info.name_index as usize]);
+        if name == "<clinit>" {
+            return method_info;
+        }
+    };
+    panic!();
+}
+
 fn load_verified_class(classes: &mut JVMClassesState,class: Classfile) {
     let entry = class_entry(&class);
     classes.loading_in_progress.remove(&entry);
+    run_static_method_no_args(&class,clinit(&class));
     classes.bootstrap_loaded_classes.insert(entry, Box::new(class));
 }
 

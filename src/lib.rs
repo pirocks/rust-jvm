@@ -16,3 +16,4 @@ pub mod interpreter;
 pub mod verification;
 pub mod class_loading;
 pub mod classpath_indexing;
+pub mod execution;

@@ -66,7 +66,7 @@ fn main() {
         indexed_classpath,
         partial_load:HashSet::new()
     };
-    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name,true))
+    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name,true));
 
 }
 
