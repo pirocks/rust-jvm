@@ -175,7 +175,7 @@ fn object_get_class_name(classfile: &Classfile, o: &ObjectVariableInfo) -> Strin
 
 fn write_operand_stack(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
-    for (i, local) in frame.stack.iter().enumerate() {
+    for (i, local) in frame.stack.iter().rev().enumerate() {
         verification_type_as_string(classfile, local, w)?;
         if i != frame.stack.len() - 1 {
             write!(w, ",")?;

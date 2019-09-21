@@ -1,10 +1,11 @@
-use std::io::{Error, Write};
+use std::io::{Error, Write, Cursor, Read};
 
 use classfile::attribute_infos::{Code};
 use classfile::Classfile;
 use classfile::constant_infos::{Class, ConstantKind};
 use interpreter::{InstructionType, read_opcode};
-use verification::prolog_info_defs::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
+use verification::prolog_info_defs::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors, class_prolog_name};
+use verification::types::{parse_field_descriptor, write_type_prolog};
 
 fn name_and_type_extractor(i: u16, class_file: &Classfile) -> (String, String) {
     let nt;
@@ -62,17 +63,28 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
     let mut res = String::new();
     use std::fmt::Write;
     match &class_file.constant_pool[cp_index as usize].kind {
-        ConstantKind::Methodref(m) => {
-            let c = extract_class_from_constant_pool(m.class_index, class_file);
-            let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
-            let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, class_file);
-            write!(&mut res, "method('{}', '{}', '{}')", class_name, method_name, descriptor).unwrap();
-            extra_descriptors.extra_method_descriptors.push(descriptor);
-        },
         ConstantKind::InvokeDynamic(i) => {
             let (method_name, descriptor) = name_and_type_extractor(i.name_and_type_index, class_file);
             write!(&mut res, "dmethod('{}', '{}')",method_name,descriptor).unwrap();
             extra_descriptors.extra_method_descriptors.push(descriptor);
+        },
+        ConstantKind::Methodref(m) => {
+            let c = extract_class_from_constant_pool(m.class_index, class_file);
+            let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
+            let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, class_file);
+            if class_name.chars().nth(0).unwrap() == '[' {
+                let parsed_class_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
+                write!(&mut res,"method(").unwrap();
+                let mut type_vec = Vec::new();
+                write_type_prolog(&parsed_class_descriptor,&mut type_vec).unwrap();
+//                write_for_write_type.read_to_string(&mut collected_cursor);
+                write!(&mut res, "{}", String::from_utf8(type_vec).unwrap()).unwrap();
+//                dbg!( String::from_utf8(collected_cursor));
+                write!(&mut res,",'{}','{}')",method_name,descriptor).unwrap();
+            }else {
+                write!(&mut res, "method('{}', '{}', '{}')", class_name, method_name, descriptor).unwrap();
+                extra_descriptors.extra_method_descriptors.push(descriptor);
+            }
         },
         ConstantKind::Fieldref(f) => {
             let (field_name, descriptor) = name_and_type_extractor(f.name_and_type_index, class_file);
@@ -94,7 +106,14 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
         },
         ConstantKind::Class(c) => {
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
-            write!(&mut res, "class('{}',{})", class_name,BOOTSTRAP_LOADER_NAME).unwrap();
+            if class_name.chars().nth(0).unwrap() == '[' {
+                let parsed_class_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
+                let mut type_vec = Vec::new();
+                write_type_prolog(&parsed_class_descriptor, &mut type_vec).unwrap();
+                write!(&mut res, "{}", String::from_utf8(type_vec).unwrap()).unwrap();
+            }else {
+                write!(&mut res, "class('{}',{})", class_name,BOOTSTRAP_LOADER_NAME).unwrap();
+            }
         }
         ConstantKind::InterfaceMethodref(im) => {
             let (method_name, descriptor) = name_and_type_extractor(im.nt_index, class_file);

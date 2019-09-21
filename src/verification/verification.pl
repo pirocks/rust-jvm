@@ -490,7 +490,7 @@ instructionSatisfiesHandler(Environment, ExcStackFrame, Handler) :-
     /* The stack consists of just the exception. */
     ExcStackFrame = frame(Locals, _, Flags),
     TrueExcStackFrame = frame(Locals, [ ExceptionClass ], Flags),
-    operandStackHasLegalLength(Environment, TrueExcStackFrame),
+    operandStackHasLegalLength(Environment, [ExceptionClass]),
     targetIsTypeSafe(Environment, TrueExcStackFrame, Target).
 
 loadIsTypeSafe(Environment, Index, Type, StackFrame, NextStackFrame) :-
@@ -1185,6 +1185,12 @@ countIsValid(Count, InputFrame, OutputFrame) :-
 
 instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
     CP = method(MethodClassName, MethodName, Descriptor),
+    MethodClassName = arrayOf(_),
+    write_ln('unimplemented'),
+    fail.
+
+instructionIsTypeSafe(invokespecial(CP), Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
+    CP = method(MethodClassName, MethodName, Descriptor),
     MethodName \= '<init>',
     MethodName \= ' <clinit> ',
     parseMethodDescriptor(Descriptor, OperandArgList, ReturnType),
@@ -1280,8 +1286,24 @@ instructionIsTypeSafe(invokevirtual(CP), Environment, _Offset, StackFrame,NextSt
     parseMethodDescriptor(Descriptor, OperandArgList, ReturnType),
     reverse(OperandArgList, ArgList),
     currentClassLoader(Environment, CurrentLoader),
-    reverse([class(MethodClassName, CurrentLoader) | OperandArgList],
-    StackArgList),
+    reverse([class(MethodClassName, CurrentLoader) | OperandArgList],StackArgList),
+    validTypeTransition(Environment, StackArgList, ReturnType,
+    StackFrame, NextStackFrame),
+    canPop(StackFrame, ArgList, PoppedFrame),
+    passesProtectedCheck(Environment, MethodClassName, MethodName,
+    Descriptor, PoppedFrame),
+    exceptionStackFrame(StackFrame, ExceptionStackFrame).
+
+% todo duplication
+instructionIsTypeSafe(invokevirtual(CP), Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
+    CP = method(MethodClassName, MethodName, Descriptor),
+    MethodClassName = arrayOf(_),
+    MethodName \= '<init>',
+    MethodName \= ' <clinit> ',
+    parseMethodDescriptor(Descriptor, OperandArgList, ReturnType),
+    reverse(OperandArgList, ArgList),
+    currentClassLoader(Environment, CurrentLoader),
+    reverse([MethodClassName | OperandArgList],StackArgList),
     validTypeTransition(Environment, StackArgList, ReturnType,
     StackFrame, NextStackFrame),
     canPop(StackFrame, ArgList, PoppedFrame),
@@ -1577,6 +1599,20 @@ instructionHasEquivalentTypeRule(wide(WidenedInstruction),WidenedInstruction).
 
 classIsInterface(todo).
 
+differentPackageName(class(Name1,_), class(Name2,_)) :- differentPackageNameImpl(Name1,Name2).
+differentPackageNameImpl(Name1,Name2) :-
+    split_string(Name1,"/","/",Split1),
+    split_string(Name2,"/","/",Split2),
+    append(Packages1,[ObjectName1],Split1),
+    append(Packages2,[ObjectName2],Split2),
+    Packages1 \= Packages2.
+samePackageName(class(Name1,_), class(Name2,_)) :- samePackageNameImpl(Name1,Name2).
+samePackageNameImpl(Name1,Name2) :-
+    split_string(Name1,"/","/",Split1),
+    split_string(Name2,"/","/",Split2),
+    append(Packages1,[ObjectName1],Split1),
+    append(Packages2,[ObjectName2],Split2),
+    Packages1 = Packages2.
 
 :- discontiguous isNotStatic/2.
 :- discontiguous isStatic/2.

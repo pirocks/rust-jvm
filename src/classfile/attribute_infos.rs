@@ -48,6 +48,7 @@ pub struct Module{
 #[derive(Eq, PartialEq)]
 pub struct NestHost{
     //todo
+    pub host_class_index: u16
 }
 
 #[derive(Debug)]
@@ -395,6 +396,8 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
     } else if name == "NestMembers"{
         //todo validate at most one constraints
         parse_nest_members(p)
+    } else if name == "NestHost" {
+        parse_nest_host(p)
     } else {
         unimplemented!("{}", name);
     };
@@ -403,6 +406,11 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
         attribute_length,
         attribute_type
     }
+}
+
+fn parse_nest_host(p: &mut ParsingContext) -> AttributeType{
+    let host_class_index = read16(p);
+    AttributeType::NestHost(NestHost {host_class_index})
 }
 
 fn parse_nest_members(p: &mut ParsingContext) -> AttributeType {
