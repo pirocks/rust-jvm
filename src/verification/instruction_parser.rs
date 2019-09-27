@@ -554,14 +554,43 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors,class_file: &Clas
             (format!("sipush({})",value), 2)
         },
         InstructionType::swap => { ("swap".to_string(), 0) },
-        /*InstructionType::tableswitch => {
-            ("tableswitch(Targets, Keys)".to_string(), unimplemented!())
-        },*/
-        /*InstructionType::wide => {
+        InstructionType::tableswitch => parse_table_switch(i, whole_code),
+        InstructionType::wide => {
             ("wide(WidenedInstruction)".to_string(), unimplemented!())
-        },*/
+        },
         _ => unimplemented!()
     }
+}
+
+fn parse_table_switch(mut i: usize, whole_code: &Vec<u8>) -> (String, u64) {
+    let opcode_i = i;
+    loop {
+        if i % 4 == 0 {
+            break;
+        }
+        i += 1;
+    }
+    let defaultbyte0 = whole_code[i] as u32;
+    let defaultbyte1 = whole_code[i + 1] as u32;
+    let defaultbyte2 = whole_code[i + 2] as u32;
+    let defaultbyte3 = whole_code[i + 3] as u32;
+    let defaultbyte = (defaultbyte0 << 24) | (defaultbyte1 << 16) | (defaultbyte2 << 8) | defaultbyte3;
+    i += 4;
+    let lowbyte0 = whole_code[i] as u32;
+    let lowbyte1 = whole_code[i + 1] as u32;
+    let lowbyte2 = whole_code[i + 2] as u32;
+    let lowbyte3 = whole_code[i + 3] as u32;
+    let lowbyte = (lowbyte0 << 24) | (lowbyte1 << 16) | (lowbyte2 << 8) | lowbyte3;
+    i += 4;
+    let highbyte0 = whole_code[i] as u32;
+    let highbyte1 = whole_code[i + 1] as u32;
+    let highbyte2 = whole_code[i + 2] as u32;
+    let highbyte3 = whole_code[i + 3] as u32;
+    let highbyte = (highbyte0 << 24) | (highbyte1 << 16) | (highbyte2 << 8) | highbyte3;
+    let mut targets = Vec::new();
+    targets.push(defaultbyte);
+
+    ("tableswitch(Targets, [])".to_string(), unimplemented!())//keys do not matter as long as they are sortable
 }
 
 pub fn output_instruction_info_for_code(prolog_context: &mut ExtraDescriptors, class_file: &Classfile, code: &Code, w: &mut dyn Write) -> Result<(), Error> {

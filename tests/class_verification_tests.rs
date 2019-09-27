@@ -4,11 +4,8 @@ extern crate ntest_timeout;
 extern crate timebomb;
 
 use ntest_timeout::timeout;
-use std::{thread, time};
 
 
-use classfile::classfile::parse_class_file;
-use std::fs::File;
 use classfile::class_loading::{JVMClassesState, class_entry_from_string, load_class};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -30,7 +27,14 @@ pub fn can_verify_object() {
 }
 
 #[test]
-#[timeout(10000)]
+//#[timeout(30000)]
+pub fn can_verify_map() {
+    let main_class_name = "java.util.Map".to_string();
+    load_class_with_name(&main_class_name);
+}
+
+#[test]
+#[timeout(30000)]
 pub fn can_verify_exceptions() {
     let main_class_name = "java.lang.Throwable".to_string();
     load_class_with_name(&main_class_name);
