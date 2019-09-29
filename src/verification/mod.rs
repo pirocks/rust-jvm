@@ -80,7 +80,7 @@ fn init_prolog(state: &JVMClassesState) -> (Child, BufWriter<ChildStdin>, Lines<
     let mut prolog = Command::new("/usr/bin/swipl")//only tested with swi-prolog, other prologs may work.
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-//        .stderr(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
         .expect("Failed to spawn prolog");
     let prolog_output = BufReader::new(prolog.stdout.take().expect("error reading prolog output"));

@@ -5,10 +5,12 @@ use std::io::Write;
 
 use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
 use classfile::attribute_infos::{AppendFrame, ArrayVariableInfo, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
-use verification::{class_name, PrologGenContext, types};
+use verification::types;
 use verification::instruction_parser::extract_class_from_constant_pool;
 use verification::prolog_info_defs::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
 use verification::types::{ArrayReference, Byte, Char, Int, parse_field_descriptor, parse_method_descriptor, Reference, Type, Void, write_type_prolog};
+use verification::prolog_info_defs::PrologGenContext;
+use verification::prolog_info_defs::class_name;
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {

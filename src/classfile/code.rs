@@ -791,12 +791,13 @@ fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
 fn parse_code_impl(c: &mut CodeParserContext) -> Vec<Instruction> {
     let mut res = vec![];
     loop {
+        let offset = c.offset;
         let instruction_option = parse_instruction(c);
         dbg!("parsing");
         dbg!(&instruction_option);
         match instruction_option {
             None => { break; }
-            Some(instruction) => { res.push(Instruction { offset: c.offset, instruction }) }
+            Some(instruction) => { res.push(Instruction { offset, instruction }) }
         }
     };
     return res;
