@@ -4,6 +4,9 @@ use classfile::AttributeInfo;
 use classfile::constant_infos::{ConstantInfo, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
 use verification::types::Type;
+use classfile::code::InstructionInfo;
+use classfile::code::parse_code_raw;
+use classfile::code::Instruction;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -61,11 +64,11 @@ pub struct ConstantValue{
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Code{
-    //todo
     pub attributes: Vec<AttributeInfo>,
     pub max_stack: u16,
     pub max_locals: u16,
-    pub code: Vec<u8>,
+    pub code_raw: Vec<u8>,
+    pub code : Vec<Instruction>,
     pub exception_table: Vec<ExceptionTableElem>
 }
 
@@ -773,12 +776,15 @@ fn parse_code(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> Attr
     }
     let attributes_count = read16(p);
     let attributes = parse_attributes(p, attributes_count,constant_pool);
+
+    let parsed_code = parse_code_raw(code.as_slice());
     //todo add empty stackmap table
     AttributeType::Code(Code {
             max_stack,
             max_locals,
-            code,
-            exception_table,
+        code_raw: code,
+        code: parsed_code,
+        exception_table,
             attributes,
     })
 }

@@ -6,6 +6,7 @@ use std::hash::Hasher;
 
 pub mod constant_infos;
 pub mod attribute_infos;
+pub mod code;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -222,7 +223,7 @@ pub fn parse_methods(p: &mut ParsingContext, methods_count: u16,  constant_pool:
 
 pub fn parse_class_file(p: &mut ParsingContext) -> Classfile {
     let magic: u32 = read32(p);
-    assert!(magic == EXPECTED_CLASSFILE_MAGIC);
+    assert_eq!(magic, EXPECTED_CLASSFILE_MAGIC);
     let minor_version: u16 = read16(p);
     let major_version: u16 = read16(p);
     let constant_pool_count: u16 = read16(p);

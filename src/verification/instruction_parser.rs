@@ -1,30 +1,32 @@
-use std::io::{Error, Write, Cursor, Read};
+use std::io::{Error, Write, Read};
 
-use classfile::attribute_infos::{Code};
+use classfile::attribute_infos::Code;
 use classfile::Classfile;
 use classfile::constant_infos::{Class, ConstantKind};
-use interpreter::{InstructionType, read_opcode};
 use verification::prolog_info_defs::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors, class_prolog_name};
 use verification::types::{parse_field_descriptor, write_type_prolog};
+use classfile::code::read_opcode;
+use classfile::code::Instruction;
+use classfile::code::InstructionInfo;
 
 fn name_and_type_extractor(i: u16, class_file: &Classfile) -> (String, String) {
     let nt;
     match &class_file.constant_pool[i as usize].kind {
         ConstantKind::NameAndType(nt_) => {
             nt = nt_;
-        },
+        }
         _ => { panic!("Ths a bug.") }
     }
     let descriptor = extract_string_from_utf8(&class_file.constant_pool[nt.descriptor_index as usize]);
     let method_name = extract_string_from_utf8(&class_file.constant_pool[nt.name_index as usize]);
-    return (method_name, descriptor)
+    return (method_name, descriptor);
 }
 
 pub fn extract_class_from_constant_pool(i: u16, class_file: &Classfile) -> &Class {
     match &class_file.constant_pool[i as usize].kind {
         ConstantKind::Class(c) => {
             return c;
-        },
+        }
         _ => {
             panic!();
         }
@@ -65,45 +67,45 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
     match &class_file.constant_pool[cp_index as usize].kind {
         ConstantKind::InvokeDynamic(i) => {
             let (method_name, descriptor) = name_and_type_extractor(i.name_and_type_index, class_file);
-            write!(&mut res, "dmethod('{}', '{}')",method_name,descriptor).unwrap();
+            write!(&mut res, "dmethod('{}', '{}')", method_name, descriptor).unwrap();
             extra_descriptors.extra_method_descriptors.push(descriptor);
-        },
+        }
         ConstantKind::Methodref(m) => {
             let c = extract_class_from_constant_pool(m.class_index, class_file);
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, class_file);
             if class_name.chars().nth(0).unwrap() == '[' {
                 let parsed_class_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
-                write!(&mut res,"method(").unwrap();
+                write!(&mut res, "method(").unwrap();
                 let mut type_vec = Vec::new();
-                write_type_prolog(&parsed_class_descriptor,&mut type_vec).unwrap();
+                write_type_prolog(&parsed_class_descriptor, &mut type_vec).unwrap();
 //                write_for_write_type.read_to_string(&mut collected_cursor);
                 write!(&mut res, "{}", String::from_utf8(type_vec).unwrap()).unwrap();
 //                dbg!( String::from_utf8(collected_cursor));
-                write!(&mut res,",'{}','{}')",method_name,descriptor).unwrap();
-            }else {
+                write!(&mut res, ",'{}','{}')", method_name, descriptor).unwrap();
+            } else {
                 write!(&mut res, "method('{}', '{}', '{}')", class_name, method_name, descriptor).unwrap();
                 extra_descriptors.extra_method_descriptors.push(descriptor);
             }
-        },
+        }
         ConstantKind::Fieldref(f) => {
             let (field_name, descriptor) = name_and_type_extractor(f.name_and_type_index, class_file);
             let c = extract_class_from_constant_pool(f.class_index, class_file);
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
-            write!(&mut res, "field('{}','{}', '{}')",class_name,field_name,descriptor).unwrap();
+            write!(&mut res, "field('{}','{}', '{}')", class_name, field_name, descriptor).unwrap();
             extra_descriptors.extra_field_descriptors.push(descriptor);
-        },
+        }
         ConstantKind::String(s) => {
             let string = extract_string_from_utf8(&class_file.constant_pool[s.string_index as usize]);
-            write!(&mut res, "string('{}')",string.replace("\\","\\\\")).unwrap();
-        },
+            write!(&mut res, "string('{}')", string.replace("\\", "\\\\")).unwrap();
+        }
         ConstantKind::Integer(i) => {
-            write!(&mut res, "int({})",i.bytes).unwrap();
-        },
+            write!(&mut res, "int({})", i.bytes).unwrap();
+        }
         ConstantKind::Long(l) => {
             let long = (((l.high_bytes as u64) << 32) | (l.low_bytes as u64)) as i64;
-            write!(&mut res, "long({})",long).unwrap();
-        },
+            write!(&mut res, "long({})", long).unwrap();
+        }
         ConstantKind::Class(c) => {
             let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
             if class_name.chars().nth(0).unwrap() == '[' {
@@ -111,8 +113,8 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
                 let mut type_vec = Vec::new();
                 write_type_prolog(&parsed_class_descriptor, &mut type_vec).unwrap();
                 write!(&mut res, "{}", String::from_utf8(type_vec).unwrap()).unwrap();
-            }else {
-                write!(&mut res, "class('{}',{})", class_name,BOOTSTRAP_LOADER_NAME).unwrap();
+            } else {
+                write!(&mut res, "class('{}',{})", class_name, BOOTSTRAP_LOADER_NAME).unwrap();
             }
         }
         ConstantKind::InterfaceMethodref(im) => {
@@ -130,489 +132,319 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
     res
 }
 
-fn instruction_to_string(prolog_context: &mut ExtraDescriptors,class_file: &Classfile, i: usize, whole_code: &Vec<u8>) -> (String, u64) {
-    let code = &whole_code[i..whole_code.len()];
-    match read_opcode(whole_code[i]) {
-        InstructionType::aaload => { ("aaload".to_string(), 0) },
-        InstructionType::aastore => { ("aastore".to_string(), 0) },
-        InstructionType::aconst_null => { ("aconst_null".to_string(), 0) },
-        InstructionType::aload => {
-            let index = code[1];
-            (format!("aload({})",index), 1)
-        },
-        InstructionType::aload_0 => { ("aload_0".to_string(), 0) },
-        InstructionType::aload_1 => { ("aload_1".to_string(), 0) },
-        InstructionType::aload_2 => { ("aload_2".to_string(), 0) },
-        InstructionType::aload_3 => { ("aload_3".to_string(), 0) },
-        InstructionType::anewarray => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = (indexbyte1 << 8) | indexbyte2;
-            (format!("anewarray({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::areturn => { ("areturn".to_string(), 0) },
-        InstructionType::arraylength => { ("arraylength".to_string(), 0) },
-        InstructionType::astore => {
-            let index = code[1];
-            (format!("astore({})",index), 1)
-        },
-        InstructionType::astore_0 => { ("astore_0".to_string(), 0) },
-        InstructionType::astore_1 => { ("astore_1".to_string(), 0) },
-        InstructionType::astore_2 => { ("astore_2".to_string(), 0) },
-        InstructionType::astore_3 => { ("astore_3".to_string(), 0) },
-        InstructionType::athrow => { ("athrow".to_string(), 0) },
-        InstructionType::baload => { ("baload".to_string(), 0) },
-        InstructionType::bastore => { ("bastore".to_string(), 0) },
-        InstructionType::bipush => {
-            let byte = code[1];
-            (format!("bipush({})",byte), 1)
-        },
-        InstructionType::caload => { ("caload".to_string(), 0) },
-        InstructionType::castore => { ("castore".to_string(), 0) },
-        InstructionType::checkcast => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = (indexbyte1 << 8) | indexbyte2;
-            (format!("checkcast({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::d2f => { ("d2f".to_string(), 0) },
-        InstructionType::d2i => { ("d2i".to_string(), 0) },
-        InstructionType::d2l => { ("d2l".to_string(), 0) },
-        InstructionType::dadd => { ("dadd".to_string(), 0) },
-        InstructionType::daload => { ("daload".to_string(), 0) },
-        InstructionType::dastore => { ("dastore".to_string(), 0) },
-        InstructionType::dcmpg => { ("dcmpg".to_string(), 0) },
-        InstructionType::dcmpl => { ("dcmpl".to_string(), 0) },
-        InstructionType::dconst_0 => { ("dconst_0".to_string(), 0) },
-        InstructionType::dconst_1 => { ("dconst_1".to_string(), 0) },
-        InstructionType::ddiv => { ("ddiv".to_string(), 0) },
-        InstructionType::dload => {
-            let index = code[1];
-            (format!("dload({})",index), 1)
-        },
-        InstructionType::dload_0 => { ("dload_0".to_string(), 0) },
-        InstructionType::dload_1 => { ("dload_1".to_string(), 0) },
-        InstructionType::dload_2 => { ("dload_2".to_string(), 0) },
-        InstructionType::dload_3 => { ("dload_3".to_string(), 0) },
-        InstructionType::dmul => { ("dmul".to_string(), 0) },
-        InstructionType::dneg => { ("dneg".to_string(), 0) },
-        InstructionType::drem => { ("drem".to_string(), 0) },
-        InstructionType::dreturn => { ("dreturn".to_string(), 0) },
-        InstructionType::dstore => {
-            let index = code[1];
-            (format!("dstore({})",index), 1)
-        },
-        InstructionType::dstore_0 => { ("dstore_0".to_string(), 0) },
-        InstructionType::dstore_1 => { ("dstore_1".to_string(), 0) },
-        InstructionType::dstore_2 => { ("dstore_2".to_string(), 0) },
-        InstructionType::dstore_3 => { ("dstore_3".to_string(), 0) },
-        InstructionType::dsub => { ("dsub".to_string(), 0) },
-        InstructionType::dup => { ("dup".to_string(), 0) },
-        InstructionType::dup_x1 => { ("dup_x1".to_string(), 0) },
-        InstructionType::dup_x2 => { ("dup_x2".to_string(), 0) },
-        InstructionType::dup2 => { ("dup2".to_string(), 0) },
-        InstructionType::dup2_x1 => { ("dup2_x1".to_string(), 0) },
-        InstructionType::dup2_x2 => { ("dup2_x2".to_string(), 0) },
-        InstructionType::f2d => { ("f2d".to_string(), 0) },
-        InstructionType::f2i => { ("f2i".to_string(), 0) },
-        InstructionType::f2l => { ("f2l".to_string(), 0) },
-        InstructionType::fadd => { ("fadd".to_string(), 0) },
-        InstructionType::faload => { ("faload".to_string(), 0) },
-        InstructionType::fastore => { ("fastore".to_string(), 0) },
-        InstructionType::fcmpg => { ("fcmpg".to_string(), 0) },
-        InstructionType::fcmpl => { ("fcmpl".to_string(), 0) },
-        InstructionType::fconst_0 => { ("fconst_0".to_string(), 0) },
-        InstructionType::fconst_1 => { ("fconst_1".to_string(), 0) },
-        InstructionType::fconst_2 => { ("fconst_2".to_string(), 0) },
-        InstructionType::fdiv => { ("fdiv".to_string(), 0) },
-        InstructionType::fload => {
-            let index = code[1];
-            (format!("fload({})",index), 1)
-        },
-        InstructionType::fload_0 => { ("fload_0".to_string(), 0) },
-        InstructionType::fload_1 => { ("fload_1".to_string(), 0) },
-        InstructionType::fload_2 => { ("fload_2".to_string(), 0) },
-        InstructionType::fload_3 => { ("fload_3".to_string(), 0) },
-        InstructionType::fmul => { ("fmul".to_string(), 0) },
-        InstructionType::fneg => { ("fneg".to_string(), 0) },
-        InstructionType::frem => { ("frem".to_string(), 0) },
-        InstructionType::freturn => { ("freturn".to_string(), 0) },
-        InstructionType::fstore => {
-            let index = code[1];
-            (format!("fstore({})",index), 1)
-        },
-        InstructionType::fstore_0 => { ("fstore_0".to_string(), 0) },
-        InstructionType::fstore_1 => { ("fstore_1".to_string(), 0) },
-        InstructionType::fstore_2 => { ("fstore_2".to_string(), 0) },
-        InstructionType::fstore_3 => { ("fstore_3".to_string(), 0) },
-        InstructionType::fsub => { ("fsub".to_string(), 0) },
-        InstructionType::getfield => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = (indexbyte1 << 8) | indexbyte2;
-            (format!("getfield({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::getstatic => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = (indexbyte1 << 8) | indexbyte2;
-            (format!("getstatic({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::goto_ => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("goto({})",index + i as i16), 2)
-        },
-        InstructionType::goto_w => {
-            let branchbyte1 = code[1] as u32;
-            let branchbyte2 = code[2] as u32;
-            let branchbyte3 = code[3] as u32;
-            let branchbyte4 = code[4] as u32;
-            let branch = ((branchbyte1 << 24) | (branchbyte2 << 16)
-                | (branchbyte3 << 8) | branchbyte4) as i32;
-            (format!("goto_w({})",branch + i as i32), 4)//todo overflow risk here and other places where +i is used
-        },
-        InstructionType::i2b => { ("i2b".to_string(), 0) },
-        InstructionType::i2c => { ("i2c".to_string(), 0) },
-        InstructionType::i2d => { ("i2d".to_string(), 0) },
-        InstructionType::i2f => { ("i2f".to_string(), 0) },
-        InstructionType::i2l => { ("i2l".to_string(), 0) },
-        InstructionType::i2s => { ("i2s".to_string(), 0) },
-        InstructionType::iadd => { ("iadd".to_string(), 0) },
-        InstructionType::iaload => { ("iaload".to_string(), 0) },
-        InstructionType::iand => { ("iand".to_string(), 0) },
-        InstructionType::iastore => { ("iastore".to_string(), 0) },
-        InstructionType::iconst_m1 => { ("iconst_m1".to_string(), 0) },
-        InstructionType::iconst_0 => { ("iconst_0".to_string(), 0) },
-        InstructionType::iconst_1 => { ("iconst_1".to_string(), 0) },
-        InstructionType::iconst_2 => { ("iconst_2".to_string(), 0) },
-        InstructionType::iconst_3 => { ("iconst_3".to_string(), 0) },
-        InstructionType::iconst_4 => { ("iconst_4".to_string(), 0) },
-        InstructionType::iconst_5 => { ("iconst_5".to_string(), 0) },
-        InstructionType::idiv => { ("idiv".to_string(), 0) },
-        InstructionType::if_acmpeq => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_acmpeq({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::if_acmpne => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_acmpne({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::if_icmpeq => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmpeq({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::if_icmpne => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmpne({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::if_icmplt => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmplt({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::if_icmpge => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmpge({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::if_icmpgt => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmpgt({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::if_icmple => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("if_icmple({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::ifeq => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifeq({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::ifne => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifne({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::iflt => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("iflt({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::ifge => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifge({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::ifgt => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifgt({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::ifle => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifle({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::ifnonnull => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifnonnull({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::ifnull => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as i16;
-            (format!("ifnull({})",index + i as i16), 2)//todo duplication
-        },
-        InstructionType::iinc => {
-            let index = code[1];
-            let const_ = code[2];
-            (format!("iinc({},{})", index, const_), 2)
-        },
-        InstructionType::iload => {
-            let index = code[1];
-            (format!("iload({})", index), 1)
-        },
-        InstructionType::iload_0 => { ("iload_0".to_string(), 0) },
-        InstructionType::iload_1 => { ("iload_1".to_string(), 0) },
-        InstructionType::iload_2 => { ("iload_2".to_string(), 0) },
-        InstructionType::iload_3 => { ("iload_3".to_string(), 0) },
-        InstructionType::imul => { ("imul".to_string(), 0) },
-        InstructionType::ineg => { ("ineg".to_string(), 0) },
-        InstructionType::instanceof => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("instanceof({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::invokedynamic => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("invokedynamic({},0,0)", cp_elem_to_string(prolog_context,class_file, cp_index)), 4)
-        },
-        InstructionType::invokeinterface => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            let count = code[3];
-            (format!("invokeinterface({}, {}, 0)", cp_elem_to_string(prolog_context,class_file, cp_index), count), 4)
-        },
-        InstructionType::invokespecial => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("invokespecial({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::invokestatic => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("invokestatic({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::invokevirtual => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("invokevirtual({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::ior => { ("ior".to_string(), 0) },
-        InstructionType::irem => { ("irem".to_string(), 0) },
-        InstructionType::ireturn => { ("ireturn".to_string(), 0) },
-        InstructionType::ishl => { ("ishl".to_string(), 0) },
-        InstructionType::ishr => { ("ishr".to_string(), 0) },
-        InstructionType::istore => {
-            (format!("istore({})",code[1]), 1)
-        },
-        InstructionType::istore_0 => { ("istore_0".to_string(), 0) },
-        InstructionType::istore_1 => { ("istore_1".to_string(), 0) },
-        InstructionType::istore_2 => { ("istore_2".to_string(), 0) },
-        InstructionType::istore_3 => { ("istore_3".to_string(), 0) },
-        InstructionType::isub => { ("isub".to_string(), 0) },
-        InstructionType::iushr => { ("iushr".to_string(), 0) },
-        InstructionType::ixor => { ("ixor".to_string(), 0) },
-        InstructionType::jsr => { ("jsr".to_string(), 0) },
-        InstructionType::jsr_w => { ("jsr_w".to_string(), 0) },
-        InstructionType::l2d => { ("l2d".to_string(), 0) },
-        InstructionType::l2f => { ("l2f".to_string(), 0) },
-        InstructionType::l2i => { ("l2i".to_string(), 0) },
-        InstructionType::ladd => { ("ladd".to_string(), 0) },
-        InstructionType::laload => { ("laload".to_string(), 0) },
-        InstructionType::land => { ("land".to_string(), 0) },
-        InstructionType::lastore => { ("lastore".to_string(), 0) },
-        InstructionType::lcmp => { ("lcmp".to_string(), 0) },
-        InstructionType::lconst_0 => { ("lconst_0".to_string(), 0) },
-        InstructionType::lconst_1 => { ("lconst_1".to_string(), 0) },
-        InstructionType::ldc => {
-            (format!("ldc({})", cp_elem_to_string(prolog_context,class_file, code[1] as u16)), 1)
-        },
-        InstructionType::ldc_w => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("ldc_w({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::ldc2_w => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("ldc2_w({})", cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::ldiv => { ("ldiv".to_string(), 0) },
-        InstructionType::lload => {
-            (format!("lload({})",code[1]), 1)
-        },
-        InstructionType::lload_0 => { ("lload_0".to_string(), 0) },
-        InstructionType::lload_1 => { ("lload_1".to_string(), 0) },
-        InstructionType::lload_2 => { ("lload_2".to_string(), 0) },
-        InstructionType::lload_3 => { ("lload_3".to_string(), 0) },
-        InstructionType::lmul => { ("lmul".to_string(), 0) },
-        InstructionType::lneg => { ("lneg".to_string(), 0) },
-        /*InstructionType::lookupswitch => {
-            ("lookupswitch(Targets, Keys)".to_string(), unimplemented!())
-        },*/
-        InstructionType::lor => { ("lor".to_string(), 0) },
-        InstructionType::lrem => { ("lrem".to_string(), 0) },
-        InstructionType::lreturn => { ("lreturn".to_string(), 0) },
-        InstructionType::lshl => { ("lshl".to_string(), 0) },
-        InstructionType::lshr => { ("lshr".to_string(), 0) },
-        InstructionType::lstore => {
-            (format!("lstore({})",code[1]), 1)
-        },
-        InstructionType::lstore_0 => { ("lstore_0".to_string(), 0) },
-        InstructionType::lstore_1 => { ("lstore_1".to_string(), 0) },
-        InstructionType::lstore_2 => { ("lstore_2".to_string(), 0) },
-        InstructionType::lstore_3 => { ("lstore_3".to_string(), 0) },
-        InstructionType::lsub => { ("lsub".to_string(), 0) },
-        InstructionType::lushr => { ("lushr".to_string(), 0) },
-        InstructionType::lxor => { ("lxor".to_string(), 0) },
-        InstructionType::monitorenter => { ("monitorenter".to_string(), 0) },
-        InstructionType::monitorexit => { ("monitorexit".to_string(), 0) },
-        InstructionType::multianewarray => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            let dimensions = code[3];
-            (format!("multianewarray({}, {})",cp_index,dimensions), 3)
-        },
-        InstructionType::new => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("new({})",cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::newarray => {
-            let typecode = code[1];
-            (format!("newarray({})", typecode), 1)
-        },
-        InstructionType::nop => { ("nop".to_string(), 0) },
-        InstructionType::pop => { ("pop".to_string(), 0) },
-        InstructionType::pop2 => { ("pop2".to_string(), 0) },
-        InstructionType::putfield => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("putfield({})",cp_elem_to_string(prolog_context,class_file, cp_index)), 2)
-        },
-        InstructionType::putstatic => {
-            let indexbyte1 = code[1] as u16;
-            let indexbyte2 = code[2] as u16;
-            let index = ((indexbyte1 << 8) | indexbyte2) as u16;
-            (format!("putstatic({})",index), 2)
-        },
-        InstructionType::ret => { ("ret".to_string(), 0) },
-        InstructionType::return_ => { ("return".to_string(), 0) },
-        InstructionType::saload => { ("saload".to_string(), 0) },
-        InstructionType::sastore => { ("sastore".to_string(), 0) },
-        InstructionType::sipush => {
-            let byte1 = code[1] as u16;
-            let byte2 = code[2] as u16;
-            let value = ((byte1 << 8) | byte2) as i16;
-            (format!("sipush({})",value), 2)
-        },
-        InstructionType::swap => { ("swap".to_string(), 0) },
-        InstructionType::tableswitch => parse_table_switch(i, whole_code),
-        InstructionType::wide => {
-            ("wide(WidenedInstruction)".to_string(), unimplemented!())
-        },
-        _ => unimplemented!()
-    }
-}
+fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Classfile, instruction: &Instruction) -> String {
+    format!("instruction({},{})", instruction.offset,match &instruction.instruction {
 
-fn parse_table_switch(mut i: usize, whole_code: &Vec<u8>) -> (String, u64) {
-    let opcode_i = i;
-    loop {
-        if i % 4 == 0 {
-            break;
+        InstructionInfo::aaload => { "aaload".to_string() }
+        InstructionInfo::aastore => { "aastore".to_string()}
+        InstructionInfo::aconst_null => { "aconst_null".to_string()}
+        InstructionInfo::aload(index) => { format!("aload({})", index) }
+        InstructionInfo::aload_0 => { "aload_0".to_string()}
+        InstructionInfo::aload_1 => { "aload_1".to_string()}
+        InstructionInfo::aload_2 => { "aload_2".to_string()}
+        InstructionInfo::aload_3 => { "aload_3".to_string()}
+        InstructionInfo::anewarray(cp_index) => { format!("anewarray({})", cp_elem_to_string(prolog_context, class_file, *cp_index)) }
+        InstructionInfo::areturn => { "areturn".to_string()}
+        InstructionInfo::arraylength => { "arraylength".to_string()}
+        InstructionInfo::astore(index) => { format!("astore({})", index) }
+        InstructionInfo::astore_0 => { "astore_0".to_string()}
+        InstructionInfo::astore_1 => { "astore_1".to_string()}
+        InstructionInfo::astore_2 => { "astore_2".to_string()}
+        InstructionInfo::astore_3 => { "astore_3".to_string()}
+        InstructionInfo::athrow => { "athrow".to_string()}
+        InstructionInfo::baload => { "baload".to_string()}
+        InstructionInfo::bastore => { "bastore".to_string()}
+        InstructionInfo::bipush(byte) => { format!("bipush({})", byte) }
+        InstructionInfo::caload => { "caload".to_string()}
+        InstructionInfo::castore => { "castore".to_string()}
+        InstructionInfo::checkcast(cp_index) => { format!("checkcast({})", cp_elem_to_string(prolog_context, class_file, *cp_index)) }
+        InstructionInfo::d2f => { "d2f".to_string()}
+        InstructionInfo::d2i => { "d2i".to_string()}
+        InstructionInfo::d2l => { "d2l".to_string()}
+        InstructionInfo::dadd => { "dadd".to_string()}
+        InstructionInfo::daload => { "daload".to_string()}
+        InstructionInfo::dastore => { "dastore".to_string()}
+        InstructionInfo::dcmpg => { "dcmpg".to_string()}
+        InstructionInfo::dcmpl => { "dcmpl".to_string()}
+        InstructionInfo::dconst_0 => { "dconst_0".to_string()}
+        InstructionInfo::dconst_1 => { "dconst_1".to_string()}
+        InstructionInfo::ddiv => { "ddiv".to_string()}
+        InstructionInfo::dload(index) => { format!("dload({})", index) }
+        InstructionInfo::dload_0 => { "dload_0".to_string()}
+        InstructionInfo::dload_1 => { "dload_1".to_string()}
+        InstructionInfo::dload_2 => { "dload_2".to_string()}
+        InstructionInfo::dload_3 => { "dload_3".to_string()}
+        InstructionInfo::dmul => { "dmul".to_string()}
+        InstructionInfo::dneg => { "dneg".to_string()}
+        InstructionInfo::drem => { "drem".to_string()}
+        InstructionInfo::dreturn => { "dreturn".to_string()}
+        InstructionInfo::dstore(index) => { format!("dstore({})", index) }
+        InstructionInfo::dstore_0 => { "dstore_0".to_string()}
+        InstructionInfo::dstore_1 => { "dstore_1".to_string()}
+        InstructionInfo::dstore_2 => { "dstore_2".to_string()}
+        InstructionInfo::dstore_3 => { "dstore_3".to_string()}
+        InstructionInfo::dsub => { "dsub".to_string()}
+        InstructionInfo::dup => { "dup".to_string()}
+        InstructionInfo::dup_x1 => { "dup_x1".to_string()}
+        InstructionInfo::dup_x2 => { "dup_x2".to_string()}
+        InstructionInfo::dup2 => { "dup2".to_string()}
+        InstructionInfo::dup2_x1 => { "dup2_x1".to_string()}
+        InstructionInfo::dup2_x2 => { "dup2_x2".to_string()}
+        InstructionInfo::f2d => { "f2d".to_string()}
+        InstructionInfo::f2i => { "f2i".to_string()}
+        InstructionInfo::f2l => { "f2l".to_string()}
+        InstructionInfo::fadd => { "fadd".to_string()}
+        InstructionInfo::faload => { "faload".to_string()}
+        InstructionInfo::fastore => { "fastore".to_string()}
+        InstructionInfo::fcmpg => { "fcmpg".to_string()}
+        InstructionInfo::fcmpl => { "fcmpl".to_string()}
+        InstructionInfo::fconst_0 => { "fconst_0".to_string()}
+        InstructionInfo::fconst_1 => { "fconst_1".to_string()}
+        InstructionInfo::fconst_2 => { "fconst_2".to_string()}
+        InstructionInfo::fdiv => { "fdiv".to_string()}
+        InstructionInfo::fload(index) => { format!("fload({})", index) }
+        InstructionInfo::fload_0 => { "fload_0".to_string()}
+        InstructionInfo::fload_1 => { "fload_1".to_string()}
+        InstructionInfo::fload_2 => { "fload_2".to_string()}
+        InstructionInfo::fload_3 => { "fload_3".to_string()}
+        InstructionInfo::fmul => { "fmul".to_string()}
+        InstructionInfo::fneg => { "fneg".to_string()}
+        InstructionInfo::frem => { "frem".to_string()}
+        InstructionInfo::freturn => { "freturn".to_string()}
+        InstructionInfo::fstore(index) => { format!("fstore({})", index) }
+        InstructionInfo::fstore_0 => { "fstore_0".to_string()}
+        InstructionInfo::fstore_1 => { "fstore_1".to_string()}
+        InstructionInfo::fstore_2 => { "fstore_2".to_string()}
+        InstructionInfo::fstore_3 => { "fstore_3".to_string()}
+        InstructionInfo::fsub => { "fsub".to_string()}
+        InstructionInfo::getfield(cp_index) => { format!("getfield({})", cp_elem_to_string(prolog_context, class_file, *cp_index)) }
+        InstructionInfo::getstatic(cp_index) => { format!("getstatic({})", cp_elem_to_string(prolog_context, class_file, *cp_index)) }
+        InstructionInfo::goto_(goto_offset) => { format!("goto({})", (*goto_offset as isize + instruction.offset as isize) ) }
+        InstructionInfo::goto_w(goto_w_offset) => { format!("goto_w({})", *goto_w_offset as isize + instruction.offset as isize) }
+        InstructionInfo::i2b => { "i2b".to_string()}
+        InstructionInfo::i2c => { "i2c".to_string()}
+        InstructionInfo::i2d => { "i2d".to_string()}
+        InstructionInfo::i2f => { "i2f".to_string()}
+        InstructionInfo::i2l => { "i2l".to_string()}
+        InstructionInfo::i2s => { "i2s".to_string()}
+        InstructionInfo::iadd => { "iadd".to_string()}
+        InstructionInfo::iaload => { "iaload".to_string()}
+        InstructionInfo::iand => { "iand".to_string()}
+        InstructionInfo::iastore => { "iastore".to_string()}
+        InstructionInfo::iconst_m1 => { "iconst_m1".to_string()}
+        InstructionInfo::iconst_0 => { "iconst_0".to_string()}
+        InstructionInfo::iconst_1 => { "iconst_1".to_string()}
+        InstructionInfo::iconst_2 => { "iconst_2".to_string()}
+        InstructionInfo::iconst_3 => { "iconst_3".to_string()}
+        InstructionInfo::iconst_4 => { "iconst_4".to_string()}
+        InstructionInfo::iconst_5 => { "iconst_5".to_string()}
+        InstructionInfo::idiv => { "idiv".to_string()}
+        InstructionInfo::if_acmpeq(index) => {
+            format!("if_acmpeq({})", *index as isize + instruction.offset as isize)//todo duplication
         }
-        i += 1;
-    }
-    let defaultbyte0 = whole_code[i] as u32;
-    let defaultbyte1 = whole_code[i + 1] as u32;
-    let defaultbyte2 = whole_code[i + 2] as u32;
-    let defaultbyte3 = whole_code[i + 3] as u32;
-    let defaultbyte = (defaultbyte0 << 24) | (defaultbyte1 << 16) | (defaultbyte2 << 8) | defaultbyte3;
-    i += 4;
-    let lowbyte0 = whole_code[i] as u32;
-    let lowbyte1 = whole_code[i + 1] as u32;
-    let lowbyte2 = whole_code[i + 2] as u32;
-    let lowbyte3 = whole_code[i + 3] as u32;
-    let lowbyte = (lowbyte0 << 24) | (lowbyte1 << 16) | (lowbyte2 << 8) | lowbyte3;
-    i += 4;
-    let highbyte0 = whole_code[i] as u32;
-    let highbyte1 = whole_code[i + 1] as u32;
-    let highbyte2 = whole_code[i + 2] as u32;
-    let highbyte3 = whole_code[i + 3] as u32;
-    let highbyte = (highbyte0 << 24) | (highbyte1 << 16) | (highbyte2 << 8) | highbyte3;
-    let mut targets = Vec::new();
-    targets.push(defaultbyte);
+        InstructionInfo::if_acmpne(index) => {
+            format!("if_acmpne({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::if_icmpeq(index) => {
+            format!("if_icmpeq({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::if_icmpne(index) => {
+            format!("if_icmpne({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::if_icmplt(index) => {
+            format!("if_icmplt({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::if_icmpge(index) => {
+            format!("if_icmpge({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::if_icmpgt(index) => {
+            format!("if_icmpgt({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::if_icmple(index) => {
+            format!("if_icmple({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::ifeq(index) => {
+            format!("ifeq({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::ifne(index) => {
+            format!("ifne({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::iflt(index) => {
+            format!("iflt({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::ifge(index) => {
+            format!("ifge({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::ifgt(index) => {
+            format!("ifgt({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::ifle(index) => {
+            format!("ifle({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::ifnonnull(index) => {
+            format!("ifnonnull({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::ifnull(index) => {
+            format!("ifnull({})", *index as isize + instruction.offset as isize)//todo duplication
+        }
+        InstructionInfo::iinc(iinc) => {
+            let index = iinc.index;
+            let const_ = iinc.const_;
+            format!("iinc({},{})", index, const_)
+        }
+        InstructionInfo::iload(index) => {
+            format!("iload({})", index)
+        }
+        InstructionInfo::iload_0 => { "iload_0".to_string()}
+        InstructionInfo::iload_1 => { "iload_1".to_string()}
+        InstructionInfo::iload_2 => { "iload_2".to_string()}
+        InstructionInfo::iload_3 => { "iload_3".to_string()}
+        InstructionInfo::imul => { "imul".to_string()}
+        InstructionInfo::ineg => { "ineg".to_string()}
+        InstructionInfo::instanceof(cp_index) => {
+            format!("instanceof({})", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::invokedynamic(cp_index) => {
+            format!("invokedynamic({},0,0)", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::invokeinterface(interface) => {
+            format!("invokeinterface({}, {}, 0)", cp_elem_to_string(prolog_context, class_file, interface.index),interface.count)
+        }
+        InstructionInfo::invokespecial(cp_index) => {
+            format!("invokespecial({})", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::invokestatic(cp_index) => {
+            format!("invokestatic({})", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::invokevirtual(cp_index) => {
+            format!("invokevirtual({})", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::ior => { "ior".to_string()}
+        InstructionInfo::irem => { "irem".to_string()}
+        InstructionInfo::ireturn => { "ireturn".to_string()}
+        InstructionInfo::ishl => { "ishl".to_string()}
+        InstructionInfo::ishr => { "ishr".to_string()}
+        InstructionInfo::istore(index) => {
+            format!("istore({})", index)
+        }
+        InstructionInfo::istore_0 => { "istore_0".to_string()}
+        InstructionInfo::istore_1 => { "istore_1".to_string()}
+        InstructionInfo::istore_2 => { "istore_2".to_string()}
+        InstructionInfo::istore_3 => { "istore_3".to_string()}
+        InstructionInfo::isub => { "isub".to_string()}
+        InstructionInfo::iushr => { "iushr".to_string()}
+        InstructionInfo::ixor => { "ixor".to_string()}
+        InstructionInfo::jsr(branch) => { format!("jsr({})",branch)}
+        InstructionInfo::jsr_w(branch) => { format!("jsr_w({})",branch)}
+        InstructionInfo::l2d => { "l2d".to_string()}
+        InstructionInfo::l2f => { "l2f".to_string()}
+        InstructionInfo::l2i => { "l2i".to_string()}
+        InstructionInfo::ladd => { "ladd".to_string()}
+        InstructionInfo::laload => { "laload".to_string()}
+        InstructionInfo::land => { "land".to_string()}
+        InstructionInfo::lastore => { "lastore".to_string()}
+        InstructionInfo::lcmp => { "lcmp".to_string()}
+        InstructionInfo::lconst_0 => { "lconst_0".to_string()}
+        InstructionInfo::lconst_1 => { "lconst_1".to_string()}
+        InstructionInfo::ldc(index) => {
+            format!("ldc({})", cp_elem_to_string(prolog_context, class_file, *index as u16))
+        }
+        InstructionInfo::ldc_w(cp_index) => {
+            format!("ldc_w({})", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::ldc2_w(cp_index) => {
+            format!("ldc2_w({})", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::ldiv => { "ldiv".to_string()}
+        InstructionInfo::lload(index) => {
+            format!("lload({})", index)
+        }
+        InstructionInfo::lload_0 => { "lload_0".to_string()}
+        InstructionInfo::lload_1 => { "lload_1".to_string()}
+        InstructionInfo::lload_2 => { "lload_2".to_string()}
+        InstructionInfo::lload_3 => { "lload_3".to_string()}
+        InstructionInfo::lmul => { "lmul".to_string()}
+        InstructionInfo::lneg => { "lneg".to_string()}
+        InstructionInfo::lookupswitch(l) => {
+            unimplemented!();
 
-    ("tableswitch(Targets, [])".to_string(), unimplemented!())//keys do not matter as long as they are sortable
+//            ("lookupswitch(Targets, Keys)".to_string(), unimplemented!())
+        },
+        InstructionInfo::tableswitch(t) => {
+            let mut res = "tableswitch([".to_string();
+            t.offsets.iter().for_each(|i| {
+                let jump_target = *i as isize + instruction.offset  as isize;
+                res.push_str(format!("{},",jump_target).as_str());
+            });
+            res.push_str("{}],[keys_unimplmented])");
+            res
+        },
+        InstructionInfo::lor => { "lor".to_string()}
+        InstructionInfo::lrem => { "lrem".to_string()}
+        InstructionInfo::lreturn => { "lreturn".to_string()}
+        InstructionInfo::lshl => { "lshl".to_string()}
+        InstructionInfo::lshr => { "lshr".to_string()}
+        InstructionInfo::lstore(index) => {
+            format!("lstore({})", index)
+        }
+        InstructionInfo::lstore_0 => { "lstore_0".to_string()}
+        InstructionInfo::lstore_1 => { "lstore_1".to_string()}
+        InstructionInfo::lstore_2 => { "lstore_2".to_string()}
+        InstructionInfo::lstore_3 => { "lstore_3".to_string()}
+        InstructionInfo::lsub => { "lsub".to_string()}
+        InstructionInfo::lushr => { "lushr".to_string()}
+        InstructionInfo::lxor => { "lxor".to_string()}
+        InstructionInfo::monitorenter => { "monitorenter".to_string()}
+        InstructionInfo::monitorexit => { "monitorexit".to_string()}
+        InstructionInfo::multianewarray(m) => {
+            unimplemented!();
+//            let indexbyte1 = code[1] as u16;
+//            let indexbyte2 = code[2] as u16;
+//            let cp_index = ((indexbyte1 << 8) | indexbyte2) as u16;
+//            let dimensions = code[3];
+//            (format!("multianewarray({}, {})", cp_index, dimensions), 3)
+        }
+        InstructionInfo::new(cp_index) => {
+            format!("new({})", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::newarray(typecode) => {
+            format!("newarray({})", *typecode as u8)
+        }
+        InstructionInfo::nop => { "nop".to_string()}
+        InstructionInfo::pop => { "pop".to_string()}
+        InstructionInfo::pop2 => { "pop2".to_string()}
+        InstructionInfo::putfield(cp_index) => {
+            format!("putfield({})", cp_elem_to_string(prolog_context, class_file, *cp_index))
+        }
+        InstructionInfo::putstatic(index) => {
+            format!("putstatic({})", index)
+        }
+        InstructionInfo::ret(index) => { format!("ret({})",index)}
+        InstructionInfo::return_ => { "return".to_string()}
+        InstructionInfo::saload => { "saload".to_string()}
+        InstructionInfo::sastore => { "sastore".to_string()}
+        InstructionInfo::sipush(value) => {
+            format!("sipush({})", value)
+        }
+        InstructionInfo::swap => { "swap".to_string()}
+        InstructionInfo::wide(wide) => {
+            unimplemented!();
+//            ("wide(WidenedInstruction)".to_string(), unimplemented!())
+        }
+//        _ => unimplemented!()
+    })
 }
 
 pub fn output_instruction_info_for_code(prolog_context: &mut ExtraDescriptors, class_file: &Classfile, code: &Code, w: &mut dyn Write) -> Result<(), Error> {
-    let mut skip = 0;
-    write!(w,"[")?;
-    //todo simplify
-    let mut final_offset = 0;
-    for (i, _) in code.code.iter().enumerate() {
-        if skip > 0 {
-            skip = skip - 1;
-            continue
-        }else if i != 0{
-            write!(w,",")?;
-        }
-        write!(w, "instruction(")?;
-        write!(w, "{}", i)?;
-        let (string, skip_copy) = instruction_to_string(prolog_context,class_file, i, &code.code);
-        skip = skip_copy;
-        write!(w, ", {})", string)?;
-        final_offset = i;
+    write!(w, "[")?;
+    for instruction in code.code.iter() {
+        write!(w, "{},", instruction_to_string(prolog_context, class_file, instruction))?;
     }
-    write!(w,",endOfCode({})",final_offset)?;
-    write!(w,"],")?;
+    let last_offset = match code.code.last(){
+        None => {0},
+        Some(s) => {s.offset},
+    };
+    write!(w, "endOfCode({})", last_offset)?;
+    write!(w, "],")?;
     Ok(())
 }

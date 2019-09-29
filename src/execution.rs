@@ -38,7 +38,7 @@ pub fn init_locals_static_no_args(class_file:&Classfile, method: &MethodInfo) ->
 
 //    let frame: Frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
-    let mut res = Vec::new();
+    let res = Vec::new();
 
 ////    match this_pointer{
 ////        None => {},
@@ -69,6 +69,6 @@ pub fn run_static_method_no_args(classfile: &Classfile, method: &MethodInfo) {
     };
 
     while !interpreter_state.terminate {
-        do_instruction(code.code.as_slice(), &mut interpreter_state,panic!());
+        do_instruction(code.code_raw.as_slice(), &mut interpreter_state, panic!());
     }
 }
