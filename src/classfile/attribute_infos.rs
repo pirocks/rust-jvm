@@ -4,7 +4,6 @@ use classfile::AttributeInfo;
 use classfile::constant_infos::{ConstantInfo, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
 use verification::types::Type;
-use classfile::code::InstructionInfo;
 use classfile::code::parse_code_raw;
 use classfile::code::Instruction;
 
@@ -668,7 +667,14 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
         let offset_delta = read16(p);
         let k_frames_to_chop = 251 - type_of_frame;
         StackMapFrame::ChopFrame(ChopFrame { offset_delta, k_frames_to_chop })
-    } else {
+    } else if type_of_frame == 251 {
+        let offset_delta = read16(p);
+        StackMapFrame::SameFrameExtended(SameFrameExtended { offset_delta })
+    } else if type_of_frame == 247{
+        let offset_delta = read16(p);
+        let stack = parse_verification_type_info(p);
+        StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack })
+    }else {
         unimplemented!("{}", type_of_frame)
     }
 }

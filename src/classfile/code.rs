@@ -32,10 +32,25 @@ fn read_invoke_interface(c: &mut CodeParserContext) -> Option<InvokeInterface> {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct LookupSwitch {}
+pub struct LookupSwitch {
+    pub pairs: Vec<(i32,i32)>,
+    pub default: i32
+}
 
 fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
-    unimplemented!();
+    while !(c.offset % 4 == 0) {
+        read_u8(c).expect("Uneexpected end of code");
+    };
+    let default = read_i32(c)?;
+    let npairs = read_i32(c)?;
+    assert!(npairs > 0);
+    let mut pairs = vec![];
+    for _ in 0..npairs{
+        pairs.push((read_i32(c)?,read_i32(c)?));
+    }
+    return Some(LookupSwitch {
+        default,pairs
+    })
 }
 
 

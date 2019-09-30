@@ -1,4 +1,3 @@
-use classfile::Classfile;
 use classfile::constant_infos::ConstantInfo;
 use classfile::code::InstructionTypeNum;
 use classfile::code::read_opcode;
@@ -14,13 +13,13 @@ pub struct InterpreterState {
 }
 
 pub fn do_instruction(code: &[u8], state: &mut InterpreterState, constant_pool: &Vec<ConstantInfo>) {
-    use interpreter::interpreter_util::*;
-    use interpreter::branch_instructions::*;
-    use interpreter::double_instructions::*;
-    use interpreter::dup_instructions::*;
-    use interpreter::float_instructions::*;
-    use interpreter::integer_instructions::*;
-    use interpreter::long_instructions::*;
+//    use interpreter::interpreter_util::*;
+//    use interpreter::branch_instructions::*;
+//    use interpreter::double_instructions::*;
+//    use interpreter::dup_instructions::*;
+//    use interpreter::float_instructions::*;
+//    use interpreter::integer_instructions::*;
+//    use interpreter::long_instructions::*;
 
 
     let opcode = read_opcode(code[0]);

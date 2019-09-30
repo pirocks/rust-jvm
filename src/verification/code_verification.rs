@@ -11,6 +11,8 @@ use verification::prolog_info_defs::{BOOTSTRAP_LOADER_NAME, class_prolog_name, e
 use verification::types::{ArrayReference, Byte, Char, Int, parse_field_descriptor, parse_method_descriptor, Reference, Type, Void, write_type_prolog};
 use verification::prolog_info_defs::PrologGenContext;
 use verification::prolog_info_defs::class_name;
+use classfile::attribute_infos::SameFrameExtended;
+use classfile::attribute_infos::SameLocals1StackItemFrameExtended;
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
@@ -214,6 +216,8 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
             StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(class_file, &mut frame, s),
             StackMapFrame::FullFrame(f) => handle_full_frame(class_file, &mut frame, f),
             StackMapFrame::ChopFrame(f) => handle_chop_frame(&mut frame, f),
+            StackMapFrame::SameFrameExtended(f) => handle_same_frame_extended(&mut frame, f),
+            StackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(class_file,&mut frame, f),
             _ => {
                 dbg!(entry);
                 unimplemented!();
@@ -233,6 +237,17 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     }
     write!(w,"]")?;
     Ok(())
+}
+
+fn handle_same_locals_1_stack_frame_extended(class_file: &Classfile, mut frame: &mut Frame, f: &SameLocals1StackItemFrameExtended) -> (){
+    frame.current_offset  += f.offset_delta;
+    frame.stack.clear();
+    push_to_stack(class_file, frame, &f.stack);
+}
+
+fn handle_same_frame_extended(mut frame: &mut Frame, f: &SameFrameExtended) -> (){
+    frame.current_offset += f.offset_delta;
+    frame.stack.clear();
 }
 
 fn handle_chop_frame(mut frame: &mut Frame, f: &ChopFrame) -> () {

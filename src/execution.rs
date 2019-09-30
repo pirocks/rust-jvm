@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use classfile::{Classfile, code_attribute, MethodInfo};
-use interpreter::{do_instruction, InterpreterState};
+use interpreter::{InterpreterState};
 use verification::prolog_info_defs::extract_string_from_utf8;
 
 pub enum JavaValue {
@@ -68,7 +68,8 @@ pub fn run_static_method_no_args(classfile: &Classfile, method: &MethodInfo) {
 //        current_class: Box::new(classfile)
     };
 
-    while !interpreter_state.terminate {
-        do_instruction(code.code_raw.as_slice(), &mut interpreter_state, panic!());
-    }
+    unimplemented!()
+//    while !interpreter_state.terminate {
+//        do_instruction(code.code_raw.as_slice(), &mut interpreter_state, panic!());
+//    }
 }

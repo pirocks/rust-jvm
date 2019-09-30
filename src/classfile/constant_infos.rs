@@ -25,6 +25,7 @@ pub struct Integer{
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Float{
+    pub bytes: u32
     //unimplemented!()
 }
 
@@ -297,7 +298,10 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
             let bytes = read32(p);
             ConstantKind::Integer(Integer {bytes})
         },
-        FLOAT_CONST_NUM => { unimplemented!() },
+        FLOAT_CONST_NUM => {
+            let bytes = read32(p);
+            ConstantKind::Float(Float {bytes})
+        },
         LONG_CONST_NUM => {
             let high_bytes = read32(p);
             let low_bytes = read32(p);

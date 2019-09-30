@@ -20,14 +20,14 @@ pub fn can_verify_main() {
 }
 
 #[test]
-#[timeout(10000)]
+//#[timeout(10000)]
 pub fn can_verify_object() {
     let main_class_name = "java.lang.Object".to_string();
     load_class_with_name(&main_class_name);
 }
 
 #[test]
-//#[timeout(30000)]
+#[timeout(30000)]
 pub fn can_verify_map() {
     let main_class_name = "java.util.Map".to_string();
     load_class_with_name(&main_class_name);
