@@ -179,6 +179,7 @@ pub fn load_n_64(state: &mut InterpreterState, n: u64) {
 }
 
 
+/*
 pub(crate) fn do_bipush(state: &mut InterpreterState) -> () {
     let byte = pop_int(state) as i8;
     push_int(byte as i32, state);
@@ -214,6 +215,7 @@ pub(crate) fn do_arraylength(state: &mut InterpreterState) -> () {
     };
     push_long(length,state)
 }
+*/
 
 
 #[cfg(test)]

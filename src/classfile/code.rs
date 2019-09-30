@@ -58,7 +58,7 @@ fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
 #[derive(Eq, PartialEq)]
 pub struct MultiNewArray {}
 
-fn read_multi_new_array(c: &mut CodeParserContext) -> Option<MultiNewArray> {
+fn read_multi_new_array(_c: &mut CodeParserContext) -> Option<MultiNewArray> {
     unimplemented!();
 }
 
@@ -109,7 +109,7 @@ fn read_table_switch(c: &mut CodeParserContext) -> Option<TableSwitch> {
 #[derive(Eq, PartialEq)]
 pub struct Wide {}
 
-fn read_wide(c: &mut CodeParserContext) -> Option<Wide> {
+fn read_wide(_c: &mut CodeParserContext) -> Option<Wide> {
     unimplemented!();
 }
 

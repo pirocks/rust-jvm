@@ -12,7 +12,7 @@ pub struct InterpreterState {
     pub terminate: bool,
 }
 
-pub fn do_instruction(code: &[u8], state: &mut InterpreterState, constant_pool: &Vec<ConstantInfo>) {
+pub fn do_instruction(code: &[u8], state: &mut InterpreterState, _constant_pool: &Vec<ConstantInfo>) {
 //    use interpreter::interpreter_util::*;
 //    use interpreter::branch_instructions::*;
 //    use interpreter::double_instructions::*;

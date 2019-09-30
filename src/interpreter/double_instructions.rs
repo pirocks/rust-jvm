@@ -1,5 +1,5 @@
 use interpreter::InterpreterState;
-use interpreter::interpreter_util::{push_float, load_n_64, push_double, store_n_64, pop_double, push_long};
+use interpreter::interpreter_util::{load_n_64, push_double, store_n_64, pop_double, push_long};
 
 pub fn do_dsub(state: &mut InterpreterState) -> () {
     let value2 = pop_double(state);
@@ -59,8 +59,10 @@ pub fn do_d2i(state: &mut InterpreterState) -> () {
     state.operand_stack.push(double as u32)
 }
 
+/*
 pub(crate) fn do_d2f(state: &mut InterpreterState) -> () {
     let double = pop_double(state);
     let converted_to_float = double as f32;
     push_float(converted_to_float, state);
 }
+*/

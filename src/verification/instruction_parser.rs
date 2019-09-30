@@ -371,7 +371,7 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Cla
         InstructionInfo::lmul => { "lmul".to_string() }
         InstructionInfo::lneg => { "lneg".to_string() }
         InstructionInfo::lookupswitch(l) => {
-            let (keys, targets): (Vec<i32>, Vec<i32>) = l.pairs.iter().cloned().unzip();
+            let (_, targets): (Vec<i32>, Vec<i32>) = l.pairs.iter().cloned().unzip();
             let mut res = "lookupswitch([".to_string();
             for target in targets {
                 res.push_str(format!("{},", target).as_str());
@@ -405,7 +405,7 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Cla
         InstructionInfo::lxor => { "lxor".to_string() }
         InstructionInfo::monitorenter => { "monitorenter".to_string() }
         InstructionInfo::monitorexit => { "monitorexit".to_string() }
-        InstructionInfo::multianewarray(m) => {
+        InstructionInfo::multianewarray(_m) => {
             unimplemented!();
 //            let indexbyte1 = code[1] as u16;
 //            let indexbyte2 = code[2] as u16;
@@ -436,7 +436,7 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Cla
             format!("sipush({})", value)
         }
         InstructionInfo::swap => { "swap".to_string() }
-        InstructionInfo::wide(wide) => {
+        InstructionInfo::wide(_wide) => {
             unimplemented!();
 //            ("wide(WidenedInstruction)".to_string(), unimplemented!())
         }

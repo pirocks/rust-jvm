@@ -209,19 +209,13 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     let mut previous_frame_is_first_frame = true;
     for (i, entry) in stack_map.entries.iter().enumerate() {
         match entry {
-            StackMapFrame::SameFrame(s) => {
-                handle_same_frame(&mut frame, s);
-            },
+            StackMapFrame::SameFrame(s) => handle_same_frame(&mut frame, s),
             StackMapFrame::AppendFrame(append_frame) => handle_append_frame(class_file, &mut frame, append_frame),
             StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(class_file, &mut frame, s),
             StackMapFrame::FullFrame(f) => handle_full_frame(class_file, &mut frame, f),
             StackMapFrame::ChopFrame(f) => handle_chop_frame(&mut frame, f),
             StackMapFrame::SameFrameExtended(f) => handle_same_frame_extended(&mut frame, f),
-            StackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(class_file,&mut frame, f),
-            _ => {
-                dbg!(entry);
-                unimplemented!();
-            }
+            StackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(class_file,&mut frame, f)
         }
         if previous_frame_is_first_frame {
             previous_frame_is_first_frame = false;

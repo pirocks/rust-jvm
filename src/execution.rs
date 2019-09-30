@@ -25,7 +25,7 @@ pub struct LoadedClassFile {
     pub static_fields: HashMap<String, JavaValue>,
 }
 
-pub fn init_locals_static_no_args(class_file:&Classfile, method: &MethodInfo) -> Vec<u32>{
+pub fn init_locals_static_no_args(_class_file:&Classfile, _method: &MethodInfo) -> Vec<u32>{
 //    let code = code_attribute(method).expect("Error finding code in method");
 //    let descriptor_str = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
 //    let parsed_descriptor = parse_method_descriptor(descriptor_str.as_str()).expect("Error parsing method descriptor");
@@ -56,10 +56,10 @@ pub fn init_locals_static_no_args(class_file:&Classfile, method: &MethodInfo) ->
 
 pub fn run_static_method_no_args(classfile: &Classfile, method: &MethodInfo) {
     dbg!("{}",extract_string_from_utf8(&classfile.constant_pool[method.name_index as usize]));
-    let code = code_attribute(method).expect("Error finding code in method");
+    let _code = code_attribute(method).expect("Error finding code in method");
     let local_vars = init_locals_static_no_args(classfile,method);
 
-    let mut interpreter_state = InterpreterState {
+    let _interpreter_state = InterpreterState {
         local_vars,
         operand_stack: vec![],
         pc: 0,
