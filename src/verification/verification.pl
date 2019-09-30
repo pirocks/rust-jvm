@@ -1540,11 +1540,9 @@ instructionIsTypeSafe(putfield(CP), Environment, _Offset, StackFrame,NextStackFr
     CP = field(FieldClassName, FieldName, FieldDescriptor),
     parseFieldDescriptor(FieldDescriptor, FieldType),
     canPop(StackFrame, [FieldType], PoppedFrame),
-    passesProtectedCheck(Environment, FieldClassName, FieldName,
-    FieldDescriptor, PoppedFrame),
+    passesProtectedCheck(Environment, FieldClassName, FieldName,FieldDescriptor, PoppedFrame),
     currentClassLoader(Environment, CurrentLoader),
-    canPop(StackFrame, [FieldType, class(FieldClassName, CurrentLoader)],
-    NextStackFrame),
+    canPop(StackFrame, [FieldType, class(FieldClassName, CurrentLoader)],NextStackFrame),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
 instructionIsTypeSafe(putfield(CP), Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-

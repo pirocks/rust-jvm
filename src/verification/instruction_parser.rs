@@ -425,8 +425,8 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Cla
         InstructionInfo::putfield(cp_index) => {
             format!("putfield({})", cp_elem_to_string(prolog_context, class_file, *cp_index, false))
         }
-        InstructionInfo::putstatic(index) => {
-            format!("putstatic({})", index)
+        InstructionInfo::putstatic(cp_index) => {
+            format!("putstatic({})", cp_elem_to_string(prolog_context, class_file, *cp_index, false))
         }
         InstructionInfo::ret(index) => { format!("ret({})", index) }
         InstructionInfo::return_ => { "return".to_string() }

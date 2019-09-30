@@ -280,6 +280,7 @@ fn handle_append_frame(class_file: &Classfile, frame: &mut Frame, append_frame: 
 
 fn handle_same_frame(frame: &mut Frame, s: &SameFrame) {
     frame.current_offset += s.offset_delta;
+    frame.stack.clear();
 }
 
 fn write_stack_map_frame(class_file: &Classfile, w: &mut dyn Write, frame: &Frame) -> Result<(),io::Error>{
