@@ -93,7 +93,6 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassE
 //        if classes.loading_in_progress.contains(&class_name_with_package) {
 //            unimplemented!("Throw class circularity error.")//todo
 //        }
-//        dbg!(&classes.indexed_classpath);
         let path_of_class_to_load = classes.indexed_classpath.get(&class_name_with_package).or_else(|| {
             trace!("Unable to find: {}", &class_name_with_package);
             dbg!(&class_name_with_package);

@@ -71,7 +71,7 @@ fn main() {
 
 //    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name,true),true);
 
-    load_class(&mut initial_jvm_state,class_entry_from_string(&"java.lang.IllegalArgumentException".to_string(),true),true);
+    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name.to_string(),true),true);
 
 }
 

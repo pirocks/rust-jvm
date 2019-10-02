@@ -536,16 +536,13 @@ passesProtectedCheck(Environment, MemberClassName, MemberName,MemberDescriptor, 
     thisClass(Environment, class(CurrentClassName, CurrentLoader)),
     superclassChain(CurrentClassName, CurrentLoader, Chain),
     member(class(MemberClassName, _), Chain),
-    classesInOtherPkgWithProtectedMember(class(CurrentClassName, CurrentLoader),
-    MemberName, MemberDescriptor, MemberClassName, Chain, []).
+    classesInOtherPkgWithProtectedMember(class(CurrentClassName, CurrentLoader),MemberName, MemberDescriptor, MemberClassName, Chain, []).
 
 passesProtectedCheck(Environment, MemberClassName, MemberName,MemberDescriptor,frame(_Locals, [Target | Rest], _Flags)) :-
     thisClass(Environment, class(CurrentClassName, CurrentLoader)),
     superclassChain(CurrentClassName, CurrentLoader, Chain),
     member(class(MemberClassName, _), Chain),
-    classesInOtherPkgWithProtectedMember(
-    class(CurrentClassName, CurrentLoader),
-    MemberName, MemberDescriptor, MemberClassName, Chain, List),
+    classesInOtherPkgWithProtectedMember(class(CurrentClassName, CurrentLoader),MemberName, MemberDescriptor, MemberClassName, Chain, List),
     List \= [],
     loadedClass(MemberClassName, CurrentLoader, ReferencedClass),
     isNotProtected(ReferencedClass, MemberName, MemberDescriptor).
