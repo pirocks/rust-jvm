@@ -53,7 +53,7 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
             current_class_package.push_str("/");
         }
         trace!("Verifying '{}{}'",current_class_package,current_name);
-        write!(&mut prolog_input, "classIsTypeSafe(class('{}{}', bl)).\n\n", current_class_package, current_name).unwrap();
+        write!(&mut prolog_input, "class_is_type_safe(class('{}{}', bl)).\n\n", current_class_package, current_name).unwrap();
         prolog_input.flush().unwrap();
         write!(&mut prolog_input,"\n\n").unwrap();
         prolog_input.flush().unwrap();
@@ -161,3 +161,4 @@ pub mod prolog_info_defs;
 pub mod code_verification;
 pub mod types;
 pub mod instruction_parser;
+pub mod verifier;

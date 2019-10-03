@@ -13,6 +13,26 @@ use verification::prolog_info_defs::PrologGenContext;
 use verification::prolog_info_defs::class_name;
 use classfile::attribute_infos::SameFrameExtended;
 use classfile::attribute_infos::SameLocals1StackItemFrameExtended;
+use classfile::code::Instruction;
+
+pub enum Name{
+    String(String)
+}
+
+pub(crate) struct ParseCodeAttribute{
+    pub(crate) class_name: Name,
+    pub(crate) frame_size : u16,
+    pub(crate) max_stack: u16,
+    pub(crate) code : Vec<Instruction>,
+    pub(crate) exception_table : Vec<ExceptionHandler>,//todo
+    pub(crate) stackmap_frames: Vec<StackMap>//todo
+}
+
+pub(crate) struct StackMap{
+    pub(crate) offset: usize
+    //todo
+}
+
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
@@ -46,6 +66,12 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
     Ok(())
 }
 
+
+pub(crate) struct ExceptionHandler{
+    start_pc:u32,
+    end_pc:u32,
+    handler_pc:u32
+}
 
 fn write_exception_handler(class_file: &Classfile, exception_handler: &ExceptionTableElem, w: &mut dyn Write) -> Result<(), io::Error> {
     if exception_handler.catch_type == 0{
