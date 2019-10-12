@@ -263,8 +263,7 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
             let class_name = ClassName::Str(extract_string_from_utf8(&p.constant_pool[index as usize]));
             UnifiedType::Class(ClassWithLoader {class_name, loader: p.loader.clone() } )
 //            UnifiedType::ReferenceType(ClassName::Ref(NameReference { class_file:Rc::downgrade(classfile), index }))
-        }
-
+        },
         _ => { unimplemented!("{}", type_) }
     }
 }
