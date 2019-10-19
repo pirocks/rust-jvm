@@ -38,19 +38,19 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
                     class_name(class)
                 }).collect();
                 dbg!(classes);
-            },
-            PrologOutput::False => { panic!() },
-            NeedsAnotherClass(_) => { panic!() },
+            }
+            PrologOutput::False => { panic!() }
+            NeedsAnotherClass(_) => { panic!() }
         }
         let current_name = &current_class_to_verify.name;
         let mut current_class_package = current_class_to_verify.packages.join("/");
         if current_class_package.len() != 0 {
             current_class_package.push_str("/");
         }
-        trace!("Verifying '{}{}'",current_class_package,current_name);
+        trace!("Verifying '{}{}'", current_class_package, current_name);
         write!(&mut prolog_input, "class_is_type_safe(class('{}{}', bl)).\n\n", current_class_package, current_name).unwrap();
         prolog_input.flush().unwrap();
-        write!(&mut prolog_input,"\n\n").unwrap();
+        write!(&mut prolog_input, "\n\n").unwrap();
         prolog_input.flush().unwrap();
 
 
@@ -59,16 +59,19 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
         prolog.wait().expect("Unable to await prolog death");
         match loading_attempt_res {
             True => {
-                trace!("Successfully verified {}",current_class_to_verify);
-            },
-            PrologOutput::False => { sleep(Duration::from_secs(20000));panic!() },
+                trace!("Successfully verified {}", current_class_to_verify);
+            }
+            PrologOutput::False => {
+                sleep(Duration::from_secs(20000));
+                panic!()
+            }
             NeedsAnotherClass(s) => {
-                trace!("Need to load {} first",s);
+                trace!("Need to load {} first", s);
                 return Some(s);
-            },
+            }
         }
     }
-    return None//verification was successful
+    return None;//verification was successful
 }
 
 fn init_prolog<'l>(state: &'l JVMClassesState<'l>) -> (Child, BufWriter<ChildStdin>, Lines<BufReader<ChildStdout>>, PrologGenContext<'l>) {
@@ -87,9 +90,9 @@ fn init_prolog<'l>(state: &'l JVMClassesState<'l>) -> (Child, BufWriter<ChildStd
     match initial_defs_written {
         True => {
             trace!("Initial prolog defs accepted by prolog.");
-        },
-        PrologOutput::False => { panic!() },
-        NeedsAnotherClass(_) => { panic!() },
+        }
+        PrologOutput::False => { panic!() }
+        NeedsAnotherClass(_) => { panic!() }
     }
     (prolog, prolog_input, output_lines, context)
 }
@@ -106,8 +109,8 @@ fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> P
     loop {
         let cur = lines.next();
         let r = match cur {
-            None => { panic!()/* continue*/ },
-            Some(res) => {res},
+            None => { panic!()/* continue*/ }
+            Some(res) => { res }
         };
         let s = r.unwrap();
         if s.contains("true") {
@@ -140,15 +143,16 @@ fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
     (context)
 }
 
-fn add_to_verify(state: &JVMClassesState, to_verify: &mut Vec<Classfile>, class_entry: &ClassEntry) -> () {
+fn add_to_verify(state: &JVMClassesState, to_verify: &mut Vec<&Classfile>, class_entry: &ClassEntry) -> () {
     let path = state.indexed_classpath.get(class_entry).unwrap();
-    let mut p = ParsingContext { f: File::open(path).expect("This is a bug") , classfile:None};
-    let class_file = parse_class_file(&mut p);
+    let mut p = ParsingContext { f: File::open(path).expect("This is a bug"), classfile: None };
+    parse_class_file(&mut p);
+    let class_file = p.classfile.unwrap();
     to_verify.push(class_file)
 }
 
-pub fn prolog_initial_defs(w :&mut dyn Write) -> Result<(),io::Error>{
-    write!(w,"['src/verification/verification.pl'].\n")?;
+pub fn prolog_initial_defs(w: &mut dyn Write) -> Result<(), io::Error> {
+    write!(w, "['src/verification/verification.pl'].\n")?;
     w.flush()?;
     Ok(())
 }

@@ -101,8 +101,8 @@ pub fn load_class<'l>(classes: &'l mut JVMClassesState<'l>, class_name_with_pack
 
         let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
         let mut p = ParsingContext { f: candidate_file ,classfile:None};
-
-        let parsed = parse_class_file(p.borrow_mut());
+        parse_class_file(p.borrow_mut());
+        let parsed = p.classfile.unwrap();
         if class_name_with_package != class_entry(&parsed) {
             dbg!(class_name_with_package);
             dbg!(class_entry(&parsed));

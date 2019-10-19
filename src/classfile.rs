@@ -22,7 +22,7 @@ pub struct FieldInfo<'l> {
     pub access_flags: u16,
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub attributes: Vec<AttributeInfo<'l>>
+    pub attributes: Vec<AttributeInfo<'l>>,
 }
 
 #[derive(Debug)]
@@ -31,22 +31,22 @@ pub struct MethodInfo<'l> {
     pub access_flags: u16,
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub attributes: Vec<AttributeInfo<'l>>
+    pub attributes: Vec<AttributeInfo<'l>>,
 }
 
 pub fn stack_map_table_attribute<'l>(code: &'l Code) -> Option<&'l StackMapTable<'l>> {
-    for attr in code.attributes.iter(){
+    for attr in code.attributes.iter() {
         match &attr.attribute_type {
             AttributeType::StackMapTable(table) => {
                 return Some(table);//todo
-            },
+            }
             _ => {}
         }
     }
     None
 }
 
-pub fn code_attribute<'l>(method_info: &'l MethodInfo)-> Option<&'l Code<'l>>{
+pub fn code_attribute<'l>(method_info: &'l MethodInfo) -> Option<&'l Code<'l>> {
     /*
     If the method is either native or abstract , and is not a class or interface
 initialization method, then its method_info structure must not have a Code attribute
@@ -54,14 +54,14 @@ in its attributes table.
     */
 
     if (method_info.access_flags & ACC_ABSTRACT) > 0 || (method_info.access_flags & ACC_NATIVE) > 0 {
-        return None
+        return None;
     }
 
-    for attr in method_info.attributes.iter(){
+    for attr in method_info.attributes.iter() {
         match &attr.attribute_type {
             AttributeType::Code(code) => {
                 return Some(code);
-            },
+            }
             _ => {}
         }
     }
@@ -112,23 +112,23 @@ pub struct Classfile<'l> {
     pub attributes: Vec<AttributeInfo<'l>>,
 }
 
-impl std::cmp::PartialEq for Classfile<'_>{
+impl std::cmp::PartialEq for Classfile<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.magic == other.magic &&
-        self.minor_version  == other.minor_version &&
-        self.major_version == other.major_version &&
-        self.constant_pool == other.constant_pool &&
-        self.access_flags == other.access_flags &&
-        self.this_class == other.this_class &&
-        self.super_class == other.super_class &&
-        self.interfaces == other.interfaces &&
-        self.fields == other.fields &&
-        self.methods == other.methods &&
-        self.attributes == other.attributes
+            self.minor_version == other.minor_version &&
+            self.major_version == other.major_version &&
+            self.constant_pool == other.constant_pool &&
+            self.access_flags == other.access_flags &&
+            self.this_class == other.this_class &&
+            self.super_class == other.super_class &&
+            self.interfaces == other.interfaces &&
+            self.fields == other.fields &&
+            self.methods == other.methods &&
+            self.attributes == other.attributes
     }
 }
 
-impl std::hash::Hash for Classfile<'_>{
+impl std::hash::Hash for Classfile<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u32(self.magic);
         state.write_u16(self.minor_version);
@@ -151,7 +151,7 @@ pub mod parsing_util {
 
     pub struct ParsingContext<'l> {
         pub f: File,
-        pub classfile : Option<&'l Classfile<'l>>
+        pub classfile: Option<&'l Classfile<'l>>,
     }
 
     const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";
@@ -189,41 +189,41 @@ pub fn parse_interfaces(p: &mut ParsingContext, interfaces_count: u16) -> Vec<u1
     return res;
 }
 
-pub fn parse_field<'l>(p: &'l mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> FieldInfo<'l> {
+pub fn parse_field<'l>(p: &mut ParsingContext<'l>, constant_pool: &Vec<ConstantInfo>) -> FieldInfo<'l> {
     let access_flags = read16(p);
     let name_index = read16(p);
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count,constant_pool);
-    return FieldInfo { access_flags, name_index, descriptor_index, attributes }
+    let attributes = parse_attributes(p, attributes_count, constant_pool);
+    return FieldInfo { access_flags, name_index, descriptor_index, attributes };
 }
 
-pub fn parse_field_infos<'l>(p: &'l mut ParsingContext, fields_count: u16, constant_pool: &Vec<ConstantInfo>) -> Vec<FieldInfo<'l>> {
+pub fn parse_field_infos<'l>(p: &mut ParsingContext<'l>, fields_count: u16, constant_pool: &'l Vec<ConstantInfo>) -> Vec<FieldInfo<'l>> {
     let mut res = Vec::with_capacity(fields_count as usize);
     for _ in 0..fields_count {
-        res.push(parse_field(p,constant_pool))
+        res.push(parse_field(p, constant_pool))
     }
     return res;
 }
 
-pub fn parse_method<'l>(p: &'l mut ParsingContext,  constant_pool: &Vec<ConstantInfo>) -> MethodInfo<'l>{
+pub fn parse_method<'l>(p: &mut ParsingContext<'l>, constant_pool: &Vec<ConstantInfo>) -> MethodInfo<'l> {
     let access_flags = read16(p);
     let name_index = read16(p);
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p,attributes_count, constant_pool);
+    let attributes = parse_attributes(p, attributes_count, constant_pool);
     MethodInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
-pub fn parse_methods<'l>(p: &'l mut ParsingContext, methods_count: u16,  constant_pool: &Vec<ConstantInfo>) -> Vec<MethodInfo<'l>> {
+pub fn parse_methods<'l>(p: &mut ParsingContext<'l>, methods_count: u16, constant_pool: &Vec<ConstantInfo>) -> Vec<MethodInfo<'l>> {
     let mut res = Vec::with_capacity(methods_count as usize);
     for _ in 0..methods_count {
-        res.push(parse_method(p,constant_pool))
+        res.push(parse_method(p, constant_pool))
     }
     return res;
 }
 
-pub fn parse_class_file<'l>(p: &'l mut ParsingContext<'l>) -> Classfile<'l> {
+pub fn parse_class_file<'l>(p: &mut ParsingContext<'l>) -> () {
     let magic: u32 = read32(p);
     assert_eq!(magic, EXPECTED_CLASSFILE_MAGIC);
     let minor_version: u16 = read16(p);
@@ -242,19 +242,19 @@ pub fn parse_class_file<'l>(p: &'l mut ParsingContext<'l>) -> Classfile<'l> {
         interfaces: vec![],
         fields: vec![],
         methods: vec![],
-        attributes: vec![]
+        attributes: vec![],
     };
     p.classfile = Some(&res);
     res.access_flags = read16(p);
     res.this_class = read16(p);
     res.super_class = read16(p);
     let interfaces_count = read16(p);
-    res.interfaces= parse_interfaces(p, interfaces_count);
+    res.interfaces = parse_interfaces(p, interfaces_count);
     let fields_count = read16(p);
-    res.fields = parse_field_infos(p, fields_count,&constant_pool);
+    res.fields = parse_field_infos(p, fields_count, &constant_pool);
     let methods_count = read16(p);
-    res.methods = parse_methods(p, methods_count,&constant_pool);
+    res.methods = parse_methods(p, methods_count, &constant_pool);
     let attributes_count = read16(p);
-    res.attributes = parse_attributes(p, attributes_count,&constant_pool);
-    return res;
+    res.attributes = parse_attributes(p, attributes_count, &constant_pool);
+//    return res;
 }

@@ -335,7 +335,7 @@ pub enum AttributeType<'l> {
     RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
 }
 
-pub fn parse_attribute<'l>(p: &'l mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> AttributeInfo<'l> {
+pub fn parse_attribute<'l>(p: &mut ParsingContext<'l>, constant_pool: &Vec<ConstantInfo>) -> AttributeInfo<'l> {
     let attribute_name_index = read16(p);
     let attribute_length = read32(p);
 //    uint64_t cur = ;
@@ -584,7 +584,7 @@ fn parse_runtime_visible_annotations<'l>(p: &mut ParsingContext) -> AttributeTyp
 }
 
 
-fn parse_stack_map_table<'l>(p: &'l mut ParsingContext) -> AttributeType<'l> {
+fn parse_stack_map_table<'l>(p: &mut ParsingContext<'l>) -> AttributeType<'l> {
     let number_of_entries = read16(p);
     let mut entries = Vec::with_capacity(number_of_entries as usize);
     for _ in 0..number_of_entries {
@@ -593,7 +593,7 @@ fn parse_stack_map_table<'l>(p: &'l mut ParsingContext) -> AttributeType<'l> {
     return AttributeType::StackMapTable(StackMapTable { entries });
 }
 
-fn parse_stack_map_table_entry<'l>(p: &'l mut ParsingContext) -> StackMapFrame<'l> {
+fn parse_stack_map_table_entry<'l>(p: &mut ParsingContext<'l>) -> StackMapFrame<'l> {
     let type_of_frame = read8(p);
     //todo magic constants
 //    match type_of_frame {
@@ -650,7 +650,7 @@ fn parse_stack_map_table_entry<'l>(p: &'l mut ParsingContext) -> StackMapFrame<'
     }
 }
 
-fn parse_verification_type_info<'l>(p: &'l mut ParsingContext) -> UnifiedType<'l> {
+fn parse_verification_type_info<'l>(p: &mut ParsingContext<'l>) -> UnifiedType<'l> {
     let type_ = read8(p);
     //todo magic constants
     match type_ {
@@ -737,7 +737,7 @@ fn parse_exception_table_entry(p: &mut ParsingContext) -> ExceptionTableElem {
     return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type };
 }
 
-fn parse_code<'l>(p: &'l mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> AttributeType<'l> {
+fn parse_code<'l>(p: &mut ParsingContext<'l>, constant_pool: &Vec<ConstantInfo>) -> AttributeType<'l> {
     let max_stack = read16(p);
     let max_locals = read16(p);
     let code_length = read32(p);
@@ -766,7 +766,7 @@ fn parse_code<'l>(p: &'l mut ParsingContext, constant_pool: &Vec<ConstantInfo>) 
 }
 
 
-pub fn parse_attributes<'l>(p: &'l mut ParsingContext, num_attributes: u16, constant_pool: &Vec<ConstantInfo>) -> Vec<AttributeInfo<'l>> {
+pub fn parse_attributes<'l>(p: &mut ParsingContext<'l>, num_attributes: u16, constant_pool: &Vec<ConstantInfo>) -> Vec<AttributeInfo<'l>> {
     let mut res = Vec::with_capacity(num_attributes as usize);
     for _ in 0..num_attributes {
         res.push(parse_attribute(p, constant_pool));

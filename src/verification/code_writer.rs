@@ -22,6 +22,7 @@ use verification::unified_type::ArrayType;
 use verification::verifier::InternalFrame;
 use verification::unified_type::get_referred_name;
 use classfile::attribute_infos::UninitializedVariableInfo;
+use verification::verifier::Handler;
 
 pub enum Name{
     String(String)
@@ -32,7 +33,7 @@ pub struct ParseCodeAttribute<'l>{
     pub frame_size : u16,
     pub max_stack: u16,
     pub code : Vec<Instruction>,
-    pub exception_table : Vec<ExceptionHandler>,//todo
+    pub exception_table : Vec<Handler>,//todo
     pub stackmap_frames: Vec<StackMap<'l>>//todo
 }
 
@@ -78,7 +79,8 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
 pub struct ExceptionHandler{
     start_pc:u32,
     end_pc:u32,
-    handler_pc:u32
+    handler_pc:u32,
+    catch_type : u32
 }
 
 fn write_exception_handler(class_file: &Classfile, exception_handler: &ExceptionTableElem, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -143,6 +145,7 @@ fn locals_push_convert_type<'l>(res: &mut Vec<UnifiedType<'l>>, type_: UnifiedTy
             res.push(UnifiedType::ArrayReferenceType(ArrayType { sub_type: &UnifiedType::ArrayReferenceType(art) }));
         }
         UnifiedType::VoidType => { panic!() }
+        _ => {panic!("Case wasn't coverred with non-unified types")}
     }
 }
 
@@ -189,6 +192,7 @@ fn verification_type_as_string(classfile: &Classfile, verification_type: &Unifie
             write_type_prolog(&a.sub_type, w)?;
 //            write!(w,")")?;
         }
+        _ => {panic!("Case wasn't coverred with non-unified types")}
     }
     Ok(())
 }
@@ -372,6 +376,7 @@ fn copy_recurse<'l>(classfile:&Classfile,to_copy : &UnifiedType<'l>)-> UnifiedTy
         UnifiedType::DoubleType => {UnifiedType::DoubleType}
         UnifiedType::NullType => {UnifiedType::NullType}
         UnifiedType::UninitializedThis => {UnifiedType::UninitializedThis}
+        _ => {panic!("Case wasn't coverred with non-unified types")}
     }
 }
 
@@ -394,5 +399,6 @@ fn copy_type_recurse<'l>(type_: &'l UnifiedType<'l>) -> UnifiedType<'l> {
         UnifiedType::VoidType => {
             UnifiedType::VoidType
         },
+        _ => {panic!("Case wasn't coverred with non-unified types")}
     }
 }

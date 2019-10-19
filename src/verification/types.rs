@@ -170,6 +170,7 @@ pub fn write_type_prolog(type_: &UnifiedType,  w: &mut dyn Write) -> Result<(), 
         UnifiedType::VoidType => {
             write!(w,"void")?;
         },
+        _ => {panic!("Case wasn't coverred with non-unified types")}
     }
     Ok(())
 }
