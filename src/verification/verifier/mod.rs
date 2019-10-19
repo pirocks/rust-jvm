@@ -2,9 +2,9 @@ use classfile::{ACC_NATIVE, Classfile};
 use classfile::ACC_ABSTRACT;
 use classfile::attribute_infos::VerificationTypeInfo;
 use classfile::code::Instruction;
-use verification::code_verification::ParseCodeAttribute;
-use verification::code_verification::StackMap;
-use verification::prolog_info_defs::{class_name, get_access_flags, get_super_class_name};
+use verification::code_writer::ParseCodeAttribute;
+use verification::code_writer::StackMap;
+use verification::prolog_info_writer::{class_name, get_access_flags, get_super_class_name};
 use classfile::ACC_INTERFACE;
 use classfile::ACC_FINAL;
 use classfile::code_attribute;
@@ -68,9 +68,9 @@ pub fn super_class_chain<'l,'k>(chain_start: &'k PrologClass) -> Vec<&'l PrologC
 }
 
 pub struct Frame<'l> {
-    locals: &'l Vec<UnifiedType>,
-    stack_map: &'l Vec<UnifiedType>,
-    flag_this_uninit: bool,
+    pub locals: &'l Vec<UnifiedType>,
+    pub stack_map: &'l Vec<UnifiedType>,
+    pub flag_this_uninit: bool,
 }
 
 /**

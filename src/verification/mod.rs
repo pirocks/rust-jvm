@@ -13,15 +13,11 @@ use tempfile::NamedTempFile;
 use class_loading::{ClassEntry, JVMClassesState};
 use classfile::{Classfile, parse_class_file};
 use classfile::parsing_util::ParsingContext;
-use verification::prolog_info_defs::{class_name, ExtraDescriptors, gen_prolog, PrologGenContext};
+use verification::prolog_info_writer::{class_name, ExtraDescriptors, gen_prolog, PrologGenContext};
 use verification::PrologOutput::{NeedsAnotherClass, True};
 
 use self::prolog_initial_defs::prolog_initial_defs;
-
-#[derive(Debug)]
-pub struct NeedsToLoadAnotherClass {
-    pub another_class: Box<String>
-}
+use std::io;
 
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
@@ -110,7 +106,6 @@ fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> P
     let need_to_load_regex = Regex::new("Need to load:('([A-Za-z/$_]+)'|([A-Za-z/$_]+))").expect("Error parsing regex.");
     loop {
         let cur = lines.next();
-//        dbg!(&cur);
         let r = match cur {
             None => { panic!()/* continue*/ },
             Some(res) => {res},
@@ -125,9 +120,7 @@ fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> P
             return PrologOutput::False;
         } else if need_to_load_regex.is_match(s.as_str()) {//todo pattern needs string const
             let captures = need_to_load_regex.captures(s.as_str()).unwrap();
-//            dbg!(&captures);
             let class_name = captures.get(3).unwrap().as_str().to_string();
-//            dbg!("got class name");
             return PrologOutput::NeedsAnotherClass(class_name);
         }
     }
@@ -149,16 +142,21 @@ fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
 }
 
 fn add_to_verify(state: &JVMClassesState, to_verify: &mut Vec<Classfile>, class_entry: &ClassEntry) -> () {
-//    dbg!(class_entry);
     let path = state.indexed_classpath.get(class_entry).unwrap();
     let mut p = ParsingContext { f: File::open(path).expect("This is a bug") };
     let class_file = parse_class_file(&mut p);
     to_verify.push(class_file)
 }
 
-pub mod prolog_initial_defs;
-pub mod prolog_info_defs;
-pub mod code_verification;
+pub fn prolog_initial_defs(w :&mut dyn Write) -> Result<(),io::Error>{
+    write!(w,"['src/verification/verification.pl'].\n")?;
+    w.flush()?;
+    Ok(())
+}
+
+
+pub mod prolog_info_writer;
+pub mod code_writer;
 pub mod types;
-pub mod instruction_parser;
+pub mod instruction_outputer;
 pub mod verifier;

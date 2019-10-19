@@ -3,9 +3,9 @@ use std::borrow::Borrow;
 use classfile::AttributeInfo;
 use classfile::constant_infos::{ConstantInfo, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
-use verification::types::Type;
 use classfile::code::parse_code_raw;
 use classfile::code::Instruction;
+use verification::verifier::UnifiedType;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -191,7 +191,7 @@ pub struct ObjectVariableInfo {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ArrayVariableInfo {
-    pub array_type : Type
+    pub array_type : UnifiedType
 }
 
 //

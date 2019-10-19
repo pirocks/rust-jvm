@@ -1,104 +1,40 @@
 use std::io::Write;
 use std::io;
-use verification::prolog_info_defs::BOOTSTRAP_LOADER_NAME;
+use verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
+use verification::verifier::UnifiedType;
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Byte {}
+pub struct MethodDescriptor{ pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Char {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Double {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Float {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Int {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Long {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Reference {
-    pub class_name: String
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Short {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Boolean {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct ArrayReference {
-    pub sub_type: Box<Type>
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Void {}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub enum Type {
-    ByteType(Byte),
-    CharType(Char),
-    DoubleType(Double),
-    FloatType(Float),
-    IntType(Int),
-    LongType(Long),
-    ReferenceType(Reference),
-    ShortType(Short),
-    BooleanType(Boolean),
-    ArrayReferenceType(ArrayReference),
-    VoidType(Void),
-}
-
-#[derive(Debug)]
-pub struct MethodDescriptor{ pub parameter_types: Vec<Type>, pub return_type: Type }
-
-pub struct FieldDescriptor{ pub field_type: Type }
+pub struct FieldDescriptor{ pub field_type: UnifiedType }
 
 pub fn eat_one(str_: &str) -> &str {
     &str_[1..str_.len()]
 }
 
-pub fn parse_base_type(str_: &str) -> Option<(&str, Type)> {
+pub fn parse_base_type(str_: &str) -> Option<(&str, UnifiedType)> {
     Some((eat_one(str_), match str_.chars().nth(0)? {
-        'B' => Type::ByteType(Byte {}),
-        'C' => Type::CharType(Char {}),
-        'D' => Type::DoubleType(Double {}),
-        'F' => Type::FloatType(Float {}),
-        'I' => Type::IntType(Int {}),
-        'J' => Type::LongType(Long {}),
-        'S' => Type::ShortType(Short {}),
-        'Z' => Type::BooleanType(Boolean {}),
+        'B' => UnifiedType::ByteType(),
+        'C' => UnifiedType::CharType(),
+        'D' => UnifiedType::DoubleType(),
+        'F' => UnifiedType::FloatType(),
+        'I' => UnifiedType::IntType(),
+        'J' => UnifiedType::LongType(),
+        'S' => UnifiedType::ShortType(),
+        'Z' => UnifiedType::BooleanType(),
         _ => return None
     }))
 }
 
-pub fn parse_object_type(str_: &str) -> Option<(&str, Type)> {
+pub fn parse_object_type(str_: &str) -> Option<(&str, UnifiedType)> {
     match str_.chars().nth(0)? {
         'L' => {
             let str_without_l = eat_one(str_);
             let end_index = str_without_l.find(';').expect("unterminated object in descriptor") + 1;
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
-//            dbg!(&class_name);
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            Some((remaining_to_parse, Type::ReferenceType(Reference { class_name:class_name.to_string() })))
+            Some((remaining_to_parse, UnifiedType::ReferenceType(Reference { class_name:class_name.to_string() })))
         }
         _ => {
             return None
@@ -106,18 +42,18 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, Type)> {
     }
 }
 
-pub fn parse_array_type(str_: &str) -> Option<(&str, Type)> {
+pub fn parse_array_type(str_: &str) -> Option<(&str, UnifiedType)> {
     match str_.chars().nth(0)? {
         '[' => {
             let (remaining_to_parse,sub_type) = parse_component_type(&str_[1..str_.len()])?;
-            let array_type = Type::ArrayReferenceType(ArrayReference { sub_type: Box::from(sub_type) });
+            let array_type = UnifiedType::ArrayReferenceType(ArrayReference { sub_type: Box::from(sub_type) });
             Some((remaining_to_parse,array_type))
         }
         _ => None
     }
 }
 
-pub fn parse_field_type(str_: &str) -> Option<(&str, Type)> {
+pub fn parse_field_type(str_: &str) -> Option<(&str, UnifiedType)> {
     parse_array_type(str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
             parse_object_type(str_).or_else(|| {
@@ -141,7 +77,7 @@ pub fn parse_field_descriptor(str_: &str) -> Option<FieldDescriptor> {
     }
 }
 
-pub fn parse_component_type(str_: &str) -> Option<(&str, Type)> {
+pub fn parse_component_type(str_: &str) -> Option<(&str, UnifiedType)> {
     parse_field_type(str_)
 }
 
@@ -171,64 +107,64 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
     }
 }
 
-pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, Type)> {
+pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, UnifiedType)> {
     parse_field_type(str_)
 }
 
-pub fn parse_void_descriptor(str_: &str) -> Option<(&str, Type)> {
+pub fn parse_void_descriptor(str_: &str) -> Option<(&str, UnifiedType)> {
     match str_.chars().nth(0)? {
-        'V' => Some((eat_one(str_),Type::VoidType(Void {}))),
+        'V' => Some((eat_one(str_),UnifiedType::VoidType())),
         _ => return None
     }
 }
 
-pub fn parse_return_descriptor(str_: &str) -> Option<(&str, Type)> {
+pub fn parse_return_descriptor(str_: &str) -> Option<(&str, UnifiedType)> {
     parse_void_descriptor(str_).or_else(|| {
         parse_field_type(str_)
     })
 }
 
-pub fn write_type_prolog(type_: &Type,  w: &mut dyn Write) -> Result<(), io::Error>{
+pub fn write_type_prolog(type_: &UnifiedType,  w: &mut dyn Write) -> Result<(), io::Error>{
     match type_{
-        Type::ByteType(_) => {
+        UnifiedType::ByteType(_) => {
             write!(w,"int")?;
         },
-        Type::CharType(_) => {
+        UnifiedType::CharType(_) => {
             write!(w,"int")?;
         },
-        Type::DoubleType(_) => {
+        UnifiedType::DoubleType(_) => {
             write!(w,"double")?;
         },
-        Type::FloatType(_) => {
+        UnifiedType::FloatType(_) => {
             write!(w,"float")?;
         },
-        Type::IntType(_) => {
+        UnifiedType::IntType(_) => {
             write!(w,"int")?;
         },
-        Type::LongType(_) => {
+        UnifiedType::LongType(_) => {
             write!(w,"long")?;
         },
-        Type::ShortType(_) => {
+        UnifiedType::ShortType(_) => {
             write!(w,"int")?;
         },
-        Type::BooleanType(_) => {
+        UnifiedType::BooleanType(_) => {
             write!(w,"int")?;
         },
-        Type::ReferenceType(ref_) => {
+        UnifiedType::ReferenceType(ref_) => {
 //            if context.state.using_bootstrap_loader {
                 write!(w,"class('")?;
-                write!(w,"{}",ref_.class_name)?;
+                write!(w,"{}",ref_.name)?;
                 write!(w,"',{})",BOOTSTRAP_LOADER_NAME)?;
 //            } else {
 //                unimplemented!()
 //            }
         },
-        Type::ArrayReferenceType(arr) => {
+        UnifiedType::ArrayReferenceType(arr) => {
             write!(w, "arrayOf(")?;
             write_type_prolog(&arr.sub_type, w)?;
             write!(w, ")")?;
         },
-        Type::VoidType(_) => {
+        UnifiedType::VoidType(_) => {
             write!(w,"void")?;
         },
     }

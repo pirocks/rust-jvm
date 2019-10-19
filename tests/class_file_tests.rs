@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use classfile::class_loading::JVMClassesState;
 use classfile::classfile::parse_class_file;
-use classfile::verification::prolog_info_defs::{ExtraDescriptors, gen_prolog, PrologGenContext};
+use classfile::verification::prolog_info_writer::{ExtraDescriptors, gen_prolog, PrologGenContext};
 
 #[test]
 pub fn basic_class_file_parse() {

@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use classfile::attribute_infos::Code;
 use classfile::Classfile;
 use classfile::constant_infos::{Class, ConstantKind};
-use verification::prolog_info_defs::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
+use verification::prolog_info_writer::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
 use verification::types::{parse_field_descriptor, write_type_prolog};
 use classfile::code::Instruction;
 use classfile::code::InstructionInfo;
@@ -32,34 +32,6 @@ pub fn extract_class_from_constant_pool(i: u16, class_file: &Classfile) -> &Clas
     }
 }
 
-/*
-fn extract_field_from_constant_pool(i: u16, class_file: &Classfile) -> &Fieldref {
-    match &class_file.constant_pool[i as usize].kind {
-        ConstantKind::Fieldref(f) => {
-            return f;
-        },
-        _ => {
-            panic!();
-        }
-    }
-}
-*/
-
-/*
-fn bootstrap_methods(class_file: &Classfile) -> &BootstrapMethods  {
-    for attr in class_file.attributes.iter() {
-        match &attr.attribute_type {
-            AttributeType::BootstrapMethods(bm) => {
-                return bm
-            },
-            _ => {panic!("No bootstrap methods found")}
-        }
-    }
-    panic!("No bootstrap methods found");
-}
-*/
-
-
 fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Classfile, cp_index: u16, is_ldc: bool) -> String {
     let mut res = String::new();
     use std::fmt::Write;
@@ -78,9 +50,7 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
                 write!(&mut res, "method(").unwrap();
                 let mut type_vec = Vec::new();
                 write_type_prolog(&parsed_class_descriptor, &mut type_vec).unwrap();
-//                write_for_write_type.read_to_string(&mut collected_cursor);
                 write!(&mut res, "{}", String::from_utf8(type_vec).unwrap()).unwrap();
-//                dbg!( String::from_utf8(collected_cursor));
                 write!(&mut res, ",'{}','{}')", method_name, descriptor).unwrap();
             } else {
                 write!(&mut res, "method('{}', '{}', '{}')", class_name, method_name, descriptor).unwrap();
@@ -440,7 +410,6 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Cla
             unimplemented!();
 //            ("wide(WidenedInstruction)".to_string(), unimplemented!())
         }
-//        _ => unimplemented!()
     })
 }
 

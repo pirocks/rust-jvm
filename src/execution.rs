@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use classfile::{Classfile, code_attribute, MethodInfo};
 use interpreter::{InterpreterState};
-use verification::prolog_info_defs::extract_string_from_utf8;
+use verification::prolog_info_writer::extract_string_from_utf8;
 
 pub enum JavaValue {
     Long(i64),

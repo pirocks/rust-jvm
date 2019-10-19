@@ -6,9 +6,9 @@ use class_loading::JVMClassesState;
 use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, code_attribute, FieldInfo, MethodInfo};
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
-use verification::code_verification::write_parse_code_attribute;
+use verification::code_writer::write_parse_code_attribute;
 use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
-use verification::instruction_parser::extract_class_from_constant_pool;
+use verification::instruction_outputer::extract_class_from_constant_pool;
 use verification::types::MethodDescriptor;
 use verification::types::FieldDescriptor;
 use verification::verifier::PrologClass;
@@ -55,14 +55,14 @@ pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(
     Ok(())
 }
 
-pub(crate) const BOOTSTRAP_LOADER_NAME: &str = "bl";
+pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
-pub(crate) struct ParsedFieldDescriptor {
+pub struct ParsedFieldDescriptor {
     descriptor: String,
     parsed: FieldDescriptor,
 }
 
-pub(crate) struct ParsedMethodDescriptor {
+pub struct ParsedMethodDescriptor {
     descriptor: String,
     parsed: MethodDescriptor,
 }
@@ -505,16 +505,6 @@ fn write_method_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Res
                     write!(w, ", [attribute('Code','')]).\n", )?;
                 }
             }
-
-//            for attribute in method_info.attributes.iter(){
-//                match &attribute.attribute_type{
-//                    AttributeType::Code(c) => {
-//                        write!(w,"methodAttributes(")?;
-//                        write_method_prolog_name(class_file,method_info,w)?;
-//                        write!(w,", '').\n",)?;
-//                    },
-//                    _ => {/* only attribute that matters is code*/}
-//                }
         }
     }
     Ok(())
