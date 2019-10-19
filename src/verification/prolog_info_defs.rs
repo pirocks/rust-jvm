@@ -11,7 +11,7 @@ use verification::types::{parse_field_descriptor, parse_method_descriptor, write
 use verification::instruction_parser::extract_class_from_constant_pool;
 use verification::types::MethodDescriptor;
 use verification::types::FieldDescriptor;
-use classfile::attribute_infos::Code;
+use verification::verifier::PrologClass;
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -49,7 +49,7 @@ pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(
     write_parse_method_descriptor(context, w)?;
     write_parse_code_attribute(context, w)?;
     write_method_attributes(context, w)?;
-    write_extra_descriptors(context, w)?;
+//    write_extra_descriptors(context, w)?;
     write_assignable_direct_supertype(context, w)?;
     w.flush()?;
     Ok(())
@@ -75,16 +75,16 @@ fn write_field_descriptor(fd: ParsedFieldDescriptor, w: &mut dyn Write) -> Resul
 }
 
 fn write_method_descriptors(md: ParsedMethodDescriptor, w: &mut dyn Write) -> Result<(), io::Error> {
-    write!(w, "parseMethodDescriptor('{}'", method_descriptor)?;
+    write!(w, "parseMethodDescriptor('{}'", md.descriptor)?;
     write!(w, ",[")?;
-    for (i, parameter_type) in md.parameter_types.iter().enumerate() {
+    for (i, parameter_type) in md.parsed.parameter_types.iter().enumerate() {
         write_type_prolog(&parameter_type, w)?;
-        if i != method_descriptor.parameter_types.len() - 1 {
+        if i != md.parsed.parameter_types.len() - 1 {
             write!(w, ",")?;
         }
     }
     write!(w, "],")?;
-    write_type_prolog(&md.return_type, w)?;
+    write_type_prolog(&md.parsed.return_type, w)?;
     write!(w, ").\n")?;
     Ok(())
 }
@@ -103,15 +103,6 @@ fn get_extra_descriptors(context: &PrologGenContext) -> (Vec<ParsedFieldDescript
         md.push(ParsedMethodDescriptor { descriptor: method_descriptor.clone(), parsed });//todo all this copying
     }
     (fd, md)
-}
-
-struct PrologClass{
-    name: String,
-    loader: String
-}
-
-struct LoadedClass{
-    class: PrologClass
 }
 
 //todo this should realy be two functions.
@@ -397,7 +388,7 @@ fn write_method_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<()
 //)
 // Extracts the access flags, AccessFlags , of the method Method .
 
-pub fn get_access_flags(class: &PrologClass,method: &PrologMethod) -> u16 {
+pub fn get_access_flags(class: &PrologClass,method: &::verification::verifier::PrologClassMethod) -> u16 {
     unimplemented!()
 }
 
@@ -496,10 +487,6 @@ pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) ->
         }
     }
     Ok(())
-}
-
-fn get_method_attributes(class: &PrologClass, method: &PrologClassMethod) -> Vec<Option<&Code>>{
-    unimplemented!()
 }
 
 //methodAttributes(Method, Attributes

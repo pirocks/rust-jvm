@@ -14,6 +14,7 @@ use verification::prolog_info_defs::class_name;
 use classfile::attribute_infos::SameFrameExtended;
 use classfile::attribute_infos::SameLocals1StackItemFrameExtended;
 use classfile::code::Instruction;
+use verification::verifier::Frame;
 
 pub enum Name{
     String(String)
@@ -84,12 +85,12 @@ fn write_exception_handler(class_file: &Classfile, exception_handler: &Exception
     Ok(())
 }
 
-pub struct Frame {
+/*pub struct Frame {
     pub locals: Vec<VerificationTypeInfo>,
     pub stack: Vec<VerificationTypeInfo>,
     pub max_locals: u16,
     pub current_offset: u16,
-}
+}*/
 
 pub fn init_frame(parameter_types: Vec<Type>, this_pointer: Option<Type>, max_locals: u16) -> Frame {
     let mut locals = Vec::with_capacity(max_locals as usize);
