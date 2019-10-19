@@ -28,14 +28,14 @@ struct PrologClass<'l> {
 }
 
 struct PrologClassMethod<'l> {
-    prolog_class: PrologClass<'l>,
+    prolog_class: &PrologClass<'l>,
     method_index: usize,
 }
 
 //todo how to handle arrays
 pub fn is_java_assignable(from: &PrologClass, to: &PrologClass) -> bool {
     if loaded_class(to) {
-        return class_is_interface(to)
+        return class_is_interface(to);
     }
     return is_java_sub_class_of(from, to);
     unimplemented!();
@@ -78,7 +78,7 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
     }
 }
 
-pub fn valid_type_transition(environment: Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: UnifiedType, input_frame: Frame, next_frame: Frame) -> bool {
+pub fn valid_type_transition(environment: Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame, next_frame: &Frame) -> bool {
     unimplemented!()
 }
 
@@ -98,7 +98,7 @@ pub fn push_operand_stack(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -
     unimplemented!()
 }
 
-pub fn operand_stack_has_legal_length(environment: Environment) -> bool {
+pub fn operand_stack_has_legal_length(environment: &Environment,operand_stack:&Vec<UnifiedType> ) -> bool {
     unimplemented!()
 }
 
@@ -123,7 +123,6 @@ pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
 }
 
 //pub fn nth1OperandStackIs
-
 
 
 pub fn is_bootstrap_loader(loader: &String) -> bool {
@@ -154,8 +153,6 @@ pub fn class_is_type_safe(class: &PrologClass) -> bool {
         if class_is_final(super_class) {
             return false;
         }
-
-        unimplemented!();
     }
     let mut method = get_class_methods(class);
     method.iter().all(|m| {
@@ -216,11 +213,16 @@ pub fn instructions_include_end(instructs: Vec<UnifiedInstruction>, end: u64) ->
 pub struct Handler {
     pub start: usize,
     pub end: usize,
+    pub target: usize,
+    pub class_name: Option<String>,
     //todo
 }
 
-pub fn handler_exception_class(handler: &Handler) {
-    unimplemented!()
+pub fn handler_exception_class(handler: &Handler) -> PrologClass {
+    match handler.class_name{
+        None => {unimplemented!("Return java/lang/Throwable")},
+        Some(&s) => {unimplemented!("Need to get class from state")},
+    }
 }
 
 pub fn init_handler_is_legal(env: &Environment, handler: &Handler) -> bool {
@@ -247,10 +249,11 @@ pub fn no_attempt_to_return_normally(instruction: &UnifiedInstruction) -> bool {
 
 
 struct Environment<'l> {
-    method: &PrologClassMethod<'l>,
+    method: &'l PrologClassMethod<'l>,
     frame_size: u16,
     max_stack: u16,
     merged_code: Option<Vec<MergedCodeInstruction<'l>>>,
+    class_loader: &'l str,
 
 }
 
@@ -267,19 +270,19 @@ fn merge_stack_map_and_code<'l>(instruction: Vec<Instruction>, stack_maps: Vec<S
 
     loop {
         let (instruction, instruction_offset) = match instruction.first() {
-            None => { (None, -1) },//todo hacky
-            Some(i) => { (Some(i), i.offset as i32) },
+            None => { (None, -1) }//todo hacky
+            Some(i) => { (Some(i), i.offset as i32) }
         };
         let (stack_map, stack_map_offset) = match stack_maps.first() {
-            None => { (None, -1) },
-            Some(s) => { (Some(s), s.offset as i32) },
+            None => { (None, -1) }
+            Some(s) => { (Some(s), s.offset as i32) }
         };
         if stack_map_offset >= instruction_offset {
             res.push(MergedCodeInstruction::StackMap(stack_map.unwrap()))//todo
         } else {
             let instr = match instruction {
-                None => { break },
-                Some(i) => { i },
+                None => { break; }
+                Some(i) => { i }
             };
             res.push(MergedCodeInstruction::Instruction(instr))//todo
         }
@@ -309,24 +312,67 @@ fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMe
     unimplemented!()
 }
 
-fn merged_code_is_type_safe(env: &Environment, merged_code: Vec<MergedCodeInstruction>) -> bool {
-    unimplemented!()
+//todo how to handle other values here
+fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: &Frame, after_goto: bool) -> bool {
+    let first = &merged_code[0];
+    let rest = &merged_code[1..merged_code.len()];
+    match first {
+        MergedCodeInstruction::Instruction(i) => {
+            let exception_stack_frame1 = instruction_satisfies_handlers(env,i.offset);
+            let next_stack_frame = instruction_is_type_safe(i.instruction,env,i.offset,after_frame)?;
+            merged_code_is_type_safe(env, rest,next_stack_frame,false)
+        }
+        MergedCodeInstruction::StackMap(s) => {
+            if after_goto {
+                merged_code_is_type_safe(env, rest, s.map_frame,false)
+            } else{
+                frame_is_assignable(after_frame, s.map_frame) &&
+                    merged_code_is_type_safe(env, rest, s.map_frame,false)
+
+            }
+        }
+    }
 }
+
+
 
 fn target_is_type_safe(env: &Environment, stack_frame: Frame, target: u64) {
-    unimplemented!()
+    let frame = offset_stack_frame(env,target);
+    frame_is_assignable(stack_frame,frame);
 }
 
-fn instruction_satisfies_handlers(env: &Environment, offset: u64) -> bool {
-    unimplemented!()
+fn instruction_satisfies_handlers(env: &Environment, offset: u64, exception_stack_frame: &Frame) -> bool {
+    let handlers = env.handlers;
+    let applicable_handler = handlers.iter().filter(|h| {
+        is_applicable_handler(offset,h)
+    });
+    applicable_handler.iter().all(|h|{
+        instruction_satisfies_handler(env,exception_stack_frame,h)
+    })
+
 }
 
 fn is_applicable_handler(offset: usize, handler: Handler) -> bool {
-    unimplemented!()
+    offset <= handler.start && offset < handler.end
+}
+
+fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> bool{
+    let target = handler.target;
+    let class_loader = env.class_loader;
+    let exception_class= handler_exception_class(handler);
+    let locals = exc_stack_frame.locals;
+    let flags = exc_stack_frame.flag_this_uninit;
+    let true_exc_stack_frame = Frame {locals,stack_map:vec![exception_class], flag_this_uninit:flags};
+    operand_stack_has_legal_length(env,vec![exception_class]) &&
+        target_is_type_safe(env, true_exc_stack_frame,target)
+
 }
 
 fn load_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) -> bool {
-    unimplemented!()
+    let locals= &frame.locals;
+    let actual_type = nth0(index,locals);
+    is_assignable(actual_type,type_) &&
+        valid_type_transition(env,vec![],actual_type,frame,next_frame)
 }
 
 fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) {
@@ -714,7 +760,7 @@ fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize, sta
     unimplemented!()
 }
 
-fn instruction_is_type_safe_newarray(type_code:usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
@@ -750,7 +796,7 @@ fn instruction_is_type_safe_sastore(env: &Environment, offset: usize, stack_fram
     unimplemented!()
 }
 
-fn instruction_is_type_safe_sipush(value:usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+fn instruction_is_type_safe_sipush(value: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
@@ -758,14 +804,14 @@ fn instruction_is_type_safe_swap(env: &Environment, offset: usize, stack_frame: 
     unimplemented!()
 }
 
-fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, keys: Vec<usize> ,env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
-fn different_package_name(class1: &PrologClass, class2:&PrologClass ) -> bool{
+fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }
 
-fn same_package_name(class1: &PrologClass, class2:&PrologClass ) -> bool{
+fn same_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }

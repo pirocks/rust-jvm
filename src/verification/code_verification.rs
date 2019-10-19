@@ -29,8 +29,8 @@ pub(crate) struct ParseCodeAttribute{
 }
 
 pub(crate) struct StackMap{
-    pub(crate) offset: usize
-    //todo
+    pub(crate) offset: usize,
+    pub(crate) map_frame: Frame
 }
 
 
