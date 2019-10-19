@@ -80,7 +80,7 @@ pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
     }
 }
 
-pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassEntry, only_verify: bool) {
+pub fn load_class<'l>(classes: &'l mut JVMClassesState<'l>, class_name_with_package: ClassEntry, only_verify: bool) {
     trace!("Starting loading for {}", &class_name_with_package);
     //todo this function is going to be long af
     if classes.using_bootstrap_loader {
@@ -100,7 +100,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassE
         }).unwrap();
 
         let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
-        let mut p = ParsingContext { f: candidate_file };
+        let mut p = ParsingContext { f: candidate_file ,classfile:None};
 
         let parsed = parse_class_file(p.borrow_mut());
         if class_name_with_package != class_entry(&parsed) {
@@ -149,7 +149,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassE
     }
 }
 
-fn clinit<'l>(class: &Classfile<'l>) -> &'l MethodInfo<'l> {
+fn clinit<'l>(class: &'l Classfile<'l>) -> &'l MethodInfo<'l> {
     for method_info in class.methods.iter() {
         let name = extract_string_from_utf8(&class.constant_pool[method_info.name_index as usize]);
         if name == "<clinit>" {
@@ -159,7 +159,7 @@ fn clinit<'l>(class: &Classfile<'l>) -> &'l MethodInfo<'l> {
     panic!();
 }
 
-fn load_verified_class(classes: &mut JVMClassesState, class: Classfile) {
+fn load_verified_class<'l>(classes: &'l mut JVMClassesState<'l>, class: Classfile<'l>) {
     let entry = class_entry(&class);
     classes.loading_in_progress.remove(&entry);
     run_static_method_no_args(&class, clinit(&class));

@@ -1,4 +1,6 @@
 use classfile::Classfile;
+use classfile::attribute_infos::UninitializedVariableInfo;
+use verification::prolog_info_writer::extract_string_from_utf8;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -9,9 +11,18 @@ pub struct NameReference<'l>{
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum PrologClassName<'l> {
+pub enum ClassNameReference<'l> {
     Ref(NameReference<'l>),
     Str(&'l str)
+}
+
+pub fn get_referred_name<'l>(ref_ : &'l ClassNameReference<'l>) -> &'l str{
+    match ref_{
+        ClassNameReference::Ref(r) => {
+            extract_string_from_utf8(&r.class_file.constant_pool[r.index as usize]).as_str()
+        },
+        ClassNameReference::Str(s) => {s},
+    }
 }
 
 #[derive(Debug)]
@@ -29,11 +40,13 @@ pub enum UnifiedType<'l>{
     FloatType,
     IntType,
     LongType,
-    ReferenceType(PrologClassName<'l>),
+    ReferenceType(&'l ClassNameReference<'l>),
     ShortType,
     BooleanType,
     ArrayReferenceType(ArrayType<'l>),
     VoidType,
     TopType,
-    NullType
+    NullType,
+    Uninitialized(UninitializedVariableInfo),
+    UninitializedThis
 }

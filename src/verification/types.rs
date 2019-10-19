@@ -2,8 +2,9 @@ use std::io::Write;
 use std::io;
 use verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
 use verification::unified_type::UnifiedType;
-use verification::unified_type::PrologClassName;
+use verification::unified_type::ClassNameReference;
 use verification::unified_type::ArrayType;
+use verification::unified_type::get_referred_name;
 
 #[derive(Debug)]
 pub struct MethodDescriptor<'l>{ pub parameter_types: Vec<UnifiedType<'l>>, pub return_type: UnifiedType<'l> }
@@ -16,14 +17,14 @@ pub fn eat_one(str_: &str) -> &str {
 
 pub fn parse_base_type(str_: &str) -> Option<(&str, UnifiedType)> {
     Some((eat_one(str_), match str_.chars().nth(0)? {
-        'B' => UnifiedType::ByteType(),
-        'C' => UnifiedType::CharType(),
-        'D' => UnifiedType::DoubleType(),
-        'F' => UnifiedType::FloatType(),
-        'I' => UnifiedType::IntType(),
-        'J' => UnifiedType::LongType(),
-        'S' => UnifiedType::ShortType(),
-        'Z' => UnifiedType::BooleanType(),
+        'B' => UnifiedType::ByteType,
+        'C' => UnifiedType::CharType,
+        'D' => UnifiedType::DoubleType,
+        'F' => UnifiedType::FloatType,
+        'I' => UnifiedType::IntType,
+        'J' => UnifiedType::LongType,
+        'S' => UnifiedType::ShortType,
+        'Z' => UnifiedType::BooleanType,
         _ => return None
     }))
 }
@@ -36,7 +37,7 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, UnifiedType)> {
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            Some((remaining_to_parse, UnifiedType::ReferenceType(PrologClassName::Str(class_name))))
+            Some((remaining_to_parse, UnifiedType::ReferenceType(&ClassNameReference::Str(class_name))))
         }
         _ => {
             return None
@@ -115,7 +116,7 @@ pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, UnifiedType)> {
 
 pub fn parse_void_descriptor(str_: &str) -> Option<(&str, UnifiedType)> {
     match str_.chars().nth(0)? {
-        'V' => Some((eat_one(str_),UnifiedType::VoidType())),
+        'V' => Some((eat_one(str_),UnifiedType::VoidType)),
         _ => return None
     }
 }
@@ -155,7 +156,7 @@ pub fn write_type_prolog(type_: &UnifiedType,  w: &mut dyn Write) -> Result<(), 
         UnifiedType::ReferenceType(ref_) => {
 //            if context.state.using_bootstrap_loader {
                 write!(w,"class('")?;
-                write!(w,"{}",ref_.name)?;
+                write!(w,"{}",get_referred_name(ref_))?;
                 write!(w,"',{})",BOOTSTRAP_LOADER_NAME)?;
 //            } else {
 //                unimplemented!()

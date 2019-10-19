@@ -4,7 +4,7 @@ use std::io;
 use std::io::Write;
 
 use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
-use classfile::attribute_infos::{AppendFrame, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable, UninitializedVariableInfo};
+use classfile::attribute_infos::{AppendFrame, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable};
 use verification::instruction_outputer::extract_class_from_constant_pool;
 use verification::prolog_info_writer::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
 use verification::prolog_info_writer::PrologGenContext;
@@ -16,9 +16,12 @@ use verification::verifier::Frame;
 use verification::types::parse_field_descriptor;
 use verification::types::write_type_prolog;
 use verification::types::parse_method_descriptor;
-use verification::unified_type::PrologClassName;
+use verification::unified_type::ClassNameReference;
 use verification::unified_type::UnifiedType;
 use verification::unified_type::ArrayType;
+use verification::verifier::InternalFrame;
+use verification::unified_type::get_referred_name;
+use classfile::attribute_infos::UninitializedVariableInfo;
 
 pub enum Name{
     String(String)
@@ -90,7 +93,7 @@ fn write_exception_handler(class_file: &Classfile, exception_handler: &Exception
 }
 
 
-pub fn init_frame<'k>(parameter_types: Vec<UnifiedType>, this_pointer: Option<UnifiedType>, max_locals: u16) -> Frame<'k> {
+pub fn init_frame<'l>(parameter_types: Vec<UnifiedType<'l>>, this_pointer: Option<UnifiedType<'l>>, max_locals: u16) -> InternalFrame<'l> {
     let mut locals = Vec::with_capacity(max_locals as usize);
     match this_pointer {
         None => {},//class is static etc.
@@ -101,10 +104,10 @@ pub fn init_frame<'k>(parameter_types: Vec<UnifiedType>, this_pointer: Option<Un
     for parameter_type in parameter_types {
         locals_push_convert_type(&mut locals,parameter_type)
     }
-    Frame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
+    InternalFrame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
 }
 
-fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> () {
+fn locals_push_convert_type<'l>(res: &mut Vec<UnifiedType<'l>>, type_: UnifiedType<'l>) -> () {
     match type_ {
         UnifiedType::ByteType => {
             res.push(UnifiedType::IntType);
@@ -127,8 +130,8 @@ fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> (
             res.push(UnifiedType::TopType);
         }
         UnifiedType::ReferenceType(r) => {
-            assert_ne!(r.name.chars().nth(0).unwrap(),'[');
-            res.push(UnifiedType::ReferenceType(PrologClassName::Str( r.name )));
+            assert_ne!(get_referred_name(r).chars().nth(0).unwrap(),'[');
+            res.push(UnifiedType::ReferenceType(r));
         }
         UnifiedType::ShortType => {
             res.push(UnifiedType::IntType);
@@ -143,7 +146,7 @@ fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> (
     }
 }
 
-fn write_locals(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Result<(), io::Error> {
+fn write_locals(classfile: &Classfile, frame: &InternalFrame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
     for (i, local) in frame.locals.iter().enumerate() {
         verification_type_as_string(classfile, local, w)?;
@@ -172,9 +175,9 @@ fn verification_type_as_string(classfile: &Classfile, verification_type: &Unifie
         UnifiedType::NullType => { write!(w, "null")?; }
         UnifiedType::UninitializedThis => { unimplemented!() }
         UnifiedType::ReferenceType(o) => {
-            let class_name = o.name;
+            let class_name = get_referred_name(o);
             if class_name.chars().nth(0).unwrap() == '[' {
-                let parsed_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing a descriptor").field_type;
+                let parsed_descriptor = parse_field_descriptor(class_name).expect("Error parsing a descriptor").field_type;
                 write_type_prolog(&parsed_descriptor, w)?;
                 return Ok(())
             }
@@ -183,7 +186,7 @@ fn verification_type_as_string(classfile: &Classfile, verification_type: &Unifie
         UnifiedType::Uninitialized(_) => { unimplemented!() }
         UnifiedType::ArrayReferenceType(a) => {
 //            write!(w,"arrayOf(")?;
-            write_type_prolog(&a.array_type, w)?;
+            write_type_prolog(&a.sub_type, w)?;
 //            write!(w,")")?;
         }
     }
@@ -202,11 +205,11 @@ fn object_get_class_name(classfile: &Classfile, o: &ObjectVariableInfo) -> Strin
     class_name
 }
 
-fn write_operand_stack(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Result<(), io::Error> {
+fn write_operand_stack(classfile: &Classfile, frame: &InternalFrame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
-    for (i, local) in frame.stack_map.iter().rev().enumerate() {
+    for (i, local) in frame.stack.iter().rev().enumerate() {
         verification_type_as_string(classfile, local, w)?;
-        if i != frame.stack_map.len() - 1 {
+        if i != frame.stack.len() - 1 {
             write!(w, ",")?;
         }
     }
@@ -224,7 +227,7 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0{
         None
     }else {
-        Some(UnifiedType::ReferenceType(PrologClassName::Str(class_name(class_file).as_str())))
+        Some(UnifiedType::ReferenceType(&ClassNameReference::Str(class_name(class_file).as_str())))
     };
 
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
@@ -258,18 +261,18 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     Ok(())
 }
 
-fn handle_same_locals_1_stack_frame_extended(class_file: &Classfile, mut frame: &mut Frame, f: &SameLocals1StackItemFrameExtended) -> (){
+fn handle_same_locals_1_stack_frame_extended<'l>(class_file: &Classfile, mut frame: &'l mut InternalFrame<'l>, f: &SameLocals1StackItemFrameExtended<'l>) -> (){
     frame.current_offset  += f.offset_delta;
     frame.stack.clear();
     push_to_stack(class_file, frame, &f.stack);
 }
 
-fn handle_same_frame_extended(mut frame: &mut Frame, f: &SameFrameExtended) -> (){
+fn handle_same_frame_extended<'l>(mut frame: &mut InternalFrame<'l>, f: &SameFrameExtended) -> (){
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
 }
 
-fn handle_chop_frame(mut frame: &mut Frame, f: &ChopFrame) -> () {
+fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {
@@ -277,7 +280,7 @@ fn handle_chop_frame(mut frame: &mut Frame, f: &ChopFrame) -> () {
     }
 }
 
-fn handle_full_frame(class_file: &Classfile, frame: &mut Frame, f: &FullFrame) -> () {
+fn handle_full_frame<'l>(class_file: &Classfile, frame: &'l mut InternalFrame<'l>, f: &FullFrame<'l>) -> () {
     frame.current_offset += f.offset_delta;
     frame.locals.clear();
     for new_local in f.locals.iter() {
@@ -290,25 +293,25 @@ fn handle_full_frame(class_file: &Classfile, frame: &mut Frame, f: &FullFrame) -
     }
 }
 
-fn handle_same_locals_1_stack(class_file: &Classfile, frame: &mut Frame, s: &SameLocals1StackItemFrame) -> () {
+fn handle_same_locals_1_stack<'l>(class_file: &Classfile, frame: &'l mut InternalFrame<'l>, s: &SameLocals1StackItemFrame<'l>) -> () {
     frame.current_offset += s.offset_delta;
     frame.stack.clear();
     push_to_stack(class_file, frame, &s.stack);
 }
 
-fn handle_append_frame(class_file: &Classfile, frame: &mut Frame, append_frame: &AppendFrame) -> () {
+fn handle_append_frame<'l>(class_file: &Classfile, frame: &'l mut InternalFrame<'l>, append_frame: &AppendFrame<'l>) -> () {
     frame.current_offset += append_frame.offset_delta;
     for new_local in append_frame.locals.iter() {
         add_new_local(class_file, frame, new_local)
     }
 }
 
-fn handle_same_frame(frame: &mut Frame, s: &SameFrame) {
+fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
     frame.current_offset += s.offset_delta;
     frame.stack.clear();
 }
 
-fn write_stack_map_frame(class_file: &Classfile, w: &mut dyn Write, frame: &Frame) -> Result<(),io::Error>{
+fn write_stack_map_frame(class_file: &Classfile, w: &mut dyn Write, frame: &InternalFrame) -> Result<(),io::Error>{
     write!(w, "stackMap({},frame(", frame.current_offset)?;
     write_locals(class_file, frame, w)?;
     write!(w, ",")?;
@@ -318,16 +321,17 @@ fn write_stack_map_frame(class_file: &Classfile, w: &mut dyn Write, frame: &Fram
 //todo check if flags needed and then write
 }
 
+//todo there should really be two lifetimes here, the verifier lifetime and the classfile lifetime
 
-fn push_to_stack(classfile: &Classfile,frame: &mut Frame, new_local: &UnifiedType){
+fn push_to_stack<'l>(classfile: & Classfile,frame: &'l mut InternalFrame<'l>, new_local: &UnifiedType<'l>){
     add_verification_type_to_array(classfile,&mut frame.stack, new_local)
 }
 
-fn add_new_local(classfile: &Classfile,frame: &mut Frame, new_local: &UnifiedType){
+fn add_new_local<'l>(classfile: & Classfile,frame: &'l mut InternalFrame<'l>, new_local: &UnifiedType<'l>){
     add_verification_type_to_array(classfile,&mut frame.locals, new_local)
 }
 
-fn add_verification_type_to_array(classfile: &Classfile,locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
+fn add_verification_type_to_array<'l>(classfile: &Classfile,locals: &'l mut Vec<UnifiedType<'l>>, new_local: &UnifiedType<'l>) -> () {
     match copy_recurse(classfile,new_local) {
         UnifiedType::DoubleType => {
             locals.push(UnifiedType::DoubleType);
@@ -341,10 +345,10 @@ fn add_verification_type_to_array(classfile: &Classfile,locals: &mut Vec<Unified
     }
 }
 
-fn copy_recurse<'l>(classfile:&Classfile<'l>,to_copy : &UnifiedType<'l>)-> UnifiedType<'l>{
+fn copy_recurse<'l>(classfile:&Classfile,to_copy : &UnifiedType<'l>)-> UnifiedType<'l>{
     match to_copy {
-        UnifiedType::Object(o) => {
-            let class_name = object_get_class_name(classfile,o);
+        UnifiedType::ReferenceType(o) => {
+//            let class_name = object_get_class_name(classfile,o);
             /*if class_name.chars().nth(0).unwrap() == '[' {
                 let type_ = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
                 let mut temp  = Vec::with_capacity(1);
@@ -352,13 +356,13 @@ fn copy_recurse<'l>(classfile:&Classfile<'l>,to_copy : &UnifiedType<'l>)-> Unifi
                 return copy_recurse(classfile,&temp[0]);
             }*/
 
-            UnifiedType::ReferenceType(PrologClassName::Str(class_name.as_str()))
+            UnifiedType::ReferenceType(o)
         },
         UnifiedType::Uninitialized(u) => {
-            UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset })
+            UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset})
         },
         UnifiedType::ArrayReferenceType(a) => {
-            UnifiedType::ArrayReferenceType(ArrayType { sub_type: &copy_type_recurse(&a.array_type) })
+            UnifiedType::ArrayReferenceType(ArrayType { sub_type: &copy_type_recurse(&a.sub_type) })
         },
 
         UnifiedType::TopType => {UnifiedType::TopType}
@@ -371,7 +375,7 @@ fn copy_recurse<'l>(classfile:&Classfile<'l>,to_copy : &UnifiedType<'l>)-> Unifi
     }
 }
 
-fn copy_type_recurse<'l>(type_: &UnifiedType) -> UnifiedType<'l> {
+fn copy_type_recurse<'l>(type_: &'l UnifiedType<'l>) -> UnifiedType<'l> {
     match type_ {
         UnifiedType::ByteType => { UnifiedType::ByteType },
         UnifiedType::CharType => { UnifiedType::CharType },
@@ -381,7 +385,7 @@ fn copy_type_recurse<'l>(type_: &UnifiedType) -> UnifiedType<'l> {
         UnifiedType::LongType => { UnifiedType::LongType },
         UnifiedType::ShortType => { UnifiedType::ShortType },
         UnifiedType::ReferenceType(t) => {
-            UnifiedType::ReferenceType(PrologClassName::Str(t.name))
+            UnifiedType::ReferenceType(&t)
         },
         UnifiedType::BooleanType => { UnifiedType::BooleanType },
         UnifiedType::ArrayReferenceType(t) => {

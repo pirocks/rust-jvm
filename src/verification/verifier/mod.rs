@@ -10,6 +10,13 @@ use classfile::code_attribute;
 use classfile::code::InstructionInfo;
 use verification::unified_type::UnifiedType;
 
+pub struct InternalFrame<'l> {
+    pub locals: Vec<UnifiedType<'l>>,
+    pub stack: Vec<UnifiedType<'l>>,
+    pub max_locals: u16,
+    pub current_offset: u16,
+}
+
 pub fn loaded_class(class: &PrologClass) -> bool {
     unimplemented!()
 }
@@ -290,7 +297,7 @@ enum MergedCodeInstruction<'l> {
 /**
 assumes that stackmaps and instructions are ordered
 */
-fn merge_stack_map_and_code<'l>(instruction: Vec<Instruction>, stack_maps: Vec<StackMap>) -> Vec<MergedCodeInstruction<'l>> {
+fn merge_stack_map_and_code<'l>(instruction: Vec<Instruction>, stack_maps: Vec<StackMap<'l>>) -> Vec<MergedCodeInstruction<'l>> {
     let mut res = vec![];
 
     loop {
@@ -344,7 +351,7 @@ fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruct
     match first {
         MergedCodeInstruction::Instruction(i) => {
             let exception_stack_frame1 = instruction_satisfies_handlers(env,i.offset);
-            let next_stack_frame = instruction_is_type_safe(i.instruction,env,i.offset,after_frame)?;
+            let next_stack_frame = instruction_is_type_safe(i.instruction,env,i.offset,after_frame);
             merged_code_is_type_safe(env, rest,next_stack_frame,false)
         }
         MergedCodeInstruction::StackMap(s) => {
@@ -363,9 +370,9 @@ fn offset_stack_frame<'l>(env: &Environment, target: usize) -> Frame<'l>{
     unimplemented!()
 }
 
-fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) {
+fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> bool{
     let frame = offset_stack_frame(env,target);
-    frame_is_assignable(stack_frame,&frame);
+    frame_is_assignable(stack_frame,&frame)
 }
 
 fn instruction_satisfies_handlers(env: &Environment, offset: u64, exception_stack_frame: &Frame) -> bool {
@@ -391,7 +398,7 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let flags = exc_stack_frame.flag_this_uninit;
     let true_exc_stack_frame = Frame {locals,stack_map:vec![exception_class], flag_this_uninit:flags};
     operand_stack_has_legal_length(env,vec![exception_class]) &&
-        target_is_type_safe(env, true_exc_stack_frame,target)
+        target_is_type_safe(env, &true_exc_stack_frame,target)
 
 }
 
@@ -441,7 +448,7 @@ fn exception_stack_frame(frame1: Frame, excpetion_stack_frame: Frame) -> bool {
 }
 
 fn instruction_is_type_safe(instruction: InstructionInfo,env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool{
-
+    unimplemented!()
 }
 
 

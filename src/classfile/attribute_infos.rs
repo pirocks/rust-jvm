@@ -6,7 +6,7 @@ use classfile::parsing_util::{ParsingContext, read16, read32, read8};
 use classfile::code::parse_code_raw;
 use classfile::code::Instruction;
 use verification::unified_type::UnifiedType;
-use verification::unified_type::PrologClassName;
+use verification::unified_type::ClassNameReference;
 use verification::unified_type::NameReference;
 
 #[derive(Debug)]
@@ -660,7 +660,7 @@ fn parse_verification_type_info<'l>(p: &'l mut ParsingContext) -> UnifiedType<'l
         3 => UnifiedType::DoubleType,
         4 => UnifiedType::LongType,
         7 => {
-            UnifiedType::ReferenceType(PrologClassName::Ref(NameReference {
+            UnifiedType::ReferenceType(&ClassNameReference::Ref(NameReference {
                 class_file: p.classfile.unwrap(),
                 index: read16(p),
             }))
