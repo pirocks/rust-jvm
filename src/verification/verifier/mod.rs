@@ -13,6 +13,11 @@ pub fn loaded_class(class: &PrologClass) -> bool {
     unimplemented!()
 }
 
+pub fn loaded_class_(class_name: String, loader_name: String) -> Option<PrologClass> {
+    unimplemented!()
+}
+
+
 struct ClassLoaderState<'l> {
     //todo
 }
@@ -125,7 +130,7 @@ pub fn is_bootstrap_loader(loader: &String) -> bool {
     return loader == &"bl".to_string();//todo  what if someone defines a Loader class called bl
 }
 
-pub fn get_class_methods(class: &Classfile) -> Vec<PrologClassMethod> {
+pub fn get_class_methods(class: &PrologClass) -> Vec<PrologClassMethod> {
     let mut res = vec![];
     for method_index in 0..class.methods.len() {
         res.push(PrologClassMethod { prolog_class: class, method_index })
@@ -133,13 +138,23 @@ pub fn get_class_methods(class: &Classfile) -> Vec<PrologClassMethod> {
     res
 }
 
-pub fn class_is_type_safe(class: &Classfile) -> bool {
+pub fn class_is_type_safe(class: &PrologClass) -> bool {
     if class.name == "java/lang/Object" {
-        if !is_bootstrap_loader(class.loader) {
+        if !is_bootstrap_loader(&class.loader) {
             return false;
         }
     } else {
         //class must have a superclass or be 'java/lang/Object'
+        let chain = super_class_chain(class);
+        if chain.is_empty() {
+            return false;
+        }
+        let super_class_name = get_super_class_name(class.class);
+        let super_class = loaded_class_(super_class_name, "bl".to_string())?;//todo magic string//todo double check this returns false
+        if class_is_final(super_class) {
+            return false;
+        }
+
         unimplemented!();
     }
     let mut method = get_class_methods(class);
@@ -185,7 +200,9 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let handlers = parsed_code.exception_table;
     let stack_map = parsed_code.stackmap_frames;
     let merged = merge_stack_map_and_code(code, stack_map);
-    let initial_stack_frame = method_initial_stack_frame(class, method, frame_size, unimplemented!(), unimplemented!())
+    let (frame, frame_size, return_type) = method_initial_stack_frame(class, method);
+    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code };
+    handers_are_legal(&env) && merged_code_is_type_safe(&env, merged)
 }
 
 pub fn handers_are_legal(env: &Environment) -> bool {
@@ -230,7 +247,7 @@ pub fn no_attempt_to_return_normally(instruction: &UnifiedInstruction) -> bool {
 
 
 struct Environment<'l> {
-    method: PrologClassMethod<'l>,
+    method: &PrologClassMethod<'l>,
     frame_size: u16,
     max_stack: u16,
     merged_code: Option<Vec<MergedCodeInstruction<'l>>>,
