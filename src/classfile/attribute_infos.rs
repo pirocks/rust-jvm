@@ -5,70 +5,72 @@ use classfile::constant_infos::{ConstantInfo, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
 use classfile::code::parse_code_raw;
 use classfile::code::Instruction;
-use verification::verifier::UnifiedType;
+use verification::unified_type::UnifiedType;
+use verification::unified_type::PrologClassName;
+use verification::unified_type::NameReference;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct SourceFile{
+pub struct SourceFile {
     //todo
     pub sourcefile_index: u16
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct InnerClasses{
+pub struct InnerClasses {
     //todo
     pub classes: Vec<InnerClass>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct EnclosingMethod{
+pub struct EnclosingMethod {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct SourceDebugExtension{
+pub struct SourceDebugExtension {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct BootstrapMethods{
+pub struct BootstrapMethods {
     //todo
     pub bootstrap_methods: Vec<BootstrapMethod>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Module{
+pub struct Module {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct NestHost{
+pub struct NestHost {
     //todo
     pub host_class_index: u16
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct ConstantValue{
+pub struct ConstantValue {
     //todo
     pub constant_value_index: u16
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Code{
-    pub attributes: Vec<AttributeInfo>,
+pub struct Code<'l> {
+    pub attributes: Vec<AttributeInfo<'l>>,
     pub max_stack: u16,
     pub max_locals: u16,
     pub code_raw: Vec<u8>,
-    pub code : Vec<Instruction>,
-    pub exception_table: Vec<ExceptionTableElem>
+    pub code: Vec<Instruction>,
+    pub exception_table: Vec<ExceptionTableElem>,
 }
 
 #[derive(Debug)]
@@ -89,77 +91,77 @@ pub struct LineNumberTableEntry {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Exceptions{
+pub struct Exceptions {
     //todo
     pub exception_index_table: Vec<u16>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct RuntimeVisibleParameterAnnotations{
+pub struct RuntimeVisibleParameterAnnotations {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct RuntimeInvisibleParameterAnnotations{
+pub struct RuntimeInvisibleParameterAnnotations {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct AnnotationDefault{
+pub struct AnnotationDefault {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct MethodParameters{
+pub struct MethodParameters {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Synthetic{
+pub struct Synthetic {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Deprecated{
+pub struct Deprecated {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Signature{
+pub struct Signature {
     //todo
     pub signature_index: u16
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct RuntimeVisibleAnnotations{
+pub struct RuntimeVisibleAnnotations {
     //todo
     pub annotations: Vec<Annotation>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct RuntimeInvisibleAnnotations{
+pub struct RuntimeInvisibleAnnotations {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct LineNumberTable{
+pub struct LineNumberTable {
     //todo
     pub line_number_table: Vec<LineNumberTableEntry>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct LocalVariableTable{
+pub struct LocalVariableTable {
     //todo
     pub local_variable_table: Vec<LocalVariableTableEntry>
 }
@@ -171,15 +173,14 @@ pub struct LocalVariableTableEntry {
     pub length: u16,
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub index: u16
+    pub index: u16,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct LocalVariableTypeTable{
+pub struct LocalVariableTypeTable {
     //todo
 }
-//pub struct UninitializedThisVariableInfo {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -190,38 +191,10 @@ pub struct ObjectVariableInfo {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct ArrayVariableInfo {
-    pub array_type : UnifiedType
+pub struct ArrayVariableInfo<'l> {
+    pub array_type: UnifiedType<'l>
 }
 
-//
-//#[derive(Debug)]
-//#[derive(Eq, PartialEq)]
-//pub struct TopVariableInfo {}
-//
-//#[derive(Debug)]
-//#[derive(Eq, PartialEq)]
-//pub struct IntegerVariableInfo {}
-//
-//#[derive(Debug)]
-//#[derive(Eq, PartialEq)]
-//pub struct FloatVariableInfo {}
-//
-//#[derive(Debug)]
-//#[derive(Eq, PartialEq)]
-//pub struct LongVariableInfo {}
-//
-//#[derive(Debug)]
-//#[derive(Eq, PartialEq)]
-//pub struct DoubleVariableInfo {}
-//
-//#[derive(Debug)]
-//#[derive(Eq, PartialEq)]
-//pub struct NullVariableInfo {}
-//
-//#[derive(Debug)]
-//#[derive(Eq, PartialEq)]
-//#[derive(Copy, Clone)]
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct UninitializedVariableInfo {
@@ -240,10 +213,9 @@ pub enum VerificationTypeInfo {
     UninitializedThis,
     Object(ObjectVariableInfo),
     Uninitialized(UninitializedVariableInfo),
-    Array(ArrayVariableInfo),
+    Array(ArrayVariableInfo<'static>),
 
 }
-
 
 
 #[derive(Debug)]
@@ -254,23 +226,23 @@ pub struct SameFrame {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct SameLocals1StackItemFrame {
+pub struct SameLocals1StackItemFrame<'l> {
     pub offset_delta: u16,
-    pub stack: VerificationTypeInfo
+    pub stack: UnifiedType<'l>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct SameLocals1StackItemFrameExtended {
+pub struct SameLocals1StackItemFrameExtended<'l> {
     pub offset_delta: u16,
-    pub stack: VerificationTypeInfo,
+    pub stack: UnifiedType<'l>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ChopFrame {
     pub offset_delta: u16,
-    pub k_frames_to_chop: u8
+    pub k_frames_to_chop: u8,
 }
 
 #[derive(Debug)]
@@ -281,60 +253,60 @@ pub struct SameFrameExtended {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct AppendFrame {
+pub struct AppendFrame<'l> {
     pub offset_delta: u16,
-    pub locals: Vec<VerificationTypeInfo>,
+    pub locals: Vec<UnifiedType<'l>>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct FullFrame {
+pub struct FullFrame<'l> {
     pub offset_delta: u16,
     pub number_of_locals: u16,
-    pub locals: Vec<VerificationTypeInfo>,
+    pub locals: Vec<UnifiedType<'l>>,
     pub number_of_stack_items: u16,
-    pub stack: Vec<VerificationTypeInfo>,
+    pub stack: Vec<UnifiedType<'l>>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum StackMapFrame {
+pub enum StackMapFrame<'l> {
     SameFrame(SameFrame),
-    SameLocals1StackItemFrame(SameLocals1StackItemFrame),
-    SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended),
+    SameLocals1StackItemFrame(SameLocals1StackItemFrame<'l>),
+    SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended<'l>),
     ChopFrame(ChopFrame),
     SameFrameExtended(SameFrameExtended),
-    AppendFrame(AppendFrame),
-    FullFrame(FullFrame),
+    AppendFrame(AppendFrame<'l>),
+    FullFrame(FullFrame<'l>),
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct StackMapTable{
-    pub entries: Vec<StackMapFrame>
+pub struct StackMapTable<'l> {
+    pub entries: Vec<StackMapFrame<'l>>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct RuntimeVisibleTypeAnnotations{
+pub struct RuntimeVisibleTypeAnnotations {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct RuntimeInvisibleTypeAnnotations{
+pub struct RuntimeInvisibleTypeAnnotations {
     //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct NestMembers{
+pub struct NestMembers {
     pub classes: Vec<u16>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum AttributeType{
+pub enum AttributeType<'l> {
     SourceFile(SourceFile),
     InnerClasses(InnerClasses),
     EnclosingMethod(EnclosingMethod),
@@ -344,7 +316,7 @@ pub enum AttributeType{
     NestHost(NestHost),
     NestMembers(NestMembers),
     ConstantValue(ConstantValue),
-    Code(Code),
+    Code(Code<'l>),
     Exceptions(Exceptions),
     RuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations),
     RuntimeInvisibleParameterAnnotations(RuntimeInvisibleParameterAnnotations),
@@ -358,12 +330,12 @@ pub enum AttributeType{
     LineNumberTable(LineNumberTable),
     LocalVariableTable(LocalVariableTable),
     LocalVariableTypeTable(LocalVariableTypeTable),
-    StackMapTable(StackMapTable),
+    StackMapTable(StackMapTable<'l>),
     RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations),
     RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
 }
 
-pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> AttributeInfo {
+pub fn parse_attribute<'l>(p: &'l mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> AttributeInfo<'l> {
     let attribute_name_index = read16(p);
     let attribute_length = read32(p);
 //    uint64_t cur = ;
@@ -391,11 +363,11 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
         parse_deprecated(p)
     } else if name == "InnerClasses" {
         parse_inner_classes(p)
-    } else if name == "BootstrapMethods"{
+    } else if name == "BootstrapMethods" {
         parse_bootstrap_methods(p)
     } else if name == "ConstantValue" {
         parse_constant_value_index(p)
-    } else if name == "NestMembers"{
+    } else if name == "NestMembers" {
         //todo validate at most one constraints
         parse_nest_members(p)
     } else if name == "NestHost" {
@@ -406,16 +378,16 @@ pub fn parse_attribute(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>
     AttributeInfo {
         attribute_name_index,
         attribute_length,
-        attribute_type
+        attribute_type,
     }
 }
 
-fn parse_nest_host(p: &mut ParsingContext) -> AttributeType{
+fn parse_nest_host<'l>(p: &mut ParsingContext<'l>) -> AttributeType<'l> {
     let host_class_index = read16(p);
-    AttributeType::NestHost(NestHost {host_class_index})
+    AttributeType::NestHost(NestHost { host_class_index })
 }
 
-fn parse_nest_members(p: &mut ParsingContext) -> AttributeType {
+fn parse_nest_members<'l>(p: &mut ParsingContext<'l>) -> AttributeType<'l> {
     let number_of_classes = read16(p);
     let mut classes = Vec::with_capacity(number_of_classes as usize);
     for _ in 0..number_of_classes {
@@ -424,14 +396,14 @@ fn parse_nest_members(p: &mut ParsingContext) -> AttributeType {
     AttributeType::NestMembers(NestMembers { classes })
 }
 
-fn parse_constant_value_index(p: &mut ParsingContext) -> AttributeType {
+fn parse_constant_value_index<'l>(p: &mut ParsingContext<'l>) -> AttributeType<'l> {
     let constant_value_index = read16(p);
     AttributeType::ConstantValue(ConstantValue {
         constant_value_index
     })
 }
 
-fn parse_bootstrap_methods(p: &mut ParsingContext) -> AttributeType {
+fn parse_bootstrap_methods<'l>(p: &mut ParsingContext<'l>) -> AttributeType<'l> {
     let num_bootstrap_methods = read16(p);
     let mut bootstrap_methods = Vec::with_capacity(num_bootstrap_methods as usize);
     bootstrap_methods.push(parse_bootstrap_method(p));
@@ -444,20 +416,19 @@ type BootstrapArg = u16;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct BootstrapMethod{
+pub struct BootstrapMethod {
     pub bootstrap_method_ref: u16,
-    pub bootstrap_arguments: Vec<BootstrapArg>
-
+    pub bootstrap_arguments: Vec<BootstrapArg>,
 }
 
-fn parse_bootstrap_method(p: &mut ParsingContext) -> BootstrapMethod{
+fn parse_bootstrap_method(p: &mut ParsingContext) -> BootstrapMethod {
     let bootstrap_method_ref = read16(p);
     let num_bootstrap_args = read16(p);
     let mut bootstrap_arguments = Vec::with_capacity(num_bootstrap_args as usize);
-    for _ in 0..num_bootstrap_args{
+    for _ in 0..num_bootstrap_args {
         bootstrap_arguments.push(read16(p));
     }
-    BootstrapMethod { bootstrap_arguments, bootstrap_method_ref}
+    BootstrapMethod { bootstrap_arguments, bootstrap_method_ref }
 }
 
 #[derive(Debug)]
@@ -477,7 +448,7 @@ fn parse_inner_class(p: &mut ParsingContext) -> InnerClass {
     InnerClass { inner_class_access_flags, inner_class_info_index, inner_name_index, outer_class_info_index }
 }
 
-fn parse_inner_classes(p: &mut ParsingContext) -> AttributeType {
+fn parse_inner_classes<'l>(p: &mut ParsingContext<'l>) -> AttributeType<'l> {
     let number_of_classes = read16(p);
     let mut classes = Vec::with_capacity(number_of_classes as usize);
     for _ in 0..number_of_classes {
@@ -490,11 +461,11 @@ fn parse_inner_classes(p: &mut ParsingContext) -> AttributeType {
     )
 }
 
-fn parse_deprecated(_: &mut ParsingContext) -> AttributeType {
+fn parse_deprecated<'l>(_: &mut ParsingContext) -> AttributeType<'l> {
     AttributeType::Deprecated(Deprecated {})
 }
 
-fn parse_exceptions(p: &mut ParsingContext) -> AttributeType {
+fn parse_exceptions<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     let num_exceptions = read16(p);
     let mut exception_index_table = Vec::new();
     for _ in 0..num_exceptions {
@@ -503,8 +474,8 @@ fn parse_exceptions(p: &mut ParsingContext) -> AttributeType {
     AttributeType::Exceptions(Exceptions { exception_index_table })
 }
 
-fn parse_signature(p: &mut ParsingContext) -> AttributeType {
-    return AttributeType::Signature(Signature { signature_index: read16(p) })
+fn parse_signature<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+    return AttributeType::Signature(Signature { signature_index: read16(p) });
 }
 
 type CPIndex = u16;//todo use this more
@@ -586,7 +557,7 @@ fn parse_element_value_pair(p: &mut ParsingContext) -> ElementValuePair {
     return ElementValuePair {
         element_name_index,
         value,
-    }
+    };
 }
 
 fn parse_annotation(p: &mut ParsingContext) -> Annotation {
@@ -600,10 +571,10 @@ fn parse_annotation(p: &mut ParsingContext) -> Annotation {
         type_index,
         num_element_value_pairs,
         element_value_pairs,
-    }
+    };
 }
 
-fn parse_runtime_visible_annotations(p: &mut ParsingContext) -> AttributeType {
+fn parse_runtime_visible_annotations<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     let num_annotations = read16(p);
     let mut annotations = Vec::with_capacity(num_annotations as usize);
     for _ in 0..num_annotations {
@@ -613,7 +584,7 @@ fn parse_runtime_visible_annotations(p: &mut ParsingContext) -> AttributeType {
 }
 
 
-fn parse_stack_map_table(p: &mut ParsingContext) -> AttributeType {
+fn parse_stack_map_table<'l>(p: &'l mut ParsingContext) -> AttributeType<'l> {
     let number_of_entries = read16(p);
     let mut entries = Vec::with_capacity(number_of_entries as usize);
     for _ in 0..number_of_entries {
@@ -622,7 +593,7 @@ fn parse_stack_map_table(p: &mut ParsingContext) -> AttributeType {
     return AttributeType::StackMapTable(StackMapTable { entries });
 }
 
-fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
+fn parse_stack_map_table_entry<'l>(p: &'l mut ParsingContext) -> StackMapFrame<'l> {
     let type_of_frame = read8(p);
     //todo magic constants
 //    match type_of_frame {
@@ -670,36 +641,36 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
     } else if type_of_frame == 251 {
         let offset_delta = read16(p);
         StackMapFrame::SameFrameExtended(SameFrameExtended { offset_delta })
-    } else if type_of_frame == 247{
+    } else if type_of_frame == 247 {
         let offset_delta = read16(p);
         let stack = parse_verification_type_info(p);
         StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack })
-    }else {
+    } else {
         unimplemented!("{}", type_of_frame)
     }
 }
 
-fn parse_verification_type_info(p: &mut ParsingContext) -> VerificationTypeInfo{
+fn parse_verification_type_info<'l>(p: &'l mut ParsingContext) -> UnifiedType<'l> {
     let type_ = read8(p);
     //todo magic constants
     match type_ {
-        0 => VerificationTypeInfo::Top,
-        1 => VerificationTypeInfo::Integer,
-        2 => VerificationTypeInfo::Float,
-        3 => VerificationTypeInfo::Double,
-        4 => VerificationTypeInfo::Long,
+        0 => UnifiedType::TopType,
+        1 => UnifiedType::IntType,
+        2 => UnifiedType::FloatType,
+        3 => UnifiedType::DoubleType,
+        4 => UnifiedType::LongType,
         7 => {
-            VerificationTypeInfo::Object(ObjectVariableInfo {
-            cpool_index: Some(read16(p)),
-            class_name: "".to_string(),//todo do better than this
-            })
-        },
+            UnifiedType::ReferenceType(PrologClassName::Ref(NameReference {
+                class_file: p.classfile.unwrap(),
+                index: read16(p),
+            }))
+        }
 
         _ => { unimplemented!("{}", type_) }
     }
 }
 
-fn parse_sourcefile(p: &mut ParsingContext) -> AttributeType {
+fn parse_sourcefile<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     let sourcefile_index = read16(p);
     return AttributeType::SourceFile(
         SourceFile {
@@ -708,7 +679,7 @@ fn parse_sourcefile(p: &mut ParsingContext) -> AttributeType {
     );
 }
 
-fn parse_local_variable_table(p: &mut ParsingContext) -> AttributeType {
+fn parse_local_variable_table<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     let local_variable_table_length = read16(p);
     let mut local_variable_table = Vec::with_capacity(local_variable_table_length as usize);
     for _ in 0..local_variable_table_length {
@@ -736,7 +707,7 @@ fn read_local_variable_table_entry(p: &mut ParsingContext) -> LocalVariableTable
     };
 }
 
-fn parse_line_number_table(p: &mut ParsingContext) -> AttributeType {
+fn parse_line_number_table<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     let line_number_table_length = read16(p);
     let mut line_number_table = Vec::with_capacity(line_number_table_length as usize);
     for _ in 0..line_number_table_length {
@@ -747,7 +718,6 @@ fn parse_line_number_table(p: &mut ParsingContext) -> AttributeType {
             line_number_table,
         }
     );
-
 }
 
 fn parse_line_number_table_entry(p: &mut ParsingContext) -> LineNumberTableEntry {
@@ -764,10 +734,10 @@ fn parse_exception_table_entry(p: &mut ParsingContext) -> ExceptionTableElem {
     let end_pc = read16(p);
     let handler_pc = read16(p);
     let catch_type = read16(p);
-    return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type }
+    return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type };
 }
 
-fn parse_code(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> AttributeType {
+fn parse_code<'l>(p: &'l mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> AttributeType<'l> {
     let max_stack = read16(p);
     let max_locals = read16(p);
     let code_length = read32(p);
@@ -781,25 +751,25 @@ fn parse_code(p: &mut ParsingContext, constant_pool: &Vec<ConstantInfo>) -> Attr
         exception_table.push(parse_exception_table_entry(p));
     }
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count,constant_pool);
+    let attributes = parse_attributes(p, attributes_count, constant_pool);
 
     let parsed_code = parse_code_raw(code.as_slice());
     //todo add empty stackmap table
     AttributeType::Code(Code {
-            max_stack,
-            max_locals,
+        max_stack,
+        max_locals,
         code_raw: code,
         code: parsed_code,
         exception_table,
-            attributes,
+        attributes,
     })
 }
 
 
-pub fn parse_attributes(p: &mut ParsingContext, num_attributes: u16, constant_pool: &Vec<ConstantInfo>) -> Vec<AttributeInfo> {
+pub fn parse_attributes<'l>(p: &'l mut ParsingContext, num_attributes: u16, constant_pool: &Vec<ConstantInfo>) -> Vec<AttributeInfo<'l>> {
     let mut res = Vec::with_capacity(num_attributes as usize);
     for _ in 0..num_attributes {
-        res.push(parse_attribute(p,constant_pool));
+        res.push(parse_attribute(p, constant_pool));
     }
     return res;
 }

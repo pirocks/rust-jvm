@@ -1,29 +1,27 @@
-use std::collections::HashMap;
-
 use classfile::{Classfile, code_attribute, MethodInfo};
 use interpreter::{InterpreterState};
 use verification::prolog_info_writer::extract_string_from_utf8;
 
-pub enum JavaValue {
+/*pub enum JavaValue {
     Long(i64),
     Int(i32),
     Char(u16),
     Short(i16),
     Byte(i8),
     Boolean(u8),
-    Reference(Box<ClassInstance>),
-    ArrayReference(Box<ClassInstance>),
+    Reference(Box<ClassInstance<'l>>),
+    ArrayReference(Box<ClassInstance<'l>>),
 }
 
-pub struct ClassInstance {
-    pub loaded_classfile: Box<LoadedClassFile>,
+pub struct ClassInstance<'l> {
+    pub loaded_classfile: Box<LoadedClassFile<'l>>,
     pub fields: HashMap<String, JavaValue>,
 }
 
-pub struct LoadedClassFile {
-    pub classfile: Classfile,
+pub struct LoadedClassFile<'l> {
+    pub classfile: Classfile<'l>,
     pub static_fields: HashMap<String, JavaValue>,
-}
+}*/
 
 pub fn init_locals_static_no_args(_class_file:&Classfile, _method: &MethodInfo) -> Vec<u32>{
 //    let code = code_attribute(method).expect("Error finding code in method");

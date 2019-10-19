@@ -19,8 +19,8 @@ pub struct ExtraDescriptors {
 }
 
 pub struct PrologGenContext<'l> {
-    pub state: &'l JVMClassesState,
-    pub to_verify: Vec<Classfile>,
+    pub state: &'l JVMClassesState<'l>,
+    pub to_verify: Vec<Classfile<'l>>,
     pub extra: ExtraDescriptors,
 }
 
@@ -57,14 +57,14 @@ pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(
 
 pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
-pub struct ParsedFieldDescriptor {
+pub struct ParsedFieldDescriptor<'l> {
     descriptor: String,
-    parsed: FieldDescriptor,
+    parsed: FieldDescriptor<'l>,
 }
 
-pub struct ParsedMethodDescriptor {
+pub struct ParsedMethodDescriptor<'l> {
     descriptor: String,
-    parsed: MethodDescriptor,
+    parsed: MethodDescriptor<'l>,
 }
 
 fn write_field_descriptor(fd: ParsedFieldDescriptor, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -89,7 +89,7 @@ fn write_method_descriptors(md: ParsedMethodDescriptor, w: &mut dyn Write) -> Re
     Ok(())
 }
 
-fn get_extra_descriptors(context: &PrologGenContext) -> (Vec<ParsedFieldDescriptor>, Vec<ParsedMethodDescriptor>) {
+fn get_extra_descriptors<'l>(context: &'l PrologGenContext) -> (Vec<ParsedFieldDescriptor<'l>>, Vec<ParsedMethodDescriptor<'l>>) {
     let extra_descriptors = &context.extra;
     let mut fd = vec![];
     let mut md = vec![];
@@ -348,11 +348,6 @@ fn get_attribute_name(attribute_info: &AttributeInfo) -> String {
         AttributeType::RuntimeInvisibleTypeAnnotations(_) => { "RuntimeInvisibleTypeAnnotations" }
         AttributeType::NestMembers(_) => { "NestMembers" }
     }.to_string();
-}
-
-pub struct ClassAttributes {
-    //todo name
-    pub attrs: Vec<AttributeInfo>
 }
 
 fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {

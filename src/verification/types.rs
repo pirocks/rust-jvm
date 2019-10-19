@@ -1,12 +1,14 @@
 use std::io::Write;
 use std::io;
 use verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
-use verification::verifier::UnifiedType;
+use verification::unified_type::UnifiedType;
+use verification::unified_type::PrologClassName;
+use verification::unified_type::ArrayType;
 
 #[derive(Debug)]
-pub struct MethodDescriptor{ pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }
+pub struct MethodDescriptor<'l>{ pub parameter_types: Vec<UnifiedType<'l>>, pub return_type: UnifiedType<'l> }
 
-pub struct FieldDescriptor{ pub field_type: UnifiedType }
+pub struct FieldDescriptor<'l>{ pub field_type: UnifiedType<'l> }
 
 pub fn eat_one(str_: &str) -> &str {
     &str_[1..str_.len()]
@@ -34,7 +36,7 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, UnifiedType)> {
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            Some((remaining_to_parse, UnifiedType::ReferenceType(Reference { class_name:class_name.to_string() })))
+            Some((remaining_to_parse, UnifiedType::ReferenceType(PrologClassName::Str(class_name))))
         }
         _ => {
             return None
@@ -46,7 +48,7 @@ pub fn parse_array_type(str_: &str) -> Option<(&str, UnifiedType)> {
     match str_.chars().nth(0)? {
         '[' => {
             let (remaining_to_parse,sub_type) = parse_component_type(&str_[1..str_.len()])?;
-            let array_type = UnifiedType::ArrayReferenceType(ArrayReference { sub_type: Box::from(sub_type) });
+            let array_type = UnifiedType::ArrayReferenceType(ArrayType { sub_type: &sub_type });
             Some((remaining_to_parse,array_type))
         }
         _ => None
@@ -126,28 +128,28 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, UnifiedType)> {
 
 pub fn write_type_prolog(type_: &UnifiedType,  w: &mut dyn Write) -> Result<(), io::Error>{
     match type_{
-        UnifiedType::ByteType(_) => {
+        UnifiedType::ByteType => {
             write!(w,"int")?;
         },
-        UnifiedType::CharType(_) => {
+        UnifiedType::CharType => {
             write!(w,"int")?;
         },
-        UnifiedType::DoubleType(_) => {
+        UnifiedType::DoubleType => {
             write!(w,"double")?;
         },
-        UnifiedType::FloatType(_) => {
+        UnifiedType::FloatType => {
             write!(w,"float")?;
         },
-        UnifiedType::IntType(_) => {
+        UnifiedType::IntType => {
             write!(w,"int")?;
         },
-        UnifiedType::LongType(_) => {
+        UnifiedType::LongType => {
             write!(w,"long")?;
         },
-        UnifiedType::ShortType(_) => {
+        UnifiedType::ShortType => {
             write!(w,"int")?;
         },
-        UnifiedType::BooleanType(_) => {
+        UnifiedType::BooleanType => {
             write!(w,"int")?;
         },
         UnifiedType::ReferenceType(ref_) => {
@@ -164,7 +166,7 @@ pub fn write_type_prolog(type_: &UnifiedType,  w: &mut dyn Write) -> Result<(), 
             write_type_prolog(&arr.sub_type, w)?;
             write!(w, ")")?;
         },
-        UnifiedType::VoidType(_) => {
+        UnifiedType::VoidType => {
             write!(w,"void")?;
         },
     }

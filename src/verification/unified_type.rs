@@ -1,8 +1,17 @@
+use classfile::Classfile;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct PrologClassName<'l> {
-    pub name: &'l str
+pub struct NameReference<'l>{
+    pub class_file: &'l Classfile<'l>,
+    pub index : u16,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub enum PrologClassName<'l> {
+    Ref(NameReference<'l>),
+    Str(&'l str)
 }
 
 #[derive(Debug)]
@@ -25,5 +34,6 @@ pub enum UnifiedType<'l>{
     BooleanType,
     ArrayReferenceType(ArrayType<'l>),
     VoidType,
-    TopType
+    TopType,
+    NullType
 }

@@ -4,35 +4,38 @@ use std::io;
 use std::io::Write;
 
 use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
-use classfile::attribute_infos::{AppendFrame, ArrayVariableInfo, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable, UninitializedVariableInfo, VerificationTypeInfo};
-use verification::types;
+use classfile::attribute_infos::{AppendFrame, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable, UninitializedVariableInfo};
 use verification::instruction_outputer::extract_class_from_constant_pool;
 use verification::prolog_info_writer::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
-use verification::types::{ArrayReference, Byte, Char, Int, parse_field_descriptor, parse_method_descriptor, Reference, Void, write_type_prolog};
 use verification::prolog_info_writer::PrologGenContext;
 use verification::prolog_info_writer::class_name;
 use classfile::attribute_infos::SameFrameExtended;
 use classfile::attribute_infos::SameLocals1StackItemFrameExtended;
 use classfile::code::Instruction;
 use verification::verifier::Frame;
-use verification::verifier::UnifiedType;
+use verification::types::parse_field_descriptor;
+use verification::types::write_type_prolog;
+use verification::types::parse_method_descriptor;
+use verification::unified_type::PrologClassName;
+use verification::unified_type::UnifiedType;
+use verification::unified_type::ArrayType;
 
 pub enum Name{
     String(String)
 }
 
-pub struct ParseCodeAttribute{
+pub struct ParseCodeAttribute<'l>{
     pub class_name: Name,
     pub frame_size : u16,
     pub max_stack: u16,
     pub code : Vec<Instruction>,
     pub exception_table : Vec<ExceptionHandler>,//todo
-    pub stackmap_frames: Vec<StackMap>//todo
+    pub stackmap_frames: Vec<StackMap<'l>>//todo
 }
 
-pub struct StackMap{
+pub struct StackMap<'l>{
     pub offset: usize,
-    pub map_frame: Frame
+    pub map_frame: Frame<'l>
 }
 
 
@@ -86,14 +89,8 @@ fn write_exception_handler(class_file: &Classfile, exception_handler: &Exception
     Ok(())
 }
 
-/*pub struct Frame {
-    pub locals: Vec<VerificationTypeInfo>,
-    pub stack: Vec<VerificationTypeInfo>,
-    pub max_locals: u16,
-    pub current_offset: u16,
-}*/
 
-pub fn init_frame(parameter_types: Vec<UnifiedType>, this_pointer: Option<UnifiedType>, max_locals: u16) -> Frame {
+pub fn init_frame<'k>(parameter_types: Vec<UnifiedType>, this_pointer: Option<UnifiedType>, max_locals: u16) -> Frame<'k> {
     let mut locals = Vec::with_capacity(max_locals as usize);
     match this_pointer {
         None => {},//class is static etc.
@@ -107,40 +104,40 @@ pub fn init_frame(parameter_types: Vec<UnifiedType>, this_pointer: Option<Unifie
     Frame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
 }
 
-fn locals_push_convert_type(res: &mut Vec<VerificationTypeInfo>, type_: Type) -> () {
+fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> () {
     match type_ {
         UnifiedType::ByteType => {
-            res.push(VerificationTypeInfo::Integer);
+            res.push(UnifiedType::IntType);
         }
         UnifiedType::CharType => {
-            res.push(VerificationTypeInfo::Integer);
+            res.push(UnifiedType::IntType);
         }
         UnifiedType::DoubleType => {
-            res.push(VerificationTypeInfo::Double);
-            res.push(VerificationTypeInfo::Top);
+            res.push(UnifiedType::DoubleType);
+            res.push(UnifiedType::TopType);
         }
         UnifiedType::FloatType => {
-            res.push(VerificationTypeInfo::Float);
+            res.push(UnifiedType::FloatType);
         }
         UnifiedType::IntType => {
-            res.push(VerificationTypeInfo::Integer);
+            res.push(UnifiedType::IntType);
         }
         UnifiedType::LongType => {
-            res.push(VerificationTypeInfo::Long);
-            res.push(VerificationTypeInfo::Top);
+            res.push(UnifiedType::LongType);
+            res.push(UnifiedType::TopType);
         }
         UnifiedType::ReferenceType(r) => {
-            assert_ne!(r.class_name.chars().nth(0).unwrap(),'[');
-            res.push(VerificationTypeInfo::Object(ObjectVariableInfo { cpool_index: None.clone(), class_name: r.class_name.to_string() }));
+            assert_ne!(r.name.chars().nth(0).unwrap(),'[');
+            res.push(UnifiedType::ReferenceType(PrologClassName::Str( r.name )));
         }
         UnifiedType::ShortType => {
-            res.push(VerificationTypeInfo::Integer);
+            res.push(UnifiedType::IntType);
         }
         UnifiedType::BooleanType => {
-            res.push(VerificationTypeInfo::Integer);
+            res.push(UnifiedType::IntType);
         }
         UnifiedType::ArrayReferenceType(art) => {
-            res.push(VerificationTypeInfo::Array(ArrayVariableInfo { array_type: UnifiedType::ArrayReferenceType(art) }));
+            res.push(UnifiedType::ArrayReferenceType(ArrayType { sub_type: &UnifiedType::ArrayReferenceType(art) }));
         }
         UnifiedType::VoidType => { panic!() }
     }
@@ -165,17 +162,17 @@ fn write_locals(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Resu
 }
 
 //todo this should really be a write function
-fn verification_type_as_string(classfile: &Classfile, verification_type: &VerificationTypeInfo, w: &mut dyn Write) -> Result<(), io::Error> {
+fn verification_type_as_string(classfile: &Classfile, verification_type: &UnifiedType, w: &mut dyn Write) -> Result<(), io::Error> {
     match verification_type {
-        VerificationTypeInfo::Top => { write!(w, "top")?; }
-        VerificationTypeInfo::Integer => { write!(w, "int")?; }
-        VerificationTypeInfo::Float => { write!(w, "float")?; }
-        VerificationTypeInfo::Long => { write!(w, "long")?; }
-        VerificationTypeInfo::Double => { write!(w, "double")?; }
-        VerificationTypeInfo::Null => { write!(w, "null")?; }
-        VerificationTypeInfo::UninitializedThis => { unimplemented!() }
-        VerificationTypeInfo::Object(o) => {
-            let class_name = object_get_class_name(&classfile, o);
+        UnifiedType::TopType => { write!(w, "top")?; }
+        UnifiedType::IntType => { write!(w, "int")?; }
+        UnifiedType::FloatType => { write!(w, "float")?; }
+        UnifiedType::LongType => { write!(w, "long")?; }
+        UnifiedType::DoubleType => { write!(w, "double")?; }
+        UnifiedType::NullType => { write!(w, "null")?; }
+        UnifiedType::UninitializedThis => { unimplemented!() }
+        UnifiedType::ReferenceType(o) => {
+            let class_name = o.name;
             if class_name.chars().nth(0).unwrap() == '[' {
                 let parsed_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing a descriptor").field_type;
                 write_type_prolog(&parsed_descriptor, w)?;
@@ -183,8 +180,8 @@ fn verification_type_as_string(classfile: &Classfile, verification_type: &Verifi
             }
             write!(w, "class('{}',{})", class_name, BOOTSTRAP_LOADER_NAME)?;
         }
-        VerificationTypeInfo::Uninitialized => { unimplemented!() }
-        VerificationTypeInfo::Array(a) => {
+        UnifiedType::Uninitialized(_) => { unimplemented!() }
+        UnifiedType::ArrayReferenceType(a) => {
 //            write!(w,"arrayOf(")?;
             write_type_prolog(&a.array_type, w)?;
 //            write!(w,")")?;
@@ -207,9 +204,9 @@ fn object_get_class_name(classfile: &Classfile, o: &ObjectVariableInfo) -> Strin
 
 fn write_operand_stack(classfile: &Classfile, frame: &Frame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
-    for (i, local) in frame.stack.iter().rev().enumerate() {
+    for (i, local) in frame.stack_map.iter().rev().enumerate() {
         verification_type_as_string(classfile, local, w)?;
-        if i != frame.stack.len() - 1 {
+        if i != frame.stack_map.len() - 1 {
             write!(w, ",")?;
         }
     }
@@ -227,7 +224,7 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0{
         None
     }else {
-        Some(UnifiedType::ReferenceType(Reference {class_name:class_name(class_file) }))
+        Some(UnifiedType::ReferenceType(PrologClassName::Str(class_name(class_file).as_str())))
     };
 
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
@@ -322,31 +319,31 @@ fn write_stack_map_frame(class_file: &Classfile, w: &mut dyn Write, frame: &Fram
 }
 
 
-fn push_to_stack(classfile: &Classfile,frame: &mut Frame, new_local: &VerificationTypeInfo){
+fn push_to_stack(classfile: &Classfile,frame: &mut Frame, new_local: &UnifiedType){
     add_verification_type_to_array(classfile,&mut frame.stack, new_local)
 }
 
-fn add_new_local(classfile: &Classfile,frame: &mut Frame, new_local: &VerificationTypeInfo){
+fn add_new_local(classfile: &Classfile,frame: &mut Frame, new_local: &UnifiedType){
     add_verification_type_to_array(classfile,&mut frame.locals, new_local)
 }
 
-fn add_verification_type_to_array(classfile: &Classfile,locals: &mut Vec<VerificationTypeInfo>, new_local: &VerificationTypeInfo) -> () {
+fn add_verification_type_to_array(classfile: &Classfile,locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
     match copy_recurse(classfile,new_local) {
-        VerificationTypeInfo::Double => {
-            locals.push(VerificationTypeInfo::Double);
-            locals.push(VerificationTypeInfo::Top);
+        UnifiedType::DoubleType => {
+            locals.push(UnifiedType::DoubleType);
+            locals.push(UnifiedType::TopType);
         }
-        VerificationTypeInfo::Long => {
-            locals.push(VerificationTypeInfo::Long);
-            locals.push(VerificationTypeInfo::Top);
+        UnifiedType::LongType => {
+            locals.push(UnifiedType::LongType);
+            locals.push(UnifiedType::TopType);
         }
         new => { locals.push(new); }
     }
 }
 
-fn copy_recurse(classfile:&Classfile,to_copy : &VerificationTypeInfo)-> VerificationTypeInfo{
+fn copy_recurse<'l>(classfile:&Classfile<'l>,to_copy : &UnifiedType<'l>)-> UnifiedType<'l>{
     match to_copy {
-        VerificationTypeInfo::Object(o) => {
+        UnifiedType::Object(o) => {
             let class_name = object_get_class_name(classfile,o);
             /*if class_name.chars().nth(0).unwrap() == '[' {
                 let type_ = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
@@ -355,43 +352,43 @@ fn copy_recurse(classfile:&Classfile,to_copy : &VerificationTypeInfo)-> Verifica
                 return copy_recurse(classfile,&temp[0]);
             }*/
 
-            VerificationTypeInfo::Object(ObjectVariableInfo { class_name, cpool_index: o.cpool_index })
+            UnifiedType::ReferenceType(PrologClassName::Str(class_name.as_str()))
         },
-        VerificationTypeInfo::Uninitialized(u) => {
-            VerificationTypeInfo::Uninitialized(UninitializedVariableInfo { offset: u.offset })
+        UnifiedType::Uninitialized(u) => {
+            UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset })
         },
-        VerificationTypeInfo::Array(a) => {
-            VerificationTypeInfo::Array(ArrayVariableInfo { array_type: copy_type_recurse(&a.array_type) })
+        UnifiedType::ArrayReferenceType(a) => {
+            UnifiedType::ArrayReferenceType(ArrayType { sub_type: &copy_type_recurse(&a.array_type) })
         },
 
-        VerificationTypeInfo::Top => {VerificationTypeInfo::Top}
-        VerificationTypeInfo::Integer => {VerificationTypeInfo::Integer}
-        VerificationTypeInfo::Float => {VerificationTypeInfo::Float}
-        VerificationTypeInfo::Long => {VerificationTypeInfo::Long}
-        VerificationTypeInfo::Double => {VerificationTypeInfo::Double}
-        VerificationTypeInfo::Null => {VerificationTypeInfo::Null}
-        VerificationTypeInfo::UninitializedThis => {VerificationTypeInfo::UninitializedThis}
+        UnifiedType::TopType => {UnifiedType::TopType}
+        UnifiedType::IntType => {UnifiedType::IntType}
+        UnifiedType::FloatType => {UnifiedType::FloatType}
+        UnifiedType::LongType => {UnifiedType::LongType}
+        UnifiedType::DoubleType => {UnifiedType::DoubleType}
+        UnifiedType::NullType => {UnifiedType::NullType}
+        UnifiedType::UninitializedThis => {UnifiedType::UninitializedThis}
     }
 }
 
-fn copy_type_recurse(type_: &UnifiedType) -> UnifiedType {
+fn copy_type_recurse<'l>(type_: &UnifiedType) -> UnifiedType<'l> {
     match type_ {
-        UnifiedType::ByteType => { UnifiedType::ByteType(Byte {}) },
-        UnifiedType::CharType => { UnifiedType::CharType(Char {}) },
-        UnifiedType::DoubleType => { UnifiedType::DoubleType(types::Double {}) },
-        UnifiedType::FloatType => { UnifiedType::FloatType(types::Float {}) },
-        UnifiedType::IntType => { UnifiedType::IntType(Int {}) },
-        UnifiedType::LongType => { UnifiedType::LongType(types::Long {}) },
-        UnifiedType::ShortType => { UnifiedType::ShortType(types::Short {}) },
+        UnifiedType::ByteType => { UnifiedType::ByteType },
+        UnifiedType::CharType => { UnifiedType::CharType },
+        UnifiedType::DoubleType => { UnifiedType::DoubleType },
+        UnifiedType::FloatType => { UnifiedType::FloatType },
+        UnifiedType::IntType => { UnifiedType::IntType },
+        UnifiedType::LongType => { UnifiedType::LongType },
+        UnifiedType::ShortType => { UnifiedType::ShortType },
         UnifiedType::ReferenceType(t) => {
-            UnifiedType::ReferenceType(types::Reference { class_name: t.class_name.clone() })
+            UnifiedType::ReferenceType(PrologClassName::Str(t.name))
         },
-        UnifiedType::BooleanType => { UnifiedType::BooleanType(types::Boolean {}) },
+        UnifiedType::BooleanType => { UnifiedType::BooleanType },
         UnifiedType::ArrayReferenceType(t) => {
-            UnifiedType::ArrayReferenceType(ArrayReference { sub_type: Box::new(copy_type_recurse(&t.sub_type)) })
+            UnifiedType::ArrayReferenceType(ArrayType { sub_type: &copy_type_recurse(&t.sub_type) })
         },
         UnifiedType::VoidType => {
-            UnifiedType::VoidType(Void{})
+            UnifiedType::VoidType
         },
     }
 }

@@ -1,6 +1,5 @@
 use classfile::{ACC_NATIVE, Classfile};
 use classfile::ACC_ABSTRACT;
-use classfile::attribute_infos::VerificationTypeInfo;
 use classfile::code::Instruction;
 use verification::code_writer::ParseCodeAttribute;
 use verification::code_writer::StackMap;
@@ -9,6 +8,7 @@ use classfile::ACC_INTERFACE;
 use classfile::ACC_FINAL;
 use classfile::code_attribute;
 use classfile::code::InstructionInfo;
+use verification::unified_type::UnifiedType;
 
 pub fn loaded_class(class: &PrologClass) -> bool {
     unimplemented!()
@@ -25,7 +25,7 @@ struct ClassLoaderState {
 
 pub struct PrologClass<'l> {
     pub loader: String,
-    pub class: &'l Classfile,
+    pub class: &'l Classfile<'l>,
 }
 
 pub struct PrologClassMethod<'l> {
@@ -68,16 +68,14 @@ pub fn super_class_chain<'l,'k>(chain_start: &'k PrologClass) -> Vec<&'l PrologC
 }
 
 pub struct Frame<'l> {
-    pub locals: &'l Vec<UnifiedType>,
-    pub stack_map: &'l Vec<UnifiedType>,
+    pub locals: &'l Vec<UnifiedType<'l>>,
+    pub stack_map: &'l Vec<UnifiedType<'l>>,
     pub flag_this_uninit: bool,
 }
 
 /**
 Because of the confusing many types of types, this is a type enum to rule them all.
 */
-pub enum UnifiedType {}
-
 pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
     left.stack_map.len() == right.stack_map.len()
         && left.locals.iter().zip(right.locals.iter()).all(|(left_, right_)| {
@@ -95,43 +93,43 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
     unimplemented!()
 }
 
-pub fn pop_matching_list(pop_from: Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
+pub fn pop_matching_list<'l>(pop_from: Vec<UnifiedType<'l>>, pop: Vec<UnifiedType<'l>>) -> Vec<UnifiedType<'l>> {
     unimplemented!()
 }
 
-pub fn pop_matching_type(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<(Vec<UnifiedType>, UnifiedType)> {
+pub fn pop_matching_type<'l>(operand_stack: Vec<UnifiedType<'l>>, type_: UnifiedType<'l>) -> Option<(Vec<UnifiedType<'l>>, UnifiedType<'l>)> {
     unimplemented!()
 }
 
-pub fn size_of(unified_type: UnifiedType) -> u64 {
+pub fn size_of<'l>(unified_type: UnifiedType<'l>) -> u64 {
     unimplemented!()
 }
 
-pub fn push_operand_stack(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Vec<UnifiedType> {
+pub fn push_operand_stack<'l>(operand_stack: Vec<UnifiedType<'l>>, type_: UnifiedType<'l>) -> Vec<UnifiedType<'l>> {
     unimplemented!()
 }
 
-pub fn operand_stack_has_legal_length(environment: &Environment,operand_stack:&Vec<UnifiedType> ) -> bool {
+pub fn operand_stack_has_legal_length<'l>(environment: &Environment,operand_stack:&Vec<UnifiedType<'l>> ) -> bool {
     unimplemented!()
 }
 
-pub fn pop_category_1(types: Vec<UnifiedType>) -> Option<(UnifiedType, Vec<UnifiedType>)> {
+pub fn pop_category_1<'l>(types: Vec<UnifiedType<'l>>) -> Option<(UnifiedType<'l>, Vec<UnifiedType<'l>>)> {
     unimplemented!()
 }
 
-pub fn can_safely_push(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<Vec<UnifiedType>> {
+pub fn can_safely_push<'l>(environment: Environment, input_operand_stack: Vec<UnifiedType<'l>>, type_: UnifiedType<'l>) -> Option<Vec<UnifiedType<'l>>> {
     unimplemented!();
 }
 
-pub fn can_safely_push_list(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
+pub fn can_safely_push_list<'l>(environment: Environment, input_operand_stack: Vec<UnifiedType<'l>>, type_list: Vec<UnifiedType<'l>>) -> Option<Vec<UnifiedType<'l>>> {
     unimplemented!()
 }
 
-pub fn can_push_list(input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
+pub fn can_push_list<'l>(input_operand_stack: Vec<UnifiedType<'l>>, type_list: Vec<UnifiedType<'l>>) -> Option<Vec<UnifiedType<'l>>> {
     unimplemented!()
 }
 
-pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
+pub fn can_pop<'l>(input_frame: Frame, types: Vec<UnifiedType<'l>>) -> Option<Frame<'l>> {
     unimplemented!()
 }
 
@@ -207,7 +205,7 @@ pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> b
         };
 }
 
-pub fn get_parsed_code_attribute(class: &PrologClass, method: &PrologClassMethod) -> ParseCodeAttribute {
+pub fn get_parsed_code_attribute<'l>(class: &PrologClass<'l>, method: &PrologClassMethod<'l>) -> ParseCodeAttribute<'l> {
     let method_info= &class.class.methods[method.method_index];
     let code = code_attribute(method_info).unwrap();
     unimplemented!()
@@ -286,7 +284,7 @@ struct Environment<'l> {
 
 enum MergedCodeInstruction<'l> {
     Instruction(&'l Instruction),
-    StackMap(&'l StackMap),
+    StackMap(&'l StackMap<'l>),
 }
 
 /**
@@ -317,25 +315,25 @@ fn merge_stack_map_and_code<'l>(instruction: Vec<Instruction>, stack_maps: Vec<S
     return res;
 }
 
-fn method_initial_stack_frame<'l>(class: &PrologClass, method: &PrologClassMethod) -> (Frame<'l>, u64, UnifiedType) {
+fn method_initial_stack_frame<'l>(class: &PrologClass, method: &PrologClassMethod) -> (Frame<'l>, u64, UnifiedType<'l>) {
     unimplemented!()
 }
 
-fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
+fn expand_type_list<'l>(list: Vec<UnifiedType<'l>>) -> Vec<UnifiedType<'l>> {
     unimplemented!()
 }
 
 //fn flags()
 
-fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
+fn expand_to_length<'l>(list: Vec<UnifiedType<'l>>, size: usize, filler: UnifiedType<'l>) -> Vec<UnifiedType<'l>> {
     unimplemented!()
 }
 
-fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
+fn method_initial_this_type<'l>(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType<'l>> {
     unimplemented!()
 }
 
-fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> bool {
+fn instance_method_initial_this_type<'l>(class: &PrologClass, method: &PrologClassMethod) -> bool {
     unimplemented!()
 }
 
@@ -397,18 +395,18 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
 
 }
 
-fn nth0(index: usize, locals: &Vec<VerificationTypeInfo>) -> UnifiedType{
+fn nth0<'l>(index: usize, locals: &Vec<UnifiedType<'l>>) -> UnifiedType<'l>{
     unimplemented!()
 }
 
-fn load_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) -> bool {
+fn load_is_type_safe<'l>(env: &Environment, index: usize, type_: &UnifiedType<'l>, frame: &Frame, next_frame: &Frame) -> bool {
     let locals= &frame.locals;
     let actual_type = nth0(index,locals);
     is_assignable(&actual_type,type_) &&
         valid_type_transition(env,vec![],&actual_type,frame,next_frame)
 }
 
-fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) {
+fn store_is_type_safe<'l>(env: &Environment, index: usize, type_: &UnifiedType<'l>, frame: &Frame, next_frame: &Frame) {
     unimplemented!()
 }
 

@@ -51,12 +51,12 @@ impl std::fmt::Display for ClassEntry {
 }
 
 #[derive(Debug)]
-pub struct JVMClassesState {
+pub struct JVMClassesState<'l> {
     //whether we are using bootstrap loader.
     //todo in future there will be map to loader state
     pub using_bootstrap_loader: bool,
     //mapping from full classname(including package) to loaded Classfile
-    pub bootstrap_loaded_classes: HashMap<ClassEntry, Box<Classfile>>,
+    pub bootstrap_loaded_classes: HashMap<ClassEntry, Box<Classfile<'l>>>,
     //classes which are being loaded.
     pub loading_in_progress: HashSet<ClassEntry>,
     pub partial_load: HashSet<ClassEntry>,
@@ -149,7 +149,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassE
     }
 }
 
-fn clinit(class: &Classfile) -> &MethodInfo {
+fn clinit<'l>(class: &Classfile<'l>) -> &'l MethodInfo<'l> {
     for method_info in class.methods.iter() {
         let name = extract_string_from_utf8(&class.constant_pool[method_info.name_index as usize]);
         if name == "<clinit>" {

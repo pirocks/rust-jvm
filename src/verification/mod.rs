@@ -16,7 +16,6 @@ use classfile::parsing_util::ParsingContext;
 use verification::prolog_info_writer::{class_name, ExtraDescriptors, gen_prolog, PrologGenContext};
 use verification::PrologOutput::{NeedsAnotherClass, True};
 
-use self::prolog_initial_defs::prolog_initial_defs;
 use std::io;
 
 /**
@@ -72,7 +71,7 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
     return None//verification was successful
 }
 
-fn init_prolog(state: &JVMClassesState) -> (Child, BufWriter<ChildStdin>, Lines<BufReader<ChildStdout>>, PrologGenContext) {
+fn init_prolog<'l>(state: &'l JVMClassesState<'l>) -> (Child, BufWriter<ChildStdin>, Lines<BufReader<ChildStdout>>, PrologGenContext<'l>) {
     let mut prolog = Command::new("/usr/bin/swipl")//only tested with swi-prolog, other prologs may work.
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -143,7 +142,7 @@ fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
 
 fn add_to_verify(state: &JVMClassesState, to_verify: &mut Vec<Classfile>, class_entry: &ClassEntry) -> () {
     let path = state.indexed_classpath.get(class_entry).unwrap();
-    let mut p = ParsingContext { f: File::open(path).expect("This is a bug") };
+    let mut p = ParsingContext { f: File::open(path).expect("This is a bug") , classfile:None};
     let class_file = parse_class_file(&mut p);
     to_verify.push(class_file)
 }
@@ -154,7 +153,7 @@ pub fn prolog_initial_defs(w :&mut dyn Write) -> Result<(),io::Error>{
     Ok(())
 }
 
-
+pub mod unified_type;
 pub mod prolog_info_writer;
 pub mod code_writer;
 pub mod types;
