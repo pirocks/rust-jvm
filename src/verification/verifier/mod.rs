@@ -392,7 +392,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 }
 
 fn class_to_type<'l>(class: &'l PrologClass<'l>) -> UnifiedType<'l> {
-    UnifiedType::ReferenceType(&ClassNameReference::Ref(NameReference {
+    UnifiedType::ReferenceType(ClassNameReference::Ref(NameReference {
         index: class.class.this_class,
         class_file: class.class,
     }))

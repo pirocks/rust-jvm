@@ -10,7 +10,6 @@
 //load superclass
 
 
-use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs::File;
@@ -20,7 +19,6 @@ use log::trace;
 
 use classfile::{Classfile, MethodInfo, parse_class_file};
 use classfile::constant_infos::ConstantKind;
-use classfile::parsing_util::ParsingContext;
 use execution::run_static_method_no_args;
 use verification::prolog_info_writer::{class_name, extract_string_from_utf8, get_super_class_name};
 use verification::verify;
@@ -100,9 +98,8 @@ pub fn load_class<'l>(classes: &'l mut JVMClassesState<'l>, class_name_with_pack
         }).unwrap();
 
         let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
-        let mut p = ParsingContext { f: candidate_file ,classfile:None};
-        parse_class_file(p.borrow_mut());
-        let parsed = p.classfile.unwrap();
+//        let mut p = ParsingContext { f: candidate_file ,constant_pool:None};
+        let parsed = parse_class_file(candidate_file);
         if class_name_with_package != class_entry(&parsed) {
             dbg!(class_name_with_package);
             dbg!(class_entry(&parsed));

@@ -13,13 +13,14 @@ pub struct NameReference<'l>{
 #[derive(Eq, PartialEq)]
 pub enum ClassNameReference<'l> {
     Ref(NameReference<'l>),
-    Str(&'l str)
+    Str(String)
 }
 
 pub fn get_referred_name<'l>(ref_ : &'l ClassNameReference<'l>) -> &'l str{
     match ref_{
         ClassNameReference::Ref(r) => {
-            extract_string_from_utf8(&r.class_file.constant_pool[r.index as usize]).as_str()
+            unimplemented!()
+//            extract_string_from_utf8(&r.class_file.constant_pool[r.index as usize]).as_str()
         },
         ClassNameReference::Str(s) => {s},
     }
@@ -40,7 +41,7 @@ pub enum UnifiedType<'l>{
     FloatType,
     IntType,
     LongType,
-    ReferenceType(&'l ClassNameReference<'l>),
+    ReferenceType(ClassNameReference<'l>),
     ShortType,
     BooleanType,
     ArrayReferenceType(ArrayType<'l>),

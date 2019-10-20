@@ -5,24 +5,24 @@ use std::io::Write;
 
 use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
 use classfile::attribute_infos::{AppendFrame, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable};
-use verification::instruction_outputer::extract_class_from_constant_pool;
-use verification::prolog_info_writer::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
-use verification::prolog_info_writer::PrologGenContext;
-use verification::prolog_info_writer::class_name;
 use classfile::attribute_infos::SameFrameExtended;
 use classfile::attribute_infos::SameLocals1StackItemFrameExtended;
-use classfile::code::Instruction;
-use verification::verifier::Frame;
-use verification::types::parse_field_descriptor;
-use verification::types::write_type_prolog;
-use verification::types::parse_method_descriptor;
-use verification::unified_type::ClassNameReference;
-use verification::unified_type::UnifiedType;
-use verification::unified_type::ArrayType;
-use verification::verifier::InternalFrame;
-use verification::unified_type::get_referred_name;
 use classfile::attribute_infos::UninitializedVariableInfo;
+use classfile::code::Instruction;
+use verification::instruction_outputer::extract_class_from_constant_pool;
+use verification::prolog_info_writer::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
+use verification::prolog_info_writer::class_name;
+use verification::prolog_info_writer::PrologGenContext;
+use verification::types::parse_field_descriptor;
+use verification::types::parse_method_descriptor;
+use verification::types::write_type_prolog;
+use verification::unified_type::ArrayType;
+use verification::unified_type::ClassNameReference;
+use verification::unified_type::get_referred_name;
+use verification::unified_type::UnifiedType;
+use verification::verifier::Frame;
 use verification::verifier::Handler;
+use verification::verifier::InternalFrame;
 
 pub enum Name{
     String(String)
@@ -132,7 +132,7 @@ fn locals_push_convert_type<'l>(res: &mut Vec<UnifiedType<'l>>, type_: UnifiedTy
             res.push(UnifiedType::TopType);
         }
         UnifiedType::ReferenceType(r) => {
-            assert_ne!(get_referred_name(r).chars().nth(0).unwrap(),'[');
+            assert_ne!(get_referred_name(&r).chars().nth(0).unwrap(), '[');
             res.push(UnifiedType::ReferenceType(r));
         }
         UnifiedType::ShortType => {
@@ -142,7 +142,10 @@ fn locals_push_convert_type<'l>(res: &mut Vec<UnifiedType<'l>>, type_: UnifiedTy
             res.push(UnifiedType::IntType);
         }
         UnifiedType::ArrayReferenceType(art) => {
-            res.push(UnifiedType::ArrayReferenceType(ArrayType { sub_type: &UnifiedType::ArrayReferenceType(art) }));
+            res.push(UnifiedType::ArrayReferenceType(
+                ArrayType {
+                    sub_type: &UnifiedType::ArrayReferenceType(art)
+                }));
         }
         UnifiedType::VoidType => { panic!() }
         _ => {panic!("Case wasn't coverred with non-unified types")}
@@ -231,7 +234,7 @@ fn write_stack_map_frames(class_file: &Classfile, method_info: &MethodInfo, w: &
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0{
         None
     }else {
-        Some(UnifiedType::ReferenceType(&ClassNameReference::Str(class_name(class_file).as_str())))
+        Some(UnifiedType::ReferenceType(ClassNameReference::Str(class_name(class_file))))
     };
 
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
@@ -360,7 +363,10 @@ fn copy_recurse<'l>(classfile:&Classfile,to_copy : &UnifiedType<'l>)-> UnifiedTy
                 return copy_recurse(classfile,&temp[0]);
             }*/
 
-            UnifiedType::ReferenceType(o)
+            UnifiedType::ReferenceType(match o {
+                ClassNameReference::Ref(r) => { unimplemented!() },
+                ClassNameReference::Str(s) => { ClassNameReference::Str(s.clone()) },
+            })
         },
         UnifiedType::Uninitialized(u) => {
             UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset})
@@ -390,7 +396,10 @@ fn copy_type_recurse<'l>(type_: &'l UnifiedType<'l>) -> UnifiedType<'l> {
         UnifiedType::LongType => { UnifiedType::LongType },
         UnifiedType::ShortType => { UnifiedType::ShortType },
         UnifiedType::ReferenceType(t) => {
-            UnifiedType::ReferenceType(&t)
+            UnifiedType::ReferenceType(match t {
+                ClassNameReference::Ref(_) => { unimplemented!() },
+                ClassNameReference::Str(s) => { ClassNameReference::Str(s.clone()) },
+            })
         },
         UnifiedType::BooleanType => { UnifiedType::BooleanType },
         UnifiedType::ArrayReferenceType(t) => {
