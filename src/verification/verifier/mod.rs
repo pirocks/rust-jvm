@@ -29,6 +29,7 @@ pub fn loaded_class_(class_name: String, loader_name: String) -> Option<PrologCl
 }
 
 
+#[allow(dead_code)]
 struct ClassLoaderState {
     //todo
 }
@@ -47,10 +48,12 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
     return class.class.access_flags & ACC_INTERFACE != 0;
 }
 
+#[allow(unused)]
 pub fn is_java_sub_class_of(from: &PrologClass, to: &PrologClass) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
     unimplemented!()
 }
@@ -100,46 +103,57 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
     }
 }
 
+#[allow(unused)]
 pub fn valid_type_transition<'l>(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame<'l>) -> Frame<'l> {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn pop_matching_list(pop_from: Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn pop_matching_type(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<(Vec<UnifiedType>, UnifiedType)> {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn size_of(unified_type: UnifiedType) -> u64 {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn push_operand_stack(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Vec<UnifiedType> {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: &Vec<UnifiedType>) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn pop_category_1(types: Vec<UnifiedType>) -> Option<(UnifiedType, Vec<UnifiedType>)> {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn can_safely_push(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<Vec<UnifiedType>> {
     unimplemented!();
 }
 
+#[allow(unused)]
 pub fn can_safely_push_list(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn can_push_list(input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
     unimplemented!()
 }
@@ -186,15 +200,17 @@ pub fn class_is_type_safe(class: &PrologClass) -> bool {
     })
 }
 
+#[allow(unused)]
 pub fn does_not_override_final_method(class: &PrologClass, method: &PrologClassMethod) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn final_method_not_overridden(method: &PrologClassMethod, super_class: &PrologClass, method_list: &Vec<PrologClassMethod>) -> bool {
     unimplemented!()
 }
 
-
+#[allow(unused)]
 pub fn does_not_override_final_method_of_superclass(class: &PrologClass, method: &PrologClassMethod) -> bool {
     unimplemented!()
 }
@@ -238,10 +254,12 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     handers_are_legal(&env) && merged_code_is_type_safe(&env, merged.as_slice(), &frame, false)
 }
 
+#[allow(unused)]
 pub fn handers_are_legal(env: &Environment) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn instructions_include_end(instructs: Vec<UnifiedInstruction>, end: u64) -> bool {
     unimplemented!()
 }
@@ -261,29 +279,35 @@ pub fn handler_exception_class(handler: &Handler) -> PrologClass {
     }
 }
 
+#[allow(unused)]
 pub fn init_handler_is_legal(env: &Environment, handler: &Handler) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn not_init_handler(env: &Environment, handler: &Handler) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn is_init_handler(env: &Environment, handler: &Handler) -> bool {
     unimplemented!()
 }
 
 pub enum UnifiedInstruction {}
 
+#[allow(unused)]
 pub fn is_applicable_instruction(handler_start: u64, instruction: &UnifiedInstruction) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 pub fn no_attempt_to_return_normally(instruction: &UnifiedInstruction) -> bool {
     unimplemented!()
 }
 
 
+#[allow(dead_code)]
 pub struct Environment<'l> {
     method: &'l PrologClassMethod<'l>,
     frame_size: u16,
@@ -326,24 +350,29 @@ fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: V
     return res;
 }
 
+#[allow(unused)]
 fn method_initial_stack_frame<'l>(class: &'l PrologClass, method: &'l PrologClassMethod) -> (Frame<'l>, u64, UnifiedType) {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
     unimplemented!()
 }
 
 //fn flags()
 
+#[allow(unused)]
 fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> bool {
     unimplemented!()
 }
@@ -369,6 +398,7 @@ fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruct
     }
 }
 
+#[allow(unused)]
 fn offset_stack_frame<'l>(env: &Environment, target: usize) -> Frame<'l> {
     unimplemented!()
 }
@@ -410,10 +440,12 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
         target_is_type_safe(env, &true_exc_stack_frame, target)
 }
 
+#[allow(unused)]
 fn nth0(index: usize, locals: &Vec<UnifiedType>) -> UnifiedType {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn load_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) -> bool {
     let locals = &frame.locals;
     let actual_type = nth0(index, locals);
@@ -423,6 +455,7 @@ fn load_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame
         &type_transition == next_frame
 }
 
+#[allow(unused)]
 fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) {
     unimplemented!()
 }
@@ -439,20 +472,24 @@ pub enum Descriptor {}
 
 //fn modify_local_variable() //todo
 
+#[allow(unused)]
 fn passes_protected_check(env: &Environment, member_class_name: String, member_name: String, member_descriptor: &Descriptor, stack_frame: &Frame) -> bool {
     unimplemented!()
 }
 
 //fn classesInOtherPkgWithProtectedMember(, ) //todo
 
+#[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn different_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn exception_stack_frame(frame1: Frame, excpetion_stack_frame: Frame) -> bool {
     unimplemented!()
 }
@@ -462,413 +499,515 @@ pub struct InstructionIsTypeSafeResult<'l> {
     exception_frame: Frame<'l>,
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe<'l>(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame<'l>) -> Option<InstructionIsTypeSafeResult<'l>> {
     unimplemented!()
 }
 
 
+#[allow(unused)]
 fn instruction_is_type_safe_aaload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_aastore(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_aconst_null(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_aload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_anewarray(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_areturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_astore(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_athrow(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_baload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_bastore(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_caload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_castore(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_d2f(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_d2i(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_d2l(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dadd(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_daload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dastore(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dcmpg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dconst_0(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dneg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dreturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dstore(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dup(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dup_x1(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dup_x2(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dup2(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dup2_x1(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_dup2_x2(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_f2d(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_f2i(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_f2l(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_fadd(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_faload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_fastore(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_fcmpg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_fconst_0(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_fload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_fneg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_freturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_fstore(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_getfield(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_getstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_goto(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_i2d(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_i2f(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_iadd(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_iaload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_iastore(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_iconst_m1(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_if_acmpeq(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_iinc(index: usize, value: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_iload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_ineg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_ireturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_istore(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_l2d(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_l2f(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_l2i(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_ladd(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_laload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lastore(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lcmp(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lconst_0(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_ldc(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_ldc2_w(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lneg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lreturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lshl(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_lstore(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_monitorenter(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
 //todo start using CPIndex instead of usize
 
+#[allow(unused)]
 fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_nop(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_pop(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_pop2(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_putfield(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_putstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_return(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_saload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_sastore(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_sipush(value: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_swap(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn same_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }

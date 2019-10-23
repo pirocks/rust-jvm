@@ -58,16 +58,19 @@ pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(
 
 pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
+#[allow(dead_code)]
 pub struct ParsedFieldDescriptor {
     descriptor: String,
     parsed: FieldDescriptor,
 }
 
+#[allow(dead_code)]
 pub struct ParsedMethodDescriptor {
     descriptor: String,
     parsed: MethodDescriptor,
 }
 
+//#[allow(dead_code)]
 fn write_field_descriptor(fd: ParsedFieldDescriptor, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "parseFieldDescriptor('{}',", fd.descriptor)?;
     write_type_prolog(&fd.parsed.field_type, w)?;
@@ -90,6 +93,7 @@ fn write_method_descriptors(md: ParsedMethodDescriptor, w: &mut dyn Write) -> Re
     Ok(())
 }
 
+#[allow(unused)]
 fn get_extra_descriptors(context: & PrologGenContext) -> (Vec<ParsedFieldDescriptor>, Vec<ParsedMethodDescriptor>) {
     let extra_descriptors = &context.extra;
     let mut fd = vec![];
@@ -252,6 +256,7 @@ fn write_class_super_class_name(context: &PrologGenContext, w: &mut dyn Write) -
 // Extracts a list, Interfaces , of the direct superinterfaces of the class Class .
 // Extracts the name, SuperClassName , of the superclass of class Class .
 // True iff the class, Class , is not a final class.
+#[allow(dead_code)]
 pub(crate) struct ClassInterfaces {
     names: Vec<String>//todo?
 }
@@ -278,7 +283,7 @@ fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Resu
     Ok(())
 }
 
-
+#[allow(dead_code)]
 pub(crate) struct Method {
     //todo class name
     //todo method name
@@ -384,6 +389,7 @@ fn write_method_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<()
 //)
 // Extracts the access flags, AccessFlags , of the method Method .
 
+#[allow(unused)]
 pub fn get_access_flags(class: &PrologClass,method: &::verification::verifier::PrologClassMethod) -> u16 {
     unimplemented!()
 }

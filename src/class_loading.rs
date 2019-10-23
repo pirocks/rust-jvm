@@ -19,7 +19,6 @@ use log::trace;
 
 use classfile::{Classfile, MethodInfo, parse_class_file};
 use classfile::constant_infos::ConstantKind;
-use execution::run_static_method_no_args;
 use verification::prolog_info_writer::{class_name, extract_string_from_utf8, get_super_class_name};
 use verification::verify;
 use std::rc::Rc;

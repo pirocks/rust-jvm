@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::hash::Hasher;
 
 use classfile::attribute_infos::{AttributeType, Code, parse_attributes, StackMapTable};

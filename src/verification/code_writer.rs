@@ -78,6 +78,7 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
 }
 
 
+#[allow(dead_code)]
 pub struct ExceptionHandler {
     start_pc: u32,
     end_pc: u32,
@@ -173,6 +174,7 @@ fn write_locals(classfile: &Rc<Classfile>, frame: &InternalFrame, w: &mut dyn Wr
 }
 
 //todo this should really be a write function
+#[allow(unused)]
 fn verification_type_as_string(classfile: &Rc<Classfile>, verification_type: &UnifiedType, w: &mut dyn Write) -> Result<(), io::Error> {
     match verification_type {
         UnifiedType::TopType => { write!(w, "top")?; }
@@ -202,6 +204,7 @@ fn verification_type_as_string(classfile: &Rc<Classfile>, verification_type: &Un
     Ok(())
 }
 
+#[allow(unused)]
 fn object_get_class_name(classfile: &Rc<Classfile>, o: &ObjectVariableInfo) -> String {
     let class_name = match o.cpool_index {
         None => { o.class_name.clone() }
