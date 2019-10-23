@@ -1,22 +1,38 @@
 use classfile::Classfile;
 use classfile::attribute_infos::UninitializedVariableInfo;
-use verification::prolog_info_writer::extract_string_from_utf8;
+use std::rc::Weak;
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct NameReference<'l>{
-    pub class_file: &'l Classfile<'l>,
+pub struct NameReference{
+    pub class_file: Weak<Classfile>,
     pub index : u16,
 }
 
+impl Eq for NameReference {}
+
+//pub fn rc_ptr_eq<T: ?Sized>(this: &Rc<T>, other: &Rc<T>) -> bool {
+//    unsafe  {
+//        let this_ptr: *const T = &*this;
+//        let other_ptr: *const T = &*other;
+//        this_ptr == other_ptr
+//    }
+//}
+
+impl PartialEq for NameReference{
+    fn eq(&self, other: &NameReference) -> bool{
+//        assert!(rc_ptr_eq(self.class_file,&other.class_file));
+        &self.class_file.upgrade() == &other.class_file.upgrade() && self.index == other.index
+    }
+}
+
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum ClassNameReference<'l> {
-    Ref(NameReference<'l>),
+pub enum ClassNameReference {
+    Ref(NameReference),
     Str(String)
 }
 
-pub fn get_referred_name<'l>(ref_ : &'l ClassNameReference<'l>) -> &'l str{
+pub fn get_referred_name(ref_ : &ClassNameReference) -> &String{
     match ref_{
         ClassNameReference::Ref(r) => {
             unimplemented!()
@@ -28,23 +44,23 @@ pub fn get_referred_name<'l>(ref_ : &'l ClassNameReference<'l>) -> &'l str{
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct ArrayType<'l> {
-    pub sub_type: &'l UnifiedType<'l>
+pub struct ArrayType{
+    pub sub_type: Box<UnifiedType>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum UnifiedType<'l>{
+pub enum UnifiedType{
     ByteType,
     CharType,
     DoubleType,
     FloatType,
     IntType,
     LongType,
-    ReferenceType(ClassNameReference<'l>),
+    ReferenceType(ClassNameReference),
     ShortType,
     BooleanType,
-    ArrayReferenceType(ArrayType<'l>),
+    ArrayReferenceType(ArrayType),
     VoidType,
     TopType,
     NullType,

@@ -7,8 +7,9 @@ use verification::prolog_info_writer::{extract_string_from_utf8, BOOTSTRAP_LOADE
 use verification::types::{parse_field_descriptor, write_type_prolog};
 use classfile::code::Instruction;
 use classfile::code::InstructionInfo;
+use std::rc::Rc;
 
-fn name_and_type_extractor(i: u16, class_file: &Classfile) -> (String, String) {
+fn name_and_type_extractor(i: u16, class_file: &Rc<Classfile>) -> (String, String) {
     let nt;
     match &class_file.constant_pool[i as usize].kind {
         ConstantKind::NameAndType(nt_) => {
@@ -21,8 +22,8 @@ fn name_and_type_extractor(i: u16, class_file: &Classfile) -> (String, String) {
     return (method_name, descriptor);
 }
 
-pub fn extract_class_from_constant_pool<'l>(i: u16, class_file: &'l Classfile<'l>) -> &'l Class {
-    match &class_file.constant_pool[i as usize].kind {
+pub fn extract_class_from_constant_pool(i: u16, classfile: &Rc<Classfile>) -> &Class {
+    match &classfile.constant_pool[i as usize].kind {
         ConstantKind::Class(c) => {
             return c;
         }
@@ -32,19 +33,19 @@ pub fn extract_class_from_constant_pool<'l>(i: u16, class_file: &'l Classfile<'l
     }
 }
 
-fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Classfile, cp_index: u16, is_ldc: bool) -> String {
+fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, classfile: &Rc<Classfile>, cp_index: u16, is_ldc: bool) -> String {
     let mut res = String::new();
     use std::fmt::Write;
-    match &class_file.constant_pool[cp_index as usize].kind {
+    match &classfile.constant_pool[cp_index as usize].kind {
         ConstantKind::InvokeDynamic(i) => {
-            let (method_name, descriptor) = name_and_type_extractor(i.name_and_type_index, class_file);
+            let (method_name, descriptor) = name_and_type_extractor(i.name_and_type_index, classfile);
             write!(&mut res, "dmethod('{}', '{}')", method_name, descriptor).unwrap();
             extra_descriptors.extra_method_descriptors.push(descriptor);
         }
         ConstantKind::Methodref(m) => {
-            let c = extract_class_from_constant_pool(m.class_index, class_file);
-            let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
-            let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, class_file);
+            let c = extract_class_from_constant_pool(m.class_index, &classfile);
+            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
+            let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
             if class_name.chars().nth(0).unwrap() == '[' {
                 let parsed_class_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
                 write!(&mut res, "method(").unwrap();
@@ -58,15 +59,15 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
             }
         }
         ConstantKind::Fieldref(f) => {
-            let (field_name, descriptor) = name_and_type_extractor(f.name_and_type_index, class_file);
-            let c = extract_class_from_constant_pool(f.class_index, class_file);
-            let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
+            let (field_name, descriptor) = name_and_type_extractor(f.name_and_type_index, classfile);
+            let c = extract_class_from_constant_pool(f.class_index, &classfile);
+            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             write!(&mut res, "field('{}','{}', '{}')", class_name, field_name, descriptor).unwrap();
             extra_descriptors.extra_field_descriptors.push(descriptor);
         }
         ConstantKind::String(s) => {
-            let string = extract_string_from_utf8(&class_file.constant_pool[s.string_index as usize]);
-            write!(&mut res, "string('{}')", string.replace("\\", "\\\\").replace("'","\\'")).unwrap();
+            let string = extract_string_from_utf8(&classfile.constant_pool[s.string_index as usize]);
+            write!(&mut res, "string('{}')", string.replace("\\", "\\\\").replace("'", "\\'")).unwrap();
         }
         ConstantKind::Integer(i) => {
             write!(&mut res, "int({})", i.bytes).unwrap();
@@ -79,7 +80,7 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
             write!(&mut res, "long({})", long).unwrap();
         }
         ConstantKind::Class(c) => {
-            let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
+            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             if class_name.chars().nth(0).unwrap() == '[' {
                 let parsed_class_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
                 let mut type_vec = Vec::new();
@@ -94,9 +95,9 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
             }
         }
         ConstantKind::InterfaceMethodref(im) => {
-            let (method_name, descriptor) = name_and_type_extractor(im.nt_index, class_file);
-            let c = extract_class_from_constant_pool(im.class_index, class_file);
-            let class_name = extract_string_from_utf8(&class_file.constant_pool[c.name_index as usize]);
+            let (method_name, descriptor) = name_and_type_extractor(im.nt_index, classfile);
+            let c = extract_class_from_constant_pool(im.class_index, &classfile);
+            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             write!(&mut res, "imethod('{}', '{}', '{}')", class_name, method_name, descriptor).unwrap();
             extra_descriptors.extra_method_descriptors.push(descriptor);
         }
@@ -108,7 +109,7 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, class_file: &Clas
     res
 }
 
-fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Classfile, instruction: &Instruction) -> String {
+fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Rc<Classfile>, instruction: &Instruction) -> String {
     format!("instruction({},{})", instruction.offset, match &instruction.instruction {
         InstructionInfo::aaload => { "aaload".to_string() }
         InstructionInfo::aastore => { "aastore".to_string() }
@@ -413,7 +414,7 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Cla
     })
 }
 
-pub fn output_instruction_info_for_code(prolog_context: &mut ExtraDescriptors, class_file: &Classfile, code: &Code, w: &mut dyn Write) -> Result<(), Error> {
+pub fn output_instruction_info_for_code(prolog_context: &mut ExtraDescriptors, class_file: &Rc<Classfile>, code: &Code, w: &mut dyn Write) -> Result<(), Error> {
     write!(w, "[")?;
     for instruction in code.code.iter() {
         write!(w, "{},", instruction_to_string(prolog_context, class_file, instruction))?;

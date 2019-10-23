@@ -7,9 +7,9 @@ use verification::unified_type::ArrayType;
 use verification::unified_type::get_referred_name;
 
 #[derive(Debug)]
-pub struct MethodDescriptor<'l>{ pub parameter_types: Vec<UnifiedType<'l>>, pub return_type: UnifiedType<'l> }
+pub struct MethodDescriptor{ pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }
 
-pub struct FieldDescriptor<'l>{ pub field_type: UnifiedType<'l> }
+pub struct FieldDescriptor{ pub field_type: UnifiedType }
 
 pub fn eat_one(str_: &str) -> &str {
     &str_[1..str_.len()]
@@ -49,7 +49,7 @@ pub fn parse_array_type(str_: &str) -> Option<(&str, UnifiedType)> {
     match str_.chars().nth(0)? {
         '[' => {
             let (remaining_to_parse,sub_type) = parse_component_type(&str_[1..str_.len()])?;
-            let array_type = UnifiedType::ArrayReferenceType(ArrayType { sub_type: &sub_type });
+            let array_type = UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(sub_type) });
             Some((remaining_to_parse,array_type))
         }
         _ => None

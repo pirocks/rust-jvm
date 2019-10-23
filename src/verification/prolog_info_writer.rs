@@ -12,6 +12,7 @@ use verification::instruction_outputer::extract_class_from_constant_pool;
 use verification::types::MethodDescriptor;
 use verification::types::FieldDescriptor;
 use verification::verifier::PrologClass;
+use std::rc::Rc;
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -19,8 +20,8 @@ pub struct ExtraDescriptors {
 }
 
 pub struct PrologGenContext<'l> {
-    pub state: &'l JVMClassesState<'l>,
-    pub to_verify: Vec<Classfile<'l>>,
+    pub state: &'l JVMClassesState,
+    pub to_verify: Vec<Rc<Classfile>>,
     pub extra: ExtraDescriptors,
 }
 
@@ -57,14 +58,14 @@ pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(
 
 pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
-pub struct ParsedFieldDescriptor<'l> {
+pub struct ParsedFieldDescriptor {
     descriptor: String,
-    parsed: FieldDescriptor<'l>,
+    parsed: FieldDescriptor,
 }
 
-pub struct ParsedMethodDescriptor<'l> {
+pub struct ParsedMethodDescriptor {
     descriptor: String,
-    parsed: MethodDescriptor<'l>,
+    parsed: MethodDescriptor,
 }
 
 fn write_field_descriptor(fd: ParsedFieldDescriptor, w: &mut dyn Write) -> Result<(), io::Error> {
@@ -89,7 +90,7 @@ fn write_method_descriptors(md: ParsedMethodDescriptor, w: &mut dyn Write) -> Re
     Ok(())
 }
 
-fn get_extra_descriptors<'l>(context: &'l PrologGenContext) -> (Vec<ParsedFieldDescriptor<'l>>, Vec<ParsedMethodDescriptor<'l>>) {
+fn get_extra_descriptors(context: & PrologGenContext) -> (Vec<ParsedFieldDescriptor>, Vec<ParsedMethodDescriptor>) {
     let extra_descriptors = &context.extra;
     let mut fd = vec![];
     let mut md = vec![];
@@ -299,9 +300,9 @@ pub(crate) fn write_method_prolog_name(class_file: &Classfile, method_info: &Met
 fn write_class_methods(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         write!(w, "classMethods({},[", class_prolog_name(&class_name(&class_file)))?;
-        for (i, method_info) in class_file.methods.iter().enumerate() {
+        for (i, method_info) in class_file.methods.borrow_mut().iter().enumerate() {
             write_method_prolog_name(&class_file, method_info, w, false)?;
-            if class_file.methods.len() - 1 != i {
+            if class_file.methods.borrow_mut().len() - 1 != i {
                 write!(w, ",")?;
             }
         }
@@ -353,9 +354,9 @@ fn get_attribute_name(attribute_info: &AttributeInfo) -> String {
 fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         write!(w, "classAttributes({}, [", class_prolog_name(&class_name(&class_file)))?;
-        for (i, attribute) in class_file.attributes.iter().enumerate() {
+        for (i, attribute) in class_file.attributes.borrow_mut().iter().enumerate() {
             write_attribute(&attribute, w)?;
-            if class_file.attributes.len() - 1 != i {
+            if class_file.attributes.borrow_mut().len() - 1 != i {
                 write!(w, ",")?;
             }
         }
@@ -369,7 +370,7 @@ fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Resu
 
 fn write_method_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for method in class_file.methods.iter() {
+        for method in class_file.methods.borrow_mut().iter() {
             write!(w, "methodName(")?;
             write_method_prolog_name(class_file, &method, w, false)?;
             write!(w, ",'{}').\n", extract_string_from_utf8(&class_file.constant_pool[method.name_index as usize]))?;
@@ -395,7 +396,7 @@ fn before_method_access_flags(class_file: &Classfile, method_info: &MethodInfo, 
 
 fn write_method_access_flags(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for method_info in class_file.methods.iter() {
+        for method_info in class_file.methods.borrow_mut().iter() {
             before_method_access_flags(class_file, method_info, w)?;
             write!(w, ",[ignore_this")?;
             if (method_info.access_flags & ACC_PUBLIC) > 0 {
@@ -473,7 +474,7 @@ fn method_name(class_file: &Classfile, method_info: &MethodInfo) -> String {
 
 pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for method_info in class_file.methods.iter() {
+        for method_info in class_file.methods.borrow_mut().iter() {
             write!(w, "methodDescriptor(")?;
             write_method_prolog_name(class_file, method_info, w, false)?;
             write!(w, ",")?;
@@ -489,7 +490,7 @@ pub fn write_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) ->
 // Extracts a list, Attributes , of the attributes of the method Method .
 fn write_method_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for method_info in class_file.methods.iter() {
+        for method_info in class_file.methods.borrow_mut().iter() {
             write!(w, "methodAttributes(")?;
             write_method_prolog_name(class_file, method_info, w, false)?;
             match code_attribute(method_info) {
@@ -511,7 +512,7 @@ fn write_method_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Res
 // True iff Method (regardless of class) is not <init> .
 fn write_is_init_and_is_not_init(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for method_info in class_file.methods.iter() {
+        for method_info in class_file.methods.borrow_mut().iter() {
             let method_name_info = &class_file.constant_pool[method_info.name_index as usize];
             let method_name = extract_string_from_utf8(method_name_info);
             if method_name == "<init>".to_string() {
@@ -545,7 +546,7 @@ macro_rules! write_attribute {
 
 fn write_is_and_is_not_attributes_method(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for method_info in class_file.methods.iter() {
+        for method_info in class_file.methods.borrow_mut().iter() {
             write_attribute!(ACC_FINAL,"isFinal","isNotFinal",method_info,class_file,w);
             write_attribute!(ACC_STATIC,"isStatic","isNotStatic",method_info,class_file,w);
             write_attribute!(ACC_PRIVATE,"isPrivate","isNotPrivate",method_info,class_file,w);
@@ -589,7 +590,7 @@ pub fn prolog_field_descriptor(class_file: &Classfile, field_info: &FieldInfo, w
 
 pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for field_info in class_file.fields.iter() {
+        for field_info in class_file.fields.borrow_mut().iter() {
             if (field_info.access_flags & ACC_PROTECTED) > 0 {
                 write!(w, "isProtected('{}',", class_name(class_file))?;
             } else {
@@ -611,7 +612,7 @@ pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Wri
 
 pub fn write_parse_field_descriptors(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for field_info in class_file.fields.iter() {
+        for field_info in class_file.fields.borrow_mut().iter() {
             write!(w, "parseFieldDescriptor(")?;
             prolog_field_descriptor(class_file, field_info, w)?;
             let descriptor_string = extract_string_from_utf8(&class_file.constant_pool[field_info.descriptor_index as usize]);
@@ -633,7 +634,7 @@ pub fn write_parse_field_descriptors(context: &PrologGenContext, w: &mut dyn Wri
 
 pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        for method_info in class_file.methods.iter() {
+        for method_info in class_file.methods.borrow_mut().iter() {
             write!(w, "parseMethodDescriptor(")?;
             prolog_method_descriptor(class_file, method_info, w)?;
             let method_descriptor_str = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);

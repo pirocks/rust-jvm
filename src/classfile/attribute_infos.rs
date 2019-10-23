@@ -1,16 +1,11 @@
-use std::borrow::Borrow;
-use std::fs::read;
-
 use classfile::AttributeInfo;
 use classfile::code::Instruction;
 use classfile::code::parse_code_raw;
-use classfile::constant_infos::{ConstantInfo, ConstantKind, is_utf8};
+use classfile::constant_infos::{ConstantKind, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
-use verification::prolog_info_writer::extract_string_from_utf8;
 use verification::unified_type::ClassNameReference;
-use verification::unified_type::NameReference;
 use verification::unified_type::UnifiedType;
-use std::cell::RefCell;
+use classfile::Classfile;
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -68,8 +63,8 @@ pub struct ConstantValue {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Code<'l> {
-    pub attributes: Vec<AttributeInfo<'l>>,
+pub struct Code {
+    pub attributes: Vec<AttributeInfo>,
     pub max_stack: u16,
     pub max_locals: u16,
     pub code_raw: Vec<u8>,
@@ -195,8 +190,8 @@ pub struct ObjectVariableInfo {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct ArrayVariableInfo<'l> {
-    pub array_type: UnifiedType<'l>
+pub struct ArrayVariableInfo {
+    pub array_type: UnifiedType
 }
 
 #[derive(Debug)]
@@ -217,7 +212,7 @@ pub enum VerificationTypeInfo {
     UninitializedThis,
     Object(ObjectVariableInfo),
     Uninitialized(UninitializedVariableInfo),
-    Array(ArrayVariableInfo<'static>),
+    Array(ArrayVariableInfo),
 
 }
 
@@ -230,16 +225,16 @@ pub struct SameFrame {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct SameLocals1StackItemFrame<'l> {
+pub struct SameLocals1StackItemFrame {
     pub offset_delta: u16,
-    pub stack: UnifiedType<'l>,
+    pub stack: UnifiedType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct SameLocals1StackItemFrameExtended<'l> {
+pub struct SameLocals1StackItemFrameExtended {
     pub offset_delta: u16,
-    pub stack: UnifiedType<'l>,
+    pub stack: UnifiedType,
 }
 
 #[derive(Debug)]
@@ -257,37 +252,37 @@ pub struct SameFrameExtended {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct AppendFrame<'l> {
+pub struct AppendFrame {
     pub offset_delta: u16,
-    pub locals: Vec<UnifiedType<'l>>,
+    pub locals: Vec<UnifiedType>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct FullFrame<'l> {
+pub struct FullFrame {
     pub offset_delta: u16,
     pub number_of_locals: u16,
-    pub locals: Vec<UnifiedType<'l>>,
+    pub locals: Vec<UnifiedType>,
     pub number_of_stack_items: u16,
-    pub stack: Vec<UnifiedType<'l>>,
+    pub stack: Vec<UnifiedType>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum StackMapFrame<'l> {
+pub enum StackMapFrame {
     SameFrame(SameFrame),
-    SameLocals1StackItemFrame(SameLocals1StackItemFrame<'l>),
-    SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended<'l>),
+    SameLocals1StackItemFrame(SameLocals1StackItemFrame),
+    SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended),
     ChopFrame(ChopFrame),
     SameFrameExtended(SameFrameExtended),
-    AppendFrame(AppendFrame<'l>),
-    FullFrame(FullFrame<'l>),
+    AppendFrame(AppendFrame),
+    FullFrame(FullFrame),
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct StackMapTable<'l> {
-    pub entries: Vec<StackMapFrame<'l>>
+pub struct StackMapTable {
+    pub entries: Vec<StackMapFrame>
 }
 
 #[derive(Debug)]
@@ -310,7 +305,7 @@ pub struct NestMembers {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum AttributeType<'l> {
+pub enum AttributeType {
     SourceFile(SourceFile),
     InnerClasses(InnerClasses),
     EnclosingMethod(EnclosingMethod),
@@ -320,7 +315,7 @@ pub enum AttributeType<'l> {
     NestHost(NestHost),
     NestMembers(NestMembers),
     ConstantValue(ConstantValue),
-    Code(Code<'l>),
+    Code(Code),
     Exceptions(Exceptions),
     RuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations),
     RuntimeInvisibleParameterAnnotations(RuntimeInvisibleParameterAnnotations),
@@ -334,21 +329,21 @@ pub enum AttributeType<'l> {
     LineNumberTable(LineNumberTable),
     LocalVariableTable(LocalVariableTable),
     LocalVariableTypeTable(LocalVariableTypeTable),
-    StackMapTable(StackMapTable<'l>),
+    StackMapTable(StackMapTable),
     RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations),
     RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
 }
 
-pub fn parse_attribute<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) -> AttributeInfo<'l> {
+pub fn parse_attribute(p: &mut ParsingContext, classfile: &Rc<Classfile>) -> AttributeInfo {
     let attribute_name_index = read16(p);
     let attribute_length = read32(p);
 //    uint64_t cur = ;
-    let name_pool = constant_pool[attribute_name_index as usize].borrow();
+    let name_pool = &classfile.constant_pool[attribute_name_index as usize];
     assert!(is_utf8(&name_pool.kind).is_some());
     let name_struct = is_utf8(&name_pool.kind).expect("Classfile may be corrupted, invalid constant encountered.");
     let name = &name_struct.string;
     let attribute_type = if name == "Code" {
-        parse_code(p, constant_pool)
+        parse_code(p, classfile)
     } else if name == "LineNumberTable" {
         parse_line_number_table(p)
     } else if name == "LocalVariableTable" {
@@ -356,7 +351,7 @@ pub fn parse_attribute<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<Constan
     } else if name == "SourceFile" {
         parse_sourcefile(p)
     } else if name == "StackMapTable" {
-        parse_stack_map_table(p, constant_pool)
+        parse_stack_map_table(p, classfile)
     } else if name == "RuntimeVisibleAnnotations" {
         parse_runtime_visible_annotations(p)
     } else if name == "Signature" {
@@ -386,12 +381,12 @@ pub fn parse_attribute<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<Constan
     }
 }
 
-fn parse_nest_host<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_nest_host(p: &mut ParsingContext) -> AttributeType {
     let host_class_index = read16(p);
     AttributeType::NestHost(NestHost { host_class_index })
 }
 
-fn parse_nest_members<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_nest_members(p: &mut ParsingContext) -> AttributeType {
     let number_of_classes = read16(p);
     let mut classes = Vec::with_capacity(number_of_classes as usize);
     for _ in 0..number_of_classes {
@@ -400,14 +395,14 @@ fn parse_nest_members<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     AttributeType::NestMembers(NestMembers { classes })
 }
 
-fn parse_constant_value_index<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_constant_value_index(p: &mut ParsingContext) -> AttributeType {
     let constant_value_index = read16(p);
     AttributeType::ConstantValue(ConstantValue {
         constant_value_index
     })
 }
 
-fn parse_bootstrap_methods<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_bootstrap_methods(p: &mut ParsingContext) -> AttributeType {
     let num_bootstrap_methods = read16(p);
     let mut bootstrap_methods = Vec::with_capacity(num_bootstrap_methods as usize);
     bootstrap_methods.push(parse_bootstrap_method(p));
@@ -452,7 +447,7 @@ fn parse_inner_class(p: &mut ParsingContext) -> InnerClass {
     InnerClass { inner_class_access_flags, inner_class_info_index, inner_name_index, outer_class_info_index }
 }
 
-fn parse_inner_classes<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_inner_classes(p: &mut ParsingContext) -> AttributeType {
     let number_of_classes = read16(p);
     let mut classes = Vec::with_capacity(number_of_classes as usize);
     for _ in 0..number_of_classes {
@@ -465,11 +460,11 @@ fn parse_inner_classes<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     )
 }
 
-fn parse_deprecated<'l>(_: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_deprecated(_: &mut ParsingContext) -> AttributeType {
     AttributeType::Deprecated(Deprecated {})
 }
 
-fn parse_exceptions<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_exceptions(p: &mut ParsingContext) -> AttributeType {
     let num_exceptions = read16(p);
     let mut exception_index_table = Vec::new();
     for _ in 0..num_exceptions {
@@ -478,7 +473,7 @@ fn parse_exceptions<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     AttributeType::Exceptions(Exceptions { exception_index_table })
 }
 
-fn parse_signature<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_signature(p: &mut ParsingContext) -> AttributeType {
     return AttributeType::Signature(Signature { signature_index: read16(p) });
 }
 
@@ -578,7 +573,7 @@ fn parse_annotation(p: &mut ParsingContext) -> Annotation {
     };
 }
 
-fn parse_runtime_visible_annotations<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_runtime_visible_annotations(p: &mut ParsingContext) -> AttributeType {
     let num_annotations = read16(p);
     let mut annotations = Vec::with_capacity(num_annotations as usize);
     for _ in 0..num_annotations {
@@ -588,16 +583,16 @@ fn parse_runtime_visible_annotations<'l>(p: &mut ParsingContext) -> AttributeTyp
 }
 
 
-fn parse_stack_map_table<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) -> AttributeType<'l> {
+fn parse_stack_map_table(p: &mut ParsingContext, constant_pool: &Rc<Classfile>) -> AttributeType {
     let number_of_entries = read16(p);
     let mut entries = Vec::with_capacity(number_of_entries as usize);
     for _ in 0..number_of_entries {
-        entries.push(parse_stack_map_table_entry(p, Rc::clone(&constant_pool)));
+        entries.push(parse_stack_map_table_entry(p, constant_pool));
     }
     return AttributeType::StackMapTable(StackMapTable { entries });
 }
 
-fn parse_stack_map_table_entry<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) -> StackMapFrame<'l> {
+fn parse_stack_map_table_entry(p: &mut ParsingContext, classfile: &Rc<Classfile>) -> StackMapFrame {
     let type_of_frame = read8(p);
     //todo magic constants
 //    match type_of_frame {
@@ -606,14 +601,14 @@ fn parse_stack_map_table_entry<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec
     } else if 64 <= type_of_frame && type_of_frame <= 127 {
         StackMapFrame::SameLocals1StackItemFrame(SameLocals1StackItemFrame {
             offset_delta: (type_of_frame - 64) as u16,
-            stack: parse_verification_type_info(p, constant_pool),
+            stack: parse_verification_type_info(p, classfile),
         })
     } else if 252 <= type_of_frame && type_of_frame <= 254 { //todo <= or <
         let offset_delta = read16(p);
         let locals_size = type_of_frame - 251;
         let mut locals = Vec::with_capacity(locals_size as usize);
         for _ in 0..locals_size {
-            locals.push(parse_verification_type_info(p, Rc::clone(&constant_pool)))
+            locals.push(parse_verification_type_info(p, classfile))
         }
         StackMapFrame::AppendFrame(AppendFrame {
             offset_delta,
@@ -624,12 +619,12 @@ fn parse_stack_map_table_entry<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec
         let number_of_locals = read16(p);
         let mut locals = Vec::with_capacity(number_of_locals as usize);
         for _ in 0..number_of_locals {
-            locals.push(parse_verification_type_info(p, Rc::clone(&constant_pool)));
+            locals.push(parse_verification_type_info(p, classfile));
         }
         let number_of_stack_items = read16(p);
         let mut stack = Vec::with_capacity(number_of_stack_items as usize);
         for _ in 0..number_of_stack_items {
-            stack.push(parse_verification_type_info(p, Rc::clone(&constant_pool)));
+            stack.push(parse_verification_type_info(p, classfile));
         }
         StackMapFrame::FullFrame(FullFrame {
             offset_delta,
@@ -647,14 +642,14 @@ fn parse_stack_map_table_entry<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec
         StackMapFrame::SameFrameExtended(SameFrameExtended { offset_delta })
     } else if type_of_frame == 247 {
         let offset_delta = read16(p);
-        let stack = parse_verification_type_info(p, constant_pool);
+        let stack = parse_verification_type_info(p, classfile);
         StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack })
     } else {
         unimplemented!("{}", type_of_frame)
     }
 }
 
-fn parse_verification_type_info<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) -> UnifiedType<'l> {
+fn parse_verification_type_info(p: &mut ParsingContext, classfile: &Rc<Classfile>) -> UnifiedType {
     let type_ = read8(p);
     //todo magic constants
     match type_ {
@@ -664,7 +659,7 @@ fn parse_verification_type_info<'l>(p: &mut ParsingContext, constant_pool: Rc<Ve
         3 => UnifiedType::DoubleType,
         4 => UnifiedType::LongType,
         7 => {
-            let str_ = match &constant_pool[read16(p) as usize].kind {
+            let str_ = match &classfile.constant_pool[read16(p) as usize].kind {
                 ConstantKind::Utf8(u) => { &u.string },
                 _ => { panic!() }
             };
@@ -675,7 +670,7 @@ fn parse_verification_type_info<'l>(p: &mut ParsingContext, constant_pool: Rc<Ve
     }
 }
 
-fn parse_sourcefile<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_sourcefile(p: &mut ParsingContext) -> AttributeType {
     let sourcefile_index = read16(p);
     return AttributeType::SourceFile(
         SourceFile {
@@ -684,7 +679,7 @@ fn parse_sourcefile<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
     );
 }
 
-fn parse_local_variable_table<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_local_variable_table(p: &mut ParsingContext) -> AttributeType {
     let local_variable_table_length = read16(p);
     let mut local_variable_table = Vec::with_capacity(local_variable_table_length as usize);
     for _ in 0..local_variable_table_length {
@@ -712,7 +707,7 @@ fn read_local_variable_table_entry(p: &mut ParsingContext) -> LocalVariableTable
     };
 }
 
-fn parse_line_number_table<'l>(p: &mut ParsingContext) -> AttributeType<'l> {
+fn parse_line_number_table(p: &mut ParsingContext) -> AttributeType {
     let line_number_table_length = read16(p);
     let mut line_number_table = Vec::with_capacity(line_number_table_length as usize);
     for _ in 0..line_number_table_length {
@@ -742,7 +737,7 @@ fn parse_exception_table_entry(p: &mut ParsingContext) -> ExceptionTableElem {
     return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type };
 }
 
-fn parse_code<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) -> AttributeType<'l> {
+fn parse_code(p: &mut ParsingContext, classfile: &Rc<Classfile>) -> AttributeType {
     let max_stack = read16(p);
     let max_locals = read16(p);
     let code_length = read32(p);
@@ -756,7 +751,7 @@ fn parse_code<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) 
         exception_table.push(parse_exception_table_entry(p));
     }
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count, constant_pool);
+    let attributes = parse_attributes(p, attributes_count, classfile);
 
     let parsed_code = parse_code_raw(code.as_slice());
     //todo add empty stackmap table
@@ -771,10 +766,10 @@ fn parse_code<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) 
 }
 
 
-pub fn parse_attributes<'l>(p: &mut ParsingContext, num_attributes: u16, constant_pool: Rc<Vec<ConstantInfo>>) -> Vec<AttributeInfo<'l>> {
+pub fn parse_attributes(p: &mut ParsingContext, num_attributes: u16, classfile: &Rc<Classfile>) -> Vec<AttributeInfo> {
     let mut res = Vec::with_capacity(num_attributes as usize);
     for _ in 0..num_attributes {
-        res.push(parse_attribute(p, Rc::clone(&constant_pool)));
+        res.push(parse_attribute(p, classfile));
     }
     return res;
 }

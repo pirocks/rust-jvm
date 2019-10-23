@@ -22,6 +22,7 @@ use classfile::constant_infos::ConstantKind;
 use execution::run_static_method_no_args;
 use verification::prolog_info_writer::{class_name, extract_string_from_utf8, get_super_class_name};
 use verification::verify;
+use std::rc::Rc;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -49,12 +50,12 @@ impl std::fmt::Display for ClassEntry {
 }
 
 #[derive(Debug)]
-pub struct JVMClassesState<'l> {
+pub struct JVMClassesState {
     //whether we are using bootstrap loader.
     //todo in future there will be map to loader state
     pub using_bootstrap_loader: bool,
     //mapping from full classname(including package) to loaded Classfile
-    pub bootstrap_loaded_classes: HashMap<ClassEntry, Box<Classfile<'l>>>,
+    pub bootstrap_loaded_classes: HashMap<ClassEntry, Rc<Classfile>>,
     //classes which are being loaded.
     pub loading_in_progress: HashSet<ClassEntry>,
     pub partial_load: HashSet<ClassEntry>,
@@ -78,7 +79,7 @@ pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
     }
 }
 
-pub fn load_class<'l>(classes: &'l mut JVMClassesState<'l>, class_name_with_package: ClassEntry, only_verify: bool) {
+pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassEntry, only_verify: bool) {
     trace!("Starting loading for {}", &class_name_with_package);
     //todo this function is going to be long af
     if classes.using_bootstrap_loader {
@@ -146,8 +147,8 @@ pub fn load_class<'l>(classes: &'l mut JVMClassesState<'l>, class_name_with_pack
     }
 }
 
-fn clinit<'l>(class: &'l Classfile<'l>) -> &'l MethodInfo<'l> {
-    for method_info in class.methods.iter() {
+fn clinit(class: &Rc<Classfile>) -> &MethodInfo {
+    for method_info in class.methods.get_mut().iter() {
         let name = extract_string_from_utf8(&class.constant_pool[method_info.name_index as usize]);
         if name == "<clinit>" {
             return method_info;
@@ -156,10 +157,10 @@ fn clinit<'l>(class: &'l Classfile<'l>) -> &'l MethodInfo<'l> {
     panic!();
 }
 
-fn load_verified_class<'l>(classes: &'l mut JVMClassesState<'l>, class: Classfile<'l>) {
+fn load_verified_class(classes: & mut JVMClassesState, class: Rc<Classfile>) {
     let entry = class_entry(&class);
     classes.loading_in_progress.remove(&entry);
     run_static_method_no_args(&class, clinit(&class));
-    classes.bootstrap_loaded_classes.insert(entry, Box::new(class));
+    classes.bootstrap_loaded_classes.insert(entry, class);
 }
 

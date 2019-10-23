@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::fs::File;
 use std::hash::Hasher;
 
@@ -7,6 +6,7 @@ use classfile::constant_infos::{ConstantInfo, parse_constant_infos};
 use classfile::parsing_util::{read16, read32};
 use classfile::parsing_util::ParsingContext;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 pub mod constant_infos;
 pub mod attribute_infos;
@@ -14,31 +14,31 @@ pub mod code;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct AttributeInfo<'l> {
+pub struct AttributeInfo {
     pub attribute_name_index: u16,
     pub attribute_length: u32,
-    pub attribute_type: attribute_infos::AttributeType<'l>,
+    pub attribute_type: AttributeType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct FieldInfo<'l> {
+pub struct FieldInfo {
     pub access_flags: u16,
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub attributes: Vec<AttributeInfo<'l>>,
+    pub attributes: Vec<AttributeInfo>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct MethodInfo<'l> {
+pub struct MethodInfo {
     pub access_flags: u16,
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub attributes: Vec<AttributeInfo<'l>>,
+    pub attributes: Vec<AttributeInfo>,
 }
 
-pub fn stack_map_table_attribute<'l>(code: &'l Code) -> Option<&'l StackMapTable<'l>> {
+pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
     for attr in code.attributes.iter() {
         match &attr.attribute_type {
             AttributeType::StackMapTable(table) => {
@@ -50,7 +50,7 @@ pub fn stack_map_table_attribute<'l>(code: &'l Code) -> Option<&'l StackMapTable
     None
 }
 
-pub fn code_attribute<'l>(method_info: &'l MethodInfo) -> Option<&'l Code<'l>> {
+pub fn code_attribute(method_info: &MethodInfo) -> Option<&Code> {
     /*
     If the method is either native or abstract , and is not a class or interface
 initialization method, then its method_info structure must not have a Code attribute
@@ -102,21 +102,21 @@ pub const ACC_MODULE: u16 = 0x8000;
 #[derive(Debug)]
 #[derive(Eq)]
 //#[derive(Copy, Clone)]
-pub struct Classfile<'l> {
+pub struct Classfile {
     pub magic: u32,
     pub minor_version: u16,
     pub major_version: u16,
-    pub constant_pool: Rc<Vec<ConstantInfo>>,
+    pub constant_pool: Vec<ConstantInfo>,
     pub access_flags: u16,
     pub this_class: u16,
     pub super_class: u16,
     pub interfaces: Vec<u16>,
-    pub fields: Vec<FieldInfo<'l>>,
-    pub methods: Vec<MethodInfo<'l>>,
-    pub attributes: Vec<AttributeInfo<'l>>,
+    pub fields: RefCell<Vec<FieldInfo>>,
+    pub methods: RefCell<Vec<MethodInfo>>,
+    pub attributes: RefCell<Vec<AttributeInfo>>,
 }
 
-impl std::cmp::PartialEq for Classfile<'_> {
+impl std::cmp::PartialEq for Classfile {
     fn eq(&self, other: &Self) -> bool {
         self.magic == other.magic &&
             self.minor_version == other.minor_version &&
@@ -132,7 +132,7 @@ impl std::cmp::PartialEq for Classfile<'_> {
     }
 }
 
-impl std::hash::Hash for Classfile<'_> {
+impl std::hash::Hash for Classfile {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u32(self.magic);
         state.write_u16(self.minor_version);
@@ -151,8 +151,6 @@ impl std::hash::Hash for Classfile<'_> {
 pub mod parsing_util {
     use std::fs::File;
     use std::io::prelude::*;
-
-    use classfile::constant_infos::ConstantInfo;
 
     pub struct ParsingContext {
         pub f: File,
@@ -193,41 +191,41 @@ pub fn parse_interfaces(p: &mut ParsingContext, interfaces_count: u16) -> Vec<u1
     return res;
 }
 
-pub fn parse_field<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) -> FieldInfo<'l> {
+pub fn parse_field(p: &mut ParsingContext, classfile: &Rc<Classfile>) -> FieldInfo {
     let access_flags = read16(p);
     let name_index = read16(p);
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count, constant_pool);
+    let attributes = parse_attributes(p, attributes_count, classfile);
     return FieldInfo { access_flags, name_index, descriptor_index, attributes };
 }
 
-pub fn parse_field_infos<'l>(p: &mut ParsingContext, fields_count: u16, constant_pool: Rc<Vec<ConstantInfo>>) -> Vec<FieldInfo<'l>> {
+pub fn parse_field_infos(p: &mut ParsingContext, fields_count: u16, classfile: &Rc<Classfile>) -> Vec<FieldInfo> {
     let mut res = Vec::with_capacity(fields_count as usize);
     for _ in 0..fields_count {
-        res.push(parse_field(p, Rc::clone(&constant_pool)))
+        res.push(parse_field(p, classfile))
     }
     return res;
 }
 
-pub fn parse_method<'l>(p: &mut ParsingContext, constant_pool: Rc<Vec<ConstantInfo>>) -> MethodInfo<'l> {
+pub fn parse_method(p: &mut ParsingContext, classfile: &Rc<Classfile>) -> MethodInfo {
     let access_flags = read16(p);
     let name_index = read16(p);
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count, constant_pool);
+    let attributes = parse_attributes(p, attributes_count, classfile);
     MethodInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
-pub fn parse_methods<'l>(p: &mut ParsingContext, methods_count: u16, constant_pool: Rc<Vec<ConstantInfo>>) -> Vec<MethodInfo<'l>> {
+pub fn parse_methods(p: &mut ParsingContext, methods_count: u16, classfile: &Rc<Classfile>) -> Vec<MethodInfo> {
     let mut res = Vec::with_capacity(methods_count as usize);
     for _ in 0..methods_count {
-        res.push(parse_method(p, Rc::clone(&constant_pool)))
+        res.push(parse_method(p, classfile))
     }
     return res;
 }
 
-pub fn parse_class_file<'l>(f: File) -> Classfile<'l> {
+pub fn parse_class_file(f: File) -> Rc<Classfile> {
     let mut p = ParsingContext {
         f
     };
@@ -236,19 +234,14 @@ pub fn parse_class_file<'l>(f: File) -> Classfile<'l> {
     let minor_version: u16 = read16(&mut p);
     let major_version: u16 = read16(&mut p);
     let constant_pool_count: u16 = read16(&mut p);
-    let constant_pool = Rc::new(parse_constant_infos(&mut p, constant_pool_count));
+    let constant_pool = parse_constant_infos(&mut p, constant_pool_count);
     let access_flags = read16(&mut p);
     let this_class = read16(&mut p);
     let super_class = read16(&mut p);
     let interfaces_count = read16(&mut p);
     let interfaces = parse_interfaces(&mut p, interfaces_count);
     let fields_count = read16(&mut p);
-    let fields = parse_field_infos(&mut p, fields_count, Rc::clone(&constant_pool));
-    let methods_count = read16(&mut p);
-    let methods = parse_methods(&mut p, methods_count, Rc::clone(&constant_pool));
-    let attributes_count = read16(&mut p);
-    let attributes = parse_attributes(&mut p, attributes_count, Rc::clone(&constant_pool));
-    return Classfile {
+    let mut res = Rc::new(Classfile {
         magic,
         minor_version,
         major_version,
@@ -257,8 +250,17 @@ pub fn parse_class_file<'l>(f: File) -> Classfile<'l> {
         this_class,
         super_class,
         interfaces,
-        fields,
-        methods,
-        attributes
-    };
+        fields: RefCell::new(vec![]),
+        methods: RefCell::new(vec![]),
+        attributes: RefCell::new(vec![]),
+    });
+    let fields = parse_field_infos(&mut p, fields_count, &mut res);
+    res.fields.replace(fields);
+    let methods_count = read16(&mut p);
+    let methods = parse_methods(&mut p, methods_count, &mut res);
+    res.methods.replace(methods);
+    let attributes_count = read16(&mut p);
+    let attributes = parse_attributes(&mut p, attributes_count, &mut res);
+    res.attributes.replace(attributes);
+    return res;
 }
