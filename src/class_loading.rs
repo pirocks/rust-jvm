@@ -23,6 +23,7 @@ use execution::run_static_method_no_args;
 use verification::prolog_info_writer::{class_name, extract_string_from_utf8, get_super_class_name};
 use verification::verify;
 use std::rc::Rc;
+use classfile::parsing_util::ParsingContext;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -100,7 +101,7 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassE
 
         let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
 //        let mut p = ParsingContext { f: candidate_file ,constant_pool:None};
-        let parsed = parse_class_file(candidate_file);
+        let parsed = parse_class_file(&mut ParsingContext { f:candidate_file } );
         if class_name_with_package != class_entry(&parsed) {
             dbg!(class_name_with_package);
             dbg!(class_entry(&parsed));
@@ -147,20 +148,21 @@ pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassE
     }
 }
 
-fn clinit(class: &Rc<Classfile>) -> &MethodInfo {
-    for method_info in class.methods.get_mut().iter() {
+fn clinit(class: &Rc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {
+    for method_info in class.methods.borrow().iter() {
         let name = extract_string_from_utf8(&class.constant_pool[method_info.name_index as usize]);
         if name == "<clinit>" {
-            return method_info;
+            return and_then(method_info);
         }
     };
     panic!();
 }
 
-fn load_verified_class(classes: & mut JVMClassesState, class: Rc<Classfile>) {
+fn load_verified_class(classes: &mut JVMClassesState, class: Rc<Classfile>) {
     let entry = class_entry(&class);
     classes.loading_in_progress.remove(&entry);
-    run_static_method_no_args(&class, clinit(&class));
+    let after_obtaining_clinit:fn(&MethodInfo) -> () = |m| { unimplemented!()/*run_static_method_no_args(&class, m)*/ };
+    clinit(&class, &after_obtaining_clinit);
     classes.bootstrap_loaded_classes.insert(entry, class);
 }
 

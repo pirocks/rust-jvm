@@ -17,6 +17,7 @@ use verification::PrologOutput::{NeedsAnotherClass, True};
 
 use std::io;
 use std::rc::Rc;
+use classfile::parsing_util::ParsingContext;
 
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
@@ -146,7 +147,7 @@ fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
 fn add_to_verify(state: &JVMClassesState, to_verify: &mut Vec<Rc<Classfile>>, class_entry: &ClassEntry) -> () {
     let path = state.indexed_classpath.get(class_entry).unwrap();
 //    let mut p = ParsingContext { f: File::open(path).expect("This is a bug"), constant_pool: None };
-    let class_file = parse_class_file(File::open(path).expect("This is a bug"));
+    let class_file = parse_class_file(&mut ParsingContext { f:File::open(path).expect("This is a bug") });
     to_verify.push(class_file)
 }
 

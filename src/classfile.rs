@@ -225,22 +225,19 @@ pub fn parse_methods(p: &mut ParsingContext, methods_count: u16, classfile: &Rc<
     return res;
 }
 
-pub fn parse_class_file(f: File) -> Rc<Classfile> {
-    let mut p = ParsingContext {
-        f
-    };
-    let magic: u32 = read32(&mut p);
+pub fn parse_class_file(p: &mut ParsingContext) -> Rc<Classfile> {
+    let magic: u32 = read32(p);
     assert_eq!(magic, EXPECTED_CLASSFILE_MAGIC);
-    let minor_version: u16 = read16(&mut p);
-    let major_version: u16 = read16(&mut p);
-    let constant_pool_count: u16 = read16(&mut p);
-    let constant_pool = parse_constant_infos(&mut p, constant_pool_count);
-    let access_flags = read16(&mut p);
-    let this_class = read16(&mut p);
-    let super_class = read16(&mut p);
-    let interfaces_count = read16(&mut p);
-    let interfaces = parse_interfaces(&mut p, interfaces_count);
-    let fields_count = read16(&mut p);
+    let minor_version: u16 = read16(p);
+    let major_version: u16 = read16(p);
+    let constant_pool_count: u16 = read16(p);
+    let constant_pool = parse_constant_infos(p, constant_pool_count);
+    let access_flags = read16(p);
+    let this_class = read16(p);
+    let super_class = read16(p);
+    let interfaces_count = read16(p);
+    let interfaces = parse_interfaces(p, interfaces_count);
+    let fields_count = read16(p);
     let mut res = Rc::new(Classfile {
         magic,
         minor_version,
@@ -254,13 +251,13 @@ pub fn parse_class_file(f: File) -> Rc<Classfile> {
         methods: RefCell::new(vec![]),
         attributes: RefCell::new(vec![]),
     });
-    let fields = parse_field_infos(&mut p, fields_count, &mut res);
+    let fields = parse_field_infos(p, fields_count, &mut res);
     res.fields.replace(fields);
-    let methods_count = read16(&mut p);
-    let methods = parse_methods(&mut p, methods_count, &mut res);
+    let methods_count = read16(p);
+    let methods = parse_methods(p, methods_count, &mut res);
     res.methods.replace(methods);
-    let attributes_count = read16(&mut p);
-    let attributes = parse_attributes(&mut p, attributes_count, &mut res);
+    let attributes_count = read16(p);
+    let attributes = parse_attributes(p, attributes_count, &mut res);
     res.attributes.replace(attributes);
     return res;
 }

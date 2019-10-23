@@ -180,7 +180,7 @@ pub fn class_is_type_safe(class: &PrologClass) -> bool {
             return false;
         }
     }
-    let mut method = get_class_methods(class);
+    let method = get_class_methods(class);
     method.iter().all(|m| {
         method_is_type_safe(class, m)
     })
@@ -229,7 +229,7 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let parsed_code: ParseCodeAttribute = get_parsed_code_attribute(class, &method);
     let frame_size = parsed_code.frame_size;
     let max_stack = parsed_code.max_stack;
-    let code = parsed_code.code;
+    let code : Vec<&Instruction>= parsed_code.code.iter().map(|x| {x}).collect();
     let handlers = parsed_code.exception_table;
     let stack_map = parsed_code.stackmap_frames;
     let merged = merge_stack_map_and_code(code, stack_map);
@@ -284,7 +284,7 @@ pub fn no_attempt_to_return_normally(instruction: &UnifiedInstruction) -> bool {
 }
 
 
-struct Environment<'l> {
+pub struct Environment<'l> {
     method: &'l PrologClassMethod<'l>,
     frame_size: u16,
     max_stack: u16,
@@ -301,7 +301,7 @@ enum MergedCodeInstruction<'l> {
 /**
 assumes that stackmaps and instructions are ordered
 */
-fn merge_stack_map_and_code<'l>(instruction: Vec<Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
+fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
     let mut res = vec![];
 
     loop {
@@ -392,7 +392,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
     offset <= handler.start && offset < handler.end
 }
 
-fn class_to_type(class: PrologClass) -> UnifiedType {
+fn class_to_type(class: &PrologClass) -> UnifiedType {
     UnifiedType::ReferenceType(ClassNameReference::Ref(NameReference {
         index: class.class.this_class,
         class_file: Rc::downgrade(&class.class),
@@ -405,8 +405,8 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let exception_class = handler_exception_class(handler);
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
-    let true_exc_stack_frame = Frame { locals, stack_map: vec![class_to_type(exception_class)], flag_this_uninit: flags };
-    operand_stack_has_legal_length(env, &vec![class_to_type(exception_class)]) &&
+    let true_exc_stack_frame = Frame { locals, stack_map: vec![class_to_type(&exception_class)], flag_this_uninit: flags };
+    operand_stack_has_legal_length(env, &vec![class_to_type(&exception_class)]) &&
         target_is_type_safe(env, &true_exc_stack_frame, target)
 }
 
