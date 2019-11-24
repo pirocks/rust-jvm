@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::io;
 use std::io::Write;
 
-use class_loading::JVMClassesState;
+use class_loading::JVMState;
 use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, code_attribute, FieldInfo, MethodInfo};
 use classfile::attribute_infos::AttributeType;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
@@ -20,7 +20,7 @@ pub struct ExtraDescriptors {
 }
 
 pub struct PrologGenContext<'l> {
-    pub state: &'l JVMClassesState,
+    pub state: &'l JVMState,
     pub to_verify: Vec<Rc<Classfile>>,
     pub extra: ExtraDescriptors,
 }
@@ -120,7 +120,8 @@ pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Resu
         for class_file in context.to_verify.iter() {
             write!(w, "ClassName \\= '{}',", class_name(class_file))?;
         }
-        for class_file in context.state.bootstrap_loaded_classes.values() {
+        //todo magic string
+        for class_file in context.state.loaders[&"bl".to_string()].loaded.borrow().values() {
             write!(w, "ClassName \\= '{}',", class_name(class_file))?;
         }
         write!(w, "write('Need to load:'),writeln(ClassName),fail.\n")?;

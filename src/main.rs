@@ -9,8 +9,13 @@ use log::{trace, info};
 use argparse::{ArgumentParser, Store, StoreTrue};
 use classfile::classpath_indexing::index_class_path;
 use std::path::Path;
-use classfile::class_loading::{JVMClassesState, load_class, class_entry_from_string};
+use classfile::class_loading::{JVMState, load_class, class_entry_from_string, Loader};
 use std::collections::{HashSet, HashMap};
+use classfile::verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
+use std::iter::FromIterator;
+use std::rc::Rc;
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
 
 fn main() {
     simple_logger::init().unwrap();
@@ -59,19 +64,23 @@ fn main() {
 
     let indexed_classpath = index_class_path(Path::new(&class_path_file));
     trace!("{}","Indexing complete");
-    let mut initial_jvm_state = JVMClassesState {
-        bootstrap_loaded_classes:HashMap::new(),
+    let mut bootstrap_loader = Rc::new(Loader {
+        loaded: RefCell::new(HashMap::new()),
+        name: BOOTSTRAP_LOADER_NAME.to_string()
+    });
+    let mut initial_jvm_state = JVMState {
         using_bootstrap_loader:true,
-        loading_in_progress:HashSet::new(),
+        loaders: HashMap::from_iter(vec![(BOOTSTRAP_LOADER_NAME.to_string(),bootstrap_loader.clone())]),
         indexed_classpath,
-        partial_load:HashSet::new()
+        using_prolog_verifier: false
     };
 
 
 
 //    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name,true),true);
+    let main_class_entry = class_entry_from_string(&main_class_name.to_string(), true);
 
-    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name.to_string(),true),true);
+    load_class(&mut initial_jvm_state, bootstrap_loader.clone(), main_class_entry, true);
 
 }
 

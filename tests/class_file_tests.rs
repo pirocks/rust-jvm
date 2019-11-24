@@ -7,7 +7,7 @@ use std::io::{BufWriter, Write};
 use std::io;
 use std::path::PathBuf;
 
-use classfile::class_loading::JVMClassesState;
+use classfile::class_loading::JVMState;
 use classfile::classfile::parse_class_file;
 use classfile::verification::prolog_info_writer::{ExtraDescriptors, gen_prolog, PrologGenContext};
 
@@ -43,12 +43,11 @@ pub fn basic_class_file_prolog_output() -> Result<(),io::Error>{
     class_files.push(parsed);
     let mut prolog_context = PrologGenContext {
         to_verify: class_files,
-        state: &JVMClassesState {
+        state: &JVMState {
             indexed_classpath: HashMap::new(),
-            loading_in_progress: HashSet::new(),
             using_bootstrap_loader: true,
-            bootstrap_loaded_classes: HashMap::new(),
-            partial_load: HashSet::new(),
+            loaders: Default::default(),//todo add correct field
+            using_prolog_verifier: false
         },
         extra: ExtraDescriptors {
             extra_method_descriptors: Vec::new(),

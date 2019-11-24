@@ -3,10 +3,10 @@ use classfile::code::Instruction;
 use classfile::code::parse_code_raw;
 use classfile::constant_infos::{ConstantKind, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
-use verification::unified_type::ClassNameReference;
+use verification::unified_type::{ClassNameReference, NameReference};
 use verification::unified_type::UnifiedType;
 use classfile::Classfile;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -659,11 +659,14 @@ fn parse_verification_type_info(p: &mut ParsingContext, classfile: &Rc<Classfile
         3 => UnifiedType::DoubleType,
         4 => UnifiedType::LongType,
         7 => {
-            let str_ = match &classfile.constant_pool[read16(p) as usize].kind {
-                ConstantKind::Utf8(u) => { &u.string },
+            let original_index = read16(p);
+            let index = match &classfile.constant_pool[original_index as usize].kind {
+                ConstantKind::Utf8(u) => { panic!();original_index },
+                ConstantKind::Class(c) => c.name_index,
+                ConstantKind::String(c) => panic!(),
                 _ => { panic!() }
             };
-            UnifiedType::ReferenceType(ClassNameReference::Str(str_.clone()))
+            UnifiedType::ReferenceType(ClassNameReference::Ref(NameReference { class_file:Rc::downgrade(classfile), index }))
         }
 
         _ => { unimplemented!("{}", type_) }

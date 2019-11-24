@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io;
 use std::io::Lines;
 use std::process::{Child, ChildStdin, ChildStdout, Stdio};
 use std::process::Command;
+use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -10,20 +13,39 @@ use log::trace;
 use regex::Regex;
 use tempfile::NamedTempFile;
 
-use class_loading::{ClassEntry, JVMClassesState};
+use class_loading::{ClassEntry, JVMState, Loader};
 use classfile::{Classfile, parse_class_file};
+use classfile::parsing_util::ParsingContext;
 use verification::prolog_info_writer::{class_name, ExtraDescriptors, gen_prolog, PrologGenContext};
 use verification::PrologOutput::{NeedsAnotherClass, True};
-
-use std::io;
-use std::rc::Rc;
-use classfile::parsing_util::ParsingContext;
+use verification::verifier::{class_is_type_safe, PrologClass, TypeSafetyResult};
 
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
 */
-pub fn verify(state: &JVMClassesState) -> Option<String> {
-    for current_class_to_verify in state.loading_in_progress.iter() {
+pub fn verify(to_verify: &HashMap<ClassEntry, Rc<Classfile>>, jvm_state: &mut JVMState, loader: Rc<Loader>) -> TypeSafetyResult {
+    if jvm_state.using_prolog_verifier {
+        prolog_verify(jvm_state, to_verify);
+        unimplemented!()
+    } else {
+        to_verify.iter().for_each(|(x,_)|{
+            trace!("Attempting to verify: {} ",x);
+        });
+        use verification::verifier::merge_type_safety_results;
+        let verification_results: Vec<TypeSafetyResult> = to_verify.iter().map(|(entry, loaded)| {
+            let current_class = PrologClass {
+                class: loaded.clone(),
+                loader: "bl".to_string(),
+            };
+            class_is_type_safe(&current_class)
+        }).collect();
+        dbg!(&verification_results);
+        merge_type_safety_results(verification_results.into_boxed_slice())
+    }
+}
+
+fn prolog_verify(state: &JVMState, to_verify: &HashMap<ClassEntry, Rc<Classfile>>) -> Option<String> {
+    for (class_entry, current_class_to_verify) in to_verify.iter() {
         let (mut prolog, mut prolog_input, mut output_lines, mut context) = init_prolog(&state);
         let generated_prolog_defs_file = NamedTempFile::new().expect("Error creating tempfile");
         trace!("tempfile for prolog defs created at: {}", generated_prolog_defs_file.path().as_os_str().to_str().expect("Could not convert path to str"));
@@ -43,8 +65,8 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
             PrologOutput::False => { panic!() }
             NeedsAnotherClass(_) => { panic!() }
         }
-        let current_name = &current_class_to_verify.name;
-        let mut current_class_package = current_class_to_verify.packages.join("/");
+        let current_name = &class_entry.name;
+        let mut current_class_package = class_entry.packages.join("/");
         if current_class_package.len() != 0 {
             current_class_package.push_str("/");
         }
@@ -60,7 +82,7 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
         prolog.wait().expect("Unable to await prolog death");
         match loading_attempt_res {
             True => {
-                trace!("Successfully verified {}", current_class_to_verify);
+                trace!("Successfully verified {}", class_entry);
             }
             PrologOutput::False => {
                 sleep(Duration::from_secs(20000));
@@ -72,10 +94,11 @@ pub fn verify(state: &JVMClassesState) -> Option<String> {
             }
         }
     }
-    return None;//verification was successful
+    return None;
+//verification was successful
 }
 
-fn init_prolog(state: &JVMClassesState) -> (Child, BufWriter<ChildStdin>, Lines<BufReader<ChildStdout>>, PrologGenContext) {
+fn init_prolog(state: &JVMState) -> (Child, BufWriter<ChildStdin>, Lines<BufReader<ChildStdout>>, PrologGenContext) {
     let mut prolog = Command::new("/usr/bin/swipl")//only tested with swi-prolog, other prologs may work.
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -85,7 +108,7 @@ fn init_prolog(state: &JVMClassesState) -> (Child, BufWriter<ChildStdin>, Lines<
     let prolog_output = BufReader::new(prolog.stdout.take().expect("error reading prolog output"));
     let mut prolog_input = BufWriter::new(prolog.stdin.take().expect("error getting prolog input stream"));
     let mut output_lines = prolog_output.lines();
-    let context = init_prolog_context(&state);
+    let context = init_prolog_context(&state, unimplemented!());
     prolog_initial_defs(&mut prolog_input).unwrap();
     let initial_defs_written = read_true_false_another_class(&mut output_lines);
     match initial_defs_written {
@@ -129,22 +152,22 @@ fn read_true_false_another_class(lines: &mut Lines<BufReader<ChildStdout>>) -> P
     }
 }
 
-fn init_prolog_context<'s>(state: &'s JVMClassesState) -> PrologGenContext<'s> {
+fn init_prolog_context<'s>(state: &'s JVMState, loading_in_progress: &Vec<ClassEntry>) -> PrologGenContext<'s> {
     let mut to_verify = Vec::new();
-    for class_entry in &state.loading_in_progress {
+    for class_entry in loading_in_progress.iter() {
         add_to_verify(state, &mut to_verify, class_entry)
     }
-    for class_entry in &state.partial_load {
-        add_to_verify(state, &mut to_verify, class_entry)
-    }
-    for class_entry in state.bootstrap_loaded_classes.keys().into_iter() {
+//    for class_entry in &state.partial_load {
+//        add_to_verify(state, &mut to_verify, class_entry)
+//    }
+    for class_entry in state.loaders[&"bl".to_string()].loaded.borrow().keys().into_iter() {
         add_to_verify(state, &mut to_verify, class_entry)
     }
     let context: PrologGenContext<'s> = PrologGenContext { state, to_verify, extra: ExtraDescriptors { extra_method_descriptors: Vec::new(), extra_field_descriptors: Vec::new() } };
     (context)
 }
 
-fn add_to_verify(state: &JVMClassesState, to_verify: &mut Vec<Rc<Classfile>>, class_entry: &ClassEntry) -> () {
+fn add_to_verify(state: &JVMState, to_verify: &mut Vec<Rc<Classfile>>, class_entry: &ClassEntry) -> () {
     let path = state.indexed_classpath.get(class_entry).unwrap();
 //    let mut p = ParsingContext { f: File::open(path).expect("This is a bug"), constant_pool: None };
     let class_file = parse_class_file(&mut ParsingContext { f:File::open(path).expect("This is a bug") });

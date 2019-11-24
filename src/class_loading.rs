@@ -10,19 +10,22 @@
 //load superclass
 
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs::File;
+use std::iter::empty;
 use std::path::{MAIN_SEPARATOR, Path};
+use std::rc::Rc;
 
 use log::trace;
 
 use classfile::{Classfile, MethodInfo, parse_class_file};
 use classfile::constant_infos::ConstantKind;
-use verification::prolog_info_writer::{class_name, extract_string_from_utf8, get_super_class_name};
-use verification::verify;
-use std::rc::Rc;
 use classfile::parsing_util::ParsingContext;
+use verification::prolog_info_writer::{class_name, extract_string_from_utf8, get_super_class_name};
+use verification::verifier::TypeSafetyResult;
+use verification::verify;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -50,17 +53,19 @@ impl std::fmt::Display for ClassEntry {
 }
 
 #[derive(Debug)]
-pub struct JVMClassesState {
-    //whether we are using bootstrap loader.
-    //todo in future there will be map to loader state
+pub struct JVMState {
     pub using_bootstrap_loader: bool,
-    //mapping from full classname(including package) to loaded Classfile
-    pub bootstrap_loaded_classes: HashMap<ClassEntry, Rc<Classfile>>,
-    //classes which are being loaded.
-    pub loading_in_progress: HashSet<ClassEntry>,
-    pub partial_load: HashSet<ClassEntry>,
-    //where classes are
+    pub loaders: HashMap<String, Rc<Loader>>,
     pub indexed_classpath: HashMap<ClassEntry, Box<Path>>,
+    pub using_prolog_verifier: bool
+}
+
+
+#[derive(Debug)]
+pub struct Loader {
+    //todo look at what spec has to say about this in more detail
+    pub loaded: RefCell<HashMap<ClassEntry, Rc<Classfile>>>,
+    pub name: String,
 }
 
 fn class_entry(classfile: &Classfile) -> ClassEntry {
@@ -79,72 +84,77 @@ pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
     }
 }
 
-pub fn load_class(classes: &mut JVMClassesState, class_name_with_package: ClassEntry, only_verify: bool) {
-    trace!("Starting loading for {}", &class_name_with_package);
-    //todo this function is going to be long af
-    if classes.using_bootstrap_loader {
-        if classes.bootstrap_loaded_classes.contains_key(&class_name_with_package) {
-            //so technically here we would need to throw a linkage error or similar
-            //however it is convenient to implement like this, so linkage error should be handled by a
-            //user facing wrapper.
-            return;//class already loaded
-        }
-//        if classes.loading_in_progress.contains(&class_name_with_package) {
-//            unimplemented!("Throw class circularity error.")//todo
-//        }
-        let path_of_class_to_load = classes.indexed_classpath.get(&class_name_with_package).or_else(|| {
-            trace!("Unable to find: {}", &class_name_with_package);
-            dbg!(&class_name_with_package);
-            panic!();
-        }).unwrap();
+const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
-        let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
-//        let mut p = ParsingContext { f: candidate_file ,constant_pool:None};
-        let parsed = parse_class_file(&mut ParsingContext { f:candidate_file } );
-        if class_name_with_package != class_entry(&parsed) {
-            dbg!(class_name_with_package);
-            dbg!(class_entry(&parsed));
-            unimplemented!("Throw no class def found.")
-        }
-        if classes.bootstrap_loaded_classes.contains_key(&class_name_with_package) {
-            dbg!(&classes.bootstrap_loaded_classes);
-            dbg!(&class_name_with_package);
-            unimplemented!("Throw LinkageError,but this will never happen see above comment")
-        }
-
-        //todo use lifetimes instead of clone
-        classes.loading_in_progress.insert(class_name_with_package.clone());
-        if parsed.super_class == 0 {
-            trace!("Parsed Object.class");
-        } else {
-            let super_class_name = get_super_class_name(&parsed);
-
-            load_class(classes, class_entry_from_string(&super_class_name, false), only_verify);
-            for interface_idx in &parsed.interfaces {
-                let interface = match &parsed.constant_pool[*interface_idx as usize].kind {
-                    ConstantKind::Class(c) => { c }
-                    _ => { panic!() }
-                };
-                let interface_name = extract_string_from_utf8(&parsed.constant_pool[interface.name_index as usize]);
-                load_class(classes, class_entry_from_string(&interface_name, false), only_verify)
-            };
-        }
-        match verify(classes) {
-            None => {
-                //class verified successfully.
-            }
-            Some(s) => {
-                classes.partial_load.insert(class_entry_from_string(&s, false));
-                load_class(classes, class_name_with_package, only_verify);
-            }
-        }
-        if !only_verify {
-            load_verified_class(classes, parsed);
-        }
-        return ();
+pub fn load_class(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: ClassEntry, only_verify: bool) {
+    trace!("Starting loading for {}", &to_load);
+    if jvm_state.using_bootstrap_loader {
+        bootstrap_load(jvm_state, loader, &to_load, only_verify);
     } else {
         unimplemented!()
     }
+}
+
+fn bootstrap_load(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: &ClassEntry, only_verify: bool) {
+    bootstrap_load_impl(jvm_state, loader, to_load, only_verify, &mut HashMap::new());
+}
+
+fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: &ClassEntry, only_verify: bool, loading: &mut HashMap<ClassEntry, Rc<Classfile>>) {
+    if jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded.borrow().contains_key(&to_load) ||
+        loading.contains_key(to_load) {
+        //so technically here we would need to throw a linkage error or similar
+        //however it is convenient to implement like this, so linkage error should be handled by a
+        //user facing wrapper.
+        return;//class already loaded
+    }
+//        if classes.loading_in_progress.contains(&class_name_with_package) {
+//            unimplemented!("Throw class circularity error.")//todo
+//        }
+    let path_of_class_to_load = jvm_state.indexed_classpath.get(&to_load).or_else(|| {
+        trace!("Unable to find: {}", &to_load);
+        dbg!(&to_load);
+        panic!();
+    }).unwrap();
+    let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
+    let parsed = parse_class_file(&mut ParsingContext { f: candidate_file });
+    if to_load != &class_entry(&parsed) {
+        dbg!(to_load);
+        dbg!(class_entry(&parsed));
+        unimplemented!("Throw no class def found.")
+    }
+    if jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded.borrow().contains_key(&to_load) {
+        dbg!(&jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded);
+        dbg!(&to_load);
+        unimplemented!("Throw LinkageError,but this will never happen")
+    }
+//todo use lifetimes instead of clone
+//        jvm_state.loaders[BOOTSTRAP_LOADER_NAME].loaded.insert(class_name_with_package,);
+    loading.insert(to_load.clone(), parsed.clone());
+    if parsed.super_class == 0 {
+        trace!("Parsed Object.class");
+    } else {
+        let super_class_name = get_super_class_name(&parsed);
+        let super_class_entry = class_entry_from_string(&super_class_name, false);
+        bootstrap_load_impl(jvm_state, loader.clone(), &super_class_entry, only_verify, loading);
+        for interface_idx in &parsed.interfaces {
+            let interface = match &parsed.constant_pool[*interface_idx as usize].kind {
+                ConstantKind::Class(c) => { c }
+                _ => { panic!() }
+            };
+            let interface_name = extract_string_from_utf8(&parsed.constant_pool[interface.name_index as usize]);
+            let interface_entry = class_entry_from_string(&interface_name, false);
+            bootstrap_load_impl(jvm_state, loader.clone(), &interface_entry, only_verify, loading)
+        };
+    }
+    match verify(&loading, jvm_state, loader) {
+        TypeSafetyResult::NotSafe(_) => {}
+        TypeSafetyResult::Safe() => {}
+        TypeSafetyResult::NeedToLoad(_) => {}
+    }
+//    if !only_verify {
+//        load_verified_class(jvm_state, parsed,);
+//    }
+    return ();
 }
 
 fn clinit(class: &Rc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {
@@ -157,11 +167,12 @@ fn clinit(class: &Rc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {
     panic!();
 }
 
-fn load_verified_class(classes: &mut JVMClassesState, class: Rc<Classfile>) {
+fn load_verified_class(classes: &mut JVMState, loader: &mut Loader, class: Rc<Classfile>) {
     let entry = class_entry(&class);
-    classes.loading_in_progress.remove(&entry);
     let after_obtaining_clinit:fn(&MethodInfo) -> () = |m| { unimplemented!()/*run_static_method_no_args(&class, m)*/ };
     clinit(&class, &after_obtaining_clinit);
-    classes.bootstrap_loaded_classes.insert(entry, class);
+    let mut old_map = loader.loaded.borrow_mut();
+    old_map.insert(entry, class);
+    loader.loaded.replace(old_map.clone());//todo get rid
 }
 

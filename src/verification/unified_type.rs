@@ -32,6 +32,22 @@ pub enum ClassNameReference {
     Str(String)
 }
 
+impl std::clone::Clone for ClassNameReference{
+    fn clone(&self) -> Self {
+        match self{
+            ClassNameReference::Ref(r) => {
+                ClassNameReference::Ref(NameReference {
+                    index:  r.index,
+                    class_file: r.class_file.clone()
+                })
+            },
+            ClassNameReference::Str(s) => {
+                ClassNameReference::Str(s.clone())//todo fix
+            },
+        }
+    }
+}
+
 pub fn get_referred_name(ref_ : &ClassNameReference) -> &String{
     match ref_{
         ClassNameReference::Ref(r) => {

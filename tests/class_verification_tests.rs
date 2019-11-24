@@ -6,8 +6,7 @@ extern crate timebomb;
 use ntest_timeout::timeout;
 
 
-use classfile::class_loading::{JVMClassesState, class_entry_from_string, load_class};
-use std::collections::{HashMap, HashSet};
+use classfile::class_loading::{JVMState, class_entry_from_string, load_class};
 use std::path::Path;
 use classfile::classpath_indexing::index_class_path;
 
@@ -47,13 +46,12 @@ pub fn can_verify_exceptions() {
 
 fn load_class_with_name(main_class_name: &String) {
     let indexed_classpath = index_class_path(Path::new(&"resources/test/classpath_file".to_string()));
-    let mut initial_jvm_state = JVMClassesState {
-        bootstrap_loaded_classes: HashMap::new(),
+    let mut initial_jvm_state = JVMState {
         using_bootstrap_loader: true,
-        loading_in_progress: HashSet::new(),
+        loaders: Default::default(),//todo make correct
         indexed_classpath,
-        partial_load: HashSet::new()
+        using_prolog_verifier: false
     };
-    load_class(&mut initial_jvm_state, class_entry_from_string(&main_class_name, true), true);
-    return;
+    let main_class_entry = class_entry_from_string(&main_class_name, true);
+    load_class(&mut initial_jvm_state, unimplemented!(), main_class_entry, true);//todo add correct
 }

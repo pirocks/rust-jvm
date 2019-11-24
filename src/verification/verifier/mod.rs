@@ -1,17 +1,20 @@
+use std::rc::Rc;
+use std::slice::Iter;
+
 use classfile::{ACC_NATIVE, Classfile};
 use classfile::ACC_ABSTRACT;
+use classfile::ACC_FINAL;
+use classfile::ACC_INTERFACE;
 use classfile::code::Instruction;
+use classfile::code::InstructionInfo;
+use classfile::code_attribute;
 use verification::code_writer::ParseCodeAttribute;
 use verification::code_writer::StackMap;
 use verification::prolog_info_writer::{class_name, get_access_flags, get_super_class_name};
-use classfile::ACC_INTERFACE;
-use classfile::ACC_FINAL;
-use classfile::code_attribute;
-use classfile::code::InstructionInfo;
-use verification::unified_type::UnifiedType;
 use verification::unified_type::ClassNameReference;
 use verification::unified_type::NameReference;
-use std::rc::Rc;
+use verification::unified_type::UnifiedType;
+use verification::verifier::TypeSafetyResult::NeedToLoad;
 
 pub struct InternalFrame {
     pub locals: Vec<UnifiedType>,
@@ -177,26 +180,66 @@ pub fn class_is_final(class: &PrologClass) -> bool {
     class.class.access_flags & ACC_FINAL != 0
 }
 
-pub fn class_is_type_safe(class: &PrologClass) -> bool {
+#[derive(Debug)]
+pub enum TypeSafetyResult {
+    NotSafe(String),
+    //reason is a String
+    Safe(),
+    NeedToLoad(Vec<ClassNameReference>),
+}
+
+pub fn class_is_type_safe(class: &PrologClass) -> TypeSafetyResult {
     if class_name(&class.class) == "java/lang/Object" {
         if !is_bootstrap_loader(&class.loader) {
-            return false;
+            return TypeSafetyResult::NotSafe("Loading object with something other than bootstrap loader".to_string());
         }
     } else {
         //class must have a superclass or be 'java/lang/Object'
         let chain = super_class_chain(class);
         if chain.is_empty() {
-            return false;
+            return TypeSafetyResult::NotSafe("No superclass but object is not Object".to_string());
         }
         let super_class_name = get_super_class_name(&class.class);
         let super_class = loaded_class_(super_class_name, "bl".to_string()).unwrap();//todo magic string
         if class_is_final(&super_class) {
-            return false;
+            return TypeSafetyResult::NotSafe("Superclass is final".to_string());
         }
     }
     let method = get_class_methods(class);
-    method.iter().all(|m| {
+    let method_type_safety: Vec<TypeSafetyResult> = method.iter().map(|m| {
         method_is_type_safe(class, m)
+    }).collect();
+    merge_type_safety_results(method_type_safety.into_boxed_slice())
+}
+
+pub(crate) fn merge_type_safety_results(method_type_safety: Box<[TypeSafetyResult]>) -> TypeSafetyResult {
+    method_type_safety.iter().fold(TypeSafetyResult::Safe(), |a: TypeSafetyResult, b: &TypeSafetyResult| {
+        match a {
+            TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r) },
+            TypeSafetyResult::Safe() => {
+                match b {
+                    TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r.clone()) },
+                    TypeSafetyResult::Safe() => { TypeSafetyResult::Safe() },
+                    TypeSafetyResult::NeedToLoad(to_load) => { TypeSafetyResult::NeedToLoad(to_load.clone()) },
+                }
+            },
+            TypeSafetyResult::NeedToLoad(to_load) => {
+                match b {
+                    TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r.clone()) },
+                    TypeSafetyResult::Safe() => { NeedToLoad(to_load) },
+                    TypeSafetyResult::NeedToLoad(to_load_) => {
+                        let mut new_to_load = vec![];
+                        for c in to_load.iter() {
+                            new_to_load.push(c.clone());
+                        }
+                        for c in to_load_.iter() {
+                            new_to_load.push(c.clone());
+                        }
+                        NeedToLoad(new_to_load)
+                    },
+                }
+            },
+        }
     })
 }
 
@@ -216,20 +259,24 @@ pub fn does_not_override_final_method_of_superclass(class: &PrologClass, method:
 }
 
 
-pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> bool {
+pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
     let access_flags = get_access_flags(class, method);
-    return does_not_override_final_method(class, method) &&
+    merge_type_safety_results(vec![if does_not_override_final_method(class, method) {
+        TypeSafetyResult::Safe()
+    } else {
+        TypeSafetyResult::NotSafe("overrides final method".to_string())
+    },
         if access_flags & ACC_NATIVE != 0 {
-            true
+            TypeSafetyResult::Safe()
         } else if access_flags & ACC_ABSTRACT != 0 {
-            true
+            TypeSafetyResult::Safe()
         } else {
             //will have a code attribute.
             /*let attributes = get_attributes(class, method);
             attributes.iter().any(|_| {
                 unimplemented!()
             }) && */method_with_code_is_type_safe(class, method)
-        };
+        }].into_boxed_slice())
 }
 
 pub fn  get_parsed_code_attribute<'l>(class: &PrologClass, method: &PrologClassMethod) -> ParseCodeAttribute<'l> {
@@ -241,7 +288,7 @@ pub fn  get_parsed_code_attribute<'l>(class: &PrologClass, method: &PrologClassM
 //    }
 }
 
-pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> bool {
+pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
     let parsed_code: ParseCodeAttribute = get_parsed_code_attribute(class, &method);
     let frame_size = parsed_code.frame_size;
     let max_stack = parsed_code.max_stack;
@@ -251,7 +298,11 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let merged = merge_stack_map_and_code(code, stack_map);
     let (frame, frame_size, return_type) = method_initial_stack_frame(class, method);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.as_str(), handlers };
-    handers_are_legal(&env) && merged_code_is_type_safe(&env, merged.as_slice(), &frame, false)
+    if handers_are_legal(&env) && merged_code_is_type_safe(&env, merged.as_slice(), &frame, false){
+        TypeSafetyResult::Safe()
+    }else {
+        unimplemented!()
+    }
 }
 
 #[allow(unused)]
