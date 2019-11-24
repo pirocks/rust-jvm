@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::slice::Iter;
 
-use classfile::{ACC_NATIVE, Classfile};
+use classfile::{ACC_NATIVE, Classfile, ACC_PRIVATE, ACC_STATIC};
 use classfile::ACC_ABSTRACT;
 use classfile::ACC_FINAL;
 use classfile::ACC_INTERFACE;
@@ -14,7 +14,7 @@ use verification::prolog_info_writer::{class_name, get_access_flags, get_super_c
 use verification::unified_type::ClassNameReference;
 use verification::unified_type::NameReference;
 use verification::unified_type::UnifiedType;
-use verification::verifier::TypeSafetyResult::NeedToLoad;
+use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
 
 pub struct InternalFrame {
     pub locals: Vec<UnifiedType>,
@@ -243,9 +243,33 @@ pub(crate) fn merge_type_safety_results(method_type_safety: Box<[TypeSafetyResul
     })
 }
 
-#[allow(unused)]
-pub fn does_not_override_final_method(class: &PrologClass, method: &PrologClassMethod) -> bool {
-    unimplemented!()
+pub fn is_static(method: &PrologClassMethod, class: &PrologClass) -> bool{
+    //todo check if same
+    (get_access_flags(class,method) & ACC_STATIC) > 0
+}
+
+pub fn is_private(method: &PrologClassMethod, class: &PrologClass) -> bool{
+    //todo check if method class and class same
+    (get_access_flags(class,method) & ACC_PRIVATE) > 0
+}
+
+pub fn does_not_override_final_method(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
+    dbg!(class_name(&class.class));
+    if class_name(&class.class) == "java/lang/Object"{
+        if is_bootstrap_loader(&class.loader) {
+            Safe()
+        }else{
+            NotSafe("Loading Object w/o bootstrap loader".to_string())
+        }
+    }else if is_private(method,class) {
+        Safe()
+    }else if is_static(method,class) {
+        Safe()
+    }else if does_not_override_final_method_of_superclass(class,method) {
+        Safe()
+    }else  {
+        NotSafe("Failed does_not_override_final_method".to_string())
+    }
 }
 
 #[allow(unused)]
@@ -261,11 +285,7 @@ pub fn does_not_override_final_method_of_superclass(class: &PrologClass, method:
 
 pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
     let access_flags = get_access_flags(class, method);
-    merge_type_safety_results(vec![if does_not_override_final_method(class, method) {
-        TypeSafetyResult::Safe()
-    } else {
-        TypeSafetyResult::NotSafe("overrides final method".to_string())
-    },
+    merge_type_safety_results(vec![does_not_override_final_method(class, method),
         if access_flags & ACC_NATIVE != 0 {
             TypeSafetyResult::Safe()
         } else if access_flags & ACC_ABSTRACT != 0 {

@@ -392,7 +392,8 @@ fn write_method_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<()
 
 #[allow(unused)]
 pub fn get_access_flags(class: &PrologClass,method: &::verification::verifier::PrologClassMethod) -> u16 {
-    unimplemented!()
+//    assert!(method.prolog_class == class);//todo why the duplicate parameters?
+    class.class.methods.borrow()[method.method_index as usize].access_flags
 }
 
 fn before_method_access_flags(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(), io::Error> {
