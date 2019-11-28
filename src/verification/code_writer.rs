@@ -11,7 +11,7 @@ use classfile::attribute_infos::UninitializedVariableInfo;
 use classfile::code::Instruction;
 use verification::instruction_outputer::extract_class_from_constant_pool;
 use verification::prolog_info_writer::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
-use verification::prolog_info_writer::class_name;
+use verification::prolog_info_writer::class_name_legacy;
 use verification::prolog_info_writer::PrologGenContext;
 use verification::types::parse_field_descriptor;
 use verification::types::parse_method_descriptor;
@@ -24,6 +24,7 @@ use verification::verifier::Frame;
 use verification::verifier::Handler;
 use verification::verifier::InternalFrame;
 use std::rc::Rc;
+use verification::prolog_info_writer::class_name;
 
 pub struct ParseCodeAttribute<'l> {
     pub class_name: NameReference,
@@ -48,7 +49,7 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
                 None => { continue; }
                 Some(c) => { c }
             };
-            write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name(&classfile)))?;
+            write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name_legacy(&classfile)))?;
             write_method_prolog_name(&classfile, &method_info, w, false)?;
 
             let max_stack = code.max_stack;
@@ -235,7 +236,7 @@ fn write_stack_map_frames(class_file: &Rc<Classfile>, method_info: &MethodInfo, 
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {
         None
     } else {
-        Some(UnifiedType::ReferenceType(ClassNameReference::Str(class_name(class_file))))
+        Some(UnifiedType::ReferenceType(class_name(class_file)))
     };
 
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);

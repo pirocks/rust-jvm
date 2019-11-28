@@ -9,13 +9,14 @@ use classfile::code::InstructionInfo;
 use classfile::code_attribute;
 use verification::code_writer::ParseCodeAttribute;
 use verification::code_writer::StackMap;
-use verification::prolog_info_writer::{class_name, get_access_flags, get_super_class_name};
+use verification::prolog_info_writer::{class_name_legacy, get_access_flags, get_super_class_name};
 use verification::unified_type::ClassNameReference;
 use verification::unified_type::NameReference;
 use verification::unified_type::UnifiedType;
 use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
 use classfile::attribute_infos::StackMapTable;
 use class_loading::Loader;
+use class_loading::class_entry;
 
 pub struct InternalFrame {
     pub locals: Vec<UnifiedType>,
@@ -27,10 +28,10 @@ pub struct InternalFrame {
 //todo have an actual loader type. instead of refering to loader name
 pub fn loaded_class(class: &PrologClass, loader: Loader) -> TypeSafetyResult {
     let class_entry = class_entry(&class.class);
-    if loader.loading.borrow().contains_key(class_entry) || loader.loaded.borrow().contains_key(class_entry){
+    if loader.loading.borrow().contains_key(&class_entry) || loader.loaded.borrow().contains_key(&class_entry) {
         return Safe();
-    }else {
-        return NeedToLoad(vec![unimplemented!()])
+    } else {
+        return NeedToLoad(vec![unimplemented!()]);
     }
 }
 
@@ -70,30 +71,29 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
 
 //todo how to handle arrays
 pub fn is_java_assignable(from: &PrologClass, to: &PrologClass) -> bool {
-    if loaded_class(to) {
-        return class_is_interface(to);
+    match loaded_class(to, unimplemented!()) {
+        TypeSafetyResult::Safe() => { return class_is_interface(to); }
     }
     unimplemented!();
     return is_java_sub_class_of(from, to);
 }
 
 pub fn is_array_interface(class: PrologClass) -> bool {
-    class_name(&class.class) == "java/lang/Cloneable" ||
-        class_name(&class.class) == "java/io/Serializable"
+    class_name_legacy(&class.class) == "java/lang/Cloneable" ||
+        class_name_legacy(&class.class) == "java/io/Serializable"
 }
 
 pub fn is_java_subclass_of(sub: &PrologClass, super_: &PrologClass) {
     unimplemented!()
 }
 
-pub fn class_super_class_name(class: &PrologClass) -> String{
+pub fn class_super_class_name(class: &PrologClass) -> String {
     unimplemented!()
 }
 
-pub fn super_class_chain(chain_start: &PrologClass, loader : String) -> Vec<PrologClass> {
-    let loaded = loaded_class(chain_start)
-
-
+pub fn super_class_chain(chain_start: &PrologClass, loader: String) -> Vec<PrologClass> {
+    let loaded = loaded_class(chain_start, unimplemented!());
+    unimplemented!()
 }
 
 #[derive(Eq, PartialEq)]
@@ -202,13 +202,13 @@ pub enum TypeSafetyResult {
 }
 
 pub fn class_is_type_safe(class: &PrologClass) -> TypeSafetyResult {
-    if class_name(&class.class) == "java/lang/Object" {
+    if class_name_legacy(&class.class) == "java/lang/Object" {
         if !is_bootstrap_loader(&class.loader) {
             return TypeSafetyResult::NotSafe("Loading object with something other than bootstrap loader".to_string());
         }
     } else {
         //class must have a superclass or be 'java/lang/Object'
-        let chain = super_class_chain(class);
+        let chain = super_class_chain(class, unimplemented!());
         if chain.is_empty() {
             return TypeSafetyResult::NotSafe("No superclass but object is not Object".to_string());
         }
@@ -267,8 +267,8 @@ pub fn is_private(method: &PrologClassMethod, class: &PrologClass) -> bool {
 }
 
 pub fn does_not_override_final_method(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
-    dbg!(class_name(&class.class));
-    if class_name(&class.class) == "java/lang/Object" {
+    dbg!(class_name_legacy(&class.class));
+    if class_name_legacy(&class.class) == "java/lang/Object" {
         if is_bootstrap_loader(&class.loader) {
             Safe()
         } else {

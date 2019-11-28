@@ -13,6 +13,8 @@ use verification::types::MethodDescriptor;
 use verification::types::FieldDescriptor;
 use verification::verifier::PrologClass;
 use std::rc::Rc;
+use verification::unified_type::ClassNameReference;
+use verification::unified_type::NameReference;
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -114,15 +116,15 @@ fn get_extra_descriptors(context: & PrologGenContext) -> (Vec<ParsedFieldDescrip
 pub fn write_loaded_class(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     if context.state.using_bootstrap_loader {
         for class_file in context.to_verify.iter() {
-            write!(w, "loadedClass('{}',{}, {}).\n", class_name(class_file), BOOTSTRAP_LOADER_NAME, class_prolog_name(&class_name(class_file)))?;
+            write!(w, "loadedClass('{}',{}, {}).\n", class_name_legacy(class_file), BOOTSTRAP_LOADER_NAME, class_prolog_name(&class_name_legacy(class_file)))?;
         }
         write!(w, "loadedClass(ClassName,_,_) :- ")?;
         for class_file in context.to_verify.iter() {
-            write!(w, "ClassName \\= '{}',", class_name(class_file))?;
+            write!(w, "ClassName \\= '{}',", class_name_legacy(class_file))?;
         }
         //todo magic string
         for class_file in context.state.loaders[&"bl".to_string()].loaded.borrow().values() {
-            write!(w, "ClassName \\= '{}',", class_name(class_file))?;
+            write!(w, "ClassName \\= '{}',", class_name_legacy(class_file))?;
         }
         write!(w, "write('Need to load:'),writeln(ClassName),fail.\n")?;
     } else {
@@ -143,7 +145,7 @@ pub fn write_is_bootstrap_loader(context: &PrologGenContext, w: &mut dyn Write) 
 pub fn write_class_defining_loader(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         if context.state.using_bootstrap_loader {
-            write!(w, "classDefiningLoader({},{}).\n", class_prolog_name(&class_name(class_file)), BOOTSTRAP_LOADER_NAME)?;
+            write!(w, "classDefiningLoader({},{}).\n", class_prolog_name(&class_name_legacy(class_file)), BOOTSTRAP_LOADER_NAME)?;
         } else {
             unimplemented!();
         }
@@ -152,7 +154,19 @@ pub fn write_class_defining_loader(context: &PrologGenContext, w: &mut dyn Write
 }
 
 
-pub fn class_name(class: &Classfile) -> String {
+pub fn class_name(class: &Rc<Classfile>) -> ClassNameReference {
+    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
+        ConstantKind::Class(c) => { c }
+        _ => { panic!() }
+    };
+
+    return ClassNameReference::Ref(NameReference {
+        class_file:Rc::downgrade(&class),
+        index: class_info_entry.name_index
+    });
+}
+
+pub fn class_name_legacy(class: &Classfile) -> String {
     let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
         ConstantKind::Class(c) => { c }
         _ => { panic!() }
@@ -170,7 +184,7 @@ pub(crate) fn class_prolog_name(class_: &String) -> String {
 //todo function for class object name
 fn write_class_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        let class_name = class_name(class_file);
+        let class_name = class_name_legacy(class_file);
         write!(w, "classClassName({},'{}').\n", class_prolog_name(&class_name), class_name)?;
     }
     Ok(())
@@ -189,7 +203,7 @@ fn is_final(class: &Classfile) -> bool {
 fn write_is_interface(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         if is_interface(class_file.borrow()) {
-            write!(w, "classIsInterface({}).\n", class_prolog_name(&class_name(&class_file)))?;
+            write!(w, "classIsInterface({}).\n", class_prolog_name(&class_name_legacy(&class_file)))?;
         }
     }
     Ok(())
@@ -200,7 +214,7 @@ fn write_is_interface(context: &PrologGenContext, w: &mut dyn Write) -> Result<(
 fn write_class_is_not_final(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
         if !is_final(&class_file) {
-            write!(w, "classIsNotFinal({}).\n", class_prolog_name(&class_name(&class_file)))?;
+            write!(w, "classIsNotFinal({}).\n", class_prolog_name(&class_name_legacy(&class_file)))?;
         }
     }
     Ok(())
@@ -245,7 +259,7 @@ fn write_class_super_class_name(context: &PrologGenContext, w: &mut dyn Write) -
     for class_file in context.to_verify.iter() {
         if has_super_class(&class_file) {
             let super_class_name = get_super_class_name(&class_file);
-            let base_class = class_prolog_name(&class_name(&class_file));
+            let base_class = class_prolog_name(&class_name_legacy(&class_file));
             write!(w, "classSuperClassName({},'{}').\n", base_class, super_class_name)?;
         }
     }
@@ -264,7 +278,7 @@ pub(crate) struct ClassInterfaces {
 
 fn write_class_interfaces(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        write!(w, "classInterfaces({},[", class_prolog_name(&class_name(&class_file)))?;
+        write!(w, "classInterfaces({},[", class_prolog_name(&class_name_legacy(&class_file)))?;
         for (i, interface) in class_file.interfaces.iter().enumerate() {
             //todo getrid of this kind bs
             let interface_name_index = match &class_file.constant_pool[(*interface) as usize].kind {
@@ -292,7 +306,7 @@ pub(crate) struct Method {
 
 pub(crate) fn write_method_prolog_name(class_file: &Classfile, method_info: &MethodInfo, w: &mut dyn Write, suppress_class: bool) -> Result<(), io::Error> {
     let class_functor = if !suppress_class {
-        class_prolog_name(&class_name(class_file))
+        class_prolog_name(&class_name_legacy(class_file))
     } else { "_".to_string() };
 
     write!(w, "method({},'{}',", class_functor, method_name(class_file, method_info))?;
@@ -305,7 +319,7 @@ pub(crate) fn write_method_prolog_name(class_file: &Classfile, method_info: &Met
 // Extracts a list, Methods , of the methods declared in the class Class .
 fn write_class_methods(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        write!(w, "classMethods({},[", class_prolog_name(&class_name(&class_file)))?;
+        write!(w, "classMethods({},[", class_prolog_name(&class_name_legacy(&class_file)))?;
         for (i, method_info) in class_file.methods.borrow_mut().iter().enumerate() {
             write_method_prolog_name(&class_file, method_info, w, false)?;
             if class_file.methods.borrow_mut().len() - 1 != i {
@@ -359,7 +373,7 @@ fn get_attribute_name(attribute_info: &AttributeInfo) -> String {
 
 fn write_class_attributes(context: &PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for class_file in context.to_verify.iter() {
-        write!(w, "classAttributes({}, [", class_prolog_name(&class_name(&class_file)))?;
+        write!(w, "classAttributes({}, [", class_prolog_name(&class_name_legacy(&class_file)))?;
         for (i, attribute) in class_file.attributes.borrow_mut().iter().enumerate() {
             write_attribute(&attribute, w)?;
             if class_file.attributes.borrow_mut().len() - 1 != i {
@@ -548,7 +562,7 @@ macro_rules! write_attribute {
         write!($w,"(")?;
     }
     write_method_prolog_name($class_file, $method_info, $w,true)?;
-    write!($w, ",{}).\n", class_prolog_name(&class_name($class_file)))?;
+    write!($w, ",{}).\n", class_prolog_name(&class_name_legacy($class_file)))?;
 };
 }
 
@@ -580,7 +594,7 @@ fn write_is_and_is_not_attributes_method(context: &PrologGenContext, w: &mut dyn
 
 pub fn prolog_field_name(class_file: &Classfile, field_info: &FieldInfo, w: &mut dyn Write) -> Result<(), io::Error> {
     let field_name = extract_string_from_utf8(&class_file.constant_pool[field_info.name_index as usize]);
-    write!(w, "field({},'{}',", class_prolog_name(&class_name(class_file)), field_name)?;
+    write!(w, "field({},'{}',", class_prolog_name(&class_name_legacy(class_file)), field_name)?;
     prolog_field_descriptor(class_file, field_info, w)?;
     write!(w, ")")?;
     Ok(())
@@ -600,9 +614,9 @@ pub fn write_is_and_is_not_protected(context: &PrologGenContext, w: &mut dyn Wri
     for class_file in context.to_verify.iter() {
         for field_info in class_file.fields.borrow_mut().iter() {
             if (field_info.access_flags & ACC_PROTECTED) > 0 {
-                write!(w, "isProtected('{}',", class_name(class_file))?;
+                write!(w, "isProtected('{}',", class_name_legacy(class_file))?;
             } else {
-                write!(w, "isNotProtected('{}',", class_name(class_file))?;
+                write!(w, "isNotProtected('{}',", class_name_legacy(class_file))?;
             }
             prolog_field_name(class_file, field_info, w)?;
             write!(w, ",")?;
@@ -707,7 +721,7 @@ isAssignable(arrayOf(X), arrayOf(Y)) :-
         }
         let direct_super_type_class = extract_class_from_constant_pool(class_file.super_class, class_file);
         let direct_super_type_name = class_prolog_name(&extract_string_from_utf8(&class_file.constant_pool[direct_super_type_class.name_index as usize]));
-        write!(w, "isAssignable({}, X) :- isAssignable({}, X).\n", class_prolog_name(&class_name(class_file)), direct_super_type_name)?;
+        write!(w, "isAssignable({}, X) :- isAssignable({}, X).\n", class_prolog_name(&class_name_legacy(class_file)), direct_super_type_name)?;
     }
     Ok(())
 }

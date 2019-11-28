@@ -22,7 +22,7 @@ use log::trace;
 use classfile::{Classfile, MethodInfo, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
-use verification::prolog_info_writer::{class_name, extract_string_from_utf8, get_super_class_name};
+use verification::prolog_info_writer::{class_name_legacy, extract_string_from_utf8, get_super_class_name};
 use verification::verifier::TypeSafetyResult;
 use verification::verify;
 
@@ -68,8 +68,8 @@ pub struct Loader {
     pub name: String,
 }
 
-fn class_entry(classfile: &Classfile) -> ClassEntry {
-    let name = class_name(classfile);
+pub fn class_entry(classfile: &Classfile) -> ClassEntry {
+    let name = class_name_legacy(classfile);
     class_entry_from_string(&name, false)
 }
 

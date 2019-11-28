@@ -16,7 +16,7 @@ use tempfile::NamedTempFile;
 use class_loading::{ClassEntry, JVMState, Loader};
 use classfile::{Classfile, parse_class_file};
 use classfile::parsing_util::ParsingContext;
-use verification::prolog_info_writer::{class_name, ExtraDescriptors, gen_prolog, PrologGenContext};
+use verification::prolog_info_writer::{class_name_legacy, ExtraDescriptors, gen_prolog, PrologGenContext};
 use verification::PrologOutput::{NeedsAnotherClass, True};
 use verification::verifier::{class_is_type_safe, PrologClass, TypeSafetyResult};
 
@@ -58,7 +58,7 @@ fn prolog_verify(state: &JVMState, to_verify: &HashMap<ClassEntry, Rc<Classfile>
             True => {
                 trace!("Prolog accepted verification info");
                 let classes: Vec<String> = context.to_verify.iter().map(|class: &Rc<Classfile>| {
-                    class_name(class)
+                    class_name_legacy(class)
                 }).collect();
                 dbg!(classes);
             }

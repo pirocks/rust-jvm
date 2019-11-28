@@ -26,10 +26,28 @@ impl PartialEq for NameReference{
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq)]
 pub enum ClassNameReference {
     Ref(NameReference),
     Str(String)
+}
+
+impl PartialEq for ClassNameReference{
+    fn eq(&self, other: &ClassNameReference) -> bool{
+        match self{
+            ClassNameReference::Ref(r1) => match other {
+                ClassNameReference::Ref(r2) => {
+                    //todo how is equality for classfiles defined here?
+                    r1.class_file == r2.class_file && r1.index == r2.index
+                }
+            },
+            ClassNameReference::Str(s1) => match other {
+                ClassNameReference::Str(s2) => {
+                    s1 == s2
+                }
+            },
+        }
+    }
 }
 
 impl std::clone::Clone for ClassNameReference{
