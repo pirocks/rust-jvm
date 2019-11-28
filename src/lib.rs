@@ -9,7 +9,6 @@ extern crate tempfile;
 extern crate regex;
 extern crate walkdir;
 extern crate pathdiff;
-extern crate syntax;
 
 pub mod classfile;
 pub mod jit;

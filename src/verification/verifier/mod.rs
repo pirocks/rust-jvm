@@ -1,5 +1,4 @@
 use std::rc::Rc;
-use std::slice::Iter;
 
 use classfile::{ACC_NATIVE, Classfile, ACC_PRIVATE, ACC_STATIC, stack_map_table_attribute};
 use classfile::ACC_ABSTRACT;
@@ -15,7 +14,8 @@ use verification::unified_type::ClassNameReference;
 use verification::unified_type::NameReference;
 use verification::unified_type::UnifiedType;
 use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
-use syntax::util::map_in_place::MapInPlace;
+use classfile::attribute_infos::StackMapTable;
+use class_loading::Loader;
 
 pub struct InternalFrame {
     pub locals: Vec<UnifiedType>,
@@ -24,8 +24,14 @@ pub struct InternalFrame {
     pub current_offset: u16,
 }
 
-pub fn loaded_class(class: &PrologClass) -> bool {
-    unimplemented!()
+//todo have an actual loader type. instead of refering to loader name
+pub fn loaded_class(class: &PrologClass, loader: Loader) -> TypeSafetyResult {
+    let class_entry = class_entry(&class.class);
+    if loader.loading.borrow().contains_key(class_entry) || loader.loaded.borrow().contains_key(class_entry){
+        return Safe();
+    }else {
+        return NeedToLoad(vec![unimplemented!()])
+    }
 }
 
 pub fn loaded_class_(class_name: String, loader_name: String) -> Option<PrologClass> {
@@ -80,8 +86,14 @@ pub fn is_java_subclass_of(sub: &PrologClass, super_: &PrologClass) {
     unimplemented!()
 }
 
-pub fn super_class_chain(chain_start: &PrologClass) -> Vec<PrologClass> {
+pub fn class_super_class_name(class: &PrologClass) -> String{
     unimplemented!()
+}
+
+pub fn super_class_chain(chain_start: &PrologClass, loader : String) -> Vec<PrologClass> {
+    let loaded = loaded_class(chain_start)
+
+
 }
 
 #[derive(Eq, PartialEq)]
@@ -216,18 +228,18 @@ pub fn class_is_type_safe(class: &PrologClass) -> TypeSafetyResult {
 pub(crate) fn merge_type_safety_results(method_type_safety: Box<[TypeSafetyResult]>) -> TypeSafetyResult {
     method_type_safety.iter().fold(TypeSafetyResult::Safe(), |a: TypeSafetyResult, b: &TypeSafetyResult| {
         match a {
-            TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r) },
+            TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r) }
             TypeSafetyResult::Safe() => {
                 match b {
-                    TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r.clone()) },
-                    TypeSafetyResult::Safe() => { TypeSafetyResult::Safe() },
-                    TypeSafetyResult::NeedToLoad(to_load) => { TypeSafetyResult::NeedToLoad(to_load.clone()) },
+                    TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r.clone()) }
+                    TypeSafetyResult::Safe() => { TypeSafetyResult::Safe() }
+                    TypeSafetyResult::NeedToLoad(to_load) => { TypeSafetyResult::NeedToLoad(to_load.clone()) }
                 }
-            },
+            }
             TypeSafetyResult::NeedToLoad(to_load) => {
                 match b {
-                    TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r.clone()) },
-                    TypeSafetyResult::Safe() => { NeedToLoad(to_load) },
+                    TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r.clone()) }
+                    TypeSafetyResult::Safe() => { NeedToLoad(to_load) }
                     TypeSafetyResult::NeedToLoad(to_load_) => {
                         let mut new_to_load = vec![];
                         for c in to_load.iter() {
@@ -237,38 +249,38 @@ pub(crate) fn merge_type_safety_results(method_type_safety: Box<[TypeSafetyResul
                             new_to_load.push(c.clone());
                         }
                         NeedToLoad(new_to_load)
-                    },
+                    }
                 }
-            },
+            }
         }
     })
 }
 
-pub fn is_static(method: &PrologClassMethod, class: &PrologClass) -> bool{
+pub fn is_static(method: &PrologClassMethod, class: &PrologClass) -> bool {
     //todo check if same
-    (get_access_flags(class,method) & ACC_STATIC) > 0
+    (get_access_flags(class, method) & ACC_STATIC) > 0
 }
 
-pub fn is_private(method: &PrologClassMethod, class: &PrologClass) -> bool{
+pub fn is_private(method: &PrologClassMethod, class: &PrologClass) -> bool {
     //todo check if method class and class same
-    (get_access_flags(class,method) & ACC_PRIVATE) > 0
+    (get_access_flags(class, method) & ACC_PRIVATE) > 0
 }
 
 pub fn does_not_override_final_method(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
     dbg!(class_name(&class.class));
-    if class_name(&class.class) == "java/lang/Object"{
+    if class_name(&class.class) == "java/lang/Object" {
         if is_bootstrap_loader(&class.loader) {
             Safe()
-        }else{
+        } else {
             NotSafe("Loading Object w/o bootstrap loader".to_string())
         }
-    }else if is_private(method,class) {
+    } else if is_private(method, class) {
         Safe()
-    }else if is_static(method,class) {
+    } else if is_static(method, class) {
         Safe()
-    }else if does_not_override_final_method_of_superclass(class,method) {
+    } else if does_not_override_final_method_of_superclass(class, method) {
         Safe()
-    }else  {
+    } else {
         NotSafe("Failed does_not_override_final_method".to_string())
     }
 }
@@ -287,44 +299,47 @@ pub fn does_not_override_final_method_of_superclass(class: &PrologClass, method:
 pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
     let access_flags = get_access_flags(class, method);
     merge_type_safety_results(vec![does_not_override_final_method(class, method),
-        if access_flags & ACC_NATIVE != 0 {
-            TypeSafetyResult::Safe()
-        } else if access_flags & ACC_ABSTRACT != 0 {
-            TypeSafetyResult::Safe()
-        } else {
-            //will have a code attribute.
-            /*let attributes = get_attributes(class, method);
-            attributes.iter().any(|_| {
-                unimplemented!()
-            }) && */method_with_code_is_type_safe(class, method)
-        }].into_boxed_slice())
+                                   if access_flags & ACC_NATIVE != 0 {
+                                       TypeSafetyResult::Safe()
+                                   } else if access_flags & ACC_ABSTRACT != 0 {
+                                       TypeSafetyResult::Safe()
+                                   } else {
+                                       //will have a code attribute.
+                                       /*let attributes = get_attributes(class, method);
+                                       attributes.iter().any(|_| {
+                                           unimplemented!()
+                                       }) && */method_with_code_is_type_safe(class, method)
+                                   }].into_boxed_slice())
 }
 
-pub fn  get_parsed_code_attribute<'l>(class: &PrologClass, method: &PrologClassMethod) -> ParseCodeAttribute<'l> {
+pub fn get_parsed_code_attribute<'l>(class: &'l PrologClass, method: &'l PrologClassMethod) -> ParseCodeAttribute<'l> {
     //todo check method in class
     let method_info = &class.class.methods.borrow_mut()[method.method_index];
     let code = code_attribute(method_info).unwrap();
+    let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     ParseCodeAttribute {
-        class_name: NameReference{
-            class_file:Rc::downgrade(&class.class),
-            index:class.class.this_class
+        class_name: NameReference {
+            class_file: Rc::downgrade(&class.class),
+            index: class.class.this_class,
         },
         frame_size: code.max_locals,
         max_stack: code.max_stack,
         code: &code.code,
-        exception_table: code.exception_table.iter().map(|f|{
+        exception_table: code.exception_table.iter().map(|f| {
             Handler {
                 start: f.start_pc as usize,
-                end:f.end_pc as usize,
+                end: f.end_pc as usize,
                 target: f.handler_pc as usize,
-                class_name: NameReference {//todo NameReference v ClassReference
-                    index:f.catch_type,
-                    class_file:Rc::downgrade(&class.class)
-                }
+                class_name: if f.catch_type == 0 { None } else {
+                    Some(NameReference {//todo NameReference v ClassReference
+                        index: f.catch_type,
+                        class_file: Rc::downgrade(&class.class),
+                    })
+                },
             }
         }).collect(),
-        stackmap_frames: unimplemented!()
+        stackmap_frames: unimplemented!(),
     }
 }
 
@@ -332,15 +347,15 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let parsed_code: ParseCodeAttribute = get_parsed_code_attribute(class, &method);
     let frame_size = parsed_code.frame_size;
     let max_stack = parsed_code.max_stack;
-    let code : Vec<&Instruction>= parsed_code.code.iter().map(|x| {x}).collect();
+    let code: Vec<&Instruction> = parsed_code.code.iter().map(|x| { x }).collect();
     let handlers = parsed_code.exception_table;
     let stack_map = parsed_code.stackmap_frames;
     let merged = merge_stack_map_and_code(code, stack_map);
     let (frame, frame_size, return_type) = method_initial_stack_frame(class, method);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.as_str(), handlers };
-    if handers_are_legal(&env) && merged_code_is_type_safe(&env, merged.as_slice(), &frame, false){
-        TypeSafetyResult::Safe()
-    }else {
+    if handers_are_legal(&env) && merged_code_is_type_safe(&env, merged.as_slice(), &frame, false) {
+        Safe()
+    } else {
         unimplemented!()
     }
 }
@@ -359,7 +374,7 @@ pub struct Handler {
     pub start: usize,
     pub end: usize,
     pub target: usize,
-    pub class_name: NameReference,
+    pub class_name: Option<NameReference>,
     //todo
 }
 

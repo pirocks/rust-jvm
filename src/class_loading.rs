@@ -11,10 +11,9 @@
 
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::fmt;
 use std::fs::File;
-use std::iter::empty;
 use std::path::{MAIN_SEPARATOR, Path};
 use std::rc::Rc;
 
@@ -65,6 +64,7 @@ pub struct JVMState {
 pub struct Loader {
     //todo look at what spec has to say about this in more detail
     pub loaded: RefCell<HashMap<ClassEntry, Rc<Classfile>>>,
+    pub loading: RefCell<HashMap<ClassEntry, Rc<Classfile>>>,
     pub name: String,
 }
 

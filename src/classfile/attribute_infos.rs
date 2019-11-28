@@ -6,7 +6,7 @@ use classfile::parsing_util::{ParsingContext, read16, read32, read8};
 use verification::unified_type::{ClassNameReference, NameReference};
 use verification::unified_type::UnifiedType;
 use classfile::Classfile;
-use std::rc::{Rc, Weak};
+use std::rc::{Rc};
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
