@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::slice::Iter;
 
-use classfile::{ACC_NATIVE, Classfile, ACC_PRIVATE, ACC_STATIC};
+use classfile::{ACC_NATIVE, Classfile, ACC_PRIVATE, ACC_STATIC, stack_map_table_attribute};
 use classfile::ACC_ABSTRACT;
 use classfile::ACC_FINAL;
 use classfile::ACC_INTERFACE;
@@ -15,6 +15,7 @@ use verification::unified_type::ClassNameReference;
 use verification::unified_type::NameReference;
 use verification::unified_type::UnifiedType;
 use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
+use syntax::util::map_in_place::MapInPlace;
 
 pub struct InternalFrame {
     pub locals: Vec<UnifiedType>,
@@ -300,12 +301,31 @@ pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> T
 }
 
 pub fn  get_parsed_code_attribute<'l>(class: &PrologClass, method: &PrologClassMethod) -> ParseCodeAttribute<'l> {
+    //todo check method in class
     let method_info = &class.class.methods.borrow_mut()[method.method_index];
     let code = code_attribute(method_info).unwrap();
-    unimplemented!()
-//    ParseCodeAttribute {
-//
-//    }
+    let stack_map = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
+    ParseCodeAttribute {
+        class_name: NameReference{
+            class_file:Rc::downgrade(&class.class),
+            index:class.class.this_class
+        },
+        frame_size: code.max_locals,
+        max_stack: code.max_stack,
+        code: &code.code,
+        exception_table: code.exception_table.iter().map(|f|{
+            Handler {
+                start: f.start_pc as usize,
+                end:f.end_pc as usize,
+                target: f.handler_pc as usize,
+                class_name: NameReference {//todo NameReference v ClassReference
+                    index:f.catch_type,
+                    class_file:Rc::downgrade(&class.class)
+                }
+            }
+        }).collect(),
+        stackmap_frames: unimplemented!()
+    }
 }
 
 pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
@@ -339,7 +359,7 @@ pub struct Handler {
     pub start: usize,
     pub end: usize,
     pub target: usize,
-    pub class_name: Option<String>,
+    pub class_name: NameReference,
     //todo
 }
 

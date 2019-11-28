@@ -16,7 +16,7 @@ use verification::prolog_info_writer::PrologGenContext;
 use verification::types::parse_field_descriptor;
 use verification::types::parse_method_descriptor;
 use verification::types::write_type_prolog;
-use verification::unified_type::ArrayType;
+use verification::unified_type::{ArrayType, NameReference};
 use verification::unified_type::ClassNameReference;
 use verification::unified_type::get_referred_name;
 use verification::unified_type::UnifiedType;
@@ -25,15 +25,11 @@ use verification::verifier::Handler;
 use verification::verifier::InternalFrame;
 use std::rc::Rc;
 
-pub enum Name {
-    String(String)
-}
-
 pub struct ParseCodeAttribute<'l> {
-    pub class_name: Name,
+    pub class_name: NameReference,
     pub frame_size: u16,
     pub max_stack: u16,
-    pub code: Vec<Instruction>,
+    pub code: &'l Vec<Instruction>,
     pub exception_table: Vec<Handler>,
     //todo
     pub stackmap_frames: Vec<&'l StackMap<'l>>,//todo
