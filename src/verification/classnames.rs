@@ -1,5 +1,6 @@
 use std::rc::Weak;
 use classfile::Classfile;
+use verification::prolog_info_writer::extract_string_from_utf8;
 
 #[derive(Debug)]
 pub struct NameReference{
@@ -70,13 +71,16 @@ impl std::clone::Clone for ClassName {
     }
 }
 
-pub fn get_referred_name(ref_ : &ClassName) -> &String{
+pub fn get_referred_name(ref_ : &ClassName) -> String{
     match ref_{
         ClassName::Ref(r) => {
-            unimplemented!()
-//            extract_string_from_utf8(&r.class_file.constant_pool[r.index as usize]).as_str()
+            let upgraded_class_ref = match r.class_file.upgrade() {
+                None => {panic!()},
+                Some(s) => s
+            };
+            return extract_string_from_utf8(&upgraded_class_ref.constant_pool[r.index as usize])
         },
-        ClassName::Str(s) => {s},
+        ClassName::Str(s) => {s.clone()},//todo this clone may be expensive, ditch?
     }
 }
 

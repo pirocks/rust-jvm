@@ -172,7 +172,7 @@ fn verification_type_as_string(classfile: &Rc<Classfile>, verification_type: &Un
         UnifiedType::ReferenceType(o) => {
             let class_name = get_referred_name(o);
             if class_name.chars().nth(0).unwrap() == '[' {
-                let parsed_descriptor = parse_field_descriptor(class_name).expect("Error parsing a descriptor").field_type;
+                let parsed_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing a descriptor").field_type;
                 write_type_prolog(&parsed_descriptor, w)?;
                 return Ok(());
             }

@@ -31,8 +31,8 @@ fn different_runtime_package(class1: &PrologClass, class2: &PrologClass) -> bool
 }
 
 fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool{
-    let packages1 = class_entry_from_string(get_referred_name(&class_name(&class1.class)),false).packages;
-    let packages2 = class_entry_from_string(get_referred_name(&class_name(&class2.class)),false).packages;
+    let packages1 = class_entry_from_string(&get_referred_name(&class_name(&class1.class)),false).packages;
+    let packages2 = class_entry_from_string(&get_referred_name(&class_name(&class2.class)),false).packages;
     return packages1 != packages2
 
 }
