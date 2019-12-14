@@ -2,9 +2,8 @@ use std::io::Write;
 use std::io;
 use verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
 use verification::unified_type::UnifiedType;
-use verification::unified_type::ClassNameReference;
 use verification::unified_type::ArrayType;
-use verification::unified_type::get_referred_name;
+use verification::classnames::{ClassName, get_referred_name};
 
 #[derive(Debug)]
 pub struct MethodDescriptor{ pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }
@@ -37,7 +36,7 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, UnifiedType)> {
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            Some((remaining_to_parse, UnifiedType::ReferenceType(ClassNameReference::Str(class_name.to_string()))))
+            Some((remaining_to_parse, UnifiedType::ReferenceType(ClassName::Str(class_name.to_string()))))
         }
         _ => {
             return None

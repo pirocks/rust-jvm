@@ -11,13 +11,12 @@ use classfile::code_attribute;
 use std::rc::Rc;
 use verification::code_writer::ParseCodeAttribute;
 use verification::code_writer::StackMap;
-use verification::prolog_info_writer::{class_name_legacy, get_access_flags, get_super_class_name};
-use verification::unified_type::ClassNameReference;
-use verification::unified_type::NameReference;
+use verification::prolog_info_writer::{class_name_legacy, get_access_flags, get_super_class_name, class_name};
 use verification::unified_type::UnifiedType;
 use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
 use verification::verifier::filecorrectness::{is_bootstrap_loader, super_class_chain, class_is_final, loaded_class_, get_class_methods};
 use verification::verifier::codecorrectness::{method_is_type_safe, Environment};
+use verification::classnames::{ClassName, get_referred_name};
 
 pub mod instructions;
 pub mod filecorrectness;
@@ -59,11 +58,11 @@ pub enum TypeSafetyResult {
     NotSafe(String),
     //reason is a String
     Safe(),
-    NeedToLoad(Vec<ClassNameReference>),
+    NeedToLoad(Vec<ClassName>),
 }
 
 pub fn class_is_type_safe(class: &PrologClass) -> TypeSafetyResult {
-    if class_name_legacy(&class.class) == "java/lang/Object" {
+    if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
         if !is_bootstrap_loader(&class.loader) {
             return TypeSafetyResult::NotSafe("Loading object with something other than bootstrap loader".to_string());
         }

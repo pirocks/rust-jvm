@@ -2,7 +2,7 @@
 
 use std::io;
 use std::io::Write;
-use verification::unified_type::{NameReference, UnifiedType, ClassNameReference, ArrayType, get_referred_name};
+use verification::unified_type::{UnifiedType, ArrayType};
 use classfile::code::Instruction;
 use verification::verifier::codecorrectness::Handler;
 use verification::prolog_info_writer::{PrologGenContext, write_method_prolog_name, class_prolog_name, class_name_legacy, class_name, extract_string_from_utf8, BOOTSTRAP_LOADER_NAME};
@@ -12,6 +12,7 @@ use verification::types::{parse_method_descriptor, parse_field_descriptor, write
 use std::rc::Rc;
 use verification::verifier::{InternalFrame, Frame};
 use verification::instruction_outputer::extract_class_from_constant_pool;
+use verification::classnames::{ClassName, NameReference, get_referred_name};
 
 pub struct ParseCodeAttribute<'l> {
     pub class_name: NameReference,
@@ -36,7 +37,7 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
                 None => { continue; }
                 Some(c) => { c }
             };
-            write!(w, "parseCodeAttribute({},", class_prolog_name(&class_name_legacy(&classfile)))?;
+            write!(w, "parseCodeAttribute({},", get_referred_name(&class_name(&classfile)))?;
             write_method_prolog_name(&classfile, &method_info, w, false)?;
 
             let max_stack = code.max_stack;
@@ -353,8 +354,8 @@ fn copy_recurse(classfile: &Rc<Classfile>, to_copy: &UnifiedType) -> UnifiedType
             }*/
 
             UnifiedType::ReferenceType(match o {
-                ClassNameReference::Ref(r) => { unimplemented!() }
-                ClassNameReference::Str(s) => { ClassNameReference::Str(s.clone()) }
+                ClassName::Ref(r) => { unimplemented!() }
+                ClassName::Str(s) => { ClassName::Str(s.clone()) }
             })
         }
         UnifiedType::Uninitialized(u) => {
@@ -386,8 +387,8 @@ fn copy_type_recurse(type_: &UnifiedType) -> UnifiedType {
         UnifiedType::ShortType => { UnifiedType::ShortType }
         UnifiedType::ReferenceType(t) => {
             UnifiedType::ReferenceType(match t {
-                ClassNameReference::Ref(_) => { unimplemented!() }
-                ClassNameReference::Str(s) => { ClassNameReference::Str(s.clone()) }
+                ClassName::Ref(_) => { unimplemented!() }
+                ClassName::Str(s) => { ClassName::Str(s.clone()) }
             })
         }
         UnifiedType::BooleanType => { UnifiedType::BooleanType }

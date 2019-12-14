@@ -186,3 +186,4 @@ pub mod code_writer;
 pub mod types;
 pub mod instruction_outputer;
 pub mod verifier;
+pub mod classnames;

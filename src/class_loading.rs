@@ -22,9 +22,10 @@ use log::trace;
 use classfile::{Classfile, MethodInfo, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
-use verification::prolog_info_writer::{class_name_legacy, extract_string_from_utf8, get_super_class_name};
+use verification::prolog_info_writer::{class_name_legacy, extract_string_from_utf8, get_super_class_name, class_name};
 use verification::verifier::TypeSafetyResult;
 use verification::verify;
+use verification::classnames::get_referred_name;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]

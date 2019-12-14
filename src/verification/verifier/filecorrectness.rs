@@ -1,9 +1,10 @@
 use verification::verifier::{PrologClass, TypeSafetyResult, PrologClassMethod};
-use verification::prolog_info_writer::{class_name_legacy, get_access_flags};
+use verification::prolog_info_writer::{class_name_legacy, get_access_flags, class_name};
 use verification::unified_type::UnifiedType;
 use class_loading::{class_entry, Loader};
 use verification::verifier::TypeSafetyResult::{Safe, NeedToLoad, NotSafe};
 use classfile::{ACC_INTERFACE, ACC_PRIVATE, ACC_STATIC, ACC_FINAL};
+use verification::classnames::get_referred_name;
 
 #[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
@@ -79,8 +80,8 @@ pub fn is_java_assignable(from: &PrologClass, to: &PrologClass) -> bool {
 }
 
 pub fn is_array_interface(class: PrologClass) -> bool {
-    class_name_legacy(&class.class) == "java/lang/Cloneable" ||
-        class_name_legacy(&class.class) == "java/io/Serializable"
+    get_referred_name(&class_name(&class.class)) == "java/lang/Cloneable" ||
+        get_referred_name(&class_name(&class.class)) == "java/io/Serializable"
 }
 
 pub fn is_java_subclass_of(sub: &PrologClass, super_: &PrologClass) {

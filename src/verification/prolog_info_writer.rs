@@ -13,8 +13,7 @@ use verification::types::MethodDescriptor;
 use verification::types::FieldDescriptor;
 use verification::verifier::PrologClass;
 use std::rc::Rc;
-use verification::unified_type::ClassNameReference;
-use verification::unified_type::NameReference;
+use verification::classnames::{ClassName, NameReference};
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -154,13 +153,13 @@ pub fn write_class_defining_loader(context: &PrologGenContext, w: &mut dyn Write
 }
 
 
-pub fn class_name(class: &Rc<Classfile>) -> ClassNameReference {
+pub fn class_name(class: &Rc<Classfile>) -> ClassName {
     let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
         ConstantKind::Class(c) => { c }
         _ => { panic!() }
     };
 
-    return ClassNameReference::Ref(NameReference {
+    return ClassName::Ref(NameReference {
         class_file:Rc::downgrade(&class),
         index: class_info_entry.name_index
     });

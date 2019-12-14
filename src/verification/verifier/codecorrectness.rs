@@ -1,5 +1,5 @@
 use verification::verifier::{Frame, PrologClass, PrologClassMethod, TypeSafetyResult, merge_type_safety_results};
-use verification::unified_type::{UnifiedType, NameReference, ClassNameReference};
+use verification::unified_type::{UnifiedType};
 use std::rc::Rc;
 use verification::code_writer::{ParseCodeAttribute, StackMap};
 use classfile::code::Instruction;
@@ -9,6 +9,7 @@ use classfile::{ACC_NATIVE, ACC_ABSTRACT, stack_map_table_attribute, code_attrib
 use classfile::attribute_infos::StackMapTable;
 use verification::verifier::TypeSafetyResult::Safe;
 use verification::verifier::instructions::instruction_is_type_safe;
+use verification::classnames::{NameReference, ClassName};
 
 #[allow(unused)]
 fn exception_stack_frame(frame1: Frame, excpetion_stack_frame: Frame) -> bool {
@@ -321,7 +322,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 }
 
 fn class_to_type(class: &PrologClass) -> UnifiedType {
-    UnifiedType::ReferenceType(ClassNameReference::Ref(NameReference {
+    UnifiedType::ReferenceType(ClassName::Ref(NameReference {
         index: class.class.this_class,
         class_file: Rc::downgrade(&class.class),
     }))
