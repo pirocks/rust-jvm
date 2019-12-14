@@ -38,12 +38,18 @@ impl PartialEq for ClassNameReference{
             ClassNameReference::Ref(r1) => match other {
                 ClassNameReference::Ref(r2) => {
                     //todo how is equality for classfiles defined here?
-                    r1.class_file == r2.class_file && r1.index == r2.index
+                    r1.class_file.ptr_eq(&r2.class_file) && r1.index == r2.index
+                }
+                ClassNameReference::Str(_) => {
+                    unimplemented!()
                 }
             },
             ClassNameReference::Str(s1) => match other {
                 ClassNameReference::Str(s2) => {
                     s1 == s2
+                }
+                ClassNameReference::Ref(_) => {
+                    unimplemented!()
                 }
             },
         }

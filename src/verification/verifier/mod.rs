@@ -73,6 +73,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
 pub fn is_java_assignable(from: &PrologClass, to: &PrologClass) -> bool {
     match loaded_class(to, unimplemented!()) {
         TypeSafetyResult::Safe() => { return class_is_interface(to); }
+        _ => unimplemented!()
     }
     unimplemented!();
     return is_java_sub_class_of(from, to);

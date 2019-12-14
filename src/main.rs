@@ -66,6 +66,7 @@ fn main() {
     trace!("{}","Indexing complete");
     let mut bootstrap_loader = Rc::new(Loader {
         loaded: RefCell::new(HashMap::new()),
+        loading: RefCell::new(HashMap::new()),
         name: BOOTSTRAP_LOADER_NAME.to_string()
     });
     let mut initial_jvm_state = JVMState {
