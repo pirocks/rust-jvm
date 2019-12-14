@@ -13,6 +13,7 @@ use std::rc::Rc;
 use verification::verifier::{InternalFrame, Frame};
 use verification::instruction_outputer::extract_class_from_constant_pool;
 use verification::classnames::{ClassName, NameReference, get_referred_name};
+use verification::verifier::codecorrectness::stackmapframes::{handle_same_frame, handle_append_frame, handle_same_locals_1_stack, handle_full_frame, handle_chop_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended};
 
 pub struct ParseCodeAttribute<'l> {
     pub class_name: NameReference,
@@ -258,55 +259,6 @@ fn write_stack_map_frames(class_file: &Rc<Classfile>, method_info: &MethodInfo, 
     Ok(())
 }
 
-fn handle_same_locals_1_stack_frame_extended(class_file: &Rc<Classfile>, mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) -> () {
-    frame.current_offset += f.offset_delta;
-    frame.stack.clear();
-    push_to_stack(class_file, frame, &f.stack);
-}
-
-fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &SameFrameExtended) -> () {
-    frame.current_offset += f.offset_delta;
-    frame.stack.clear();
-}
-
-fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
-    frame.current_offset += f.offset_delta;
-    frame.stack.clear();
-    for _ in 0..f.k_frames_to_chop {
-        frame.locals.remove(frame.locals.len() - 1);
-    }
-}
-
-fn handle_full_frame(class_file: &Rc<Classfile>, frame: &mut InternalFrame, f: &FullFrame) -> () {
-    frame.current_offset += f.offset_delta;
-    frame.locals.clear();
-    for new_local in f.locals.iter() {
-        add_new_local(class_file, frame, new_local);
-    }
-
-    frame.stack.clear();
-    for new_stack_member in f.stack.iter() {
-        push_to_stack(class_file, frame, new_stack_member);
-    }
-}
-
-fn handle_same_locals_1_stack(class_file: &Rc<Classfile>, frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) -> () {
-    frame.current_offset += s.offset_delta;
-    frame.stack.clear();
-    push_to_stack(class_file, frame, &s.stack);
-}
-
-fn handle_append_frame(class_file: &Rc<Classfile>, frame: &mut InternalFrame, append_frame: &AppendFrame) -> () {
-    frame.current_offset += append_frame.offset_delta;
-    for new_local in append_frame.locals.iter() {
-        add_new_local(class_file, frame, new_local)
-    }
-}
-
-fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
-    frame.current_offset += s.offset_delta;
-    frame.stack.clear();
-}
 
 fn write_stack_map_frame(class_file: &Rc<Classfile>, w: &mut dyn Write, frame: &InternalFrame) -> Result<(), io::Error> {
     write!(w, "stackMap({},frame(", frame.current_offset)?;
@@ -319,85 +271,3 @@ fn write_stack_map_frame(class_file: &Rc<Classfile>, w: &mut dyn Write, frame: &
 }
 
 //todo there should really be two lifetimes here, the verifier lifetime and the classfile lifetime
-
-fn push_to_stack(classfile: &Rc<Classfile>, frame: &mut InternalFrame, new_local: &UnifiedType) {
-    add_verification_type_to_array(classfile, &mut frame.stack, new_local)
-}
-
-fn add_new_local(classfile: &Rc<Classfile>, frame: &mut InternalFrame, new_local: &UnifiedType) {
-    add_verification_type_to_array(classfile, &mut frame.locals, new_local)
-}
-
-fn add_verification_type_to_array(classfile: &Rc<Classfile>, locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
-    match copy_recurse(classfile, new_local) {
-        UnifiedType::DoubleType => {
-            locals.push(UnifiedType::DoubleType);
-            locals.push(UnifiedType::TopType);
-        }
-        UnifiedType::LongType => {
-            locals.push(UnifiedType::LongType);
-            locals.push(UnifiedType::TopType);
-        }
-        new => { locals.push(new); }
-    }
-}
-
-fn copy_recurse(classfile: &Rc<Classfile>, to_copy: &UnifiedType) -> UnifiedType {
-    match to_copy {
-        UnifiedType::ReferenceType(o) => {
-//            let class_name = object_get_class_name(classfile,o);
-            /*if class_name.chars().nth(0).unwrap() == '[' {
-                let type_ = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
-                let mut temp  = Vec::with_capacity(1);
-                locals_push_convert_type(&mut temp,&type_);
-                return copy_recurse(classfile,&temp[0]);
-            }*/
-
-            UnifiedType::ReferenceType(match o {
-                ClassName::Ref(r) => { unimplemented!() }
-                ClassName::Str(s) => { ClassName::Str(s.clone()) }
-            })
-        }
-        UnifiedType::Uninitialized(u) => {
-            UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset })
-        }
-        UnifiedType::ArrayReferenceType(a) => {
-            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&a.sub_type)) })
-        }
-
-        UnifiedType::TopType => { UnifiedType::TopType }
-        UnifiedType::IntType => { UnifiedType::IntType }
-        UnifiedType::FloatType => { UnifiedType::FloatType }
-        UnifiedType::LongType => { UnifiedType::LongType }
-        UnifiedType::DoubleType => { UnifiedType::DoubleType }
-        UnifiedType::NullType => { UnifiedType::NullType }
-        UnifiedType::UninitializedThis => { UnifiedType::UninitializedThis }
-        _ => { panic!("Case wasn't covered with non-unified types") }
-    }
-}
-
-fn copy_type_recurse(type_: &UnifiedType) -> UnifiedType {
-    match type_ {
-        UnifiedType::ByteType => { UnifiedType::ByteType }
-        UnifiedType::CharType => { UnifiedType::CharType }
-        UnifiedType::DoubleType => { UnifiedType::DoubleType }
-        UnifiedType::FloatType => { UnifiedType::FloatType }
-        UnifiedType::IntType => { UnifiedType::IntType }
-        UnifiedType::LongType => { UnifiedType::LongType }
-        UnifiedType::ShortType => { UnifiedType::ShortType }
-        UnifiedType::ReferenceType(t) => {
-            UnifiedType::ReferenceType(match t {
-                ClassName::Ref(_) => { unimplemented!() }
-                ClassName::Str(s) => { ClassName::Str(s.clone()) }
-            })
-        }
-        UnifiedType::BooleanType => { UnifiedType::BooleanType }
-        UnifiedType::ArrayReferenceType(t) => {
-            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&t.sub_type)) })
-        }
-        UnifiedType::VoidType => {
-            UnifiedType::VoidType
-        }
-        _ => { panic!("Case wasn't coverred with non-unified types") }
-    }
-}

@@ -1,15 +1,19 @@
-use verification::verifier::{Frame, PrologClass, PrologClassMethod, TypeSafetyResult, merge_type_safety_results};
-use verification::unified_type::{UnifiedType};
 use std::rc::Rc;
-use verification::code_writer::{ParseCodeAttribute, StackMap};
+
+use classfile::{ACC_ABSTRACT, ACC_NATIVE, ACC_STATIC, code_attribute, stack_map_table_attribute};
+use classfile::attribute_infos::{Code, StackMapFrame, StackMapTable};
 use classfile::code::Instruction;
-use verification::verifier::filecorrectness::{is_assignable, does_not_override_final_method};
-use verification::prolog_info_writer::get_access_flags;
-use classfile::{ACC_NATIVE, ACC_ABSTRACT, stack_map_table_attribute, code_attribute};
-use classfile::attribute_infos::StackMapTable;
-use verification::verifier::TypeSafetyResult::Safe;
+use verification::classnames::{ClassName, get_referred_name, NameReference};
+use verification::code_writer::{init_frame, ParseCodeAttribute, StackMap};
+use verification::prolog_info_writer::{class_name, get_access_flags};
+use verification::unified_type::UnifiedType;
+use verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
+use verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable};
 use verification::verifier::instructions::instruction_is_type_safe;
-use verification::classnames::{NameReference, ClassName};
+use verification::verifier::TypeSafetyResult::Safe;
+use verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
+
+pub mod stackmapframes;
 
 #[allow(unused)]
 fn exception_stack_frame(frame1: Frame, excpetion_stack_frame: Frame) -> bool {
@@ -56,6 +60,24 @@ pub fn can_safely_push(environment: Environment, input_operand_stack: Vec<Unifie
     unimplemented!();
 }
 
+pub fn get_parsed_code_attribute<'l>(class: &'l PrologClass, method: &'l PrologClassMethod) -> ParseCodeAttribute<'l> {
+    //todo check method in class
+    let method_info = &class.class.methods.borrow()[method.method_index];
+    let code = code_attribute(method_info).unwrap();
+    //todo refactor such that all values here are lazy af.
+    ParseCodeAttribute {
+        class_name: NameReference {
+            class_file: Rc::downgrade(&class.class),
+            index: class.class.this_class,
+        },
+        frame_size: code.max_locals,
+        max_stack: code.max_stack,
+        code: &code.code,
+        exception_table: get_handlers(class, code),
+        stackmap_frames: get_stack_map_frames(class, method_info),
+    }
+}
+
 #[allow(unused)]
 pub fn can_safely_push_list(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
     unimplemented!()
@@ -71,11 +93,6 @@ pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
     unimplemented!()
 }
 
-
-
-/**
-Because of the confusing many types of types, this is a type enum to rule them all.
-*/
 pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
     left.stack_map.len() == right.stack_map.len()
         && left.locals.iter().zip(right.locals.iter()).all(|(left_, right_)| {
@@ -105,39 +122,25 @@ pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> T
                                    }].into_boxed_slice())
 }
 
-pub fn get_parsed_code_attribute<'l>(class: &'l PrologClass, method: &'l PrologClassMethod) -> ParseCodeAttribute<'l> {
-    //todo check method in class
-    let method_info = &class.class.methods.borrow_mut()[method.method_index];
-    let code = code_attribute(method_info).unwrap();
-    let empty_stack_map = StackMapTable { entries: Vec::new() };
-    let stack_map = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
-    ParseCodeAttribute {
-        class_name: NameReference {
-            class_file: Rc::downgrade(&class.class),
-            index: class.class.this_class,
-        },
-        frame_size: code.max_locals,
-        max_stack: code.max_stack,
-        code: &code.code,
-        exception_table: code.exception_table.iter().map(|f| {
-            Handler {
-                start: f.start_pc as usize,
-                end: f.end_pc as usize,
-                target: f.handler_pc as usize,
-                class_name: if f.catch_type == 0 { None } else {
-                    Some(NameReference {//todo NameReference v ClassReference
-                        index: f.catch_type,
-                        class_file: Rc::downgrade(&class.class),
-                    })
-                },
-            }
-        }).collect(),
-        stackmap_frames: unimplemented!(),
-    }
+
+fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
+    code.exception_table.iter().map(|f| {
+        Handler {
+            start: f.start_pc as usize,
+            end: f.end_pc as usize,
+            target: f.handler_pc as usize,
+            class_name: if f.catch_type == 0 { None } else {
+                Some(NameReference {//todo NameReference v ClassReference
+                    index: f.catch_type,
+                    class_file: Rc::downgrade(&class.class),
+                })
+            },
+        }
+    }).collect()
 }
 
 pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
-    let parsed_code: ParseCodeAttribute = get_parsed_code_attribute(class, &method);
+    let parsed_code = get_parsed_code_attribute(class, &method);
     let frame_size = parsed_code.frame_size;
     let max_stack = parsed_code.max_stack;
     let code: Vec<&Instruction> = parsed_code.code.iter().map(|x| { x }).collect();

@@ -9,7 +9,6 @@ use classfile::code::Instruction;
 use classfile::code::InstructionInfo;
 use classfile::code_attribute;
 use std::rc::Rc;
-use verification::code_writer::ParseCodeAttribute;
 use verification::code_writer::StackMap;
 use verification::prolog_info_writer::{class_name_legacy, get_access_flags, get_super_class_name, class_name};
 use verification::unified_type::UnifiedType;
