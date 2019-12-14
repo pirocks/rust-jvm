@@ -2,29 +2,16 @@
 
 use std::io;
 use std::io::Write;
-
-use classfile::{ACC_STATIC, Classfile, code_attribute, MethodInfo, stack_map_table_attribute};
-use classfile::attribute_infos::{AppendFrame, ChopFrame, Code, ExceptionTableElem, FullFrame, ObjectVariableInfo, SameFrame, SameLocals1StackItemFrame, StackMapFrame, StackMapTable};
-use classfile::attribute_infos::SameFrameExtended;
-use classfile::attribute_infos::SameLocals1StackItemFrameExtended;
-use classfile::attribute_infos::UninitializedVariableInfo;
+use verification::unified_type::{NameReference, UnifiedType, ClassNameReference, ArrayType, get_referred_name};
 use classfile::code::Instruction;
-use verification::instruction_outputer::extract_class_from_constant_pool;
-use verification::prolog_info_writer::{BOOTSTRAP_LOADER_NAME, class_prolog_name, extract_string_from_utf8, write_method_prolog_name};
-use verification::prolog_info_writer::class_name_legacy;
-use verification::prolog_info_writer::PrologGenContext;
-use verification::types::parse_field_descriptor;
-use verification::types::parse_method_descriptor;
-use verification::types::write_type_prolog;
-use verification::unified_type::{ArrayType, NameReference};
-use verification::unified_type::ClassNameReference;
-use verification::unified_type::get_referred_name;
-use verification::unified_type::UnifiedType;
-use verification::verifier::Frame;
-use verification::verifier::Handler;
-use verification::verifier::InternalFrame;
+use verification::verifier::codecorrectness::Handler;
+use verification::prolog_info_writer::{PrologGenContext, write_method_prolog_name, class_prolog_name, class_name_legacy, class_name, extract_string_from_utf8, BOOTSTRAP_LOADER_NAME};
+use classfile::{code_attribute, stack_map_table_attribute, Classfile, MethodInfo, ACC_STATIC};
+use classfile::attribute_infos::{StackMapFrame, Code, SameLocals1StackItemFrameExtended, ChopFrame, FullFrame, UninitializedVariableInfo, StackMapTable, SameFrameExtended, ObjectVariableInfo, ExceptionTableElem, AppendFrame, SameFrame, SameLocals1StackItemFrame};
+use verification::types::{parse_method_descriptor, parse_field_descriptor, write_type_prolog};
 use std::rc::Rc;
-use verification::prolog_info_writer::class_name;
+use verification::verifier::{InternalFrame, Frame};
+use verification::instruction_outputer::extract_class_from_constant_pool;
 
 pub struct ParseCodeAttribute<'l> {
     pub class_name: NameReference,
