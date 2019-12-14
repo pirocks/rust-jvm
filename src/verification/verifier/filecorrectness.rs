@@ -1,10 +1,10 @@
-use verification::verifier::{PrologClass, TypeSafetyResult, PrologClassMethod};
-use verification::prolog_info_writer::{class_name_legacy, get_access_flags, class_name};
-use verification::unified_type::UnifiedType;
-use class_loading::{class_entry, Loader};
-use verification::verifier::TypeSafetyResult::{Safe, NeedToLoad, NotSafe};
-use classfile::{ACC_INTERFACE, ACC_PRIVATE, ACC_STATIC, ACC_FINAL};
+use class_loading::{class_entry, Loader, class_entry_from_string};
+use classfile::{ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_STATIC};
 use verification::classnames::get_referred_name;
+use verification::prolog_info_writer::{class_name, class_name_legacy, get_access_flags};
+use verification::unified_type::UnifiedType;
+use verification::verifier::{PrologClass, PrologClassMethod, TypeSafetyResult};
+use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
 
 #[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
@@ -12,10 +12,30 @@ fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
 }
 
 #[allow(unused)]
-fn different_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
-    unimplemented!()
+fn different_runtime_package(class1: &PrologClass, class2: &PrologClass) -> bool {
+    //sameRuntimePackage(Class1, Class2) :-
+    //    classDefiningLoader(Class1, L),
+    //    classDefiningLoader(Class2, L),
+    //    samePackageName(Class1, Class2).
+    //
+    //differentRuntimePackage(Class1, Class2) :-
+    //    classDefiningLoader(Class1, L1),
+    //    classDefiningLoader(Class2, L2),
+    //    L1 \= L2.
+    //
+    //differentRuntimePackage(Class1, Class2) :-
+    //    differentPackageName(Class1, Class2).
+    return class1.loader != class2.loader || different_package_name(class1,class2);
+
+
 }
 
+fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool{
+    let packages1 = class_entry_from_string(get_referred_name(&class_name(&class1.class)),false).packages;
+    let packages2 = class_entry_from_string(get_referred_name(&class_name(&class2.class)),false).packages;
+    return packages1 != packages2
+
+}
 
 //todo have an actual loader type. instead of refering to loader name
 pub fn loaded_class(class: &PrologClass, loader: Loader) -> TypeSafetyResult {
@@ -26,8 +46,6 @@ pub fn loaded_class(class: &PrologClass, loader: Loader) -> TypeSafetyResult {
         return NeedToLoad(vec![unimplemented!()]);
     }
 }
-
-
 
 pub fn is_bootstrap_loader(loader: &String) -> bool {
     return loader == &"bl".to_string();//todo  what if someone defines a Loader class called bl

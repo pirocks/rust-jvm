@@ -30,7 +30,7 @@ use verification::classnames::get_referred_name;
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
 #[derive(Hash)]
-pub struct ClassEntry {
+pub struct ClassEntry { // todo deprecated superseeded by ClassName
     pub name: String,
     pub packages: Vec<String>,
 }
