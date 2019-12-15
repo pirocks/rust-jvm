@@ -5,7 +5,6 @@ use std::io;
 use std::io::Lines;
 use std::process::{Child, ChildStdin, ChildStdout, Stdio};
 use std::process::Command;
-use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -19,11 +18,12 @@ use classfile::parsing_util::ParsingContext;
 use verification::prolog_info_writer::{class_name_legacy, ExtraDescriptors, gen_prolog, PrologGenContext};
 use verification::PrologOutput::{NeedsAnotherClass, True};
 use verification::verifier::{class_is_type_safe, PrologClass, TypeSafetyResult};
+use std::sync::Arc;
 
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
 */
-pub fn verify(to_verify: &HashMap<ClassEntry, Rc<Classfile>>, jvm_state: &mut JVMState, loader: Rc<Loader>) -> TypeSafetyResult {
+pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut JVMState, loader: Arc<Loader>) -> TypeSafetyResult {
     if jvm_state.using_prolog_verifier {
         prolog_verify(jvm_state, to_verify);
         unimplemented!()
@@ -35,7 +35,7 @@ pub fn verify(to_verify: &HashMap<ClassEntry, Rc<Classfile>>, jvm_state: &mut JV
         let verification_results: Vec<TypeSafetyResult> = to_verify.iter().map(|(entry, loaded)| {
             let current_class = PrologClass {
                 class: loaded.clone(),
-                loader: "bl".to_string(),
+                loader:loader.clone(),
             };
             class_is_type_safe(&current_class)
         }).collect();
@@ -44,7 +44,7 @@ pub fn verify(to_verify: &HashMap<ClassEntry, Rc<Classfile>>, jvm_state: &mut JV
     }
 }
 
-fn prolog_verify(state: &JVMState, to_verify: &HashMap<ClassEntry, Rc<Classfile>>) -> Option<String> {
+fn prolog_verify(state: &JVMState, to_verify: &HashMap<ClassEntry, Arc<Classfile>>) -> Option<String> {
     for (class_entry, current_class_to_verify) in to_verify.iter() {
         let (mut prolog, mut prolog_input, mut output_lines, mut context) = init_prolog(&state);
         let generated_prolog_defs_file = NamedTempFile::new().expect("Error creating tempfile");
@@ -57,7 +57,7 @@ fn prolog_verify(state: &JVMState, to_verify: &HashMap<ClassEntry, Rc<Classfile>
         match generated_defs_res {
             True => {
                 trace!("Prolog accepted verification info");
-                let classes: Vec<String> = context.to_verify.iter().map(|class: &Rc<Classfile>| {
+                let classes: Vec<String> = context.to_verify.iter().map(|class: &Arc<Classfile>| {
                     class_name_legacy(class)
                 }).collect();
                 dbg!(classes);
@@ -160,17 +160,17 @@ fn init_prolog_context<'s>(state: &'s JVMState, loading_in_progress: &Vec<ClassE
 //    for class_entry in &state.partial_load {
 //        add_to_verify(state, &mut to_verify, class_entry)
 //    }
-    for class_entry in state.loaders[&"bl".to_string()].loaded.borrow().keys().into_iter() {
+    for class_entry in state.loaders[&"bl".to_string()].loaded.read().unwrap().keys().into_iter() {
         add_to_verify(state, &mut to_verify, class_entry)
     }
     let context: PrologGenContext<'s> = PrologGenContext { state, to_verify, extra: ExtraDescriptors { extra_method_descriptors: Vec::new(), extra_field_descriptors: Vec::new() } };
     (context)
 }
 
-fn add_to_verify(state: &JVMState, to_verify: &mut Vec<Rc<Classfile>>, class_entry: &ClassEntry) -> () {
+fn add_to_verify(state: &JVMState, to_verify: &mut Vec<Arc<Classfile>>, class_entry: &ClassEntry) -> () {
     let path = state.indexed_classpath.get(class_entry).unwrap();
 //    let mut p = ParsingContext { f: File::open(path).expect("This is a bug"), constant_pool: None };
-    let class_file = parse_class_file(&mut ParsingContext { f:File::open(path).expect("This is a bug") });
+    let class_file = parse_class_file(File::open(path).expect("This is a bug"));
     to_verify.push(class_file)
 }
 

@@ -9,6 +9,9 @@ extern crate tempfile;
 extern crate regex;
 extern crate walkdir;
 extern crate pathdiff;
+#[macro_use]
+extern crate lazy_static;
+
 
 pub mod classfile;
 pub mod jit;

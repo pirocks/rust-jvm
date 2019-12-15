@@ -4,8 +4,12 @@ use classfile::attribute_infos::{AttributeType, Code, parse_attributes, StackMap
 use classfile::constant_infos::{ConstantInfo, parse_constant_infos};
 use classfile::parsing_util::{read16, read32};
 use classfile::parsing_util::ParsingContext;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::sync::Mutex;
+use std::sync::RwLock;
+use core::borrow::Borrow;
+use std::sync::Arc;
+use std::fs::File;
 
 pub mod constant_infos;
 pub mod attribute_infos;
@@ -99,7 +103,7 @@ pub const ACC_MODULE: u16 = 0x8000;
 
 
 #[derive(Debug)]
-#[derive(Eq)]
+//#[derive(Eq)]
 //#[derive(Copy, Clone)]
 pub struct Classfile {
     pub magic: u32,
@@ -110,9 +114,9 @@ pub struct Classfile {
     pub this_class: u16,
     pub super_class: u16,
     pub interfaces: Vec<u16>,
-    pub fields: RefCell<Vec<FieldInfo>>,
-    pub methods: RefCell<Vec<MethodInfo>>,
-    pub attributes: RefCell<Vec<AttributeInfo>>,
+    pub fields: Vec<FieldInfo>,
+    pub methods: Vec<MethodInfo>,
+    pub attributes: Vec<AttributeInfo>,
 }
 
 impl std::cmp::PartialEq for Classfile {
@@ -150,9 +154,11 @@ impl std::hash::Hash for Classfile {
 pub mod parsing_util {
     use std::fs::File;
     use std::io::prelude::*;
+    use classfile::constant_infos::ConstantInfo;
 
-    pub struct ParsingContext {
+    pub struct ParsingContext<'l> {
         pub f: File,
+        pub constant_pool : &'l Vec<ConstantInfo>
     }
 
     const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";
@@ -190,54 +196,61 @@ pub fn parse_interfaces(p: &mut ParsingContext, interfaces_count: u16) -> Vec<u1
     return res;
 }
 
-pub fn parse_field(p: &mut ParsingContext, classfile: &Rc<Classfile>) -> FieldInfo {
+pub fn parse_field(p: &mut ParsingContext) -> FieldInfo {
     let access_flags = read16(p);
     let name_index = read16(p);
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count, classfile);
+    let attributes = parse_attributes(p, attributes_count);
     return FieldInfo { access_flags, name_index, descriptor_index, attributes };
 }
 
-pub fn parse_field_infos(p: &mut ParsingContext, fields_count: u16, classfile: &Rc<Classfile>) -> Vec<FieldInfo> {
+pub fn parse_field_infos(p: &mut ParsingContext, fields_count: u16) -> Vec<FieldInfo> {
     let mut res = Vec::with_capacity(fields_count as usize);
     for _ in 0..fields_count {
-        res.push(parse_field(p, classfile))
+        res.push(parse_field(p))
     }
     return res;
 }
 
-pub fn parse_method(p: &mut ParsingContext, classfile: &Rc<Classfile>) -> MethodInfo {
+pub fn parse_method(p: &mut ParsingContext) -> MethodInfo {
     let access_flags = read16(p);
     let name_index = read16(p);
     let descriptor_index = read16(p);
     let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count, classfile);
+    let attributes = parse_attributes(p, attributes_count);
     MethodInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
-pub fn parse_methods(p: &mut ParsingContext, methods_count: u16, classfile: &Rc<Classfile>) -> Vec<MethodInfo> {
+pub fn parse_methods(p: &mut ParsingContext, methods_count: u16) -> Vec<MethodInfo> {
     let mut res = Vec::with_capacity(methods_count as usize);
     for _ in 0..methods_count {
-        res.push(parse_method(p, classfile))
+        res.push(parse_method(p))
     }
     return res;
 }
 
-pub fn parse_class_file(p: &mut ParsingContext) -> Rc<Classfile> {
-    let magic: u32 = read32(p);
+pub fn parse_class_file(f: File) -> Arc<Classfile> {
+    let mut p = ParsingContext { constant_pool:&vec![] ,f};
+    let magic: u32 = read32(&mut p);
     assert_eq!(magic, EXPECTED_CLASSFILE_MAGIC);
-    let minor_version: u16 = read16(p);
-    let major_version: u16 = read16(p);
-    let constant_pool_count: u16 = read16(p);
-    let constant_pool = parse_constant_infos(p, constant_pool_count);
-    let access_flags = read16(p);
-    let this_class = read16(p);
-    let super_class = read16(p);
-    let interfaces_count = read16(p);
-    let interfaces = parse_interfaces(p, interfaces_count);
-    let fields_count = read16(p);
-    let mut res = Rc::new(Classfile {
+    let minor_version: u16 = read16(&mut p);
+    let major_version: u16 = read16(&mut p);
+    let constant_pool_count: u16 = read16(&mut p);
+    let constant_pool = parse_constant_infos(&mut p, constant_pool_count);
+    p.constant_pool = &constant_pool;
+    let access_flags = read16(&mut p);
+    let this_class = read16(&mut p);
+    let super_class = read16(&mut p);
+    let interfaces_count = read16(&mut p);
+    let interfaces = parse_interfaces(&mut p, interfaces_count);
+    let fields_count = read16(&mut p);
+    let fields = parse_field_infos(&mut p, fields_count);
+    let methods_count = read16(&mut p);
+    let methods = parse_methods(&mut p, methods_count);
+    let attributes_count = read16(&mut p);
+    let attributes = parse_attributes(&mut p, attributes_count);
+    let res = Arc::new(Classfile {
         magic,
         minor_version,
         major_version,
@@ -246,17 +259,9 @@ pub fn parse_class_file(p: &mut ParsingContext) -> Rc<Classfile> {
         this_class,
         super_class,
         interfaces,
-        fields: RefCell::new(vec![]),
-        methods: RefCell::new(vec![]),
-        attributes: RefCell::new(vec![]),
+        fields,
+        methods,
+        attributes,
     });
-    let fields = parse_field_infos(p, fields_count, &mut res);
-    res.fields.replace(fields);
-    let methods_count = read16(p);
-    let methods = parse_methods(p, methods_count, &mut res);
-    res.methods.replace(methods);
-    let attributes_count = read16(p);
-    let attributes = parse_attributes(p, attributes_count, &mut res);
-    res.attributes.replace(attributes);
     return res;
 }

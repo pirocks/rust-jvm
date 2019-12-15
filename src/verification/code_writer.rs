@@ -9,22 +9,14 @@ use verification::prolog_info_writer::{PrologGenContext, write_method_prolog_nam
 use classfile::{code_attribute, stack_map_table_attribute, Classfile, MethodInfo, ACC_STATIC};
 use classfile::attribute_infos::{StackMapFrame, Code, SameLocals1StackItemFrameExtended, ChopFrame, FullFrame, UninitializedVariableInfo, StackMapTable, SameFrameExtended, ObjectVariableInfo, ExceptionTableElem, AppendFrame, SameFrame, SameLocals1StackItemFrame};
 use verification::types::{parse_method_descriptor, parse_field_descriptor, write_type_prolog};
-use std::rc::Rc;
 use verification::verifier::{InternalFrame, Frame};
 use verification::instruction_outputer::extract_class_from_constant_pool;
 use verification::classnames::{ClassName, NameReference, get_referred_name};
 use verification::verifier::codecorrectness::stackmapframes::{handle_same_frame, handle_append_frame, handle_same_locals_1_stack, handle_full_frame, handle_chop_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended};
+use verification::verifier::PrologClassMethod;
+use std::sync::Arc;
 
-pub struct ParseCodeAttribute<'l> {
-    pub class_name: NameReference,
-    pub frame_size: u16,
-    pub max_stack: u16,
-    pub code: &'l Vec<Instruction>,
-    pub exception_table: Vec<Handler>,
-    //todo
-    pub stackmap_frames: Vec<&'l StackMap<'l>>,//todo
-}
-
+#[derive(Debug)]
 pub struct StackMap<'l> {
     pub offset: usize,
     pub map_frame: Frame<'l>,
@@ -33,7 +25,7 @@ pub struct StackMap<'l> {
 
 pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(), io::Error> {
     for classfile in context.to_verify.iter() {
-        for method_info in classfile.methods.borrow_mut().iter() {
+        for method_info in classfile.methods.iter() {
             let code = match code_attribute(&method_info) {
                 None => { continue; }
                 Some(c) => { c }
@@ -72,7 +64,7 @@ pub struct ExceptionHandler {
     catch_type: u32,
 }
 
-fn write_exception_handler(class_file: &Rc<Classfile>, exception_handler: &ExceptionTableElem, w: &mut dyn Write) -> Result<(), io::Error> {
+fn write_exception_handler(class_file: &Arc<Classfile>, exception_handler: &ExceptionTableElem, w: &mut dyn Write) -> Result<(), io::Error> {
     if exception_handler.catch_type == 0 {
         write!(w, "handler({},{},{},0)", exception_handler.start_pc, exception_handler.end_pc, exception_handler.handler_pc)?;
     } else {
@@ -141,7 +133,7 @@ fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> (
     }
 }
 
-fn write_locals(classfile: &Rc<Classfile>, frame: &InternalFrame, w: &mut dyn Write) -> Result<(), io::Error> {
+fn write_locals(classfile: &Arc<Classfile>, frame: &InternalFrame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
     for (i, local) in frame.locals.iter().enumerate() {
         verification_type_as_string(classfile, local, w)?;
@@ -161,7 +153,7 @@ fn write_locals(classfile: &Rc<Classfile>, frame: &InternalFrame, w: &mut dyn Wr
 
 //todo this should really be a write function
 #[allow(unused)]
-fn verification_type_as_string(classfile: &Rc<Classfile>, verification_type: &UnifiedType, w: &mut dyn Write) -> Result<(), io::Error> {
+fn verification_type_as_string(classfile: &Arc<Classfile>, verification_type: &UnifiedType, w: &mut dyn Write) -> Result<(), io::Error> {
     match verification_type {
         UnifiedType::TopType => { write!(w, "top")?; }
         UnifiedType::IntType => { write!(w, "int")?; }
@@ -191,7 +183,7 @@ fn verification_type_as_string(classfile: &Rc<Classfile>, verification_type: &Un
 }
 
 #[allow(unused)]
-fn object_get_class_name(classfile: &Rc<Classfile>, o: &ObjectVariableInfo) -> String {
+fn object_get_class_name(classfile: &Arc<Classfile>, o: &ObjectVariableInfo) -> String {
     let class_name = match o.cpool_index {
         None => { o.class_name.clone() }
         Some(i) => {
@@ -203,7 +195,7 @@ fn object_get_class_name(classfile: &Rc<Classfile>, o: &ObjectVariableInfo) -> S
     class_name
 }
 
-fn write_operand_stack(classfile: &Rc<Classfile>, frame: &InternalFrame, w: &mut dyn Write) -> Result<(), io::Error> {
+fn write_operand_stack(classfile: &Arc<Classfile>, frame: &InternalFrame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;
     for (i, local) in frame.stack.iter().rev().enumerate() {
         verification_type_as_string(classfile, local, w)?;
@@ -215,7 +207,7 @@ fn write_operand_stack(classfile: &Rc<Classfile>, frame: &InternalFrame, w: &mut
     Ok(())
 }
 
-fn write_stack_map_frames(class_file: &Rc<Classfile>, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(), io::Error> {
+fn write_stack_map_frames(class_file: &Arc<Classfile>, method_info: &MethodInfo, w: &mut dyn Write) -> Result<(), io::Error> {
     let code: &Code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
@@ -260,7 +252,7 @@ fn write_stack_map_frames(class_file: &Rc<Classfile>, method_info: &MethodInfo, 
 }
 
 
-fn write_stack_map_frame(class_file: &Rc<Classfile>, w: &mut dyn Write, frame: &InternalFrame) -> Result<(), io::Error> {
+fn write_stack_map_frame(class_file: &Arc<Classfile>, w: &mut dyn Write, frame: &InternalFrame) -> Result<(), io::Error> {
     write!(w, "stackMap({},frame(", frame.current_offset)?;
     write_locals(class_file, frame, w)?;
     write!(w, ",")?;

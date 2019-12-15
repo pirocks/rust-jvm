@@ -7,9 +7,9 @@ use verification::prolog_info_writer::{extract_string_from_utf8, BOOTSTRAP_LOADE
 use verification::types::{parse_field_descriptor, write_type_prolog};
 use classfile::code::Instruction;
 use classfile::code::InstructionInfo;
-use std::rc::Rc;
+use std::sync::Arc;
 
-fn name_and_type_extractor(i: u16, class_file: &Rc<Classfile>) -> (String, String) {
+fn name_and_type_extractor(i: u16, class_file: &Arc<Classfile>) -> (String, String) {
     let nt;
     match &class_file.constant_pool[i as usize].kind {
         ConstantKind::NameAndType(nt_) => {
@@ -22,7 +22,7 @@ fn name_and_type_extractor(i: u16, class_file: &Rc<Classfile>) -> (String, Strin
     return (method_name, descriptor);
 }
 
-pub fn extract_class_from_constant_pool(i: u16, classfile: &Rc<Classfile>) -> &Class {
+pub fn extract_class_from_constant_pool(i: u16, classfile: &Arc<Classfile>) -> &Class {
     match &classfile.constant_pool[i as usize].kind {
         ConstantKind::Class(c) => {
             return c;
@@ -33,7 +33,7 @@ pub fn extract_class_from_constant_pool(i: u16, classfile: &Rc<Classfile>) -> &C
     }
 }
 
-fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, classfile: &Rc<Classfile>, cp_index: u16, is_ldc: bool) -> String {
+fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, classfile: &Arc<Classfile>, cp_index: u16, is_ldc: bool) -> String {
     let mut res = String::new();
     use std::fmt::Write;
     match &classfile.constant_pool[cp_index as usize].kind {
@@ -109,7 +109,7 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, classfile: &Rc<Cl
     res
 }
 
-fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Rc<Classfile>, instruction: &Instruction) -> String {
+fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Arc<Classfile>, instruction: &Instruction) -> String {
     format!("instruction({},{})", instruction.offset, match &instruction.instruction {
         InstructionInfo::aaload => { "aaload".to_string() }
         InstructionInfo::aastore => { "aastore".to_string() }
@@ -414,7 +414,7 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Rc<
     })
 }
 
-pub fn output_instruction_info_for_code(prolog_context: &mut ExtraDescriptors, class_file: &Rc<Classfile>, code: &Code, w: &mut dyn Write) -> Result<(), Error> {
+pub fn output_instruction_info_for_code(prolog_context: &mut ExtraDescriptors, class_file: &Arc<Classfile>, code: &Code, w: &mut dyn Write) -> Result<(), Error> {
     write!(w, "[")?;
     for instruction in code.code.iter() {
         write!(w, "{},", instruction_to_string(prolog_context, class_file, instruction))?;

@@ -1,10 +1,9 @@
-use std::rc::Rc;
-
+use log::trace;
 use classfile::{ACC_ABSTRACT, ACC_NATIVE, ACC_STATIC, code_attribute, stack_map_table_attribute};
 use classfile::attribute_infos::{Code, StackMapFrame, StackMapTable};
 use classfile::code::Instruction;
 use verification::classnames::{ClassName, get_referred_name, NameReference};
-use verification::code_writer::{init_frame, ParseCodeAttribute, StackMap};
+use verification::code_writer::{init_frame, StackMap};
 use verification::prolog_info_writer::{class_name, get_access_flags};
 use verification::unified_type::UnifiedType;
 use verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
@@ -12,86 +11,70 @@ use verification::verifier::filecorrectness::{does_not_override_final_method, is
 use verification::verifier::instructions::instruction_is_type_safe;
 use verification::verifier::TypeSafetyResult::Safe;
 use verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
+use class_loading::Loader;
+use std::sync::Arc;
 
 pub mod stackmapframes;
+//
+//#[allow(unused)]
+//fn exception_stack_frame(frame1: Frame, excpetion_stack_frame: Frame) -> bool {
+//    unimplemented!()
+//}
+//
 
-#[allow(unused)]
-fn exception_stack_frame(frame1: Frame, excpetion_stack_frame: Frame) -> bool {
-    unimplemented!()
-}
-
-#[allow(unused)]
 pub fn valid_type_transition<'l>(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame<'l>) -> Frame<'l> {
     unimplemented!()
 }
+//
+//#[allow(unused)]
+//pub fn pop_matching_list(pop_from: Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn pop_matching_type(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<(Vec<UnifiedType>, UnifiedType)> {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn size_of(unified_type: UnifiedType) -> u64 {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn push_operand_stack(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Vec<UnifiedType> {
+//    unimplemented!()
+//}
+//
 
-#[allow(unused)]
-pub fn pop_matching_list(pop_from: Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn pop_matching_type(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<(Vec<UnifiedType>, UnifiedType)> {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn size_of(unified_type: UnifiedType) -> u64 {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn push_operand_stack(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Vec<UnifiedType> {
-    unimplemented!()
-}
-
-#[allow(unused)]
 pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: &Vec<UnifiedType>) -> bool {
     unimplemented!()
 }
-
-#[allow(unused)]
-pub fn pop_category_1(types: Vec<UnifiedType>) -> Option<(UnifiedType, Vec<UnifiedType>)> {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn can_safely_push(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<Vec<UnifiedType>> {
-    unimplemented!();
-}
-
-pub fn get_parsed_code_attribute<'l>(class: &'l PrologClass, method: &'l PrologClassMethod) -> ParseCodeAttribute<'l> {
-    //todo check method in class
-    let method_info = &class.class.methods.borrow()[method.method_index];
-    let code = code_attribute(method_info).unwrap();
-    //todo refactor such that all values here are lazy af.
-    ParseCodeAttribute {
-        class_name: NameReference {
-            class_file: Rc::downgrade(&class.class),
-            index: class.class.this_class,
-        },
-        frame_size: code.max_locals,
-        max_stack: code.max_stack,
-        code: &code.code,
-        exception_table: get_handlers(class, code),
-        stackmap_frames: get_stack_map_frames(class, method_info),
-    }
-}
-
-#[allow(unused)]
-pub fn can_safely_push_list(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn can_push_list(input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
-    unimplemented!()
-}
+//
+//#[allow(unused)]
+//pub fn pop_category_1(types: Vec<UnifiedType>) -> Option<(UnifiedType, Vec<UnifiedType>)> {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn can_safely_push(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<Vec<UnifiedType>> {
+//    unimplemented!();
+//}
+//
+//#[allow(unused)]
+//pub fn can_safely_push_list(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn can_push_list(input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
+//    unimplemented!()
+//}
 
 pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
     left.stack_map.len() == right.stack_map.len()
@@ -108,22 +91,39 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
 
 pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
     let access_flags = get_access_flags(class, method);
-    merge_type_safety_results(vec![does_not_override_final_method(class, method),
-                                   if access_flags & ACC_NATIVE != 0 {
-                                       TypeSafetyResult::Safe()
-                                   } else if access_flags & ACC_ABSTRACT != 0 {
-                                       TypeSafetyResult::Safe()
-                                   } else {
-                                       //will have a code attribute.
-                                       /*let attributes = get_attributes(class, method);
-                                       attributes.iter().any(|_| {
-                                           unimplemented!()
-                                       }) && */method_with_code_is_type_safe(class, method)
-                                   }].into_boxed_slice())
+    trace!("got access_flags:{}",access_flags);
+    let does_not_override_final_method = does_not_override_final_method(class, method);
+    trace!("does not override final method:");
+    dbg!(&does_not_override_final_method);
+    let results = vec![does_not_override_final_method,
+                       if access_flags & ACC_NATIVE != 0 {
+                           trace!("method is native");
+                          TypeSafetyResult::Safe()
+                      } else if access_flags & ACC_ABSTRACT != 0 {
+                           trace!("method is abstract");
+                          TypeSafetyResult::Safe()
+                      } else {
+                          //will have a code attribute. or else method_with_code_is_type_safe will crash todo
+                          /*let attributes = get_attributes(class, method);
+                          attributes.iter().any(|_| {
+                              unimplemented!()
+                          }) && */method_with_code_is_type_safe(class, method)
+                      }].into_boxed_slice();
+    merge_type_safety_results(results)
 }
 
+pub struct ParsedCodeAttribute<'l> {
+    //    pub class_name: NameReference,
+//    pub frame_size: u16,
+//    pub max_stack: u16,
+//    pub code: &'l Vec<Instruction>,
+//    pub exception_table: Vec<Handler>,
+//    todo
+//    pub stackmap_frames: Vec<&'l StackMap<'l>>,//todo
+    pub method : &'l PrologClassMethod<'l>
+}
 
-fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
+pub fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
     code.exception_table.iter().map(|f| {
         Handler {
             start: f.start_pc as usize,
@@ -132,7 +132,7 @@ fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
             class_name: if f.catch_type == 0 { None } else {
                 Some(NameReference {//todo NameReference v ClassReference
                     index: f.catch_type,
-                    class_file: Rc::downgrade(&class.class),
+                    class_file: Arc::downgrade(&class.class),
                 })
             },
         }
@@ -140,30 +140,29 @@ fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
 }
 
 pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
-    let parsed_code = get_parsed_code_attribute(class, &method);
-    let frame_size = parsed_code.frame_size;
-    let max_stack = parsed_code.max_stack;
-    let code: Vec<&Instruction> = parsed_code.code.iter().map(|x| { x }).collect();
-    let handlers = parsed_code.exception_table;
-    let stack_map = parsed_code.stackmap_frames;
-    let merged = merge_stack_map_and_code(code, stack_map);
+    let method_info = &class.class.methods[method.method_index];
+    let code = code_attribute(method_info).unwrap();
+    let frame_size = code.max_locals;
+    let max_stack = code.max_stack;
+    let instructs: Vec<&Instruction> = code.code.iter().map(|x| { x }).collect();
+    let handlers = get_handlers(class,code);
+    let stack_map: Vec<&StackMap> = get_stack_map_frames(class,method_info);
+    trace!("stack map frames generated:");
+    dbg!(&stack_map);
+    let merged = merge_stack_map_and_code(instructs, stack_map);
+    trace!("stack map frames merged:");
+    dbg!(&merged);
     let (frame, frame_size, return_type) = method_initial_stack_frame(class, method);
-    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.as_str(), handlers };
+    trace!("Initial stack frame:");
+    dbg!(&frame);
+    dbg!(&frame_size);
+    dbg!(&return_type);
+    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers };
     if handers_are_legal(&env) && merged_code_is_type_safe(&env, merged.as_slice(), &frame, false) {
         Safe()
     } else {
         unimplemented!()
     }
-}
-
-#[allow(unused)]
-pub fn handers_are_legal(env: &Environment) -> bool {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn instructions_include_end(instructs: Vec<UnifiedInstruction>, end: u64) -> bool {
-    unimplemented!()
 }
 
 pub struct Handler {
@@ -180,34 +179,33 @@ pub fn handler_exception_class(handler: &Handler) -> PrologClass {
         Some(s) => { unimplemented!("Need to get class from state") }
     }
 }
-
-#[allow(unused)]
-pub fn init_handler_is_legal(env: &Environment, handler: &Handler) -> bool {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn not_init_handler(env: &Environment, handler: &Handler) -> bool {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn is_init_handler(env: &Environment, handler: &Handler) -> bool {
-    unimplemented!()
-}
+//
+//#[allow(unused)]
+//pub fn init_handler_is_legal(env: &Environment, handler: &Handler) -> bool {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn not_init_handler(env: &Environment, handler: &Handler) -> bool {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn is_init_handler(env: &Environment, handler: &Handler) -> bool {
+//    unimplemented!()
+//}
 
 pub enum UnifiedInstruction {}
 
-#[allow(unused)]
-pub fn is_applicable_instruction(handler_start: u64, instruction: &UnifiedInstruction) -> bool {
-    unimplemented!()
-}
-
-#[allow(unused)]
-pub fn no_attempt_to_return_normally(instruction: &UnifiedInstruction) -> bool {
-    unimplemented!()
-}
-
+//#[allow(unused)]
+//pub fn is_applicable_instruction(handler_start: u64, instruction: &UnifiedInstruction) -> bool {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//pub fn no_attempt_to_return_normally(instruction: &UnifiedInstruction) -> bool {
+//    unimplemented!()
+//}
 
 #[allow(dead_code)]
 pub struct Environment<'l> {
@@ -215,10 +213,11 @@ pub struct Environment<'l> {
     frame_size: u16,
     max_stack: u16,
     merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
-    class_loader: &'l str,
+    class_loader: Arc<Loader>,
     handlers: Vec<Handler>,
 }
 
+#[derive(Debug)]
 enum MergedCodeInstruction<'l> {
     Instruction(&'l Instruction),
     StackMap(&'l StackMap<'l>),
@@ -252,27 +251,26 @@ fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: V
     return res;
 }
 
-#[allow(unused)]
 fn method_initial_stack_frame<'l>(class: &'l PrologClass, method: &'l PrologClassMethod) -> (Frame<'l>, u64, UnifiedType) {
     unimplemented!()
 }
 
-#[allow(unused)]
-fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
-    unimplemented!()
-}
-
-//fn flags()
-
-#[allow(unused)]
-fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
-    unimplemented!()
-}
-
-#[allow(unused)]
-fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
-    unimplemented!()
-}
+//#[allow(unused)]
+//fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
+//    unimplemented!()
+//}
+//
+////fn flags()
+//
+//#[allow(unused)]
+//fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
+//    unimplemented!()
+//}
 
 #[allow(unused)]
 fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> bool {
@@ -327,7 +325,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 fn class_to_type(class: &PrologClass) -> UnifiedType {
     UnifiedType::ReferenceType(ClassName::Ref(NameReference {
         index: class.class.this_class,
-        class_file: Rc::downgrade(&class.class),
+        class_file: Arc::downgrade(&class.class),
     }))
 }
 
@@ -342,8 +340,17 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
         target_is_type_safe(env, &true_exc_stack_frame, target)
 }
 
-#[allow(unused)]
 pub(crate) fn nth0(index: usize, locals: &Vec<UnifiedType>) -> UnifiedType {
     unimplemented!()
 }
 
+
+pub fn handers_are_legal(env: &Environment) -> bool {
+    unimplemented!()
+}
+//
+//#[allow(unused)]
+//pub fn instructions_include_end(instructs: Vec<UnifiedInstruction>, end: u64) -> bool {
+//    unimplemented!()
+//}
+//

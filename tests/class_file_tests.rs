@@ -1,7 +1,7 @@
 extern crate bimap;
 extern crate classfile;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::io;
@@ -13,12 +13,10 @@ use classfile::verification::prolog_info_writer::{ExtraDescriptors, gen_prolog, 
 
 #[test]
 pub fn basic_class_file_parse() {
-    use classfile::classfile::parsing_util::ParsingContext;
     let mut test_resources_path = get_test_resources();
     test_resources_path.push("Main.class");
 
-    let mut p = ParsingContext { f : File::open(test_resources_path.as_os_str()).unwrap() };
-    let _parsed = parse_class_file(&mut p);
+    let _parsed = parse_class_file(File::open(test_resources_path.as_os_str()).unwrap());
 //    dbg!(parsed);
     //todo asserts
 //    assert!(false);
@@ -33,12 +31,10 @@ fn get_test_resources() -> PathBuf {
 
 #[test]
 pub fn basic_class_file_prolog_output() -> Result<(),io::Error>{
-    use classfile::classfile::parsing_util::ParsingContext;
     let mut test_resources_path = get_test_resources();
     test_resources_path.push("Main.class");
 
-    let mut p = ParsingContext { f : File::open(test_resources_path.as_os_str()).unwrap() };
-    let parsed = parse_class_file(&mut p);
+    let parsed = parse_class_file(File::open(test_resources_path.as_os_str()).unwrap());
     let mut class_files = Vec::new();
     class_files.push(parsed);
     let mut prolog_context = PrologGenContext {

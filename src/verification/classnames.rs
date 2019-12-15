@@ -1,4 +1,4 @@
-use std::rc::Weak;
+use std::sync::Weak;
 use classfile::Classfile;
 use verification::prolog_info_writer::extract_string_from_utf8;
 

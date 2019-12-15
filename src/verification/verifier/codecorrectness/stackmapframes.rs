@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use classfile::{ACC_STATIC, Classfile, MethodInfo, code_attribute, stack_map_table_attribute};
 use classfile::attribute_infos::{AppendFrame, ChopFrame, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, UninitializedVariableInfo};
 use verification::code_writer::{init_frame, StackMap};
@@ -8,6 +6,7 @@ use verification::unified_type::{UnifiedType, ArrayType};
 use verification::verifier::{InternalFrame, PrologClass, MethodDescriptor};
 use verification::classnames::ClassName;
 use verification::types::parse_method_descriptor;
+use std::sync::Arc;
 
 pub fn get_stack_map_frames<'l>(class: &'l PrologClass,method_info:&'l MethodInfo) -> Vec<&'l StackMap<'l>> {
     let res = vec![];
@@ -46,7 +45,7 @@ pub fn get_stack_map_frames<'l>(class: &'l PrologClass,method_info:&'l MethodInf
 }
 
 
-pub fn handle_same_locals_1_stack_frame_extended(class_file: &Rc<Classfile>, mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) -> () {
+pub fn handle_same_locals_1_stack_frame_extended(class_file: &Arc<Classfile>, mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) -> () {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
     push_to_stack(class_file, frame, &f.stack);
@@ -65,7 +64,7 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
     }
 }
 
-pub fn handle_full_frame(class_file: &Rc<Classfile>, frame: &mut InternalFrame, f: &FullFrame) -> () {
+pub fn handle_full_frame(class_file: &Arc<Classfile>, frame: &mut InternalFrame, f: &FullFrame) -> () {
     frame.current_offset += f.offset_delta;
     frame.locals.clear();
     for new_local in f.locals.iter() {
@@ -78,13 +77,13 @@ pub fn handle_full_frame(class_file: &Rc<Classfile>, frame: &mut InternalFrame, 
     }
 }
 
-pub fn handle_same_locals_1_stack(class_file: &Rc<Classfile>, frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) -> () {
+pub fn handle_same_locals_1_stack(class_file: &Arc<Classfile>, frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) -> () {
     frame.current_offset += s.offset_delta;
     frame.stack.clear();
     push_to_stack(class_file, frame, &s.stack);
 }
 
-pub fn handle_append_frame(class_file: &Rc<Classfile>, frame: &mut InternalFrame, append_frame: &AppendFrame) -> () {
+pub fn handle_append_frame(class_file: &Arc<Classfile>, frame: &mut InternalFrame, append_frame: &AppendFrame) -> () {
     frame.current_offset += append_frame.offset_delta;
     for new_local in append_frame.locals.iter() {
         add_new_local(class_file, frame, new_local)
@@ -97,15 +96,15 @@ pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
 }
 
 
-fn push_to_stack(classfile: &Rc<Classfile>, frame: &mut InternalFrame, new_local: &UnifiedType) {
+fn push_to_stack(classfile: &Arc<Classfile>, frame: &mut InternalFrame, new_local: &UnifiedType) {
     add_verification_type_to_array(classfile, &mut frame.stack, new_local)
 }
 
-fn add_new_local(classfile: &Rc<Classfile>, frame: &mut InternalFrame, new_local: &UnifiedType) {
+fn add_new_local(classfile: &Arc<Classfile>, frame: &mut InternalFrame, new_local: &UnifiedType) {
     add_verification_type_to_array(classfile, &mut frame.locals, new_local)
 }
 
-fn add_verification_type_to_array(classfile: &Rc<Classfile>, locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
+fn add_verification_type_to_array(classfile: &Arc<Classfile>, locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
     match copy_recurse(classfile, new_local) {
         UnifiedType::DoubleType => {
             locals.push(UnifiedType::DoubleType);
@@ -119,7 +118,7 @@ fn add_verification_type_to_array(classfile: &Rc<Classfile>, locals: &mut Vec<Un
     }
 }
 
-fn copy_recurse(classfile: &Rc<Classfile>, to_copy: &UnifiedType) -> UnifiedType {
+fn copy_recurse(classfile: &Arc<Classfile>, to_copy: &UnifiedType) -> UnifiedType {
     match to_copy {
         UnifiedType::ReferenceType(o) => {
 //            let class_name = object_get_class_name(classfile,o);

@@ -7,30 +7,30 @@
 //UnsupportedClassVersionError for version shenanigans
 //NoClassDefFoundError if other classname does not match filename
 //if class has a superclass(or is interface):
+use std::sync::Arc;
+
+
 //load superclass
-
-
 use std::cell::RefCell;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
 use std::path::{MAIN_SEPARATOR, Path};
-use std::rc::Rc;
-
 use log::trace;
-
 use classfile::{Classfile, MethodInfo, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use classfile::parsing_util::ParsingContext;
 use verification::prolog_info_writer::{class_name_legacy, extract_string_from_utf8, get_super_class_name, class_name};
 use verification::verifier::TypeSafetyResult;
 use verification::verify;
+
 use verification::classnames::get_referred_name;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
 #[derive(Hash)]
-pub struct ClassEntry { // todo deprecated superseeded by ClassName
+pub struct ClassEntry {
+    // todo deprecated superseeded by ClassName
     pub name: String,
     pub packages: Vec<String>,
 }
@@ -52,20 +52,20 @@ impl std::fmt::Display for ClassEntry {
     }
 }
 
+
 #[derive(Debug)]
 pub struct JVMState {
     pub using_bootstrap_loader: bool,
-    pub loaders: HashMap<String, Rc<Loader>>,
+    pub loaders: HashMap<String, Arc<Loader>>,
     pub indexed_classpath: HashMap<ClassEntry, Box<Path>>,
-    pub using_prolog_verifier: bool
+    pub using_prolog_verifier: bool,
 }
-
 
 #[derive(Debug)]
 pub struct Loader {
     //todo look at what spec has to say about this in more detail
-    pub loaded: RefCell<HashMap<ClassEntry, Rc<Classfile>>>,
-    pub loading: RefCell<HashMap<ClassEntry, Rc<Classfile>>>,
+    pub loaded: RwLock<HashMap<ClassEntry, Arc<Classfile>>>,
+    pub loading: RwLock<HashMap<ClassEntry, Arc<Classfile>>>,
     pub name: String,
 }
 
@@ -73,6 +73,7 @@ pub fn class_entry(classfile: &Classfile) -> ClassEntry {
     let name = class_name_legacy(classfile);
     class_entry_from_string(&name, false)
 }
+
 
 pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
     let split_on = if use_dots { '.' } else { MAIN_SEPARATOR };
@@ -85,9 +86,25 @@ pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
     }
 }
 
-const BOOTSTRAP_LOADER_NAME: &str = "bl";
+pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
-pub fn load_class(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: ClassEntry, only_verify: bool) {
+use lazy_static;
+use std::sync::Mutex;
+use std::sync::RwLock;
+
+
+
+lazy_static! {
+    pub static ref BOOTSTRAP_LOADER: Arc<Loader> = Arc::new(Loader {
+        loaded: RwLock::new(HashMap::new()),
+        loading: RwLock::new(HashMap::new()),
+        name: BOOTSTRAP_LOADER_NAME.to_string()
+    });
+
+}
+
+
+pub fn load_class(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: ClassEntry, only_verify: bool) {
     trace!("Starting loading for {}", &to_load);
     if jvm_state.using_bootstrap_loader {
         bootstrap_load(jvm_state, loader, &to_load, only_verify);
@@ -96,12 +113,12 @@ pub fn load_class(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: ClassEn
     }
 }
 
-fn bootstrap_load(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: &ClassEntry, only_verify: bool) {
+fn bootstrap_load(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: &ClassEntry, only_verify: bool) {
     bootstrap_load_impl(jvm_state, loader, to_load, only_verify, &mut HashMap::new());
 }
 
-fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: &ClassEntry, only_verify: bool, loading: &mut HashMap<ClassEntry, Rc<Classfile>>) {
-    if jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded.borrow().contains_key(&to_load) ||
+fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: &ClassEntry, only_verify: bool, loading: &mut HashMap<ClassEntry, Arc<Classfile>>) {
+    if jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded.read().unwrap().contains_key(&to_load) ||
         loading.contains_key(to_load) {
         //so technically here we would need to throw a linkage error or similar
         //however it is convenient to implement like this, so linkage error should be handled by a
@@ -117,13 +134,13 @@ fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: &C
         panic!();
     }).unwrap();
     let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
-    let parsed = parse_class_file(&mut ParsingContext { f: candidate_file });
+    let parsed = parse_class_file(candidate_file);
     if to_load != &class_entry(&parsed) {
         dbg!(to_load);
         dbg!(class_entry(&parsed));
         unimplemented!("Throw no class def found.")
     }
-    if jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded.borrow().contains_key(&to_load) {
+    if jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded.read().unwrap().contains_key(&to_load) {
         dbg!(&jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded);
         dbg!(&to_load);
         unimplemented!("Throw LinkageError,but this will never happen")
@@ -158,8 +175,8 @@ fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Rc<Loader>, to_load: &C
     return ();
 }
 
-fn clinit(class: &Rc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {
-    for method_info in class.methods.borrow().iter() {
+fn clinit(class: &Arc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {
+    for method_info in class.methods.iter() {
         let name = extract_string_from_utf8(&class.constant_pool[method_info.name_index as usize]);
         if name == "<clinit>" {
             return and_then(method_info);
@@ -168,12 +185,10 @@ fn clinit(class: &Rc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {
     panic!();
 }
 
-fn load_verified_class(classes: &mut JVMState, loader: &mut Loader, class: Rc<Classfile>) {
-    let entry = class_entry(&class);
-    let after_obtaining_clinit:fn(&MethodInfo) -> () = |m| { unimplemented!()/*run_static_method_no_args(&class, m)*/ };
-    clinit(&class, &after_obtaining_clinit);
-    let mut old_map = loader.loaded.borrow_mut();
-    old_map.insert(entry, class);
-    loader.loaded.replace(old_map.clone());//todo get rid
-}
+//fn load_verified_class(classes: &mut JVMState, loader: &mut Loader, class: Arc<Classfile>) {
+//    let entry = class_entry(&class);
+//    let after_obtaining_clinit: fn(&MethodInfo) -> () = |m| { unimplemented!()/*run_static_method_no_args(&class, m)*/ };
+//    clinit(&class, &after_obtaining_clinit);
+//    loader.loaded.write().unwrap().insert(entry, class);
+//}
 

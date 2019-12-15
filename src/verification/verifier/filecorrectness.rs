@@ -5,6 +5,9 @@ use verification::prolog_info_writer::{class_name, class_name_legacy, get_access
 use verification::unified_type::UnifiedType;
 use verification::verifier::{PrologClass, PrologClassMethod, TypeSafetyResult};
 use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
+use class_loading::BOOTSTRAP_LOADER;
+use class_loading;
+use std::sync::Arc;
 
 #[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
@@ -25,7 +28,7 @@ fn different_runtime_package(class1: &PrologClass, class2: &PrologClass) -> bool
     //
     //differentRuntimePackage(Class1, Class2) :-
     //    differentPackageName(Class1, Class2).
-    return class1.loader != class2.loader || different_package_name(class1,class2);
+    return (!std::sync::Arc::ptr_eq(&class1.loader,&class2.loader)) || different_package_name(class1,class2);
 
 
 }
@@ -38,22 +41,22 @@ fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool{
 }
 
 //todo have an actual loader type. instead of refering to loader name
-pub fn loaded_class(class: &PrologClass, loader: Loader) -> TypeSafetyResult {
+pub fn loaded_class(class: &PrologClass, loader: Arc<Loader>) -> TypeSafetyResult {
     let class_entry = class_entry(&class.class);
-    if loader.loading.borrow().contains_key(&class_entry) || loader.loaded.borrow().contains_key(&class_entry) {
+    if loader.loading.read().unwrap().contains_key(&class_entry) || loader.loaded.read().unwrap().contains_key(&class_entry) {
         return Safe();
     } else {
         return NeedToLoad(vec![unimplemented!()]);
     }
 }
 
-pub fn is_bootstrap_loader(loader: &String) -> bool {
-    return loader == &"bl".to_string();//todo  what if someone defines a Loader class called bl
+pub fn is_bootstrap_loader(loader: &Arc<Loader>) -> bool {
+    return std::sync::Arc::ptr_eq(loader,&BOOTSTRAP_LOADER)
 }
 
 pub fn get_class_methods(class: &PrologClass) -> Vec<PrologClassMethod> {
     let mut res = vec![];
-    for method_index in 0..class.class.methods.borrow_mut().len() {
+    for method_index in 0..class.class.methods.len() {
         res.push(PrologClassMethod { prolog_class: class, method_index })
     }
     res
@@ -110,8 +113,16 @@ pub fn class_super_class_name(class: &PrologClass) -> String {
     unimplemented!()
 }
 
-pub fn super_class_chain(chain_start: &PrologClass, loader: String) -> Vec<PrologClass> {
-    let loaded = loaded_class(chain_start, unimplemented!());
+pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res : &mut Vec<PrologClass>) -> TypeSafetyResult {
+    if get_referred_name(&class_name(&chain_start.class)) == "java/lang/Object" {
+        //todo magic constant
+        if res.is_empty() && is_bootstrap_loader(&loader){
+            return Safe()
+        } else {
+            return NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string())
+        }
+    }
+    let loaded = loaded_class(chain_start, loader);
     unimplemented!()
 }
 
