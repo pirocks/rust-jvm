@@ -19,12 +19,9 @@ use std::path::{MAIN_SEPARATOR, Path};
 use log::trace;
 use classfile::{Classfile, MethodInfo, parse_class_file};
 use classfile::constant_infos::ConstantKind;
-use classfile::parsing_util::ParsingContext;
-use verification::prolog_info_writer::{class_name_legacy, extract_string_from_utf8, get_super_class_name, class_name};
+use verification::prolog_info_writer::{class_name_legacy, extract_string_from_utf8, get_super_class_name};
 use verification::verifier::TypeSafetyResult;
 use verification::verify;
-
-use verification::classnames::get_referred_name;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -88,7 +85,6 @@ pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
 
 pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
-use lazy_static;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
@@ -175,15 +171,15 @@ fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: &
     return ();
 }
 
-fn clinit(class: &Arc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {
-    for method_info in class.methods.iter() {
-        let name = extract_string_from_utf8(&class.constant_pool[method_info.name_index as usize]);
-        if name == "<clinit>" {
-            return and_then(method_info);
-        }
-    };
-    panic!();
-}
+//fn clinit(class: &Arc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {
+//    for method_info in class.methods.iter() {
+//        let name = extract_string_from_utf8(&class.constant_pool[method_info.name_index as usize]);
+//        if name == "<clinit>" {
+//            return and_then(method_info);
+//        }
+//    };
+//    panic!();
+//}
 
 //fn load_verified_class(classes: &mut JVMState, loader: &mut Loader, class: Arc<Classfile>) {
 //    let entry = class_entry(&class);

@@ -1,10 +1,10 @@
 use log::trace;
-use classfile::{ACC_ABSTRACT, ACC_NATIVE, ACC_STATIC, code_attribute, stack_map_table_attribute};
-use classfile::attribute_infos::{Code, StackMapFrame, StackMapTable};
+use classfile::{ACC_ABSTRACT, ACC_NATIVE, code_attribute};
+use classfile::attribute_infos::Code;
 use classfile::code::Instruction;
-use verification::classnames::{ClassName, get_referred_name, NameReference};
-use verification::code_writer::{init_frame, StackMap};
-use verification::prolog_info_writer::{class_name, get_access_flags};
+use verification::classnames::{ClassName, NameReference};
+use verification::code_writer::{StackMap};
+use verification::prolog_info_writer::{get_access_flags};
 use verification::unified_type::UnifiedType;
 use verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
 use verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable};

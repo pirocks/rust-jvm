@@ -1,7 +1,7 @@
 use classfile::{ACC_STATIC, Classfile, MethodInfo, code_attribute, stack_map_table_attribute};
 use classfile::attribute_infos::{AppendFrame, ChopFrame, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, UninitializedVariableInfo};
 use verification::code_writer::{init_frame, StackMap};
-use verification::prolog_info_writer::{class_name, ParsedMethodDescriptor, extract_string_from_utf8};
+use verification::prolog_info_writer::{class_name, extract_string_from_utf8};
 use verification::unified_type::{UnifiedType, ArrayType};
 use verification::verifier::{InternalFrame, PrologClass, MethodDescriptor};
 use verification::classnames::ClassName;
@@ -26,12 +26,12 @@ pub fn get_stack_map_frames<'l>(class: &'l PrologClass,method_info:&'l MethodInf
     for (i, entry) in stack_map.entries.iter().enumerate() {
         match entry {
             StackMapFrame::SameFrame(s) => handle_same_frame(&mut frame, &s),
-            StackMapFrame::AppendFrame(append_frame) => handle_append_frame(&class.class, &mut frame, &append_frame),
-            StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(&class.class, &mut frame, &s),
-            StackMapFrame::FullFrame(f) => handle_full_frame(&class.class, &mut frame, &f),
+            StackMapFrame::AppendFrame(append_frame) => handle_append_frame( &mut frame, &append_frame),
+            StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack( &mut frame, &s),
+            StackMapFrame::FullFrame(f) => handle_full_frame( &mut frame, &f),
             StackMapFrame::ChopFrame(f) => handle_chop_frame(&mut frame, &f),
             StackMapFrame::SameFrameExtended(f) => handle_same_frame_extended(&mut frame, &f),
-            StackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(&class.class, &mut frame, &f)
+            StackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(&mut frame, &f)
         }
         if previous_frame_is_first_frame {
             previous_frame_is_first_frame = false;
@@ -45,10 +45,10 @@ pub fn get_stack_map_frames<'l>(class: &'l PrologClass,method_info:&'l MethodInf
 }
 
 
-pub fn handle_same_locals_1_stack_frame_extended(class_file: &Arc<Classfile>, mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) -> () {
+pub fn handle_same_locals_1_stack_frame_extended(mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) -> () {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
-    push_to_stack(class_file, frame, &f.stack);
+    push_to_stack(frame, &f.stack);
 }
 
 pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &SameFrameExtended) -> () {
@@ -64,29 +64,29 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
     }
 }
 
-pub fn handle_full_frame(class_file: &Arc<Classfile>, frame: &mut InternalFrame, f: &FullFrame) -> () {
+pub fn handle_full_frame(frame: &mut InternalFrame, f: &FullFrame) -> () {
     frame.current_offset += f.offset_delta;
     frame.locals.clear();
     for new_local in f.locals.iter() {
-        add_new_local(class_file, frame, new_local);
+        add_new_local(frame, new_local);
     }
 
     frame.stack.clear();
     for new_stack_member in f.stack.iter() {
-        push_to_stack(class_file, frame, new_stack_member);
+        push_to_stack(frame, new_stack_member);
     }
 }
 
-pub fn handle_same_locals_1_stack(class_file: &Arc<Classfile>, frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) -> () {
+pub fn handle_same_locals_1_stack(frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) -> () {
     frame.current_offset += s.offset_delta;
     frame.stack.clear();
-    push_to_stack(class_file, frame, &s.stack);
+    push_to_stack(frame, &s.stack);
 }
 
-pub fn handle_append_frame(class_file: &Arc<Classfile>, frame: &mut InternalFrame, append_frame: &AppendFrame) -> () {
+pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &AppendFrame) -> () {
     frame.current_offset += append_frame.offset_delta;
     for new_local in append_frame.locals.iter() {
-        add_new_local(class_file, frame, new_local)
+        add_new_local(frame, new_local)
     }
 }
 
@@ -96,16 +96,16 @@ pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
 }
 
 
-fn push_to_stack(classfile: &Arc<Classfile>, frame: &mut InternalFrame, new_local: &UnifiedType) {
-    add_verification_type_to_array(classfile, &mut frame.stack, new_local)
+fn push_to_stack(frame: &mut InternalFrame, new_local: &UnifiedType) {
+    add_verification_type_to_array(&mut frame.stack, new_local)
 }
 
-fn add_new_local(classfile: &Arc<Classfile>, frame: &mut InternalFrame, new_local: &UnifiedType) {
-    add_verification_type_to_array(classfile, &mut frame.locals, new_local)
+fn add_new_local(frame: &mut InternalFrame, new_local: &UnifiedType) {
+    add_verification_type_to_array(&mut frame.locals, new_local)
 }
 
-fn add_verification_type_to_array(classfile: &Arc<Classfile>, locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
-    match copy_recurse(classfile, new_local) {
+fn add_verification_type_to_array(locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
+    match copy_recurse(new_local) {
         UnifiedType::DoubleType => {
             locals.push(UnifiedType::DoubleType);
             locals.push(UnifiedType::TopType);
@@ -118,7 +118,7 @@ fn add_verification_type_to_array(classfile: &Arc<Classfile>, locals: &mut Vec<U
     }
 }
 
-fn copy_recurse(classfile: &Arc<Classfile>, to_copy: &UnifiedType) -> UnifiedType {
+fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
     match to_copy {
         UnifiedType::ReferenceType(o) => {
 //            let class_name = object_get_class_name(classfile,o);

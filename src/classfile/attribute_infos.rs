@@ -4,8 +4,7 @@ use classfile::code::parse_code_raw;
 use classfile::constant_infos::{ConstantKind, is_utf8};
 use classfile::parsing_util::{ParsingContext, read16, read32, read8};
 use verification::unified_type::UnifiedType;
-use classfile::Classfile;
-use verification::classnames::{ClassName, NameReference};
+use verification::classnames::ClassName;
 use verification::prolog_info_writer::extract_string_from_utf8;
 
 #[derive(Debug)]

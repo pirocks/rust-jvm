@@ -4,10 +4,6 @@ use classfile::attribute_infos::{AttributeType, Code, parse_attributes, StackMap
 use classfile::constant_infos::{ConstantInfo, parse_constant_infos};
 use classfile::parsing_util::{read16, read32};
 use classfile::parsing_util::ParsingContext;
-use std::cell::RefCell;
-use std::sync::Mutex;
-use std::sync::RwLock;
-use core::borrow::Borrow;
 use std::sync::Arc;
 use std::fs::File;
 

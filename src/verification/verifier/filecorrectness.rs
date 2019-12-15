@@ -6,7 +6,6 @@ use verification::unified_type::UnifiedType;
 use verification::verifier::{PrologClass, PrologClassMethod, TypeSafetyResult};
 use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
 use class_loading::BOOTSTRAP_LOADER;
-use class_loading;
 use std::sync::Arc;
 
 #[allow(unused)]

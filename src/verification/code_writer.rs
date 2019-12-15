@@ -3,17 +3,14 @@
 use std::io;
 use std::io::Write;
 use verification::unified_type::{UnifiedType, ArrayType};
-use classfile::code::Instruction;
-use verification::verifier::codecorrectness::Handler;
-use verification::prolog_info_writer::{PrologGenContext, write_method_prolog_name, class_prolog_name, class_name_legacy, class_name, extract_string_from_utf8, BOOTSTRAP_LOADER_NAME};
+use verification::prolog_info_writer::{PrologGenContext, write_method_prolog_name, class_name, extract_string_from_utf8, BOOTSTRAP_LOADER_NAME};
 use classfile::{code_attribute, stack_map_table_attribute, Classfile, MethodInfo, ACC_STATIC};
-use classfile::attribute_infos::{StackMapFrame, Code, SameLocals1StackItemFrameExtended, ChopFrame, FullFrame, UninitializedVariableInfo, StackMapTable, SameFrameExtended, ObjectVariableInfo, ExceptionTableElem, AppendFrame, SameFrame, SameLocals1StackItemFrame};
+use classfile::attribute_infos::{StackMapFrame, Code, StackMapTable, ObjectVariableInfo, ExceptionTableElem};
 use verification::types::{parse_method_descriptor, parse_field_descriptor, write_type_prolog};
 use verification::verifier::{InternalFrame, Frame};
 use verification::instruction_outputer::extract_class_from_constant_pool;
 use verification::classnames::{ClassName, NameReference, get_referred_name};
 use verification::verifier::codecorrectness::stackmapframes::{handle_same_frame, handle_append_frame, handle_same_locals_1_stack, handle_full_frame, handle_chop_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended};
-use verification::verifier::PrologClassMethod;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -228,12 +225,12 @@ fn write_stack_map_frames(class_file: &Arc<Classfile>, method_info: &MethodInfo,
     for (i, entry) in stack_map.entries.iter().enumerate() {
         match entry {
             StackMapFrame::SameFrame(s) => handle_same_frame(&mut frame, s),
-            StackMapFrame::AppendFrame(append_frame) => handle_append_frame(class_file, &mut frame, append_frame),
-            StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(class_file, &mut frame, s),
-            StackMapFrame::FullFrame(f) => handle_full_frame(class_file, &mut frame, f),
+            StackMapFrame::AppendFrame(append_frame) => handle_append_frame(&mut frame, append_frame),
+            StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(&mut frame, s),
+            StackMapFrame::FullFrame(f) => handle_full_frame(&mut frame, f),
             StackMapFrame::ChopFrame(f) => handle_chop_frame(&mut frame, f),
             StackMapFrame::SameFrameExtended(f) => handle_same_frame_extended(&mut frame, f),
-            StackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(class_file, &mut frame, f)
+            StackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(&mut frame, f)
         }
         if previous_frame_is_first_frame {
             previous_frame_is_first_frame = false;
