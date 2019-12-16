@@ -23,7 +23,7 @@ pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
     let mut previous_frame_is_first_frame = true;
-    for (i, entry) in stack_map.entries.iter().enumerate() {
+    for (_, entry) in stack_map.entries.iter().enumerate() {
         match entry {
             StackMapFrame::SameFrame(s) => handle_same_frame(&mut frame, &s),
             StackMapFrame::AppendFrame(append_frame) => handle_append_frame( &mut frame, &append_frame),
@@ -46,7 +46,6 @@ pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<
                 flag_this_uninit: false
             }
         });
-//        write_stack_map_frame(&class.class, w, &frame)?;
     }
 
     return res;
@@ -138,7 +137,7 @@ pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
             }*/
 
             UnifiedType::ReferenceType(match o {
-                ClassName::Ref(r) => { unimplemented!() }
+                ClassName::Ref(_r) => { unimplemented!() }
                 ClassName::Str(s) => { ClassName::Str(s.clone()) }
             })
         }

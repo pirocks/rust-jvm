@@ -332,7 +332,7 @@ fn class_to_type(class: &PrologClass) -> UnifiedType {
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> bool {
     let target = handler.target;
-    let class_loader = &env.class_loader;
+    let _class_loader = &env.class_loader;
     let exception_class = handler_exception_class(handler);
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
@@ -342,12 +342,12 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
         target_is_type_safe(env, &true_exc_stack_frame, target)
 }
 
-pub(crate) fn nth0(index: usize, locals: &Vec<UnifiedType>) -> UnifiedType {
+pub fn nth0(_index: usize, _locals: &Vec<UnifiedType>) -> UnifiedType {
     unimplemented!()
 }
 
 
-pub fn handers_are_legal(env: &Environment) -> bool {
+pub fn handers_are_legal(_env: &Environment) -> bool {
     unimplemented!()
 }
 //

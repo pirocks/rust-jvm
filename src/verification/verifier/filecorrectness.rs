@@ -45,6 +45,10 @@ pub fn loaded_class(class: &PrologClass, loader: Arc<Loader>) -> TypeSafetyResul
     if loader.loading.read().unwrap().contains_key(&class_entry) || loader.loaded.read().unwrap().contains_key(&class_entry) {
         return Safe();
     } else {
+        dbg!(class);
+        dbg!(class_entry);
+        dbg!(loader.loading.read().unwrap().keys());
+        dbg!(loader.loaded.read().unwrap().keys());
         return NeedToLoad(vec![unimplemented!()]);
     }
 }

@@ -158,11 +158,19 @@ fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: &
             bootstrap_load_impl(jvm_state, loader.clone(), &interface_entry, only_verify, loading)
         };
     }
+    loading.iter().for_each(|(entry,cf)|{
+        loader.loading.write().unwrap().insert(entry.clone(),cf.clone());
+    });
+
     match verify(&loading, jvm_state, loader) {
         TypeSafetyResult::NotSafe(_) => {}
         TypeSafetyResult::Safe() => {}
         TypeSafetyResult::NeedToLoad(_) => {}
     }
+    loading.iter().for_each(|(_entry,_cf)|{
+        unimplemented!()
+//        loader.loading.write().unwrap().remove(entry.clone(),cf.clone());
+    });
 //    if !only_verify {
 //        load_verified_class(jvm_state, parsed,);
 //    }
