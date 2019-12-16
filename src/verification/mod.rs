@@ -14,7 +14,6 @@ use tempfile::NamedTempFile;
 
 use class_loading::{ClassEntry, JVMState, Loader};
 use classfile::{Classfile, parse_class_file};
-use classfile::parsing_util::ParsingContext;
 use verification::prolog_info_writer::{class_name_legacy, ExtraDescriptors, gen_prolog, PrologGenContext};
 use verification::PrologOutput::{NeedsAnotherClass, True};
 use verification::verifier::{class_is_type_safe, PrologClass, TypeSafetyResult};

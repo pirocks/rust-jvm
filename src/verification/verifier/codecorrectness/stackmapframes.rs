@@ -1,15 +1,15 @@
-use classfile::{ACC_STATIC, Classfile, MethodInfo, code_attribute, stack_map_table_attribute};
+use classfile::{ACC_STATIC, MethodInfo, code_attribute, stack_map_table_attribute};
 use classfile::attribute_infos::{AppendFrame, ChopFrame, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, UninitializedVariableInfo};
 use verification::code_writer::{init_frame, StackMap};
 use verification::prolog_info_writer::{class_name, extract_string_from_utf8};
 use verification::unified_type::{UnifiedType, ArrayType};
-use verification::verifier::{InternalFrame, PrologClass, MethodDescriptor};
+use verification::verifier::{InternalFrame, PrologClass};
 use verification::classnames::ClassName;
 use verification::types::parse_method_descriptor;
-use std::sync::Arc;
+use verification::verifier::Frame;
 
-pub fn get_stack_map_frames<'l>(class: &'l PrologClass,method_info:&'l MethodInfo) -> Vec<&'l StackMap<'l>> {
-    let res = vec![];
+pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<StackMap> {
+    let mut res = vec![];
     let code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let descriptor_str = extract_string_from_utf8(&class.class.constant_pool[method_info.descriptor_index as usize]);
     let parsed_descriptor = parse_method_descriptor(descriptor_str.as_str()).expect("Error parsing method descriptor");
@@ -38,6 +38,14 @@ pub fn get_stack_map_frames<'l>(class: &'l PrologClass,method_info:&'l MethodInf
         } else {
             frame.current_offset += 1;
         }
+        res.push(StackMap {
+            offset: frame.current_offset as usize,
+            map_frame: Frame {
+                locals: frame.locals.iter().map(|x|{copy_recurse(x)}).collect(),
+                stack_map: frame.stack.iter().map(|x|{copy_recurse(x)}).collect(),
+                flag_this_uninit: false
+            }
+        });
 //        write_stack_map_frame(&class.class, w, &frame)?;
     }
 
@@ -118,7 +126,7 @@ fn add_verification_type_to_array(locals: &mut Vec<UnifiedType>, new_local: &Uni
     }
 }
 
-fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
+pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
     match to_copy {
         UnifiedType::ReferenceType(o) => {
 //            let class_name = object_get_class_name(classfile,o);

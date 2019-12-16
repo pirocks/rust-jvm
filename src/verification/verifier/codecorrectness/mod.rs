@@ -13,6 +13,7 @@ use verification::verifier::TypeSafetyResult::Safe;
 use verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use class_loading::Loader;
 use std::sync::Arc;
+use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
 
 pub mod stackmapframes;
 //
@@ -22,7 +23,7 @@ pub mod stackmapframes;
 //}
 //
 
-pub fn valid_type_transition<'l>(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame<'l>) -> Frame<'l> {
+pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Frame {
     unimplemented!()
 }
 //
@@ -146,10 +147,10 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let max_stack = code.max_stack;
     let instructs: Vec<&Instruction> = code.code.iter().map(|x| { x }).collect();
     let handlers = get_handlers(class,code);
-    let stack_map: Vec<&StackMap> = get_stack_map_frames(class,method_info);
+    let stack_map: Vec<StackMap> = get_stack_map_frames(class,method_info);
     trace!("stack map frames generated:");
     dbg!(&stack_map);
-    let merged = merge_stack_map_and_code(instructs, stack_map);
+    let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x|{x}).collect());
     trace!("stack map frames merged:");
     dbg!(&merged);
     let (frame, frame_size, return_type) = method_initial_stack_frame(class, method);
@@ -220,7 +221,7 @@ pub struct Environment<'l> {
 #[derive(Debug)]
 enum MergedCodeInstruction<'l> {
     Instruction(&'l Instruction),
-    StackMap(&'l StackMap<'l>),
+    StackMap(&'l StackMap),
 }
 
 /**
@@ -251,7 +252,7 @@ fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: V
     return res;
 }
 
-fn method_initial_stack_frame<'l>(class: &'l PrologClass, method: &'l PrologClassMethod) -> (Frame<'l>, u64, UnifiedType) {
+fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod) -> (Frame, u64, UnifiedType) {
     unimplemented!()
 }
 
@@ -299,7 +300,7 @@ fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruct
 }
 
 #[allow(unused)]
-fn offset_stack_frame<'l>(env: &Environment, target: usize) -> Frame<'l> {
+fn offset_stack_frame(env: &Environment, target: usize) -> Frame {
     unimplemented!()
 }
 
@@ -335,7 +336,8 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let exception_class = handler_exception_class(handler);
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
-    let true_exc_stack_frame = Frame { locals, stack_map: vec![class_to_type(&exception_class)], flag_this_uninit: flags };
+    let locals_copy = locals.iter().map(|x| { copy_recurse(x) }).collect();
+    let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: vec![class_to_type(&exception_class)], flag_this_uninit: flags };
     operand_stack_has_legal_length(env, &vec![class_to_type(&exception_class)]) &&
         target_is_type_safe(env, &true_exc_stack_frame, target)
 }

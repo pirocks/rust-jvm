@@ -11,13 +11,12 @@ use std::sync::Arc;
 
 
 //load superclass
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
 use std::path::{MAIN_SEPARATOR, Path};
 use log::trace;
-use classfile::{Classfile, MethodInfo, parse_class_file};
+use classfile::{Classfile, parse_class_file};
 use classfile::constant_infos::ConstantKind;
 use verification::prolog_info_writer::{class_name_legacy, extract_string_from_utf8, get_super_class_name};
 use verification::verifier::TypeSafetyResult;
@@ -85,7 +84,6 @@ pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
 
 pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
-use std::sync::Mutex;
 use std::sync::RwLock;
 
 

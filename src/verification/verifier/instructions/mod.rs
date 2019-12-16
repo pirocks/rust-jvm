@@ -6,13 +6,13 @@ use verification::verifier::filecorrectness::is_assignable;
 
 pub mod loads;
 
-pub struct InstructionIsTypeSafeResult<'l> {
-    pub(crate) next_frame: Frame<'l>,
-    pub(crate) exception_frame: Frame<'l>,
+pub struct InstructionIsTypeSafeResult {
+    pub(crate) next_frame: Frame,
+    pub(crate) exception_frame: Frame,
 }
 
 #[allow(unused)]
-pub(crate) fn instruction_is_type_safe<'l>(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame<'l>) -> Option<InstructionIsTypeSafeResult<'l>> {
+pub(crate) fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> Option<InstructionIsTypeSafeResult> {
     unimplemented!()
 }
 

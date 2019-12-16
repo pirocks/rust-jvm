@@ -1,17 +1,8 @@
-use class_loading::class_entry;
 use class_loading::Loader;
-use classfile::{ACC_NATIVE, ACC_PRIVATE, ACC_STATIC, Classfile, stack_map_table_attribute};
-use classfile::ACC_ABSTRACT;
-use classfile::ACC_FINAL;
-use classfile::ACC_INTERFACE;
-use classfile::attribute_infos::StackMapTable;
-use classfile::code::Instruction;
-use classfile::code::InstructionInfo;
-use classfile::code_attribute;
-use verification::code_writer::StackMap;
-use verification::prolog_info_writer::{class_name_legacy, get_access_flags, get_super_class_name, class_name};
+use classfile::Classfile;
+use verification::prolog_info_writer::{get_super_class_name, class_name};
 use verification::unified_type::UnifiedType;
-use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
+use verification::verifier::TypeSafetyResult::{NeedToLoad};
 use verification::verifier::filecorrectness::{is_bootstrap_loader, super_class_chain, class_is_final, loaded_class_, get_class_methods};
 use verification::verifier::codecorrectness::{method_is_type_safe, Environment};
 use verification::classnames::{ClassName, get_referred_name};
@@ -48,8 +39,8 @@ pub struct PrologClassMethod<'l> {
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
-pub struct Frame<'l> {
-    pub locals: &'l Vec<UnifiedType>,
+pub struct Frame {
+    pub locals: Vec<UnifiedType>,
     pub stack_map: Vec<UnifiedType>,
     pub flag_this_uninit: bool,
 }

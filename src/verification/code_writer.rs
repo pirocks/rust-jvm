@@ -9,14 +9,14 @@ use classfile::attribute_infos::{StackMapFrame, Code, StackMapTable, ObjectVaria
 use verification::types::{parse_method_descriptor, parse_field_descriptor, write_type_prolog};
 use verification::verifier::{InternalFrame, Frame};
 use verification::instruction_outputer::extract_class_from_constant_pool;
-use verification::classnames::{ClassName, NameReference, get_referred_name};
+use verification::classnames::get_referred_name;
 use verification::verifier::codecorrectness::stackmapframes::{handle_same_frame, handle_append_frame, handle_same_locals_1_stack, handle_full_frame, handle_chop_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended};
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct StackMap<'l> {
+pub struct StackMap{
     pub offset: usize,
-    pub map_frame: Frame<'l>,
+    pub map_frame: Frame
 }
 
 
