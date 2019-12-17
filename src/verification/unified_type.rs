@@ -25,6 +25,10 @@ pub enum UnifiedType{
     NullType,
     Uninitialized(UninitializedVariableInfo),
     UninitializedThis,
+    //below here used internally in isAssignable
+
     TwoWord,
-    OneWord
+    OneWord,
+    Reference,
+    UninitializedEmpty
 }

@@ -27,15 +27,13 @@ fn different_runtime_package(class1: &PrologClass, class2: &PrologClass) -> bool
     //
     //differentRuntimePackage(Class1, Class2) :-
     //    differentPackageName(Class1, Class2).
-    return (!std::sync::Arc::ptr_eq(&class1.loader,&class2.loader)) || different_package_name(class1,class2);
-
-
+    return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(class1, class2);
 }
 
-fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool{
-    let packages1 = class_entry_from_string(&get_referred_name(&class_name(&class1.class)),false).packages;
-    let packages2 = class_entry_from_string(&get_referred_name(&class_name(&class2.class)),false).packages;
-    return packages1 != packages2
+fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
+    let packages1 = class_entry_from_string(&get_referred_name(&class_name(&class1.class)), false).packages;
+    let packages2 = class_entry_from_string(&get_referred_name(&class_name(&class2.class)), false).packages;
+    return packages1 != packages2;
 
 }
 
@@ -54,7 +52,7 @@ pub fn loaded_class(class: &PrologClass, loader: Arc<Loader>) -> TypeSafetyResul
 }
 
 pub fn is_bootstrap_loader(loader: &Arc<Loader>) -> bool {
-    return std::sync::Arc::ptr_eq(loader,&BOOTSTRAP_LOADER)
+    return std::sync::Arc::ptr_eq(loader, &BOOTSTRAP_LOADER);
 }
 
 pub fn get_class_methods(class: &PrologClass) -> Vec<PrologClassMethod> {
@@ -70,13 +68,9 @@ pub fn class_is_final(class: &PrologClass) -> bool {
 }
 
 
-
-
-
 pub fn loaded_class_(class_name: String, loader_name: String) -> Option<PrologClass> {
     unimplemented!()
 }
-
 
 
 pub fn class_is_interface(class: &PrologClass) -> bool {
@@ -90,7 +84,70 @@ pub fn is_java_sub_class_of(from: &PrologClass, to: &PrologClass) -> bool {
 
 #[allow(unused)]
 pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
-    unimplemented!()
+    match from {
+        UnifiedType::DoubleType => match to {
+            UnifiedType::DoubleType => true,
+            _ => is_assignable(&UnifiedType::TwoWord, to)
+        },
+        UnifiedType::LongType => match to {
+            UnifiedType::LongType => true,
+            _ => is_assignable(&UnifiedType::TwoWord, to)
+        },
+        UnifiedType::FloatType => match to {
+            UnifiedType::FloatType => true,
+            _ => is_assignable(&UnifiedType::OneWord, to)
+        },
+        UnifiedType::IntType => match to {
+            UnifiedType::IntType => true,
+            _ => is_assignable(&UnifiedType::OneWord, to)
+        },
+        UnifiedType::Reference => match to {
+            UnifiedType::Reference => true,
+            _ => is_assignable(&UnifiedType::OneWord, to)
+        }
+        UnifiedType::ReferenceType(c) => match to {
+            UnifiedType::ReferenceType(c2) => unimplemented!(),
+            _ => is_assignable(&UnifiedType::Reference, to)
+        },
+        UnifiedType::ArrayReferenceType(a) => match to {
+            UnifiedType::ArrayReferenceType(a2) => unimplemented!(),
+            UnifiedType::ReferenceType(c) => unimplemented!(),
+            _ => is_assignable(&UnifiedType::Reference, to)
+        },
+        UnifiedType::TopType => match to {
+//            UnifiedType::TopType => true,
+            _ => panic!("This might be a bug. It's a weird edge case"),
+        },
+        UnifiedType::UninitializedEmpty => match to {
+            UnifiedType::UninitializedEmpty => true,
+            _ => is_assignable(&UnifiedType::Reference, to)
+        },
+        UnifiedType::Uninitialized(_) => match to {
+            UnifiedType::Uninitialized(_) => unimplemented!(),
+            _ => is_assignable(&UnifiedType::UninitializedEmpty, to)
+        },
+        UnifiedType::UninitializedThis => match to {
+            UnifiedType::UninitializedThis => unimplemented!(),
+            _ => is_assignable(&UnifiedType::UninitializedEmpty, to)
+        },
+        UnifiedType::NullType => match to {
+            UnifiedType::NullType => true,
+            UnifiedType::ReferenceType(c) => true,
+            UnifiedType::ArrayReferenceType(a) => true,
+            _ => is_assignable(unimplemented!(), to),
+        },
+        UnifiedType::OneWord => match to {
+            UnifiedType::OneWord => true,
+            UnifiedType::TopType => true,
+            _ => false
+        },
+        UnifiedType::TwoWord => match to {
+            UnifiedType::TwoWord => true,
+            UnifiedType::TopType => true,
+            _ => false
+        },
+        _ => panic!("This is a bug"),//todo , should have a better message function
+    }
 }
 
 //todo how to handle arrays
@@ -116,19 +173,18 @@ pub fn class_super_class_name(class: &PrologClass) -> String {
     unimplemented!()
 }
 
-pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res : &mut Vec<PrologClass>) -> TypeSafetyResult {
+pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &mut Vec<PrologClass>) -> TypeSafetyResult {
     if get_referred_name(&class_name(&chain_start.class)) == "java/lang/Object" {
         //todo magic constant
-        if res.is_empty() && is_bootstrap_loader(&loader){
-            return Safe()
+        if res.is_empty() && is_bootstrap_loader(&loader) {
+            return Safe();
         } else {
-            return NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string())
+            return NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string());
         }
     }
     let loaded = loaded_class(chain_start, loader);
     unimplemented!()
 }
-
 
 
 pub fn is_static(method: &PrologClassMethod, class: &PrologClass) -> bool {
