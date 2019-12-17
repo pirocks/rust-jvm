@@ -14,6 +14,9 @@ use class_loading::Loader;
 use std::sync::Arc;
 use verification::verifier::instructions::handers_are_legal;
 use verification::verifier::instructions::merged_code_is_type_safe;
+use verification::prolog_info_writer::extract_string_from_utf8;
+use verification::types::parse_method_descriptor;
+use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
 
 pub mod stackmapframes;
 //
@@ -257,7 +260,7 @@ fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: V
     return res;
 }
 
-fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod) -> (u64, Frame, UnifiedType) {
+fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, frame_size: u64) -> (Frame, UnifiedType) {
     //methodInitialStackFrame(Class, Method, FrameSize, frame(Locals, [], Flags),ReturnType):-
     //    methodDescriptor(Method, Descriptor),
     //    parseMethodDescriptor(Descriptor, RawArgs, ReturnType),
@@ -266,20 +269,36 @@ fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod) -
     //    flags(ThisList, Flags),
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
-    let method_decriptor = unimplemented!();
-    let parsed_descriptor = unimplemented!();
+    let method_descriptor = extract_string_from_utf8(&class.class.constant_pool[method.prolog_class.class.methods[method.method_index as usize].descriptor_index as usize]);
+    let parsed_descriptor = parse_method_descriptor(method_descriptor.as_str()).unwrap();
     let this_list = method_initial_this_type(class,method);
-    let raw_args = expand_type_list(unimplemented!());
-    return unimplemented!();
+    let flag_this_uninit = flags(this_list);
+    let mut args = expand_type_list(parsed_descriptor.parameter_types);
+    let mut this_args = vec![];
+    this_list.iter().for_each(|x|{
+        this_args.append(copy_recurse(x));
+    });
+    args.iter().for_each(|x|{
+        this_args.append(copy_recurse(x))
+    });
+    let locals =expand_to_length(this_args, frame_size as usize, UnifiedType::TopType);
+    return (Frame { locals, flag_this_uninit, stack_map:vec![]},parsed_descriptor.return_type)
 }
 
 
 fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
     unimplemented!()
 }
-//
-////fn flags()
-//
+
+fn flags(this_list: Option<UnifiedType>) -> bool{
+    match this_list {
+        None => {return false},
+        Some(s) => {
+//            assert!(s is unitializedThis )//todo
+            return true},
+    }
+}
+
 
 fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
     unimplemented!()
