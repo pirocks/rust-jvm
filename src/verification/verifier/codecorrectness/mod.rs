@@ -41,10 +41,10 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//pub fn size_of(unified_type: UnifiedType) -> u64 {
-//    unimplemented!()
-//}
+
+pub fn size_of(unified_type: &UnifiedType) -> u64 {
+    unimplemented!()
+}
 //
 //#[allow(unused)]
 //pub fn push_operand_stack(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Vec<UnifiedType> {
@@ -157,7 +157,7 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x| { x }).collect());
     trace!("stack map frames merged:");
     dbg!(&merged);
-    let (frame, return_type) = method_initial_stack_frame(class, method,frame_size);
+    let (frame, return_type) = method_initial_stack_frame(class, method, frame_size);
     trace!("Initial stack frame:");
     dbg!(&frame);
     dbg!(&frame_size);
@@ -272,31 +272,39 @@ fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, f
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
     let method_descriptor = extract_string_from_utf8(&class.class.constant_pool[method.prolog_class.class.methods[method.method_index as usize].descriptor_index as usize]);
     let parsed_descriptor = parse_method_descriptor(method_descriptor.as_str()).unwrap();
-    let this_list = method_initial_this_type(class,method);
+    let this_list = method_initial_this_type(class, method);
     let flag_this_uninit = flags(&this_list);
     let mut args = expand_type_list(parsed_descriptor.parameter_types);
     let mut this_args = vec![];
-    this_list.iter().for_each(|x|{
+    this_list.iter().for_each(|x| {
         this_args.push(copy_recurse(x));
     });
-    args.iter().for_each(|x|{
+    args.iter().for_each(|x| {
         this_args.push(copy_recurse(x))
     });
-    let locals =expand_to_length(this_args, frame_size as usize, UnifiedType::TopType);
-    return (Frame { locals, flag_this_uninit, stack_map:vec![]},parsed_descriptor.return_type)
+    let locals = expand_to_length(this_args, frame_size as usize, UnifiedType::TopType);
+    return (Frame { locals, flag_this_uninit, stack_map: vec![] }, parsed_descriptor.return_type);
 }
 
 
 fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
-    unimplemented!()
+    return list.iter().flat_map(|x| {
+        if size_of(x) == 1 {
+            vec![copy_recurse(x)]
+        } else {
+            assert!(size_of(x) == 2);
+            vec![copy_recurse(x),UnifiedType::TopType]
+        }
+    }).collect();
 }
 
-fn flags(this_list: &Option<UnifiedType>) -> bool{
+fn flags(this_list: &Option<UnifiedType>) -> bool {
     match this_list {
-        None => {return false},
+        None => { return false; }
         Some(s) => {
 //            assert!(s is unitializedThis )//todo
-            return true},
+            return true;
+        }
     }
 }
 
@@ -314,10 +322,10 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
         let method_name_info = &classfile.constant_pool[classfile.methods[method.method_index].name_index as usize];
         let method_name = extract_string_from_utf8(method_name_info);
         if method_name != "<init>" {
-            return None
+            return None;
         }
     }
-    return Some(UnifiedType::UninitializedThis)
+    return Some(UnifiedType::UninitializedThis);
 }
 
 #[allow(unused)]
