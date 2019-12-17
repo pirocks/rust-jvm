@@ -36,14 +36,18 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
 
 
 pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
+    if pop.is_empty() {
+        pop_from.iter().map(|x|copy_recurse(x)).collect()//todo inefficent copying
+    }else {
+        let (pop_result ,_)= pop_matching_type(pop_from,&pop.first().unwrap()).unwrap();
+        return pop_matching_list(&pop_result,pop[1..].into_vec())
+    }
+}
+
+pub fn pop_matching_type(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType) -> Option<(Vec<UnifiedType>, UnifiedType)> {
     unimplemented!()
 }
-//
-//#[allow(unused)]
-//pub fn pop_matching_type(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<(Vec<UnifiedType>, UnifiedType)> {
-//    unimplemented!()
-//}
-//
+
 
 pub fn size_of(unified_type: &UnifiedType) -> u64 {
     match unified_type {
