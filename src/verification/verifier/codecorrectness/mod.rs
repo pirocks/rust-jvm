@@ -153,7 +153,7 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x| { x }).collect());
     trace!("stack map frames merged:");
     dbg!(&merged);
-    let (frame, frame_size, return_type) = method_initial_stack_frame(class, method);
+    let (frame_size,frame, return_type) = method_initial_stack_frame(class, method);
     trace!("Initial stack frame:");
     dbg!(&frame);
     dbg!(&frame_size);
@@ -257,26 +257,37 @@ fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: V
     return res;
 }
 
-fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod) -> (Frame, u64, UnifiedType) {
-    unimplemented!()
+fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod) -> (u64, Frame, UnifiedType) {
+    //methodInitialStackFrame(Class, Method, FrameSize, frame(Locals, [], Flags),ReturnType):-
+    //    methodDescriptor(Method, Descriptor),
+    //    parseMethodDescriptor(Descriptor, RawArgs, ReturnType),
+    //    expandTypeList(RawArgs, Args),
+    //    methodInitialThisType(Class, Method, ThisList),
+    //    flags(ThisList, Flags),
+    //    append(ThisList, Args, ThisArgs),
+    //    expandToLength(ThisArgs, FrameSize, top, Locals).
+    let method_decriptor = unimplemented!();
+    let parsed_descriptor = unimplemented!();
+    let raw_args = expand_type_list(unimplemented!());
+    return unimplemented!();
 }
 
-//#[allow(unused)]
-//fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
-//    unimplemented!()
-//}
+
+fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
+    unimplemented!()
+}
 //
 ////fn flags()
 //
-//#[allow(unused)]
-//fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-//fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
-//    unimplemented!()
-//}
+
+fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
+    unimplemented!()
+}
+
+
+fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
+    unimplemented!()
+}
 
 #[allow(unused)]
 fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> bool {
