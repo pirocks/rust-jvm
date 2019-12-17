@@ -24,13 +24,20 @@ pub mod stackmapframes;
 
 
 pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Frame {
+    let input_operand_stack= &input_frame.stack_map;
+    let interim_operand_stack = pop_matching_list(input_operand_stack,expected_types_on_stack);
+    let next_operand_stack = push_operand_stack(&input_operand_stack, &result_type);
+    if operand_stack_has_legal_length(environment,&next_operand_stack){
+        Frame { locals:input_frame.locals.iter().map(|x|copy_recurse(x)).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit}
+    }else {
+        unimplemented!()
+    }
+}
+
+
+pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
     unimplemented!()
 }
-//
-//#[allow(unused)]
-//pub fn pop_matching_list(pop_from: Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
-//    unimplemented!()
-//}
 //
 //#[allow(unused)]
 //pub fn pop_matching_type(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<(Vec<UnifiedType>, UnifiedType)> {
@@ -53,12 +60,11 @@ pub fn size_of(unified_type: &UnifiedType) -> u64 {
     }
 
 }
-//
-//#[allow(unused)]
-//pub fn push_operand_stack(operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Vec<UnifiedType> {
-//    unimplemented!()
-//}
-//
+
+pub fn push_operand_stack(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType) -> Vec<UnifiedType> {
+    unimplemented!()
+}
+
 
 pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: &Vec<UnifiedType>) -> bool {
     unimplemented!()
