@@ -9,6 +9,10 @@ use ntest_timeout::timeout;
 use classfile::class_loading::{JVMState, class_entry_from_string, load_class};
 use std::path::Path;
 use classfile::classpath_indexing::index_class_path;
+use classfile::verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
+use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::iter::FromIterator;
 
 
 #[test]
@@ -48,10 +52,11 @@ fn load_class_with_name(main_class_name: &String) {
     let indexed_classpath = index_class_path(Path::new(&"resources/test/classpath_file".to_string()));
     let mut initial_jvm_state = JVMState {
         using_bootstrap_loader: true,
-        loaders: Default::default(),//todo make correct
+        loaders: vec![(BOOTSTRAP_LOADER_NAME.to_string(),BOOTSTRAP_LOADER.clone())].iter().cloned().collect(),//todo make correct
         indexed_classpath,
         using_prolog_verifier: false
     };
+    use classfile::class_loading::BOOTSTRAP_LOADER;
     let main_class_entry = class_entry_from_string(&main_class_name, true);
-    load_class(&mut initial_jvm_state, unimplemented!(), main_class_entry, true);//todo add correct
+    load_class(&mut initial_jvm_state, BOOTSTRAP_LOADER.clone(), main_class_entry, true);//todo add correct
 }

@@ -27,7 +27,6 @@ pub fn index_class_path(classfile_path: &Path) -> HashMap<ClassEntry, Box<Path>>
 fn process_classpath_entry(s: &Box<String>) -> Vec<(ClassEntry, Box<Path>)> {
     let mut path_buf = PathBuf::new();
     path_buf.push(s.as_str());
-//        let path = path_buf.as_path();
     WalkDir::new(path_buf.clone())
         .min_depth(0)
         .max_depth(1000)
