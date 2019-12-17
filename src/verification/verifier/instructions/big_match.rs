@@ -3,6 +3,7 @@ use verification::verifier::codecorrectness::Environment;
 use verification::verifier::Frame;
 use verification::verifier::instructions::InstructionIsTypeSafeResult;
 use verification::verifier::instructions::branches::instruction_is_type_safe_return;
+use verification::verifier::instructions::loads::instruction_is_type_safe_aload;
 
 pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     match instruction {
@@ -10,7 +11,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::aastore => {unimplemented!()},
         InstructionInfo::aconst_null => {unimplemented!()},
         InstructionInfo::aload(_) => {unimplemented!()},
-        InstructionInfo::aload_0 => {unimplemented!()},
+        InstructionInfo::aload_0 => instruction_is_type_safe_aload(0, env, offset, stack_frame),
         InstructionInfo::aload_1 => {unimplemented!()},
         InstructionInfo::aload_2 => {unimplemented!()},
         InstructionInfo::aload_3 => {unimplemented!()},
@@ -201,7 +202,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::putfield(_) => {unimplemented!()},
         InstructionInfo::putstatic(_) => {unimplemented!()},
         InstructionInfo::ret(_) => {unimplemented!()},
-        InstructionInfo::return_ => {instruction_is_type_safe_return(env,offset,stack_frame)},
+        InstructionInfo::return_ => instruction_is_type_safe_return(env, offset, stack_frame),
         InstructionInfo::saload => {unimplemented!()},
         InstructionInfo::sastore => {unimplemented!()},
         InstructionInfo::sipush(_) => {unimplemented!()},

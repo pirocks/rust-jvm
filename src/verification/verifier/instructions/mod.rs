@@ -1,7 +1,6 @@
 use verification::verifier::{Frame, PrologClass};
 use verification::unified_type::UnifiedType;
-use classfile::code::InstructionInfo;
-use verification::verifier::codecorrectness::{Environment, valid_type_transition};
+use verification::verifier::codecorrectness::Environment;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::verifier::codecorrectness::frame_is_assignable;
 use verification::verifier::codecorrectness::Handler;
@@ -182,10 +181,8 @@ pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usi
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_aload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
+
+
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_anewarray(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
@@ -670,15 +667,6 @@ fn same_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }
 
-#[allow(unused)]
-fn load_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) -> bool {
-    let locals = &frame.locals;
-    let actual_type = nth0(index, locals);
-    let type_transition = valid_type_transition(env, vec![], &actual_type, frame);
-
-    is_assignable(&actual_type, type_) &&
-        &type_transition == next_frame
-}
 
 #[allow(unused)]
 fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) {
