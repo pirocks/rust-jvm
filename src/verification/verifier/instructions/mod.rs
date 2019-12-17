@@ -113,8 +113,11 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
 
 }
 
-pub fn nth0(_index: usize, _locals: &Vec<UnifiedType>) -> UnifiedType {
-    unimplemented!()
+pub fn nth0(index: usize, locals: &Vec<UnifiedType>) -> UnifiedType {
+    match locals.get(index){
+        None => unimplemented!(),
+        Some(res) => copy_recurse(res),
+    }
 }
 
 
