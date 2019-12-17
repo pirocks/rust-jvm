@@ -81,8 +81,8 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
 //    unimplemented!()
 //}
 
-pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
-    left.stack_map.len() == right.stack_map.len()
+pub fn frame_is_assignable(left: &Frame, right: &Frame) -> TypeSafetyResult {
+    if left.stack_map.len() == right.stack_map.len()
         && left.locals.iter().zip(right.locals.iter()).all(|(left_, right_)| {
         is_assignable(left_, right_)
     }) && left.stack_map.iter().zip(right.stack_map.iter()).all(|(left_, right_)| {
@@ -91,6 +91,10 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
         right.flag_this_uninit
     } else {
         true
+    } {
+        TypeSafetyResult::Safe()
+    }else {
+        TypeSafetyResult::NotSafe("todo message".to_string())//todo message
     }
 }
 
@@ -163,8 +167,8 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     dbg!(&frame_size);
     dbg!(&return_type);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers };
-    if handers_are_legal(&env) && merged_code_is_type_safe(&env, merged.as_slice(), &frame, false) {
-        Safe()
+    if merge_type_safety_results(vec![handers_are_legal(&env), merged_code_is_type_safe(&env, merged.as_slice(), &frame, false)].into_boxed_slice()) == Safe() {
+        TypeSafetyResult::Safe()
     } else {
         unimplemented!()
     }

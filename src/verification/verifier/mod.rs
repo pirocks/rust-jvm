@@ -8,6 +8,7 @@ use verification::verifier::codecorrectness::{method_is_type_safe, Environment};
 use verification::classnames::{ClassName, get_referred_name};
 use log::trace;
 use std::sync::Arc;
+use verification::verifier::TypeSafetyResult::Safe;
 
 pub mod instructions;
 pub mod filecorrectness;
@@ -48,11 +49,28 @@ pub struct Frame {
 //pub fn nth1OperandStackIs
 
 #[derive(Debug)]
+#[derive(Eq)]
 pub enum TypeSafetyResult {
     NotSafe(String),
     //reason is a String
     Safe(),
     NeedToLoad(Vec<ClassName>),
+}
+
+pub fn and(left: TypeSafetyResult, right: TypeSafetyResult) -> TypeSafetyResult{
+    return merge_type_safety_results(vec![left,right].into_boxed_slice());
+}
+
+impl PartialEq for TypeSafetyResult{
+    fn eq(&self, other: &TypeSafetyResult) -> bool {
+        match self {
+            Safe() => match other {
+                Safe() => true,
+                _ => false
+            },
+            _ => unimplemented!()
+        }
+    }
 }
 
 pub fn class_is_type_safe(class: &PrologClass ) -> TypeSafetyResult {
@@ -89,7 +107,7 @@ pub fn class_is_type_safe(class: &PrologClass ) -> TypeSafetyResult {
     merge_type_safety_results(method_type_safety.into_boxed_slice())
 }
 
-pub(crate) fn merge_type_safety_results(method_type_safety: Box<[TypeSafetyResult]>) -> TypeSafetyResult {
+pub fn merge_type_safety_results(method_type_safety: Box<[TypeSafetyResult]>) -> TypeSafetyResult {
     method_type_safety.iter().fold(TypeSafetyResult::Safe(), |a: TypeSafetyResult, b: &TypeSafetyResult| {
         match a {
             TypeSafetyResult::NotSafe(r) => { TypeSafetyResult::NotSafe(r) }
