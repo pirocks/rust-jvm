@@ -10,9 +10,6 @@ use classfile::class_loading::{JVMState, class_entry_from_string, load_class};
 use std::path::Path;
 use classfile::classpath_indexing::index_class_path;
 use classfile::verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::iter::FromIterator;
 
 
 #[test]

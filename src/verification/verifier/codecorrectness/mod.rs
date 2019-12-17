@@ -2,18 +2,18 @@ use log::trace;
 use classfile::{ACC_ABSTRACT, ACC_NATIVE, code_attribute};
 use classfile::attribute_infos::Code;
 use classfile::code::Instruction;
-use verification::classnames::{ClassName, NameReference};
+use verification::classnames::NameReference;
 use verification::code_writer::StackMap;
 use verification::prolog_info_writer::get_access_flags;
 use verification::unified_type::UnifiedType;
 use verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
 use verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable};
-use verification::verifier::instructions::instruction_is_type_safe;
 use verification::verifier::TypeSafetyResult::Safe;
 use verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use class_loading::Loader;
 use std::sync::Arc;
-use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
+use verification::verifier::instructions::handers_are_legal;
+use verification::verifier::instructions::merged_code_is_type_safe;
 
 pub mod stackmapframes;
 //
@@ -210,16 +210,16 @@ pub enum UnifiedInstruction {}
 
 #[allow(dead_code)]
 pub struct Environment<'l> {
-    method: &'l PrologClassMethod<'l>,
-    frame_size: u16,
-    max_stack: u16,
-    merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
-    class_loader: Arc<Loader>,
-    handlers: Vec<Handler>,
+    pub method: &'l PrologClassMethod<'l>,
+    pub frame_size: u16,
+    pub max_stack: u16,
+    pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
+    pub class_loader: Arc<Loader>,
+    pub handlers: Vec<Handler>,
 }
 
 #[derive(Debug)]
-enum MergedCodeInstruction<'l> {
+pub enum MergedCodeInstruction<'l> {
     Instruction(&'l Instruction),
     StackMap(&'l StackMap),
 }
@@ -268,6 +268,7 @@ fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod) -
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
     let method_decriptor = unimplemented!();
     let parsed_descriptor = unimplemented!();
+    let this_list = method_initial_this_type(class,method);
     let raw_args = expand_type_list(unimplemented!());
     return unimplemented!();
 }
@@ -293,82 +294,3 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
 fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> bool {
     unimplemented!()
 }
-
-//todo how to handle other values here
-fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: &Frame, after_goto: bool) -> bool {
-    let first = &merged_code[0];
-    let rest = &merged_code[1..merged_code.len()];
-    match first {
-        MergedCodeInstruction::Instruction(i) => {
-            let instruction_res = instruction_is_type_safe(&i.instruction, env, i.offset, after_frame).unwrap();//todo unwrap
-            let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &instruction_res.exception_frame);
-            merged_code_is_type_safe(env, rest, &instruction_res.next_frame, false)
-        }
-        MergedCodeInstruction::StackMap(s) => {
-            if after_goto {
-                merged_code_is_type_safe(env, rest, &s.map_frame, false)
-            } else {
-                frame_is_assignable(after_frame, &s.map_frame) &&
-                    merged_code_is_type_safe(env, rest, &s.map_frame, false)
-            }
-        }
-    }
-}
-
-#[allow(unused)]
-fn offset_stack_frame(env: &Environment, target: usize) -> Frame {
-    unimplemented!()
-}
-
-fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> bool {
-    let frame = offset_stack_frame(env, target);
-    frame_is_assignable(stack_frame, &frame)
-}
-
-fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_stack_frame: &Frame) -> bool {
-    let handlers = &env.handlers;
-    let mut applicable_handler = handlers.iter().filter(|h| {
-        is_applicable_handler(offset as usize, h)
-    });
-    applicable_handler.all(|h| {
-        instruction_satisfies_handler(env, exception_stack_frame, h)
-    })
-}
-
-fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
-    offset <= handler.start && offset < handler.end
-}
-
-fn class_to_type(class: &PrologClass) -> UnifiedType {
-    UnifiedType::ReferenceType(ClassName::Ref(NameReference {
-        index: class.class.this_class,
-        class_file: Arc::downgrade(&class.class),
-    }))
-}
-
-fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> bool {
-    let target = handler.target;
-    let _class_loader = &env.class_loader;
-    let exception_class = handler_exception_class(handler);
-    let locals = &exc_stack_frame.locals;
-    let flags = exc_stack_frame.flag_this_uninit;
-    let locals_copy = locals.iter().map(|x| { copy_recurse(x) }).collect();
-    let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: vec![class_to_type(&exception_class)], flag_this_uninit: flags };
-    operand_stack_has_legal_length(env, &vec![class_to_type(&exception_class)]) &&
-        target_is_type_safe(env, &true_exc_stack_frame, target)
-}
-
-pub fn nth0(_index: usize, _locals: &Vec<UnifiedType>) -> UnifiedType {
-    unimplemented!()
-}
-
-
-pub fn handers_are_legal(_env: &Environment) -> bool {
-    unimplemented!()
-}
-//
-//#[allow(unused)]
-//pub fn instructions_include_end(instructs: Vec<UnifiedInstruction>, end: u64) -> bool {
-//    unimplemented!()
-//}
-//

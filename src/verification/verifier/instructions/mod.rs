@@ -1,15 +1,106 @@
 use verification::verifier::{Frame, PrologClass};
 use verification::unified_type::UnifiedType;
 use classfile::code::InstructionInfo;
-use verification::verifier::codecorrectness::{Environment, valid_type_transition, nth0};
+use verification::verifier::codecorrectness::{Environment, valid_type_transition};
 use verification::verifier::filecorrectness::is_assignable;
-
+use verification::verifier::codecorrectness::frame_is_assignable;
+use verification::verifier::codecorrectness::Handler;
+use verification::classnames::NameReference;
+use std::sync::Arc;
+use verification::verifier::codecorrectness::operand_stack_has_legal_length;
+use verification::verifier::codecorrectness::handler_exception_class;
+use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
+use verification::classnames::ClassName;
+use verification::verifier::codecorrectness::MergedCodeInstruction;
 pub mod loads;
 
 pub struct InstructionIsTypeSafeResult {
     pub(crate) next_frame: Frame,
     pub(crate) exception_frame: Frame,
 }
+
+
+
+
+//todo how to handle other values here
+pub fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: &Frame, after_goto: bool) -> bool {
+    let first = &merged_code[0];
+    let rest = &merged_code[1..merged_code.len()];
+    match first {
+        MergedCodeInstruction::Instruction(i) => {
+            let instruction_res = instruction_is_type_safe(&i.instruction, env, i.offset, after_frame).unwrap();//todo unwrap
+            let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &instruction_res.exception_frame);
+            merged_code_is_type_safe(env, rest, &instruction_res.next_frame, false)
+        }
+        MergedCodeInstruction::StackMap(s) => {
+            if after_goto {
+                merged_code_is_type_safe(env, rest, &s.map_frame, false)
+            } else {
+                frame_is_assignable(after_frame, &s.map_frame) &&
+                    merged_code_is_type_safe(env, rest, &s.map_frame, false)
+            }
+        }
+    }
+}
+
+#[allow(unused)]
+fn offset_stack_frame(env: &Environment, target: usize) -> Frame {
+    unimplemented!()
+}
+
+fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> bool {
+    let frame = offset_stack_frame(env, target);
+    frame_is_assignable(stack_frame, &frame)
+}
+
+fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_stack_frame: &Frame) -> bool {
+    let handlers = &env.handlers;
+    let mut applicable_handler = handlers.iter().filter(|h| {
+        is_applicable_handler(offset as usize, h)
+    });
+    applicable_handler.all(|h| {
+        instruction_satisfies_handler(env, exception_stack_frame, h)
+    })
+}
+
+fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
+    offset <= handler.start && offset < handler.end
+}
+
+fn class_to_type(class: &PrologClass) -> UnifiedType {
+    UnifiedType::ReferenceType(ClassName::Ref(NameReference {
+        index: class.class.this_class,
+        class_file: Arc::downgrade(&class.class),
+    }))
+}
+
+fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> bool {
+    let target = handler.target;
+    let _class_loader = &env.class_loader;
+    let exception_class = handler_exception_class(handler);
+    let locals = &exc_stack_frame.locals;
+    let flags = exc_stack_frame.flag_this_uninit;
+    let locals_copy = locals.iter().map(|x| { copy_recurse(x) }).collect();
+    let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: vec![class_to_type(&exception_class)], flag_this_uninit: flags };
+    operand_stack_has_legal_length(env, &vec![class_to_type(&exception_class)]) &&
+        target_is_type_safe(env, &true_exc_stack_frame, target)
+}
+
+pub fn nth0(_index: usize, _locals: &Vec<UnifiedType>) -> UnifiedType {
+    unimplemented!()
+}
+
+
+pub fn handers_are_legal(_env: &Environment) -> bool {
+    unimplemented!()
+}
+//
+//#[allow(unused)]
+//pub fn instructions_include_end(instructs: Vec<UnifiedInstruction>, end: u64) -> bool {
+//    unimplemented!()
+//}
+//
+
 
 #[allow(unused)]
 pub(crate) fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> Option<InstructionIsTypeSafeResult> {
