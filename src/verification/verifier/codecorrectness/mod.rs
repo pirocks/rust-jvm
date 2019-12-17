@@ -19,50 +19,71 @@ use verification::types::parse_method_descriptor;
 use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
 use classfile::ACC_STATIC;
 use verification::verifier::and;
+use std::option::Option::Some;
 
 pub mod stackmapframes;
 
 
 pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Frame {
-    let input_operand_stack= &input_frame.stack_map;
-    let interim_operand_stack = pop_matching_list(input_operand_stack,expected_types_on_stack);
+    let input_operand_stack = &input_frame.stack_map;
+    let interim_operand_stack = pop_matching_list(input_operand_stack, expected_types_on_stack);
     let next_operand_stack = push_operand_stack(&input_operand_stack, &result_type);
-    if operand_stack_has_legal_length(environment,&next_operand_stack){
-        Frame { locals:input_frame.locals.iter().map(|x|copy_recurse(x)).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit}
-    }else {
+    if operand_stack_has_legal_length(environment, &next_operand_stack) {
+        Frame { locals: input_frame.locals.iter().map(|x| copy_recurse(x)).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit }
+    } else {
         unimplemented!()
     }
 }
 
 
 pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
+    return pop_matching_list_impl(pop_from.as_slice(), pop.as_slice());
+}
+
+pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> Vec<UnifiedType> {
     if pop.is_empty() {
-        pop_from.iter().map(|x|copy_recurse(x)).collect()//todo inefficent copying
-    }else {
-        let (pop_result ,_)= pop_matching_type(pop_from,&pop.first().unwrap()).unwrap();
-        return pop_matching_list(&pop_result,pop[1..].into_vec())
+        pop_from.iter().map(|x| copy_recurse(x)).collect()//todo inefficent copying
+    } else {
+        let (pop_result, _) = pop_matching_type(pop_from, pop.first().unwrap()).unwrap();
+        return pop_matching_list_impl(&pop_result, &pop[1..]);
     }
 }
 
-pub fn pop_matching_type(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType) -> Option<(Vec<UnifiedType>, UnifiedType)> {
-    unimplemented!()
+pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedType) -> Option<(&'l [UnifiedType], UnifiedType)> {
+    if size_of(type_) == 1 {
+        let actual_type = &operand_stack[0];
+        if is_assignable(actual_type, type_) {
+            return Some((&operand_stack[1..], copy_recurse(actual_type)));
+        } else {
+            unimplemented!()
+        }
+    } else if size_of(type_) == 2 {
+        &operand_stack[0];//should be top todo
+        let actual_type = &operand_stack[1];
+        if is_assignable(actual_type, type_) {
+            return Some((&operand_stack[2..], copy_recurse(actual_type)));
+        } else {
+            unimplemented!()
+        }
+    } else {
+        panic!()
+    }
 }
 
 
 pub fn size_of(unified_type: &UnifiedType) -> u64 {
     match unified_type {
-        UnifiedType::TopType => {1},
+        UnifiedType::TopType => { 1 }
         _ => {
             if is_assignable(unified_type, &UnifiedType::TwoWord) {
                 2
-            }else if is_assignable(unified_type, &UnifiedType::OneWord) {
+            } else if is_assignable(unified_type, &UnifiedType::OneWord) {
                 1
-            }else {
+            } else {
                 panic!("This is a bug")
             }
         }
     }
-
 }
 
 pub fn push_operand_stack(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType) -> Vec<UnifiedType> {
