@@ -20,12 +20,7 @@ use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
 use classfile::ACC_STATIC;
 
 pub mod stackmapframes;
-//
-//#[allow(unused)]
-//fn exception_stack_frame(frame1: Frame, excpetion_stack_frame: Frame) -> bool {
-//    unimplemented!()
-//}
-//
+
 
 pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Frame {
     unimplemented!()
@@ -166,7 +161,7 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     dbg!(&frame);
     dbg!(&frame_size);
     dbg!(&return_type);
-    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers };
+    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type: UnifiedType::ByteType };
     if merge_type_safety_results(vec![handers_are_legal(&env), merged_code_is_type_safe(&env, merged.as_slice(), &frame, false)].into_boxed_slice()) == Safe() {
         TypeSafetyResult::Safe()
     } else {
@@ -220,6 +215,7 @@ pub enum UnifiedInstruction {}
 #[allow(dead_code)]
 pub struct Environment<'l> {
     pub method: &'l PrologClassMethod<'l>,
+    pub return_type: UnifiedType,
     pub frame_size: u16,
     pub max_stack: u16,
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,

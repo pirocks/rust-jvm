@@ -9,6 +9,7 @@ use verification::classnames::{ClassName, get_referred_name};
 use log::trace;
 use std::sync::Arc;
 use verification::verifier::TypeSafetyResult::Safe;
+use verification::verifier::TypeSafetyResult::NotSafe;
 
 pub mod instructions;
 pub mod filecorrectness;
@@ -68,7 +69,11 @@ impl PartialEq for TypeSafetyResult{
                 Safe() => true,
                 _ => false
             },
-            _ => unimplemented!()
+            NotSafe(s1) => match other {
+                TypeSafetyResult::NotSafe(s2) => {s1 == s2},
+                _ => false
+            }
+            _ => {unimplemented!()}
         }
     }
 }

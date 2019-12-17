@@ -2,8 +2,9 @@ use classfile::code::InstructionInfo;
 use verification::verifier::codecorrectness::Environment;
 use verification::verifier::Frame;
 use verification::verifier::instructions::InstructionIsTypeSafeResult;
+use verification::verifier::instructions::branches::instruction_is_type_safe_return;
 
-pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> Option<InstructionIsTypeSafeResult> {
+pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     match instruction {
         InstructionInfo::aaload => {unimplemented!()},
         InstructionInfo::aastore => {unimplemented!()},
@@ -200,7 +201,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::putfield(_) => {unimplemented!()},
         InstructionInfo::putstatic(_) => {unimplemented!()},
         InstructionInfo::ret(_) => {unimplemented!()},
-        InstructionInfo::return_ => {unimplemented!()},
+        InstructionInfo::return_ => {instruction_is_type_safe_return(env,offset,stack_frame)},
         InstructionInfo::saload => {unimplemented!()},
         InstructionInfo::sastore => {unimplemented!()},
         InstructionInfo::sipush(_) => {unimplemented!()},

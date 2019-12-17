@@ -23,9 +23,19 @@ use verification::verifier::instructions::big_match::instruction_is_type_safe;
 
 pub mod loads;
 
-pub struct InstructionIsTypeSafeResult {
+pub struct ResultFrames {
     pub next_frame: Frame,
     pub exception_frame: Frame,
+}
+
+pub struct AfterGotoFrames {
+    pub exception_frame: Frame,
+}
+
+pub enum InstructionIsTypeSafeResult{
+    Safe(ResultFrames),
+    AfterGoto(AfterGotoFrames),
+    NotSafe
 }
 
 
@@ -35,7 +45,11 @@ pub fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInst
     let rest = &merged_code[1..merged_code.len()];
     match first {
         MergedCodeInstruction::Instruction(i) => {
-            let instruction_res = instruction_is_type_safe(&i.instruction, env, i.offset, after_frame).unwrap();//todo unwrap
+            let instruction_res = match instruction_is_type_safe(&i.instruction, env, i.offset, after_frame){
+                InstructionIsTypeSafeResult::Safe(s) => {s},
+                InstructionIsTypeSafeResult::AfterGoto(_) => {unimplemented!()}
+                InstructionIsTypeSafeResult::NotSafe => {return TypeSafetyResult::NotSafe("todo message".to_string())},//todo
+            };
             let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &instruction_res.exception_frame);
             merged_code_is_type_safe(env, rest, &instruction_res.next_frame, false)
         }
@@ -620,10 +634,6 @@ pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usi
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_return(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_saload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
@@ -676,3 +686,10 @@ fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, fram
 }
 
 pub mod big_match;
+pub mod branches;
+
+
+pub fn exception_stack_frame(f: &Frame) -> Frame {
+    unimplemented!()
+}
+
