@@ -17,6 +17,7 @@ use verification::verifier::instructions::merged_code_is_type_safe;
 use verification::prolog_info_writer::extract_string_from_utf8;
 use verification::types::parse_method_descriptor;
 use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
+use classfile::ACC_STATIC;
 
 pub mod stackmapframes;
 //
@@ -306,7 +307,17 @@ fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) ->
 
 
 fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
-    unimplemented!()
+    let method_access_flags = method.prolog_class.class.methods[method.method_index].access_flags;
+    if method_access_flags & ACC_STATIC > 0 {
+        //todo dup
+        let classfile = &method.prolog_class.class;
+        let method_name_info = &classfile.constant_pool[classfile.methods[method.method_index].name_index as usize];
+        let method_name = extract_string_from_utf8(method_name_info);
+        if method_name != "<init>" {
+            return None
+        }
+    }
+    return Some(UnifiedType::UninitializedThis)
 }
 
 #[allow(unused)]
