@@ -293,7 +293,7 @@ fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
             vec![copy_recurse(x)]
         } else {
             assert!(size_of(x) == 2);
-            vec![copy_recurse(x),UnifiedType::TopType]
+            vec![copy_recurse(x), UnifiedType::TopType]
         }
     }).collect();
 }
@@ -310,7 +310,15 @@ fn flags(this_list: &Option<UnifiedType>) -> bool {
 
 
 fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
-    unimplemented!()
+    assert!(list.len() >= size);
+    let mut res = vec![];
+    for i in 0..size {
+        res.push(match list.get(i) {
+            None => { copy_recurse(&filler) }
+            Some(elem) => { copy_recurse(&elem) }
+        })
+    }
+    return res;
 }
 
 
