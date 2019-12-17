@@ -7,6 +7,7 @@ use verification::verifier::{InternalFrame, PrologClass};
 use verification::classnames::ClassName;
 use verification::types::parse_method_descriptor;
 use verification::verifier::Frame;
+use verification::classnames::NameReference;
 
 pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
@@ -137,7 +138,7 @@ pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
             }*/
 
             UnifiedType::ReferenceType(match o {
-                ClassName::Ref(_r) => { unimplemented!() }
+                ClassName::Ref(r) => { ClassName::Ref(NameReference{class_file:r.class_file.clone(),index:r.index}) }
                 ClassName::Str(s) => { ClassName::Str(s.clone()) }
             })
         }

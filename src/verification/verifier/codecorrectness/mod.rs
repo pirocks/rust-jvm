@@ -18,6 +18,7 @@ use verification::prolog_info_writer::extract_string_from_utf8;
 use verification::types::parse_method_descriptor;
 use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
 use classfile::ACC_STATIC;
+use verification::verifier::and;
 
 pub mod stackmapframes;
 
@@ -38,7 +39,19 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
 //
 
 pub fn size_of(unified_type: &UnifiedType) -> u64 {
-    unimplemented!()
+    match unified_type {
+        UnifiedType::TopType => {1},
+        _ => {
+            if is_assignable(unified_type, &UnifiedType::TwoWord) {
+                2
+            }else if is_assignable(unified_type, &UnifiedType::OneWord) {
+                1
+            }else {
+                panic!("This is a bug")
+            }
+        }
+    }
+
 }
 //
 //#[allow(unused)]
@@ -88,7 +101,7 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> TypeSafetyResult {
         true
     } {
         TypeSafetyResult::Safe()
-    }else {
+    } else {
         TypeSafetyResult::NotSafe("todo message".to_string())//todo message
     }
 }
@@ -162,11 +175,9 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     dbg!(&frame_size);
     dbg!(&return_type);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type: UnifiedType::ByteType };
-    if merge_type_safety_results(vec![handers_are_legal(&env), merged_code_is_type_safe(&env, merged.as_slice(), &frame, false)].into_boxed_slice()) == Safe() {
-        TypeSafetyResult::Safe()
-    } else {
-        unimplemented!()
-    }
+
+    and(handers_are_legal(&env),
+        merged_code_is_type_safe(&env, merged.as_slice(), &frame, false))
 }
 
 pub struct Handler {

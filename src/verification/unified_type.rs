@@ -24,5 +24,7 @@ pub enum UnifiedType{
     TopType,
     NullType,
     Uninitialized(UninitializedVariableInfo),
-    UninitializedThis
+    UninitializedThis,
+    TwoWord,
+    OneWord
 }
