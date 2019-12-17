@@ -3,8 +3,8 @@ use classfile::{ACC_ABSTRACT, ACC_NATIVE, code_attribute};
 use classfile::attribute_infos::Code;
 use classfile::code::Instruction;
 use verification::classnames::{ClassName, NameReference};
-use verification::code_writer::{StackMap};
-use verification::prolog_info_writer::{get_access_flags};
+use verification::code_writer::StackMap;
+use verification::prolog_info_writer::get_access_flags;
 use verification::unified_type::UnifiedType;
 use verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
 use verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable};
@@ -92,24 +92,24 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> bool {
 
 pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
     let access_flags = get_access_flags(class, method);
-    trace!("got access_flags:{}",access_flags);
+    trace!("got access_flags:{}", access_flags);
     let does_not_override_final_method = does_not_override_final_method(class, method);
     trace!("does not override final method:");
     dbg!(&does_not_override_final_method);
     let results = vec![does_not_override_final_method,
                        if access_flags & ACC_NATIVE != 0 {
                            trace!("method is native");
-                          TypeSafetyResult::Safe()
-                      } else if access_flags & ACC_ABSTRACT != 0 {
+                           TypeSafetyResult::Safe()
+                       } else if access_flags & ACC_ABSTRACT != 0 {
                            trace!("method is abstract");
-                          TypeSafetyResult::Safe()
-                      } else {
-                          //will have a code attribute. or else method_with_code_is_type_safe will crash todo
-                          /*let attributes = get_attributes(class, method);
-                          attributes.iter().any(|_| {
-                              unimplemented!()
-                          }) && */method_with_code_is_type_safe(class, method)
-                      }].into_boxed_slice();
+                           TypeSafetyResult::Safe()
+                       } else {
+                           //will have a code attribute. or else method_with_code_is_type_safe will crash todo
+                           /*let attributes = get_attributes(class, method);
+                           attributes.iter().any(|_| {
+                               unimplemented!()
+                           }) && */method_with_code_is_type_safe(class, method)
+                       }].into_boxed_slice();
     merge_type_safety_results(results)
 }
 
@@ -121,7 +121,7 @@ pub struct ParsedCodeAttribute<'l> {
 //    pub exception_table: Vec<Handler>,
 //    todo
 //    pub stackmap_frames: Vec<&'l StackMap<'l>>,//todo
-    pub method : &'l PrologClassMethod<'l>
+    pub method: &'l PrologClassMethod<'l>
 }
 
 pub fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
@@ -146,11 +146,11 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
     let instructs: Vec<&Instruction> = code.code.iter().map(|x| { x }).collect();
-    let handlers = get_handlers(class,code);
-    let stack_map: Vec<StackMap> = get_stack_map_frames(class,method_info);
+    let handlers = get_handlers(class, code);
+    let stack_map: Vec<StackMap> = get_stack_map_frames(class, method_info);
     trace!("stack map frames generated:");
     dbg!(&stack_map);
-    let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x|{x}).collect());
+    let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x| { x }).collect());
     trace!("stack map frames merged:");
     dbg!(&merged);
     let (frame, frame_size, return_type) = method_initial_stack_frame(class, method);
@@ -228,25 +228,30 @@ enum MergedCodeInstruction<'l> {
 assumes that stackmaps and instructions are ordered
 */
 fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
+    trace!("Starting instruction and stackmap merge");
     let mut res = vec![];
+    let mut current_instruction_i = 0;
+    let mut current_stackmap_i = 0;
 
     loop {
-        let (instruction, instruction_offset) = match instruction.first() {
-            None => { (None, -1) }//todo hacky
+        let (instruction, instruction_offset) = match instruction.get(current_instruction_i) {
+            None => { (None, -1) }//todo very hacky
             Some(i) => { (Some(i), i.offset as i32) }
         };
-        let (stack_map, stack_map_offset) = match stack_maps.first() {
-            None => { (None, -1) }
+        let (stack_map, stack_map_offset) = match stack_maps.get(current_stackmap_i) {
+            None => { (None, -2) }
             Some(s) => { (Some(s), s.offset as i32) }
         };
         if stack_map_offset >= instruction_offset {
-            res.push(MergedCodeInstruction::StackMap(stack_map.unwrap()))//todo
+            res.push(MergedCodeInstruction::StackMap(stack_map.unwrap()));
+            current_stackmap_i += 1;
         } else {
             let instr = match instruction {
                 None => { break; }
                 Some(i) => { i }
             };
-            res.push(MergedCodeInstruction::Instruction(instr))//todo
+            res.push(MergedCodeInstruction::Instruction(instr));
+            current_instruction_i += 1;
         }
     }
     return res;
