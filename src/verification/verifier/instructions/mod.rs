@@ -19,12 +19,13 @@ use verification::prolog_info_writer::class_name;
 use verification::verifier::codecorrectness::init_handler_is_legal;
 use verification::verifier::and;
 use verification::verifier::merge_type_safety_results;
+use verification::verifier::instructions::big_match::instruction_is_type_safe;
 
 pub mod loads;
 
 pub struct InstructionIsTypeSafeResult {
-    pub(crate) next_frame: Frame,
-    pub(crate) exception_frame: Frame,
+    pub next_frame: Frame,
+    pub exception_frame: Frame,
 }
 
 
@@ -106,10 +107,9 @@ pub fn nth0(_index: usize, _locals: &Vec<UnifiedType>) -> UnifiedType {
 
 pub fn handers_are_legal(env: &Environment) -> TypeSafetyResult {
     let handlers = &env.handlers;
-    handlers.iter().map(|h| {
+    merge_type_safety_results(handlers.iter().map(|h| {
         handler_is_legal(env, h)
-    });
-    unimplemented!()
+    }).collect())
 }
 
 pub fn start_is_member_of(start: usize, merged_instructs: &Vec<MergedCodeInstruction>) -> bool {
@@ -154,10 +154,8 @@ pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usi
 }
 
 
-#[allow(unused)]
-pub(crate) fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> Option<InstructionIsTypeSafeResult> {
-    unimplemented!()
-}
+
+
 
 //
 //#[allow(unused)]
@@ -676,3 +674,5 @@ fn load_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame
 fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame, next_frame: &Frame) {
     unimplemented!()
 }
+
+pub mod big_match;
