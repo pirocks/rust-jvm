@@ -314,7 +314,7 @@ methodWithCodeIsTypeSafe(Class, Method) :-
 handlersAreLegal(Environment) :-
     exceptionHandlers(Environment, Handlers),
     checklist(handlerIsLegal(Environment), Handlers).
-    handlerIsLegal(Environment, Handler) :-
+handlerIsLegal(Environment, Handler) :-
     Handler = handler(Start, End, Target, _),
     Start < End,
     allInstructions(Environment, Instructions),

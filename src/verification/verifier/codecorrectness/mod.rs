@@ -179,16 +179,17 @@ pub struct Handler {
 }
 
 pub fn handler_exception_class(handler: &Handler) -> PrologClass {
+    //may want to return a unifiedType instead
     match &handler.class_name {
         None => { unimplemented!("Return java/lang/Throwable") }
         Some(s) => { unimplemented!("Need to get class from state") }
     }
 }
 //
-//#[allow(unused)]
-//pub fn init_handler_is_legal(env: &Environment, handler: &Handler) -> bool {
-//    unimplemented!()
-//}
+
+pub fn init_handler_is_legal(env: &Environment, handler: &Handler) -> TypeSafetyResult {
+    unimplemented!()
+}
 //
 //#[allow(unused)]
 //pub fn not_init_handler(env: &Environment, handler: &Handler) -> bool {

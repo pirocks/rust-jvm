@@ -12,14 +12,19 @@ use verification::verifier::codecorrectness::handler_exception_class;
 use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
 use verification::classnames::ClassName;
 use verification::verifier::codecorrectness::MergedCodeInstruction;
+use verification::verifier::TypeSafetyResult;
+use verification::verifier::codecorrectness::MergedCodeInstruction::Instruction;
+use verification::verifier::codecorrectness::MergedCodeInstruction::StackMap;
+use verification::verifier::codecorrectness::UnifiedInstruction;
+use verification::prolog_info_writer::class_name;
+use verification::verifier::codecorrectness::init_handler_is_legal;
+
 pub mod loads;
 
 pub struct InstructionIsTypeSafeResult {
     pub(crate) next_frame: Frame,
     pub(crate) exception_frame: Frame,
 }
-
-
 
 
 //todo how to handle other values here
@@ -44,7 +49,7 @@ pub fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInst
 }
 
 #[allow(unused)]
-fn offset_stack_frame(env: &Environment, target: usize) -> Frame {
+fn offset_stack_frame(env: &Environment, target: usize) -> Option<Frame> {
     unimplemented!()
 }
 
@@ -91,15 +96,55 @@ pub fn nth0(_index: usize, _locals: &Vec<UnifiedType>) -> UnifiedType {
 }
 
 
-pub fn handers_are_legal(_env: &Environment) -> bool {
+pub fn handers_are_legal(env: &Environment) -> TypeSafetyResult {
+    let handlers = &env.handlers;
+    handlers.iter().map(|h| {
+        handler_is_legal(env, h)
+    });
     unimplemented!()
 }
-//
-//#[allow(unused)]
-//pub fn instructions_include_end(instructs: Vec<UnifiedInstruction>, end: u64) -> bool {
-//    unimplemented!()
-//}
-//
+
+pub fn start_is_member_of(start: usize, merged_instructs: &Vec<MergedCodeInstruction>) -> bool {
+    merged_instructs.iter().any(|m| match m {
+        Instruction(i) => { i.offset == start }
+        StackMap(s) => { s.offset == start }
+    })
+}
+
+pub fn handler_is_legal(env: &Environment, h: &Handler) -> TypeSafetyResult {
+    if h.start < h.end {
+        if start_is_member_of(h.start, env.merged_code.unwrap()) {
+            let target_stack_frame= offset_stack_frame(env,h.target);
+            match target_stack_frame {
+                None => {TypeSafetyResult::NotSafe("No stack frame present at target".to_string())},
+                Some(t) => {
+                    if instructions_include_end(env.merged_code.unwrap(), h.end) {
+                        let exception_class= handler_exception_class(&h);
+                        //todo how does bootstrap loader from throwable make its way into this
+                        if is_assignable(&UnifiedType::ReferenceType(class_name(&exception_class.class)),
+                                         &UnifiedType::ReferenceType(ClassName::Str("java/lang/Throwable".to_string()))){
+                            return init_handler_is_legal(env,h)
+                        }else {
+                            TypeSafetyResult::NotSafe("Handler exception class not assignable to Throwable".to_string())
+                        }
+                    }else {
+                        TypeSafetyResult::NotSafe("Instructions do not include handler end".to_string())
+                    }
+                },
+            }
+        } else {
+            TypeSafetyResult::NotSafe("No instruction found at handler start.".to_string())
+        }
+    } else {
+        TypeSafetyResult::NotSafe("Handler start not less than end".to_string())
+    }
+}
+
+
+pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usize) -> bool {
+    unimplemented!()
+}
+
 
 
 #[allow(unused)]
