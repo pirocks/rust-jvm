@@ -24,14 +24,14 @@ use std::option::Option::Some;
 pub mod stackmapframes;
 
 
-pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Frame {
+pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame,TypeSafetyResult> {
     let input_operand_stack = &input_frame.stack_map;
     let interim_operand_stack = pop_matching_list(input_operand_stack, expected_types_on_stack);
     let next_operand_stack = push_operand_stack(&input_operand_stack, &result_type);
     if operand_stack_has_legal_length(environment, &next_operand_stack) {
-        Frame { locals: input_frame.locals.iter().map(|x| copy_recurse(x)).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit }
+        Result::Ok(Frame { locals: input_frame.locals.iter().map(|x| copy_recurse(x)).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit })
     } else {
-        unimplemented!()
+        Result::Err(TypeSafetyResult::NotSafe("Operand stack did not have legal length".to_string()))
     }
 }
 
