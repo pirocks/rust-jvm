@@ -132,10 +132,10 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
-//    unimplemented!()
-//}
+
+pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
+    unimplemented!()
+}
 
 pub fn frame_is_assignable(left: &Frame, right: &Frame) -> TypeSafetyResult {
     if left.stack_map.len() == right.stack_map.len()

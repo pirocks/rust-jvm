@@ -1284,11 +1284,9 @@ instructionIsTypeSafe(invokevirtual(CP), Environment, _Offset, StackFrame,NextSt
     reverse(OperandArgList, ArgList),
     currentClassLoader(Environment, CurrentLoader),
     reverse([class(MethodClassName, CurrentLoader) | OperandArgList],StackArgList),
-    validTypeTransition(Environment, StackArgList, ReturnType,
-    StackFrame, NextStackFrame),
+    validTypeTransition(Environment, StackArgList, ReturnType,StackFrame, NextStackFrame),
     canPop(StackFrame, ArgList, PoppedFrame),
-    passesProtectedCheck(Environment, MethodClassName, MethodName,
-    Descriptor, PoppedFrame),
+    passesProtectedCheck(Environment, MethodClassName, MethodName,Descriptor, PoppedFrame),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
 % todo duplication
@@ -1301,11 +1299,9 @@ instructionIsTypeSafe(invokevirtual(CP), Environment, _Offset, StackFrame,NextSt
     reverse(OperandArgList, ArgList),
     currentClassLoader(Environment, CurrentLoader),
     reverse([MethodClassName | OperandArgList],StackArgList),
-    validTypeTransition(Environment, StackArgList, ReturnType,
-    StackFrame, NextStackFrame),
+    validTypeTransition(Environment, StackArgList, ReturnType,StackFrame, NextStackFrame),
     canPop(StackFrame, ArgList, PoppedFrame),
-    passesProtectedCheck(Environment, MethodClassName, MethodName,
-    Descriptor, PoppedFrame),
+    passesProtectedCheck(Environment, MethodClassName, MethodName,Descriptor, PoppedFrame),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
 instructionHasEquivalentTypeRule(ior, iadd).

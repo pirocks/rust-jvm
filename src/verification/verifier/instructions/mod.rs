@@ -1,6 +1,6 @@
-use verification::verifier::{Frame, PrologClass};
+use verification::verifier::{Frame, PrologClass, passes_protected_check};
 use verification::unified_type::UnifiedType;
-use verification::verifier::codecorrectness::Environment;
+use verification::verifier::codecorrectness::{Environment, valid_type_transition, can_pop};
 use verification::verifier::filecorrectness::is_assignable;
 use verification::verifier::codecorrectness::frame_is_assignable;
 use verification::verifier::codecorrectness::Handler;
@@ -14,11 +14,14 @@ use verification::verifier::codecorrectness::MergedCodeInstruction;
 use verification::verifier::TypeSafetyResult;
 use verification::verifier::codecorrectness::MergedCodeInstruction::Instruction;
 use verification::verifier::codecorrectness::MergedCodeInstruction::StackMap;
-use verification::prolog_info_writer::class_name;
+use verification::prolog_info_writer::{class_name, extract_string_from_utf8};
 use verification::verifier::codecorrectness::init_handler_is_legal;
 use verification::verifier::and;
 use verification::verifier::merge_type_safety_results;
 use verification::verifier::instructions::big_match::instruction_is_type_safe;
+use classfile::constant_infos::{ConstantInfo, ConstantKind};
+use verification::types::{parse_method_descriptor, MethodDescriptor};
+use verification::instruction_outputer::{extract_class_from_constant_pool, name_and_type_extractor};
 
 pub mod loads;
 
@@ -488,10 +491,49 @@ pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usi
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
+fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+    let classfile = &env.method.prolog_class.class;
+    let c = &classfile.constant_pool[cp].kind;
+    let (class_name,method_name,parsed_descriptor) = match c {
+        ConstantKind::Methodref(m) => {
+            let c = extract_class_from_constant_pool(m.class_index, &classfile);
+            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
+            let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
+            let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()){
+                None => {unimplemented!()},
+                Some(pd) => {pd}
+            };
+            (class_name,method_name,parsed_descriptor)
+        },
+        _ => unimplemented!()
+    };
+    if method_name.contains("arrayOf")||method_name.contains("[") {
+        unimplemented!();
+    }
+    let operand_arg_list = parsed_descriptor.parameter_types;
+    let arg_list:Vec<UnifiedType> = operand_arg_list.iter()
+        .rev()
+        .map(|x|copy_recurse(x))
+        .collect();
+    let current_loader = &env.class_loader;
+    //todo deal with loaders in class names/types
+    let mut stack_arg_list:Vec<UnifiedType> = arg_list.iter().map(|x|copy_recurse(x)).collect();
+    stack_arg_list.push(UnifiedType::ReferenceType(ClassName::Str(class_name)));
+    stack_arg_list.reverse();
+    match valid_type_transition(env,stack_arg_list,&parsed_descriptor.return_type,stack_frame){
+        Ok(nf) => {
+            let popped_frame = can_pop(stack_frame, arg_list);
+            passes_protected_check(env, class_name.clone(), method_name, unimplemented!(), popped_frame);
+            let exception_stack_frame=exception_stack_frame(stack_frame);
+            InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame:exception_stack_frame,next_frame:nf })
+        },
+        Err(e) => unimplemented!(),
+    }
+
+
+
+
+}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_ireturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

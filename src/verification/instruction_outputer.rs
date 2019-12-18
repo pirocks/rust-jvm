@@ -9,7 +9,7 @@ use classfile::code::Instruction;
 use classfile::code::InstructionInfo;
 use std::sync::Arc;
 
-fn name_and_type_extractor(i: u16, class_file: &Arc<Classfile>) -> (String, String) {
+pub fn name_and_type_extractor(i: u16, class_file: &Arc<Classfile>) -> (String, String) {
     let nt;
     match &class_file.constant_pool[i as usize].kind {
         ConstantKind::NameAndType(nt_) => {
