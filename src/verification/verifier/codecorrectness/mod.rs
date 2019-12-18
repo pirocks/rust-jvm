@@ -87,12 +87,29 @@ pub fn size_of(unified_type: &UnifiedType) -> u64 {
 }
 
 pub fn push_operand_stack(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType) -> Vec<UnifiedType> {
-    unimplemented!()
+    let mut operand_stack_copy = operand_stack.iter().map(|x| copy_recurse(x)).collect();
+    match type_ {
+        UnifiedType::VoidType => {
+            operand_stack_copy
+        },
+        _ => {
+            if size_of(type_) == 2 {
+                operand_stack_copy.push(UnifiedType::TopType);
+                operand_stack_copy.push(copy_recurse(type_));
+            }else if size_of(type_) == 1 {
+                operand_stack_copy.push(copy_recurse(type_));
+
+            }else {
+                unimplemented!()
+            }
+            operand_stack_copy
+        }
+    }
 }
 
 
 pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: &Vec<UnifiedType>) -> bool {
-    unimplemented!()
+    operand_stack.len() <= environment.max_stack as usize
 }
 //
 //#[allow(unused)]
