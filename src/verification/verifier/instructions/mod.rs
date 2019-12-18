@@ -22,6 +22,8 @@ use verification::verifier::instructions::big_match::instruction_is_type_safe;
 use classfile::constant_infos::{ConstantInfo, ConstantKind};
 use verification::types::{parse_method_descriptor, MethodDescriptor};
 use verification::instruction_outputer::{extract_class_from_constant_pool, name_and_type_extractor};
+use verification::unified_type::UnifiedType::Uninitialized;
+use classfile::code::InstructionInfo::return_;
 
 pub mod loads;
 
@@ -581,9 +583,14 @@ fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset:
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_lconst_0(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_lconst_0(env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+    let next_frame = match valid_type_transition(env,vec![],&UnifiedType::LongType,stack_frame){
+        Ok(nf) => nf,
+        Err(_) => return InstructionIsTypeSafeResult::NotSafe,
+    };
+    let exception_frame = exception_stack_frame(stack_frame);
+    return InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame })
+}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_ldc(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

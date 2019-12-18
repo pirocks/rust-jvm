@@ -1,7 +1,7 @@
 use classfile::code::InstructionInfo;
 use verification::verifier::codecorrectness::Environment;
 use verification::verifier::Frame;
-use verification::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokevirtual};
+use verification::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0};
 use verification::verifier::instructions::branches::instruction_is_type_safe_return;
 use verification::verifier::instructions::loads::instruction_is_type_safe_aload;
 
@@ -164,7 +164,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::land => {unimplemented!()},
         InstructionInfo::lastore => {unimplemented!()},
         InstructionInfo::lcmp => {unimplemented!()},
-        InstructionInfo::lconst_0 => {unimplemented!()},
+        InstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env,offset,stack_frame),
         InstructionInfo::lconst_1 => {unimplemented!()},
         InstructionInfo::ldc(_) => {unimplemented!()},
         InstructionInfo::ldc_w(_) => {unimplemented!()},
