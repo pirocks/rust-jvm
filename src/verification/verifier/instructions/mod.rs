@@ -31,10 +31,10 @@ pub struct AfterGotoFrames {
     pub exception_frame: Frame,
 }
 
-pub enum InstructionIsTypeSafeResult{
+pub enum InstructionIsTypeSafeResult {
     Safe(ResultFrames),
     AfterGoto(AfterGotoFrames),
-    NotSafe
+    NotSafe,
 }
 
 
@@ -44,10 +44,10 @@ pub fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInst
     let rest = &merged_code[1..merged_code.len()];
     match first {
         MergedCodeInstruction::Instruction(i) => {
-            let instruction_res = match instruction_is_type_safe(&i.instruction, env, i.offset, after_frame){
-                InstructionIsTypeSafeResult::Safe(s) => {s},
-                InstructionIsTypeSafeResult::AfterGoto(_) => {unimplemented!()}
-                InstructionIsTypeSafeResult::NotSafe => {return TypeSafetyResult::NotSafe("todo message".to_string())},//todo
+            let instruction_res = match instruction_is_type_safe(&i.instruction, env, i.offset, after_frame) {
+                InstructionIsTypeSafeResult::Safe(s) => { s }
+                InstructionIsTypeSafeResult::AfterGoto(_) => { unimplemented!() }
+                InstructionIsTypeSafeResult::NotSafe => { return TypeSafetyResult::NotSafe("todo message".to_string()); }//todo
             };
             let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &instruction_res.exception_frame);
             merged_code_is_type_safe(env, rest, &instruction_res.next_frame, false)
@@ -110,11 +110,10 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     } else {
         TypeSafetyResult::NotSafe("operand stack does not have legal length".to_string())
     }
-
 }
 
 pub fn nth0(index: usize, locals: &Vec<UnifiedType>) -> UnifiedType {
-    match locals.get(index){
+    match locals.get(index) {
         None => unimplemented!(),
         Some(res) => copy_recurse(res),
     }
@@ -168,9 +167,6 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> TypeSafetyResult {
 pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usize) -> bool {
     unimplemented!()
 }
-
-
-
 
 
 //
@@ -681,6 +677,6 @@ pub mod branches;
 
 
 pub fn exception_stack_frame(f: &Frame) -> Frame {
-    unimplemented!()
+    Frame { locals: f.locals.iter().map(|x| copy_recurse(x)).collect(), stack_map: vec![], flag_this_uninit: f.flag_this_uninit }
 }
 
