@@ -488,54 +488,70 @@ pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usi
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
-fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
+        unimplemented!();
+    }
+    let operand_arg_list = parsed_descriptor.parameter_types;
+    let stack_arg_list: Vec<UnifiedType> = operand_arg_list.iter()
+        .rev()
+        .map(|x| copy_recurse(x))
+        .collect();
+    let next_frame = match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame){
+        Ok(nf) => nf,
+        Err(_) => unimplemented!(),
+    };
+    let exception_frame = exception_stack_frame(stack_frame);
+    return InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame})
+}
+
+
+pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+    let (class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
+        unimplemented!();
+    }
+    let operand_arg_list = parsed_descriptor.parameter_types;
+    let arg_list: Vec<UnifiedType> = operand_arg_list.iter()
+        .rev()
+        .map(|x| copy_recurse(x))
+        .collect();
+    let current_loader = &env.class_loader;
+    //todo deal with loaders in class names/types
+    let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| copy_recurse(x)).collect();
+    stack_arg_list.push(UnifiedType::ReferenceType(ClassName::Str(class_name.clone())));
+    stack_arg_list.reverse();
+    match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
+        Ok(nf) => {
+            let popped_frame = can_pop(stack_frame, arg_list).unwrap_or_else(|| unimplemented!());
+            passes_protected_check(env, class_name.clone(), method_name, unimplemented!(), &popped_frame);
+            let exception_stack_frame = exception_stack_frame(stack_frame);
+            InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf })
+        }
+        Err(e) => InstructionIsTypeSafeResult::NotSafe,
+    }
+}
+
+fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, MethodDescriptor) {
     let classfile = &env.method.prolog_class.class;
     let c = &classfile.constant_pool[cp].kind;
-    let (class_name,method_name,parsed_descriptor) = match c {
+    let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {
             let c = extract_class_from_constant_pool(m.class_index, &classfile);
             let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
-            let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()){
-                None => {unimplemented!()},
-                Some(pd) => {pd}
+            let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
+                None => { unimplemented!() }
+                Some(pd) => { pd }
             };
-            (class_name,method_name,parsed_descriptor)
-        },
+            (class_name, method_name, parsed_descriptor)
+        }
         _ => unimplemented!()
     };
-    if method_name.contains("arrayOf")||method_name.contains("[") {
-        unimplemented!();
-    }
-    let operand_arg_list = parsed_descriptor.parameter_types;
-    let arg_list:Vec<UnifiedType> = operand_arg_list.iter()
-        .rev()
-        .map(|x|copy_recurse(x))
-        .collect();
-    let current_loader = &env.class_loader;
-    //todo deal with loaders in class names/types
-    let mut stack_arg_list:Vec<UnifiedType> = arg_list.iter().map(|x|copy_recurse(x)).collect();
-    stack_arg_list.push(UnifiedType::ReferenceType(ClassName::Str(class_name.clone())));
-    stack_arg_list.reverse();
-    match valid_type_transition(env,stack_arg_list,&parsed_descriptor.return_type,stack_frame){
-        Ok(nf) => {
-            let popped_frame = can_pop(stack_frame, arg_list).unwrap_or_else(||unimplemented!());
-            passes_protected_check(env, class_name.clone(), method_name, unimplemented!(), &popped_frame);
-            let exception_stack_frame=exception_stack_frame(stack_frame);
-            InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame:exception_stack_frame,next_frame:nf })
-        },
-        Err(e) => InstructionIsTypeSafeResult::NotSafe,
-    }
-
-
-
-
+    (class_name, method_name, parsed_descriptor)
 }
+
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_ireturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
@@ -577,19 +593,24 @@ fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset:
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_lcmp(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-pub fn instruction_is_type_safe_lconst_0(env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
-    let next_frame = match valid_type_transition(env,vec![],&UnifiedType::LongType,stack_frame){
+fn instruction_is_type_safe_lcmp(env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+    let next_frame = match valid_type_transition(env, vec![UnifiedType::LongType, UnifiedType::LongType], &UnifiedType::IntType, stack_frame) {
         Ok(nf) => nf,
         Err(_) => return InstructionIsTypeSafeResult::NotSafe,
     };
     let exception_frame = exception_stack_frame(stack_frame);
-    return InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame })
+    InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame })
+}
+
+//
+//#[allow(unused)]
+pub fn instruction_is_type_safe_lconst_0(env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+    let next_frame = match valid_type_transition(env, vec![], &UnifiedType::LongType, stack_frame) {
+        Ok(nf) => nf,
+        Err(_) => return InstructionIsTypeSafeResult::NotSafe,
+    };
+    let exception_frame = exception_stack_frame(stack_frame);
+    return InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame });
 }
 //
 //#[allow(unused)]

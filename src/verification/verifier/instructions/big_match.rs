@@ -1,7 +1,7 @@
 use classfile::code::InstructionInfo;
 use verification::verifier::codecorrectness::Environment;
 use verification::verifier::Frame;
-use verification::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0};
+use verification::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp, instruction_is_type_safe_invokestatic};
 use verification::verifier::instructions::branches::instruction_is_type_safe_return;
 use verification::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload};
 
@@ -139,7 +139,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::invokedynamic(_) => {unimplemented!()},
         InstructionInfo::invokeinterface(_) => {unimplemented!()},
         InstructionInfo::invokespecial(_) => {unimplemented!()},
-        InstructionInfo::invokestatic(_) => {unimplemented!()},
+        InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(*cp as usize,env,offset,stack_frame),
         InstructionInfo::invokevirtual(v) => instruction_is_type_safe_invokevirtual(*v as usize, env, offset, stack_frame),
         InstructionInfo::ior => {unimplemented!()},
         InstructionInfo::irem => {unimplemented!()},
@@ -163,7 +163,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::laload => {unimplemented!()},
         InstructionInfo::land => {unimplemented!()},
         InstructionInfo::lastore => {unimplemented!()},
-        InstructionInfo::lcmp => {unimplemented!()},
+        InstructionInfo::lcmp => instruction_is_type_safe_lcmp(env,offset,stack_frame),
         InstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env,offset,stack_frame),
         InstructionInfo::lconst_1 => {unimplemented!()},
         InstructionInfo::ldc(_) => {unimplemented!()},
@@ -172,9 +172,9 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::ldiv => {unimplemented!()},
         InstructionInfo::lload(_) => {unimplemented!()},
         InstructionInfo::lload_0 => instruction_is_type_safe_lload(0,env,offset,stack_frame),
-        InstructionInfo::lload_1 => {unimplemented!()},
-        InstructionInfo::lload_2 => {unimplemented!()},
-        InstructionInfo::lload_3 => {unimplemented!()},
+        InstructionInfo::lload_1 => instruction_is_type_safe_lload(1,env,offset,stack_frame),
+        InstructionInfo::lload_2 => instruction_is_type_safe_lload(2,env,offset,stack_frame),
+        InstructionInfo::lload_3 => instruction_is_type_safe_lload(3,env,offset,stack_frame),
         InstructionInfo::lmul => {unimplemented!()},
         InstructionInfo::lneg => {unimplemented!()},
         InstructionInfo::lookupswitch(_) => {unimplemented!()},
