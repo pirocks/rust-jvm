@@ -140,7 +140,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::invokeinterface(_) => {unimplemented!()},
         InstructionInfo::invokespecial(_) => {unimplemented!()},
         InstructionInfo::invokestatic(_) => {unimplemented!()},
-        InstructionInfo::invokevirtual(v) => {instruction_is_type_safe_invokevirtual(v as usize,env,offset,stack_frame)},
+        InstructionInfo::invokevirtual(v) => {instruction_is_type_safe_invokevirtual(*v as usize,env,offset,stack_frame)},
         InstructionInfo::ior => {unimplemented!()},
         InstructionInfo::irem => {unimplemented!()},
         InstructionInfo::ireturn => {unimplemented!()},

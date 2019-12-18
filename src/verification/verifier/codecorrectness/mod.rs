@@ -26,7 +26,10 @@ pub mod stackmapframes;
 
 pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame,TypeSafetyResult> {
     let input_operand_stack = &input_frame.stack_map;
-    let interim_operand_stack = pop_matching_list(input_operand_stack, expected_types_on_stack);
+    let interim_operand_stack = match pop_matching_list(input_operand_stack, expected_types_on_stack){
+        None => return Result::Err(TypeSafetyResult::NotSafe("could not pop matching list".to_string())),
+        Some(s) => s,
+    };
     let next_operand_stack = push_operand_stack(&input_operand_stack, &result_type);
     if operand_stack_has_legal_length(environment, &next_operand_stack) {
         Result::Ok(Frame { locals: input_frame.locals.iter().map(|x| copy_recurse(x)).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit })
@@ -36,15 +39,18 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
 }
 
 
-pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Vec<UnifiedType> {
+pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
     return pop_matching_list_impl(pop_from.as_slice(), pop.as_slice());
 }
 
-pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> Vec<UnifiedType> {
+pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> Option<Vec<UnifiedType>> {
     if pop.is_empty() {
-        pop_from.iter().map(|x| copy_recurse(x)).collect()//todo inefficent copying
+        Some(pop_from.iter().map(|x| copy_recurse(x)).collect())//todo inefficent copying
     } else {
-        let (pop_result, _) = pop_matching_type(pop_from, pop.first().unwrap()).unwrap();
+        let (pop_result, _) = match pop_matching_type(pop_from, pop.first().unwrap()){
+            None => return  None,
+            Some(s) => s,
+        };
         return pop_matching_list_impl(&pop_result, &pop[1..]);
     }
 }
@@ -55,7 +61,7 @@ pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedTy
         if is_assignable(actual_type, type_) {
             return Some((&operand_stack[1..], copy_recurse(actual_type)));
         } else {
-            unimplemented!()
+            return None
         }
     } else if size_of(type_) == 2 {
         &operand_stack[0];//should be top todo
@@ -133,7 +139,7 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
 //}
 //
 
-pub fn can_pop(input_frame: Frame, types: Vec<UnifiedType>) -> Option<Frame> {
+pub fn can_pop(input_frame: &Frame, types: Vec<UnifiedType>) -> Option<Frame> {
     unimplemented!()
 }
 

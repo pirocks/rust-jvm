@@ -518,16 +518,16 @@ fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset:
     let current_loader = &env.class_loader;
     //todo deal with loaders in class names/types
     let mut stack_arg_list:Vec<UnifiedType> = arg_list.iter().map(|x|copy_recurse(x)).collect();
-    stack_arg_list.push(UnifiedType::ReferenceType(ClassName::Str(class_name)));
+    stack_arg_list.push(UnifiedType::ReferenceType(ClassName::Str(class_name.clone())));
     stack_arg_list.reverse();
     match valid_type_transition(env,stack_arg_list,&parsed_descriptor.return_type,stack_frame){
         Ok(nf) => {
-            let popped_frame = can_pop(stack_frame, arg_list);
-            passes_protected_check(env, class_name.clone(), method_name, unimplemented!(), popped_frame);
+            let popped_frame = can_pop(stack_frame, arg_list).unwrap_or_else(||unimplemented!());
+            passes_protected_check(env, class_name.clone(), method_name, unimplemented!(), &popped_frame);
             let exception_stack_frame=exception_stack_frame(stack_frame);
             InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame:exception_stack_frame,next_frame:nf })
         },
-        Err(e) => unimplemented!(),
+        Err(e) => InstructionIsTypeSafeResult::NotSafe,
     }
 
 
