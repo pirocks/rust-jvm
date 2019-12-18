@@ -602,10 +602,6 @@ pub fn instruction_is_type_safe_lconst_0(env: &Environment, offset: usize, stack
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_lload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_lneg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

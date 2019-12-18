@@ -3,7 +3,7 @@ use verification::verifier::codecorrectness::Environment;
 use verification::verifier::Frame;
 use verification::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0};
 use verification::verifier::instructions::branches::instruction_is_type_safe_return;
-use verification::verifier::instructions::loads::instruction_is_type_safe_aload;
+use verification::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload};
 
 pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     match instruction {
@@ -140,7 +140,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::invokeinterface(_) => {unimplemented!()},
         InstructionInfo::invokespecial(_) => {unimplemented!()},
         InstructionInfo::invokestatic(_) => {unimplemented!()},
-        InstructionInfo::invokevirtual(v) => {instruction_is_type_safe_invokevirtual(*v as usize,env,offset,stack_frame)},
+        InstructionInfo::invokevirtual(v) => instruction_is_type_safe_invokevirtual(*v as usize, env, offset, stack_frame),
         InstructionInfo::ior => {unimplemented!()},
         InstructionInfo::irem => {unimplemented!()},
         InstructionInfo::ireturn => {unimplemented!()},
@@ -171,7 +171,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::ldc2_w(_) => {unimplemented!()},
         InstructionInfo::ldiv => {unimplemented!()},
         InstructionInfo::lload(_) => {unimplemented!()},
-        InstructionInfo::lload_0 => {unimplemented!()},
+        InstructionInfo::lload_0 => instruction_is_type_safe_lload(0,env,offset,stack_frame),
         InstructionInfo::lload_1 => {unimplemented!()},
         InstructionInfo::lload_2 => {unimplemented!()},
         InstructionInfo::lload_3 => {unimplemented!()},
