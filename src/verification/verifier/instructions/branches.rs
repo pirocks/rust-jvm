@@ -2,7 +2,6 @@ use verification::verifier::codecorrectness::Environment;
 use verification::verifier::Frame;
 use verification::unified_type::UnifiedType;
 use verification::verifier::instructions::InstructionIsTypeSafeResult;
-use verification::verifier::instructions::ResultFrames;
 use verification::verifier::instructions::AfterGotoFrames;
 use verification::verifier::instructions::exception_stack_frame;
 

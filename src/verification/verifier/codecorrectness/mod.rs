@@ -24,9 +24,9 @@ use std::option::Option::Some;
 pub mod stackmapframes;
 
 
-pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame,TypeSafetyResult> {
+pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame, TypeSafetyResult> {
     let input_operand_stack = &input_frame.stack_map;
-    let interim_operand_stack = match pop_matching_list(input_operand_stack, expected_types_on_stack){
+    let interim_operand_stack = match pop_matching_list(input_operand_stack, expected_types_on_stack) {
         None => return Result::Err(TypeSafetyResult::NotSafe("could not pop matching list".to_string())),
         Some(s) => s,
     };
@@ -47,8 +47,8 @@ pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> 
     if pop.is_empty() {
         Some(pop_from.iter().map(|x| copy_recurse(x)).collect())//todo inefficent copying
     } else {
-        let (pop_result, _) = match pop_matching_type(pop_from, pop.first().unwrap()){
-            None => return  None,
+        let (pop_result, _) = match pop_matching_type(pop_from, pop.first().unwrap()) {
+            None => return None,
             Some(s) => s,
         };
         return pop_matching_list_impl(&pop_result, &pop[1..]);
@@ -61,7 +61,7 @@ pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedTy
         if is_assignable(actual_type, type_) {
             return Some((&operand_stack[1..], copy_recurse(actual_type)));
         } else {
-            return None
+            return None;
         }
     } else if size_of(type_) == 2 {
         &operand_stack[0];//should be top todo
@@ -97,15 +97,14 @@ pub fn push_operand_stack(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType)
     match type_ {
         UnifiedType::VoidType => {
             operand_stack_copy
-        },
+        }
         _ => {
             if size_of(type_) == 2 {
                 operand_stack_copy.push(UnifiedType::TopType);
                 operand_stack_copy.push(copy_recurse(type_));
-            }else if size_of(type_) == 1 {
+            } else if size_of(type_) == 1 {
                 operand_stack_copy.push(copy_recurse(type_));
-
-            }else {
+            } else {
                 unimplemented!()
             }
             operand_stack_copy
@@ -218,7 +217,10 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let mut final_offset = 0;
     let mut instructs: Vec<&Instruction> = code.code
         .iter()
-        .map(|x| { *(&mut final_offset) = x.offset;x })
+        .map(|x| {
+            *(&mut final_offset) = x.offset;
+            x
+        })
         .collect();
     let end_of_code = Instruction { offset: final_offset, instruction: InstructionInfo::EndOfCode };
     instructs.push(&end_of_code);
@@ -234,7 +236,7 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     dbg!(&frame);
     dbg!(&frame_size);
     dbg!(&return_type);
-    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type  };
+    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type };
 
     and(handers_are_legal(&env),
         merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame)))
@@ -300,36 +302,32 @@ pub enum MergedCodeInstruction<'l> {
     StackMap(&'l StackMap),
 }
 
+fn merge_stack_map_and_code_impl<'l>(instructions: &[&'l Instruction], stack_maps: &[&'l StackMap], res: &mut Vec<MergedCodeInstruction<'l>>) {
+    if stack_maps.is_empty() {
+        res.append(&mut instructions.iter().map(|x| MergedCodeInstruction::Instruction(x)).collect());
+        return;
+    }
+    let stack_map = stack_maps.first().unwrap();
+    let instruction = instructions.first().unwrap_or_else(|| unimplemented!());
+    if stack_map.offset == instruction.offset {
+        res.push(MergedCodeInstruction::StackMap(stack_map));
+        res.push(MergedCodeInstruction::Instruction(instruction));
+        merge_stack_map_and_code_impl(&instructions[1..], &stack_maps[1..], res);
+    } else if instruction.offset < stack_map.offset {
+        res.push(MergedCodeInstruction::Instruction(instruction));
+        merge_stack_map_and_code_impl(&instructions[1..], stack_maps, res);
+    } else {
+        unimplemented!()
+    }
+}
+
 /**
 assumes that stackmaps and instructions are ordered
 */
-fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
+pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
     trace!("Starting instruction and stackmap merge");
     let mut res = vec![];
-    let mut current_instruction_i = 0;
-    let mut current_stackmap_i = 0;
-
-    loop {
-        let (instruction, instruction_offset) = match instruction.get(current_instruction_i) {
-            None => { (None, -1) }//todo very hacky
-            Some(i) => { (Some(i), i.offset as i32) }
-        };
-        let (stack_map, stack_map_offset) = match stack_maps.get(current_stackmap_i) {
-            None => { (None, -2) }
-            Some(s) => { (Some(s), s.offset as i32) }
-        };
-        if stack_map_offset >= instruction_offset {
-            res.push(MergedCodeInstruction::StackMap(stack_map.unwrap()));
-            current_stackmap_i += 1;
-        } else {
-            let instr = match instruction {
-                None => { break; }
-                Some(i) => { i }
-            };
-            res.push(MergedCodeInstruction::Instruction(instr));
-            current_instruction_i += 1;
-        }
-    }
+    merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
     return res;
 }
 
@@ -374,9 +372,9 @@ fn flags(this_list: &Option<UnifiedType>) -> bool {
     match this_list {
         None => false,
         Some(s) => match s {
-                UnifiedType::UninitializedThis => true,
-                _ => false
-            }
+            UnifiedType::UninitializedThis => true,
+            _ => false
+        }
     }
 }
 
@@ -403,31 +401,31 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
         let method_name = extract_string_from_utf8(method_name_info);
         if method_name != "<init>" {
             return None;
-        }else{
+        } else {
             unimplemented!()
         }
-    }else {
-        Some(instance_method_initial_this_type(class,method))
+    } else {
+        Some(instance_method_initial_this_type(class, method))
     }
 //    return Some(UnifiedType::UninitializedThis);
 }
 
 #[allow(unused)]
 fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> UnifiedType {
-    let method_name = method_name(&method.prolog_class.class,&method.prolog_class.class.methods[method.method_index]);
+    let method_name = method_name(&method.prolog_class.class, &method.prolog_class.class.methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
             UnifiedType::ReferenceType(class_name(&class.class))
-        }else {
+        } else {
             let mut chain = vec![];
-            super_class_chain(class,class.loader.clone(),&mut chain);
+            super_class_chain(class, class.loader.clone(), &mut chain);
             if !chain.is_empty() {
                 UnifiedType::UninitializedThis
-            }else {
+            } else {
                 unimplemented!()
             }
         }
-    }else{
+    } else {
         //todo what to do about loaders
         UnifiedType::ReferenceType(class_name(&class.class))
     }

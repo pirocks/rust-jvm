@@ -19,11 +19,9 @@ use verification::verifier::codecorrectness::init_handler_is_legal;
 use verification::verifier::and;
 use verification::verifier::merge_type_safety_results;
 use verification::verifier::instructions::big_match::instruction_is_type_safe;
-use classfile::constant_infos::{ConstantInfo, ConstantKind};
+use classfile::constant_infos::ConstantKind;
 use verification::types::{parse_method_descriptor, MethodDescriptor};
 use verification::instruction_outputer::{extract_class_from_constant_pool, name_and_type_extractor};
-use verification::unified_type::UnifiedType::Uninitialized;
-use classfile::code::InstructionInfo::return_;
 use classfile::code::InstructionInfo;
 
 pub mod loads;
@@ -50,7 +48,7 @@ pub enum FrameResult<'l> {
 
 //todo how to handle other values here
 pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult<'l>) -> TypeSafetyResult {
-    let first = &merged_code[0];//todo inifte recursion
+    let first = &merged_code[0];//todo infinite recursion
     let rest = &merged_code[1..merged_code.len()];
     match first {
         MergedCodeInstruction::Instruction(i) => {
