@@ -1,18 +1,13 @@
 
 extern crate argparse;
-extern crate classfile;
 extern crate log;
 extern crate simple_logger;
 
 use log::{trace, info};
 
-
 use argparse::{ArgumentParser, Store, StoreTrue};
-use classfile::classpath_indexing::index_class_path;
 use std::path::Path;
-use classfile::class_loading::{JVMState, load_class, class_entry_from_string};
 use std::collections::HashMap;
-use classfile::verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
 use std::iter::FromIterator;
 
 fn main() {
@@ -59,8 +54,6 @@ fn main() {
         info!("in verbose mode, which currently doesn't do anything, b/c I'm always verbose, since I program in java a lot.");
 //        println!("main_class_name is {}", main_class_path);
     }
-
-    use classfile::class_loading::BOOTSTRAP_LOADER;
 
     let indexed_classpath = index_class_path(Path::new(&class_path_file));
     trace!("{}","Indexing complete");

@@ -1,0 +1,13 @@
+[package]
+name = "rust-jvm-common"
+version = "0.1.0"
+authors = ["Francis Nixon <13nixonf@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+lazy_static = "1.4.0"

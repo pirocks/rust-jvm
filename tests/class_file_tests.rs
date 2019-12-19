@@ -1,15 +1,12 @@
-extern crate bimap;
-extern crate classfile;
+extern crate classfile_parser;
 
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::io;
 use std::path::PathBuf;
+use classfile_parser::classfile::parse_class_file;
 
-use classfile::class_loading::JVMState;
-use classfile::classfile::parse_class_file;
-use classfile::verification::prolog_info_writer::{ExtraDescriptors, gen_prolog, PrologGenContext};
 
 #[test]
 pub fn basic_class_file_parse() {

@@ -77,12 +77,10 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
     return class.class.access_flags & ACC_INTERFACE != 0;
 }
 
-#[allow(unused)]
 pub fn is_java_sub_class_of(from: &PrologClass, to: &PrologClass) -> bool {
     unimplemented!()
 }
 
-#[allow(unused)]
 pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
     match from {
         UnifiedType::DoubleType => match to {
@@ -110,6 +108,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
                 if c == c2 {
                     return true;
                 }else {
+
                     unimplemented!()
                 }
             },

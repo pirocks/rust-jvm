@@ -219,18 +219,6 @@ fn write_class_is_not_final(context: &PrologGenContext, w: &mut dyn Write) -> Re
     Ok(())
 }
 
-//todo this should go at top
-pub fn extract_string_from_utf8(utf8: &ConstantInfo) -> String {
-    match &(utf8).kind {
-        ConstantKind::Utf8(s) => {
-            return s.string.clone();
-        }
-        other => {
-            dbg!(other);
-            panic!()
-        }
-    }
-}
 
 pub fn get_super_class_name(class: &Classfile) -> String {
     let class_info = match &(class.constant_pool[class.super_class as usize]).kind {

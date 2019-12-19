@@ -1,23 +1,11 @@
 use std::slice::Iter;
+use rust_jvm_common::classfile::{IInc, InvokeInterface, MultiNewArray, LookupSwitch, TableSwitch, Atype, Wide, Instruction, InstructionInfo};
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct IInc {
-    pub index: u8,
-    pub const_: i8,
-}
 
 fn read_iinc(c: &mut CodeParserContext) -> Option<IInc> {
     let index = read_u8(c)?;
     let const_ = read_i8(c)?;
     return Some(IInc { index, const_ });
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct InvokeInterface {
-    pub index: u16,
-    pub count: u8,
 }
 
 fn read_invoke_interface(c: &mut CodeParserContext) -> Option<InvokeInterface> {
@@ -29,13 +17,6 @@ fn read_invoke_interface(c: &mut CodeParserContext) -> Option<InvokeInterface> {
     return Some(InvokeInterface { index, count });
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct LookupSwitch {
-    pub pairs: Vec<(i32,i32)>,
-    pub default: i32
-}
 
 fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
     while !(c.offset % 4 == 0) {
@@ -54,41 +35,16 @@ fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
 }
 
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct MultiNewArray {}
-
 fn read_multi_new_array(_c: &mut CodeParserContext) -> Option<MultiNewArray> {
     unimplemented!();
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[repr(u8)]
-#[derive(Copy, Clone)]
-pub enum Atype {
-    TBoolean = 4,
-    TChar = 5,
-    TFloat = 6,
-    TDouble = 7,
-    TByte = 8,
-    TShort = 9,
-    TInt = 10,
-    TLong = 11,
-}
 
 fn read_atype(c: &mut CodeParserContext) -> Option<Atype> {
     return Some(unsafe { ::std::mem::transmute(read_u8(c)?) });
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct TableSwitch {
-    pub default: i32,
-    pub low: i32,
-    pub high: i32,
-    pub offsets: Vec<i32>,
-}
+
 
 fn read_table_switch(c: &mut CodeParserContext) -> Option<TableSwitch> {
     while !(c.offset % 4 == 0) {
@@ -105,13 +61,58 @@ fn read_table_switch(c: &mut CodeParserContext) -> Option<TableSwitch> {
     return Some(TableSwitch { default, low, high, offsets });
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Wide {}
 
 fn read_wide(_c: &mut CodeParserContext) -> Option<Wide> {
     unimplemented!();
 }
+
+
+struct CodeParserContext<'l> {
+    offset: usize,
+    iter: Iter<'l, u8>,
+}
+
+pub fn parse_code_raw(raw: &[u8]) -> Vec<Instruction> {
+    let mut c = CodeParserContext { iter: raw.iter(), offset: 0 };
+    return parse_code_impl(&mut c);
+}
+
+fn read_u8(c: &mut CodeParserContext) -> Option<u8> {
+    c.offset += 1;
+    return Some(*c.iter.next()?);
+}
+
+fn read_i8(c: &mut CodeParserContext) -> Option<i8> {
+    return Some(unsafe { ::std::mem::transmute(read_u8(c)?) });
+}
+
+fn read_u16(c: &mut CodeParserContext) -> Option<u16> {
+    let byte1 = read_u8(c)? as u16;
+    let byte2 = read_u8(c)? as u16;
+    return Some(byte1 << 8 | byte2);
+}
+
+fn read_i16(c: &mut CodeParserContext) -> Option<i16> {
+    return Some(unsafe { ::std::mem::transmute(read_u16(c)?) });
+}
+
+fn read_u32(c: &mut CodeParserContext) -> Option<u32> {
+    let byte1 = read_u8(c)? as u32;
+    let byte2 = read_u8(c)? as u32;
+    let byte3 = read_u8(c)? as u32;
+    let byte4 = read_u8(c)? as u32;
+    return Some(byte1 << 24 | byte2 << 16 | byte3 << 8 | byte4);
+}
+
+fn read_i32(c: &mut CodeParserContext) -> Option<i32> {
+    return Some(unsafe { ::std::mem::transmute(read_u32(c)?) });
+}
+
+pub fn read_opcode(b: u8) -> InstructionTypeNum {
+    return unsafe { ::std::mem::transmute(b) };
+}
+
+
 
 #[allow(non_camel_case_types)]
 #[repr(u8)]
@@ -320,275 +321,6 @@ pub enum InstructionTypeNum {
     tableswitch = 170,
     wide = 196,
 }
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Instruction {
-    pub offset: usize,
-    pub instruction: InstructionInfo,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub enum InstructionInfo {
-    aaload,
-    aastore,
-    aconst_null,
-    aload(u8),
-    aload_0,
-    aload_1,
-    aload_2,
-    aload_3,
-    anewarray(u16),
-    areturn,
-    arraylength,
-    astore(u8),
-    astore_0,
-    astore_1,
-    astore_2,
-    astore_3,
-    athrow,
-    baload,
-    bastore,
-    bipush(u8),
-    caload,
-    castore,
-    checkcast(u16),
-    d2f,
-    d2i,
-    d2l,
-    dadd,
-    daload,
-    dastore,
-    dcmpg,
-    dcmpl,
-    dconst_0,
-    dconst_1,
-    ddiv,
-    dload(u8),
-    dload_0,
-    dload_1,
-    dload_2,
-    dload_3,
-    dmul,
-    dneg,
-    drem,
-    dreturn,
-    dstore(u8),
-    dstore_0,
-    dstore_1,
-    dstore_2,
-    dstore_3,
-    dsub,
-    dup,
-    dup_x1,
-    dup_x2,
-    dup2,
-    dup2_x1,
-    dup2_x2,
-    f2d,
-    f2i,
-    f2l,
-    fadd,
-    faload,
-    fastore,
-    fcmpg,
-    fcmpl,
-    fconst_0,
-    fconst_1,
-    fconst_2,
-    fdiv,
-    fload(u8),
-    fload_0,
-    fload_1,
-    fload_2,
-    fload_3,
-    fmul,
-    fneg,
-    frem,
-    freturn,
-    fstore(u8),
-    fstore_0,
-    fstore_1,
-    fstore_2,
-    fstore_3,
-    fsub,
-    getfield(u16),
-    getstatic(u16),
-    goto_(i16),
-    goto_w(i32),
-    i2b,
-    i2c,
-    i2d,
-    i2f,
-    i2l,
-    i2s,
-    iadd,
-    iaload,
-    iand,
-    iastore,
-    iconst_m1,
-    iconst_0,
-    iconst_1,
-    iconst_2,
-    iconst_3,
-    iconst_4,
-    iconst_5,
-    idiv,
-    if_acmpeq(i16),
-    if_acmpne(i16),
-    if_icmpeq(i16),
-    //todo dup
-    if_icmpne(i16),
-    //todo dup
-    if_icmplt(i16),
-    //todo dup
-    if_icmpge(i16),
-    //todo dup
-    if_icmpgt(i16),
-    //todo dup
-    if_icmple(i16),
-    //todo dup
-    ifeq(i16),
-    ifne(i16),
-    iflt(i16),
-    ifge(i16),
-    ifgt(i16),
-    ifle(i16),
-    ifnonnull(i16),
-    ifnull(i16),
-    iinc(IInc),
-    iload(u8),
-    iload_0,
-    iload_1,
-    iload_2,
-    iload_3,
-    imul,
-    ineg,
-    instanceof(u16),
-    invokedynamic(u16),
-    invokeinterface(InvokeInterface),
-    invokespecial(u16),
-    invokestatic(u16),
-    invokevirtual(u16),
-    ior,
-    irem,
-    ireturn,
-    ishl,
-    ishr,
-    istore(u8),
-    istore_0,
-    istore_1,
-    istore_2,
-    istore_3,
-    isub,
-    iushr,
-    ixor,
-    jsr(i16),
-    jsr_w(i32),
-    l2d,
-    l2f,
-    l2i,
-    ladd,
-    laload,
-    land,
-    lastore,
-    lcmp,
-    lconst_0,
-    lconst_1,
-    ldc(u8),
-    ldc_w(u16),
-    ldc2_w(u16),
-    ldiv,
-    lload(u8),
-    lload_0,
-    lload_1,
-    lload_2,
-    lload_3,
-    lmul,
-    lneg,
-    lookupswitch(LookupSwitch),
-    lor,
-    lrem,
-    lreturn,
-    lshl,
-    lshr,
-    lstore(u8),
-    lstore_0,
-    lstore_1,
-    lstore_2,
-    lstore_3,
-    lsub,
-    lushr,
-    lxor,
-    monitorenter,
-    monitorexit,
-    multianewarray(MultiNewArray),
-    new(u16),
-    newarray(Atype),
-    nop,
-    pop,
-    pop2,
-    putfield(u16),
-    putstatic(u16),
-    ret(u8),
-    return_,
-    saload,
-    sastore,
-    sipush(u16),
-    swap,
-    tableswitch(TableSwitch),
-    wide(Wide),
-    EndOfCode
-}
-
-
-struct CodeParserContext<'l> {
-    offset: usize,
-    iter: Iter<'l, u8>,
-}
-
-pub fn parse_code_raw(raw: &[u8]) -> Vec<Instruction> {
-    let mut c = CodeParserContext { iter: raw.iter(), offset: 0 };
-    return parse_code_impl(&mut c);
-}
-
-fn read_u8(c: &mut CodeParserContext) -> Option<u8> {
-    c.offset += 1;
-    return Some(*c.iter.next()?);
-}
-
-fn read_i8(c: &mut CodeParserContext) -> Option<i8> {
-    return Some(unsafe { ::std::mem::transmute(read_u8(c)?) });
-}
-
-fn read_u16(c: &mut CodeParserContext) -> Option<u16> {
-    let byte1 = read_u8(c)? as u16;
-    let byte2 = read_u8(c)? as u16;
-    return Some(byte1 << 8 | byte2);
-}
-
-fn read_i16(c: &mut CodeParserContext) -> Option<i16> {
-    return Some(unsafe { ::std::mem::transmute(read_u16(c)?) });
-}
-
-fn read_u32(c: &mut CodeParserContext) -> Option<u32> {
-    let byte1 = read_u8(c)? as u32;
-    let byte2 = read_u8(c)? as u32;
-    let byte3 = read_u8(c)? as u32;
-    let byte4 = read_u8(c)? as u32;
-    return Some(byte1 << 24 | byte2 << 16 | byte3 << 8 | byte4);
-}
-
-fn read_i32(c: &mut CodeParserContext) -> Option<i32> {
-    return Some(unsafe { ::std::mem::transmute(read_u32(c)?) });
-}
-
-pub fn read_opcode(b: u8) -> InstructionTypeNum {
-    return unsafe { ::std::mem::transmute(b) };
-}
-
 
 fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
     let opcode = read_opcode(read_u8(c)?);

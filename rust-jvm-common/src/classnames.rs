@@ -1,6 +1,6 @@
 use std::sync::Weak;
-use classfile::Classfile;
-use verification::prolog_info_writer::extract_string_from_utf8;
+use crate::classfile::Classfile;
+use crate::utils::extract_string_from_utf8;
 
 #[derive(Debug)]
 pub struct NameReference{
