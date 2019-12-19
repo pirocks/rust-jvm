@@ -1,5 +1,5 @@
-use interpreter::{InterpreterState};
-use interpreter::interpreter_util::{push_int, pop_int, load_n_32};
+use crate::interpreter::interpreter_util::{push_int, pop_int, load_n_32};
+use crate::interpreter::InterpreterState;
 
 pub fn do_ixor(state: &mut InterpreterState) -> () {
     let value2 = pop_int(state);

@@ -1,6 +1,6 @@
 use ::std::mem::transmute;
 
-use interpreter::InterpreterState;
+use crate::interpreter::InterpreterState;
 
 pub const EXECUTION_ERROR: &str = "Fatal Error, when executing, this is a bug.";
 

@@ -91,6 +91,9 @@ dependencies = [
 [[package]]
 name = "interpreter"
 version = "0.1.0"
+dependencies = [
+ "rust-jvm-common 0.1.0",
+]
 
 [[package]]
 name = "lazy_static"

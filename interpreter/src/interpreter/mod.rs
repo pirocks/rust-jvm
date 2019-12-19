@@ -1,7 +1,4 @@
-use classfile::constant_infos::ConstantInfo;
-use classfile::code::InstructionTypeNum;
-use classfile::code::read_opcode;
-
+use rust_jvm_common::classfile::ConstantInfo;
 
 pub struct InterpreterState {
     pub local_vars: Vec<u32>,
@@ -22,7 +19,7 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState, _constant_pool:
 //    use interpreter::long_instructions::*;
 
 
-    let opcode = read_opcode(code[0]);
+    let opcode = unimplemented!();//read_opcode(code[0]);
     state.pc_offset = 1;//offset the opcode which was just read
     match opcode {
         /*InstructionType::aaload => load_u64(state),
@@ -228,10 +225,10 @@ pub fn do_instruction(code: &[u8], state: &mut InterpreterState, _constant_pool:
         InstructionType::invokespecial => {
             unimplemented!("needs constant pool")
         }*/
-        InstructionTypeNum::invokestatic => {
-
-            unimplemented!("needs constant pool")
-        }
+//        InstructionTypeNum::invokestatic => {
+//
+//            unimplemented!("needs constant pool")
+//        }
         /*InstructionType::invokevirtual => {
             unimplemented!("needs constant pool")
         }

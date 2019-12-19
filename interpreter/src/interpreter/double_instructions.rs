@@ -1,5 +1,5 @@
-use interpreter::InterpreterState;
-use interpreter::interpreter_util::{load_n_64, push_double, store_n_64, pop_double, push_long};
+use crate::interpreter::InterpreterState;
+use crate::interpreter::interpreter_util::{load_n_64, push_double, store_n_64, pop_double, push_long};
 
 pub fn do_dsub(state: &mut InterpreterState) -> () {
     let value2 = pop_double(state);

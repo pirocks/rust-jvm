@@ -1,5 +1,5 @@
-use interpreter::{InterpreterState};
-use interpreter::interpreter_util::{push_long, push_int, pop_long, EXECUTION_ERROR, pop_int};
+use crate::interpreter::{InterpreterState};
+use crate::interpreter::interpreter_util::{push_long, push_int, pop_long, EXECUTION_ERROR, pop_int};
 
 pub fn do_dup2_x1(state: &mut InterpreterState) -> () {
     let value1 = pop_long(state);

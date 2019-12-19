@@ -1,5 +1,5 @@
-use interpreter::{ InterpreterState};
-use interpreter::interpreter_util::{push_float, load_n_32, push_long, push_double, pop_float};
+use crate::interpreter::{ InterpreterState};
+use crate::interpreter::interpreter_util::{push_float, load_n_32, push_long, push_double, pop_float};
 
 pub fn do_fsub(state: &mut InterpreterState) -> () {
     let value2 = pop_float(state);
