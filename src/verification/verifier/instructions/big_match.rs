@@ -2,7 +2,7 @@ use classfile::code::InstructionInfo;
 use verification::verifier::codecorrectness::Environment;
 use verification::verifier::Frame;
 use verification::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp, instruction_is_type_safe_invokestatic};
-use verification::verifier::instructions::branches::instruction_is_type_safe_return;
+use verification::verifier::instructions::branches::{instruction_is_type_safe_return, instruction_is_type_safe_if_acmpeq};
 use verification::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload};
 
 pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
@@ -112,7 +112,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::iconst_5 => {unimplemented!()},
         InstructionInfo::idiv => {unimplemented!()},
         InstructionInfo::if_acmpeq(_) => {unimplemented!()},
-        InstructionInfo::if_acmpne(_) => {unimplemented!()},
+        InstructionInfo::if_acmpne(target) => instruction_is_type_safe_if_acmpeq(*target,env,offset,stack_frame),//same as eq case
         InstructionInfo::if_icmpeq(_) => {unimplemented!()},
         InstructionInfo::if_icmpne(_) => {unimplemented!()},
         InstructionInfo::if_icmplt(_) => {unimplemented!()},

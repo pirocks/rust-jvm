@@ -88,11 +88,11 @@ pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCode
 }
 
 #[allow(unused)]
-fn offset_stack_frame(env: &Environment, target: usize) -> Option<Frame> {
+fn offset_stack_frame(env: &Environment, target: i16) -> Option<Frame> {
     unimplemented!()
 }
 
-fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> TypeSafetyResult {
+fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: i16) -> TypeSafetyResult {
     let frame = offset_stack_frame(env, target);
     match frame {
         None => { return TypeSafetyResult::NotSafe("No frame fround at target".to_string()); }
@@ -130,7 +130,7 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let locals_copy = locals.iter().map(|x| { copy_recurse(x) }).collect();
     let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: vec![class_to_type(&exception_class)], flag_this_uninit: flags };
     if operand_stack_has_legal_length(env, &vec![class_to_type(&exception_class)]) {
-        target_is_type_safe(env, &true_exc_stack_frame, target)
+        target_is_type_safe(env, &true_exc_stack_frame, target as i16)
     } else {
         TypeSafetyResult::NotSafe("operand stack does not have legal length".to_string())
     }
@@ -161,7 +161,7 @@ pub fn start_is_member_of(start: usize, merged_instructs: &Vec<MergedCodeInstruc
 pub fn handler_is_legal(env: &Environment, h: &Handler) -> TypeSafetyResult {
     if h.start < h.end {
         if start_is_member_of(h.start, env.merged_code.unwrap()) {
-            let target_stack_frame = offset_stack_frame(env, h.target);
+            let target_stack_frame = offset_stack_frame(env, h.target as i16);
             match target_stack_frame {
                 None => { TypeSafetyResult::NotSafe("No stack frame present at target".to_string()) }
                 Some(t) => {
@@ -452,10 +452,6 @@ pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usi
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_if_acmpeq(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

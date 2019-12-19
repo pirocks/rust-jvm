@@ -4,11 +4,10 @@ use classfile::attribute_infos::Code;
 use classfile::code::{Instruction, InstructionInfo};
 use verification::classnames::{NameReference, get_referred_name};
 use verification::code_writer::StackMap;
-use verification::prolog_info_writer::{get_access_flags, write_method_prolog_name, method_name, class_name};
+use verification::prolog_info_writer::{get_access_flags, method_name, class_name};
 use verification::unified_type::UnifiedType;
 use verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
 use verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
-use verification::verifier::TypeSafetyResult::Safe;
 use verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use class_loading::Loader;
 use std::sync::Arc;
@@ -20,6 +19,7 @@ use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
 use classfile::ACC_STATIC;
 use verification::verifier::and;
 use std::option::Option::Some;
+use classfile::code::InstructionTypeNum::return_;
 
 pub mod stackmapframes;
 
@@ -139,7 +139,19 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
 //
 
 pub fn can_pop(input_frame: &Frame, types: Vec<UnifiedType>) -> Option<Frame> {
-    unimplemented!()
+    let poped_stack = match pop_matching_list(&input_frame.stack_map, types){
+        None => return None,
+        Some(s) => s,
+    };
+    Some(Frame {
+        locals: input_frame
+            .locals
+            .iter()
+            .map(|x|copy_recurse(x))
+            .collect(),
+        stack_map: poped_stack,
+        flag_this_uninit: input_frame.flag_this_uninit
+    })
 }
 
 pub fn frame_is_assignable(left: &Frame, right: &Frame) -> TypeSafetyResult {
