@@ -19,7 +19,6 @@ use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
 use classfile::ACC_STATIC;
 use verification::verifier::and;
 use std::option::Option::Some;
-use classfile::code::InstructionTypeNum::return_;
 
 pub mod stackmapframes;
 

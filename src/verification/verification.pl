@@ -551,9 +551,7 @@ passesProtectedCheck(Environment, MemberClassName, MemberName,MemberDescriptor,f
     thisClass(Environment, class(CurrentClassName, CurrentLoader)),
     superclassChain(CurrentClassName, CurrentLoader, Chain),
     member(class(MemberClassName, _), Chain),
-    classesInOtherPkgWithProtectedMember(
-    class(CurrentClassName, CurrentLoader),
-    MemberName, MemberDescriptor, MemberClassName, Chain, List),
+    classesInOtherPkgWithProtectedMember(class(CurrentClassName, CurrentLoader),MemberName, MemberDescriptor, MemberClassName, Chain, List),
     List \= [],
     loadedClass(MemberClassName, CurrentLoader, ReferencedClass),
     isProtected(ReferencedClass, MemberName, MemberDescriptor),

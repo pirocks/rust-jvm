@@ -39,8 +39,8 @@ impl PartialEq for ClassName {
                     //todo how is equality for classfiles defined here?
                     r1.class_file.ptr_eq(&r2.class_file) && r1.index == r2.index
                 }
-                ClassName::Str(_) => {
-                    unimplemented!()
+                ClassName::Str(s) => {
+                    &get_referred_name(self) == s
                 }
             },
             ClassName::Str(s1) => match other {

@@ -10,6 +10,7 @@ use log::trace;
 use std::sync::Arc;
 use verification::verifier::TypeSafetyResult::Safe;
 use verification::verifier::TypeSafetyResult::NotSafe;
+use verification::types::MethodDescriptor;
 
 pub mod instructions;
 pub mod filecorrectness;
@@ -148,17 +149,20 @@ pub struct FieldDescriptor {
     //todo
 }
 
-pub struct MethodDescriptor {
-    //todo
-}
-
 pub enum Descriptor {}
 
 //fn modify_local_variable() //todo
 
-#[allow(unused)]
-fn passes_protected_check(env: &Environment, member_class_name: String, member_name: String, member_descriptor: &Descriptor, stack_frame: &Frame) -> bool {
-    unimplemented!()
+fn passes_protected_check(env: &Environment, member_class_name: String, member_name: String, member_descriptor: &MethodDescriptor, stack_frame: &Frame) -> bool {
+    let mut chain = vec![];
+    super_class_chain(env.method.prolog_class,env.class_loader.clone(),&mut chain);//todo is this strictly correct?
+    if chain.iter().any(|x|{get_referred_name(&class_name(&x.class)) == member_class_name}){
+        unimplemented!()
+    }else {
+        true
+    }
 }
 
-//fn classesInOtherPkgWithProtectedMember(, ) //todo
+fn classes_in_other_pkg_with_protected_member(class: &PrologClass, member_name:String, member_descriptor:&MethodDescriptor,member_class_name:String,chain: Vec<PrologClass>) -> Vec<PrologClass>{
+    unimplemented!()
+}

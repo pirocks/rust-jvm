@@ -542,7 +542,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
-    let operand_arg_list = parsed_descriptor.parameter_types;
+    let operand_arg_list = &parsed_descriptor.parameter_types;
     let arg_list: Vec<UnifiedType> = operand_arg_list.iter()
         .rev()
         .map(|x| copy_recurse(x))
@@ -555,7 +555,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
         Ok(nf) => {
             let popped_frame = can_pop(stack_frame, arg_list).unwrap_or_else(|| unimplemented!());
-            passes_protected_check(env, class_name.clone(), method_name, unimplemented!(), &popped_frame);
+            passes_protected_check(env, class_name.clone(), method_name, &parsed_descriptor, &popped_frame);
             let exception_stack_frame = exception_stack_frame(stack_frame);
             InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf })
         }
