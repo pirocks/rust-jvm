@@ -2,6 +2,10 @@
 extern crate argparse;
 extern crate log;
 extern crate simple_logger;
+extern crate rust_jvm_common;
+
+pub mod class_loading;
+pub mod classpath_indexing;
 
 use log::{trace, info};
 
@@ -9,6 +13,14 @@ use argparse::{ArgumentParser, Store, StoreTrue};
 use std::path::Path;
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use rust_jvm_common::loading::{class_entry_from_string, BOOTSTRAP_LOADER_NAME,BOOTSTRAP_LOADER, JVMState};
+use classpath_indexing::index_class_path;
+use class_loading::load_class;
+
+
+extern crate classfile_parser;
+extern crate verification;
+
 
 fn main() {
     simple_logger::init().unwrap();

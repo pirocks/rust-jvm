@@ -2,18 +2,16 @@ use std::borrow::Borrow;
 use std::io;
 use std::io::Write;
 
-use class_loading::JVMState;
-use classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_BRIDGE, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_MODULE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_STRICT, ACC_SUPER, ACC_SYNTHETIC, ACC_TRANSIENT, ACC_VOLATILE, AttributeInfo, Classfile, code_attribute, FieldInfo, MethodInfo};
-use classfile::attribute_infos::AttributeType;
-use classfile::constant_infos::{ConstantInfo, ConstantKind};
-use verification::code_writer::write_parse_code_attribute;
-use verification::types::{parse_field_descriptor, parse_method_descriptor, write_type_prolog};
-use verification::instruction_outputer::extract_class_from_constant_pool;
-use verification::types::MethodDescriptor;
-use verification::types::FieldDescriptor;
-use verification::verifier::PrologClass;
-use verification::classnames::{ClassName, NameReference};
 use std::sync::Arc;
+use rust_jvm_common::classfile::{Classfile, ConstantKind, AttributeType, AttributeInfo, ACC_BRIDGE, ACC_SUPER, ACC_FINAL, ACC_TRANSIENT, ACC_NATIVE, ACC_PRIVATE, ACC_PUBLIC, ACC_PROTECTED, ACC_STATIC, ACC_VOLATILE, ACC_INTERFACE, ACC_ABSTRACT, ACC_STRICT, ACC_SYNTHETIC, ACC_ANNOTATION, MethodInfo, FieldInfo, ACC_ENUM, ACC_MODULE};
+use crate::verification::code_writer::write_parse_code_attribute;
+use crate::verification::verifier::{PrologClass, PrologClassMethod};
+use crate::verification::types::{MethodDescriptor, parse_method_descriptor, parse_field_descriptor, write_type_prolog, FieldDescriptor};
+use rust_jvm_common::classnames::class_name_legacy;
+use rust_jvm_common::utils::extract_string_from_utf8;
+use rust_jvm_common::loading::JVMState;
+use classfile_parser::classfile::code_attribute;
+use crate::verification::instruction_outputer::extract_class_from_constant_pool;
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -153,25 +151,6 @@ pub fn write_class_defining_loader(context: &PrologGenContext, w: &mut dyn Write
 }
 
 
-pub fn class_name(class: &Arc<Classfile>) -> ClassName {
-    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
-        ConstantKind::Class(c) => { c }
-        _ => { panic!() }
-    };
-
-    return ClassName::Ref(NameReference {
-        class_file:Arc::downgrade(&class),
-        index: class_info_entry.name_index
-    });
-}
-
-pub fn class_name_legacy(class: &Classfile) -> String {
-    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
-        ConstantKind::Class(c) => { c }
-        _ => { panic!() }
-    };
-    return extract_string_from_utf8(&class.constant_pool[class_info_entry.name_index as usize]);
-}
 
 pub(crate) fn class_prolog_name(class_: &String) -> String {
     //todo , if using bootstrap loader and the like
@@ -392,7 +371,7 @@ fn write_method_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<()
 // Extracts the access flags, AccessFlags , of the method Method .
 
 #[allow(unused)]
-pub fn get_access_flags(class: &PrologClass,method: &::verification::verifier::PrologClassMethod) -> u16 {
+pub fn get_access_flags(class: &PrologClass,method: &PrologClassMethod) -> u16 {
 //    assert!(method.prolog_class == class);//todo why the duplicate parameters?
     class.class.methods[method.method_index as usize].access_flags
 }

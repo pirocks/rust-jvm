@@ -1,8 +1,10 @@
 extern crate ntest_timeout;
 extern crate timebomb;
+extern crate rust_jvm_common;
 
 use ntest_timeout::timeout;
 use std::path::Path;
+use rust_jvm_common::loading::{class_entry_from_string, BOOTSTRAP_LOADER_NAME, BOOTSTRAP_LOADER,JVMState};
 
 #[test]
 #[timeout(10000)]
@@ -45,7 +47,6 @@ fn load_class_with_name(main_class_name: &String) {
         indexed_classpath,
         using_prolog_verifier: false
     };
-    use crate::classfile::class_loading::BOOTSTRAP_LOADER;
     let main_class_entry = class_entry_from_string(&main_class_name, true);
-    load_class(&mut initial_jvm_state, BOOTSTRAP_LOADER.clone(), main_class_entry, true);//todo add correct
+    self::class_loading::load_class(&mut initial_jvm_state, BOOTSTRAP_LOADER.clone(), main_class_entry, true);//todo add correct
 }

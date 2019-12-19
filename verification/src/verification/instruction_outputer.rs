@@ -1,13 +1,10 @@
 use std::io::{Error, Write};
 
-use classfile::attribute_infos::Code;
-use classfile::Classfile;
-use classfile::constant_infos::{Class, ConstantKind};
-use verification::prolog_info_writer::{extract_string_from_utf8, BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
-use verification::types::{parse_field_descriptor, write_type_prolog};
-use classfile::code::Instruction;
-use classfile::code::InstructionInfo;
 use std::sync::Arc;
+use rust_jvm_common::classfile::{Classfile, ConstantKind, InstructionInfo, Class, Code, Instruction};
+use rust_jvm_common::utils::extract_string_from_utf8;
+use crate::verification::prolog_info_writer::{BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
+use crate::verification::types::{parse_field_descriptor, write_type_prolog};
 
 pub fn name_and_type_extractor(i: u16, class_file: &Arc<Classfile>) -> (String, String) {
     let nt;

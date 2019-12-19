@@ -1,13 +1,12 @@
-use classfile::{ACC_STATIC, MethodInfo, code_attribute, stack_map_table_attribute};
-use classfile::attribute_infos::{AppendFrame, ChopFrame, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, UninitializedVariableInfo};
-use verification::code_writer::{init_frame, StackMap};
-use verification::prolog_info_writer::{class_name, extract_string_from_utf8};
-use verification::unified_type::{UnifiedType, ArrayType};
-use verification::verifier::{InternalFrame, PrologClass};
-use verification::classnames::ClassName;
-use verification::types::parse_method_descriptor;
-use verification::verifier::Frame;
-use verification::classnames::NameReference;
+use crate::verification::verifier::{InternalFrame, PrologClass};
+use crate::verification::types::parse_method_descriptor;
+use crate::verification::verifier::Frame;
+use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, UninitializedVariableInfo, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
+use crate::verification::code_writer::{StackMap, init_frame};
+use rust_jvm_common::utils::extract_string_from_utf8;
+use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
+use rust_jvm_common::classnames::{class_name, ClassName, NameReference};
+use classfile_parser::classfile::{code_attribute, stack_map_table_attribute};
 
 pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];

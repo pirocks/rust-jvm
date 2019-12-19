@@ -1,5 +1,5 @@
-use std::sync::Weak;
-use crate::classfile::Classfile;
+use std::sync::{Weak, Arc};
+use crate::classfile::{Classfile, ConstantKind};
 use crate::utils::extract_string_from_utf8;
 
 #[derive(Debug)]
@@ -84,3 +84,23 @@ pub fn get_referred_name(ref_ : &ClassName) -> String{
     }
 }
 
+
+pub fn class_name_legacy(class: &Classfile) -> String {
+    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
+        ConstantKind::Class(c) => { c }
+        _ => { panic!() }
+    };
+    return extract_string_from_utf8(&class.constant_pool[class_info_entry.name_index as usize]);
+}
+
+pub fn class_name(class: &Arc<Classfile>) -> ClassName {
+    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
+        ConstantKind::Class(c) => { c }
+        _ => { panic!() }
+    };
+
+    return ClassName::Ref(NameReference {
+        class_file:Arc::downgrade(&class),
+        index: class_info_entry.name_index
+    });
+}

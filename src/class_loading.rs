@@ -12,56 +12,17 @@ use std::sync::Arc;
 
 //load superclass
 use std::collections::HashMap;
-use std::fmt;
 use std::fs::File;
-use std::path::{MAIN_SEPARATOR, Path};
+use std::path::Path;
 use log::trace;
-use classfile::{Classfile, parse_class_file};
-use classfile::constant_infos::ConstantKind;
-use verification::prolog_info_writer::{class_name_legacy, extract_string_from_utf8, get_super_class_name};
-use verification::verifier::TypeSafetyResult;
-use verification::verify;
 
-#[derive(Debug)]
-pub struct JVMState {
-    pub using_bootstrap_loader: bool,
-    pub loaders: HashMap<String, Arc<Loader>>,
-    pub indexed_classpath: HashMap<ClassEntry, Box<Path>>,
-    pub using_prolog_verifier: bool,
-}
-
-
-pub fn class_entry(classfile: &Classfile) -> ClassEntry {
-    let name = class_name_legacy(classfile);
-    class_entry_from_string(&name, false)
-}
-
-
-pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
-    let split_on = if use_dots { '.' } else { MAIN_SEPARATOR };
-    let splitted: Vec<String> = str.clone().split(split_on).map(|s| { s.to_string() }).collect();
-    let packages = Vec::from(&splitted[0..splitted.len() - 1]);
-    let name = splitted.last().expect("This is a bug").replace(".class", "");//todo validate that this is replacing the last few chars
-    ClassEntry {
-        packages,
-        name: name.clone(),
-    }
-}
-
-pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
-
-use std::sync::RwLock;
-
-
-
-lazy_static! {
-    pub static ref BOOTSTRAP_LOADER: Arc<Loader> = Arc::new(Loader {
-        loaded: RwLock::new(HashMap::new()),
-        loading: RwLock::new(HashMap::new()),
-        name: BOOTSTRAP_LOADER_NAME.to_string()
-    });
-
-}
+use rust_jvm_common::loading::{Loader, ClassEntry, class_entry_from_string, class_entry, JVMState, BOOTSTRAP_LOADER_NAME};
+use rust_jvm_common::classfile::{Classfile, ConstantKind};
+use rust_jvm_common::utils::extract_string_from_utf8;
+use classfile_parser::classfile::parse_class_file;
+use verification::verification::prolog_info_writer::get_super_class_name;
+use verification::verification::verifier::TypeSafetyResult;
+use verification::verification::verify;
 
 
 pub fn load_class(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: ClassEntry, only_verify: bool) {
@@ -159,4 +120,6 @@ fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: &
 //    clinit(&class, &after_obtaining_clinit);
 //    loader.loaded.write().unwrap().insert(entry, class);
 //}
+
+
 

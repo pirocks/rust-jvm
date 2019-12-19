@@ -1,24 +1,22 @@
 use log::trace;
-use classfile::{ACC_ABSTRACT, ACC_NATIVE, code_attribute};
-use classfile::attribute_infos::Code;
-use classfile::code::{Instruction, InstructionInfo};
-use verification::classnames::{NameReference, get_referred_name};
-use verification::code_writer::StackMap;
-use verification::prolog_info_writer::{get_access_flags, method_name, class_name};
-use verification::unified_type::UnifiedType;
-use verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
-use verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
-use verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
-use class_loading::Loader;
+use crate::verification::code_writer::StackMap;
+use crate::verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
+use crate::verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
+use crate::verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use std::sync::Arc;
-use verification::verifier::instructions::{handers_are_legal, FrameResult};
-use verification::verifier::instructions::merged_code_is_type_safe;
-use verification::prolog_info_writer::extract_string_from_utf8;
-use verification::types::parse_method_descriptor;
-use verification::verifier::codecorrectness::stackmapframes::copy_recurse;
-use classfile::ACC_STATIC;
-use verification::verifier::and;
+use crate::verification::verifier::instructions::{handers_are_legal, FrameResult};
+use crate::verification::verifier::instructions::merged_code_is_type_safe;
+use crate::verification::types::parse_method_descriptor;
+use crate::verification::verifier::codecorrectness::stackmapframes::copy_recurse;
+use crate::verification::verifier::and;
 use std::option::Option::Some;
+use rust_jvm_common::unified_types::UnifiedType;
+use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
+use crate::verification::prolog_info_writer::{get_access_flags, method_name};
+use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
+use rust_jvm_common::utils::extract_string_from_utf8;
+use rust_jvm_common::loading::Loader;
+use classfile_parser::classfile::code_attribute;
 
 pub mod stackmapframes;
 
@@ -421,7 +419,6 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
 //    return Some(UnifiedType::UninitializedThis);
 }
 
-#[allow(unused)]
 fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> UnifiedType {
     let method_name = method_name(&method.prolog_class.class, &method.prolog_class.class.methods[method.method_index]);
     if method_name == "<init>" {

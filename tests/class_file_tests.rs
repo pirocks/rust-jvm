@@ -1,4 +1,6 @@
 extern crate classfile_parser;
+extern crate verification;
+extern crate rust_jvm_common;
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -6,6 +8,8 @@ use std::io::{BufWriter, Write};
 use std::io;
 use std::path::PathBuf;
 use classfile_parser::classfile::parse_class_file;
+use verification::verification::prolog_info_writer::{PrologGenContext, ExtraDescriptors, gen_prolog};
+use rust_jvm_common::loading::JVMState;
 
 
 #[test]

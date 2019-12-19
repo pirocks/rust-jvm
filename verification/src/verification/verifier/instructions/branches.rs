@@ -1,9 +1,7 @@
-use verification::verifier::codecorrectness::{Environment, can_pop};
-use verification::verifier::{Frame, TypeSafetyResult};
-use verification::unified_type::UnifiedType;
-use verification::verifier::instructions::{InstructionIsTypeSafeResult, target_is_type_safe, ResultFrames};
-use verification::verifier::instructions::AfterGotoFrames;
-use verification::verifier::instructions::exception_stack_frame;
+use rust_jvm_common::unified_types::UnifiedType;
+use crate::verification::verifier::instructions::{InstructionIsTypeSafeResult, AfterGotoFrames, exception_stack_frame, target_is_type_safe, ResultFrames};
+use crate::verification::verifier::codecorrectness::{Environment, can_pop};
+use crate::verification::verifier::{Frame, TypeSafetyResult};
 
 pub fn instruction_is_type_safe_return(env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     match env.return_type{

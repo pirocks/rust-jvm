@@ -2,16 +2,17 @@
 
 use std::io;
 use std::io::Write;
-use verification::unified_type::{UnifiedType, ArrayType};
-use verification::prolog_info_writer::{PrologGenContext, write_method_prolog_name, class_name, extract_string_from_utf8, BOOTSTRAP_LOADER_NAME};
-use classfile::{code_attribute, stack_map_table_attribute, Classfile, MethodInfo, ACC_STATIC};
-use classfile::attribute_infos::{StackMapFrame, Code, StackMapTable, ObjectVariableInfo, ExceptionTableElem};
-use verification::types::{parse_method_descriptor, parse_field_descriptor, write_type_prolog};
-use verification::verifier::{InternalFrame, Frame};
-use verification::instruction_outputer::extract_class_from_constant_pool;
-use verification::classnames::get_referred_name;
-use verification::verifier::codecorrectness::stackmapframes::{handle_same_frame, handle_append_frame, handle_same_locals_1_stack, handle_full_frame, handle_chop_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended};
 use std::sync::Arc;
+use crate::verification::verifier::{Frame, InternalFrame};
+use crate::verification::prolog_info_writer::{PrologGenContext, write_method_prolog_name, BOOTSTRAP_LOADER_NAME};
+use crate::verification::instruction_outputer::{extract_class_from_constant_pool, output_instruction_info_for_code};
+use rust_jvm_common::classnames::{get_referred_name, class_name};
+use rust_jvm_common::utils::extract_string_from_utf8;
+use rust_jvm_common::classfile::{Classfile, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, MethodInfo, StackMapTable, Code, ACC_STATIC};
+use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
+use crate::verification::types::{write_type_prolog, parse_field_descriptor, parse_method_descriptor};
+use crate::verification::verifier::codecorrectness::stackmapframes::{handle_chop_frame, handle_full_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended, handle_append_frame, handle_same_frame, handle_same_locals_1_stack};
+use classfile_parser::classfile::{stack_map_table_attribute, code_attribute};
 
 #[derive(Debug)]
 pub struct StackMap{
@@ -34,7 +35,6 @@ pub fn write_parse_code_attribute(context: &mut PrologGenContext, w: &mut dyn Wr
             let frame_size = code.max_locals;
             write!(w, ",{},{},", frame_size, max_stack)?;
 
-            use verification::instruction_outputer::output_instruction_info_for_code;
             output_instruction_info_for_code(&mut context.extra, &classfile, code, w)?;
 
             write!(w, "[")?;
@@ -179,7 +179,6 @@ fn verification_type_as_string(classfile: &Arc<Classfile>, verification_type: &U
     Ok(())
 }
 
-#[allow(unused)]
 fn object_get_class_name(classfile: &Arc<Classfile>, o: &ObjectVariableInfo) -> String {
     let class_name = match o.cpool_index {
         None => { o.class_name.clone() }

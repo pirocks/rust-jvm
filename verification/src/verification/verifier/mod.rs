@@ -1,16 +1,14 @@
-use class_loading::Loader;
-use classfile::Classfile;
-use verification::prolog_info_writer::{get_super_class_name, class_name};
-use verification::unified_type::UnifiedType;
-use verification::verifier::TypeSafetyResult::{NeedToLoad};
-use verification::verifier::filecorrectness::{is_bootstrap_loader, super_class_chain, class_is_final, loaded_class_, get_class_methods};
-use verification::verifier::codecorrectness::{method_is_type_safe, Environment};
-use verification::classnames::{ClassName, get_referred_name};
 use log::trace;
 use std::sync::Arc;
-use verification::verifier::TypeSafetyResult::Safe;
-use verification::verifier::TypeSafetyResult::NotSafe;
-use verification::types::MethodDescriptor;
+use rust_jvm_common::unified_types::UnifiedType;
+use rust_jvm_common::classnames::{get_referred_name, class_name, ClassName};
+use crate::verification::verifier::codecorrectness::{Environment, method_is_type_safe};
+use crate::verification::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
+use crate::verification::types::MethodDescriptor;
+use crate::verification::verifier::TypeSafetyResult::{Safe, NotSafe, NeedToLoad};
+use crate::verification::prolog_info_writer::get_super_class_name;
+use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::loading::Loader;
 
 pub mod instructions;
 pub mod filecorrectness;

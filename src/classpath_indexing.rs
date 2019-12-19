@@ -3,9 +3,11 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use walkdir::{WalkDir};
+extern crate walkdir;
+extern crate pathdiff;
+use self::walkdir::{WalkDir};
 
-use class_loading::ClassEntry;
+use rust_jvm_common::loading::ClassEntry;
 
 fn parse_classpath_file(path : &Path) -> Vec<Box<String>>{
     let mut f = File::open(path).expect("Error opening classpath file");

@@ -1,9 +1,8 @@
 use std::io::Write;
 use std::io;
-use verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
-use verification::unified_type::UnifiedType;
-use verification::unified_type::ArrayType;
-use verification::classnames::{ClassName, get_referred_name};
+use crate::verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
+use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
+use rust_jvm_common::classnames::{ClassName, get_referred_name};
 
 #[derive(Debug)]
 pub struct MethodDescriptor{ pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }

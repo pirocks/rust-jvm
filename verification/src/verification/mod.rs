@@ -12,12 +12,14 @@ use log::trace;
 use regex::Regex;
 use tempfile::NamedTempFile;
 
-use class_loading::{ClassEntry, JVMState, Loader};
-use classfile::{Classfile, parse_class_file};
-use verification::prolog_info_writer::{class_name_legacy, ExtraDescriptors, gen_prolog, PrologGenContext};
-use verification::PrologOutput::{NeedsAnotherClass, True};
-use verification::verifier::{class_is_type_safe, PrologClass, TypeSafetyResult};
 use std::sync::Arc;
+use crate::verification::verifier::{class_is_type_safe, TypeSafetyResult, PrologClass};
+use rust_jvm_common::loading::{ClassEntry, Loader, JVMState};
+use rust_jvm_common::classfile::Classfile;
+use crate::verification::PrologOutput::NeedsAnotherClass;
+use crate::verification::prolog_info_writer::{gen_prolog, PrologGenContext, ExtraDescriptors};
+use rust_jvm_common::classnames::class_name_legacy;
+use classfile_parser::classfile::parse_class_file;
 
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
@@ -30,7 +32,7 @@ pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut J
         to_verify.iter().for_each(|(x,_)|{
             trace!("Attempting to verify: {} ",x);
         });
-        use verification::verifier::merge_type_safety_results;
+        use crate::verification::verifier::merge_type_safety_results;
         let verification_results: Vec<TypeSafetyResult> = to_verify.iter().map(|(entry, loaded)| {
             let current_class = PrologClass {
                 class: loaded.clone(),
@@ -179,10 +181,8 @@ pub fn prolog_initial_defs(w: &mut dyn Write) -> Result<(), io::Error> {
     Ok(())
 }
 
-pub mod unified_type;
 pub mod prolog_info_writer;
 pub mod code_writer;
 pub mod types;
 pub mod instruction_outputer;
 pub mod verifier;
-pub mod classnames;

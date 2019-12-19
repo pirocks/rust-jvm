@@ -1,12 +1,8 @@
-use verification::verifier::codecorrectness::Environment;
-use verification::verifier::{Frame, TypeSafetyResult};
-use verification::verifier::filecorrectness::is_assignable;
-use verification::verifier::codecorrectness::valid_type_transition;
-use verification::verifier::instructions::nth0;
-use verification::unified_type::UnifiedType;
-use verification::verifier::instructions::InstructionIsTypeSafeResult;
-use verification::verifier::instructions::exception_stack_frame;
-use verification::verifier::instructions::ResultFrames;
+use rust_jvm_common::unified_types::UnifiedType;
+use crate::verification::verifier::codecorrectness::{Environment, valid_type_transition};
+use crate::verification::verifier::instructions::{InstructionIsTypeSafeResult, exception_stack_frame, ResultFrames, nth0};
+use crate::verification::verifier::{Frame, TypeSafetyResult};
+use crate::verification::verifier::filecorrectness::is_assignable;
 
 #[allow(unused)]
 fn instruction_is_type_safe_aaload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

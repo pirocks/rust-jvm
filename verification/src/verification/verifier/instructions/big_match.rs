@@ -1,9 +1,9 @@
-use classfile::code::InstructionInfo;
-use verification::verifier::codecorrectness::Environment;
-use verification::verifier::Frame;
-use verification::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp, instruction_is_type_safe_invokestatic};
-use verification::verifier::instructions::branches::{instruction_is_type_safe_return, instruction_is_type_safe_if_acmpeq};
-use verification::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload};
+use rust_jvm_common::classfile::InstructionInfo;
+use crate::verification::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload};
+use crate::verification::verifier::codecorrectness::Environment;
+use crate::verification::verifier::Frame;
+use crate::verification::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokestatic, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp};
+use crate::verification::verifier::instructions::branches::{instruction_is_type_safe_if_acmpeq, instruction_is_type_safe_return};
 
 pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     match instruction {

@@ -1,12 +1,12 @@
-use class_loading::{class_entry, Loader, class_entry_from_string};
-use classfile::{ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_STATIC};
-use verification::classnames::get_referred_name;
-use verification::prolog_info_writer::{class_name, class_name_legacy, get_access_flags};
-use verification::unified_type::UnifiedType;
-use verification::verifier::{PrologClass, PrologClassMethod, TypeSafetyResult};
-use verification::verifier::TypeSafetyResult::{NeedToLoad, NotSafe, Safe};
-use class_loading::BOOTSTRAP_LOADER;
 use std::sync::Arc;
+use rust_jvm_common::unified_types::UnifiedType;
+use crate::verification::verifier::{PrologClass, PrologClassMethod, TypeSafetyResult};
+use rust_jvm_common::loading::{Loader, class_entry, class_entry_from_string};
+use rust_jvm_common::classnames::{class_name, get_referred_name, class_name_legacy};
+use crate::verification::verifier::TypeSafetyResult::{Safe, NotSafe, NeedToLoad};
+use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
+use crate::verification::prolog_info_writer::get_access_flags;
+use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 #[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
