@@ -426,7 +426,7 @@ fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMe
     let method_name = method_name(&method.prolog_class.class, &method.prolog_class.class.methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
-            UnifiedType::ReferenceType(class_name(&class.class))
+            UnifiedType::Class(class_name(&class.class))
         } else {
             let mut chain = vec![];
             super_class_chain(class, class.loader.clone(), &mut chain);
@@ -438,6 +438,6 @@ fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMe
         }
     } else {
         //todo what to do about loaders
-        UnifiedType::ReferenceType(class_name(&class.class))
+        UnifiedType::Class(class_name(&class.class))
     }
 }

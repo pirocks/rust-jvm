@@ -105,8 +105,8 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
             UnifiedType::Reference => true,
             _ => is_assignable(&UnifiedType::OneWord, to)
         }
-        UnifiedType::ReferenceType(c) => match to {
-            UnifiedType::ReferenceType(c2) => {
+        UnifiedType::Class(c) => match to {
+            UnifiedType::Class(c2) => {
                 if c == c2 {
                     return true;
                 }else {
@@ -117,7 +117,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
         },
         UnifiedType::ArrayReferenceType(a) => match to {
             UnifiedType::ArrayReferenceType(a2) => unimplemented!(),
-            UnifiedType::ReferenceType(c) => unimplemented!(),
+            UnifiedType::Class(c) => unimplemented!(),
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::TopType => match to {
@@ -138,7 +138,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
         },
         UnifiedType::NullType => match to {
             UnifiedType::NullType => true,
-            UnifiedType::ReferenceType(c) => true,
+            UnifiedType::Class(c) => true,
             UnifiedType::ArrayReferenceType(a) => true,
             _ => is_assignable(unimplemented!(), to),
         },

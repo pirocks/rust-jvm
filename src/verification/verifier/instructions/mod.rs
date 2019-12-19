@@ -130,7 +130,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 }
 
 fn class_to_type(class: &PrologClass) -> UnifiedType {
-    UnifiedType::ReferenceType(ClassName::Ref(NameReference {
+    UnifiedType::Class(ClassName::Ref(NameReference {
         index: class.class.this_class,
         class_file: Arc::downgrade(&class.class),
     }))
@@ -183,8 +183,8 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> TypeSafetyResult {
                     if instructions_include_end(env.merged_code.unwrap(), h.end) {
                         let exception_class = handler_exception_class(&h);
                         //todo how does bootstrap loader from throwable make its way into this
-                        if is_assignable(&UnifiedType::ReferenceType(class_name(&exception_class.class)),
-                                         &UnifiedType::ReferenceType(ClassName::Str("java/lang/Throwable".to_string()))) {
+                        if is_assignable(&UnifiedType::Class(class_name(&exception_class.class)),
+                                         &UnifiedType::Class(ClassName::Str("java/lang/Throwable".to_string()))) {
                             return init_handler_is_legal(env, h);
                         } else {
                             TypeSafetyResult::NotSafe("Handler exception class not assignable to Throwable".to_string())
@@ -550,7 +550,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     let current_loader = &env.class_loader;
     //todo deal with loaders in class names/types
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| copy_recurse(x)).collect();
-    stack_arg_list.push(UnifiedType::ReferenceType(ClassName::Str(class_name.clone())));
+    stack_arg_list.push(UnifiedType::Class(ClassName::Str(class_name.clone())));
     stack_arg_list.reverse();
     match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
         Ok(nf) => {

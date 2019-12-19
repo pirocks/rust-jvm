@@ -19,7 +19,7 @@ pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {
         None
     } else {
-        Some(UnifiedType::ReferenceType(class_name(&class.class)))
+        Some(UnifiedType::Class(class_name(&class.class)))
     };
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
@@ -128,7 +128,7 @@ fn add_verification_type_to_array(locals: &mut Vec<UnifiedType>, new_local: &Uni
 
 pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
     match to_copy {
-        UnifiedType::ReferenceType(o) => {
+        UnifiedType::Class(o) => {
 //            let class_name = object_get_class_name(classfile,o);
             /*if class_name.chars().nth(0).unwrap() == '[' {
                 let type_ = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
@@ -137,7 +137,7 @@ pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
                 return copy_recurse(classfile,&temp[0]);
             }*/
 
-            UnifiedType::ReferenceType(match o {
+            UnifiedType::Class(match o {
                 ClassName::Ref(r) => { ClassName::Ref(NameReference{class_file:r.class_file.clone(),index:r.index}) }
                 ClassName::Str(s) => { ClassName::Str(s.clone()) }
             })
@@ -169,8 +169,8 @@ fn copy_type_recurse(type_: &UnifiedType) -> UnifiedType {
         UnifiedType::IntType => { UnifiedType::IntType }
         UnifiedType::LongType => { UnifiedType::LongType }
         UnifiedType::ShortType => { UnifiedType::ShortType }
-        UnifiedType::ReferenceType(t) => {
-            UnifiedType::ReferenceType(match t {
+        UnifiedType::Class(t) => {
+            UnifiedType::Class(match t {
                 ClassName::Ref(_) => { unimplemented!() }
                 ClassName::Str(s) => { ClassName::Str(s.clone()) }
             })

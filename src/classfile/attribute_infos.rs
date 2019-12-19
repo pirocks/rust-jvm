@@ -664,7 +664,7 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
                 ConstantKind::String(c) => panic!(),
                 _ => { panic!() }
             };
-            UnifiedType::ReferenceType(ClassName::Str(extract_string_from_utf8(&p.constant_pool[index as usize])))
+            UnifiedType::Class(ClassName::Str(extract_string_from_utf8(&p.constant_pool[index as usize])))
 //            UnifiedType::ReferenceType(ClassName::Ref(NameReference { class_file:Rc::downgrade(classfile), index }))
         }
 

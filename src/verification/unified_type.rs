@@ -16,7 +16,7 @@ pub enum UnifiedType{
     FloatType,
     IntType,
     LongType,
-    ReferenceType(ClassName),
+    Class(ClassName),
     ShortType,
     BooleanType,
     ArrayReferenceType(ArrayType),

@@ -109,9 +109,9 @@ fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> (
             res.push(UnifiedType::LongType);
             res.push(UnifiedType::TopType);
         }
-        UnifiedType::ReferenceType(r) => {
+        UnifiedType::Class(r) => {
             assert_ne!(get_referred_name(&r).chars().nth(0).unwrap(), '[');
-            res.push(UnifiedType::ReferenceType(r));
+            res.push(UnifiedType::Class(r));
         }
         UnifiedType::ShortType => {
             res.push(UnifiedType::IntType);
@@ -159,7 +159,7 @@ fn verification_type_as_string(classfile: &Arc<Classfile>, verification_type: &U
         UnifiedType::DoubleType => { write!(w, "double")?; }
         UnifiedType::NullType => { write!(w, "null")?; }
         UnifiedType::UninitializedThis => { unimplemented!() }
-        UnifiedType::ReferenceType(o) => {
+        UnifiedType::Class(o) => {
             let class_name = get_referred_name(o);
             if class_name.chars().nth(0).unwrap() == '[' {
                 let parsed_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing a descriptor").field_type;
@@ -214,7 +214,7 @@ fn write_stack_map_frames(class_file: &Arc<Classfile>, method_info: &MethodInfo,
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {
         None
     } else {
-        Some(UnifiedType::ReferenceType(class_name(class_file)))
+        Some(UnifiedType::Class(class_name(class_file)))
     };
 
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);

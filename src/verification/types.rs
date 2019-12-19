@@ -36,7 +36,7 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, UnifiedType)> {
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            Some((remaining_to_parse, UnifiedType::ReferenceType(ClassName::Str(class_name.to_string()))))
+            Some((remaining_to_parse, UnifiedType::Class(ClassName::Str(class_name.to_string()))))
         }
         _ => {
             return None
@@ -152,7 +152,7 @@ pub fn write_type_prolog(type_: &UnifiedType,  w: &mut dyn Write) -> Result<(), 
         UnifiedType::BooleanType => {
             write!(w,"int")?;
         },
-        UnifiedType::ReferenceType(ref_) => {
+        UnifiedType::Class(ref_) => {
 //            if context.state.using_bootstrap_loader {
                 write!(w,"class('")?;
                 write!(w,"{}",get_referred_name(ref_))?;
