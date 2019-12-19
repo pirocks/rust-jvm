@@ -78,18 +78,33 @@ pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCode
                 FrameResult::Regular(f) => {
                     and(frame_is_assignable(f, &s.map_frame),
                         merged_code_is_type_safe(env, rest, FrameResult::Regular(&s.map_frame)))
-                },
+                }
                 FrameResult::AfterGoto => {
                     merged_code_is_type_safe(env, rest, FrameResult::Regular(&s.map_frame))
-                },
+                }
             }
         }
     }
 }
 
-#[allow(unused)]
-fn offset_stack_frame(env: &Environment, target: i16) -> Option<Frame> {
-    unimplemented!()
+fn offset_stack_frame(env: &Environment, offset: i16) -> Option<Frame> {
+    env.merged_code.unwrap().iter().find(|x| {
+        match x {
+            Instruction(_) => false,
+            StackMap(s) => {
+                s.offset == offset as usize
+            }
+        }
+    }).map(|x|{
+        match x{
+            Instruction(_) => panic!(),
+            StackMap(s) => Frame {
+                locals: s.map_frame.locals.iter().map(|x|copy_recurse(x)).collect(),
+                stack_map: s.map_frame.stack_map.iter().map(|x|copy_recurse(x)).collect(),
+                flag_this_uninit: s.map_frame.flag_this_uninit
+            },
+        }
+    })
 }
 
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: i16) -> TypeSafetyResult {
