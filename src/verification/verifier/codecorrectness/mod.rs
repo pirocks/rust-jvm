@@ -12,7 +12,7 @@ use verification::verifier::TypeSafetyResult::Safe;
 use verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use class_loading::Loader;
 use std::sync::Arc;
-use verification::verifier::instructions::handers_are_legal;
+use verification::verifier::instructions::{handers_are_legal, FrameResult};
 use verification::verifier::instructions::merged_code_is_type_safe;
 use verification::prolog_info_writer::extract_string_from_utf8;
 use verification::types::parse_method_descriptor;
@@ -234,10 +234,10 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     dbg!(&frame);
     dbg!(&frame_size);
     dbg!(&return_type);
-    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type: UnifiedType::ByteType };
+    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type  };
 
     and(handers_are_legal(&env),
-        merged_code_is_type_safe(&env, merged.as_slice(), &frame, false))
+        merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame)))
 }
 
 pub struct Handler {
@@ -372,11 +372,11 @@ fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
 
 fn flags(this_list: &Option<UnifiedType>) -> bool {
     match this_list {
-        None => { return false; }
-        Some(s) => {
-//            assert!(s is unitializedThis )//todo
-            return true;
-        }
+        None => false,
+        Some(s) => match s {
+                UnifiedType::UninitializedThis => true,
+                _ => false
+            }
     }
 }
 
@@ -414,13 +414,13 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
 
 #[allow(unused)]
 fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> UnifiedType {
-    let method_name = method_name(&method.prolog_class.class,method.prolog_class.class[method.method_index]);
+    let method_name = method_name(&method.prolog_class.class,&method.prolog_class.class.methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
             UnifiedType::ReferenceType(class_name(&class.class))
         }else {
             let mut chain = vec![];
-            super_class_chain(class,class.loader.clone(),&chain);
+            super_class_chain(class,class.loader.clone(),&mut chain);
             if !chain.is_empty() {
                 UnifiedType::UninitializedThis
             }else {

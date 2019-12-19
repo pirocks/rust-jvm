@@ -24,6 +24,7 @@ use verification::types::{parse_method_descriptor, MethodDescriptor};
 use verification::instruction_outputer::{extract_class_from_constant_pool, name_and_type_extractor};
 use verification::unified_type::UnifiedType::Uninitialized;
 use classfile::code::InstructionInfo::return_;
+use classfile::code::InstructionInfo;
 
 pub mod loads;
 
@@ -42,27 +43,47 @@ pub enum InstructionIsTypeSafeResult {
     NotSafe,
 }
 
+pub enum FrameResult<'l> {
+    Regular(&'l Frame),
+    AfterGoto,
+}
 
 //todo how to handle other values here
-pub fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: &Frame, after_goto: bool) -> TypeSafetyResult {
+pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult<'l>) -> TypeSafetyResult {
     let first = &merged_code[0];//todo inifte recursion
     let rest = &merged_code[1..merged_code.len()];
     match first {
         MergedCodeInstruction::Instruction(i) => {
-            let instruction_res = match instruction_is_type_safe(&i.instruction, env, i.offset, after_frame) {
-                InstructionIsTypeSafeResult::Safe(s) => { s }
-                InstructionIsTypeSafeResult::AfterGoto(_) => { unimplemented!() }
-                InstructionIsTypeSafeResult::NotSafe => { return TypeSafetyResult::NotSafe("todo message".to_string()); }//todo
+            let f = match after_frame {
+                FrameResult::Regular(f) => f,
+                FrameResult::AfterGoto => {
+                    match i.instruction {
+                        InstructionInfo::EndOfCode => return TypeSafetyResult::Safe(),
+                        _ => return TypeSafetyResult::NotSafe("No stack frame after unconditional branch".to_string())
+                    }
+                }
             };
-            let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &instruction_res.exception_frame);
-            merged_code_is_type_safe(env, rest, &instruction_res.next_frame, false)
+            match instruction_is_type_safe(&i.instruction, env, i.offset, f) {
+                InstructionIsTypeSafeResult::Safe(s) => {
+                    let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &s.exception_frame);
+                    merged_code_is_type_safe(env, rest, FrameResult::Regular(&s.next_frame))
+                }
+                InstructionIsTypeSafeResult::AfterGoto(ag) => {
+                    let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &ag.exception_frame);
+                    merged_code_is_type_safe(env, rest, FrameResult::AfterGoto)
+                }
+                InstructionIsTypeSafeResult::NotSafe => { return TypeSafetyResult::NotSafe("todo message".to_string()); }//todo
+            }
         }
         MergedCodeInstruction::StackMap(s) => {
-            if after_goto {
-                merged_code_is_type_safe(env, rest, &s.map_frame, false)
-            } else {
-                and(frame_is_assignable(after_frame, &s.map_frame),
-                    merged_code_is_type_safe(env, rest, &s.map_frame, false))
+            match after_frame {
+                FrameResult::Regular(f) => {
+                    and(frame_is_assignable(f, &s.map_frame),
+                        merged_code_is_type_safe(env, rest, FrameResult::Regular(&s.map_frame)))
+                },
+                FrameResult::AfterGoto => {
+                    merged_code_is_type_safe(env, rest, FrameResult::Regular(&s.map_frame))
+                },
             }
         }
     }
@@ -498,12 +519,12 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, offse
         .rev()
         .map(|x| copy_recurse(x))
         .collect();
-    let next_frame = match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame){
+    let next_frame = match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
         Ok(nf) => nf,
         Err(_) => unimplemented!(),
     };
     let exception_frame = exception_stack_frame(stack_frame);
-    return InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame})
+    return InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame });
 }
 
 
