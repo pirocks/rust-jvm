@@ -1,13 +1,13 @@
 use log::trace;
 use classfile::{ACC_ABSTRACT, ACC_NATIVE, code_attribute};
 use classfile::attribute_infos::Code;
-use classfile::code::Instruction;
-use verification::classnames::NameReference;
+use classfile::code::{Instruction, InstructionInfo};
+use verification::classnames::{NameReference, get_referred_name};
 use verification::code_writer::StackMap;
-use verification::prolog_info_writer::get_access_flags;
+use verification::prolog_info_writer::{get_access_flags, write_method_prolog_name, method_name, class_name};
 use verification::unified_type::UnifiedType;
 use verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
-use verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable};
+use verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use verification::verifier::TypeSafetyResult::Safe;
 use verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use class_loading::Loader;
@@ -215,7 +215,13 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     let code = code_attribute(method_info).unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
-    let instructs: Vec<&Instruction> = code.code.iter().map(|x| { x }).collect();
+    let mut final_offset = 0;
+    let mut instructs: Vec<&Instruction> = code.code
+        .iter()
+        .map(|x| { *(&mut final_offset) = x.offset;x })
+        .collect();
+    let end_of_code = Instruction { offset: final_offset, instruction: InstructionInfo::EndOfCode };
+    instructs.push(&end_of_code);
     let handlers = get_handlers(class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(class, method_info);
     trace!("stack map frames generated:");
@@ -397,12 +403,32 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
         let method_name = extract_string_from_utf8(method_name_info);
         if method_name != "<init>" {
             return None;
+        }else{
+            unimplemented!()
         }
+    }else {
+        Some(instance_method_initial_this_type(class,method))
     }
-    return Some(UnifiedType::UninitializedThis);
+//    return Some(UnifiedType::UninitializedThis);
 }
 
 #[allow(unused)]
-fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> bool {
-    unimplemented!()
+fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> UnifiedType {
+    let method_name = method_name(&method.prolog_class.class,method.prolog_class.class[method.method_index]);
+    if method_name == "<init>" {
+        if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
+            UnifiedType::ReferenceType(class_name(&class.class))
+        }else {
+            let mut chain = vec![];
+            super_class_chain(class,class.loader.clone(),&chain);
+            if !chain.is_empty() {
+                UnifiedType::UninitializedThis
+            }else {
+                unimplemented!()
+            }
+        }
+    }else{
+        //todo what to do about loaders
+        UnifiedType::ReferenceType(class_name(&class.class))
+    }
 }

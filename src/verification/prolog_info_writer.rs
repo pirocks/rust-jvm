@@ -487,7 +487,7 @@ pub fn prolog_method_descriptor(class_file: &Classfile, method_info: &MethodInfo
     Ok(())
 }
 
-fn method_name(class_file: &Classfile, method_info: &MethodInfo) -> String {
+pub fn method_name(class_file: &Classfile, method_info: &MethodInfo) -> String {
     let method_name_utf8 = &class_file.constant_pool[method_info.name_index as usize];
     let method_name = extract_string_from_utf8(method_name_utf8);
     method_name

@@ -540,6 +540,7 @@ pub enum InstructionInfo {
     swap,
     tableswitch(TableSwitch),
     wide(Wide),
+    EndOfCode
 }
 
 

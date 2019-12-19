@@ -410,7 +410,8 @@ fn instruction_to_string(prolog_context: &mut ExtraDescriptors, class_file: &Arc
         InstructionInfo::wide(_wide) => {
             unimplemented!();
 //            ("wide(WidenedInstruction)".to_string(), unimplemented!())
-        }
+        },
+        _ => unimplemented!()
     })
 }
 

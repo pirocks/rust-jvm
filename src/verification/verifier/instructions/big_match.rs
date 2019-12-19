@@ -209,5 +209,6 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::swap => {unimplemented!()},
         InstructionInfo::tableswitch(_) => {unimplemented!()},
         InstructionInfo::wide(_) => {unimplemented!()},
+        _ => unimplemented!()
     }
 }
