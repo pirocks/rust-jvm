@@ -127,60 +127,41 @@ fn add_verification_type_to_array(locals: &mut Vec<UnifiedType>, new_local: &Uni
 
 pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
     match to_copy {
-        UnifiedType::Class(o) => {
-//            let class_name = object_get_class_name(classfile,o);
-            /*if class_name.chars().nth(0).unwrap() == '[' {
-                let type_ = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
-                let mut temp  = Vec::with_capacity(1);
-                locals_push_convert_type(&mut temp,&type_);
-                return copy_recurse(classfile,&temp[0]);
-            }*/
+        UnifiedType::Class(o) => UnifiedType::Class(match o {
+            ClassName::Ref(r) => { ClassName::Ref(NameReference{class_file:r.class_file.clone(),index:r.index}) }
+            ClassName::Str(s) => { ClassName::Str(s.clone()) }
+        }),
+        UnifiedType::Uninitialized(u) => UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset }),
+        UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&a.sub_type)) }),
 
-            UnifiedType::Class(match o {
-                ClassName::Ref(r) => { ClassName::Ref(NameReference{class_file:r.class_file.clone(),index:r.index}) }
-                ClassName::Str(s) => { ClassName::Str(s.clone()) }
-            })
-        }
-        UnifiedType::Uninitialized(u) => {
-            UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset })
-        }
-        UnifiedType::ArrayReferenceType(a) => {
-            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&a.sub_type)) })
-        }
-
-        UnifiedType::TopType => { UnifiedType::TopType }
-        UnifiedType::IntType => { UnifiedType::IntType }
-        UnifiedType::FloatType => { UnifiedType::FloatType }
-        UnifiedType::LongType => { UnifiedType::LongType }
-        UnifiedType::DoubleType => { UnifiedType::DoubleType }
-        UnifiedType::NullType => { UnifiedType::NullType }
-        UnifiedType::UninitializedThis => { UnifiedType::UninitializedThis }
+        UnifiedType::TopType => UnifiedType::TopType,
+        UnifiedType::IntType => UnifiedType::IntType,
+        UnifiedType::FloatType => UnifiedType::FloatType,
+        UnifiedType::LongType => UnifiedType::LongType,
+        UnifiedType::DoubleType => UnifiedType::DoubleType,
+        UnifiedType::NullType => UnifiedType::NullType,
+        UnifiedType::UninitializedThis => UnifiedType::UninitializedThis,
         _ => { panic!("Case wasn't covered with non-unified types") }
     }
 }
 
+//todo why are there two of these?
 fn copy_type_recurse(type_: &UnifiedType) -> UnifiedType {
     match type_ {
-        UnifiedType::ByteType => { UnifiedType::ByteType }
-        UnifiedType::CharType => { UnifiedType::CharType }
-        UnifiedType::DoubleType => { UnifiedType::DoubleType }
-        UnifiedType::FloatType => { UnifiedType::FloatType }
-        UnifiedType::IntType => { UnifiedType::IntType }
-        UnifiedType::LongType => { UnifiedType::LongType }
-        UnifiedType::ShortType => { UnifiedType::ShortType }
-        UnifiedType::Class(t) => {
-            UnifiedType::Class(match t {
-                ClassName::Ref(_) => { unimplemented!() }
-                ClassName::Str(s) => { ClassName::Str(s.clone()) }
-            })
-        }
-        UnifiedType::BooleanType => { UnifiedType::BooleanType }
-        UnifiedType::ArrayReferenceType(t) => {
-            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&t.sub_type)) })
-        }
-        UnifiedType::VoidType => {
-            UnifiedType::VoidType
-        }
+        UnifiedType::ByteType => UnifiedType::ByteType,
+        UnifiedType::CharType => UnifiedType::CharType,
+        UnifiedType::DoubleType => UnifiedType::DoubleType,
+        UnifiedType::FloatType => UnifiedType::FloatType,
+        UnifiedType::IntType => UnifiedType::IntType,
+        UnifiedType::LongType => UnifiedType::LongType,
+        UnifiedType::ShortType => UnifiedType::ShortType,
+        UnifiedType::Class(t) => UnifiedType::Class(match t {
+            ClassName::Ref(_) => unimplemented!(),
+            ClassName::Str(s) => ClassName::Str(s.clone()),
+        }),
+        UnifiedType::BooleanType => UnifiedType::BooleanType,
+        UnifiedType::ArrayReferenceType(t) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&t.sub_type)) }),
+        UnifiedType::VoidType => UnifiedType::VoidType,
         _ => { panic!("Case wasn't coverred with non-unified types") }
     }
 }
