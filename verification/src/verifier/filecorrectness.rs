@@ -7,6 +7,8 @@ use crate::verifier::TypeSafetyResult::{Safe, NotSafe, NeedToLoad};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
 use crate::prolog::prolog_info_writer::get_access_flags;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
+use rust_jvm_common::unified_types::ClassType;
+use rust_jvm_common::unified_types::class_type_to_class;
 
 #[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
@@ -38,8 +40,8 @@ fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
 }
 
 //todo have an actual loader type. instead of refering to loader name
-pub fn loaded_class(class: &PrologClass, loader: Arc<Loader>) -> TypeSafetyResult {
-    let class_entry = class_entry(&class.class);
+pub fn loaded_class(class: &ClassType, loader: &Arc<Loader>) -> TypeSafetyResult {
+    let class_entry = class_entry_from_string(&get_referred_name(&class.class_name),false);
     if loader.loading.read().unwrap().contains_key(&class_entry) || loader.loaded.read().unwrap().contains_key(&class_entry) {
         return Safe();
     } else {
@@ -77,7 +79,7 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
     return class.class.access_flags & ACC_INTERFACE != 0;
 }
 
-pub fn is_java_sub_class_of(_from: &PrologClass, _to: &PrologClass) -> bool {
+pub fn is_java_sub_class_of(_from: &ClassType, _to: &ClassType) -> bool {
     unimplemented!()
 }
 
@@ -108,8 +110,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
                 if c == c2 {
                     return true;
                 }else {
-
-                    unimplemented!()
+                    return is_java_assignable(c,c2)
                 }
             },
             _ => is_assignable(&UnifiedType::Reference, to)
@@ -162,9 +163,9 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
 }
 
 //todo how to handle arrays
-pub fn is_java_assignable(from: &PrologClass, to: &PrologClass) -> bool {
+pub fn is_java_assignable(from: &ClassType, to: &ClassType) -> bool {
     match loaded_class(to, unimplemented!()) {
-        TypeSafetyResult::Safe() => { return class_is_interface(to); }
+        TypeSafetyResult::Safe() => { return class_is_interface(&PrologClass {class:class_type_to_class(to),loader:to.loader}); }
         _ => unimplemented!()
     }
     unimplemented!();
@@ -193,7 +194,7 @@ pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &m
             return NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string());
         }
     }
-    let _loaded = loaded_class(chain_start, loader);
+    let _loaded = loaded_class(&ClassType {class_name:class_name(&chain_start.class),loader:loader.clone() }, &loader);//todo loader duplication
     unimplemented!()
 }
 
