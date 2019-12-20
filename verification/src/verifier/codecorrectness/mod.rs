@@ -17,6 +17,7 @@ use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;
 use classfile_parser::code_attribute;
+use rust_jvm_common::unified_types::ClassType;
 
 pub mod stackmapframes;
 
@@ -350,7 +351,7 @@ fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, f
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
     let method_descriptor = extract_string_from_utf8(&class.class.constant_pool[method.prolog_class.class.methods[method.method_index as usize].descriptor_index as usize]);
-    let parsed_descriptor = parse_method_descriptor(method_descriptor.as_str()).unwrap();
+    let parsed_descriptor = parse_method_descriptor(&class.loader,method_descriptor.as_str()).unwrap();
     let this_list = method_initial_this_type(class, method);
     let flag_this_uninit = flags(&this_list);
     let args = expand_type_list(parsed_descriptor.parameter_types);
@@ -423,7 +424,7 @@ fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMe
     let method_name = method_name(&method.prolog_class.class, &method.prolog_class.class.methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
-            UnifiedType::Class(class_name(&class.class))
+            UnifiedType::Class(ClassType { class_name:class_name(&class.class) ,loader:class.loader.clone() })
         } else {
             let mut chain = vec![];
             super_class_chain(class, class.loader.clone(), &mut chain);
@@ -435,6 +436,6 @@ fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMe
         }
     } else {
         //todo what to do about loaders
-        UnifiedType::Class(class_name(&class.class))
+        UnifiedType::Class(ClassType {class_name:class_name(&class.class), loader: class.loader.clone() })
     }
 }

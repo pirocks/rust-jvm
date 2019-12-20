@@ -1,10 +1,13 @@
 use std::fs::File;
 use std::io::prelude::*;
 use rust_jvm_common::classfile::ConstantInfo;
+use rust_jvm_common::loading::Loader;
+use std::sync::Arc;
 
 pub struct ParsingContext<'l> {
     pub f: File,
-    pub constant_pool : &'l Vec<ConstantInfo>
+    pub constant_pool : &'l Vec<ConstantInfo>,
+    pub loader: Arc<Loader>
 }
 
 const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";

@@ -13,6 +13,7 @@ use std::thread::sleep;
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use rust_jvm_common::classnames::class_name_legacy;
+use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use regex::Regex;
 use log::trace;
 
@@ -143,7 +144,7 @@ fn init_prolog_context<'s>(state: &'s JVMState, loading_in_progress: &Vec<ClassE
 fn add_to_verify(state: &JVMState, to_verify: &mut Vec<Arc<Classfile>>, class_entry: &ClassEntry) -> () {
     let path = state.indexed_classpath.get(class_entry).unwrap();
 //    let mut p = ParsingContext { f: File::open(path).expect("This is a bug"), constant_pool: None };
-    let class_file = parse_class_file(File::open(path).expect("This is a bug"));
+    let class_file = parse_class_file(File::open(path).expect("This is a bug"),  BOOTSTRAP_LOADER.clone());
     to_verify.push(class_file)
 }
 

@@ -5,6 +5,7 @@ use crate::code::parse_code_raw;
 use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::utils::extract_string_from_utf8;
+use rust_jvm_common::unified_types::ClassType;
 
 pub fn parse_attribute(p: &mut ParsingContext) -> AttributeInfo {
     let attribute_name_index = read16(p);
@@ -259,7 +260,8 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
                 ConstantKind::String(_c) => panic!(),
                 _ => { panic!() }
             };
-            UnifiedType::Class(ClassName::Str(extract_string_from_utf8(&p.constant_pool[index as usize])))
+            let class_name = ClassName::Str(extract_string_from_utf8(&p.constant_pool[index as usize]));
+            UnifiedType::Class(ClassType {class_name, loader: p.loader.clone() } )
 //            UnifiedType::ReferenceType(ClassName::Ref(NameReference { class_file:Rc::downgrade(classfile), index }))
         }
 

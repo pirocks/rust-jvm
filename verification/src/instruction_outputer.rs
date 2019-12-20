@@ -46,7 +46,7 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, classfile: &Arc<C
             let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
             if class_name.chars().nth(0).unwrap() == '[' {
-                let parsed_class_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
+                let parsed_class_descriptor = parse_field_descriptor(unimplemented!(),class_name.as_str()).expect("Error parsing descriptor").field_type;
                 write!(&mut res, "method(").unwrap();
                 let mut type_vec = Vec::new();
                 write_type_prolog(&parsed_class_descriptor, &mut type_vec).unwrap();
@@ -81,7 +81,7 @@ fn cp_elem_to_string(extra_descriptors: &mut ExtraDescriptors, classfile: &Arc<C
         ConstantKind::Class(c) => {
             let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             if class_name.chars().nth(0).unwrap() == '[' {
-                let parsed_class_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing descriptor").field_type;
+                let parsed_class_descriptor = parse_field_descriptor(unimplemented!(),class_name.as_str()).expect("Error parsing descriptor").field_type;
                 let mut type_vec = Vec::new();
                 write_type_prolog(&parsed_class_descriptor, &mut type_vec).unwrap();
                 write!(&mut res, "{}", String::from_utf8(type_vec).unwrap()).unwrap();

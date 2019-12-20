@@ -15,6 +15,7 @@ use crate::verifier::codecorrectness::stackmapframes::{handle_chop_frame, handle
 use classfile_parser::{stack_map_table_attribute, code_attribute};
 use rust_jvm_common::loading::BOOTSTRAP_LOADER_NAME;
 use crate::prolog::unified_types::write_type_prolog;
+use rust_jvm_common::unified_types::ClassType;
 
 #[derive(Debug)]
 pub struct StackMap{
@@ -112,7 +113,7 @@ fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> (
             res.push(UnifiedType::TopType);
         }
         UnifiedType::Class(r) => {
-            assert_ne!(get_referred_name(&r).chars().nth(0).unwrap(), '[');
+            assert_ne!(get_referred_name(&r.class_name).chars().nth(0).unwrap(), '[');
             res.push(UnifiedType::Class(r));
         }
         UnifiedType::ShortType => {
@@ -162,9 +163,9 @@ fn verification_type_as_string(classfile: &Arc<Classfile>, verification_type: &U
         UnifiedType::NullType => { write!(w, "null")?; }
         UnifiedType::UninitializedThis => { unimplemented!() }
         UnifiedType::Class(o) => {
-            let class_name = get_referred_name(o);
+            let class_name = get_referred_name(&o.class_name);
             if class_name.chars().nth(0).unwrap() == '[' {
-                let parsed_descriptor = parse_field_descriptor(class_name.as_str()).expect("Error parsing a descriptor").field_type;
+                let parsed_descriptor = parse_field_descriptor(unimplemented!(),class_name.as_str()).expect("Error parsing a descriptor").field_type;
                 write_type_prolog(&parsed_descriptor, w)?;
                 return Ok(());
             }
@@ -210,12 +211,13 @@ fn write_stack_map_frames(class_file: &Arc<Classfile>, method_info: &MethodInfo,
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let descriptor_str = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
-    let parsed_descriptor = parse_method_descriptor(descriptor_str.as_str()).expect("Error parsing method descriptor");
+    let parsed_descriptor = parse_method_descriptor(unimplemented!(),descriptor_str.as_str()).expect("Error parsing method descriptor");
 
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {
         None
     } else {
-        Some(UnifiedType::Class(class_name(class_file)))
+        let class_name = class_name(class_file);
+        Some(UnifiedType::Class(ClassType { class_name, loader: unimplemented!() }))
     };
 
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);

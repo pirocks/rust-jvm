@@ -7,6 +7,7 @@ use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo,
 use crate::parsing_util::{ParsingContext, read16, read32};
 use crate::attribute_infos::parse_attributes;
 use crate::constant_infos::parse_constant_infos;
+use rust_jvm_common::loading::Loader;
 
 
 pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
@@ -90,8 +91,8 @@ pub fn parse_methods(p: &mut ParsingContext, methods_count: u16) -> Vec<MethodIn
     return res;
 }
 
-pub fn parse_class_file(f: File) -> Arc<Classfile> {
-    let mut p = ParsingContext { constant_pool:&vec![] ,f};
+pub fn parse_class_file(f: File,loader: Arc<Loader>) -> Arc<Classfile> {
+    let mut p = ParsingContext { constant_pool:&vec![] ,f,loader};
     let magic: u32 = read32(&mut p);
     assert_eq!(magic, EXPECTED_CLASSFILE_MAGIC);
     let minor_version: u16 = read16(&mut p);

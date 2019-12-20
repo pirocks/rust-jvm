@@ -33,7 +33,7 @@ pub fn write_type_prolog(type_: &UnifiedType, w: &mut dyn Write) -> Result<(), i
         UnifiedType::Class(ref_) => {
 //            if context.state.using_bootstrap_loader {
                 write!(w,"class('")?;
-                write!(w,"{}",get_referred_name(ref_))?;
+                write!(w,"{}",get_referred_name(&ref_.class_name))?;
                 write!(w,"',{})",BOOTSTRAP_LOADER_NAME)?;
 //            } else {
 //                unimplemented!()

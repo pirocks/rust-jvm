@@ -7,18 +7,19 @@ use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
 use rust_jvm_common::classnames::{class_name, ClassName, NameReference};
 use classfile_parser::{code_attribute, stack_map_table_attribute};
+use rust_jvm_common::unified_types::ClassType;
 
-pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<StackMap> {
+pub fn get_stack_map_frames(class: &PrologClass, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
     let code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let descriptor_str = extract_string_from_utf8(&class.class.constant_pool[method_info.descriptor_index as usize]);
-    let parsed_descriptor = parse_method_descriptor(descriptor_str.as_str()).expect("Error parsing method descriptor");
+    let parsed_descriptor = parse_method_descriptor(&class.loader, descriptor_str.as_str()).expect("Error parsing method descriptor");
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {
         None
     } else {
-        Some(UnifiedType::Class(class_name(&class.class)))
+        Some(UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() }))
     };
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
@@ -26,9 +27,9 @@ pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<
     for (_, entry) in stack_map.entries.iter().enumerate() {
         match entry {
             StackMapFrame::SameFrame(s) => handle_same_frame(&mut frame, &s),
-            StackMapFrame::AppendFrame(append_frame) => handle_append_frame( &mut frame, &append_frame),
-            StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack( &mut frame, &s),
-            StackMapFrame::FullFrame(f) => handle_full_frame( &mut frame, &f),
+            StackMapFrame::AppendFrame(append_frame) => handle_append_frame(&mut frame, &append_frame),
+            StackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(&mut frame, &s),
+            StackMapFrame::FullFrame(f) => handle_full_frame(&mut frame, &f),
             StackMapFrame::ChopFrame(f) => handle_chop_frame(&mut frame, &f),
             StackMapFrame::SameFrameExtended(f) => handle_same_frame_extended(&mut frame, &f),
             StackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(&mut frame, &f)
@@ -41,10 +42,10 @@ pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<
         res.push(StackMap {
             offset: frame.current_offset as usize,
             map_frame: Frame {
-                locals: frame.locals.iter().map(|x|{copy_recurse(x)}).collect(),
-                stack_map: frame.stack.iter().map(|x|{copy_recurse(x)}).collect(),
-                flag_this_uninit: false
-            }
+                locals: frame.locals.iter().map(|x| { copy_recurse(x) }).collect(),
+                stack_map: frame.stack.iter().map(|x| { copy_recurse(x) }).collect(),
+                flag_this_uninit: false,
+            },
         });
     }
 
@@ -126,11 +127,15 @@ fn add_verification_type_to_array(locals: &mut Vec<UnifiedType>, new_local: &Uni
 }
 
 pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
+
     match to_copy {
-        UnifiedType::Class(o) => UnifiedType::Class(match o {
-            ClassName::Ref(r) => { ClassName::Ref(NameReference{class_file:r.class_file.clone(),index:r.index}) }
-            ClassName::Str(s) => { ClassName::Str(s.clone()) }
-        }),
+        UnifiedType::Class(o) => {
+            let class_name = match &o.class_name {
+                ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
+                ClassName::Str(s) => { ClassName::Str(s.clone()) }
+            };
+            UnifiedType::Class(ClassType {class_name, loader: o.loader.clone() })
+        }
         UnifiedType::Uninitialized(u) => UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset }),
         UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&a.sub_type)) }),
 
@@ -155,10 +160,13 @@ fn copy_type_recurse(type_: &UnifiedType) -> UnifiedType {
         UnifiedType::IntType => UnifiedType::IntType,
         UnifiedType::LongType => UnifiedType::LongType,
         UnifiedType::ShortType => UnifiedType::ShortType,
-        UnifiedType::Class(t) => UnifiedType::Class(match t {
-            ClassName::Ref(_) => unimplemented!(),
-            ClassName::Str(s) => ClassName::Str(s.clone()),
-        }),
+        UnifiedType::Class(o) => {
+            let class_name = match &o.class_name {
+                ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
+                ClassName::Str(s) => { ClassName::Str(s.clone()) }
+            };
+            UnifiedType::Class(ClassType {class_name, loader: o.loader.clone() })
+        },
         UnifiedType::BooleanType => UnifiedType::BooleanType,
         UnifiedType::ArrayReferenceType(t) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&t.sub_type)) }),
         UnifiedType::VoidType => UnifiedType::VoidType,

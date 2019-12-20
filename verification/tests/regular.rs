@@ -49,7 +49,7 @@ pub fn can_verify_exceptions() {
 fn verify_class_with_name(main_class_name: &String) -> TypeSafetyResult{
     let mut resources = get_test_resources();
     resources.push(format!("{}.class",main_class_name));
-    let classfile = parse_class_file(File::open(resources.as_path()).unwrap());
+    let classfile = parse_class_file(File::open(resources.as_path()).unwrap(), BOOTSTRAP_LOADER.clone());
     let mut to_verify = HashMap::new();
     to_verify.insert(class_entry_from_string(main_class_name,false), classfile);
     let mut loaders = HashMap::new();

@@ -11,6 +11,8 @@ use crate::instruction_outputer::{extract_class_from_constant_pool, name_and_typ
 use rust_jvm_common::utils::extract_string_from_utf8;
 use crate::types::{parse_method_descriptor, MethodDescriptor};
 use crate::verifier::filecorrectness::is_assignable;
+use rust_jvm_common::unified_types::ClassType;
+use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 pub mod loads;
 
@@ -118,10 +120,11 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 }
 
 fn class_to_type(class: &PrologClass) -> UnifiedType {
-    UnifiedType::Class(ClassName::Ref(NameReference {
+    let class_name = ClassName::Ref(NameReference {
         index: class.class.this_class,
         class_file: Arc::downgrade(&class.class),
-    }))
+    });
+    UnifiedType::Class(ClassType { class_name, loader: class.loader.clone() } )
 }
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> TypeSafetyResult {
@@ -171,8 +174,9 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> TypeSafetyResult {
                     if instructions_include_end(env.merged_code.unwrap(), h.end) {
                         let exception_class = handler_exception_class(&h);
                         //todo how does bootstrap loader from throwable make its way into this
-                        if is_assignable(&UnifiedType::Class(class_name(&exception_class.class)),
-                                         &UnifiedType::Class(ClassName::Str("java/lang/Throwable".to_string()))) {
+                        let class_name = class_name(&exception_class.class);
+                        if is_assignable(&UnifiedType::Class(ClassType {class_name, loader: env.class_loader.clone() }),
+                                         &UnifiedType::Class(ClassType { class_name:ClassName::Str("java/lang/Throwable".to_string()), loader:BOOTSTRAP_LOADER.clone()} )) {
                             return init_handler_is_legal(env, h);
                         } else {
                             TypeSafetyResult::NotSafe("Handler exception class not assignable to Throwable".to_string())
@@ -535,10 +539,11 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         .rev()
         .map(|x| copy_recurse(x))
         .collect();
-    let _current_loader = &env.class_loader;
+    let current_loader = &env.class_loader;
     //todo deal with loaders in class names/types
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| copy_recurse(x)).collect();
-    stack_arg_list.push(UnifiedType::Class(ClassName::Str(class_name.clone())));
+    let class_type = ClassType { class_name:ClassName::Str(class_name.clone()), loader: current_loader.clone() };//todo better name
+    stack_arg_list.push(UnifiedType::Class(class_type));
     stack_arg_list.reverse();
     match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
         Ok(nf) => {
@@ -559,7 +564,7 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, Metho
             let c = extract_class_from_constant_pool(m.class_index, &classfile);
             let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
-            let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
+            let parsed_descriptor = match parse_method_descriptor(&env.class_loader,descriptor.as_str()) {
                 None => { unimplemented!() }
                 Some(pd) => { pd }
             };

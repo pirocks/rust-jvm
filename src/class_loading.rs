@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use log::trace;
 
-use rust_jvm_common::loading::{Loader, ClassEntry, class_entry_from_string, class_entry, JVMState, BOOTSTRAP_LOADER_NAME};
+use rust_jvm_common::loading::{Loader, ClassEntry, class_entry_from_string, class_entry, JVMState, BOOTSTRAP_LOADER_NAME,BOOTSTRAP_LOADER};
 use rust_jvm_common::classfile::{Classfile, ConstantKind};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use classfile_parser::parse_class_file;
@@ -54,7 +54,7 @@ fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: &
         panic!();
     }).unwrap();
     let candidate_file = File::open(path_of_class_to_load).expect("Error opening class file");
-    let parsed = parse_class_file(candidate_file);
+    let parsed = parse_class_file(candidate_file,BOOTSTRAP_LOADER.clone());
     if to_load != &class_entry(&parsed) {
         dbg!(to_load);
         dbg!(class_entry(&parsed));

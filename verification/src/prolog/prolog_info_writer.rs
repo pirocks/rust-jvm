@@ -97,12 +97,12 @@ fn get_extra_descriptors(context: & PrologGenContext) -> (Vec<ParsedFieldDescrip
     let mut fd = vec![];
     let mut md = vec![];
     for field_descriptor in extra_descriptors.extra_field_descriptors.iter() {
-        let parsed_type = parse_field_descriptor(field_descriptor.as_str()).expect("Error parsing field descriptor");
+        let parsed_type = parse_field_descriptor(unimplemented!(),field_descriptor.as_str()).expect("Error parsing field descriptor");
         fd.push(ParsedFieldDescriptor { descriptor: field_descriptor.clone(), parsed: parsed_type });
     }
     for method_descriptor in extra_descriptors.extra_method_descriptors.iter() {
         //todo dup
-        let parsed = parse_method_descriptor(method_descriptor.as_str()).expect("Error parsing method descriptor");
+        let parsed = parse_method_descriptor(unimplemented!(),method_descriptor.as_str()).expect("Error parsing method descriptor");
         md.push(ParsedMethodDescriptor { descriptor: method_descriptor.clone(), parsed });//todo all this copying
     }
     (fd, md)
@@ -602,7 +602,7 @@ pub fn write_parse_field_descriptors(context: &PrologGenContext, w: &mut dyn Wri
             write!(w, "parseFieldDescriptor(")?;
             prolog_field_descriptor(class_file, field_info, w)?;
             let descriptor_string = extract_string_from_utf8(&class_file.constant_pool[field_info.descriptor_index as usize]);
-            let parsed_type = parse_field_descriptor(descriptor_string.as_str()).expect("Error parsing field descriptor");
+            let parsed_type = parse_field_descriptor(unimplemented!(),descriptor_string.as_str()).expect("Error parsing field descriptor");
             write!(w, ",")?;
             write_type_prolog(&parsed_type.field_type, w)?;
             write!(w, ").\n")?;
@@ -624,7 +624,7 @@ pub fn write_parse_method_descriptor(context: &PrologGenContext, w: &mut dyn Wri
             write!(w, "parseMethodDescriptor(")?;
             prolog_method_descriptor(class_file, method_info, w)?;
             let method_descriptor_str = extract_string_from_utf8(&class_file.constant_pool[method_info.descriptor_index as usize]);
-            let method_descriptor = parse_method_descriptor(method_descriptor_str.as_str()).expect("Error parsing method descriptor");
+            let method_descriptor = parse_method_descriptor(unimplemented!(),method_descriptor_str.as_str()).expect("Error parsing method descriptor");
             write!(w, ",[")?;
             for (i, parameter_type) in method_descriptor.parameter_types.iter().enumerate() {
                 write_type_prolog(&parameter_type, w)?;

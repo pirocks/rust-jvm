@@ -6,13 +6,14 @@ use verification::prolog::prolog_info_writer::{PrologGenContext, ExtraDescriptor
 use rust_jvm_common::loading::JVMState;
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
+use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 #[test]
 pub fn basic_class_file_prolog_output() -> Result<(),io::Error>{
     let mut test_resources_path = get_test_resources();
     test_resources_path.push("Main.class");
 
-    let parsed = parse_class_file(File::open(test_resources_path.as_os_str()).unwrap());
+    let parsed = parse_class_file(File::open(test_resources_path.as_os_str()).unwrap(),BOOTSTRAP_LOADER.clone());
     let mut class_files = Vec::new();
     class_files.push(parsed);
     let mut prolog_context = PrologGenContext {
