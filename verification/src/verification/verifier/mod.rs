@@ -88,7 +88,7 @@ pub fn class_is_type_safe(class: &PrologClass ) -> TypeSafetyResult {
         //class must have a superclass or be 'java/lang/Object'
         //todo loader shouldnt really be a string
         let mut chain = vec![];
-        let chain_res = super_class_chain(class, class.loader.clone(), &mut chain);
+        let _chain_res = super_class_chain(class, class.loader.clone(), &mut chain);
         unimplemented!();
         if chain.is_empty() {
             return TypeSafetyResult::NotSafe("No superclass but object is not Object".to_string());
@@ -151,7 +151,7 @@ pub enum Descriptor {}
 
 //fn modify_local_variable() //todo
 
-fn passes_protected_check(env: &Environment, member_class_name: String, member_name: String, member_descriptor: &MethodDescriptor, stack_frame: &Frame) -> bool {
+fn passes_protected_check(env: &Environment, member_class_name: String, _member_name: String, _member_descriptor: &MethodDescriptor, _stack_frame: &Frame) -> bool {
     let mut chain = vec![];
     super_class_chain(env.method.prolog_class,env.class_loader.clone(),&mut chain);//todo is this strictly correct?
     if chain.iter().any(|x|{get_referred_name(&class_name(&x.class)) == member_class_name}){
@@ -161,6 +161,7 @@ fn passes_protected_check(env: &Environment, member_class_name: String, member_n
     }
 }
 
-fn classes_in_other_pkg_with_protected_member(class: &PrologClass, member_name:String, member_descriptor:&MethodDescriptor,member_class_name:String,chain: Vec<PrologClass>) -> Vec<PrologClass>{
+#[allow(unused)]
+fn classes_in_other_pkg_with_protected_member(_class: &PrologClass, _member_name:String, _member_descriptor:&MethodDescriptor,_member_class_name:String,_chain: Vec<PrologClass>) -> Vec<PrologClass>{
     unimplemented!()
 }

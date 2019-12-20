@@ -17,7 +17,7 @@ use regex::Regex;
 use log::trace;
 
 pub fn prolog_verify(state: &JVMState, to_verify: &HashMap<ClassEntry, Arc<Classfile>>) -> Option<String> {
-    for (class_entry, current_class_to_verify) in to_verify.iter() {
+    for (class_entry, _current_class_to_verify) in to_verify.iter() {
         let (mut prolog, mut prolog_input, mut output_lines, mut context) = init_prolog(&state);
         let generated_prolog_defs_file: NamedTempFile = NamedTempFile::new().expect("Error creating tempfile");
         trace!("tempfile for prolog defs created at: {}", generated_prolog_defs_file.path().as_os_str().to_str().expect("Could not convert path to str"));
@@ -27,7 +27,7 @@ pub fn prolog_verify(state: &JVMState, to_verify: &HashMap<ClassEntry, Arc<Class
 
         let generated_defs_res = read_true_false_another_class(&mut output_lines);
         match generated_defs_res {
-            True => {
+            PrologOutput::True => {
                 trace!("Prolog accepted verification info");
                 let classes: Vec<String> = context.to_verify.iter().map(|class: &Arc<Classfile>| {
                     class_name_legacy(class)
@@ -53,7 +53,7 @@ pub fn prolog_verify(state: &JVMState, to_verify: &HashMap<ClassEntry, Arc<Class
         prolog.kill().expect("Unable to kill prolog");
         prolog.wait().expect("Unable to await prolog death");
         match loading_attempt_res {
-            True => {
+            PrologOutput::True => {
                 trace!("Successfully verified {}", class_entry);
             }
             PrologOutput::False => {
@@ -84,7 +84,7 @@ fn init_prolog(state: &JVMState) -> (Child, BufWriter<ChildStdin>, Lines<BufRead
     prolog_initial_defs(&mut prolog_input).unwrap();
     let initial_defs_written = read_true_false_another_class(&mut output_lines);
     match initial_defs_written {
-        True => {
+        PrologOutput::True => {
             trace!("Initial prolog defs accepted by prolog.");
         }
         PrologOutput::False => { panic!() }
@@ -93,6 +93,7 @@ fn init_prolog(state: &JVMState) -> (Child, BufWriter<ChildStdin>, Lines<BufRead
     (prolog, prolog_input, output_lines, context)
 }
 
+#[allow(non_snake_case)]
 enum PrologOutput {
     True,
     False,

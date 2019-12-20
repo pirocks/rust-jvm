@@ -1,7 +1,5 @@
-use std::io::Write;
-use std::io;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
-use rust_jvm_common::classnames::{ClassName, get_referred_name};
+use rust_jvm_common::classnames::ClassName;
 
 //todo there are two of these, only one can live forever
 #[derive(Debug)]

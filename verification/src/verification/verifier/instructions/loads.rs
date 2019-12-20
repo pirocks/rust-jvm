@@ -36,10 +36,10 @@ pub fn instruction_is_type_safe_lload(index: usize, env: &Environment, _offset: 
 }
 
 
-pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     let next_frame = match load_is_type_safe(env, index, &UnifiedType::Reference, stack_frame){
         Ok(nf) => {nf},
-        Err(e) => {return InstructionIsTypeSafeResult::NotSafe;}
+        Err(_e) => {return InstructionIsTypeSafeResult::NotSafe;}
     };
     let exception_frame = exception_stack_frame(stack_frame);
     return InstructionIsTypeSafeResult::Safe(ResultFrames {

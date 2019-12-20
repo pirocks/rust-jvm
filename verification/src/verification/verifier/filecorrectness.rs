@@ -68,7 +68,7 @@ pub fn class_is_final(class: &PrologClass) -> bool {
 }
 
 
-pub fn loaded_class_(class_name: String, loader_name: String) -> Option<PrologClass> {
+pub fn loaded_class_(_class_name: String, _loader_name: String) -> Option<PrologClass> {
     unimplemented!()
 }
 
@@ -77,7 +77,7 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
     return class.class.access_flags & ACC_INTERFACE != 0;
 }
 
-pub fn is_java_sub_class_of(from: &PrologClass, to: &PrologClass) -> bool {
+pub fn is_java_sub_class_of(_from: &PrologClass, _to: &PrologClass) -> bool {
     unimplemented!()
 }
 
@@ -115,8 +115,14 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::ArrayReferenceType(a) => match to {
-            UnifiedType::ArrayReferenceType(a2) => unimplemented!(),
-            UnifiedType::Class(c) => unimplemented!(),
+            UnifiedType::ArrayReferenceType(a2) => {
+                if a == a2{
+                    return true;
+                }else {
+                    unimplemented!()
+                }
+            },
+            UnifiedType::Class(_c) => unimplemented!(),
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::TopType => match to {
@@ -132,13 +138,13 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
             _ => is_assignable(&UnifiedType::UninitializedEmpty, to)
         },
         UnifiedType::UninitializedThis => match to {
-            UnifiedType::UninitializedThis => unimplemented!(),
+            UnifiedType::UninitializedThis => true,
             _ => is_assignable(&UnifiedType::UninitializedEmpty, to)
         },
         UnifiedType::NullType => match to {
             UnifiedType::NullType => true,
-            UnifiedType::Class(c) => true,
-            UnifiedType::ArrayReferenceType(a) => true,
+            UnifiedType::Class(_) => true,
+            UnifiedType::ArrayReferenceType(_) => true,
             _ => is_assignable(unimplemented!(), to),
         },
         UnifiedType::OneWord => match to {
@@ -170,11 +176,11 @@ pub fn is_array_interface(class: PrologClass) -> bool {
         get_referred_name(&class_name(&class.class)) == "java/io/Serializable"
 }
 
-pub fn is_java_subclass_of(sub: &PrologClass, super_: &PrologClass) {
+pub fn is_java_subclass_of(_sub: &PrologClass, _super: &PrologClass) {
     unimplemented!()
 }
 
-pub fn class_super_class_name(class: &PrologClass) -> String {
+pub fn class_super_class_name(_class: &PrologClass) -> String {
     unimplemented!()
 }
 
@@ -187,7 +193,7 @@ pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &m
             return NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string());
         }
     }
-    let loaded = loaded_class(chain_start, loader);
+    let _loaded = loaded_class(chain_start, loader);
     unimplemented!()
 }
 

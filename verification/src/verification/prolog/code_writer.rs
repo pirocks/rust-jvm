@@ -8,7 +8,7 @@ use crate::verification::prolog::prolog_info_writer::{PrologGenContext, write_me
 use crate::verification::instruction_outputer::{extract_class_from_constant_pool, output_instruction_info_for_code};
 use rust_jvm_common::classnames::{get_referred_name, class_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
-use rust_jvm_common::classfile::{Classfile, ExceptionTableElem, ObjectVariableInfo, StackMapFrame, MethodInfo, StackMapTable, Code, ACC_STATIC};
+use rust_jvm_common::classfile::{Classfile, ExceptionTableElem, StackMapFrame, MethodInfo, StackMapTable, Code, ACC_STATIC};
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
 use crate::verification::types::{parse_field_descriptor, parse_method_descriptor};
 use crate::verification::verifier::codecorrectness::stackmapframes::{handle_chop_frame, handle_full_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended, handle_append_frame, handle_same_frame, handle_same_locals_1_stack};
@@ -181,17 +181,17 @@ fn verification_type_as_string(classfile: &Arc<Classfile>, verification_type: &U
     Ok(())
 }
 
-fn object_get_class_name(classfile: &Arc<Classfile>, o: &ObjectVariableInfo) -> String {
-    let class_name = match o.cpool_index {
-        None => { o.class_name.clone() }
-        Some(i) => {
-            let c = extract_class_from_constant_pool(i, classfile);
-            extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize])
-        }
-    };
-    assert_ne!(class_name, "".to_string());
-    class_name
-}
+//fn object_get_class_name(classfile: &Arc<Classfile>, o: &ObjectVariableInfo) -> String {
+//    let class_name = match o.cpool_index {
+//        None => { o.class_name.clone() }
+//        Some(i) => {
+//            let c = extract_class_from_constant_pool(i, classfile);
+//            extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize])
+//        }
+//    };
+//    assert_ne!(class_name, "".to_string());
+//    class_name
+//}
 
 fn write_operand_stack(classfile: &Arc<Classfile>, frame: &InternalFrame, w: &mut dyn Write) -> Result<(), io::Error> {
     write!(w, "[")?;

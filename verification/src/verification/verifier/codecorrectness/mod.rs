@@ -23,7 +23,7 @@ pub mod stackmapframes;
 
 pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame, TypeSafetyResult> {
     let input_operand_stack = &input_frame.stack_map;
-    let interim_operand_stack = match pop_matching_list(input_operand_stack, expected_types_on_stack) {
+    let _interim_operand_stack = match pop_matching_list(input_operand_stack, expected_types_on_stack) {
         None => return Result::Err(TypeSafetyResult::NotSafe("could not pop matching list".to_string())),
         Some(s) => s,
     };
@@ -263,12 +263,12 @@ pub fn handler_exception_class(handler: &Handler) -> PrologClass {
     //may want to return a unifiedType instead
     match &handler.class_name {
         None => { unimplemented!("Return java/lang/Throwable") }
-        Some(s) => { unimplemented!("Need to get class from state") }
+        Some(_s) => { unimplemented!("Need to get class from state") }
     }
 }
 //
 
-pub fn init_handler_is_legal(env: &Environment, handler: &Handler) -> TypeSafetyResult {
+pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> TypeSafetyResult {
     unimplemented!()
 }
 //
@@ -353,7 +353,7 @@ fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, f
     let parsed_descriptor = parse_method_descriptor(method_descriptor.as_str()).unwrap();
     let this_list = method_initial_this_type(class, method);
     let flag_this_uninit = flags(&this_list);
-    let mut args = expand_type_list(parsed_descriptor.parameter_types);
+    let args = expand_type_list(parsed_descriptor.parameter_types);
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
         this_args.push(copy_recurse(x));

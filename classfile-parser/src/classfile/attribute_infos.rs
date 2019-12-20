@@ -254,9 +254,9 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
         7 => {
             let original_index = read16(p);
             let index = match &p.constant_pool[original_index as usize].kind {
-                ConstantKind::Utf8(u) => { panic!();original_index },
+                ConstantKind::Utf8(_u) => { panic!();original_index },
                 ConstantKind::Class(c) => c.name_index,
-                ConstantKind::String(c) => panic!(),
+                ConstantKind::String(_c) => panic!(),
                 _ => { panic!() }
             };
             UnifiedType::Class(ClassName::Str(extract_string_from_utf8(&p.constant_pool[index as usize])))

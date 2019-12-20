@@ -1,10 +1,9 @@
 pub mod attribute_infos;
 pub mod code;
 pub mod constant_infos;
-use std::hash::Hasher;
 use std::sync::Arc;
 use std::fs::File;
-use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo, ACC_ABSTRACT, ConstantInfo, FieldInfo, AttributeInfo, Classfile, ACC_NATIVE};
+use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo, ACC_ABSTRACT, FieldInfo, Classfile, ACC_NATIVE};
 use crate::classfile::parsing_util::{ParsingContext, read16, read32};
 use crate::classfile::attribute_infos::parse_attributes;
 use crate::classfile::constant_infos::parse_constant_infos;

@@ -51,11 +51,11 @@ pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCode
             };
             match instruction_is_type_safe(&i.instruction, env, i.offset, f) {
                 InstructionIsTypeSafeResult::Safe(s) => {
-                    let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &s.exception_frame);
+                    let _exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &s.exception_frame);
                     merged_code_is_type_safe(env, rest, FrameResult::Regular(&s.next_frame))
                 }
                 InstructionIsTypeSafeResult::AfterGoto(ag) => {
-                    let exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &ag.exception_frame);
+                    let _exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &ag.exception_frame);
                     merged_code_is_type_safe(env, rest, FrameResult::AfterGoto)
                 }
                 InstructionIsTypeSafeResult::NotSafe => { return TypeSafetyResult::NotSafe("todo message".to_string()); }//todo
@@ -105,7 +105,7 @@ fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: i16) -> T
 
 fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_stack_frame: &Frame) -> TypeSafetyResult {
     let handlers = &env.handlers;
-    let mut applicable_handler = handlers.iter().filter(|h| {
+    let applicable_handler = handlers.iter().filter(|h| {
         is_applicable_handler(offset as usize, h)
     });
     merge_type_safety_results(applicable_handler.map(|h| {
@@ -167,7 +167,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> TypeSafetyResult {
             let target_stack_frame = offset_stack_frame(env, h.target as i16);
             match target_stack_frame {
                 None => { TypeSafetyResult::NotSafe("No stack frame present at target".to_string()) }
-                Some(t) => {
+                Some(_t) => {
                     if instructions_include_end(env.merged_code.unwrap(), h.end) {
                         let exception_class = handler_exception_class(&h);
                         //todo how does bootstrap loader from throwable make its way into this
@@ -191,7 +191,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> TypeSafetyResult {
 }
 
 
-pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usize) -> bool {
+pub fn instructions_include_end(_instructs: &Vec<MergedCodeInstruction>, _end: usize) -> bool {
     unimplemented!()
 }
 
@@ -506,7 +506,7 @@ pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usi
 //    unimplemented!()
 //}
 //
-pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
@@ -535,7 +535,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         .rev()
         .map(|x| copy_recurse(x))
         .collect();
-    let current_loader = &env.class_loader;
+    let _current_loader = &env.class_loader;
     //todo deal with loaders in class names/types
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| copy_recurse(x)).collect();
     stack_arg_list.push(UnifiedType::Class(ClassName::Str(class_name.clone())));
@@ -547,7 +547,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
             let exception_stack_frame = exception_stack_frame(stack_frame);
             InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf })
         }
-        Err(e) => InstructionIsTypeSafeResult::NotSafe,
+        Err(_e) => InstructionIsTypeSafeResult::NotSafe,
     }
 }
 
@@ -611,7 +611,7 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, Metho
 //    unimplemented!()
 //}
 //
-fn instruction_is_type_safe_lcmp(env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     let next_frame = match valid_type_transition(env, vec![UnifiedType::LongType, UnifiedType::LongType], &UnifiedType::IntType, stack_frame) {
         Ok(nf) => nf,
         Err(_) => return InstructionIsTypeSafeResult::NotSafe,
@@ -620,9 +620,7 @@ fn instruction_is_type_safe_lcmp(env: &Environment, offset: usize, stack_frame: 
     InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame })
 }
 
-//
-//#[allow(unused)]
-pub fn instruction_is_type_safe_lconst_0(env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+pub fn instruction_is_type_safe_lconst_0(env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     let next_frame = match valid_type_transition(env, vec![], &UnifiedType::LongType, stack_frame) {
         Ok(nf) => nf,
         Err(_) => return InstructionIsTypeSafeResult::NotSafe,

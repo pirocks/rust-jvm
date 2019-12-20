@@ -3,7 +3,7 @@ use crate::verification::verifier::instructions::{InstructionIsTypeSafeResult, A
 use crate::verification::verifier::codecorrectness::{Environment, can_pop};
 use crate::verification::verifier::{Frame, TypeSafetyResult};
 
-pub fn instruction_is_type_safe_return(env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     match env.return_type{
         UnifiedType::VoidType => {},
         _ => {return InstructionIsTypeSafeResult::NotSafe;}
@@ -19,7 +19,7 @@ pub fn instruction_is_type_safe_return(env: &Environment, offset: usize, stack_f
 }
 
 
-pub fn instruction_is_type_safe_if_acmpeq(target:i16,env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+pub fn instruction_is_type_safe_if_acmpeq(target:i16,env: &Environment, _offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
     match can_pop(stack_frame,vec![UnifiedType::Reference,UnifiedType::Reference]){
         None => InstructionIsTypeSafeResult::NotSafe,
         Some(next_frame) => {
@@ -29,7 +29,7 @@ pub fn instruction_is_type_safe_if_acmpeq(target:i16,env: &Environment, offset: 
                     let exception_frame = exception_stack_frame(stack_frame);
                     InstructionIsTypeSafeResult::Safe(ResultFrames {next_frame, exception_frame })
                 },
-                TypeSafetyResult::NeedToLoad(s) => unimplemented!(),
+                TypeSafetyResult::NeedToLoad(_s) => unimplemented!(),
             }
         },
     }
