@@ -4,8 +4,9 @@ use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokestatic, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp};
 use crate::verifier::instructions::branches::{instruction_is_type_safe_if_acmpeq, instruction_is_type_safe_return};
+use crate::verifier::TypeSafetyError;
 
-pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> InstructionIsTypeSafeResult {
+pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult,TypeSafetyError> {
     match instruction {
         InstructionInfo::aaload => {unimplemented!()},
         InstructionInfo::aastore => {unimplemented!()},

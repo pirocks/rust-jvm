@@ -1,6 +1,6 @@
 use log::trace;
 use crate::prolog::code_writer::StackMap;
-use crate::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
+use crate::verifier::{Frame, PrologClass, PrologClassMethod};
 use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use std::sync::Arc;
@@ -8,7 +8,6 @@ use crate::verifier::instructions::{handers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
 use crate::types::parse_method_descriptor;
 use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
-use crate::verifier::and;
 use std::option::Option::Some;
 use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
@@ -18,58 +17,46 @@ use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;
 use classfile_parser::code_attribute;
 use rust_jvm_common::unified_types::ClassType;
+use crate::verifier::TypeSafetyError;
 
 pub mod stackmapframes;
 
 
-pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame, TypeSafetyResult> {
+pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
     let input_operand_stack = &input_frame.stack_map;
-    let _interim_operand_stack = match pop_matching_list(input_operand_stack, expected_types_on_stack) {
-        None => return Result::Err(TypeSafetyResult::NotSafe("could not pop matching list".to_string())),
-        Some(s) => s,
-    };
+    let _interim_operand_stack = pop_matching_list(input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&input_operand_stack, &result_type);
     if operand_stack_has_legal_length(environment, &next_operand_stack) {
         Result::Ok(Frame { locals: input_frame.locals.iter().map(|x| copy_recurse(x)).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit })
     } else {
-        Result::Err(TypeSafetyResult::NotSafe("Operand stack did not have legal length".to_string()))
+        Result::Err(TypeSafetyError::NotSafe("Operand stack did not have legal length".to_string()))
     }
 }
 
 
-pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
+pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Result<Vec<UnifiedType>, TypeSafetyError> {
     return pop_matching_list_impl(pop_from.as_slice(), pop.as_slice());
 }
 
-pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> Option<Vec<UnifiedType>> {
+pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> Result<Vec<UnifiedType>, TypeSafetyError> {
     if pop.is_empty() {
-        Some(pop_from.iter().map(|x| copy_recurse(x)).collect())//todo inefficent copying
+        Result::Ok(pop_from.iter().map(|x| copy_recurse(x)).collect())//todo inefficent copying
     } else {
-        let (pop_result, _) = match pop_matching_type(pop_from, pop.first().unwrap()) {
-            None => return None,
-            Some(s) => s,
-        };
+        let (pop_result, _) = pop_matching_type(pop_from, pop.first().unwrap())?;
         return pop_matching_list_impl(&pop_result, &pop[1..]);
     }
 }
 
-pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedType) -> Option<(&'l [UnifiedType], UnifiedType)> {
+pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedType) -> Result<(&'l [UnifiedType], UnifiedType), TypeSafetyError> {
     if size_of(type_) == 1 {
         let actual_type = &operand_stack[0];
-        if is_assignable(actual_type, type_) == TypeSafetyResult::Safe() {//todo need to get rid of these tbh
-            return Some((&operand_stack[1..], copy_recurse(actual_type)));
-        } else {
-            unimplemented!()
-//            return None;
-        }
+        is_assignable(actual_type, type_)?;
+        return Result::Ok((&operand_stack[1..], copy_recurse(actual_type)));
     } else if size_of(type_) == 2 {
         &operand_stack[0];//should be top todo
         let actual_type = &operand_stack[1];
-        if is_assignable(actual_type, type_) == TypeSafetyResult::Safe() {
-            return Some((&operand_stack[2..], copy_recurse(actual_type)));
-        } else {
-            unimplemented!()
-        }
+        is_assignable(actual_type, type_)?;
+        return Result::Ok((&operand_stack[2..], copy_recurse(actual_type)));
     } else {
         panic!()
     }
@@ -80,9 +67,9 @@ pub fn size_of(unified_type: &UnifiedType) -> u64 {
     match unified_type {
         UnifiedType::TopType => { 1 }
         _ => {
-            if is_assignable(unified_type, &UnifiedType::TwoWord) == TypeSafetyResult::Safe(){
+            if is_assignable(unified_type, &UnifiedType::TwoWord).is_ok() {
                 2
-            } else if is_assignable(unified_type, &UnifiedType::OneWord) == TypeSafetyResult::Safe() {
+            } else if is_assignable(unified_type, &UnifiedType::OneWord).is_ok() {
                 1
             } else {
                 panic!("This is a bug")
@@ -137,12 +124,9 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
 //}
 //
 
-pub fn can_pop(input_frame: &Frame, types: Vec<UnifiedType>) -> Option<Frame> {
-    let poped_stack = match pop_matching_list(&input_frame.stack_map, types) {
-        None => return None,
-        Some(s) => s,
-    };
-    Some(Frame {
+pub fn can_pop(input_frame: &Frame, types: Vec<UnifiedType>) -> Result<Frame, TypeSafetyError> {
+    let poped_stack = pop_matching_list(&input_frame.stack_map, types)?;
+    Result::Ok(Frame {
         locals: input_frame
             .locals
             .iter()
@@ -153,54 +137,47 @@ pub fn can_pop(input_frame: &Frame, types: Vec<UnifiedType>) -> Option<Frame> {
     })
 }
 
-pub fn frame_is_assignable(left: &Frame, right: &Frame) -> TypeSafetyResult {
-    let locals_assignable = match merge_type_safety_results(left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| {
+pub fn frame_is_assignable(left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
+    let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| {
         is_assignable(left_, right_)
-    }).collect()){
-        TypeSafetyResult::NotSafe(ns) => return TypeSafetyResult::NotSafe(ns),
-        TypeSafetyResult::Safe() => true,
-        TypeSafetyResult::NeedToLoad(ntl) => return TypeSafetyResult::NeedToLoad(ntl),
-    };
-    let stack_assignable = match merge_type_safety_results(left.stack_map.iter().zip(right.stack_map.iter()).map(|(left_, right_)| {
+    }).collect();
+    let locals_assignable = locals_assignable_res.is_ok();
+    let stack_assignable_res: Result<Vec<_>, _> = left.stack_map.iter().zip(right.stack_map.iter()).map(|(left_, right_)| {
         is_assignable(left_, right_)
-    }).collect()){
-        TypeSafetyResult::NotSafe(ns) => return TypeSafetyResult::NotSafe(ns),
-        TypeSafetyResult::Safe() => true,
-        TypeSafetyResult::NeedToLoad(ntl) => return TypeSafetyResult::NeedToLoad(ntl),
-    };
+    }).collect();
+    let stack_assignable = stack_assignable_res.is_ok();
     if left.stack_map.len() == right.stack_map.len() && locals_assignable && stack_assignable &&
         if left.flag_this_uninit {
             right.flag_this_uninit
         } else {
             true
         } {
-        TypeSafetyResult::Safe()
+        Result::Ok(())
     } else {
-        TypeSafetyResult::NotSafe("todo message".to_string())//todo message
+        Result::Err(TypeSafetyError::NotSafe("todo message".to_string()))//todo message
     }
 }
 
-pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
+pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> Result<(), TypeSafetyError> {
     let access_flags = get_access_flags(class, method);
     trace!("got access_flags:{}", access_flags);
-    let does_not_override_final_method = does_not_override_final_method(class, method);
-    trace!("does not override final method:");
-    dbg!(&does_not_override_final_method);
-    let results = vec![does_not_override_final_method,
-                       if access_flags & ACC_NATIVE != 0 {
-                           trace!("method is native");
-                           TypeSafetyResult::Safe()
-                       } else if access_flags & ACC_ABSTRACT != 0 {
-                           trace!("method is abstract");
-                           TypeSafetyResult::Safe()
-                       } else {
-                           //will have a code attribute. or else method_with_code_is_type_safe will crash todo
-                           /*let attributes = get_attributes(class, method);
-                           attributes.iter().any(|_| {
-                               unimplemented!()
-                           }) && */method_with_code_is_type_safe(class, method)
-                       }].into_boxed_slice();
-    merge_type_safety_results(results)
+    does_not_override_final_method(class, method)?;
+    trace!("does not override final method");
+//    dbg!(&does_not_override_final_method);
+
+    if access_flags & ACC_NATIVE != 0 {
+        trace!("method is native");
+        Result::Ok(())
+    } else if access_flags & ACC_ABSTRACT != 0 {
+        trace!("method is abstract");
+        Result::Ok(())
+    } else {
+        //will have a code attribute. or else method_with_code_is_type_safe will crash todo
+        /*let attributes = get_attributes(class, method);
+        attributes.iter().any(|_| {
+            unimplemented!()
+        }) && */method_with_code_is_type_safe(class, method)
+    }
 }
 
 pub struct ParsedCodeAttribute<'l> {
@@ -230,7 +207,7 @@ pub fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
     }).collect()
 }
 
-pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
+pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> Result<(), TypeSafetyError> {
     let method_info = &class.class.methods[method.method_index];
     let code = code_attribute(method_info).unwrap();
     let frame_size = code.max_locals;
@@ -258,9 +235,9 @@ pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMe
     dbg!(&frame_size);
     dbg!(&return_type);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type };
-
-    and(handers_are_legal(&env),
-        merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame)))
+    handers_are_legal(&env)?;
+    merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame))?;
+    Result::Ok(())
 }
 
 pub struct Handler {
@@ -280,7 +257,7 @@ pub fn handler_exception_class(handler: &Handler) -> PrologClass {
 }
 //
 
-pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> TypeSafetyResult {
+pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(),TypeSafetyError> {
     unimplemented!()
 }
 //
@@ -426,27 +403,26 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
             unimplemented!()
         }
     } else {
-        Some(instance_method_initial_this_type(class, method))
+        Some(instance_method_initial_this_type(class, method).unwrap())
     }
 //    return Some(UnifiedType::UninitializedThis);
 }
 
-fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> UnifiedType {
+fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Result<UnifiedType,TypeSafetyError> {
     let method_name = method_name(&method.prolog_class.class, &method.prolog_class.class.methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
-            UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() })
+            Result::Ok(UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() }))
         } else {
             let mut chain = vec![];
-            super_class_chain(class, class.loader.clone(), &mut chain);
+            super_class_chain(class, class.loader.clone(), &mut chain)?;
             if !chain.is_empty() {
-                UnifiedType::UninitializedThis
+                Result::Ok(UnifiedType::UninitializedThis)
             } else {
                 unimplemented!()
             }
         }
     } else {
-        //todo what to do about loaders
-        UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() })
+        Result::Ok(UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() }))
     }
 }

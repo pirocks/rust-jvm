@@ -1,14 +1,14 @@
 use std::sync::Arc;
 use rust_jvm_common::unified_types::UnifiedType;
-use crate::verifier::{PrologClass, PrologClassMethod, TypeSafetyResult};
+use crate::verifier::{PrologClass, PrologClassMethod};
 use rust_jvm_common::loading::{Loader, class_entry, class_entry_from_string};
 use rust_jvm_common::classnames::{class_name, get_referred_name, class_name_legacy};
-use crate::verifier::TypeSafetyResult::{Safe, NotSafe, NeedToLoad};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
 use crate::prolog::prolog_info_writer::get_access_flags;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use rust_jvm_common::unified_types::ClassType;
 use rust_jvm_common::unified_types::class_type_to_class;
+use crate::verifier::TypeSafetyError;
 
 #[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
@@ -36,20 +36,19 @@ fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
     let packages1 = class_entry_from_string(&get_referred_name(&class_name(&class1.class)), false).packages;
     let packages2 = class_entry_from_string(&get_referred_name(&class_name(&class2.class)), false).packages;
     return packages1 != packages2;
-
 }
 
 //todo have an actual loader type. instead of refering to loader name
-pub fn loaded_class(class: &ClassType, loader: &Arc<Loader>) -> TypeSafetyResult {
-    let class_entry = class_entry_from_string(&get_referred_name(&class.class_name),false);
+pub fn loaded_class(class: &ClassType, loader: &Arc<Loader>) -> Result<(),TypeSafetyError> {
+    let class_entry = class_entry_from_string(&get_referred_name(&class.class_name), false);
     if loader.loading.read().unwrap().contains_key(&class_entry) || loader.loaded.read().unwrap().contains_key(&class_entry) {
-        return Safe();
+        return Result::Ok(());
     } else {
         dbg!(class);
         dbg!(class_entry);
         dbg!(loader.loading.read().unwrap().keys());
         dbg!(loader.loaded.read().unwrap().keys());
-        return NeedToLoad(vec![class.class_name.clone()]);
+        return Result::Err(TypeSafetyError::NeedToLoad(vec![class.class_name.clone()]));
     }
 }
 
@@ -79,59 +78,59 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
     return class.class.access_flags & ACC_INTERFACE != 0;
 }
 
-pub fn is_java_sub_class_of(_from: &ClassType, _to: &ClassType) -> TypeSafetyResult {
+pub fn is_java_sub_class_of(_from: &ClassType, _to: &ClassType) -> Result<(),TypeSafetyError> {
     unimplemented!()
 }
 
-pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> TypeSafetyResult{
+pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSafetyError> {
     match from {
         UnifiedType::DoubleType => match to {
-            UnifiedType::DoubleType => Safe(),
+            UnifiedType::DoubleType => Result::Ok(()),
             _ => is_assignable(&UnifiedType::TwoWord, to)
         },
         UnifiedType::LongType => match to {
-            UnifiedType::LongType => Safe(),
+            UnifiedType::LongType => Result::Ok(()),
             _ => is_assignable(&UnifiedType::TwoWord, to)
         },
         UnifiedType::FloatType => match to {
-            UnifiedType::FloatType => Safe(),
+            UnifiedType::FloatType => Result::Ok(()),
             _ => is_assignable(&UnifiedType::OneWord, to)
         },
         UnifiedType::IntType => match to {
-            UnifiedType::IntType => Safe(),
+            UnifiedType::IntType => Result::Ok(()),
             _ => is_assignable(&UnifiedType::OneWord, to)
         },
         UnifiedType::Reference => match to {
-            UnifiedType::Reference => Safe(),
+            UnifiedType::Reference => Result::Ok(()),
             _ => is_assignable(&UnifiedType::OneWord, to)
         }
         UnifiedType::Class(c) => match to {
             UnifiedType::Class(c2) => {
                 if c == c2 {
-                    return Safe();
-                }else {
-                    return is_java_assignable(c,c2)
+                    return Result::Ok(());
+                } else {
+                    return is_java_assignable(c, c2);
                 }
-            },
+            }
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::ArrayReferenceType(a) => match to {
             UnifiedType::ArrayReferenceType(a2) => {
-                if a == a2{
-                    return Safe();
-                }else {
+                if a == a2 {
+                    return Result::Ok(());
+                } else {
                     unimplemented!()
                 }
-            },
+            }
             UnifiedType::Class(_c) => unimplemented!(),
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::TopType => match to {
-            UnifiedType::TopType => Safe(),
+            UnifiedType::TopType => Result::Ok(()),
             _ => panic!("This might be a bug. It's a weird edge case"),
         },
         UnifiedType::UninitializedEmpty => match to {
-            UnifiedType::UninitializedEmpty => Safe(),
+            UnifiedType::UninitializedEmpty => Result::Ok(()),
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::Uninitialized(_) => match to {
@@ -139,37 +138,34 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> TypeSafetyResult{
             _ => is_assignable(&UnifiedType::UninitializedEmpty, to)
         },
         UnifiedType::UninitializedThis => match to {
-            UnifiedType::UninitializedThis => Safe(),
+            UnifiedType::UninitializedThis => Result::Ok(()),
             _ => is_assignable(&UnifiedType::UninitializedEmpty, to)
         },
         UnifiedType::NullType => match to {
-            UnifiedType::NullType => Safe(),
-            UnifiedType::Class(_) => Safe(),
-            UnifiedType::ArrayReferenceType(_) => Safe(),
+            UnifiedType::NullType => Result::Ok(()),
+            UnifiedType::Class(_) => Result::Ok(()),
+            UnifiedType::ArrayReferenceType(_) => Result::Ok(()),
             _ => is_assignable(unimplemented!(), to),
         },
         UnifiedType::OneWord => match to {
-            UnifiedType::OneWord => Safe(),
-            UnifiedType::TopType => Safe(),
-            _ => TypeSafetyResult::NotSafe("todo reason".to_string())
+            UnifiedType::OneWord => Result::Ok(()),
+            UnifiedType::TopType => Result::Ok(()),
+            _ => Result::Err(TypeSafetyError::NotSafe("todo reason".to_string()))
         },
         UnifiedType::TwoWord => match to {
-            UnifiedType::TwoWord => Safe(),
-            UnifiedType::TopType => Safe(),
-            _ => TypeSafetyResult::NotSafe("todo reason".to_string())
+            UnifiedType::TwoWord => Result::Ok(()),
+            UnifiedType::TopType => Result::Ok(()),
+            _ => Result::Err(TypeSafetyError::NotSafe("todo reason".to_string()))
         },
         _ => panic!("This is a bug"),//todo , should have a better message function
     }
 }
 
 //todo how to handle arrays
-pub fn is_java_assignable(from: &ClassType, to: &ClassType) -> TypeSafetyResult {
-    match loaded_class(to, &to.loader) {
-        TypeSafetyResult::Safe() => { if class_is_interface(&PrologClass {class:class_type_to_class(to),loader:to.loader.clone()}){
-            return TypeSafetyResult::Safe();
-        } },
-        TypeSafetyResult::NeedToLoad(ntl) => return TypeSafetyResult::NeedToLoad(ntl),
-        _ => unimplemented!()
+pub fn is_java_assignable(from: &ClassType, to: &ClassType) -> Result<(), TypeSafetyError> {
+    loaded_class(to, &to.loader)?;
+    if class_is_interface(&PrologClass { class: class_type_to_class(to), loader: to.loader.clone() }) {
+        return Result::Ok(());
     }
     return is_java_sub_class_of(from, to);
 }
@@ -187,16 +183,16 @@ pub fn class_super_class_name(_class: &PrologClass) -> String {
     unimplemented!()
 }
 
-pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &mut Vec<PrologClass>) -> TypeSafetyResult {
+pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &mut Vec<PrologClass>) -> Result<(),TypeSafetyError> {
     if get_referred_name(&class_name(&chain_start.class)) == "java/lang/Object" {
         //todo magic constant
         if res.is_empty() && is_bootstrap_loader(&loader) {
-            return Safe();
+            return Result::Ok(());
         } else {
-            return NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string());
+            return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
         }
     }
-    let _loaded = loaded_class(&ClassType {class_name:class_name(&chain_start.class),loader:loader.clone() }, &loader);//todo loader duplication
+    let _loaded = loaded_class(&ClassType { class_name: class_name(&chain_start.class), loader: loader.clone() }, &loader);//todo loader duplication
     unimplemented!()
 }
 
@@ -211,22 +207,22 @@ pub fn is_private(method: &PrologClassMethod, class: &PrologClass) -> bool {
     (get_access_flags(class, method) & ACC_PRIVATE) > 0
 }
 
-pub fn does_not_override_final_method(class: &PrologClass, method: &PrologClassMethod) -> TypeSafetyResult {
+pub fn does_not_override_final_method(class: &PrologClass, method: &PrologClassMethod) -> Result<(), TypeSafetyError> {
     dbg!(class_name_legacy(&class.class));
     if class_name_legacy(&class.class) == "java/lang/Object" {
         if is_bootstrap_loader(&class.loader) {
-            Safe()
+            Result::Ok(())
         } else {
-            NotSafe("Loading Object w/o bootstrap loader".to_string())
+            Result::Err(TypeSafetyError::NotSafe("Loading Object w/o bootstrap loader".to_string()))
         }
     } else if is_private(method, class) {
-        Safe()
+        Result::Ok(())
     } else if is_static(method, class) {
-        Safe()
+        Result::Ok(())
     } else if does_not_override_final_method_of_superclass(class, method) {
-        Safe()
+        Result::Ok(())
     } else {
-        NotSafe("Failed does_not_override_final_method".to_string())
+        Result::Err(TypeSafetyError::NotSafe("Failed does_not_override_final_method".to_string()))
     }
 }
 

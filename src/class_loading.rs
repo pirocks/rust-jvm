@@ -20,7 +20,6 @@ use rust_jvm_common::classfile::{Classfile, ConstantKind};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use classfile_parser::parse_class_file;
 use verification::prolog::prolog_info_writer::get_super_class_name;
-use verification::verifier::TypeSafetyResult;
 use verification::verify;
 
 
@@ -88,19 +87,18 @@ fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: &
         loader.loading.write().unwrap().insert(entry.clone(),cf.clone());
     });
 
-    match verify(&loading, jvm_state, loader) {
-        TypeSafetyResult::NotSafe(_) => {}
-        TypeSafetyResult::Safe() => {}
-        TypeSafetyResult::NeedToLoad(_) => {}
+    match verify(&loading, jvm_state, loader){
+        Ok(_) => {unimplemented!()},
+        Err(_) => {unimplemented!()},
     }
-    loading.iter().for_each(|(_entry,_cf)|{
-        unimplemented!()
+//    loading.iter().for_each(|(_entry,_cf)|{
+//        unimplemented!()
 //        loader.loading.write().unwrap().remove(entry.clone(),cf.clone());
-    });
+//    });
 //    if !only_verify {
 //        load_verified_class(jvm_state, parsed,);
 //    }
-    return ();
+//    return ();
 }
 
 //fn clinit(class: &Arc<Classfile>, and_then: &fn(&MethodInfo) -> ()) -> () {

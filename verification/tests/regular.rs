@@ -9,20 +9,20 @@ use verification::verify;
 use classfile_parser::parse_class_file;
 use std::fs::File;
 use std::collections::HashMap;
-use verification::verifier::TypeSafetyResult;
+use verification::verifier::TypeSafetyError;
 
 #[test]
 //#[timeout(10000)]
 pub fn can_verify_main() {
     let main_class_name = "Main".to_string();
-    verify_class_with_name(&main_class_name);
+    verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
 //#[timeout(10000)]
 pub fn can_verify_object() {
     let main_class_name = "java/lang/Object".to_string();
-    verify_class_with_name(&main_class_name);
+    verify_class_with_name(&main_class_name).unwrap();
 }
 
 
@@ -30,23 +30,23 @@ pub fn can_verify_object() {
 #[timeout(30000)]
 pub fn can_verify_map() {
     let main_class_name = "java/util/Map".to_string();
-    verify_class_with_name(&main_class_name);
+    verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
 #[timeout(30000)]
 pub fn can_verify_exceptions() {
     let main_class_name = "java/lang/Throwable".to_string();
-    verify_class_with_name(&main_class_name);
+    verify_class_with_name(&main_class_name).unwrap();
     let main_class_name = "java/lang/Exception".to_string();
-    verify_class_with_name(&main_class_name);
+    verify_class_with_name(&main_class_name).unwrap();
     let main_class_name = "java/lang/IllegalArgumentException".to_string();
-    verify_class_with_name(&main_class_name);
+    verify_class_with_name(&main_class_name).unwrap();
 }
 
 
 
-fn verify_class_with_name(main_class_name: &String) -> TypeSafetyResult{
+fn verify_class_with_name(main_class_name: &String) -> Result<(),TypeSafetyError>{
     let mut resources = get_test_resources();
     resources.push(format!("{}.class",main_class_name));
     let classfile = parse_class_file(File::open(resources.as_path()).unwrap(), BOOTSTRAP_LOADER.clone());
