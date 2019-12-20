@@ -13,7 +13,6 @@ use std::sync::Arc;
 //load superclass
 use std::collections::HashMap;
 use std::fs::File;
-use std::path::Path;
 use log::trace;
 
 use rust_jvm_common::loading::{Loader, ClassEntry, class_entry_from_string, class_entry, JVMState, BOOTSTRAP_LOADER_NAME};
