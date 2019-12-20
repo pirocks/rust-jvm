@@ -1,16 +1,16 @@
-use crate::verification::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition, can_pop, handler_exception_class, Handler, init_handler_is_legal};
+use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition, can_pop, handler_exception_class, Handler, init_handler_is_legal};
 use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
-use crate::verification::verifier::{TypeSafetyResult, Frame, merge_type_safety_results, passes_protected_check, PrologClass, and};
-use crate::verification::verifier::instructions::big_match::instruction_is_type_safe;
-use crate::verification::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
-use crate::verification::verifier::codecorrectness::stackmapframes::copy_recurse;
+use crate::verifier::{TypeSafetyResult, Frame, merge_type_safety_results, passes_protected_check, PrologClass, and};
+use crate::verifier::instructions::big_match::instruction_is_type_safe;
+use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
+use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
 use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::classnames::{ClassName, NameReference, class_name};
 use std::sync::Arc;
-use crate::verification::instruction_outputer::{extract_class_from_constant_pool, name_and_type_extractor};
+use crate::instruction_outputer::{extract_class_from_constant_pool, name_and_type_extractor};
 use rust_jvm_common::utils::extract_string_from_utf8;
-use crate::verification::types::{parse_method_descriptor, MethodDescriptor};
-use crate::verification::verifier::filecorrectness::is_assignable;
+use crate::types::{parse_method_descriptor, MethodDescriptor};
+use crate::verifier::filecorrectness::is_assignable;
 
 pub mod loads;
 

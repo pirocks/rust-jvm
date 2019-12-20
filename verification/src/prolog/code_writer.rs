@@ -3,18 +3,18 @@
 use std::io;
 use std::io::Write;
 use std::sync::Arc;
-use crate::verification::verifier::{Frame, InternalFrame};
-use crate::verification::prolog::prolog_info_writer::{PrologGenContext, write_method_prolog_name};
-use crate::verification::instruction_outputer::{extract_class_from_constant_pool, output_instruction_info_for_code};
+use crate::verifier::{Frame, InternalFrame};
+use crate::prolog::prolog_info_writer::{PrologGenContext, write_method_prolog_name};
+use crate::instruction_outputer::{extract_class_from_constant_pool, output_instruction_info_for_code};
 use rust_jvm_common::classnames::{get_referred_name, class_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::classfile::{Classfile, ExceptionTableElem, StackMapFrame, MethodInfo, StackMapTable, Code, ACC_STATIC};
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
-use crate::verification::types::{parse_field_descriptor, parse_method_descriptor};
-use crate::verification::verifier::codecorrectness::stackmapframes::{handle_chop_frame, handle_full_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended, handle_append_frame, handle_same_frame, handle_same_locals_1_stack};
-use classfile_parser::classfile::{stack_map_table_attribute, code_attribute};
+use crate::types::{parse_field_descriptor, parse_method_descriptor};
+use crate::verifier::codecorrectness::stackmapframes::{handle_chop_frame, handle_full_frame, handle_same_frame_extended, handle_same_locals_1_stack_frame_extended, handle_append_frame, handle_same_frame, handle_same_locals_1_stack};
+use classfile_parser::{stack_map_table_attribute, code_attribute};
 use rust_jvm_common::loading::BOOTSTRAP_LOADER_NAME;
-use crate::verification::prolog::unified_types::write_type_prolog;
+use crate::prolog::unified_types::write_type_prolog;
 
 #[derive(Debug)]
 pub struct StackMap{

@@ -5,11 +5,11 @@ extern crate rust_jvm_common;
 use ntest_timeout::timeout;
 use rust_jvm_common::loading::{class_entry_from_string, BOOTSTRAP_LOADER_NAME, BOOTSTRAP_LOADER,JVMState};
 use rust_jvm_common::test_utils::get_test_resources;
-use verification::verification::verify;
-use classfile_parser::classfile::parse_class_file;
+use verification::verify;
+use classfile_parser::parse_class_file;
 use std::fs::File;
 use std::collections::HashMap;
-use verification::verification::verifier::TypeSafetyResult;
+use verification::verifier::TypeSafetyResult;
 
 #[test]
 //#[timeout(10000)]

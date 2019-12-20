@@ -1,8 +1,8 @@
 use std::io;
-use classfile_parser::classfile::parse_class_file;
+use classfile_parser::parse_class_file;
 use std::fs::File;
 use rust_jvm_common::test_utils::get_test_resources;
-use verification::verification::prolog::prolog_info_writer::{PrologGenContext, ExtraDescriptors, gen_prolog};
+use verification::prolog::prolog_info_writer::{PrologGenContext, ExtraDescriptors, gen_prolog};
 use rust_jvm_common::loading::JVMState;
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};

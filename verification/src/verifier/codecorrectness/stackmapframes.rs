@@ -1,12 +1,12 @@
-use crate::verification::verifier::{InternalFrame, PrologClass};
-use crate::verification::types::parse_method_descriptor;
-use crate::verification::verifier::Frame;
+use crate::verifier::{InternalFrame, PrologClass};
+use crate::types::parse_method_descriptor;
+use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, UninitializedVariableInfo, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
-use crate::verification::prolog::code_writer::{StackMap, init_frame};
+use crate::prolog::code_writer::{StackMap, init_frame};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
 use rust_jvm_common::classnames::{class_name, ClassName, NameReference};
-use classfile_parser::classfile::{code_attribute, stack_map_table_attribute};
+use classfile_parser::{code_attribute, stack_map_table_attribute};
 
 pub fn get_stack_map_frames(class: &PrologClass,method_info:&MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];

@@ -1,4 +1,4 @@
-use crate::classfile::parsing_util::{ParsingContext, read16, read8, read32};
+use crate::parsing_util::{ParsingContext, read16, read8, read32};
 use rust_jvm_common::classfile::{ConstantKind, Utf8, Integer, Float, Long, Fieldref, Methodref, MethodType, NameAndType, InterfaceMethodref, MethodHandle, InvokeDynamic, ConstantInfo, InvalidConstant, Class, String_};
 
 pub(crate) fn is_utf8(utf8 : &ConstantKind) -> Option<&Utf8>{

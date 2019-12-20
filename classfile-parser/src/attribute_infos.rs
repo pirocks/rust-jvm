@@ -1,7 +1,7 @@
-use crate::classfile::parsing_util::{ParsingContext, read16, read32, read8};
+use crate::parsing_util::{ParsingContext, read16, read32, read8};
 use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers};
-use crate::classfile::constant_infos::is_utf8;
-use crate::classfile::code::parse_code_raw;
+use crate::constant_infos::is_utf8;
+use crate::code::parse_code_raw;
 use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::utils::extract_string_from_utf8;

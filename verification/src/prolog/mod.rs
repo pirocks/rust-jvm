@@ -1,13 +1,13 @@
 use rust_jvm_common::loading::{JVMState, ClassEntry};
-use crate::verification::prolog::prolog_info_writer::{PrologGenContext, ExtraDescriptors, gen_prolog};
+use crate::prolog::prolog_info_writer::{PrologGenContext, ExtraDescriptors, gen_prolog};
 use std::sync::Arc;
 use rust_jvm_common::classfile::Classfile;
-use classfile_parser::classfile::parse_class_file;
+use classfile_parser::parse_class_file;
 use std::fs::File;
 use std::io;
 use std::io::{BufWriter, BufReader, Lines, BufRead, Write};
 use std::process::{Stdio, ChildStdout, Command, Child, ChildStdin};
-use crate::verification::prolog::PrologOutput::NeedsAnotherClass;
+use crate::prolog::PrologOutput::NeedsAnotherClass;
 use std::time::Duration;
 use std::thread::sleep;
 use std::collections::HashMap;

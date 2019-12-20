@@ -1,4 +1,4 @@
-use classfile_parser::classfile::parse_class_file;
+use classfile_parser::parse_class_file;
 use std::fs::File;
 use rust_jvm_common::test_utils::get_test_resources;
 

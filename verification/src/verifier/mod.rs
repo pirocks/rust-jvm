@@ -2,11 +2,11 @@ use log::trace;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::classnames::{get_referred_name, class_name, ClassName};
-use crate::verification::verifier::codecorrectness::{Environment, method_is_type_safe};
-use crate::verification::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
-use crate::verification::types::MethodDescriptor;
-use crate::verification::verifier::TypeSafetyResult::{Safe, NotSafe, NeedToLoad};
-use crate::verification::prolog::prolog_info_writer::get_super_class_name;
+use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
+use crate::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
+use crate::types::MethodDescriptor;
+use crate::verifier::TypeSafetyResult::{Safe, NotSafe, NeedToLoad};
+use crate::prolog::prolog_info_writer::get_super_class_name;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::loading::Loader;
 
