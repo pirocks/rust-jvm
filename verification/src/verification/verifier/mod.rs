@@ -6,7 +6,7 @@ use crate::verification::verifier::codecorrectness::{Environment, method_is_type
 use crate::verification::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
 use crate::verification::types::MethodDescriptor;
 use crate::verification::verifier::TypeSafetyResult::{Safe, NotSafe, NeedToLoad};
-use crate::verification::prolog_info_writer::get_super_class_name;
+use crate::verification::prolog::prolog_info_writer::get_super_class_name;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::loading::Loader;
 

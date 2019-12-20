@@ -5,7 +5,7 @@ use rust_jvm_common::loading::{Loader, class_entry, class_entry_from_string};
 use rust_jvm_common::classnames::{class_name, get_referred_name, class_name_legacy};
 use crate::verification::verifier::TypeSafetyResult::{Safe, NotSafe, NeedToLoad};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
-use crate::verification::prolog_info_writer::get_access_flags;
+use crate::verification::prolog::prolog_info_writer::get_access_flags;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 #[allow(unused)]

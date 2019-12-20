@@ -19,7 +19,7 @@ use rust_jvm_common::loading::{Loader, ClassEntry, class_entry_from_string, clas
 use rust_jvm_common::classfile::{Classfile, ConstantKind};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use classfile_parser::classfile::parse_class_file;
-use verification::verification::prolog_info_writer::get_super_class_name;
+use verification::verification::prolog::prolog_info_writer::get_super_class_name;
 use verification::verification::verifier::TypeSafetyResult;
 use verification::verification::verify;
 

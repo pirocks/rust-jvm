@@ -1,9 +1,9 @@
 use std::io::Write;
 use std::io;
-use crate::verification::prolog_info_writer::BOOTSTRAP_LOADER_NAME;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
 use rust_jvm_common::classnames::{ClassName, get_referred_name};
 
+//todo there are two of these, only one can live forever
 #[derive(Debug)]
 pub struct MethodDescriptor{ pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }
 
@@ -123,52 +123,4 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, UnifiedType)> {
     parse_void_descriptor(str_).or_else(|| {
         parse_field_type(str_)
     })
-}
-
-pub fn write_type_prolog(type_: &UnifiedType,  w: &mut dyn Write) -> Result<(), io::Error>{
-    match type_{
-        UnifiedType::ByteType => {
-            write!(w,"int")?;
-        },
-        UnifiedType::CharType => {
-            write!(w,"int")?;
-        },
-        UnifiedType::DoubleType => {
-            write!(w,"double")?;
-        },
-        UnifiedType::FloatType => {
-            write!(w,"float")?;
-        },
-        UnifiedType::IntType => {
-            write!(w,"int")?;
-        },
-        UnifiedType::LongType => {
-            write!(w,"long")?;
-        },
-        UnifiedType::ShortType => {
-            write!(w,"int")?;
-        },
-        UnifiedType::BooleanType => {
-            write!(w,"int")?;
-        },
-        UnifiedType::Class(ref_) => {
-//            if context.state.using_bootstrap_loader {
-                write!(w,"class('")?;
-                write!(w,"{}",get_referred_name(ref_))?;
-                write!(w,"',{})",BOOTSTRAP_LOADER_NAME)?;
-//            } else {
-//                unimplemented!()
-//            }
-        },
-        UnifiedType::ArrayReferenceType(arr) => {
-            write!(w, "arrayOf(")?;
-            write_type_prolog(&arr.sub_type, w)?;
-            write!(w, ")")?;
-        },
-        UnifiedType::VoidType => {
-            write!(w,"void")?;
-        },
-        _ => {panic!("Case wasn't coverred with non-unified types")}
-    }
-    Ok(())
 }

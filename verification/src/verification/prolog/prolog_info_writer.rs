@@ -4,14 +4,15 @@ use std::io::Write;
 
 use std::sync::Arc;
 use rust_jvm_common::classfile::{Classfile, ConstantKind, AttributeType, AttributeInfo, ACC_BRIDGE, ACC_SUPER, ACC_FINAL, ACC_TRANSIENT, ACC_NATIVE, ACC_PRIVATE, ACC_PUBLIC, ACC_PROTECTED, ACC_STATIC, ACC_VOLATILE, ACC_INTERFACE, ACC_ABSTRACT, ACC_STRICT, ACC_SYNTHETIC, ACC_ANNOTATION, MethodInfo, FieldInfo, ACC_ENUM, ACC_MODULE};
-use crate::verification::code_writer::write_parse_code_attribute;
+use crate::verification::prolog::code_writer::write_parse_code_attribute;
 use crate::verification::verifier::{PrologClass, PrologClassMethod};
-use crate::verification::types::{MethodDescriptor, parse_method_descriptor, parse_field_descriptor, write_type_prolog, FieldDescriptor};
+use crate::verification::types::{MethodDescriptor, parse_method_descriptor, parse_field_descriptor, FieldDescriptor};
 use rust_jvm_common::classnames::class_name_legacy;
 use rust_jvm_common::utils::extract_string_from_utf8;
-use rust_jvm_common::loading::JVMState;
+use rust_jvm_common::loading::{JVMState, BOOTSTRAP_LOADER_NAME};
 use classfile_parser::classfile::code_attribute;
 use crate::verification::instruction_outputer::extract_class_from_constant_pool;
+use crate::verification::prolog::unified_types::write_type_prolog;
 
 pub struct ExtraDescriptors {
     pub extra_method_descriptors: Vec<String>,
@@ -54,8 +55,6 @@ pub fn gen_prolog(context: &mut PrologGenContext, w: &mut dyn Write) -> Result<(
     w.flush()?;
     Ok(())
 }
-
-pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
 #[allow(dead_code)]
 pub struct ParsedFieldDescriptor {
@@ -370,7 +369,6 @@ fn write_method_name(context: &PrologGenContext, w: &mut dyn Write) -> Result<()
 //)
 // Extracts the access flags, AccessFlags , of the method Method .
 
-#[allow(unused)]
 pub fn get_access_flags(class: &PrologClass,method: &PrologClassMethod) -> u16 {
 //    assert!(method.prolog_class == class);//todo why the duplicate parameters?
     class.class.methods[method.method_index as usize].access_flags

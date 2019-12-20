@@ -2,7 +2,7 @@ use crate::verification::verifier::{InternalFrame, PrologClass};
 use crate::verification::types::parse_method_descriptor;
 use crate::verification::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, UninitializedVariableInfo, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
-use crate::verification::code_writer::{StackMap, init_frame};
+use crate::verification::prolog::code_writer::{StackMap, init_frame};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
 use rust_jvm_common::classnames::{class_name, ClassName, NameReference};

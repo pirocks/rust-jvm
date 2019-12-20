@@ -1,5 +1,5 @@
 use log::trace;
-use crate::verification::code_writer::StackMap;
+use crate::verification::prolog::code_writer::StackMap;
 use crate::verification::verifier::{Frame, merge_type_safety_results, PrologClass, PrologClassMethod, TypeSafetyResult};
 use crate::verification::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verification::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
@@ -12,7 +12,7 @@ use crate::verification::verifier::and;
 use std::option::Option::Some;
 use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
-use crate::verification::prolog_info_writer::{get_access_flags, method_name};
+use crate::verification::prolog::prolog_info_writer::{get_access_flags, method_name};
 use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;

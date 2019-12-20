@@ -3,8 +3,10 @@ use std::io::{Error, Write};
 use std::sync::Arc;
 use rust_jvm_common::classfile::{Classfile, ConstantKind, InstructionInfo, Class, Code, Instruction};
 use rust_jvm_common::utils::extract_string_from_utf8;
-use crate::verification::prolog_info_writer::{BOOTSTRAP_LOADER_NAME, ExtraDescriptors};
-use crate::verification::types::{parse_field_descriptor, write_type_prolog};
+use crate::verification::types::parse_field_descriptor;
+use crate::verification::prolog::prolog_info_writer::ExtraDescriptors;
+use rust_jvm_common::loading::BOOTSTRAP_LOADER_NAME;
+use crate::verification::prolog::unified_types::write_type_prolog;
 
 pub fn name_and_type_extractor(i: u16, class_file: &Arc<Classfile>) -> (String, String) {
     let nt;
