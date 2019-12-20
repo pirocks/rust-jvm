@@ -16,7 +16,7 @@ fn load_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame
 
     match next_frame_res {
         Ok(next_frame) => {
-            if is_assignable(&actual_type, type_) {
+            if is_assignable(&actual_type, type_) ==TypeSafetyResult::Safe() {
                 Ok(next_frame)
             } else {
                 unimplemented!()

@@ -49,7 +49,7 @@ pub fn loaded_class(class: &ClassType, loader: &Arc<Loader>) -> TypeSafetyResult
         dbg!(class_entry);
         dbg!(loader.loading.read().unwrap().keys());
         dbg!(loader.loaded.read().unwrap().keys());
-        return NeedToLoad(vec![unimplemented!()]);
+        return NeedToLoad(vec![class.class_name.clone()]);
     }
 }
 
@@ -79,36 +79,36 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
     return class.class.access_flags & ACC_INTERFACE != 0;
 }
 
-pub fn is_java_sub_class_of(_from: &ClassType, _to: &ClassType) -> bool {
+pub fn is_java_sub_class_of(_from: &ClassType, _to: &ClassType) -> TypeSafetyResult {
     unimplemented!()
 }
 
-pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
+pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> TypeSafetyResult{
     match from {
         UnifiedType::DoubleType => match to {
-            UnifiedType::DoubleType => true,
+            UnifiedType::DoubleType => Safe(),
             _ => is_assignable(&UnifiedType::TwoWord, to)
         },
         UnifiedType::LongType => match to {
-            UnifiedType::LongType => true,
+            UnifiedType::LongType => Safe(),
             _ => is_assignable(&UnifiedType::TwoWord, to)
         },
         UnifiedType::FloatType => match to {
-            UnifiedType::FloatType => true,
+            UnifiedType::FloatType => Safe(),
             _ => is_assignable(&UnifiedType::OneWord, to)
         },
         UnifiedType::IntType => match to {
-            UnifiedType::IntType => true,
+            UnifiedType::IntType => Safe(),
             _ => is_assignable(&UnifiedType::OneWord, to)
         },
         UnifiedType::Reference => match to {
-            UnifiedType::Reference => true,
+            UnifiedType::Reference => Safe(),
             _ => is_assignable(&UnifiedType::OneWord, to)
         }
         UnifiedType::Class(c) => match to {
             UnifiedType::Class(c2) => {
                 if c == c2 {
-                    return true;
+                    return Safe();
                 }else {
                     return is_java_assignable(c,c2)
                 }
@@ -118,7 +118,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
         UnifiedType::ArrayReferenceType(a) => match to {
             UnifiedType::ArrayReferenceType(a2) => {
                 if a == a2{
-                    return true;
+                    return Safe();
                 }else {
                     unimplemented!()
                 }
@@ -127,11 +127,11 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::TopType => match to {
-            UnifiedType::TopType => true,
+            UnifiedType::TopType => Safe(),
             _ => panic!("This might be a bug. It's a weird edge case"),
         },
         UnifiedType::UninitializedEmpty => match to {
-            UnifiedType::UninitializedEmpty => true,
+            UnifiedType::UninitializedEmpty => Safe(),
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::Uninitialized(_) => match to {
@@ -139,36 +139,38 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> bool {
             _ => is_assignable(&UnifiedType::UninitializedEmpty, to)
         },
         UnifiedType::UninitializedThis => match to {
-            UnifiedType::UninitializedThis => true,
+            UnifiedType::UninitializedThis => Safe(),
             _ => is_assignable(&UnifiedType::UninitializedEmpty, to)
         },
         UnifiedType::NullType => match to {
-            UnifiedType::NullType => true,
-            UnifiedType::Class(_) => true,
-            UnifiedType::ArrayReferenceType(_) => true,
+            UnifiedType::NullType => Safe(),
+            UnifiedType::Class(_) => Safe(),
+            UnifiedType::ArrayReferenceType(_) => Safe(),
             _ => is_assignable(unimplemented!(), to),
         },
         UnifiedType::OneWord => match to {
-            UnifiedType::OneWord => true,
-            UnifiedType::TopType => true,
-            _ => false
+            UnifiedType::OneWord => Safe(),
+            UnifiedType::TopType => Safe(),
+            _ => TypeSafetyResult::NotSafe("todo reason".to_string())
         },
         UnifiedType::TwoWord => match to {
-            UnifiedType::TwoWord => true,
-            UnifiedType::TopType => true,
-            _ => false
+            UnifiedType::TwoWord => Safe(),
+            UnifiedType::TopType => Safe(),
+            _ => TypeSafetyResult::NotSafe("todo reason".to_string())
         },
         _ => panic!("This is a bug"),//todo , should have a better message function
     }
 }
 
 //todo how to handle arrays
-pub fn is_java_assignable(from: &ClassType, to: &ClassType) -> bool {
-    match loaded_class(to, unimplemented!()) {
-        TypeSafetyResult::Safe() => { return class_is_interface(&PrologClass {class:class_type_to_class(to),loader:to.loader}); }
+pub fn is_java_assignable(from: &ClassType, to: &ClassType) -> TypeSafetyResult {
+    match loaded_class(to, &to.loader) {
+        TypeSafetyResult::Safe() => { if class_is_interface(&PrologClass {class:class_type_to_class(to),loader:to.loader.clone()}){
+            return TypeSafetyResult::Safe();
+        } },
+        TypeSafetyResult::NeedToLoad(ntl) => return TypeSafetyResult::NeedToLoad(ntl),
         _ => unimplemented!()
     }
-    unimplemented!();
     return is_java_sub_class_of(from, to);
 }
 

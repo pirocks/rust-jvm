@@ -85,13 +85,13 @@ fn offset_stack_frame(env: &Environment, offset: i16) -> Option<Frame> {
                 s.offset == offset as usize
             }
         }
-    }).map(|x|{
-        match x{
+    }).map(|x| {
+        match x {
             Instruction(_) => panic!(),
             StackMap(s) => Frame {
-                locals: s.map_frame.locals.iter().map(|x|copy_recurse(x)).collect(),
-                stack_map: s.map_frame.stack_map.iter().map(|x|copy_recurse(x)).collect(),
-                flag_this_uninit: s.map_frame.flag_this_uninit
+                locals: s.map_frame.locals.iter().map(|x| copy_recurse(x)).collect(),
+                stack_map: s.map_frame.stack_map.iter().map(|x| copy_recurse(x)).collect(),
+                flag_this_uninit: s.map_frame.flag_this_uninit,
             },
         }
     })
@@ -124,7 +124,7 @@ fn class_to_type(class: &PrologClass) -> UnifiedType {
         index: class.class.this_class,
         class_file: Arc::downgrade(&class.class),
     });
-    UnifiedType::Class(ClassType { class_name, loader: class.loader.clone() } )
+    UnifiedType::Class(ClassType { class_name, loader: class.loader.clone() })
 }
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> TypeSafetyResult {
@@ -175,12 +175,13 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> TypeSafetyResult {
                         let exception_class = handler_exception_class(&h);
                         //todo how does bootstrap loader from throwable make its way into this
                         let class_name = class_name(&exception_class.class);
-                        if is_assignable(&UnifiedType::Class(ClassType {class_name, loader: env.class_loader.clone() }),
-                                         &UnifiedType::Class(ClassType { class_name:ClassName::Str("java/lang/Throwable".to_string()), loader:BOOTSTRAP_LOADER.clone()} )) {
-                            return init_handler_is_legal(env, h);
-                        } else {
-                            TypeSafetyResult::NotSafe("Handler exception class not assignable to Throwable".to_string())
-                        }
+                        let assignable = is_assignable(&UnifiedType::Class(ClassType { class_name, loader: env.class_loader.clone() }),
+                                                       &UnifiedType::Class(ClassType { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: BOOTSTRAP_LOADER.clone() }));
+                        return match assignable {
+                            TypeSafetyResult::NotSafe(_) => TypeSafetyResult::NotSafe("Handler exception class not assignable to Throwable".to_string()),
+                            TypeSafetyResult::Safe() => init_handler_is_legal(env, h),
+                            TypeSafetyResult::NeedToLoad(ntl) => TypeSafetyResult::NeedToLoad(ntl)
+                        };
                     } else {
                         TypeSafetyResult::NotSafe("Instructions do not include handler end".to_string())
                     }
@@ -540,9 +541,9 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         .map(|x| copy_recurse(x))
         .collect();
     let current_loader = &env.class_loader;
-    //todo deal with loaders in class names/types
+//todo deal with loaders in class names/types
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| copy_recurse(x)).collect();
-    let class_type = ClassType { class_name:ClassName::Str(class_name.clone()), loader: current_loader.clone() };//todo better name
+    let class_type = ClassType { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };//todo better name
     stack_arg_list.push(UnifiedType::Class(class_type));
     stack_arg_list.reverse();
     match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
@@ -564,7 +565,7 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, Metho
             let c = extract_class_from_constant_pool(m.class_index, &classfile);
             let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
-            let parsed_descriptor = match parse_method_descriptor(&env.class_loader,descriptor.as_str()) {
+            let parsed_descriptor = match parse_method_descriptor(&env.class_loader, descriptor.as_str()) {
                 None => { unimplemented!() }
                 Some(pd) => { pd }
             };

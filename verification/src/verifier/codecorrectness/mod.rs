@@ -56,15 +56,16 @@ pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> 
 pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedType) -> Option<(&'l [UnifiedType], UnifiedType)> {
     if size_of(type_) == 1 {
         let actual_type = &operand_stack[0];
-        if is_assignable(actual_type, type_) {
+        if is_assignable(actual_type, type_) == TypeSafetyResult::Safe() {//todo need to get rid of these tbh
             return Some((&operand_stack[1..], copy_recurse(actual_type)));
         } else {
-            return None;
+            unimplemented!()
+//            return None;
         }
     } else if size_of(type_) == 2 {
         &operand_stack[0];//should be top todo
         let actual_type = &operand_stack[1];
-        if is_assignable(actual_type, type_) {
+        if is_assignable(actual_type, type_) == TypeSafetyResult::Safe() {
             return Some((&operand_stack[2..], copy_recurse(actual_type)));
         } else {
             unimplemented!()
@@ -79,9 +80,9 @@ pub fn size_of(unified_type: &UnifiedType) -> u64 {
     match unified_type {
         UnifiedType::TopType => { 1 }
         _ => {
-            if is_assignable(unified_type, &UnifiedType::TwoWord) {
+            if is_assignable(unified_type, &UnifiedType::TwoWord) == TypeSafetyResult::Safe(){
                 2
-            } else if is_assignable(unified_type, &UnifiedType::OneWord) {
+            } else if is_assignable(unified_type, &UnifiedType::OneWord) == TypeSafetyResult::Safe() {
                 1
             } else {
                 panic!("This is a bug")
@@ -137,7 +138,7 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
 //
 
 pub fn can_pop(input_frame: &Frame, types: Vec<UnifiedType>) -> Option<Frame> {
-    let poped_stack = match pop_matching_list(&input_frame.stack_map, types){
+    let poped_stack = match pop_matching_list(&input_frame.stack_map, types) {
         None => return None,
         Some(s) => s,
     };
@@ -145,24 +146,34 @@ pub fn can_pop(input_frame: &Frame, types: Vec<UnifiedType>) -> Option<Frame> {
         locals: input_frame
             .locals
             .iter()
-            .map(|x|copy_recurse(x))
+            .map(|x| copy_recurse(x))
             .collect(),
         stack_map: poped_stack,
-        flag_this_uninit: input_frame.flag_this_uninit
+        flag_this_uninit: input_frame.flag_this_uninit,
     })
 }
 
 pub fn frame_is_assignable(left: &Frame, right: &Frame) -> TypeSafetyResult {
-    if left.stack_map.len() == right.stack_map.len()
-        && left.locals.iter().zip(right.locals.iter()).all(|(left_, right_)| {
+    let locals_assignable = match merge_type_safety_results(left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| {
         is_assignable(left_, right_)
-    }) && left.stack_map.iter().zip(right.stack_map.iter()).all(|(left_, right_)| {
+    }).collect()){
+        TypeSafetyResult::NotSafe(ns) => return TypeSafetyResult::NotSafe(ns),
+        TypeSafetyResult::Safe() => true,
+        TypeSafetyResult::NeedToLoad(ntl) => return TypeSafetyResult::NeedToLoad(ntl),
+    };
+    let stack_assignable = match merge_type_safety_results(left.stack_map.iter().zip(right.stack_map.iter()).map(|(left_, right_)| {
         is_assignable(left_, right_)
-    }) && if left.flag_this_uninit {
-        right.flag_this_uninit
-    } else {
-        true
-    } {
+    }).collect()){
+        TypeSafetyResult::NotSafe(ns) => return TypeSafetyResult::NotSafe(ns),
+        TypeSafetyResult::Safe() => true,
+        TypeSafetyResult::NeedToLoad(ntl) => return TypeSafetyResult::NeedToLoad(ntl),
+    };
+    if left.stack_map.len() == right.stack_map.len() && locals_assignable && stack_assignable &&
+        if left.flag_this_uninit {
+            right.flag_this_uninit
+        } else {
+            true
+        } {
         TypeSafetyResult::Safe()
     } else {
         TypeSafetyResult::NotSafe("todo message".to_string())//todo message
@@ -351,7 +362,7 @@ fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, f
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
     let method_descriptor = extract_string_from_utf8(&class.class.constant_pool[method.prolog_class.class.methods[method.method_index as usize].descriptor_index as usize]);
-    let parsed_descriptor = parse_method_descriptor(&class.loader,method_descriptor.as_str()).unwrap();
+    let parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
     let this_list = method_initial_this_type(class, method);
     let flag_this_uninit = flags(&this_list);
     let args = expand_type_list(parsed_descriptor.parameter_types);
@@ -424,7 +435,7 @@ fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMe
     let method_name = method_name(&method.prolog_class.class, &method.prolog_class.class.methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
-            UnifiedType::Class(ClassType { class_name:class_name(&class.class) ,loader:class.loader.clone() })
+            UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() })
         } else {
             let mut chain = vec![];
             super_class_chain(class, class.loader.clone(), &mut chain);
@@ -436,6 +447,6 @@ fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMe
         }
     } else {
         //todo what to do about loaders
-        UnifiedType::Class(ClassType {class_name:class_name(&class.class), loader: class.loader.clone() })
+        UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() })
     }
 }
