@@ -452,10 +452,12 @@ pub fn instructions_include_end(_instructs: &Vec<MergedCodeInstruction>, _end: u
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_iconst_m1(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
+
+pub fn instruction_is_type_safe_iconst_m1(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult,TypeSafetyError> {
+    let next_frame = valid_type_transition(env,vec![],&UnifiedType::IntType,stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames {exception_frame, next_frame}))
+}
 //
 //
 //#[allow(unused)]

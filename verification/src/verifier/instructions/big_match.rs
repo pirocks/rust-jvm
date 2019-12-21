@@ -2,7 +2,7 @@ use rust_jvm_common::classfile::{InstructionInfo, Instruction};
 use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload};
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
-use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokestatic, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp};
+use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokestatic, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp, instruction_is_type_safe_iconst_m1};
 use crate::verifier::instructions::branches::{instruction_is_type_safe_if_acmpeq, instruction_is_type_safe_return};
 use crate::verifier::TypeSafetyError;
 
@@ -104,13 +104,13 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::iaload => {unimplemented!()},
         InstructionInfo::iand => {unimplemented!()},
         InstructionInfo::iastore => {unimplemented!()},
-        InstructionInfo::iconst_m1 => {unimplemented!()},
-        InstructionInfo::iconst_0 => {unimplemented!()},
-        InstructionInfo::iconst_1 => {unimplemented!()},
-        InstructionInfo::iconst_2 => {unimplemented!()},
-        InstructionInfo::iconst_3 => {unimplemented!()},
-        InstructionInfo::iconst_4 => {unimplemented!()},
-        InstructionInfo::iconst_5 => {unimplemented!()},
+        InstructionInfo::iconst_m1 => instruction_is_type_safe_iconst_m1(env,offset,stack_frame),
+        InstructionInfo::iconst_0 => instruction_is_type_safe_iconst_m1(env,offset,stack_frame),
+        InstructionInfo::iconst_1 => instruction_is_type_safe_iconst_m1(env,offset,stack_frame),
+        InstructionInfo::iconst_2 => instruction_is_type_safe_iconst_m1(env,offset,stack_frame),
+        InstructionInfo::iconst_3 => instruction_is_type_safe_iconst_m1(env,offset,stack_frame),
+        InstructionInfo::iconst_4 => instruction_is_type_safe_iconst_m1(env,offset,stack_frame),
+        InstructionInfo::iconst_5 => instruction_is_type_safe_iconst_m1(env,offset,stack_frame),
         InstructionInfo::idiv => {unimplemented!()},
         InstructionInfo::if_acmpeq(_) => {unimplemented!()},
         InstructionInfo::if_acmpne(target) => instruction_is_type_safe_if_acmpeq((target as isize) + (instruction.offset as isize),env,offset,stack_frame),//same as eq case
