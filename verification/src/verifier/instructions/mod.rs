@@ -1,4 +1,4 @@
-use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition, can_pop, handler_exception_class, Handler, init_handler_is_legal};
+use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition, can_pop, handler_exception_class, Handler};
 use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
 use crate::verifier::{Frame, passes_protected_check, PrologClass};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;

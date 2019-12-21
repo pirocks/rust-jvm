@@ -6,10 +6,10 @@ use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use std::sync::Arc;
 use crate::verifier::instructions::{handers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
-use crate::types::parse_method_descriptor;
+use crate::types::{parse_method_descriptor, MethodDescriptor};
 use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
 use std::option::Option::Some;
-use rust_jvm_common::unified_types::UnifiedType;
+use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
 use crate::prolog::prolog_info_writer::{get_access_flags, method_name};
 use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
@@ -329,6 +329,33 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
     return res;
 }
 
+fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType{
+    match type_ {
+        UnifiedType::ByteType => UnifiedType::IntType,
+        UnifiedType::CharType => UnifiedType::IntType,
+        UnifiedType::ShortType => UnifiedType::IntType,
+        UnifiedType::DoubleType => UnifiedType::DoubleType,
+        UnifiedType::FloatType => UnifiedType::FloatType,
+        UnifiedType::IntType => UnifiedType::IntType,
+        UnifiedType::BooleanType => UnifiedType::IntType,
+        UnifiedType::LongType => UnifiedType::LongType,
+        UnifiedType::Class(_) => copy_recurse(type_),
+        UnifiedType::ArrayReferenceType(a) => {
+            let translated_subtype = translate_types_to_vm_types(&a.sub_type);
+            UnifiedType::ArrayReferenceType(ArrayType {sub_type:Box::new(translated_subtype)})
+        },
+        UnifiedType::VoidType => UnifiedType::VoidType,
+        UnifiedType::TopType => panic!(),
+        UnifiedType::NullType => panic!(),
+        UnifiedType::Uninitialized(_) => panic!(),
+        UnifiedType::UninitializedThis => panic!(),
+        UnifiedType::TwoWord => panic!(),
+        UnifiedType::OneWord => panic!(),
+        UnifiedType::Reference => panic!(),
+        UnifiedType::UninitializedEmpty => panic!(),
+    }
+}
+
 fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, frame_size: u16) -> (Frame, UnifiedType) {
     //methodInitialStackFrame(Class, Method, FrameSize, frame(Locals, [], Flags),ReturnType):-
     //    methodDescriptor(Method, Descriptor),
@@ -339,7 +366,14 @@ fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, f
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
     let method_descriptor = extract_string_from_utf8(&class.class.constant_pool[method.prolog_class.class.methods[method.method_index as usize].descriptor_index as usize]);
-    let parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
+    let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
+    let parsed_descriptor = MethodDescriptor {
+        parameter_types: initial_parsed_descriptor.parameter_types
+            .iter()
+            .map(|x|translate_types_to_vm_types(x))
+            .collect(),
+        return_type: translate_types_to_vm_types(&initial_parsed_descriptor.return_type)
+    };
     let this_list = method_initial_this_type(class, method);
     let flag_this_uninit = flags(&this_list);
     let args = expand_type_list(parsed_descriptor.parameter_types);

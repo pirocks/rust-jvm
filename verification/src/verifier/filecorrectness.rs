@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use rust_jvm_common::unified_types::UnifiedType;
 use crate::verifier::{PrologClass, PrologClassMethod};
-use rust_jvm_common::loading::{Loader, class_entry, class_entry_from_string};
+use rust_jvm_common::loading::{Loader, class_entry_from_string};
 use rust_jvm_common::classnames::{class_name, get_referred_name, class_name_legacy};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
 use crate::prolog::prolog_info_writer::get_access_flags;
