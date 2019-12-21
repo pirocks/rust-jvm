@@ -3,6 +3,17 @@ use crate::verifier::instructions::{InstructionIsTypeSafeResult, AfterGotoFrames
 use crate::verifier::codecorrectness::{Environment, can_pop};
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
+use rust_jvm_common::classfile::ConstantKind;
+use rust_jvm_common::utils::extract_string_from_utf8;
+use rust_jvm_common::utils::name_and_type_extractor;
+use crate::types::MethodDescriptor;
+use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
+use rust_jvm_common::unified_types::ClassType;
+use crate::verifier::passes_protected_check;
+use rust_jvm_common::utils::extract_class_from_constant_pool;
+use crate::types::parse_method_descriptor;
+use crate::verifier::codecorrectness::valid_type_transition;
+use rust_jvm_common::classnames::ClassName;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     match env.return_type {
@@ -46,3 +57,120 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::AfterGoto(AfterGotoFrames {exception_frame }))
 }
+
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_areturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+//
+
+
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+//
+//#[allow(unused)]
+//fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+//
+
+pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
+        unimplemented!();
+    }
+    let operand_arg_list = parsed_descriptor.parameter_types;
+    let stack_arg_list: Vec<UnifiedType> = operand_arg_list.iter()
+        .rev()
+        .map(|x| copy_recurse(x))
+        .collect();
+    let next_frame = match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
+        Ok(nf) => nf,
+        Err(_) => unimplemented!(),
+    };
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame }))
+}
+
+
+pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+    let (class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
+        unimplemented!();
+    }
+    let operand_arg_list = &parsed_descriptor.parameter_types;
+    let arg_list: Vec<UnifiedType> = operand_arg_list.iter()
+        .rev()
+        .map(|x| copy_recurse(x))
+        .collect();
+    let current_loader = &env.class_loader;
+//todo deal with loaders in class names/types
+    let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| copy_recurse(x)).collect();
+    let class_type = ClassType { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };//todo better name
+    stack_arg_list.push(UnifiedType::Class(class_type));
+    stack_arg_list.reverse();
+    let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
+    let popped_frame = can_pop(stack_frame, arg_list)?;
+    passes_protected_check(env, class_name.clone(), method_name, &parsed_descriptor, &popped_frame)?;
+    let exception_stack_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
+}
+
+fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, MethodDescriptor) {
+    let classfile = &env.method.prolog_class.class;
+    let c = &classfile.constant_pool[cp].kind;
+    let (class_name, method_name, parsed_descriptor) = match c {
+        ConstantKind::Methodref(m) => {
+            let c = extract_class_from_constant_pool(m.class_index, &classfile);
+            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
+            let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
+            let parsed_descriptor = match parse_method_descriptor(&env.class_loader, descriptor.as_str()) {
+                None => { unimplemented!() }
+                Some(pd) => { pd }
+            };
+            (class_name, method_name, parsed_descriptor)
+        }
+        _ => unimplemented!()
+    };
+    (class_name, method_name, parsed_descriptor)
+}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_lreturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+//#[allow(unused)]
+//fn instruction_is_type_safe_dreturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_freturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}

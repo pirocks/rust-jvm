@@ -34,3 +34,53 @@ pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, _offset: 
         next_frame,
     }))
 }
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_baload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_caload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_daload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_dload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_faload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_fload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_iaload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_iload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_laload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
+
+//#[allow(unused)]
+//fn instruction_is_type_safe_saload(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//    unimplemented!()
+//}
