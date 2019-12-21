@@ -3,7 +3,7 @@ use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instr
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokestatic, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp, instruction_is_type_safe_iconst_m1};
-use crate::verifier::instructions::branches::{instruction_is_type_safe_if_acmpeq, instruction_is_type_safe_return};
+use crate::verifier::instructions::branches::{instruction_is_type_safe_if_acmpeq, instruction_is_type_safe_return, instruction_is_type_safe_goto};
 use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult,TypeSafetyError> {
@@ -92,7 +92,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fsub => {unimplemented!()},
         InstructionInfo::getfield(_) => {unimplemented!()},
         InstructionInfo::getstatic(_) => {unimplemented!()},
-        InstructionInfo::goto_(_) => {unimplemented!()},
+        InstructionInfo::goto_(target) => instruction_is_type_safe_goto(target as isize + instruction.offset as isize,env,offset,stack_frame),
         InstructionInfo::goto_w(_) => {unimplemented!()},
         InstructionInfo::i2b => {unimplemented!()},
         InstructionInfo::i2c => {unimplemented!()},
