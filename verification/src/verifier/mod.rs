@@ -5,10 +5,11 @@ use rust_jvm_common::classnames::{get_referred_name, class_name, ClassName};
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
 use crate::types::MethodDescriptor;
-use crate::prolog::prolog_info_writer::{get_super_class_name, method_name};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::loading::Loader;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
+use rust_jvm_common::utils::get_super_class_name;
+use rust_jvm_common::utils::method_name;
 
 pub mod instructions;
 pub mod filecorrectness;

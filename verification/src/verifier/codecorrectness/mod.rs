@@ -1,5 +1,4 @@
 use log::trace;
-use crate::prolog::code_writer::StackMap;
 use crate::verifier::{Frame, PrologClass, PrologClassMethod};
 use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
@@ -11,13 +10,15 @@ use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
 use std::option::Option::Some;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
-use crate::prolog::prolog_info_writer::{get_access_flags, method_name};
 use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;
 use classfile_parser::code_attribute;
 use rust_jvm_common::unified_types::ClassType;
 use crate::verifier::TypeSafetyError;
+use crate::verifier::filecorrectness::get_access_flags;
+use rust_jvm_common::utils::method_name;
+use crate::StackMap;
 
 pub mod stackmapframes;
 

@@ -37,7 +37,7 @@ pub fn instruction_is_type_safe_goto(target: isize, env: &Environment, _offset: 
 }
 
 
-pub fn instruction_is_type_safe_ireturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     match env.return_type{
         UnifiedType::IntType => {},
         _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string()))

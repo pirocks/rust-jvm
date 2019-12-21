@@ -19,8 +19,8 @@ use rust_jvm_common::loading::{Loader, ClassEntry, class_entry_from_string, clas
 use rust_jvm_common::classfile::{Classfile, ConstantKind};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use classfile_parser::parse_class_file;
-use verification::prolog::prolog_info_writer::get_super_class_name;
 use verification::verify;
+use rust_jvm_common::utils::get_super_class_name;
 
 
 pub fn load_class(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: ClassEntry, only_verify: bool) {

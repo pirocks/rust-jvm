@@ -4,7 +4,6 @@ use crate::verifier::{PrologClass, PrologClassMethod};
 use rust_jvm_common::loading::{Loader, class_entry_from_string};
 use rust_jvm_common::classnames::{class_name, get_referred_name, class_name_legacy};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
-use crate::prolog::prolog_info_writer::get_access_flags;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use rust_jvm_common::unified_types::ClassType;
 use rust_jvm_common::unified_types::class_type_to_class;
@@ -18,6 +17,7 @@ fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }
 
+#[allow(unused)]
 fn different_runtime_package(class1: &PrologClass, class2: &PrologClass) -> bool {
     //sameRuntimePackage(Class1, Class2) :-
     //    classDefiningLoader(Class1, L),
@@ -34,6 +34,7 @@ fn different_runtime_package(class1: &PrologClass, class2: &PrologClass) -> bool
     return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(class1, class2);
 }
 
+#[allow(unused)]
 fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
     let packages1 = class_entry_from_string(&get_referred_name(&class_name(&class1.class)), false).packages;
     let packages2 = class_entry_from_string(&get_referred_name(&class_name(&class2.class)), false).packages;
@@ -99,7 +100,7 @@ pub fn is_java_sub_class_of(from: &ClassType, to: &ClassType) -> Result<(), Type
         return Result::Ok(());
     }
     let mut chain = vec![];
-    super_class_chain(&loaded_class(from, from.loader.clone())?, from.loader.clone(), &mut chain);
+    super_class_chain(&loaded_class(from, from.loader.clone())?, from.loader.clone(), &mut chain)?;
     match chain.iter().find(|x| {
         class_name(&x.class) == to.class_name
     }) {
@@ -277,3 +278,7 @@ pub fn does_not_override_final_method_of_superclass(class: &PrologClass, method:
     unimplemented!()
 }
 
+pub fn get_access_flags(class: &PrologClass,method: &PrologClassMethod) -> u16 {
+//    assert!(method.prolog_class == class);//todo why the duplicate parameters?
+    class.class.methods[method.method_index as usize].access_flags
+}

@@ -7,13 +7,14 @@ use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
 use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::classnames::{ClassName, NameReference, class_name};
 use std::sync::Arc;
-use crate::instruction_outputer::{extract_class_from_constant_pool, name_and_type_extractor};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use crate::types::{parse_method_descriptor, MethodDescriptor};
 use crate::verifier::filecorrectness::is_assignable;
 use rust_jvm_common::unified_types::ClassType;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use crate::verifier::TypeSafetyError;
+use rust_jvm_common::utils::name_and_type_extractor;
+use rust_jvm_common::utils::extract_class_from_constant_pool;
 
 pub mod loads;
 
@@ -172,7 +173,7 @@ pub fn start_is_member_of(start: usize, merged_instructs: &Vec<MergedCodeInstruc
 pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafetyError> {
     if h.start < h.end {
         if start_is_member_of(h.start, env.merged_code.unwrap()) {
-            let target_stack_frame = offset_stack_frame(env, h.target)?;
+            let _target_stack_frame = offset_stack_frame(env, h.target)?;
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
                 let exception_class = handler_exception_class(&h);
                 //todo how does bootstrap loader from throwable make its way into this
