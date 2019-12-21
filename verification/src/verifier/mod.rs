@@ -65,8 +65,8 @@ pub fn class_is_type_safe(class: &PrologClass ) -> Result<(),TypeSafetyError> {
         //class must have a superclass or be 'java/lang/Object'
         //todo loader shouldnt really be a string
         let mut chain = vec![];
-        let _chain_res = super_class_chain(class, class.loader.clone(), &mut chain);
-        unimplemented!();
+        super_class_chain(class, class.loader.clone(), &mut chain)?;
+        dbg!(&chain);
         if chain.is_empty() {
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }

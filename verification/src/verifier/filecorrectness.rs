@@ -10,6 +10,8 @@ use rust_jvm_common::unified_types::ClassType;
 use rust_jvm_common::unified_types::class_type_to_class;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::utils::extract_string_from_utf8;
+use rust_jvm_common::classfile::ConstantKind;
 
 #[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
@@ -194,8 +196,16 @@ pub fn is_java_subclass_of(_sub: &PrologClass, _super: &PrologClass) {
     unimplemented!()
 }
 
-pub fn class_super_class_name(_class: &PrologClass) -> String {
-    unimplemented!()
+pub fn class_super_class_name(class: &PrologClass) -> String {
+    //todo dup, this must exist elsewhere
+    let class_entry = &class.class.constant_pool[class.class.super_class as usize];
+    let utf8 = match &class_entry.kind {
+        ConstantKind::Class(c) => {
+            &class.class.constant_pool[c.name_index as usize]
+        },
+        _ => panic!()
+    };
+    extract_string_from_utf8(utf8)
 }
 
 pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &mut Vec<PrologClass>) -> Result<(), TypeSafetyError> {
