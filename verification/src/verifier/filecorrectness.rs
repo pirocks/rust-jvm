@@ -47,10 +47,10 @@ pub fn loaded_class(class: &ClassType, loader: Arc<Loader>) -> Result<PrologClas
     match loader.loading.read().unwrap().get(&class_entry) {
         None => match loader.loaded.read().unwrap().get(&class_entry) {
             None => {
-                dbg!(class);
+//                dbg!(class);
                 dbg!(class_entry);
-                dbg!(loader.loading.read().unwrap().keys());
-                dbg!(loader.loaded.read().unwrap().keys());
+//                dbg!(loader.loading.read().unwrap().keys());
+//                dbg!(loader.loaded.read().unwrap().keys());
                 Result::Err(TypeSafetyError::NeedToLoad(vec![class.class_name.clone()]))
             }
             Some(c) => {
@@ -219,9 +219,9 @@ pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &m
     }
     let class = loaded_class(&ClassType { class_name: class_name(&chain_start.class), loader: loader.clone() }, loader.clone())?;//todo loader duplication
     let super_class_name = class_super_class_name(&class);
-    let super_class = loaded_class_(super_class_name, loader.clone())?;
+    let super_class = loaded_class_(super_class_name.clone(), loader.clone())?;
     res.push(super_class);
-    super_class_chain(&chain_start, loader.clone(), res)?;
+    super_class_chain(&loaded_class_(super_class_name, loader.clone())?, loader.clone(), res)?;
     Result::Ok(())
 }
 
