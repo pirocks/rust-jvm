@@ -95,7 +95,15 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
     return class.class.access_flags & ACC_INTERFACE != 0;
 }
 
-pub fn is_java_sub_class_of(_from: &ClassType, _to: &ClassType) -> Result<(), TypeSafetyError> {
+pub fn is_java_sub_class_of(from: &ClassType, to: &ClassType) -> Result<(), TypeSafetyError> {
+    if get_referred_name(&from.class_name) == get_referred_name(&to.class_name){
+        return Result::Ok(());
+    }
+    let mut chain = vec![];
+    super_class_chain(unimplemented!(),from.loader.clone(),&mut chain);
+    chain.iter().find(|x|{
+        unimplemented!()
+    });
     unimplemented!()
 }
 

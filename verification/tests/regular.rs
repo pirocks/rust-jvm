@@ -77,7 +77,7 @@ fn verify_impl(
         Ok(_) => Result::Ok(()),
         Err(err) => {
             match err {
-                TypeSafetyError::NotSafe(_) => {assert!(false);panic!()},
+                TypeSafetyError::NotSafe(s) => {dbg!(s);assert!(false);panic!()},
                 TypeSafetyError::NeedToLoad(ntl) => {
                     for c in ntl {
                         let mut resources = get_test_resources();
