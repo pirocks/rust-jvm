@@ -5,7 +5,7 @@ use rust_jvm_common::classnames::{get_referred_name, class_name, ClassName};
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
 use crate::types::MethodDescriptor;
-use crate::prolog::prolog_info_writer::get_super_class_name;
+use crate::prolog::prolog_info_writer::{get_super_class_name, method_name};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::loading::Loader;
 
@@ -77,10 +77,11 @@ pub fn class_is_type_safe(class: &PrologClass ) -> Result<(),TypeSafetyError> {
     }
     let methods = get_class_methods(class);
     trace!("got class methods:");
-    dbg!(&methods);
+//    dbg!(&methods);
     let method_type_safety: Result<Vec<()>,_> = methods.iter().map(|m| {
         let res = method_is_type_safe(class, m);
         trace!("method was:");
+        dbg!(method_name(&m.prolog_class.class,&m.prolog_class.class.methods[m.method_index]));
         dbg!(&res);
         res
     }).collect();

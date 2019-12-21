@@ -1,4 +1,4 @@
-use rust_jvm_common::classfile::InstructionInfo;
+use rust_jvm_common::classfile::{InstructionInfo, Instruction};
 use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload};
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
@@ -6,8 +6,8 @@ use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_
 use crate::verifier::instructions::branches::{instruction_is_type_safe_if_acmpeq, instruction_is_type_safe_return};
 use crate::verifier::TypeSafetyError;
 
-pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult,TypeSafetyError> {
-    match instruction {
+pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult,TypeSafetyError> {
+    match instruction.instruction {
         InstructionInfo::aaload => {unimplemented!()},
         InstructionInfo::aastore => {unimplemented!()},
         InstructionInfo::aconst_null => {unimplemented!()},
@@ -113,7 +113,7 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::iconst_5 => {unimplemented!()},
         InstructionInfo::idiv => {unimplemented!()},
         InstructionInfo::if_acmpeq(_) => {unimplemented!()},
-        InstructionInfo::if_acmpne(target) => instruction_is_type_safe_if_acmpeq(*target,env,offset,stack_frame),//same as eq case
+        InstructionInfo::if_acmpne(target) => instruction_is_type_safe_if_acmpeq((target as isize) + (instruction.offset as isize),env,offset,stack_frame),//same as eq case
         InstructionInfo::if_icmpeq(_) => {unimplemented!()},
         InstructionInfo::if_icmpne(_) => {unimplemented!()},
         InstructionInfo::if_icmplt(_) => {unimplemented!()},
@@ -140,8 +140,8 @@ pub fn instruction_is_type_safe(instruction: &InstructionInfo, env: &Environment
         InstructionInfo::invokedynamic(_) => {unimplemented!()},
         InstructionInfo::invokeinterface(_) => {unimplemented!()},
         InstructionInfo::invokespecial(_) => {unimplemented!()},
-        InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(*cp as usize,env,offset,stack_frame),
-        InstructionInfo::invokevirtual(v) => instruction_is_type_safe_invokevirtual(*v as usize, env, offset, stack_frame),
+        InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(cp as usize,env,offset,stack_frame),
+        InstructionInfo::invokevirtual(v) => instruction_is_type_safe_invokevirtual(v as usize, env, offset, stack_frame),
         InstructionInfo::ior => {unimplemented!()},
         InstructionInfo::irem => {unimplemented!()},
         InstructionInfo::ireturn => {unimplemented!()},

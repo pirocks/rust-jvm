@@ -19,9 +19,10 @@ pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_
 }
 
 
-pub fn instruction_is_type_safe_if_acmpeq(target: i16, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+pub fn instruction_is_type_safe_if_acmpeq(target: isize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     let next_frame = can_pop(stack_frame, vec![UnifiedType::Reference, UnifiedType::Reference])?;
-    target_is_type_safe(env, &next_frame, target)?;
+    assert!(target >= 0);
+    target_is_type_safe(env, &next_frame, target as usize)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
 }
