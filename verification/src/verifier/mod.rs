@@ -8,6 +8,7 @@ use crate::types::MethodDescriptor;
 use crate::prolog::prolog_info_writer::{get_super_class_name, method_name};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 pub mod instructions;
 pub mod filecorrectness;
@@ -70,7 +71,7 @@ pub fn class_is_type_safe(class: &PrologClass ) -> Result<(),TypeSafetyError> {
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
         let super_class_name = get_super_class_name(&class.class);
-        let super_class = loaded_class_(super_class_name, "bl".to_string()).unwrap();//todo magic string
+        let super_class = loaded_class_(super_class_name, BOOTSTRAP_LOADER.clone()).unwrap();//todo magic string
         if class_is_final(&super_class) {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
         }

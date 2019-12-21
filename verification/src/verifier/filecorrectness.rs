@@ -9,6 +9,7 @@ use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use rust_jvm_common::unified_types::ClassType;
 use rust_jvm_common::unified_types::class_type_to_class;
 use crate::verifier::TypeSafetyError;
+use rust_jvm_common::classnames::ClassName;
 
 #[allow(unused)]
 fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
@@ -39,16 +40,30 @@ fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
 }
 
 //todo have an actual loader type. instead of refering to loader name
-pub fn loaded_class(class: &ClassType, loader: &Arc<Loader>) -> Result<(),TypeSafetyError> {
+pub fn loaded_class(class: &ClassType, loader: Arc<Loader>) -> Result<PrologClass, TypeSafetyError> {
     let class_entry = class_entry_from_string(&get_referred_name(&class.class_name), false);
-    if loader.loading.read().unwrap().contains_key(&class_entry) || loader.loaded.read().unwrap().contains_key(&class_entry) {
-        return Result::Ok(());
-    } else {
-        dbg!(class);
-        dbg!(class_entry);
-        dbg!(loader.loading.read().unwrap().keys());
-        dbg!(loader.loaded.read().unwrap().keys());
-        return Result::Err(TypeSafetyError::NeedToLoad(vec![class.class_name.clone()]));
+    match loader.loading.read().unwrap().get(&class_entry) {
+        None => match loader.loaded.read().unwrap().get(&class_entry) {
+            None => {
+                dbg!(class);
+                dbg!(class_entry);
+                dbg!(loader.loading.read().unwrap().keys());
+                dbg!(loader.loaded.read().unwrap().keys());
+                Result::Err(TypeSafetyError::NeedToLoad(vec![class.class_name.clone()]))
+            }
+            Some(c) => {
+                Result::Ok(PrologClass {
+                    loader: loader.clone(),
+                    class: c.clone(),
+                })
+            }
+        },
+        Some(c) => {
+            Result::Ok(PrologClass {
+                loader: loader.clone(),
+                class: c.clone(),
+            })
+        }
     }
 }
 
@@ -69,8 +84,8 @@ pub fn class_is_final(class: &PrologClass) -> bool {
 }
 
 
-pub fn loaded_class_(_class_name: String, _loader_name: String) -> Option<PrologClass> {
-    unimplemented!()
+pub fn loaded_class_(class_name: String, loader: Arc<Loader>) -> Result<PrologClass,TypeSafetyError> {
+    loaded_class(&ClassType {class_name:ClassName::Str(class_name), loader:loader.clone() }, loader.clone())
 }
 
 
@@ -78,7 +93,7 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
     return class.class.access_flags & ACC_INTERFACE != 0;
 }
 
-pub fn is_java_sub_class_of(_from: &ClassType, _to: &ClassType) -> Result<(),TypeSafetyError> {
+pub fn is_java_sub_class_of(_from: &ClassType, _to: &ClassType) -> Result<(), TypeSafetyError> {
     unimplemented!()
 }
 
@@ -163,7 +178,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
 
 //todo how to handle arrays
 pub fn is_java_assignable(from: &ClassType, to: &ClassType) -> Result<(), TypeSafetyError> {
-    loaded_class(to, &to.loader)?;
+    loaded_class(to, to.loader.clone())?;
     if class_is_interface(&PrologClass { class: class_type_to_class(to), loader: to.loader.clone() }) {
         return Result::Ok(());
     }
@@ -183,7 +198,7 @@ pub fn class_super_class_name(_class: &PrologClass) -> String {
     unimplemented!()
 }
 
-pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &mut Vec<PrologClass>) -> Result<(),TypeSafetyError> {
+pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &mut Vec<PrologClass>) -> Result<(), TypeSafetyError> {
     if get_referred_name(&class_name(&chain_start.class)) == "java/lang/Object" {
         //todo magic constant
         if res.is_empty() && is_bootstrap_loader(&loader) {
@@ -192,8 +207,12 @@ pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &m
             return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
         }
     }
-    let _loaded = loaded_class(&ClassType { class_name: class_name(&chain_start.class), loader: loader.clone() }, &loader);//todo loader duplication
-    unimplemented!()
+    let class = loaded_class(&ClassType { class_name: class_name(&chain_start.class), loader: loader.clone() }, loader.clone())?;//todo loader duplication
+    let super_class_name = class_super_class_name(&class);
+    let super_class = loaded_class_(super_class_name, loader.clone())?;
+    res.push(super_class);
+    super_class_chain(&chain_start, loader.clone(), res)?;
+    Result::Ok(())
 }
 
 
