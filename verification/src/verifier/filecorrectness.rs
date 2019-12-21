@@ -18,7 +18,6 @@ fn same_runtime_package(class1: PrologClass, class2: &PrologClass) -> bool {
     unimplemented!()
 }
 
-#[allow(unused)]
 fn different_runtime_package(class1: &PrologClass, class2: &PrologClass) -> bool {
     //sameRuntimePackage(Class1, Class2) :-
     //    classDefiningLoader(Class1, L),
@@ -86,8 +85,8 @@ pub fn class_is_final(class: &PrologClass) -> bool {
 }
 
 
-pub fn loaded_class_(class_name: String, loader: Arc<Loader>) -> Result<PrologClass,TypeSafetyError> {
-    loaded_class(&ClassType {class_name:ClassName::Str(class_name), loader:loader.clone() }, loader.clone())
+pub fn loaded_class_(class_name: String, loader: Arc<Loader>) -> Result<PrologClass, TypeSafetyError> {
+    loaded_class(&ClassType { class_name: ClassName::Str(class_name), loader: loader.clone() }, loader.clone())
 }
 
 
@@ -96,15 +95,20 @@ pub fn class_is_interface(class: &PrologClass) -> bool {
 }
 
 pub fn is_java_sub_class_of(from: &ClassType, to: &ClassType) -> Result<(), TypeSafetyError> {
-    if get_referred_name(&from.class_name) == get_referred_name(&to.class_name){
+    if get_referred_name(&from.class_name) == get_referred_name(&to.class_name) {
         return Result::Ok(());
     }
     let mut chain = vec![];
-    super_class_chain(unimplemented!(),from.loader.clone(),&mut chain);
-    chain.iter().find(|x|{
-        unimplemented!()
-    });
-    unimplemented!()
+    super_class_chain(&loaded_class(from, from.loader.clone())?, from.loader.clone(), &mut chain);
+    match chain.iter().find(|x| {
+        class_name(&x.class) == to.class_name
+    }) {
+        None => Result::Err(TypeSafetyError::NotSafe("todo message".to_string())),
+        Some(c) => {
+            loaded_class(&ClassType { class_name: class_name(&c.class), loader: c.loader.clone() }, to.loader.clone())?;
+            Result::Ok(())
+        }
+    }
 }
 
 pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSafetyError> {
@@ -210,7 +214,7 @@ pub fn class_super_class_name(class: &PrologClass) -> String {
     let utf8 = match &class_entry.kind {
         ConstantKind::Class(c) => {
             &class.class.constant_pool[c.name_index as usize]
-        },
+        }
         _ => panic!()
     };
     extract_string_from_utf8(utf8)
