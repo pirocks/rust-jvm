@@ -3,7 +3,7 @@ use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instr
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_invokestatic, instruction_is_type_safe_invokevirtual, instruction_is_type_safe_lconst_0, instruction_is_type_safe_lcmp, instruction_is_type_safe_iconst_m1};
-use crate::verifier::instructions::branches::{instruction_is_type_safe_if_acmpeq, instruction_is_type_safe_return, instruction_is_type_safe_goto};
+use crate::verifier::instructions::branches::{instruction_is_type_safe_if_acmpeq, instruction_is_type_safe_return, instruction_is_type_safe_goto, instruction_is_type_safe_ireturn};
 use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult,TypeSafetyError> {
@@ -144,7 +144,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::invokevirtual(v) => instruction_is_type_safe_invokevirtual(v as usize, env, offset, stack_frame),
         InstructionInfo::ior => {unimplemented!()},
         InstructionInfo::irem => {unimplemented!()},
-        InstructionInfo::ireturn => {unimplemented!()},
+        InstructionInfo::ireturn => instruction_is_type_safe_ireturn(env,offset,stack_frame),
         InstructionInfo::ishl => {unimplemented!()},
         InstructionInfo::ishr => {unimplemented!()},
         InstructionInfo::istore(_) => {unimplemented!()},

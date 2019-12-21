@@ -35,3 +35,14 @@ pub fn instruction_is_type_safe_goto(target: isize, env: &Environment, _offset: 
     Result::Ok(InstructionIsTypeSafeResult::AfterGoto(AfterGotoFrames { exception_frame }))
 
 }
+
+
+pub fn instruction_is_type_safe_ireturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+    match env.return_type{
+        UnifiedType::IntType => {},
+        _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string()))
+    }
+    can_pop(stack_frame,vec![UnifiedType::IntType])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionIsTypeSafeResult::AfterGoto(AfterGotoFrames {exception_frame }))
+}

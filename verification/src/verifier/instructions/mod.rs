@@ -568,11 +568,7 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, Metho
     (class_name, method_name, parsed_descriptor)
 }
 
-//
-//#[allow(unused)]
-//fn instruction_is_type_safe_ireturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
+
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_istore(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
