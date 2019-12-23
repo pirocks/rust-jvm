@@ -1,5 +1,5 @@
 use log::trace;
-use crate::verifier::{Frame, PrologClass, PrologClassMethod, get_class};
+use crate::verifier::{Frame, ClassWithLoader, ClassWithLoaderMethod, get_class};
 use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use std::sync::Arc;
@@ -14,7 +14,6 @@ use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;
 use classfile_parser::code_attribute;
-use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::filecorrectness::get_access_flags;
 use rust_jvm_common::utils::method_name;
@@ -159,7 +158,7 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> Result<(), TypeSafety
     }
 }
 
-pub fn method_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> Result<(), TypeSafetyError> {
+pub fn method_is_type_safe(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let access_flags = get_access_flags(class, method);
     trace!("got access_flags:{}", access_flags);
     does_not_override_final_method(class, method)?;
@@ -189,10 +188,10 @@ pub struct ParsedCodeAttribute<'l> {
 //    pub exception_table: Vec<Handler>,
 //    todo
 //    pub stackmap_frames: Vec<&'l StackMap<'l>>,//todo
-    pub method: &'l PrologClassMethod<'l>
+    pub method: &'l ClassWithLoaderMethod<'l>
 }
 
-pub fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
+pub fn get_handlers(class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
     code.exception_table.iter().map(|f| {
         Handler {
             start: f.start_pc as usize,
@@ -208,7 +207,7 @@ pub fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
     }).collect()
 }
 
-pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> Result<(), TypeSafetyError> {
+pub fn method_with_code_is_type_safe(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_info = &get_class(class).methods[method.method_index];
     let code = code_attribute(method_info).unwrap();
     let frame_size = code.max_locals;
@@ -249,7 +248,7 @@ pub struct Handler {
     //todo
 }
 
-pub fn handler_exception_class(handler: &Handler) -> PrologClass {
+pub fn handler_exception_class(handler: &Handler) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
         None => { unimplemented!("Return java/lang/Throwable") }
@@ -286,7 +285,7 @@ pub enum UnifiedInstruction {}
 
 #[allow(dead_code)]
 pub struct Environment<'l> {
-    pub method: &'l PrologClassMethod<'l>,
+    pub method: &'l ClassWithLoaderMethod<'l>,
     pub return_type: UnifiedType,
     pub frame_size: u16,
     pub max_stack: u16,
@@ -357,7 +356,7 @@ fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType{
     }
 }
 
-fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, frame_size: u16) -> (Frame, UnifiedType) {
+fn method_initial_stack_frame(class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, UnifiedType) {
     //methodInitialStackFrame(Class, Method, FrameSize, frame(Locals, [], Flags),ReturnType):-
     //    methodDescriptor(Method, Descriptor),
     //    parseMethodDescriptor(Descriptor, RawArgs, ReturnType),
@@ -425,7 +424,7 @@ fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) ->
 }
 
 
-fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
+fn method_initial_this_type(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Option<UnifiedType> {
     let method_access_flags = get_class(method.prolog_class).methods[method.method_index].access_flags;
     if method_access_flags & ACC_STATIC > 0 {
         //todo dup
@@ -443,7 +442,7 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
 //    return Some(UnifiedType::UninitializedThis);
 }
 
-fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Result<UnifiedType,TypeSafetyError> {
+fn instance_method_initial_this_type(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<UnifiedType,TypeSafetyError> {
     let method_name = method_name(&get_class(method.prolog_class), &get_class(method.prolog_class).methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class.class_name) == "java/lang/Object" {

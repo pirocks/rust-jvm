@@ -1,14 +1,13 @@
 use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition,  handler_exception_class, Handler};
 use rust_jvm_common::classfile::{InstructionInfo};
-use crate::verifier::{Frame, PrologClass, get_class};
+use crate::verifier::{Frame, get_class};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
 use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
-use rust_jvm_common::unified_types::UnifiedType;
+use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use rust_jvm_common::classnames::{ClassName, NameReference, class_name};
 use std::sync::Arc;
 use crate::verifier::filecorrectness::is_assignable;
-use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use crate::verifier::TypeSafetyError;
 
@@ -120,7 +119,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
     offset <= handler.start && offset < handler.end
 }
 
-fn class_to_type(class: &PrologClass) -> UnifiedType {
+fn class_to_type(class: &ClassWithLoader) -> UnifiedType {
     let class_name = ClassName::Ref(NameReference {
         index: get_class(class).this_class,
         class_file: Arc::downgrade(&get_class(class)),
@@ -336,12 +335,12 @@ fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame:
 
 
 #[allow(unused)]
-fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
+fn different_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
     unimplemented!()
 }
 
 #[allow(unused)]
-fn same_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
+fn same_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
     unimplemented!()
 }
 

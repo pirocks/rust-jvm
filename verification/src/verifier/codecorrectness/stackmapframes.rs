@@ -1,16 +1,15 @@
-use crate::verifier::{InternalFrame, PrologClass, get_class};
+use crate::verifier::{InternalFrame, get_class};
 use crate::types::parse_method_descriptor;
 use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, UninitializedVariableInfo, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
 use rust_jvm_common::utils::extract_string_from_utf8;
-use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
+use rust_jvm_common::unified_types::{UnifiedType, ArrayType, ClassWithLoader};
 use rust_jvm_common::classnames::{ClassName, NameReference};
 use classfile_parser::{code_attribute, stack_map_table_attribute};
-use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::init_frame;
 use crate::StackMap;
 
-pub fn get_stack_map_frames(class: &PrologClass, method_info: &MethodInfo) -> Vec<StackMap> {
+pub fn get_stack_map_frames(class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
     let code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let descriptor_str = extract_string_from_utf8(&get_class(class).constant_pool[method_info.descriptor_index as usize]);

@@ -6,10 +6,10 @@ extern crate simple_logger;
 use std::collections::HashMap;
 use log::trace;
 use std::sync::Arc;
-use crate::verifier::{class_is_type_safe, PrologClass};
+use crate::verifier::class_is_type_safe;
 use rust_jvm_common::loading::{ClassEntry, Loader, JVMState};
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::unified_types::UnifiedType;
+use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use crate::verifier::InternalFrame;
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::classnames::{get_referred_name, class_name};
@@ -28,7 +28,7 @@ pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut J
             trace!("Attempting to verify: {} ",x);
         });
         let verification_results: Result<Vec<_>,_> = to_verify.iter().map(|(_entry, loaded)| {
-            let current_class = PrologClass {
+            let current_class = ClassWithLoader {
                 class_name: class_name(loaded),
                 loader:loader.clone(),
             };

@@ -1,12 +1,12 @@
 use log::trace;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::UnifiedType;
+use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use rust_jvm_common::classnames::{get_referred_name, ClassName};
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
 use crate::types::MethodDescriptor;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::loading::{Loader, class_entry_from_string};
+use rust_jvm_common::loading::class_entry_from_string;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use rust_jvm_common::utils::get_super_class_name;
 
@@ -26,14 +26,7 @@ struct ClassLoaderState {
     //todo
 }
 
-#[derive(Debug)]
-pub struct PrologClass {
-    pub loader: Arc<Loader>,
-//    pub class: Arc<Classfile>,
-    pub class_name : ClassName
-}
-
-pub fn get_class(class: & PrologClass) -> Arc<Classfile>{
+pub fn get_class(class: & ClassWithLoader) -> Arc<Classfile>{
     let referred_name = get_referred_name(&class.class_name);
     let class_entry = class_entry_from_string(&referred_name, false);
     match class.loader.loaded.read().unwrap().get(&class_entry){
@@ -45,8 +38,8 @@ pub fn get_class(class: & PrologClass) -> Arc<Classfile>{
 }
 
 #[derive(Debug)]
-pub struct PrologClassMethod<'l> {
-    pub prolog_class: &'l PrologClass,
+pub struct ClassWithLoaderMethod<'l> {
+    pub prolog_class: &'l ClassWithLoader,
     pub method_index: usize,
 }
 
@@ -66,7 +59,7 @@ pub enum TypeSafetyError{
     NeedToLoad(Vec<ClassName>)
 }
 
-pub fn class_is_type_safe(class: &PrologClass ) -> Result<(),TypeSafetyError> {
+pub fn class_is_type_safe(class: &ClassWithLoader ) -> Result<(),TypeSafetyError> {
     if get_referred_name(&class.class_name) == "java/lang/Object" {
         if !is_bootstrap_loader(&class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
@@ -122,6 +115,6 @@ fn passes_protected_check(env: &Environment, member_class_name: String, _member_
 }
 
 #[allow(unused)]
-fn classes_in_other_pkg_with_protected_member(_class: &PrologClass, _member_name:String, _member_descriptor:&MethodDescriptor,_member_class_name:String,_chain: Vec<PrologClass>) -> Vec<PrologClass>{
+fn classes_in_other_pkg_with_protected_member(_class: &ClassWithLoader, _member_name:String, _member_descriptor:&MethodDescriptor,_member_class_name:String,_chain: Vec<ClassWithLoader>) -> Vec<ClassWithLoader>{
     unimplemented!()
 }
