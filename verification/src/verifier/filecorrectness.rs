@@ -1,12 +1,11 @@
 use std::sync::Arc;
 use rust_jvm_common::unified_types::UnifiedType;
-use crate::verifier::{PrologClass, PrologClassMethod};
+use crate::verifier::{PrologClass, PrologClassMethod, get_class};
 use rust_jvm_common::loading::{Loader, class_entry_from_string};
 use rust_jvm_common::classnames::{class_name, get_referred_name, class_name_legacy};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
-use rust_jvm_common::unified_types::ClassType;
-use rust_jvm_common::unified_types::class_type_to_class;
+use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::utils::extract_string_from_utf8;
@@ -36,13 +35,13 @@ fn different_runtime_package(class1: &PrologClass, class2: &PrologClass) -> bool
 
 #[allow(unused)]
 fn different_package_name(class1: &PrologClass, class2: &PrologClass) -> bool {
-    let packages1 = class_entry_from_string(&get_referred_name(&class_name(&class1.class)), false).packages;
-    let packages2 = class_entry_from_string(&get_referred_name(&class_name(&class2.class)), false).packages;
+    let packages1 = class_entry_from_string(&get_referred_name(&class1.class_name), false).packages;
+    let packages2 = class_entry_from_string(&get_referred_name(&class2.class_name), false).packages;
     return packages1 != packages2;
 }
 
 //todo have an actual loader type. instead of refering to loader name
-pub fn loaded_class(class: &ClassType, loader: Arc<Loader>) -> Result<PrologClass, TypeSafetyError> {
+pub fn loaded_class(class: &ClassWithLoader, loader: Arc<Loader>) -> Result<PrologClass, TypeSafetyError> {
     let class_entry = class_entry_from_string(&get_referred_name(&class.class_name), false);
     match loader.loading.read().unwrap().get(&class_entry) {
         None => match loader.loaded.read().unwrap().get(&class_entry) {
@@ -56,14 +55,14 @@ pub fn loaded_class(class: &ClassType, loader: Arc<Loader>) -> Result<PrologClas
             Some(c) => {
                 Result::Ok(PrologClass {
                     loader: loader.clone(),
-                    class: c.clone(),
+                    class_name: class_name(c),
                 })
             }
         },
         Some(c) => {
             Result::Ok(PrologClass {
                 loader: loader.clone(),
-                class: c.clone(),
+                class_name: class_name(c),
             })
         }
     }
@@ -75,38 +74,38 @@ pub fn is_bootstrap_loader(loader: &Arc<Loader>) -> bool {
 
 pub fn get_class_methods(class: &PrologClass) -> Vec<PrologClassMethod> {
     let mut res = vec![];
-    for method_index in 0..class.class.methods.len() {
+    for method_index in 0..get_class(class).methods.len() {
         res.push(PrologClassMethod { prolog_class: class, method_index })
     }
     res
 }
 
 pub fn class_is_final(class: &PrologClass) -> bool {
-    class.class.access_flags & ACC_FINAL != 0
+    get_class(class).access_flags & ACC_FINAL != 0
 }
 
 
 pub fn loaded_class_(class_name: String, loader: Arc<Loader>) -> Result<PrologClass, TypeSafetyError> {
-    loaded_class(&ClassType { class_name: ClassName::Str(class_name), loader: loader.clone() }, loader.clone())
+    loaded_class(&ClassWithLoader { class_name: ClassName::Str(class_name), loader: loader.clone() }, loader.clone())
 }
 
 
 pub fn class_is_interface(class: &PrologClass) -> bool {
-    return class.class.access_flags & ACC_INTERFACE != 0;
+    get_class(class).access_flags & ACC_INTERFACE != 0
 }
 
-pub fn is_java_sub_class_of(from: &ClassType, to: &ClassType) -> Result<(), TypeSafetyError> {
+pub fn is_java_sub_class_of(from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if get_referred_name(&from.class_name) == get_referred_name(&to.class_name) {
         return Result::Ok(());
     }
     let mut chain = vec![];
     super_class_chain(&loaded_class(from, from.loader.clone())?, from.loader.clone(), &mut chain)?;
     match chain.iter().find(|x| {
-        class_name(&x.class) == to.class_name
+        x.class_name == to.class_name
     }) {
         None => Result::Err(TypeSafetyError::NotSafe("todo message".to_string())),
         Some(c) => {
-            loaded_class(&ClassType { class_name: class_name(&c.class), loader: c.loader.clone() }, to.loader.clone())?;
+            loaded_class(&ClassWithLoader { class_name: c.class_name.clone(), loader: c.loader.clone() }, to.loader.clone())?;
             Result::Ok(())
         }
     }
@@ -192,17 +191,17 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
 }
 
 //todo how to handle arrays
-pub fn is_java_assignable(from: &ClassType, to: &ClassType) -> Result<(), TypeSafetyError> {
+pub fn is_java_assignable(from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     loaded_class(to, to.loader.clone())?;
-    if class_is_interface(&PrologClass { class: class_type_to_class(to), loader: to.loader.clone() }) {
+    if class_is_interface(&PrologClass { class_name: to.class_name.clone(), loader: to.loader.clone() }) {
         return Result::Ok(());
     }
     return is_java_sub_class_of(from, to);
 }
 
 pub fn is_array_interface(class: PrologClass) -> bool {
-    get_referred_name(&class_name(&class.class)) == "java/lang/Cloneable" ||
-        get_referred_name(&class_name(&class.class)) == "java/io/Serializable"
+    get_referred_name(&class.class_name) == "java/lang/Cloneable" ||
+        get_referred_name(&class.class_name) == "java/io/Serializable"
 }
 
 pub fn is_java_subclass_of(_sub: &PrologClass, _super: &PrologClass) {
@@ -211,10 +210,11 @@ pub fn is_java_subclass_of(_sub: &PrologClass, _super: &PrologClass) {
 
 pub fn class_super_class_name(class: &PrologClass) -> String {
     //todo dup, this must exist elsewhere
-    let class_entry = &class.class.constant_pool[class.class.super_class as usize];
+    let classfile = get_class(class);
+    let class_entry = &classfile.constant_pool[classfile.super_class as usize];
     let utf8 = match &class_entry.kind {
         ConstantKind::Class(c) => {
-            &class.class.constant_pool[c.name_index as usize]
+            &classfile.constant_pool[c.name_index as usize]
         }
         _ => panic!()
     };
@@ -222,7 +222,7 @@ pub fn class_super_class_name(class: &PrologClass) -> String {
 }
 
 pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &mut Vec<PrologClass>) -> Result<(), TypeSafetyError> {
-    if get_referred_name(&class_name(&chain_start.class)) == "java/lang/Object" {
+    if get_referred_name(&chain_start.class_name) == "java/lang/Object" {
         //todo magic constant
         if res.is_empty() && is_bootstrap_loader(&loader) {
             return Result::Ok(());
@@ -230,7 +230,7 @@ pub fn super_class_chain(chain_start: &PrologClass, loader: Arc<Loader>, res: &m
             return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
         }
     }
-    let class = loaded_class(&ClassType { class_name: class_name(&chain_start.class), loader: loader.clone() }, loader.clone())?;//todo loader duplication
+    let class = loaded_class(&ClassWithLoader { class_name: chain_start.class_name.clone(), loader: loader.clone() }, loader.clone())?;//todo loader duplication
     let super_class_name = class_super_class_name(&class);
     let super_class = loaded_class_(super_class_name.clone(), loader.clone())?;
     res.push(super_class);
@@ -250,8 +250,8 @@ pub fn is_private(method: &PrologClassMethod, class: &PrologClass) -> bool {
 }
 
 pub fn does_not_override_final_method(class: &PrologClass, method: &PrologClassMethod) -> Result<(), TypeSafetyError> {
-    dbg!(class_name_legacy(&class.class));
-    if class_name_legacy(&class.class) == "java/lang/Object" {
+    dbg!(class_name_legacy(&get_class(class)));
+    if class_name_legacy(&get_class(class)) == "java/lang/Object" {
         if is_bootstrap_loader(&class.loader) {
             Result::Ok(())
         } else {
@@ -280,5 +280,5 @@ pub fn does_not_override_final_method_of_superclass(class: &PrologClass, method:
 
 pub fn get_access_flags(class: &PrologClass,method: &PrologClassMethod) -> u16 {
 //    assert!(method.prolog_class == class);//todo why the duplicate parameters?
-    class.class.methods[method.method_index as usize].access_flags
+    get_class(class).methods[method.method_index as usize].access_flags
 }

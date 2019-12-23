@@ -12,7 +12,7 @@ use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::unified_types::UnifiedType;
 use crate::verifier::InternalFrame;
 use rust_jvm_common::unified_types::ArrayType;
-use rust_jvm_common::classnames::get_referred_name;
+use rust_jvm_common::classnames::{get_referred_name, class_name};
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 
@@ -29,7 +29,7 @@ pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut J
         });
         let verification_results: Result<Vec<_>,_> = to_verify.iter().map(|(_entry, loaded)| {
             let current_class = PrologClass {
-                class: loaded.clone(),
+                class_name: class_name(loaded),
                 loader:loader.clone(),
             };
             class_is_type_safe(&current_class)

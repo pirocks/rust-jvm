@@ -1,5 +1,5 @@
 use log::trace;
-use crate::verifier::{Frame, PrologClass, PrologClassMethod};
+use crate::verifier::{Frame, PrologClass, PrologClassMethod, get_class};
 use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;
 use classfile_parser::code_attribute;
-use rust_jvm_common::unified_types::ClassType;
+use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::filecorrectness::get_access_flags;
 use rust_jvm_common::utils::method_name;
@@ -201,7 +201,7 @@ pub fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
             class_name: if f.catch_type == 0 { None } else {
                 Some(NameReference {//todo NameReference v ClassReference
                     index: f.catch_type,
-                    class_file: Arc::downgrade(&class.class),
+                    class_file: Arc::downgrade(&get_class(class)),
                 })
             },
         }
@@ -209,7 +209,7 @@ pub fn get_handlers(class: &PrologClass, code: &Code) -> Vec<Handler> {
 }
 
 pub fn method_with_code_is_type_safe(class: &PrologClass, method: &PrologClassMethod) -> Result<(), TypeSafetyError> {
-    let method_info = &class.class.methods[method.method_index];
+    let method_info = &get_class(class).methods[method.method_index];
     let code = code_attribute(method_info).unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
@@ -366,7 +366,7 @@ fn method_initial_stack_frame(class: &PrologClass, method: &PrologClassMethod, f
     //    flags(ThisList, Flags),
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
-    let method_descriptor = extract_string_from_utf8(&class.class.constant_pool[method.prolog_class.class.methods[method.method_index as usize].descriptor_index as usize]);
+    let method_descriptor = extract_string_from_utf8(&get_class(class).constant_pool[get_class(method.prolog_class).methods[method.method_index as usize].descriptor_index as usize]);
     let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types
@@ -426,10 +426,10 @@ fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) ->
 
 
 fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Option<UnifiedType> {
-    let method_access_flags = method.prolog_class.class.methods[method.method_index].access_flags;
+    let method_access_flags = get_class(method.prolog_class).methods[method.method_index].access_flags;
     if method_access_flags & ACC_STATIC > 0 {
         //todo dup
-        let classfile = &method.prolog_class.class;
+        let classfile = &get_class(method.prolog_class);
         let method_name_info = &classfile.constant_pool[classfile.methods[method.method_index].name_index as usize];
         let method_name = extract_string_from_utf8(method_name_info);
         if method_name != "<init>" {
@@ -444,10 +444,10 @@ fn method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> 
 }
 
 fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMethod) -> Result<UnifiedType,TypeSafetyError> {
-    let method_name = method_name(&method.prolog_class.class, &method.prolog_class.class.methods[method.method_index]);
+    let method_name = method_name(&get_class(method.prolog_class), &get_class(method.prolog_class).methods[method.method_index]);
     if method_name == "<init>" {
-        if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
-            Result::Ok(UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() }))
+        if get_referred_name(&class.class_name) == "java/lang/Object" {
+            Result::Ok(UnifiedType::Class(ClassWithLoader { class_name: class_name(&get_class(class)), loader: class.loader.clone() }))
         } else {
             let mut chain = vec![];
             super_class_chain(class, class.loader.clone(), &mut chain)?;
@@ -458,6 +458,6 @@ fn instance_method_initial_this_type(class: &PrologClass, method: &PrologClassMe
             }
         }
     } else {
-        Result::Ok(UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() }))
+        Result::Ok(UnifiedType::Class(ClassWithLoader { class_name: class_name(&get_class(class)), loader: class.loader.clone() }))
     }
 }

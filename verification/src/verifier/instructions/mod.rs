@@ -1,6 +1,6 @@
 use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition,  handler_exception_class, Handler};
 use rust_jvm_common::classfile::{InstructionInfo};
-use crate::verifier::{Frame, PrologClass};
+use crate::verifier::{Frame, PrologClass, get_class};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
 use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
@@ -8,7 +8,7 @@ use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::classnames::{ClassName, NameReference, class_name};
 use std::sync::Arc;
 use crate::verifier::filecorrectness::is_assignable;
-use rust_jvm_common::unified_types::ClassType;
+use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use crate::verifier::TypeSafetyError;
 
@@ -122,10 +122,10 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 
 fn class_to_type(class: &PrologClass) -> UnifiedType {
     let class_name = ClassName::Ref(NameReference {
-        index: class.class.this_class,
-        class_file: Arc::downgrade(&class.class),
+        index: get_class(class).this_class,
+        class_file: Arc::downgrade(&get_class(class)),
     });
-    UnifiedType::Class(ClassType { class_name, loader: class.loader.clone() })
+    UnifiedType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
 }
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> Result<(), TypeSafetyError> {
@@ -174,9 +174,9 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
                 let exception_class = handler_exception_class(&h);
                 //todo how does bootstrap loader from throwable make its way into this
-                let class_name = class_name(&exception_class.class);
-                let assignable = is_assignable(&UnifiedType::Class(ClassType { class_name, loader: env.class_loader.clone() }),
-                                               &UnifiedType::Class(ClassType { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: BOOTSTRAP_LOADER.clone() }));
+                let class_name = class_name(&get_class(&exception_class));
+                let assignable = is_assignable(&UnifiedType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
+                                               &UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: BOOTSTRAP_LOADER.clone() }));
                 assignable?;
                 Result::Ok(())
             } else {

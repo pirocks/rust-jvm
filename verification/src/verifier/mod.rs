@@ -1,15 +1,14 @@
 use log::trace;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::UnifiedType;
-use rust_jvm_common::classnames::{get_referred_name, class_name, ClassName};
+use rust_jvm_common::classnames::{get_referred_name, ClassName};
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
 use crate::types::MethodDescriptor;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::{Loader, class_entry_from_string};
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use rust_jvm_common::utils::get_super_class_name;
-use rust_jvm_common::utils::method_name;
 
 pub mod instructions;
 pub mod filecorrectness;
@@ -30,7 +29,19 @@ struct ClassLoaderState {
 #[derive(Debug)]
 pub struct PrologClass {
     pub loader: Arc<Loader>,
-    pub class: Arc<Classfile>,
+//    pub class: Arc<Classfile>,
+    pub class_name : ClassName
+}
+
+pub fn get_class(class: & PrologClass) -> Arc<Classfile>{
+    let referred_name = get_referred_name(&class.class_name);
+    let class_entry = class_entry_from_string(&referred_name, false);
+    match class.loader.loaded.read().unwrap().get(&class_entry){
+        None => {
+            class.loader.loaded.read().unwrap().get(&class_entry).unwrap().clone()
+        },
+        Some(c) => c.clone(),
+    }
 }
 
 #[derive(Debug)]
@@ -56,7 +67,7 @@ pub enum TypeSafetyError{
 }
 
 pub fn class_is_type_safe(class: &PrologClass ) -> Result<(),TypeSafetyError> {
-    if get_referred_name(&class_name(&class.class)) == "java/lang/Object" {
+    if get_referred_name(&class.class_name) == "java/lang/Object" {
         if !is_bootstrap_loader(&class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
         }
@@ -71,7 +82,7 @@ pub fn class_is_type_safe(class: &PrologClass ) -> Result<(),TypeSafetyError> {
         if chain.is_empty() {
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
-        let super_class_name = get_super_class_name(&class.class);
+        let super_class_name = get_super_class_name(&get_class(class));
         let super_class = loaded_class_(super_class_name, BOOTSTRAP_LOADER.clone()).unwrap();//todo magic string
         if class_is_final(&super_class) {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
@@ -83,7 +94,7 @@ pub fn class_is_type_safe(class: &PrologClass ) -> Result<(),TypeSafetyError> {
     let method_type_safety: Result<Vec<()>,_> = methods.iter().map(|m| {
         let res = method_is_type_safe(class, m);
         trace!("method was:");
-        dbg!(method_name(&m.prolog_class.class,&m.prolog_class.class.methods[m.method_index]));
+//        dbg!(method_name(&m.prolog_class.class,&m.prolog_class.class.methods[m.method_index]));
         dbg!(&res);
         res
     }).collect();
@@ -103,7 +114,7 @@ pub enum Descriptor {}
 fn passes_protected_check(env: &Environment, member_class_name: String, _member_name: String, _member_descriptor: &MethodDescriptor, _stack_frame: &Frame) -> Result<(),TypeSafetyError> {
     let mut chain = vec![];
     super_class_chain(env.method.prolog_class,env.class_loader.clone(),&mut chain)?;//todo is this strictly correct?
-    if chain.iter().any(|x|{get_referred_name(&class_name(&x.class)) == member_class_name}){
+    if chain.iter().any(|x|{get_referred_name(&x.class_name) == member_class_name}){
         unimplemented!()
     }else {
         Result::Ok(())

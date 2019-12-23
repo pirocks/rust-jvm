@@ -1,14 +1,14 @@
 use rust_jvm_common::unified_types::UnifiedType;
 use crate::verifier::instructions::{InstructionIsTypeSafeResult, AfterGotoFrames, exception_stack_frame, target_is_type_safe, ResultFrames};
 use crate::verifier::codecorrectness::{Environment, can_pop};
-use crate::verifier::Frame;
+use crate::verifier::{Frame, get_class};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::ConstantKind;
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::utils::name_and_type_extractor;
 use crate::types::MethodDescriptor;
 use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
-use rust_jvm_common::unified_types::ClassType;
+use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::passes_protected_check;
 use rust_jvm_common::utils::extract_class_from_constant_pool;
 use crate::types::parse_method_descriptor;
@@ -132,7 +132,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     let current_loader = &env.class_loader;
 //todo deal with loaders in class names/types
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| copy_recurse(x)).collect();
-    let class_type = ClassType { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };//todo better name
+    let class_type = ClassWithLoader { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };//todo better name
     stack_arg_list.push(UnifiedType::Class(class_type));
     stack_arg_list.reverse();
     let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
@@ -143,7 +143,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
 }
 
 fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, MethodDescriptor) {
-    let classfile = &env.method.prolog_class.class;
+    let classfile = &get_class(env.method.prolog_class);
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {

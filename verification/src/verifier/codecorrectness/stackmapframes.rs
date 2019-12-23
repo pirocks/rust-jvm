@@ -1,26 +1,26 @@
-use crate::verifier::{InternalFrame, PrologClass};
+use crate::verifier::{InternalFrame, PrologClass, get_class};
 use crate::types::parse_method_descriptor;
 use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, UninitializedVariableInfo, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
-use rust_jvm_common::classnames::{class_name, ClassName, NameReference};
+use rust_jvm_common::classnames::{ClassName, NameReference};
 use classfile_parser::{code_attribute, stack_map_table_attribute};
-use rust_jvm_common::unified_types::ClassType;
+use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::init_frame;
 use crate::StackMap;
 
 pub fn get_stack_map_frames(class: &PrologClass, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
     let code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
-    let descriptor_str = extract_string_from_utf8(&class.class.constant_pool[method_info.descriptor_index as usize]);
+    let descriptor_str = extract_string_from_utf8(&get_class(class).constant_pool[method_info.descriptor_index as usize]);
     let parsed_descriptor = parse_method_descriptor(&class.loader, descriptor_str.as_str()).expect("Error parsing method descriptor");
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {
         None
     } else {
-        Some(UnifiedType::Class(ClassType { class_name: class_name(&class.class), loader: class.loader.clone() }))
+        Some(UnifiedType::Class(ClassWithLoader { class_name: class.class_name.clone(), loader: class.loader.clone() }))
     };
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
@@ -135,7 +135,7 @@ pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
                 ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
                 ClassName::Str(s) => { ClassName::Str(s.clone()) }
             };
-            UnifiedType::Class(ClassType {class_name, loader: o.loader.clone() })
+            UnifiedType::Class(ClassWithLoader {class_name, loader: o.loader.clone() })
         }
         UnifiedType::Uninitialized(u) => UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset }),
         UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&a.sub_type)) }),
@@ -166,7 +166,7 @@ fn copy_type_recurse(type_: &UnifiedType) -> UnifiedType {
                 ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
                 ClassName::Str(s) => { ClassName::Str(s.clone()) }
             };
-            UnifiedType::Class(ClassType {class_name, loader: o.loader.clone() })
+            UnifiedType::Class(ClassWithLoader {class_name, loader: o.loader.clone() })
         },
         UnifiedType::BooleanType => UnifiedType::BooleanType,
         UnifiedType::ArrayReferenceType(t) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&t.sub_type)) }),

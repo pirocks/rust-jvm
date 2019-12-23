@@ -1,6 +1,6 @@
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::unified_types::ClassType;
+use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::loading::Loader;
 use std::sync::Arc;
 
@@ -37,7 +37,7 @@ pub fn parse_object_type<'a, 'b>(loader: &'a Arc<Loader>, str_: &'b str) -> Opti
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
             let class_name = ClassName::Str(class_name.to_string());
-            Some((remaining_to_parse, UnifiedType::Class(ClassType { class_name,  loader:loader.clone()  })))
+            Some((remaining_to_parse, UnifiedType::Class(ClassWithLoader { class_name,  loader:loader.clone()  })))
         }
         _ => {
             return None;
