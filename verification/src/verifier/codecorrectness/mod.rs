@@ -1,5 +1,5 @@
 use log::trace;
-use crate::verifier::{Frame, ClassWithLoader, ClassWithLoaderMethod, get_class};
+use crate::verifier::{Frame, ClassWithLoaderMethod, get_class};
 use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use std::sync::Arc;
@@ -8,7 +8,7 @@ use crate::verifier::instructions::merged_code_is_type_safe;
 use crate::types::{parse_method_descriptor, MethodDescriptor};
 use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
 use std::option::Option::Some;
-use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
+use rust_jvm_common::unified_types::{UnifiedType, ArrayType, ClassWithLoader};
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
 use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
@@ -154,7 +154,7 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> Result<(), TypeSafety
         } {
         Result::Ok(())
     } else {
-        Result::Err(TypeSafetyError::NotSafe("todo message".to_string()))//todo message
+        Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}",line!()).to_string()))//todo message
     }
 }
 

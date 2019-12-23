@@ -24,8 +24,9 @@ pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut J
 //        prolog_verify(jvm_state, to_verify);
         unimplemented!()
     } else {
-        to_verify.iter().for_each(|(x,_)|{
+        to_verify.iter().for_each(|(x,c)|{
             trace!("Attempting to verify: {} ",x);
+            loader.loading.write().unwrap().insert(x.clone(),c.clone());
         });
         let verification_results: Result<Vec<_>,_> = to_verify.iter().map(|(_entry, loaded)| {
             let current_class = ClassWithLoader {

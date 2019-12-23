@@ -102,7 +102,12 @@ pub fn is_java_sub_class_of(from: &ClassWithLoader, to: &ClassWithLoader) -> Res
     match chain.iter().find(|x| {
         x.class_name == to.class_name
     }) {
-        None => Result::Err(TypeSafetyError::NotSafe("todo message".to_string())),
+        None => {
+//            dbg!(chain);
+            dbg!(&get_referred_name(&from.class_name));
+            dbg!(&to.class_name);
+            Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}:{}", file!(), line!()).to_string()))
+        }
         Some(c) => {
             loaded_class(&ClassWithLoader { class_name: c.class_name.clone(), loader: c.loader.clone() }, to.loader.clone())?;
             Result::Ok(())
@@ -223,7 +228,7 @@ pub fn class_super_class_name(class: &ClassWithLoader) -> String {
 pub fn super_class_chain(chain_start: &ClassWithLoader, loader: Arc<Loader>, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
     if get_referred_name(&chain_start.class_name) == "java/lang/Object" {
         //todo magic constant
-        if res.is_empty() && is_bootstrap_loader(&loader) {
+        if /*res.is_empty() &&*/ is_bootstrap_loader(&loader) {
             return Result::Ok(());
         } else {
             return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
@@ -277,7 +282,7 @@ pub fn does_not_override_final_method_of_superclass(class: &ClassWithLoader, met
     unimplemented!()
 }
 
-pub fn get_access_flags(class: &ClassWithLoader,method: &ClassWithLoaderMethod) -> u16 {
+pub fn get_access_flags(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
 //    assert!(method.prolog_class == class);//todo why the duplicate parameters?
     get_class(class).methods[method.method_index as usize].access_flags
 }
