@@ -14,6 +14,8 @@ use rust_jvm_common::utils::extract_class_from_constant_pool;
 use crate::types::parse_method_descriptor;
 use crate::verifier::codecorrectness::valid_type_transition;
 use rust_jvm_common::classnames::ClassName;
+use crate::verifier::filecorrectness::is_assignable;
+use classfile_parser::code::InstructionTypeNum::return_;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     match env.return_type {
@@ -40,22 +42,21 @@ pub fn instruction_is_type_safe_if_acmpeq(target: isize, env: &Environment, _off
 
 
 pub fn instruction_is_type_safe_goto(target: isize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
-    assert!(target  >= 0);//todo shouldn't be an assert
+    assert!(target >= 0);//todo shouldn't be an assert
     target_is_type_safe(env, stack_frame, target as usize)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::AfterGoto(AfterGotoFrames { exception_frame }))
-
 }
 
 
 pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
-    match env.return_type{
-        UnifiedType::IntType => {},
+    match env.return_type {
+        UnifiedType::IntType => {}
         _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string()))
     }
-    can_pop(stack_frame,vec![UnifiedType::IntType])?;
+    can_pop(stack_frame, vec![UnifiedType::IntType])?;
     let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionIsTypeSafeResult::AfterGoto(AfterGotoFrames {exception_frame }))
+    Result::Ok(InstructionIsTypeSafeResult::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
 
@@ -63,7 +64,6 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
 //fn instruction_is_type_safe_areturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
 //    unimplemented!()
 //}
-
 
 
 //#[allow(unused)]
@@ -83,7 +83,6 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
 //
 
 
-
 //#[allow(unused)]
 //fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
 //    unimplemented!()
@@ -94,11 +93,41 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+    let (method_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    if method_name == "<init>" {} else {
+        if method_name == "<clinit>" {
+            return Result::Err(TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string()));
+        }
+        let current_class_name = env.method.prolog_class.class_name.clone();
+        let current_loader = env.method.prolog_class.loader.clone();
+        if !is_assignable(&UnifiedType::Class(ClassWithLoader {
+            class_name: current_class_name,
+            loader: current_loader.clone(),
+        }), &UnifiedType::Class(ClassWithLoader {
+            class_name: ClassName::Str(method_class_name),
+            loader: current_loader.clone(),
+        })){
+            return Result::Err(TypeSafetyError::NotSafe("not assignable".to_string()));
+        }
+        let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| copy_recurse(x)).collect();
+        operand_arg_list_copy.push(UnifiedType::Class(ClassWithLoader {
+            class_name: current_class_name,
+            loader: current_loader.clone(),
+        }));
+        operand_arg_list_copy.reverse();
+        let next_stack_frame = valid_type_transition(env,operand_arg_list_copy,&parsed_descriptor.return_type,stack_frame)?;
+        let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| copy_recurse(x)).collect();
+        operand_arg_list_copy2.push(UnifiedType::Class(ClassWithLoader {
+            class_name: ClassName::Str(method_class_name),
+            loader: current_loader.clone(),
+        }));
+        operand_arg_list_copy2.reverse();
+        valid_type_transition(env,operand_arg_list_copy2,&parsed_descriptor.return_type,stack_frame)?;
+        let exception_frame = exception_stack_frame(stack_frame);
+        return Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame }))
+    }
+}
 
 pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
