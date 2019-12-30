@@ -1,6 +1,8 @@
 use std::sync::{Weak, Arc};
 use crate::classfile::{Classfile, ConstantKind};
 use crate::utils::extract_string_from_utf8;
+use std::fmt::Formatter;
+use std::fmt;
 
 #[derive(Debug)]
 pub struct NameReference{
@@ -24,7 +26,7 @@ impl PartialEq for NameReference{
     }
 }
 
-#[derive(Debug)]
+//#[derive(Debug)]
 #[derive(Eq)]
 pub enum ClassName {
     Ref(NameReference),
@@ -68,6 +70,13 @@ impl std::clone::Clone for ClassName {
                 ClassName::Str(s.clone())//todo fix
             },
         }
+    }
+}
+
+
+impl std::fmt::Debug for ClassName{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f,"{}",get_referred_name(self))
     }
 }
 
