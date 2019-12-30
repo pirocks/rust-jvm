@@ -273,10 +273,9 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         .map(|x| x.clone())
         .collect();
     let current_loader = &env.class_loader;
-//todo deal with loaders in class names/types
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| x.clone()).collect();
-    let class_type = ClassWithLoader { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };//todo better name
-    stack_arg_list.push(UnifiedType::Class(class_type));
+    let method_class = ClassWithLoader { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };
+    stack_arg_list.push(UnifiedType::Class(method_class));
     stack_arg_list.reverse();
     let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
     let popped_frame = can_pop(stack_frame, arg_list)?;
