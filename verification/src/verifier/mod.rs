@@ -103,10 +103,6 @@ pub fn class_is_type_safe(class: &ClassWithLoader) -> Result<(), TypeSafetyError
 }
 
 
-pub struct FieldDescriptor {
-    //todo
-}
-
 pub enum Descriptor {}
 
 fn passes_protected_check(env: &Environment, member_class_name: String, _member_name: String/*, _member_descriptor: !*/, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
