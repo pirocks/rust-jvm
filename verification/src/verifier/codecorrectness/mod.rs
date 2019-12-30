@@ -18,6 +18,8 @@ use crate::verifier::TypeSafetyError;
 use crate::verifier::filecorrectness::get_access_flags;
 use rust_jvm_common::utils::method_name;
 use crate::StackMap;
+use rust_jvm_common::classnames::ClassName;
+
 pub mod stackmapframes;
 
 
@@ -200,10 +202,10 @@ pub fn get_handlers(class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
             end: f.end_pc as usize,
             target: f.handler_pc as usize,
             class_name: if f.catch_type == 0 { None } else {
-                Some(NameReference {// should be a name as is currently b/c spec says so.
+                Some(ClassName::Ref(NameReference {// should be a name as is currently b/c spec says so.
                     index: f.catch_type,
                     class_file: Arc::downgrade(&get_class(class)),
-                })
+                }))
             },
         }
     }).collect()
@@ -246,8 +248,7 @@ pub struct Handler {
     pub start: usize,
     pub end: usize,
     pub target: usize,
-    pub class_name: Option<NameReference>,
-    //todo
+    pub class_name: Option<ClassName>
 }
 
 pub fn handler_exception_class(handler: &Handler) -> ClassWithLoader {
