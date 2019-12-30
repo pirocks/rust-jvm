@@ -200,7 +200,7 @@ pub fn get_handlers(class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
             end: f.end_pc as usize,
             target: f.handler_pc as usize,
             class_name: if f.catch_type == 0 { None } else {
-                Some(NameReference {//todo NameReference v ClassReference
+                Some(NameReference {// should be a name as is currently b/c spec says so.
                     index: f.catch_type,
                     class_file: Arc::downgrade(&get_class(class)),
                 })
