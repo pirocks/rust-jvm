@@ -2,7 +2,6 @@ extern crate tempfile;
 extern crate log;
 extern crate simple_logger;
 
-
 use std::collections::HashMap;
 use log::trace;
 use std::sync::Arc;

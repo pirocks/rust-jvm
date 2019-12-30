@@ -53,7 +53,10 @@ pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedTy
         is_assignable(actual_type, type_)?;
         return Result::Ok((&operand_stack[1..], actual_type.clone()));
     } else if size_of(type_) == 2 {
-        &operand_stack[0];//should be top todo
+        assert!(match &operand_stack[0] {
+            UnifiedType::TopType => true,
+            _ => false
+        });
         let actual_type = &operand_stack[1];
         is_assignable(actual_type, type_)?;
         return Result::Ok((&operand_stack[2..], actual_type.clone()));
@@ -154,7 +157,7 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> Result<(), TypeSafety
         } {
         Result::Ok(())
     } else {
-        Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}",line!()).to_string()))//todo message
+        Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}", line!()).to_string()))//todo message
     }
 }
 
@@ -257,7 +260,7 @@ pub fn handler_exception_class(handler: &Handler) -> ClassWithLoader {
 }
 //
 
-pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(),TypeSafetyError> {
+pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(), TypeSafetyError> {
     unimplemented!()
 }
 //
@@ -329,7 +332,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
     return res;
 }
 
-fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType{
+fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType {
     match type_ {
         UnifiedType::ByteType => UnifiedType::IntType,
         UnifiedType::CharType => UnifiedType::IntType,
@@ -342,8 +345,8 @@ fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType{
         UnifiedType::Class(_) => type_.clone(),
         UnifiedType::ArrayReferenceType(a) => {
             let translated_subtype = translate_types_to_vm_types(&a.sub_type);
-            UnifiedType::ArrayReferenceType(ArrayType {sub_type:Box::new(translated_subtype)})
-        },
+            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::new(translated_subtype) })
+        }
         UnifiedType::VoidType => UnifiedType::VoidType,
         UnifiedType::TopType => panic!(),
         UnifiedType::NullType => panic!(),
@@ -370,9 +373,9 @@ fn method_initial_stack_frame(class: &ClassWithLoader, method: &ClassWithLoaderM
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types
             .iter()
-            .map(|x|translate_types_to_vm_types(x))
+            .map(|x| translate_types_to_vm_types(x))
             .collect(),
-        return_type: translate_types_to_vm_types(&initial_parsed_descriptor.return_type)
+        return_type: translate_types_to_vm_types(&initial_parsed_descriptor.return_type),
     };
     let this_list = method_initial_this_type(class, method);
     let flag_this_uninit = flags(&this_list);
@@ -442,7 +445,7 @@ fn method_initial_this_type(class: &ClassWithLoader, method: &ClassWithLoaderMet
 //    return Some(UnifiedType::UninitializedThis);
 }
 
-fn instance_method_initial_this_type(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<UnifiedType,TypeSafetyError> {
+fn instance_method_initial_this_type(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<UnifiedType, TypeSafetyError> {
     let method_name = method_name(&get_class(method.prolog_class), &get_class(method.prolog_class).methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class.class_name) == "java/lang/Object" {
