@@ -39,7 +39,6 @@ fn different_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) ->
     return packages1 != packages2;
 }
 
-//todo have an actual loader type. instead of refering to loader name
 pub fn loaded_class(class: &ClassWithLoader, loader: Arc<Loader>) -> Result<ClassWithLoader, TypeSafetyError> {
     let class_entry = class_entry_from_string(&get_referred_name(&class.class_name), false);
     match loader.loading.read().unwrap().get(&class_entry) {
@@ -195,7 +194,6 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
     }
 }
 
-//todo how to handle arrays
 pub fn is_java_assignable(from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     loaded_class(to, to.loader.clone())?;
     if class_is_interface(&ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() }) {

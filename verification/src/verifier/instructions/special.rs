@@ -80,7 +80,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: usize, env: &Environment, _
     if env.method.prolog_class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
     }
-    //todo is this equivalent to
+    //todo is this equivalent to isInit
     if get_referred_name(&env.method.prolog_class.class_name) != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }

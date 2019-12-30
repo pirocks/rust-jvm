@@ -14,7 +14,7 @@ pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
     for attr in code.attributes.iter() {
         match &attr.attribute_type {
             AttributeType::StackMapTable(table) => {
-                return Some(table);//todo
+                return Some(table);
             }
             _ => {}
         }

@@ -45,7 +45,7 @@ fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: Arc<Loader>, to_load: &
         return;//class already loaded
     }
 //        if classes.loading_in_progress.contains(&class_name_with_package) {
-//            unimplemented!("Throw class circularity error.")//todo
+//            unimplemented!("Throw class circularity error.")
 //        }
     let path_of_class_to_load = jvm_state.indexed_classpath.get(&to_load).or_else(|| {
         trace!("Unable to find: {}", &to_load);

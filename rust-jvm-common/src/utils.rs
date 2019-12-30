@@ -6,7 +6,6 @@ use std::sync::Arc;
 use crate::classfile::Class;
 use crate::classfile::MethodInfo;
 
-//todo this should go at top
 pub fn extract_string_from_utf8(utf8: &ConstantInfo) -> String {
     match &(utf8).kind {
         ConstantKind::Utf8(s) => {
