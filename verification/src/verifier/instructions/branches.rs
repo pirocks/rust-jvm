@@ -31,17 +31,15 @@ pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_
 }
 
 
-pub fn instruction_is_type_safe_if_acmpeq(target: isize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     let next_frame = can_pop(stack_frame, vec![UnifiedType::Reference, UnifiedType::Reference])?;
-    assert!(target >= 0);//todo shouldn't be an assert
     target_is_type_safe(env, &next_frame, target as usize)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
 
-pub fn instruction_is_type_safe_goto(target: isize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
-    assert!(target >= 0);//todo shouldn't be an assert
+pub fn instruction_is_type_safe_goto(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     target_is_type_safe(env, stack_frame, target as usize)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::AfterGoto(AfterGotoFrames { exception_frame }))
