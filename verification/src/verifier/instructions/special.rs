@@ -17,7 +17,7 @@ use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::instructions::exception_stack_frame;
 use crate::verifier::instructions::ResultFrames;
 use rust_jvm_common::classnames::get_referred_name;
-
+use crate::types::Descriptor;
 
 
 //#[allow(unused)]
@@ -91,9 +91,9 @@ fn instruction_is_type_safe_putfield_second_case(cp: usize, env: &Environment, _
 
 fn instruction_is_type_safe_putfield_first_case(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
-    let field_type = field_descriptor.field_type;
+    let field_type = field_descriptor.field_type.clone();
     let _popped_frame = can_pop(stack_frame, vec![field_type.clone()])?;
-    passes_protected_check(env, get_referred_name(&field_class_name), field_name,/* &field_descriptor, */stack_frame)?;
+    passes_protected_check(env, get_referred_name(&field_class_name), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
     let next_stack_frame = can_pop(stack_frame, vec![field_type, UnifiedType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     let exception_frame = exception_stack_frame(&stack_frame);

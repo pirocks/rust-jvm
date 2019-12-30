@@ -15,6 +15,7 @@ use crate::types::parse_method_descriptor;
 use crate::verifier::codecorrectness::valid_type_transition;
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::filecorrectness::is_assignable;
+use crate::types::Descriptor;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     match env.return_type {
@@ -128,7 +129,7 @@ fn invoke_special_init(env: &&Environment, stack_frame: &Frame, method_class_nam
                         stack_map: vec![],
                         flag_this_uninit: flags,
                     };
-                    passes_protected_check(env, method_class_name.clone(), "<init>".to_string(), /*&parsed_descriptor, */&next_stack_frame)?;
+                    passes_protected_check(env, method_class_name.clone(), "<init>".to_string(), Descriptor::Method(&parsed_descriptor), &next_stack_frame)?;
                     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame: next_stack_frame, exception_frame: exception_stack_frame }))
                 },
                 UnifiedType::UninitializedThis => {
@@ -279,7 +280,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     stack_arg_list.reverse();
     let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
     let popped_frame = can_pop(stack_frame, arg_list)?;
-    passes_protected_check(env, class_name.clone(), method_name, /*&parsed_descriptor, */&popped_frame)?;
+    passes_protected_check(env, class_name.clone(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     let exception_stack_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
 }

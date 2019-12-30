@@ -4,11 +4,16 @@ use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::loading::Loader;
 use std::sync::Arc;
 
-//todo there are two of these, only one can live forever
 #[derive(Debug)]
 pub struct MethodDescriptor { pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }
 
 pub struct FieldDescriptor { pub field_type: UnifiedType }
+
+
+pub enum Descriptor<'l> {
+    Method(&'l MethodDescriptor),
+    Field(&'l FieldDescriptor)
+}
 
 pub fn eat_one(str_: &str) -> &str {
     &str_[1..str_.len()]
