@@ -31,14 +31,14 @@ pub fn can_verify_object() {
 
 
 #[test]
-#[timeout(30000)]
+//#[timeout(30000)]
 pub fn can_verify_map() {
     let main_class_name = "java/util/Map".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
-#[timeout(30000)]
+//#[timeout(30000)]
 pub fn can_verify_exceptions() {
     let main_class_name = "java/lang/Throwable".to_string();
     verify_class_with_name(&main_class_name).unwrap();

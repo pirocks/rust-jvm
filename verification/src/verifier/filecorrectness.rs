@@ -106,6 +106,9 @@ pub fn is_java_sub_class_of(from: &ClassWithLoader, to: &ClassWithLoader) -> Res
 //            dbg!(chain);
             dbg!(&get_referred_name(&from.class_name));
             dbg!(&to.class_name);
+            for x in chain.iter() {
+                dbg!(get_referred_name(&x.class_name));
+            }
             Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}:{}", file!(), line!()).to_string()))
         }
         Some(c) => {

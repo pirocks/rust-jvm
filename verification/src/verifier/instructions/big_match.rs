@@ -4,7 +4,7 @@ use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::InstructionIsTypeSafeResult;
-use crate::verifier::instructions::branches::instruction_is_type_safe_goto;
+use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial};
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
 use crate::verifier::instructions::branches::instruction_is_type_safe_ireturn;
