@@ -107,7 +107,7 @@ pub fn is_java_sub_class_of(from: &ClassWithLoader, to: &ClassWithLoader) -> Res
             dbg!(&from.class_name);
             dbg!(&to.class_name);
             dbg!(&chain);
-            Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}:{}", file!(), line!()).to_string()))
+            Result::Err(unknown_error_verifying!())
         }
         Some(c) => {
             loaded_class(&ClassWithLoader { class_name: c.class_name.clone(), loader: c.loader.clone() }, to.loader.clone())?;

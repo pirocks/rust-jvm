@@ -94,7 +94,7 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
             },
         }
     }) {
-        None => { Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}",line!()).to_string())) }//todo msg
+        None => { Result::Err(unknown_error_verifying!()) }
         Some(f) => Result::Ok(f),
     }
 }

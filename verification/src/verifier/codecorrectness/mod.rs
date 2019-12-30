@@ -18,7 +18,6 @@ use crate::verifier::TypeSafetyError;
 use crate::verifier::filecorrectness::get_access_flags;
 use rust_jvm_common::utils::method_name;
 use crate::StackMap;
-
 pub mod stackmapframes;
 
 
@@ -157,7 +156,7 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> Result<(), TypeSafety
         } {
         Result::Ok(())
     } else {
-        Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}", line!()).to_string()))//todo message
+        Result::Err(unknown_error_verifying!())
     }
 }
 

@@ -15,22 +15,27 @@ use rust_jvm_common::classnames::{get_referred_name, class_name};
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 
+
+pub mod types;
+pub mod verifier;
+
+
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
 */
-pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut JVMState, loader: Arc<Loader>) -> Result<(),TypeSafetyError> {
+pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut JVMState, loader: Arc<Loader>) -> Result<(), TypeSafetyError> {
     if jvm_state.using_prolog_verifier {
 //        prolog_verify(jvm_state, to_verify);
         unimplemented!()
     } else {
-        to_verify.iter().for_each(|(x,c)|{
-            trace!("Attempting to verify: {} ",x);
-            loader.loading.write().unwrap().insert(x.clone(),c.clone());
+        to_verify.iter().for_each(|(x, c)| {
+            trace!("Attempting to verify: {} ", x);
+            loader.loading.write().unwrap().insert(x.clone(), c.clone());
         });
-        let verification_results: Result<Vec<_>,_> = to_verify.iter().map(|(_entry, loaded)| {
+        let verification_results: Result<Vec<_>, _> = to_verify.iter().map(|(_entry, loaded)| {
             let current_class = ClassWithLoader {
                 class_name: class_name(loaded),
-                loader:loader.clone(),
+                loader: loader.clone(),
             };
             class_is_type_safe(&current_class)
         }).collect();
@@ -41,9 +46,9 @@ pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut J
 
 
 #[derive(Debug)]
-pub struct StackMap{
-pub offset: usize,
-pub map_frame: Frame
+pub struct StackMap {
+    pub offset: usize,
+    pub map_frame: Frame,
 }
 
 
@@ -60,6 +65,7 @@ pub fn init_frame(parameter_types: Vec<UnifiedType>, this_pointer: Option<Unifie
     }
     InternalFrame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
 }
+
 fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> () {
     match type_ {
         UnifiedType::ByteType => {
@@ -104,5 +110,3 @@ fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> (
 }
 
 
-pub mod types;
-pub mod verifier;

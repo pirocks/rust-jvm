@@ -78,12 +78,11 @@ fn instruction_is_type_safe_putfield_second_case(cp: usize, env: &Environment, _
     let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = field_descriptor.field_type;
     if env.method.prolog_class.class_name != field_class_name {
-        return Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}:{}", file!(), line!())));
+        return Result::Err(unknown_error_verifying!());
     }
     //todo is this equivalent to
     if get_referred_name(&env.method.prolog_class.class_name) != "<init>" {
-        //todo need a macro for this
-        return Result::Err(TypeSafetyError::NotSafe(format!("todo message:{}:{}", file!(), line!())));
+        return Result::Err(unknown_error_verifying!());
     }
     let next_stack_frame = can_pop(stack_frame, vec![field_type, UnifiedType::UninitializedThis])?;
     let exception_frame = exception_stack_frame(&stack_frame);

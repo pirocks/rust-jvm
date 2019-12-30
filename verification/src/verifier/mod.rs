@@ -10,6 +10,14 @@ use rust_jvm_common::loading::class_entry_from_string;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use rust_jvm_common::utils::get_super_class_name;
 
+
+macro_rules! unknown_error_verifying {
+    () => {
+        TypeSafetyError::NotSafe(format!("An unknown error occurred while verifying:{}:{}", file!(), line!()))
+    };
+}
+
+
 pub mod instructions;
 pub mod filecorrectness;
 pub mod codecorrectness;
