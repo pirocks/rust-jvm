@@ -29,11 +29,6 @@ pub struct InternalFrame {
     pub current_offset: u16,
 }
 
-#[allow(dead_code)]
-struct ClassLoaderState {
-    //todo
-}
-
 pub fn get_class(class: &ClassWithLoader) -> Arc<Classfile> {
     let referred_name = get_referred_name(&class.class_name);
     let class_entry = class_entry_from_string(&referred_name, false);
