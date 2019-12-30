@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::verifier::instructions::{handers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
 use crate::types::{parse_method_descriptor, MethodDescriptor};
-use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
+
 use std::option::Option::Some;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType, ClassWithLoader};
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
@@ -27,7 +27,7 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
     let _interim_operand_stack = pop_matching_list(input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&input_operand_stack, &result_type);
     if operand_stack_has_legal_length(environment, &next_operand_stack) {
-        Result::Ok(Frame { locals: input_frame.locals.iter().map(|x| copy_recurse(x)).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit })
+        Result::Ok(Frame { locals: input_frame.locals.iter().map(|x| x.clone()).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit })
     } else {
         Result::Err(TypeSafetyError::NotSafe("Operand stack did not have legal length".to_string()))
     }
@@ -40,7 +40,7 @@ pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> 
 
 pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> Result<Vec<UnifiedType>, TypeSafetyError> {
     if pop.is_empty() {
-        Result::Ok(pop_from.iter().map(|x| copy_recurse(x)).collect())//todo inefficent copying
+        Result::Ok(pop_from.iter().map(|x| x.clone()).collect())//todo inefficent copying
     } else {
         let (pop_result, _) = pop_matching_type(pop_from, pop.first().unwrap())?;
         return pop_matching_list_impl(&pop_result, &pop[1..]);
@@ -51,12 +51,12 @@ pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedTy
     if size_of(type_) == 1 {
         let actual_type = &operand_stack[0];
         is_assignable(actual_type, type_)?;
-        return Result::Ok((&operand_stack[1..], copy_recurse(actual_type)));
+        return Result::Ok((&operand_stack[1..], actual_type.clone()));
     } else if size_of(type_) == 2 {
         &operand_stack[0];//should be top todo
         let actual_type = &operand_stack[1];
         is_assignable(actual_type, type_)?;
-        return Result::Ok((&operand_stack[2..], copy_recurse(actual_type)));
+        return Result::Ok((&operand_stack[2..], actual_type.clone()));
     } else {
         panic!()
     }
@@ -79,7 +79,7 @@ pub fn size_of(unified_type: &UnifiedType) -> u64 {
 }
 
 pub fn push_operand_stack(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType) -> Vec<UnifiedType> {
-    let mut operand_stack_copy = operand_stack.iter().map(|x| copy_recurse(x)).collect();
+    let mut operand_stack_copy = operand_stack.iter().map(|x| x.clone()).collect();
     match type_ {
         UnifiedType::VoidType => {
             operand_stack_copy
@@ -87,9 +87,9 @@ pub fn push_operand_stack(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType)
         _ => {
             if size_of(type_) == 2 {
                 operand_stack_copy.push(UnifiedType::TopType);
-                operand_stack_copy.push(copy_recurse(type_));
+                operand_stack_copy.push(type_.clone());
             } else if size_of(type_) == 1 {
-                operand_stack_copy.push(copy_recurse(type_));
+                operand_stack_copy.push(type_.clone());
             } else {
                 unimplemented!()
             }
@@ -130,7 +130,7 @@ pub fn can_pop(input_frame: &Frame, types: Vec<UnifiedType>) -> Result<Frame, Ty
         locals: input_frame
             .locals
             .iter()
-            .map(|x| copy_recurse(x))
+            .map(|x| x.clone())
             .collect(),
         stack_map: poped_stack,
         flag_this_uninit: input_frame.flag_this_uninit,
@@ -339,7 +339,7 @@ fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType{
         UnifiedType::IntType => UnifiedType::IntType,
         UnifiedType::BooleanType => UnifiedType::IntType,
         UnifiedType::LongType => UnifiedType::LongType,
-        UnifiedType::Class(_) => copy_recurse(type_),
+        UnifiedType::Class(_) => type_.clone(),
         UnifiedType::ArrayReferenceType(a) => {
             let translated_subtype = translate_types_to_vm_types(&a.sub_type);
             UnifiedType::ArrayReferenceType(ArrayType {sub_type:Box::new(translated_subtype)})
@@ -379,10 +379,10 @@ fn method_initial_stack_frame(class: &ClassWithLoader, method: &ClassWithLoaderM
     let args = expand_type_list(parsed_descriptor.parameter_types);
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
-        this_args.push(copy_recurse(x));
+        this_args.push(x.clone());
     });
     args.iter().for_each(|x| {
-        this_args.push(copy_recurse(x))
+        this_args.push(x.clone())
     });
     let locals = expand_to_length(this_args, frame_size as usize, UnifiedType::TopType);
     return (Frame { locals, flag_this_uninit, stack_map: vec![] }, parsed_descriptor.return_type);
@@ -392,10 +392,10 @@ fn method_initial_stack_frame(class: &ClassWithLoader, method: &ClassWithLoaderM
 fn expand_type_list(list: Vec<UnifiedType>) -> Vec<UnifiedType> {
     return list.iter().flat_map(|x| {
         if size_of(x) == 1 {
-            vec![copy_recurse(x)]
+            vec![x.clone()]
         } else {
             assert!(size_of(x) == 2);
-            vec![copy_recurse(x), UnifiedType::TopType]
+            vec![x.clone(), UnifiedType::TopType]
         }
     }).collect();
 }
@@ -416,8 +416,8 @@ fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) ->
     let mut res = vec![];
     for i in 0..size {
         res.push(match list.get(i) {
-            None => { copy_recurse(&filler) }
-            Some(elem) => { copy_recurse(&elem) }
+            None => { filler.clone() }
+            Some(elem) => { elem.clone() }
         })
     }
     return res;

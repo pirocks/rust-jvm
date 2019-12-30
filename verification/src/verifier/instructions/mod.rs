@@ -3,7 +3,6 @@ use rust_jvm_common::classfile::{InstructionInfo};
 use crate::verifier::{Frame, get_class};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
-use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
 use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use rust_jvm_common::classnames::{ClassName, NameReference, class_name};
 use std::sync::Arc;
@@ -89,8 +88,8 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
         match x {
             Instruction(_) => panic!(),
             StackMap(s) => Frame {
-                locals: s.map_frame.locals.iter().map(|x| copy_recurse(x)).collect(),
-                stack_map: s.map_frame.stack_map.iter().map(|x| copy_recurse(x)).collect(),
+                locals: s.map_frame.locals.iter().map(|x| x.clone()).collect(),
+                stack_map: s.map_frame.stack_map.iter().map(|x| x.clone()).collect(),
                 flag_this_uninit: s.map_frame.flag_this_uninit,
             },
         }
@@ -137,7 +136,7 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let exception_class = handler_exception_class(handler);
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
-    let locals_copy = locals.iter().map(|x| { copy_recurse(x) }).collect();
+    let locals_copy = locals.iter().map(|x| { x.clone() }).collect();
     let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: vec![class_to_type(&exception_class)], flag_this_uninit: flags };
     if operand_stack_has_legal_length(env, &vec![class_to_type(&exception_class)]) {
         target_is_type_safe(env, &true_exc_stack_frame, target)
@@ -149,7 +148,7 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
 pub fn nth0(index: usize, locals: &Vec<UnifiedType>) -> UnifiedType {
     match locals.get(index) {
         None => unimplemented!(),
-        Some(res) => copy_recurse(res),
+        Some(res) => res.clone(),
     }
 }
 
@@ -350,6 +349,6 @@ fn same_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool
 
 
 pub fn exception_stack_frame(f: &Frame) -> Frame {
-    Frame { locals: f.locals.iter().map(|x| copy_recurse(x)).collect(), stack_map: vec![], flag_this_uninit: f.flag_this_uninit }
+    Frame { locals: f.locals.iter().map(|x| x.clone()).collect(), stack_map: vec![], flag_this_uninit: f.flag_this_uninit }
 }
 

@@ -7,7 +7,7 @@ use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVar
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::utils::name_and_type_extractor;
 use crate::types::MethodDescriptor;
-use crate::verifier::codecorrectness::stackmapframes::copy_recurse;
+
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::passes_protected_check;
 use rust_jvm_common::utils::extract_class_from_constant_pool;
@@ -102,7 +102,7 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _off
 }
 
 fn invoke_special_init(env: &&Environment, stack_frame: &Frame, method_class_name: &String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
-    let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| copy_recurse(x)).collect();
+    let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| x.clone()).collect();
     stack_arg_list.reverse();
     let temp_frame = can_pop(stack_frame, stack_arg_list)?;
     let locals = temp_frame.locals;
@@ -159,11 +159,11 @@ fn invoke_special_init(env: &&Environment, stack_frame: &Frame, method_class_nam
 }
 
 fn substitute(old: &UnifiedType, new: &UnifiedType, list: &[UnifiedType]) -> Vec<UnifiedType> {
-    list.iter().map(|x| copy_recurse(if old == x {
+    list.iter().map(|x| (if old == x {
         new
     } else {
         x
-    })).collect()
+    }).clone()).collect()
 }
 
 fn rewritten_initialization_flags(type_: &UnifiedType, flag_this_uninit: bool) -> bool {
@@ -233,11 +233,11 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
         loader: current_loader.clone(),
     });
     is_assignable(&current_class, &method_class)?;
-    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| copy_recurse(x)).collect();
+    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| x.clone()).collect();
     operand_arg_list_copy.push(current_class);
     operand_arg_list_copy.reverse();
     let next_frame = valid_type_transition(env, operand_arg_list_copy, &parsed_descriptor.return_type, stack_frame)?;
-    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| copy_recurse(x)).collect();
+    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| x.clone()).collect();
     operand_arg_list_copy2.push(method_class);
     operand_arg_list_copy2.reverse();
     valid_type_transition(env, operand_arg_list_copy2, &parsed_descriptor.return_type, stack_frame)?;
@@ -253,7 +253,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
     let operand_arg_list = parsed_descriptor.parameter_types;
     let stack_arg_list: Vec<UnifiedType> = operand_arg_list.iter()
         .rev()
-        .map(|x| copy_recurse(x))
+        .map(|x| x.clone())
         .collect();
     let next_frame = match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
         Ok(nf) => nf,
@@ -271,11 +271,11 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     let operand_arg_list = &parsed_descriptor.parameter_types;
     let arg_list: Vec<UnifiedType> = operand_arg_list.iter()
         .rev()
-        .map(|x| copy_recurse(x))
+        .map(|x| x.clone())
         .collect();
     let current_loader = &env.class_loader;
 //todo deal with loaders in class names/types
-    let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| copy_recurse(x)).collect();
+    let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| x.clone()).collect();
     let class_type = ClassWithLoader { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };//todo better name
     stack_arg_list.push(UnifiedType::Class(class_type));
     stack_arg_list.reverse();

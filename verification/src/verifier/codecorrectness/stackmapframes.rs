@@ -1,10 +1,9 @@
 use crate::verifier::{InternalFrame, get_class};
 use crate::types::parse_method_descriptor;
 use crate::verifier::Frame;
-use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, UninitializedVariableInfo, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
+use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
 use rust_jvm_common::utils::extract_string_from_utf8;
-use rust_jvm_common::unified_types::{UnifiedType, ArrayType, ClassWithLoader};
-use rust_jvm_common::classnames::{ClassName, NameReference};
+use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use classfile_parser::{code_attribute, stack_map_table_attribute};
 use crate::init_frame;
 use crate::StackMap;
@@ -42,8 +41,8 @@ pub fn get_stack_map_frames(class: &ClassWithLoader, method_info: &MethodInfo) -
         res.push(StackMap {
             offset: frame.current_offset as usize,
             map_frame: Frame {
-                locals: frame.locals.iter().map(|x| { copy_recurse(x) }).collect(),
-                stack_map: frame.stack.iter().map(|x| { copy_recurse(x) }).collect(),
+                locals: frame.locals.iter().map(|x| { x.clone() }).collect(),
+                stack_map: frame.stack.iter().map(|x| { x.clone() }).collect(),
                 flag_this_uninit: false,
             },
         });
@@ -113,7 +112,7 @@ fn add_new_local(frame: &mut InternalFrame, new_local: &UnifiedType) {
 }
 
 fn add_verification_type_to_array(locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
-    match copy_recurse(new_local) {
+    match new_local.clone() {
         UnifiedType::DoubleType => {
             locals.push(UnifiedType::DoubleType);
             locals.push(UnifiedType::TopType);
@@ -126,50 +125,3 @@ fn add_verification_type_to_array(locals: &mut Vec<UnifiedType>, new_local: &Uni
     }
 }
 
-pub fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
-
-    match to_copy {
-        UnifiedType::Class(o) => {
-            let class_name = match &o.class_name {
-                ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
-                ClassName::Str(s) => { ClassName::Str(s.clone()) }
-            };
-            UnifiedType::Class(ClassWithLoader {class_name, loader: o.loader.clone() })
-        }
-        UnifiedType::Uninitialized(u) => UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset }),
-        UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&a.sub_type)) }),
-
-        UnifiedType::TopType => UnifiedType::TopType,
-        UnifiedType::IntType => UnifiedType::IntType,
-        UnifiedType::FloatType => UnifiedType::FloatType,
-        UnifiedType::LongType => UnifiedType::LongType,
-        UnifiedType::DoubleType => UnifiedType::DoubleType,
-        UnifiedType::NullType => UnifiedType::NullType,
-        UnifiedType::UninitializedThis => UnifiedType::UninitializedThis,
-        _ => { panic!("Case wasn't covered with non-unified types") }
-    }
-}
-
-//todo why are there two of these?
-fn copy_type_recurse(type_: &UnifiedType) -> UnifiedType {
-    match type_ {
-        UnifiedType::ByteType => UnifiedType::ByteType,
-        UnifiedType::CharType => UnifiedType::CharType,
-        UnifiedType::DoubleType => UnifiedType::DoubleType,
-        UnifiedType::FloatType => UnifiedType::FloatType,
-        UnifiedType::IntType => UnifiedType::IntType,
-        UnifiedType::LongType => UnifiedType::LongType,
-        UnifiedType::ShortType => UnifiedType::ShortType,
-        UnifiedType::Class(o) => {
-            let class_name = match &o.class_name {
-                ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
-                ClassName::Str(s) => { ClassName::Str(s.clone()) }
-            };
-            UnifiedType::Class(ClassWithLoader {class_name, loader: o.loader.clone() })
-        },
-        UnifiedType::BooleanType => UnifiedType::BooleanType,
-        UnifiedType::ArrayReferenceType(t) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_type_recurse(&t.sub_type)) }),
-        UnifiedType::VoidType => UnifiedType::VoidType,
-        _ => { panic!("Case wasn't coverred with non-unified types") }
-    }
-}
