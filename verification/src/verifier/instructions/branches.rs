@@ -130,7 +130,7 @@ fn invoke_special_init(env: &&Environment, stack_frame: &Frame, method_class_nam
                         stack_map: vec![],
                         flag_this_uninit: flags,
                     };
-                    passes_protected_check(env, method_class_name.clone(), "<init>".to_string(), &parsed_descriptor, &next_stack_frame)?;
+                    passes_protected_check(env, method_class_name.clone(), "<init>".to_string(), /*&parsed_descriptor, */&next_stack_frame)?;
                     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame: next_stack_frame, exception_frame: exception_stack_frame }))
                 },
                 UnifiedType::UninitializedThis => {
@@ -143,7 +143,7 @@ fn invoke_special_init(env: &&Environment, stack_frame: &Frame, method_class_nam
                     let next_stack_frame = Frame {
                         locals: next_locals,
                         stack_map: next_operand_stack,
-                        flag_this_uninit: next_flags,
+                        flag_this_uninit,
                     };
                     let exception_stack_frame = Frame {
                         locals,
@@ -174,7 +174,7 @@ fn rewritten_initialization_flags(type_: &UnifiedType, flag_this_uninit: bool) -
     }
 }
 
-fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, class: &ClassWithLoader) -> Result<ClassWithLoader, TypeSafetyError> {
+fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, _class: &ClassWithLoader) -> Result<ClassWithLoader, TypeSafetyError> {
     match type_ {
         UnifiedType::Uninitialized(address) => {
             match env.merged_code {
@@ -212,7 +212,7 @@ fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, class: &
         UnifiedType::UninitializedThis => {
             //todo there needs to be some weird retry logic here/in invoke_special b/c This is not strictly a return value in the prolog class, and there is a more complex
             // version of this branch which would be triggered by verificaion failure for this invoke special.
-            Result::Ok(env.method.prolog_class.clone())
+            Result::Ok(ClassWithLoader{ class_name:env.method.prolog_class.class_name.clone(), loader:env.method.prolog_class.loader.clone() })
         }
         _ => { panic!() }
     }
@@ -281,7 +281,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     stack_arg_list.reverse();
     let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
     let popped_frame = can_pop(stack_frame, arg_list)?;
-    passes_protected_check(env, class_name.clone(), method_name, &parsed_descriptor, &popped_frame)?;
+    passes_protected_check(env, class_name.clone(), method_name, /*&parsed_descriptor, */&popped_frame)?;
     let exception_stack_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
 }

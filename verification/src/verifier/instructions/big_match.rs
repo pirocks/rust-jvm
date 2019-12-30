@@ -13,6 +13,7 @@ use crate::verifier::instructions::consts::instruction_is_type_safe_lconst_0;
 use crate::verifier::instructions::branches::instruction_is_type_safe_return;
 use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
+use crate::verifier::instructions::special::instruction_is_type_safe_putfield;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult,TypeSafetyError> {
     match instruction.instruction {
@@ -208,7 +209,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::nop => {unimplemented!()},
         InstructionInfo::pop => {unimplemented!()},
         InstructionInfo::pop2 => {unimplemented!()},
-        InstructionInfo::putfield(_) => {unimplemented!()},
+        InstructionInfo::putfield(cp) => instruction_is_type_safe_putfield(cp as usize, env, offset, stack_frame),
         InstructionInfo::putstatic(_) => {unimplemented!()},
         InstructionInfo::ret(_) => {unimplemented!()},
         InstructionInfo::return_ => instruction_is_type_safe_return(env, offset, stack_frame),

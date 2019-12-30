@@ -112,7 +112,7 @@ pub enum Descriptor {}
 
 //fn modify_local_variable() //todo
 
-fn passes_protected_check(env: &Environment, member_class_name: String, _member_name: String, _member_descriptor: &MethodDescriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+fn passes_protected_check(env: &Environment, member_class_name: String, _member_name: String/*, _member_descriptor: !*/, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
     let mut chain = vec![];
     super_class_chain(env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
     if chain.iter().any(|x| { get_referred_name(&x.class_name) == member_class_name }) {

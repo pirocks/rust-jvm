@@ -13,6 +13,10 @@ use crate::verifier::TypeSafetyError;
 
 pub mod loads;
 pub mod consts;
+pub mod big_match;
+pub mod branches;
+pub mod stores;
+pub mod special;
 
 pub struct ResultFrames {
     pub next_frame: Frame,
@@ -343,11 +347,6 @@ fn different_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) ->
 fn same_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
     unimplemented!()
 }
-
-
-pub mod big_match;
-pub mod branches;
-pub mod stores;
 
 
 pub fn exception_stack_frame(f: &Frame) -> Frame {
