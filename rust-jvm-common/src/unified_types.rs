@@ -6,6 +6,9 @@ use crate::classnames::get_referred_name;
 use crate::loading::class_entry_from_string;
 use crate::classfile::Classfile;
 use crate::classnames::NameReference;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Error;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -13,7 +16,7 @@ pub struct ArrayType {
     pub sub_type: Box<UnifiedType>
 }
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct ClassWithLoader {
     pub class_name: ClassName,
     pub loader: Arc<Loader>,
@@ -28,6 +31,12 @@ impl PartialEq for ClassWithLoader {
 
 impl Eq for ClassWithLoader {}
 
+
+impl Debug for ClassWithLoader {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f,"<{},{}>",get_referred_name(&self.class_name),self.loader.name)
+    }
+}
 
 //todo why are there two of these
 pub fn class_type_to_class(class_type: &ClassWithLoader) -> Arc<Classfile> {
