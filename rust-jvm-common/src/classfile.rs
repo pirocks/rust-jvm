@@ -5,7 +5,7 @@ use crate::unified_types::UnifiedType;
 #[derive(Eq, PartialEq)]
 pub struct SourceFile {
     //todo
-    pub sourcefile_index: u16
+    pub sourcefile_index:CPIndex
 }
 
 #[derive(Debug)]
@@ -341,26 +341,26 @@ type BootstrapArg = u16;
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct InnerClass {
-    pub inner_class_info_index: u16,
-    pub outer_class_info_index: u16,
-    pub inner_name_index: u16,
-    pub inner_class_access_flags: u16,
+    pub inner_class_info_index: CPIndex,
+    pub outer_class_info_index: CPIndex,
+    pub inner_name_index: CPIndex,
+    pub inner_class_access_flags: CPIndex,
 }
 
 
-type CPIndex = u16;//todo use this more
+type CPIndex = u16;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct EnumConstValue {
-    pub type_name_index: u16,
-    pub const_name_index: u16,
+    pub type_name_index: CPIndex,
+    pub const_name_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ClassInfoIndex {
-    pub class_info_index: u16
+    pub class_info_index: CPIndex
 }
 
 #[derive(Debug)]
@@ -396,7 +396,7 @@ pub enum ElementValue {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ElementValuePair {
-    pub element_name_index: u16,
+    pub element_name_index: CPIndex,
     pub value: ElementValue,
 }
 
@@ -478,72 +478,68 @@ pub struct String_ {
 #[derive(Eq, PartialEq)]
 pub struct Fieldref {
     //unimplemented!()
-    pub class_index: u16,
-    pub name_and_type_index: u16,
+    pub class_index: CPIndex,
+    pub name_and_type_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Methodref {
-    pub class_index: u16,
-    pub name_and_type_index: u16,
+    pub class_index: CPIndex,
+    pub name_and_type_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct InterfaceMethodref {
-    //unimplemented!()
-    pub class_index: u16,
-    pub nt_index: u16,
+    pub class_index: CPIndex,
+    pub nt_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct NameAndType {
-    //unimplemented!()
-    pub name_index: u16,
-    pub descriptor_index: u16,
+    pub name_index: CPIndex,
+    pub descriptor_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct MethodHandle {
-    //unimplemented!()
     pub reference_kind: u8,
-    pub reference_index: u16,
+    pub reference_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct MethodType {
-    //unimplemented!()
-    pub descriptor_index: u16
+    pub descriptor_index: CPIndex
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Dynamic {
-    //unimplemented!()
+    //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct InvokeDynamic {
-    //unimplemented!()
-    pub bootstrap_method_attr_index: u16,
-    pub name_and_type_index: u16,
+    pub bootstrap_method_attr_index: CPIndex,
+    pub name_and_type_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Module {
-    //unimplemented!()
+    //todo
+
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Package {
-    //unimplemented!()
+    //todo
 }
 
 #[derive(Debug)]
@@ -601,8 +597,8 @@ pub struct AttributeInfo {
 #[derive(Eq, PartialEq)]
 pub struct FieldInfo {
     pub access_flags: u16,
-    pub name_index: u16,
-    pub descriptor_index: u16,
+    pub name_index: CPIndex,
+    pub descriptor_index: CPIndex,
     pub attributes: Vec<AttributeInfo>,
 }
 
@@ -610,8 +606,8 @@ pub struct FieldInfo {
 #[derive(Eq, PartialEq)]
 pub struct MethodInfo {
     pub access_flags: u16,
-    pub name_index: u16,
-    pub descriptor_index: u16,
+    pub name_index: CPIndex,
+    pub descriptor_index: CPIndex,
     pub attributes: Vec<AttributeInfo>,
 }
 
@@ -687,7 +683,7 @@ pub enum InstructionInfo {
     aload_1,
     aload_2,
     aload_3,
-    anewarray(u16),
+    anewarray(CPIndex),
     areturn,
     arraylength,
     astore(u8),
@@ -701,7 +697,7 @@ pub enum InstructionInfo {
     bipush(u8),
     caload,
     castore,
-    checkcast(u16),
+    checkcast(CPIndex),
     d2f,
     d2i,
     d2l,
@@ -761,8 +757,8 @@ pub enum InstructionInfo {
     fstore_2,
     fstore_3,
     fsub,
-    getfield(u16),
-    getstatic(u16),
+    getfield(CPIndex),
+    getstatic(CPIndex),
     goto_(i16),
     goto_w(i32),
     i2b,
@@ -813,12 +809,12 @@ pub enum InstructionInfo {
     iload_3,
     imul,
     ineg,
-    instanceof(u16),
-    invokedynamic(u16),
+    instanceof(CPIndex),
+    invokedynamic(CPIndex),
     invokeinterface(InvokeInterface),
-    invokespecial(u16),
-    invokestatic(u16),
-    invokevirtual(u16),
+    invokespecial(CPIndex),
+    invokestatic(CPIndex),
+    invokevirtual(CPIndex),
     ior,
     irem,
     ireturn,
@@ -845,8 +841,8 @@ pub enum InstructionInfo {
     lconst_0,
     lconst_1,
     ldc(u8),
-    ldc_w(u16),
-    ldc2_w(u16),
+    ldc_w(CPIndex),
+    ldc2_w(CPIndex),
     ldiv,
     lload(u8),
     lload_0,
@@ -872,13 +868,13 @@ pub enum InstructionInfo {
     monitorenter,
     monitorexit,
     multianewarray(MultiNewArray),
-    new(u16),
+    new(CPIndex),
     newarray(Atype),
     nop,
     pop,
     pop2,
-    putfield(u16),
-    putstatic(u16),
+    putfield(CPIndex),
+    putstatic(CPIndex),
     ret(u8),
     return_,
     saload,
@@ -926,8 +922,8 @@ pub struct Classfile {
     pub major_version: u16,
     pub constant_pool: Vec<ConstantInfo>,
     pub access_flags: u16,
-    pub this_class: u16,
-    pub super_class: u16,
+    pub this_class: CPIndex,
+    pub super_class: CPIndex,
     pub interfaces: Vec<u16>,
     pub fields: Vec<FieldInfo>,
     pub methods: Vec<MethodInfo>,
