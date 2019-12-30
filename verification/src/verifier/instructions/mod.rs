@@ -38,7 +38,7 @@ pub enum FrameResult<'l> {
 
 //todo how to handle other values here
 pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult<'l>) -> Result<(), TypeSafetyError> {
-    let first = &merged_code[0];//todo infinite recursion
+    let first = &merged_code[0];//infinite recursion will not occur becuase we stop when we reach EndOfCode
     let rest = &merged_code[1..merged_code.len()];
     match first {
         MergedCodeInstruction::Instruction(i) => {
