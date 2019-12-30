@@ -84,10 +84,8 @@ pub fn class_is_type_safe(class: &ClassWithLoader) -> Result<(), TypeSafetyError
     } else {
         trace!("Class not java/lang/Object performing superclass checks");
         //class must have a superclass or be 'java/lang/Object'
-        //todo loader shouldnt really be a string
         let mut chain = vec![];
         super_class_chain(class, class.loader.clone(), &mut chain)?;
-//        dbg!(&chain);
         if chain.is_empty() {
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
@@ -99,11 +97,9 @@ pub fn class_is_type_safe(class: &ClassWithLoader) -> Result<(), TypeSafetyError
     }
     let methods = get_class_methods(class);
     trace!("got class methods:");
-//    dbg!(&methods);
     let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
         let res = method_is_type_safe(class, m);
         trace!("method was:");
-//        dbg!(method_name(&m.prolog_class.class,&m.prolog_class.class.methods[m.method_index]));
         dbg!(&res);
         res
     }).collect();
