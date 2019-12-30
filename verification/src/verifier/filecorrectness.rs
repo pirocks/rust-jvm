@@ -264,21 +264,21 @@ pub fn does_not_override_final_method(class: &ClassWithLoader, method: &ClassWit
         Result::Ok(())
     } else if is_static(method, class) {
         Result::Ok(())
-    } else if does_not_override_final_method_of_superclass(class, method) {
-        Result::Ok(())
     } else {
-        Result::Err(TypeSafetyError::NotSafe("Failed does_not_override_final_method".to_string()))
+        does_not_override_final_method_of_superclass(class, method)
     }
 }
 
 #[allow(unused)]
-pub fn final_method_not_overridden(method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, method_list: &Vec<ClassWithLoaderMethod>) -> bool {
+pub fn final_method_not_overridden(method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, method_list: &Vec<ClassWithLoaderMethod>) -> Result<(),TypeSafetyError> {
     unimplemented!()
 }
 
-#[allow(unused)]
-pub fn does_not_override_final_method_of_superclass(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> bool {
-    unimplemented!()
+pub fn does_not_override_final_method_of_superclass(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(),TypeSafetyError> {
+    let super_class_name = class_super_class_name(class);
+    let super_class = loaded_class_(super_class_name,BOOTSTRAP_LOADER.clone())?;
+    let super_methods_list= get_class_methods(&super_class);
+    final_method_not_overridden(method,&super_class,&super_methods_list)
 }
 
 pub fn get_access_flags(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {

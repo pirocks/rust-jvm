@@ -254,10 +254,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
         .rev()
         .map(|x| x.clone())
         .collect();
-    let next_frame = match valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame) {
-        Ok(nf) => nf,
-        Err(_) => unimplemented!(),
-    };
+    let next_frame = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame }))
 }

@@ -28,8 +28,8 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
     dbg!(&result_type);
     dbg!(&input_frame);
     let input_operand_stack = &input_frame.stack_map;
-    let _interim_operand_stack = pop_matching_list(input_operand_stack, expected_types_on_stack)?;
-    let next_operand_stack = push_operand_stack(&input_operand_stack, &result_type);
+    let interim_operand_stack = pop_matching_list(input_operand_stack, expected_types_on_stack)?;
+    let next_operand_stack = push_operand_stack(&interim_operand_stack, &result_type);
     if operand_stack_has_legal_length(environment, &next_operand_stack) {
         Result::Ok(Frame { locals: input_frame.locals.iter().map(|x| x.clone()).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit })
     } else {
