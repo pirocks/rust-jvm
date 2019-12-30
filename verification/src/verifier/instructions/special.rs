@@ -18,6 +18,7 @@ use crate::verifier::instructions::exception_stack_frame;
 use crate::verifier::instructions::ResultFrames;
 use rust_jvm_common::classnames::get_referred_name;
 use crate::types::Descriptor;
+use rust_jvm_common::classfile::CPIndex;
 
 
 //#[allow(unused)]
@@ -66,14 +67,14 @@ use crate::types::Descriptor;
 //}
 //
 
-pub fn instruction_is_type_safe_putfield(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     match instruction_is_type_safe_putfield_first_case(cp, env, offset, stack_frame) {
         Ok(res) => Result::Ok(res),
         Err(_) => instruction_is_type_safe_putfield_second_case(cp, env, offset, stack_frame),
     }
 }
 
-fn instruction_is_type_safe_putfield_second_case(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     //todo duplication
     let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = field_descriptor.field_type;
@@ -89,7 +90,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: usize, env: &Environment, _
     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
 
-fn instruction_is_type_safe_putfield_first_case(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = field_descriptor.field_type.clone();
     let _popped_frame = can_pop(stack_frame, vec![field_type.clone()])?;
@@ -101,9 +102,9 @@ fn instruction_is_type_safe_putfield_first_case(cp: usize, env: &Environment, _o
 }
 
 
-fn extract_field_descriptor(cp: usize, env: &Environment) -> (ClassName, String, FieldDescriptor) {
+fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, String, FieldDescriptor) {
     let current_class = get_class(env.method.prolog_class);
-    let field_entry: &ConstantKind = &current_class.constant_pool[cp].kind;
+    let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
     let (class_index, name_and_type_index) = match field_entry {
         ConstantKind::Fieldref(f) => {
             (f.class_index, f.name_and_type_index)
@@ -144,7 +145,6 @@ fn extract_field_descriptor(cp: usize, env: &Environment) -> (ClassName, String,
 //    unimplemented!()
 //}
 //
-////todo start using CPIndex instead of usize
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

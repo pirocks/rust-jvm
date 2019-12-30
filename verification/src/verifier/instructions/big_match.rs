@@ -217,7 +217,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::nop => { unimplemented!() }
         InstructionInfo::pop => { unimplemented!() }
         InstructionInfo::pop2 => { unimplemented!() }
-        InstructionInfo::putfield(cp) => instruction_is_type_safe_putfield(cp as usize, env, offset, stack_frame),
+        InstructionInfo::putfield(cp) => instruction_is_type_safe_putfield(cp, env, offset, stack_frame),
         InstructionInfo::putstatic(_) => { unimplemented!() }
         InstructionInfo::ret(_) => { unimplemented!() }
         InstructionInfo::return_ => instruction_is_type_safe_return(env, offset, stack_frame),

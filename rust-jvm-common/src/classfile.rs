@@ -348,7 +348,7 @@ pub struct InnerClass {
 }
 
 
-type CPIndex = u16;
+pub type CPIndex = u16;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
