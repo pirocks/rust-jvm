@@ -7,7 +7,7 @@ use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FIN
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::utils::extract_string_from_utf8;
+use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
 use rust_jvm_common::classfile::ConstantKind;
 
 #[allow(unused)]
@@ -183,12 +183,12 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
         UnifiedType::OneWord => match to {
             UnifiedType::OneWord => Result::Ok(()),
             UnifiedType::TopType => Result::Ok(()),
-            _ => Result::Err(TypeSafetyError::NotSafe("todo reason".to_string()))
+            _ => Result::Err(unknown_error_verifying!())
         },
         UnifiedType::TwoWord => match to {
             UnifiedType::TwoWord => Result::Ok(()),
             UnifiedType::TopType => Result::Ok(()),
-            _ => Result::Err(TypeSafetyError::NotSafe("todo reason".to_string()))
+            _ => Result::Err(unknown_error_verifying!())
         },
         _ => panic!("This is a bug"),//todo , should have a better message function
     }
@@ -242,6 +242,12 @@ pub fn super_class_chain(chain_start: &ClassWithLoader, loader: Arc<Loader>, res
 }
 
 
+pub fn is_final_method(method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
+    //todo check if same
+    (get_access_flags(class, method) & ACC_FINAL) > 0
+}
+
+
 pub fn is_static(method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if same
     (get_access_flags(class, method) & ACC_STATIC) > 0
@@ -269,9 +275,37 @@ pub fn does_not_override_final_method(class: &ClassWithLoader, method: &ClassWit
     }
 }
 
-#[allow(unused)]
-pub fn final_method_not_overridden(method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, method_list: &Vec<ClassWithLoaderMethod>) -> Result<(),TypeSafetyError> {
-    unimplemented!()
+pub fn final_method_not_overridden(method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, super_method_list: &Vec<ClassWithLoaderMethod>) -> Result<(),TypeSafetyError> {
+    let method_class = get_class(method.prolog_class);
+    let method_info = &method_class.methods[method.method_index];
+    let method_name_ = method_name(&method_class, method_info);
+    let descriptor_string = extract_string_from_utf8(&method_class.constant_pool[method_info.descriptor_index as usize]);
+    let matching_method = super_method_list.iter().find(|x|{
+        let x_method_class = get_class(x.prolog_class);
+        let x_method_info = &x_method_class.methods[x.method_index];
+        let x_method_name = method_name(&method_class, x_method_info);
+        let x_descriptor_string = extract_string_from_utf8(&method_class.constant_pool[method_info.descriptor_index as usize]);
+        x_descriptor_string == descriptor_string  && x_method_name == method_name_
+    });
+    match matching_method {
+        None => {
+            return does_not_override_final_method(super_class,method)
+        },
+        Some(method) => {
+            if is_final_method(method,super_class){
+                if is_private(method,super_class) || is_static(method,super_class){
+                    return Result::Ok(())
+                }
+            }else{
+                if is_private(method,super_class) || is_static(method,super_class){
+                    return does_not_override_final_method(super_class,method)
+                }else {
+                    return Result::Ok(())
+                }
+            }
+        },
+    };
+    Result::Err(unknown_error_verifying!())
 }
 
 pub fn does_not_override_final_method_of_superclass(class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(),TypeSafetyError> {
