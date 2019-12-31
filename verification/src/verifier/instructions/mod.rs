@@ -1,4 +1,4 @@
-use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition,  handler_exception_class, Handler};
+use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition, handler_exception_class, Handler, size_of, push_operand_stack};
 use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
 use crate::verifier::{Frame, get_class};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
@@ -197,84 +197,113 @@ pub fn instructions_include_end(_instructs: &Vec<MergedCodeInstruction>, _end: u
     unimplemented!()
 }
 
-//
+pub fn instruction_is_type_safe_dup(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError>  {
+    let locals = &stack_frame.locals;
+    let input_operand_stack = &stack_frame.stack_map;
+    let flags = stack_frame.flag_this_uninit;
+    let (type_,rest)= pop_category1(input_operand_stack)?;
+    let output_operand_stack = can_safely_push(env,input_operand_stack,&type_)?;
+    let next_frame  = Frame {
+        locals: locals.clone(),
+        stack_map: output_operand_stack,
+        flag_this_uninit: flags
+    };
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
+pub fn can_safely_push(env: &Environment,input_operand_stack: &Vec<UnifiedType>,type_:&UnifiedType) -> Result<Vec<UnifiedType>,TypeSafetyError>{
+    let output_operand_stack = push_operand_stack(input_operand_stack,type_);
+    if operand_stack_has_legal_length(env,&output_operand_stack){
+        Result::Ok(output_operand_stack)
+    }else {
+        Result::Err(unknown_error_verifying!())
+    }
+}
+
+pub fn pop_category1(input: &Vec<UnifiedType>) -> Result<(UnifiedType,Vec<UnifiedType>),TypeSafetyError>{
+    //todo tops are the wrong way round, though tbh everything is the wrong way round
+    if size_of(input.last().unwrap()) == 1{
+        let type_ = input.last().unwrap().clone();
+        let rest = input.as_slice()[..input.len()-1].to_vec();
+        return Result::Ok((type_,rest));
+    }else {
+        unimplemented!()
+    }
+}
+
 //#[allow(unused)]
-//fn instruction_is_type_safe_dup(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_dup_x1(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_dup_x1(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_dup_x2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_dup_x2(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_dup2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_dup2(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_dup2_x1(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_dup2_x1(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-//fn instruction_is_type_safe_dup2_x2(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_dup2_x2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_i2d(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_i2d(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_i2f(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_i2f(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_iadd(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
-//
-//#[allow(unused)]
-//fn instruction_is_type_safe_iinc(index: usize, value: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_iadd(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_ineg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_iinc(index: usize, value: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//    unimplemented!()
+//}
+//
+//
+//#[allow(unused)]
+//fn instruction_is_type_safe_ineg(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_l2d(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_l2d(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_l2f(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_l2f(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_l2i(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_l2i(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_ladd(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_ladd(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
@@ -320,47 +349,47 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, s
 }
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_ldc2_w(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_ldc2_w(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_lneg(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_lneg(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_lshl(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_lshl(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_nop(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_nop(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_pop(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_pop(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_pop2(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_pop2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_sipush(value: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_sipush(value: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_swap(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_swap(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //

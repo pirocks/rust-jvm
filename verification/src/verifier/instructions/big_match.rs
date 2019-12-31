@@ -3,7 +3,7 @@ use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instr
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc};
+use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc, instruction_is_type_safe_dup};
 use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic, instruction_is_type_safe_areturn, instruction_is_type_safe_ifeq};
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
@@ -66,7 +66,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dstore_2 => { unimplemented!() }
         InstructionInfo::dstore_3 => { unimplemented!() }
         InstructionInfo::dsub => { unimplemented!() }
-        InstructionInfo::dup => { unimplemented!() }
+        InstructionInfo::dup => instruction_is_type_safe_dup(env,offset,stack_frame)
         InstructionInfo::dup_x1 => { unimplemented!() }
         InstructionInfo::dup_x2 => { unimplemented!() }
         InstructionInfo::dup2 => { unimplemented!() }
