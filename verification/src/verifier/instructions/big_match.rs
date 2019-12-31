@@ -17,6 +17,7 @@ use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, 
 use crate::verifier::instructions::special::instruction_is_type_safe_getstatic;
 use crate::verifier::instructions::loads::instruction_is_type_safe_iload;
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_icmpeq;
+use crate::verifier::instructions::instruction_is_type_safe_ldc2_w;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
@@ -189,7 +190,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lconst_1 => { unimplemented!() }
         InstructionInfo::ldc(i) => instruction_is_type_safe_ldc(i, env, offset, stack_frame),
         InstructionInfo::ldc_w(_) => { unimplemented!() }
-        InstructionInfo::ldc2_w(_) => { unimplemented!() }
+        InstructionInfo::ldc2_w(cp) => instruction_is_type_safe_ldc2_w(cp, env, offset, stack_frame),
         InstructionInfo::ldiv => { unimplemented!() }
         InstructionInfo::lload(_) => { unimplemented!() }
         InstructionInfo::lload_0 => instruction_is_type_safe_lload(0, env, offset, stack_frame),
