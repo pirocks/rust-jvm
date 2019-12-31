@@ -9,6 +9,7 @@ use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
 use rust_jvm_common::classfile::ConstantKind;
+use rust_jvm_common::loading::BOOTSTRAP_LOADER_NAME;
 
 #[allow(unused)]
 fn same_runtime_package(class1: ClassWithLoader, class2: &ClassWithLoader) -> bool {
@@ -155,7 +156,16 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
                     unimplemented!()
                 }
             }
-            UnifiedType::Class(_c) => unimplemented!(),
+            //technically the next case should be partially part of is_java_assignable but is here
+            UnifiedType::Class(c) => {
+                if !is_assignable(&UnifiedType::Reference, to).is_ok(){
+                    //todo okay to use name like that?
+                    if c.class_name == ClassName::Str("java/lang/Object".to_string()) && c.loader.name == BOOTSTRAP_LOADER_NAME{
+                        return Result::Ok(())
+                    }
+                }
+                is_assignable(&UnifiedType::Reference, to)
+            },
             _ => is_assignable(&UnifiedType::Reference, to)
         },
         UnifiedType::TopType => match to {
