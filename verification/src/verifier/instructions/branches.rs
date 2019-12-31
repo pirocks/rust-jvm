@@ -16,6 +16,7 @@ use crate::verifier::codecorrectness::valid_type_transition;
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::filecorrectness::is_assignable;
 use crate::types::Descriptor;
+use rust_jvm_common::unified_types::UnifiedType::Uninitialized;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -72,10 +73,12 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, _offset: usize, stack
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let next_frame = can_pop(stack_frame,vec![UnifiedType::IntType])?;
+    target_is_type_safe(env, &next_frame, target)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

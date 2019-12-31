@@ -4,7 +4,7 @@ use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc};
-use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic, instruction_is_type_safe_areturn};
+use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic, instruction_is_type_safe_areturn, instruction_is_type_safe_ifeq};
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
 use crate::verifier::instructions::branches::instruction_is_type_safe_ireturn;
@@ -137,12 +137,12 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::if_icmpge(_) => { unimplemented!() }
         InstructionInfo::if_icmpgt(_) => { unimplemented!() }
         InstructionInfo::if_icmple(_) => { unimplemented!() }
-        InstructionInfo::ifeq(_) => { unimplemented!() }
-        InstructionInfo::ifne(_) => { unimplemented!() }
-        InstructionInfo::iflt(_) => { unimplemented!() }
-        InstructionInfo::ifge(_) => { unimplemented!() }
-        InstructionInfo::ifgt(_) => { unimplemented!() }
-        InstructionInfo::ifle(_) => { unimplemented!() }
+        InstructionInfo::ifeq(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::ifne(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::iflt(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::ifge(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::ifgt(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::ifle(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
         InstructionInfo::ifnonnull(_) => { unimplemented!() }
         InstructionInfo::ifnull(_) => { unimplemented!() }
         InstructionInfo::iinc(_) => { unimplemented!() }
@@ -229,4 +229,10 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::wide(_) => { unimplemented!() }
         _ => unimplemented!()
     }
+}
+
+fn ifeq_wrapper(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let final_target = (target as isize) + (instruction.offset as isize);
+    assert!(final_target >= 0);
+    instruction_is_type_safe_ifeq(final_target as usize, env, offset, stack_frame)
 }
