@@ -13,9 +13,10 @@ use crate::verifier::passes_protected_check;
 use rust_jvm_common::utils::extract_class_from_constant_pool;
 use crate::types::parse_method_descriptor;
 use crate::verifier::codecorrectness::valid_type_transition;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::classnames::{ClassName, NameReference};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::types::Descriptor;
+use std::sync::Arc;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -222,8 +223,15 @@ fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, _class: 
                         Some(new_this) => match new_this {
                             MergedCodeInstruction::Instruction(instr) => match instr.instruction {
                                 InstructionInfo::new(this) => {
-                                    match &get_class(env.method.prolog_class).constant_pool[this as usize].kind {
-                                        ConstantKind::Class(_) => { unimplemented!() }
+                                    let method_class = get_class(env.method.prolog_class);
+                                    match &method_class.constant_pool[this as usize].kind {
+                                        ConstantKind::Class(c) => {
+                                            let class_name = ClassName::Ref(NameReference {
+                                                class_file: Arc::downgrade(&method_class),
+                                                index: c.name_index
+                                            });
+                                            return Result::Ok(ClassWithLoader { class_name, loader: env.class_loader.clone() })
+                                        }
                                         _ => { unimplemented!() }
                                     }
                                 }
