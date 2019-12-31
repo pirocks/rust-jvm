@@ -14,6 +14,7 @@ use crate::verifier::instructions::branches::instruction_is_type_safe_return;
 use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
 use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield, instruction_is_type_safe_new, instruction_is_type_safe_athrow};
+use crate::verifier::instructions::special::instruction_is_type_safe_getstatic;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
@@ -100,7 +101,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fstore_3 => { unimplemented!() }
         InstructionInfo::fsub => { unimplemented!() }
         InstructionInfo::getfield(cp) => instruction_is_type_safe_getfield(cp ,env,offset,stack_frame),
-        InstructionInfo::getstatic(_) => { unimplemented!() }
+        InstructionInfo::getstatic(cp) => instruction_is_type_safe_getstatic(cp,env,offset,stack_frame),
         InstructionInfo::goto_(target) => {
             let final_target = (target as isize) + (instruction.offset as isize);
             assert!(final_target >= 0);

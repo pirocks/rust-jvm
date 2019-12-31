@@ -23,7 +23,7 @@ use crate::verifier::instructions::branches::substitute;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
@@ -37,28 +37,31 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
+
+pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
+    let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
+    let next_frame = valid_type_transition(env,vec![],&field_type,stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
+
+//#[allow(unused)]
+//pub fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//    unimplemented!()
+//}
+
+
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_getstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_anewarray(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
-
-//#[allow(unused)]
-//fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-
-
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_anewarray(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
-//
-//#[allow(unused)]
-//fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 
@@ -70,7 +73,7 @@ pub fn instruction_is_type_safe_athrow(_env: &Environment, _offset: usize, stack
 }
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
@@ -138,18 +141,18 @@ fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, Strin
 }
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_putstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_putstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_monitorenter(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_monitorenter(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
@@ -180,13 +183,13 @@ pub fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize,
 }
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//pub fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
