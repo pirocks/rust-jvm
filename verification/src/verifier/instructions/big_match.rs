@@ -66,7 +66,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dstore_2 => { unimplemented!() }
         InstructionInfo::dstore_3 => { unimplemented!() }
         InstructionInfo::dsub => { unimplemented!() }
-        InstructionInfo::dup => instruction_is_type_safe_dup(env,offset,stack_frame)
+        InstructionInfo::dup => instruction_is_type_safe_dup(env,offset,stack_frame),
         InstructionInfo::dup_x1 => { unimplemented!() }
         InstructionInfo::dup_x2 => { unimplemented!() }
         InstructionInfo::dup2 => { unimplemented!() }

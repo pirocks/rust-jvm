@@ -197,11 +197,11 @@ pub fn instructions_include_end(_instructs: &Vec<MergedCodeInstruction>, _end: u
     unimplemented!()
 }
 
-pub fn instruction_is_type_safe_dup(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError>  {
+pub fn instruction_is_type_safe_dup(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError>  {
     let locals = &stack_frame.locals;
     let input_operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    let (type_,rest)= pop_category1(input_operand_stack)?;
+    let (type_,_rest)= pop_category1(input_operand_stack)?;
     let output_operand_stack = can_safely_push(env,input_operand_stack,&type_)?;
     let next_frame  = Frame {
         locals: locals.clone(),
