@@ -81,10 +81,32 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
 //
 
 
-//#[allow(unused)]
-//fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+    let method_class = get_class(env.method.prolog_class);
+    let constant_pool = &method_class.constant_pool;
+    let (name_index,descriptor_index) = match &constant_pool[cp].kind{
+        ConstantKind::InvokeDynamic(i) => {
+            match &constant_pool[i.name_and_type_index as usize].kind{
+                ConstantKind::NameAndType(nt) => (nt.name_index as usize,nt.descriptor_index as usize),
+                _=> panic!()
+            }
+        },
+        _ => panic!()
+    };
+    let call_site_name = extract_string_from_utf8(&constant_pool[name_index]);
+    let descriptor_string = extract_string_from_utf8(&constant_pool[descriptor_index]);
+    let descriptor = parse_method_descriptor(&env.class_loader,descriptor_string.as_str()).unwrap();
+    if call_site_name == "<init>" || call_site_name == "<clinit>" {
+        return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
+    }
+    let mut operand_arg_list = descriptor.parameter_types;
+    let return_type = descriptor.return_type;
+    operand_arg_list.reverse();
+    let stack_arg_list = operand_arg_list;
+    let next_frame = valid_type_transition(env,stack_arg_list,&return_type,stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame}))
+}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

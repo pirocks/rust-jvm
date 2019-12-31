@@ -4,7 +4,7 @@ use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_ldc};
-use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial};
+use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic};
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
 use crate::verifier::instructions::branches::instruction_is_type_safe_ireturn;
@@ -154,7 +154,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::imul => { unimplemented!() }
         InstructionInfo::ineg => { unimplemented!() }
         InstructionInfo::instanceof(_) => { unimplemented!() }
-        InstructionInfo::invokedynamic(_) => { unimplemented!() }
+        InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(cp as usize,env,offset,stack_frame),
         InstructionInfo::invokeinterface(_) => { unimplemented!() }
         InstructionInfo::invokespecial(cp) => instruction_is_type_safe_invokespecial(cp as usize, env, offset, stack_frame),
         InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(cp as usize, env, offset, stack_frame),
