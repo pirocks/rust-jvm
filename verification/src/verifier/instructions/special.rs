@@ -3,7 +3,7 @@ use crate::verifier::Frame;
 use crate::verifier::instructions::InstructionTypeSafe;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::get_class;
-use rust_jvm_common::classfile::ConstantKind;
+use rust_jvm_common::classfile::{ConstantKind, UninitializedVariableInfo};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classnames::NameReference;
@@ -19,55 +19,56 @@ use crate::verifier::instructions::ResultFrames;
 use rust_jvm_common::classnames::get_referred_name;
 use crate::types::Descriptor;
 use rust_jvm_common::classfile::CPIndex;
+use crate::verifier::instructions::branches::substitute;
 
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 
-pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
-    passes_protected_check(env,get_referred_name(&field_class_name),field_name,Descriptor::Field(&field_descriptor),stack_frame)?;
+    passes_protected_check(env, get_referred_name(&field_class_name), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
-    let next_frame = valid_type_transition(env,vec![UnifiedType::Class(ClassWithLoader { class_name:field_class_name, loader:current_loader})],&field_type,stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![UnifiedType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })], &field_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_getstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_getstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 
 
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_anewarray(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_anewarray(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_athrow(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_athrow(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
@@ -135,35 +136,55 @@ fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, Strin
 }
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_putstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_putstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_monitorenter(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_monitorenter(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
 //
+pub fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = &stack_frame.locals;
+    let operand_stack = &stack_frame.stack_map;
+    let flags = stack_frame.flag_this_uninit;
+    match &get_class(env.method.prolog_class).constant_pool[cp].kind{
+        ConstantKind::Class(_) => {},
+        _ => panic!()
+    };
+    let new_item = UnifiedType::Uninitialized(UninitializedVariableInfo {offset:offset as u16});
+    match operand_stack.iter().find(|x|{
+        x == &&new_item
+    }){
+        None => {},
+        Some(_) => return Result::Err(unknown_error_verifying!()),
+    };
+    let new_locals =substitute(&new_item,&UnifiedType::TopType,locals.as_slice());
+    let next_frame= valid_type_transition(env,vec![],&new_item,&Frame {
+        locals: new_locals,
+        stack_map: operand_stack.clone(),
+        flag_this_uninit: flags
+    })?;
+    let exception_frame= exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 //#[allow(unused)]
-//fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-//fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //

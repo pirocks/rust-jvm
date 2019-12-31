@@ -16,7 +16,6 @@ use crate::verifier::codecorrectness::valid_type_transition;
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::filecorrectness::is_assignable;
 use crate::types::Descriptor;
-use rust_jvm_common::unified_types::UnifiedType::Uninitialized;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -73,7 +72,7 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, _offset: usize, stack
 //    unimplemented!()
 //}
 //
-pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(stack_frame,vec![UnifiedType::IntType])?;
     target_is_type_safe(env, &next_frame, target)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -185,7 +184,7 @@ fn invoke_special_init(env: &&Environment, stack_frame: &Frame, method_class_nam
     }
 }
 
-fn substitute(old: &UnifiedType, new: &UnifiedType, list: &[UnifiedType]) -> Vec<UnifiedType> {
+pub fn substitute(old: &UnifiedType, new: &UnifiedType, list: &[UnifiedType]) -> Vec<UnifiedType> {
     list.iter().map(|x| (if old == x {
         new
     } else {
