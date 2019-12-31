@@ -1,6 +1,6 @@
 use crate::verifier::codecorrectness::{Environment, valid_type_transition, translate_types_to_vm_types};
 use crate::verifier::Frame;
-use crate::verifier::instructions::InstructionIsTypeSafeResult;
+use crate::verifier::instructions::InstructionTypeSafe;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::get_class;
 use rust_jvm_common::classfile::ConstantKind;
@@ -27,14 +27,14 @@ use rust_jvm_common::classfile::CPIndex;
 //}
 //
 
-pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError>  {
+pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
     passes_protected_check(env,get_referred_name(&field_class_name),field_name,Descriptor::Field(&field_descriptor),stack_frame)?;
     let current_loader = env.class_loader.clone();
     let next_frame = valid_type_transition(env,vec![UnifiedType::Class(ClassWithLoader { class_name:field_class_name, loader:current_loader})],&field_type,stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 //
 //#[allow(unused)]
@@ -72,14 +72,14 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset
 //}
 //
 
-pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction_is_type_safe_putfield_first_case(cp, env, offset, stack_frame) {
         Ok(res) => Result::Ok(res),
         Err(_) => instruction_is_type_safe_putfield_second_case(cp, env, offset, stack_frame),
     }
 }
 
-fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo duplication
     let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
@@ -92,10 +92,10 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     }
     let next_stack_frame = can_pop(stack_frame, vec![field_type, UnifiedType::UninitializedThis])?;
     let exception_frame = exception_stack_frame(&stack_frame);
-    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
 
-fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
     let _popped_frame = can_pop(stack_frame, vec![field_type.clone()])?;
@@ -103,7 +103,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
     let current_loader = env.class_loader.clone();
     let next_stack_frame = can_pop(stack_frame, vec![field_type, UnifiedType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     let exception_frame = exception_stack_frame(&stack_frame);
-    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
 
 

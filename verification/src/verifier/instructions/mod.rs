@@ -26,7 +26,7 @@ pub struct AfterGotoFrames {
     pub exception_frame: Frame,
 }
 
-pub enum InstructionIsTypeSafeResult {
+pub enum InstructionTypeSafe {
     Safe(ResultFrames),
     AfterGoto(AfterGotoFrames),
 }
@@ -52,11 +52,11 @@ pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCode
                 }
             };
             match instruction_is_type_safe(&i, env, i.offset, f)? {
-                InstructionIsTypeSafeResult::Safe(s) => {
+                InstructionTypeSafe::Safe(s) => {
                     let _exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &s.exception_frame)?;
                     merged_code_is_type_safe(env, rest, FrameResult::Regular(&s.next_frame))
                 }
-                InstructionIsTypeSafeResult::AfterGoto(ag) => {
+                InstructionTypeSafe::AfterGoto(ag) => {
                     let _exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &ag.exception_frame)?;
                     merged_code_is_type_safe(env, rest, FrameResult::AfterGoto)
                 }
@@ -278,10 +278,10 @@ pub fn instructions_include_end(_instructs: &Vec<MergedCodeInstruction>, _end: u
 //    unimplemented!()
 //}
 //
-fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = valid_type_transition(env, vec![UnifiedType::LongType, UnifiedType::LongType], &UnifiedType::IntType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
 pub fn loadable_constant(c: &ConstantKind) -> UnifiedType{
@@ -306,7 +306,7 @@ pub fn loadable_constant(c: &ConstantKind) -> UnifiedType{
     }
 }
 
-pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let _const = &get_class(env.method.prolog_class).constant_pool[cp as usize].kind;
     let type_: UnifiedType = loadable_constant(_const);
     match type_ {
@@ -316,7 +316,7 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, s
     };
     let next_frame = valid_type_transition(env,vec![],&type_,stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
 //#[allow(unused)]

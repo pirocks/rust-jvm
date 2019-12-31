@@ -3,8 +3,8 @@ use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instr
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_ldc};
-use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic};
+use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc};
+use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic, instruction_is_type_safe_areturn};
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
 use crate::verifier::instructions::branches::instruction_is_type_safe_ireturn;
@@ -15,7 +15,7 @@ use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
 use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield};
 
-pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
         InstructionInfo::aaload => { unimplemented!() }
         InstructionInfo::aastore => { unimplemented!() }
@@ -26,7 +26,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::aload_2 => instruction_is_type_safe_aload(2, env, offset, stack_frame),
         InstructionInfo::aload_3 => instruction_is_type_safe_aload(3, env, offset, stack_frame),
         InstructionInfo::anewarray(_) => { unimplemented!() }
-        InstructionInfo::areturn => { unimplemented!() }
+        InstructionInfo::areturn => instruction_is_type_safe_areturn(env,offset,stack_frame),
         InstructionInfo::arraylength => { unimplemented!() }
         InstructionInfo::astore(_) => { unimplemented!() }
         InstructionInfo::astore_0 => { unimplemented!() }
