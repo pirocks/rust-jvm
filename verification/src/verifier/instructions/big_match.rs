@@ -16,6 +16,7 @@ use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirt
 use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield, instruction_is_type_safe_new, instruction_is_type_safe_athrow};
 use crate::verifier::instructions::special::instruction_is_type_safe_getstatic;
 use crate::verifier::instructions::loads::instruction_is_type_safe_iload;
+use crate::verifier::instructions::branches::instruction_is_type_safe_if_icmpeq;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
@@ -28,14 +29,14 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::aload_2 => instruction_is_type_safe_aload(2, env, offset, stack_frame),
         InstructionInfo::aload_3 => instruction_is_type_safe_aload(3, env, offset, stack_frame),
         InstructionInfo::anewarray(_) => { unimplemented!() }
-        InstructionInfo::areturn => instruction_is_type_safe_areturn(env,offset,stack_frame),
+        InstructionInfo::areturn => instruction_is_type_safe_areturn(env, offset, stack_frame),
         InstructionInfo::arraylength => { unimplemented!() }
         InstructionInfo::astore(_) => { unimplemented!() }
         InstructionInfo::astore_0 => { unimplemented!() }
         InstructionInfo::astore_1 => { unimplemented!() }
         InstructionInfo::astore_2 => { unimplemented!() }
         InstructionInfo::astore_3 => { unimplemented!() }
-        InstructionInfo::athrow => instruction_is_type_safe_athrow(env,offset,stack_frame),
+        InstructionInfo::athrow => instruction_is_type_safe_athrow(env, offset, stack_frame),
         InstructionInfo::baload => { unimplemented!() }
         InstructionInfo::bastore => { unimplemented!() }
         InstructionInfo::bipush(_) => { unimplemented!() }
@@ -68,7 +69,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dstore_2 => { unimplemented!() }
         InstructionInfo::dstore_3 => { unimplemented!() }
         InstructionInfo::dsub => { unimplemented!() }
-        InstructionInfo::dup => instruction_is_type_safe_dup(env,offset,stack_frame),
+        InstructionInfo::dup => instruction_is_type_safe_dup(env, offset, stack_frame),
         InstructionInfo::dup_x1 => { unimplemented!() }
         InstructionInfo::dup_x2 => { unimplemented!() }
         InstructionInfo::dup2 => { unimplemented!() }
@@ -101,8 +102,8 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fstore_2 => { unimplemented!() }
         InstructionInfo::fstore_3 => { unimplemented!() }
         InstructionInfo::fsub => { unimplemented!() }
-        InstructionInfo::getfield(cp) => instruction_is_type_safe_getfield(cp ,env,offset,stack_frame),
-        InstructionInfo::getstatic(cp) => instruction_is_type_safe_getstatic(cp,env,offset,stack_frame),
+        InstructionInfo::getfield(cp) => instruction_is_type_safe_getfield(cp, env, offset, stack_frame),
+        InstructionInfo::getstatic(cp) => instruction_is_type_safe_getstatic(cp, env, offset, stack_frame),
         InstructionInfo::goto_(target) => {
             let final_target = (target as isize) + (instruction.offset as isize);
             assert!(final_target >= 0);
@@ -133,12 +134,12 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             assert!(final_target >= 0);
             instruction_is_type_safe_if_acmpeq(final_target as usize, env, offset, stack_frame)//same as eq case
         }
-        InstructionInfo::if_icmpeq(_) => { unimplemented!() }
-        InstructionInfo::if_icmpne(_) => { unimplemented!() }
-        InstructionInfo::if_icmplt(_) => { unimplemented!() }
-        InstructionInfo::if_icmpge(_) => { unimplemented!() }
-        InstructionInfo::if_icmpgt(_) => { unimplemented!() }
-        InstructionInfo::if_icmple(_) => { unimplemented!() }
+        InstructionInfo::if_icmpeq(target) => if_icmp_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::if_icmpne(target) => if_icmp_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::if_icmplt(target) => if_icmp_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::if_icmpge(target) => if_icmp_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::if_icmpgt(target) => if_icmp_wrapper(instruction, env, offset, stack_frame, target),
+        InstructionInfo::if_icmple(target) => if_icmp_wrapper(instruction, env, offset, stack_frame, target),
         InstructionInfo::ifeq(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
         InstructionInfo::ifne(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
         InstructionInfo::iflt(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
@@ -148,15 +149,15 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::ifnonnull(_) => { unimplemented!() }
         InstructionInfo::ifnull(_) => { unimplemented!() }
         InstructionInfo::iinc(_) => { unimplemented!() }
-        InstructionInfo::iload(index) => instruction_is_type_safe_iload(index as usize, env,offset,stack_frame),
-        InstructionInfo::iload_0 => instruction_is_type_safe_iload(0, env,offset,stack_frame),
-        InstructionInfo::iload_1 => instruction_is_type_safe_iload(1, env,offset,stack_frame),
-        InstructionInfo::iload_2 => instruction_is_type_safe_iload(2, env,offset,stack_frame),
-        InstructionInfo::iload_3 => instruction_is_type_safe_iload(3, env,offset,stack_frame),
+        InstructionInfo::iload(index) => instruction_is_type_safe_iload(index as usize, env, offset, stack_frame),
+        InstructionInfo::iload_0 => instruction_is_type_safe_iload(0, env, offset, stack_frame),
+        InstructionInfo::iload_1 => instruction_is_type_safe_iload(1, env, offset, stack_frame),
+        InstructionInfo::iload_2 => instruction_is_type_safe_iload(2, env, offset, stack_frame),
+        InstructionInfo::iload_3 => instruction_is_type_safe_iload(3, env, offset, stack_frame),
         InstructionInfo::imul => { unimplemented!() }
         InstructionInfo::ineg => { unimplemented!() }
         InstructionInfo::instanceof(_) => { unimplemented!() }
-        InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(cp as usize,env,offset,stack_frame),
+        InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(cp as usize, env, offset, stack_frame),
         InstructionInfo::invokeinterface(_) => { unimplemented!() }
         InstructionInfo::invokespecial(cp) => instruction_is_type_safe_invokespecial(cp as usize, env, offset, stack_frame),
         InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(cp as usize, env, offset, stack_frame),
@@ -186,7 +187,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lcmp => instruction_is_type_safe_lcmp(env, offset, stack_frame),
         InstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env, offset, stack_frame),
         InstructionInfo::lconst_1 => { unimplemented!() }
-        InstructionInfo::ldc(i) => instruction_is_type_safe_ldc(i,env,offset,stack_frame),
+        InstructionInfo::ldc(i) => instruction_is_type_safe_ldc(i, env, offset, stack_frame),
         InstructionInfo::ldc_w(_) => { unimplemented!() }
         InstructionInfo::ldc2_w(_) => { unimplemented!() }
         InstructionInfo::ldiv => { unimplemented!() }
@@ -214,7 +215,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::monitorenter => { unimplemented!() }
         InstructionInfo::monitorexit => { unimplemented!() }
         InstructionInfo::multianewarray(_) => { unimplemented!() }
-        InstructionInfo::new(cp) => instruction_is_type_safe_new(cp as usize, env, offset,stack_frame),
+        InstructionInfo::new(cp) => instruction_is_type_safe_new(cp as usize, env, offset, stack_frame),
         InstructionInfo::newarray(_) => { unimplemented!() }
         InstructionInfo::nop => { unimplemented!() }
         InstructionInfo::pop => { unimplemented!() }
@@ -231,6 +232,12 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::wide(_) => { unimplemented!() }
         _ => unimplemented!()
     }
+}
+
+fn if_icmp_wrapper(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let final_target = (target as isize) + (instruction.offset as isize);
+    assert!(final_target >= 0);
+    instruction_is_type_safe_if_icmpeq(final_target as usize, env, offset, stack_frame)
 }
 
 fn ifeq_wrapper(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {

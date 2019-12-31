@@ -68,11 +68,14 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, _offset: usize, stack
 }
 
 
-//#[allow(unused)]
-//fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
+
+pub fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+    let next_frame = can_pop(stack_frame,vec![UnifiedType::IntType,UnifiedType::IntType])?;
+    target_is_type_safe(env, &next_frame, target)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(stack_frame,vec![UnifiedType::IntType])?;
     target_is_type_safe(env, &next_frame, target)?;
@@ -81,7 +84,7 @@ pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, _offset: 
 }
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
 //    unimplemented!()
 //}
 //
@@ -115,7 +118,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
 }
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
 //    unimplemented!()
 //}
 //
@@ -336,15 +339,15 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, Metho
 }
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_lreturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//pub fn instruction_is_type_safe_lreturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
 //    unimplemented!()
 //}
 //#[allow(unused)]
-//fn instruction_is_type_safe_dreturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//pub fn instruction_is_type_safe_dreturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
 //    unimplemented!()
 //}
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_freturn(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//pub fn instruction_is_type_safe_freturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
 //    unimplemented!()
 //}
