@@ -1,4 +1,4 @@
-use crate::verifier::codecorrectness::{Environment, valid_type_transition};
+use crate::verifier::codecorrectness::{Environment, valid_type_transition, translate_types_to_vm_types};
 use crate::verifier::Frame;
 use crate::verifier::instructions::InstructionIsTypeSafeResult;
 use crate::verifier::TypeSafetyError;
@@ -29,10 +29,10 @@ use rust_jvm_common::classfile::CPIndex;
 
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError>  {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
-    let field_type = &field_descriptor.field_type;
+    let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
     passes_protected_check(env,get_referred_name(&field_class_name),field_name,Descriptor::Field(&field_descriptor),stack_frame)?;
     let current_loader = env.class_loader.clone();
-    let next_frame = valid_type_transition(env,vec![UnifiedType::Class(ClassWithLoader { class_name:field_class_name, loader:current_loader})],field_type,stack_frame)?;
+    let next_frame = valid_type_transition(env,vec![UnifiedType::Class(ClassWithLoader { class_name:field_class_name, loader:current_loader})],&field_type,stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
 }
@@ -82,7 +82,7 @@ pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, offset:
 fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     //todo duplication
     let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
-    let field_type = field_descriptor.field_type;
+    let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
     if env.method.prolog_class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
     }
@@ -97,7 +97,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
 
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
-    let field_type = field_descriptor.field_type.clone();
+    let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
     let _popped_frame = can_pop(stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, get_referred_name(&field_class_name), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();

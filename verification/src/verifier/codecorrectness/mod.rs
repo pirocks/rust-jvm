@@ -335,7 +335,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
     return res;
 }
 
-fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType {
+pub fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType {
     match type_ {
         UnifiedType::ByteType => UnifiedType::IntType,
         UnifiedType::CharType => UnifiedType::IntType,

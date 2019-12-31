@@ -104,6 +104,6 @@ fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
         UnifiedType::DoubleType => UnifiedType::DoubleType,
         UnifiedType::NullType => UnifiedType::NullType,
         UnifiedType::UninitializedThis => UnifiedType::UninitializedThis,
-        _ => { panic!("Case wasn't covered with non-unified types") }
+        _ => { dbg!(to_copy);panic!("Case wasn't covered with non-unified types") }
     }
 }
