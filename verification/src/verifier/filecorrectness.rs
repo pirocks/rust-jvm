@@ -183,7 +183,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
         UnifiedType::OneWord => match to {
             UnifiedType::OneWord => Result::Ok(()),
             UnifiedType::TopType => Result::Ok(()),
-            _ => Result::Err(unknown_error_verifying!())
+            _ => {dbg!(to);Result::Err(unknown_error_verifying!())}
         },
         UnifiedType::TwoWord => match to {
             UnifiedType::TwoWord => Result::Ok(()),
