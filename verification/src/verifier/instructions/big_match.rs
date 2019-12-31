@@ -13,7 +13,7 @@ use crate::verifier::instructions::consts::instruction_is_type_safe_lconst_0;
 use crate::verifier::instructions::branches::instruction_is_type_safe_return;
 use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
-use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield, instruction_is_type_safe_new};
+use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield, instruction_is_type_safe_new, instruction_is_type_safe_athrow};
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
@@ -33,7 +33,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::astore_1 => { unimplemented!() }
         InstructionInfo::astore_2 => { unimplemented!() }
         InstructionInfo::astore_3 => { unimplemented!() }
-        InstructionInfo::athrow => { unimplemented!() }
+        InstructionInfo::athrow => instruction_is_type_safe_athrow(env,offset,stack_frame),
         InstructionInfo::baload => { unimplemented!() }
         InstructionInfo::bastore => { unimplemented!() }
         InstructionInfo::bipush(_) => { unimplemented!() }

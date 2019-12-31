@@ -1,6 +1,6 @@
 use crate::verifier::codecorrectness::{Environment, valid_type_transition, translate_types_to_vm_types};
 use crate::verifier::Frame;
-use crate::verifier::instructions::InstructionTypeSafe;
+use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames};
 use crate::verifier::TypeSafetyError;
 use crate::verifier::get_class;
 use rust_jvm_common::classfile::{ConstantKind, UninitializedVariableInfo};
@@ -20,7 +20,7 @@ use rust_jvm_common::classnames::get_referred_name;
 use crate::types::Descriptor;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::substitute;
-
+use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 //#[allow(unused)]
 //fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -61,11 +61,13 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset
 //fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
-//
-//#[allow(unused)]
-//fn instruction_is_type_safe_athrow(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+
+pub fn instruction_is_type_safe_athrow(_env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let to_pop = ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: BOOTSTRAP_LOADER.clone() };
+    can_pop(stack_frame,vec![UnifiedType::Class(to_pop)])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
