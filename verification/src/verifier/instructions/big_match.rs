@@ -15,6 +15,7 @@ use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
 use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield, instruction_is_type_safe_new, instruction_is_type_safe_athrow};
 use crate::verifier::instructions::special::instruction_is_type_safe_getstatic;
+use crate::verifier::instructions::loads::instruction_is_type_safe_iload;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
@@ -147,11 +148,11 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::ifnonnull(_) => { unimplemented!() }
         InstructionInfo::ifnull(_) => { unimplemented!() }
         InstructionInfo::iinc(_) => { unimplemented!() }
-        InstructionInfo::iload(_) => { unimplemented!() }
-        InstructionInfo::iload_0 => { unimplemented!() }
-        InstructionInfo::iload_1 => { unimplemented!() }
-        InstructionInfo::iload_2 => { unimplemented!() }
-        InstructionInfo::iload_3 => { unimplemented!() }
+        InstructionInfo::iload(index) => instruction_is_type_safe_iload(index as usize, env,offset,stack_frame),
+        InstructionInfo::iload_0 => instruction_is_type_safe_iload(0, env,offset,stack_frame),
+        InstructionInfo::iload_1 => instruction_is_type_safe_iload(1, env,offset,stack_frame),
+        InstructionInfo::iload_2 => instruction_is_type_safe_iload(2, env,offset,stack_frame),
+        InstructionInfo::iload_3 => instruction_is_type_safe_iload(3, env,offset,stack_frame),
         InstructionInfo::imul => { unimplemented!() }
         InstructionInfo::ineg => { unimplemented!() }
         InstructionInfo::instanceof(_) => { unimplemented!() }
