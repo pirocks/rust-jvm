@@ -51,8 +51,8 @@ pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> 
     if pop.is_empty() {
         Result::Ok(pop_from.iter().map(|x| x.clone()).collect())//todo inefficent copying
     } else {
-        let (pop_result, _) = pop_matching_type(pop_from, pop.first().unwrap())?;
-        return pop_matching_list_impl(&pop_result, &pop[1..]);
+        let (pop_result, _) = pop_matching_type(pop_from, pop.last().unwrap())?;
+        return pop_matching_list_impl(&pop_result, &pop[..pop.len()-1]);
     }
 }
 
@@ -62,13 +62,13 @@ pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedTy
         is_assignable(actual_type, type_)?;
         return Result::Ok((&operand_stack[..operand_stack.len()-1], actual_type.clone()));
     } else if size_of(type_) == 2 {
-        assert!(match &operand_stack.last().unwrap() {
+        assert!(match &operand_stack[operand_stack.len() - 2] {
             UnifiedType::TopType => true,
             _ => false
         });
-        let actual_type = &operand_stack[operand_stack.len() - 2];
+        let actual_type = &operand_stack[operand_stack.len() - 1];
         is_assignable(actual_type, type_)?;
-        return Result::Ok((&operand_stack[2..], actual_type.clone()));
+        return Result::Ok((&operand_stack[..operand_stack.len()-2], actual_type.clone()));
     } else {
         panic!()
     }

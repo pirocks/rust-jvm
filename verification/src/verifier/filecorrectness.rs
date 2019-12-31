@@ -188,7 +188,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
         UnifiedType::TwoWord => match to {
             UnifiedType::TwoWord => Result::Ok(()),
             UnifiedType::TopType => Result::Ok(()),
-            _ => Result::Err(unknown_error_verifying!())
+            _ => {dbg!(to);Result::Err(unknown_error_verifying!())}
         },
         _ => panic!("This is a bug"),//todo , should have a better message function
     }
