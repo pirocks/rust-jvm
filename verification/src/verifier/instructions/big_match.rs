@@ -3,7 +3,7 @@ use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instr
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::instructions::InstructionIsTypeSafeResult;
+use crate::verifier::instructions::{InstructionIsTypeSafeResult, instruction_is_type_safe_ldc};
 use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial};
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
@@ -13,7 +13,7 @@ use crate::verifier::instructions::consts::instruction_is_type_safe_lconst_0;
 use crate::verifier::instructions::branches::instruction_is_type_safe_return;
 use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
-use crate::verifier::instructions::special::instruction_is_type_safe_putfield;
+use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield};
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
     match instruction.instruction {
@@ -99,7 +99,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fstore_2 => { unimplemented!() }
         InstructionInfo::fstore_3 => { unimplemented!() }
         InstructionInfo::fsub => { unimplemented!() }
-        InstructionInfo::getfield(_) => { unimplemented!() }
+        InstructionInfo::getfield(cp) => instruction_is_type_safe_getfield(cp ,env,offset,stack_frame),
         InstructionInfo::getstatic(_) => { unimplemented!() }
         InstructionInfo::goto_(target) => {
             let final_target = (target as isize) + (instruction.offset as isize);
@@ -184,7 +184,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lcmp => instruction_is_type_safe_lcmp(env, offset, stack_frame),
         InstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env, offset, stack_frame),
         InstructionInfo::lconst_1 => { unimplemented!() }
-        InstructionInfo::ldc(_) => { unimplemented!() }
+        InstructionInfo::ldc(i) => instruction_is_type_safe_ldc(i,env,offset,stack_frame),
         InstructionInfo::ldc_w(_) => { unimplemented!() }
         InstructionInfo::ldc2_w(_) => { unimplemented!() }
         InstructionInfo::ldiv => { unimplemented!() }

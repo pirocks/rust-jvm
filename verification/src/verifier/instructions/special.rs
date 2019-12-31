@@ -1,4 +1,4 @@
-use crate::verifier::codecorrectness::Environment;
+use crate::verifier::codecorrectness::{Environment, valid_type_transition};
 use crate::verifier::Frame;
 use crate::verifier::instructions::InstructionIsTypeSafeResult;
 use crate::verifier::TypeSafetyError;
@@ -27,10 +27,15 @@ use rust_jvm_common::classfile::CPIndex;
 //}
 //
 
-//#[allow(unused)]
-//fn instruction_is_type_safe_getfield(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError>  {
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
+    let field_type = &field_descriptor.field_type;
+    passes_protected_check(env,get_referred_name(&field_class_name),field_name,Descriptor::Field(&field_descriptor),stack_frame)?;
+    let current_loader = env.class_loader.clone();
+    let next_frame = valid_type_transition(env,vec![UnifiedType::Class(ClassWithLoader { class_name:field_class_name, loader:current_loader})],field_type,stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
+}
 //
 //#[allow(unused)]
 //fn instruction_is_type_safe_getstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {

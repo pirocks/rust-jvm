@@ -283,8 +283,8 @@ pub fn final_method_not_overridden(method: &ClassWithLoaderMethod, super_class: 
     let matching_method = super_method_list.iter().find(|x|{
         let x_method_class = get_class(x.prolog_class);
         let x_method_info = &x_method_class.methods[x.method_index];
-        let x_method_name = method_name(&method_class, x_method_info);
-        let x_descriptor_string = extract_string_from_utf8(&method_class.constant_pool[method_info.descriptor_index as usize]);
+        let x_method_name = method_name(&x_method_class, x_method_info);
+        let x_descriptor_string = extract_string_from_utf8(&x_method_class.constant_pool[x_method_info.descriptor_index as usize]);
         x_descriptor_string == descriptor_string  && x_method_name == method_name_
     });
     match matching_method {

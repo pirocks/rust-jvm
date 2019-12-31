@@ -97,6 +97,13 @@ pub fn class_is_type_safe(class: &ClassWithLoader) -> Result<(), TypeSafetyError
         let res = method_is_type_safe(class, m);
         trace!("method was:");
         dbg!(&res);
+        //return early:
+        match res {
+            Ok(_) => {},
+            Err(e) => {
+                return  Result::Err(e);//return early on error for debugging purposes
+            },
+        }
         res
     }).collect();
     method_type_safety?;

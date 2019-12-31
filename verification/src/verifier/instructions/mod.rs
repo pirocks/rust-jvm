@@ -1,5 +1,5 @@
 use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition,  handler_exception_class, Handler};
-use rust_jvm_common::classfile::{InstructionInfo};
+use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
 use crate::verifier::{Frame, get_class};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
@@ -284,12 +284,41 @@ fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame:
     Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-//
-//#[allow(unused)]
-//fn instruction_is_type_safe_ldc(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
+pub fn loadable_constant(c: &ConstantKind) -> UnifiedType{
+    match c {
+        ConstantKind::Integer(_) => UnifiedType::IntType,
+        ConstantKind::Float(_) => UnifiedType::FloatType,
+        ConstantKind::Long(_) => UnifiedType::LongType,
+        ConstantKind::Double(_) => UnifiedType::DoubleType,
+        ConstantKind::Class(_c) => {
+            let class_name = ClassName::Str("java/lang/Class".to_string());
+            UnifiedType::Class(ClassWithLoader { class_name, loader: BOOTSTRAP_LOADER.clone() })
+        },
+        ConstantKind::String(_) => {
+            let class_name = ClassName::Str("java/lang/String".to_string());
+            UnifiedType::Class(ClassWithLoader { class_name, loader: BOOTSTRAP_LOADER.clone() })
+        },
+        ConstantKind::MethodHandle(_) => unimplemented!(),
+        ConstantKind::MethodType(_) => unimplemented!(),
+        ConstantKind::Dynamic(_) => unimplemented!(),
+        ConstantKind::InvokeDynamic(_) => unimplemented!(),
+        _ => panic!()
+    }
+}
+
+pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionIsTypeSafeResult, TypeSafetyError> {
+    let _const = &get_class(env.method.prolog_class).constant_pool[cp as usize].kind;
+    let type_: UnifiedType = loadable_constant(_const);
+    match type_ {
+        UnifiedType::DoubleType => {return Result::Err(unknown_error_verifying!())},
+        UnifiedType::LongType => {return Result::Err(unknown_error_verifying!())},
+        _ => {}
+    };
+    let next_frame = valid_type_transition(env,vec![],&type_,stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionIsTypeSafeResult::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 //#[allow(unused)]
 //fn instruction_is_type_safe_ldc2_w(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
 //    unimplemented!()
