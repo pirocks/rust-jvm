@@ -40,6 +40,7 @@ fn different_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) ->
     return packages1 != packages2;
 }
 
+//todo retries on this should be supressed.
 pub fn loaded_class(class: &ClassWithLoader, loader: Arc<Loader>) -> Result<ClassWithLoader, TypeSafetyError> {
     let class_entry = class_entry_from_string(&get_referred_name(&class.class_name), false);
     match loader.loading.read().unwrap().get(&class_entry) {
@@ -194,7 +195,7 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
         UnifiedType::OneWord => match to {
             UnifiedType::OneWord => Result::Ok(()),
             UnifiedType::TopType => Result::Ok(()),
-            _ => {dbg!(to);Result::Err(unknown_error_verifying!())}
+            _ => {/*dbg!(to);*/Result::Err(unknown_error_verifying!())}
         },
         UnifiedType::TwoWord => match to {
             UnifiedType::TwoWord => Result::Ok(()),

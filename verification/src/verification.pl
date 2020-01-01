@@ -136,7 +136,7 @@ superclassChain('java/lang/Object', L, []) :-
 
 %info that needs to be fed to prolog
 instruction(Offset, AnInstruction).
-instruction(21, aload(1)).
+#instruction(21, aload(1)).
 stackMap(Offset, TypeState).
 
 %prolg defs

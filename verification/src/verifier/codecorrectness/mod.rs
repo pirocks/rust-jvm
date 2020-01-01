@@ -24,9 +24,9 @@ pub mod stackmapframes;
 
 
 pub fn valid_type_transition(environment: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
-    dbg!(&expected_types_on_stack);
-    dbg!(&result_type);
-    dbg!(&input_frame);
+//    dbg!(&expected_types_on_stack);
+//    dbg!(&result_type);
+//    dbg!(&input_frame);
     let input_operand_stack = &input_frame.stack_map;
     let interim_operand_stack = pop_matching_list(input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&interim_operand_stack, &result_type);
@@ -177,6 +177,8 @@ pub fn frame_is_assignable(left: &Frame, right: &Frame) -> Result<(), TypeSafety
         } {
         Result::Ok(())
     } else {
+        dbg!(left);
+        dbg!(right);
         Result::Err(unknown_error_verifying!())
     }
 }

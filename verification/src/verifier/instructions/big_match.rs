@@ -25,6 +25,8 @@ use crate::verifier::instructions::consts::instruction_is_type_safe_aconst_null;
 use crate::verifier::instructions::stores::instruction_is_type_safe_lstore;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    dbg!(&stack_frame.stack_map);
+    dbg!(instruction);
     match instruction.instruction {
         InstructionInfo::aaload => { unimplemented!() }
         InstructionInfo::aastore => { unimplemented!() }
