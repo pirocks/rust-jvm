@@ -91,7 +91,7 @@ pub fn parse_methods(p: &mut ParsingContext, methods_count: u16) -> Vec<MethodIn
     return res;
 }
 
-pub fn parse_class_file(f: File,loader: Arc<Loader>) -> Arc<Classfile> {
+pub fn parse_class_file(f: File,loader: Arc<dyn Loader + Send + Sync>) -> Arc<Classfile> {
     let mut p = ParsingContext { constant_pool:&vec![] ,f,loader};
     let magic: u32 = read32(&mut p);
     assert_eq!(magic, EXPECTED_CLASSFILE_MAGIC);

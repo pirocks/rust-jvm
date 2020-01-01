@@ -2,14 +2,14 @@ use std::sync::Arc;
 use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use rust_jvm_common::loading::{Loader, class_entry_from_string};
-use rust_jvm_common::classnames::{class_name, get_referred_name, class_name_legacy};
+use rust_jvm_common::classnames::{get_referred_name, class_name_legacy};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
 use rust_jvm_common::classfile::ConstantKind;
-use rust_jvm_common::loading::BOOTSTRAP_LOADER_NAME;
+use rust_jvm_common::loading::LoaderName;
 
 #[allow(unused)]
 fn same_runtime_package(class1: ClassWithLoader, class2: &ClassWithLoader) -> bool {
@@ -41,35 +41,36 @@ fn different_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) ->
 }
 
 //todo retries on this should be supressed.
-pub fn loaded_class(class: &ClassWithLoader, loader: Arc<Loader>) -> Result<ClassWithLoader, TypeSafetyError> {
-    let class_entry = class_entry_from_string(&get_referred_name(&class.class_name), false);
-    match loader.loading.read().unwrap().get(&class_entry) {
-        None => match loader.loaded.read().unwrap().get(&class_entry) {
-            None => {
+pub fn loaded_class(class: &ClassWithLoader, _loader: Arc<dyn Loader + Send + Sync>) -> Result<ClassWithLoader, TypeSafetyError> {
+    let _class_entry = class_entry_from_string(&get_referred_name(&class.class_name), false);
+//    match loader.loading.read().unwrap().get(&class_entry) {
+//        None => match loader.loaded.read().unwrap().get(&class_entry) {
+//            None => {
 //                dbg!(class);
-                dbg!(class_entry);
+//                dbg!(class_entry);
 //                dbg!(loader.loading.read().unwrap().keys());
 //                dbg!(loader.loaded.read().unwrap().keys());
-                Result::Err(TypeSafetyError::NeedToLoad(vec![class.class_name.clone()]))
-            }
-            Some(c) => {
-                Result::Ok(ClassWithLoader {
-                    loader: loader.clone(),
-                    class_name: class_name(c),
-                })
-            }
-        },
-        Some(c) => {
-            Result::Ok(ClassWithLoader {
-                loader: loader.clone(),
-                class_name: class_name(c),
-            })
-        }
-    }
+//                Result::Err(TypeSafetyError::NeedToLoad(vec![class.class_name.clone()]))
+//            }
+//            Some(c) => {
+//                Result::Ok(ClassWithLoader {
+//                    loader: loader.clone(),
+//                    class_name: class_name(c),
+//                })
+//            }
+//        },
+//        Some(c) => {
+//            Result::Ok(ClassWithLoader {
+//                loader: loader.clone(),
+//                class_name: class_name(c),
+//            })
+//        }
+//    }
+    unimplemented!()
 }
 
-pub fn is_bootstrap_loader(loader: &Arc<Loader>) -> bool {
-    return std::sync::Arc::ptr_eq(loader, &BOOTSTRAP_LOADER);
+pub fn is_bootstrap_loader(loader: &Arc<dyn Loader + Send + Sync>) -> bool {
+    return std::sync::Arc::ptr_eq(loader, &BOOTSTRAP_LOADER.clone());
 }
 
 pub fn get_class_methods(class: &ClassWithLoader) -> Vec<ClassWithLoaderMethod> {
@@ -85,7 +86,7 @@ pub fn class_is_final(class: &ClassWithLoader) -> bool {
 }
 
 
-pub fn loaded_class_(class_name: String, loader: Arc<Loader>) -> Result<ClassWithLoader, TypeSafetyError> {
+pub fn loaded_class_(class_name: String, loader: Arc<dyn Loader + Send + Sync>) -> Result<ClassWithLoader, TypeSafetyError> {
     loaded_class(&ClassWithLoader { class_name: ClassName::Str(class_name), loader: loader.clone() }, loader.clone())
 }
 
@@ -161,7 +162,8 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
             UnifiedType::Class(c) => {
                 if !is_assignable(&UnifiedType::Reference, to).is_ok(){
                     //todo okay to use name like that?
-                    if c.class_name == ClassName::Str("java/lang/Object".to_string()) && c.loader.name == BOOTSTRAP_LOADER_NAME{
+                    if c.class_name == ClassName::Str("java/lang/Object".to_string()) &&
+                        c.loader.name() == LoaderName::BootstrapLoader{
                         return Result::Ok(())
                     }
                 }
@@ -236,7 +238,7 @@ pub fn class_super_class_name(class: &ClassWithLoader) -> String {
     extract_string_from_utf8(utf8)
 }
 
-pub fn super_class_chain(chain_start: &ClassWithLoader, loader: Arc<Loader>, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
+pub fn super_class_chain(chain_start: &ClassWithLoader, loader: Arc<dyn Loader + Send + Sync>, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
     if get_referred_name(&chain_start.class_name) == "java/lang/Object" {
         //todo magic constant
         if /*res.is_empty() &&*/ is_bootstrap_loader(&loader) {

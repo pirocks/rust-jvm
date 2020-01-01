@@ -6,7 +6,6 @@ use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
 use crate::types::MethodDescriptor;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::loading::class_entry_from_string;
 use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use rust_jvm_common::utils::get_super_class_name;
 use crate::types::Descriptor;
@@ -31,22 +30,31 @@ pub struct InternalFrame {
 }
 
 pub fn get_class(class: &ClassWithLoader) -> Arc<Classfile> {
+    //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
+
     let referred_name = get_referred_name(&class.class_name);
-    let class_entry = class_entry_from_string(&referred_name, false);
-    match class.loader.loaded.read().unwrap().get(&class_entry) {
-        None => {
-            let map = class.loader.loading.read().unwrap();
-            let option = map.get(&class_entry);
-            match option {
-                None => {
-                    dbg!(map.keys());
-                    panic!()
-                }
-                Some(c) => c.clone(),
-            }
+    if class.loader.initiating_loader_of(&class.class_name){
+        match class.loader.load_class(&class.class_name){
+            Ok(c) => c,
+            Err(_) => panic!(),
         }
-        Some(c) => c.clone(),
+    }else {
+        panic!()
     }
+//    match class.loader.loaded.read().unwrap().get(&class_entry) {
+//        None => {
+//            let map = class.loader.loading.read().unwrap();
+//            let option = map.get(&class_entry);
+//            match option {
+//                None => {
+//                    dbg!(map.keys());
+//                    panic!()
+//                }
+//                Some(c) => c.clone(),
+//            }
+//        }
+//        Some(c) => c.clone(),
+//    }
 }
 
 #[derive(Debug)]

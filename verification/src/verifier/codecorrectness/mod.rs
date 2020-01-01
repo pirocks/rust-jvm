@@ -314,7 +314,7 @@ pub struct Environment<'l> {
     pub frame_size: u16,
     pub max_stack: u16,
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
-    pub class_loader: Arc<Loader>,
+    pub class_loader: Arc<dyn Loader + Send + Sync>,
     pub handlers: Vec<Handler>,
 }
 

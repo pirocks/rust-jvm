@@ -3,8 +3,6 @@ use crate::classfile::UninitializedVariableInfo;
 use crate::loading::Loader;
 use std::sync::Arc;
 use crate::classnames::get_referred_name;
-use crate::loading::class_entry_from_string;
-use crate::classfile::Classfile;
 use crate::classnames::NameReference;
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -19,7 +17,7 @@ pub struct ArrayType {
 //#[derive(Debug)]
 pub struct ClassWithLoader {
     pub class_name: ClassName,
-    pub loader: Arc<Loader>,
+    pub loader: Arc<dyn Loader + Sync + Send>,
 }
 
 impl PartialEq for ClassWithLoader {
@@ -34,20 +32,8 @@ impl Eq for ClassWithLoader {}
 
 impl Debug for ClassWithLoader {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f,"<{},{}>",get_referred_name(&self.class_name),self.loader.name)
+        write!(f,"<{},{}>",get_referred_name(&self.class_name),self.loader.name())
     }
-}
-
-//todo why are there two of these
-pub fn class_type_to_class(class_type: &ClassWithLoader) -> Arc<Classfile> {
-    let class_entry = class_entry_from_string(&get_referred_name(&class_type.class_name), false);
-    class_type.loader.loading.read().map(|x| {
-        let option = x.get(&class_entry).map(|x|{x.clone()});
-        option.or_else(|| {
-            let arc = class_type.loader.loaded.read().map(|x| x.get(&class_entry).unwrap().clone()).unwrap();
-            Some(arc)
-        })
-    }).unwrap().unwrap().clone()
 }
 
 #[derive(Debug)]

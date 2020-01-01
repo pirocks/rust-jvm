@@ -7,7 +7,7 @@ use std::sync::Arc;
 pub struct ParsingContext<'l> {
     pub f: File,
     pub constant_pool : &'l Vec<ConstantInfo>,
-    pub loader: Arc<Loader>
+    pub loader: Arc<dyn Loader + Send + Sync>
 }
 
 const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";

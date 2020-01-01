@@ -2,11 +2,9 @@ extern crate tempfile;
 extern crate log;
 extern crate simple_logger;
 
-use std::collections::HashMap;
-use log::trace;
 use std::sync::Arc;
 use crate::verifier::class_is_type_safe;
-use rust_jvm_common::loading::{ClassEntry, Loader, JVMState};
+use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use crate::verifier::InternalFrame;
@@ -23,24 +21,18 @@ pub mod verifier;
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
 */
-pub fn verify(to_verify: &HashMap<ClassEntry, Arc<Classfile>>, jvm_state: &mut JVMState, loader: Arc<Loader>) -> Result<(), TypeSafetyError> {
-    if jvm_state.using_prolog_verifier {
-//        prolog_verify(jvm_state, to_verify);
-        unimplemented!()
-    } else {
-        to_verify.iter().for_each(|(x, c)| {
-            trace!("Attempting to verify: {} ", x);
-            loader.loading.write().unwrap().insert(x.clone(), c.clone());
-        });
-        let verification_results: Result<Vec<_>, _> = to_verify.iter().map(|(_entry, loaded)| {
-            let current_class = ClassWithLoader {
-                class_name: class_name(loaded),
-                loader: loader.clone(),
-            };
-            class_is_type_safe(&current_class)
-        }).collect();
-        verification_results?;
-        Result::Ok(())
+pub fn verify(to_verify: Arc<Classfile>,loader: Arc<dyn Loader + Send + Sync>) -> Result<(), TypeSafetyError> {
+    match class_is_type_safe(&ClassWithLoader {
+        class_name: class_name(&to_verify),
+        loader,
+    }) {
+        Ok(_) => Result::Ok(()),
+        Err(err) => {
+            match err {
+                TypeSafetyError::NotSafe(_) => unimplemented!(),
+                TypeSafetyError::NeedToLoad(_) => unimplemented!(),
+            }
+        }
     }
 }
 

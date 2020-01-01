@@ -11,11 +11,8 @@ use log::{trace, info};
 
 use argparse::{ArgumentParser, Store, StoreTrue};
 use std::path::Path;
-use std::collections::HashMap;
-use std::iter::FromIterator;
-use rust_jvm_common::loading::{class_entry_from_string, BOOTSTRAP_LOADER_NAME,BOOTSTRAP_LOADER, JVMState};
+use rust_jvm_common::loading::class_entry_from_string;
 use classpath_indexing::index_class_path;
-use class_loading::load_class;
 
 
 extern crate classfile_parser;
@@ -67,21 +64,21 @@ fn main() {
 //        println!("main_class_name is {}", main_class_path);
     }
 
-    let indexed_classpath = index_class_path(Path::new(&class_path_file));
+    let _indexed_classpath = index_class_path(Path::new(&class_path_file));
     trace!("{}","Indexing complete");
-    let mut initial_jvm_state = JVMState {
-        using_bootstrap_loader:true,
-        loaders: HashMap::from_iter(vec![(BOOTSTRAP_LOADER_NAME.to_string(), BOOTSTRAP_LOADER.clone())]),
-        indexed_classpath,
-        using_prolog_verifier: false
-    };
+//    let initial_jvm_state = JVMState {
+//        using_bootstrap_loader:true,
+//        loaders: HashMap::from_iter(vec![(BOOTSTRAP_LOADER_NAME.to_string(), BOOTSTRAP_LOADER.clone())]),
+//        indexed_classpath,
+//        using_prolog_verifier: false
+//    };
 
 
 
 //    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name,true),true);
     let main_class_entry = class_entry_from_string(&main_class_name.to_string(), true);
-
-    load_class(&mut initial_jvm_state, BOOTSTRAP_LOADER.clone(), main_class_entry, true);
+    unimplemented!("{}",main_class_entry)
+//    load_class(&mut initial_jvm_state, BOOTSTRAP_LOADER.clone(), main_class_entry, true);
 
 }
 

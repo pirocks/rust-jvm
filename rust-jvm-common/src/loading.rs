@@ -4,6 +4,10 @@ use std::collections::HashMap;
 use crate::classfile::Classfile;
 use std::path::{MAIN_SEPARATOR, Path};
 use crate::classnames::class_name_legacy;
+use crate::classnames::ClassName;
+use std::fs::File;
+use std::fmt::Display;
+use std::fmt::Debug;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -31,15 +35,78 @@ impl std::fmt::Display for ClassEntry {
     }
 }
 
+pub enum ClassLoadingError {
+    ClassNotFoundException,
 
-#[derive(Debug)]
-pub struct Loader {
-    //todo look at what spec has to say about this in more detail
-    pub loaded: RwLock<HashMap<ClassEntry, Arc<Classfile>>>,
-    pub loading: RwLock<HashMap<ClassEntry, Arc<Classfile>>>,
-    pub name: String,
 }
 
+
+#[derive(Debug)]
+pub struct BootstrapLoader {
+    pub loaded: RwLock<HashMap<ClassName, Arc<Classfile>>>,
+    pub parsed: RwLock<HashMap<ClassName, Arc<Classfile>>>,
+    pub name: RwLock<LoaderName>,
+}
+
+#[derive(Debug)]
+pub enum LoaderName {
+    Str(String),
+    BootstrapLoader,
+}
+
+impl PartialEq for LoaderName {
+    fn eq(&self, other: &LoaderName) -> bool {
+        match self {
+            LoaderName::Str(s1) => match other {
+                LoaderName::Str(s2) => s1 == s2,
+                LoaderName::BootstrapLoader => false
+            },
+            LoaderName::BootstrapLoader => match other {
+                LoaderName::Str(_) => false,
+                LoaderName::BootstrapLoader => true
+            },
+        }
+    }
+}
+
+impl Display for LoaderName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            LoaderName::Str(_) => unimplemented!(),
+            LoaderName::BootstrapLoader => {
+                write!(f, "<bl>")
+            }
+        }
+    }
+}
+
+pub trait Loader {
+    fn initiating_loader_of(&self, class: &ClassName) -> bool;
+    //todo File will have to be a much more general array of bytes
+    fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError>;
+    fn load_class(&self, class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError>;
+    fn name(&self) -> LoaderName;
+}
+
+//todo Loading Constraints
+
+impl Loader for BootstrapLoader {
+    fn initiating_loader_of(&self, class: &ClassName) -> bool {
+        self.loaded.read().unwrap().contains_key(class)
+    }
+
+    fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError> {
+        unimplemented!()
+    }
+
+    fn load_class(&self, class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+        unimplemented!()
+    }
+
+    fn name(&self) -> LoaderName {
+        LoaderName::BootstrapLoader
+    }
+}
 
 pub fn class_entry(classfile: &Classfile) -> ClassEntry {
     let name = class_name_legacy(classfile);
@@ -59,20 +126,22 @@ pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
 }
 
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct JVMState {
     pub using_bootstrap_loader: bool,
-    pub loaders: HashMap<String, Arc<Loader>>,
+    pub loaders: HashMap<String, Arc<dyn Loader + Send + Sync>>,
     pub indexed_classpath: HashMap<ClassEntry, Box<Path>>,
     pub using_prolog_verifier: bool,
 }
+
 pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
+
 lazy_static! {
-    pub static ref BOOTSTRAP_LOADER: Arc<Loader> = Arc::new(Loader {
-        loaded: RwLock::new(HashMap::new()),
-        loading: RwLock::new(HashMap::new()),
-        name: BOOTSTRAP_LOADER_NAME.to_string()
-    });
+    pub static ref BOOTSTRAP_LOADER: Arc<dyn Loader + Send + Sync> = Arc::new(BootstrapLoader {
+            loaded: RwLock::new(HashMap::new()),
+            parsed: RwLock::new(HashMap::new()),
+            name: RwLock::new(LoaderName::BootstrapLoader),
+        });
 
 }

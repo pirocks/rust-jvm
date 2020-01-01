@@ -3,11 +3,22 @@ use crate::classfile::{Classfile, ConstantKind};
 use crate::utils::extract_string_from_utf8;
 use std::fmt::Formatter;
 use std::fmt;
+use std::hash::Hash;
+use std::hash::Hasher;
+use crate::classfile;
 
 #[derive(Debug)]
 pub struct NameReference{
     pub class_file: Weak<Classfile>,
     pub index : u16,
+}
+
+impl Hash for NameReference{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u16(self.index);
+        let pointer = std::sync::Arc::<classfile::Classfile>::into_raw(self.class_file.upgrade().unwrap());
+        state.write_usize(pointer as usize )
+    }
 }
 
 impl Eq for NameReference {}
@@ -28,6 +39,7 @@ impl PartialEq for NameReference{
 
 //#[derive(Debug)]
 #[derive(Eq)]
+#[derive(Hash)]
 pub enum ClassName {
     Ref(NameReference),
     Str(String)
