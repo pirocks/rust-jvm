@@ -22,6 +22,7 @@ use crate::verifier::instructions::instruction_is_type_safe_pop;
 use crate::verifier::instructions::instruction_is_type_safe_ladd;
 use crate::verifier::instructions::branches::instruction_is_type_safe_ifnonnull;
 use crate::verifier::instructions::consts::instruction_is_type_safe_aconst_null;
+use crate::verifier::instructions::stores::instruction_is_type_safe_lstore;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
@@ -213,11 +214,12 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lreturn => { unimplemented!() }
         InstructionInfo::lshl => { unimplemented!() }
         InstructionInfo::lshr => { unimplemented!() }
-        InstructionInfo::lstore(_) => { unimplemented!() }
-        InstructionInfo::lstore_0 => { unimplemented!() }
-        InstructionInfo::lstore_1 => { unimplemented!() }
-        InstructionInfo::lstore_2 => { unimplemented!() }
-        InstructionInfo::lstore_3 => { unimplemented!() }
+        //todo offtopic but offset is like the most useless param ever.
+        InstructionInfo::lstore(i) => instruction_is_type_safe_lstore(i as usize, env, offset, stack_frame),
+        InstructionInfo::lstore_0 => instruction_is_type_safe_lstore(0, env, offset, stack_frame),
+        InstructionInfo::lstore_1 => instruction_is_type_safe_lstore(1, env, offset, stack_frame),
+        InstructionInfo::lstore_2 => instruction_is_type_safe_lstore(2, env, offset, stack_frame),
+        InstructionInfo::lstore_3 => instruction_is_type_safe_lstore(3, env, offset, stack_frame),
         InstructionInfo::lsub => { unimplemented!() }
         InstructionInfo::lushr => { unimplemented!() }
         InstructionInfo::lxor => { unimplemented!() }

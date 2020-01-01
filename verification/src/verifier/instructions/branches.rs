@@ -83,7 +83,7 @@ pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, _offset: 
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
     let next_frame = can_pop(stack_frame,vec![UnifiedType::Reference])?;
     target_is_type_safe(env,&next_frame,target)?;
     //todo dup with above

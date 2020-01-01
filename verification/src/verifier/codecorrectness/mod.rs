@@ -64,7 +64,7 @@ pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> 
 
 pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedType) -> Result<(&'l [UnifiedType], UnifiedType), TypeSafetyError> {
     if size_of(type_) == 1 {
-        let actual_type = operand_stack.first().unwrap();
+        let actual_type = &operand_stack[0];
         is_assignable(actual_type, type_)?;
         return Result::Ok((&operand_stack[1..], actual_type.clone()));
     } else if size_of(type_) == 2 {
