@@ -8,6 +8,7 @@ use crate::classnames::ClassName;
 use std::fs::File;
 use std::fmt::Display;
 use std::fmt::Debug;
+use term::terminfo::parser::compiled::parse;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -40,12 +41,18 @@ pub enum ClassLoadingError {
 
 }
 
+#[derive(Debug)]
+pub struct Classpath{
+    pub name_to_path: HashMap<ClassName,Path>
+}
 
 #[derive(Debug)]
 pub struct BootstrapLoader {
     pub loaded: RwLock<HashMap<ClassName, Arc<Classfile>>>,
     pub parsed: RwLock<HashMap<ClassName, Arc<Classfile>>>,
     pub name: RwLock<LoaderName>,
+    //for now the classpath is immutable so no locks are needed.
+    pub classpath: Classpath
 }
 
 #[derive(Debug)]
@@ -86,6 +93,10 @@ pub trait Loader {
     fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError>;
     fn load_class(&self, class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError>;
     fn name(&self) -> LoaderName;
+
+
+    //pre loading parses the class file but does not
+    fn pre_load(self, name: &ClassName) -> Arc<Classfile>;
 }
 
 //todo Loading Constraints
@@ -103,8 +114,30 @@ impl Loader for BootstrapLoader {
         unimplemented!()
     }
 
+
+
     fn name(&self) -> LoaderName {
         LoaderName::BootstrapLoader
+    }
+
+    fn pre_load(self, name: &ClassName) -> Arc<Classfile> {
+        //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
+        match self.parsed.read().unwrap().get(name) {
+            None => {
+                match self.classpath.name_to_path.get(name){
+                    None => unimplemented!("essentially need to handle not knowning of the existence of class referneced by another".to_string()),
+                    Some(path) => {
+//                        let p = ParsingContext{
+//
+//                        };
+                        //todo this needs to be somewhere else, to avoid circular deps
+                        unimplemented!()
+                    },
+                }
+                unimplemented!()
+            }
+            Some(c) => c.clone(),
+        }
     }
 }
 
