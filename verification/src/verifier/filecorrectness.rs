@@ -188,7 +188,8 @@ pub fn is_assignable(from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSaf
             UnifiedType::NullType => Result::Ok(()),
             UnifiedType::Class(_) => Result::Ok(()),
             UnifiedType::ArrayReferenceType(_) => Result::Ok(()),
-            _ => is_assignable(unimplemented!(), to),
+            //todo really need to do something about these magic strings
+            _ => is_assignable(&UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: BOOTSTRAP_LOADER.clone() }), to),
         },
         UnifiedType::OneWord => match to {
             UnifiedType::OneWord => Result::Ok(()),
