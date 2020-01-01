@@ -187,7 +187,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lastore => { unimplemented!() }
         InstructionInfo::lcmp => instruction_is_type_safe_lcmp(env, offset, stack_frame),
         InstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env, offset, stack_frame),
-        InstructionInfo::lconst_1 => { unimplemented!() }
+        InstructionInfo::lconst_1 => instruction_is_type_safe_lconst_0(env, offset, stack_frame),
         InstructionInfo::ldc(i) => instruction_is_type_safe_ldc(i, env, offset, stack_frame),
         InstructionInfo::ldc_w(_) => { unimplemented!() }
         InstructionInfo::ldc2_w(cp) => instruction_is_type_safe_ldc2_w(cp, env, offset, stack_frame),
