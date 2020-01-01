@@ -302,16 +302,19 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
+    // the operand_arg list is in the order displayed by the spec, e.g first elem a 0.
     let operand_arg_list = &parsed_descriptor.parameter_types;
+    // arg list is the reversed verison of operand_arg_list
     let arg_list: Vec<UnifiedType> = operand_arg_list.iter()
         .rev()
         .map(|x| x.clone())
         .collect();
-    let current_loader = &env.class_loader;
+    //we reverse again before pushing because push applies to the end of the list.
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| x.clone()).collect();
+    stack_arg_list.reverse();
+    let current_loader = &env.class_loader;
     let method_class = ClassWithLoader { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };
     stack_arg_list.push(UnifiedType::Class(method_class));
-    stack_arg_list.reverse();
     let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
     let popped_frame = can_pop(stack_frame, arg_list)?;
     passes_protected_check(env, class_name.clone(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;

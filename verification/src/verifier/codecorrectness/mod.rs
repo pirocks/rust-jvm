@@ -43,10 +43,12 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
 // alternatively results can be reversed at the end.
 pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Result<Vec<UnifiedType>, TypeSafetyError> {
     let result = pop_matching_list_impl(pop_from.as_slice(), pop.as_slice());
-    dbg!("Attempt to pop matching:");
-    dbg!(&pop_from);
-    dbg!(&pop);
-    dbg!(&result);
+    if pop_from.len() > 1 && pop.len() > 1{
+        dbg!("Attempt to pop matching:");
+        dbg!(&pop_from);
+        dbg!(&pop);
+        dbg!(&result);
+    }
     return result;
 }
 
