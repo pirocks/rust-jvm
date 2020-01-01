@@ -17,6 +17,7 @@ use rust_jvm_common::classnames::{ClassName, NameReference};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::types::Descriptor;
 use std::sync::Arc;
+use crate::verifier::codecorrectness::translate_types_to_vm_types;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -109,8 +110,8 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
     if call_site_name == "<init>" || call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
     }
-    let mut operand_arg_list = descriptor.parameter_types;
-    let return_type = descriptor.return_type;
+    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
+    let return_type = translate_types_to_vm_types(&descriptor.return_type);
     operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
     let next_frame = valid_type_transition(env,stack_arg_list,&return_type,stack_frame)?;
@@ -133,7 +134,7 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _off
 }
 
 fn invoke_special_init(env: &&Environment, stack_frame: &Frame, method_class_name: &String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| x.clone()).collect();
+    let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     stack_arg_list.reverse();
     let temp_frame = can_pop(stack_frame, stack_arg_list)?;
     let locals = temp_frame.locals;
@@ -271,11 +272,11 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
         loader: current_loader.clone(),
     });
     is_assignable(&current_class, &method_class)?;
-    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| x.clone()).collect();
+    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     operand_arg_list_copy.push(current_class);
     operand_arg_list_copy.reverse();
     let next_frame = valid_type_transition(env, operand_arg_list_copy, &parsed_descriptor.return_type, stack_frame)?;
-    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| x.clone()).collect();
+    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     operand_arg_list_copy2.push(method_class);
     operand_arg_list_copy2.reverse();
     valid_type_transition(env, operand_arg_list_copy2, &parsed_descriptor.return_type, stack_frame)?;
@@ -288,7 +289,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
-    let operand_arg_list = parsed_descriptor.parameter_types;
+    let operand_arg_list :Vec<UnifiedType> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     let stack_arg_list: Vec<UnifiedType> = operand_arg_list.iter()
         .rev()
         .map(|x| x.clone())
@@ -304,7 +305,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         unimplemented!();
     }
     // the operand_arg list is in the order displayed by the spec, e.g first elem a 0.
-    let operand_arg_list = &parsed_descriptor.parameter_types;
+    let operand_arg_list :&Vec<UnifiedType> = &parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     // arg list is the reversed verison of operand_arg_list
     let arg_list: Vec<UnifiedType> = operand_arg_list.iter()
         .rev()

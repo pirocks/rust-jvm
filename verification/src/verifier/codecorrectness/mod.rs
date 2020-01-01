@@ -398,7 +398,8 @@ fn method_initial_stack_frame(class: &ClassWithLoader, method: &ClassWithLoaderM
     };
     let this_list = method_initial_this_type(class, method);
     let flag_this_uninit = flags(&this_list);
-    let args = expand_type_list(parsed_descriptor.parameter_types);
+    //todo this long and frequently duped
+    let args = expand_type_list(parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect());
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
         this_args.push(x.clone());
