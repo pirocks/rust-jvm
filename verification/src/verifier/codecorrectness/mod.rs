@@ -37,7 +37,10 @@ pub fn valid_type_transition(environment: &Environment, expected_types_on_stack:
     }
 }
 
-
+//IMPORTANT NOTE:
+// lists are stored in same order as prolog, e.g. 0 is first elem, n-1 is last.
+// This is problematic for adding to the beginning of a Vec. as a result linked lists may be used in impl.
+// alternatively results can be reversed at the end.
 pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Result<Vec<UnifiedType>, TypeSafetyError> {
     let result = pop_matching_list_impl(pop_from.as_slice(), pop.as_slice());
     dbg!("Attempt to pop matching:");
@@ -49,26 +52,27 @@ pub fn pop_matching_list(pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> 
 
 pub fn pop_matching_list_impl(pop_from: &[UnifiedType], pop: &[UnifiedType]) -> Result<Vec<UnifiedType>, TypeSafetyError> {
     if pop.is_empty() {
-        Result::Ok(pop_from.iter().map(|x| x.clone()).collect())//todo inefficent copying
+        Result::Ok(pop_from.to_vec())//todo inefficent copying
     } else {
-        let (pop_result, _) = pop_matching_type(pop_from, pop.last().unwrap())?;
-        return pop_matching_list_impl(&pop_result, &pop[..pop.len()-1]);
+        let to_pop = pop.first().unwrap();
+        let (pop_result, _) = pop_matching_type(pop_from, to_pop)?;
+        return pop_matching_list_impl(&pop_result, &pop[1..]);
     }
 }
 
 pub fn pop_matching_type<'l>(operand_stack: &'l [UnifiedType], type_: &UnifiedType) -> Result<(&'l [UnifiedType], UnifiedType), TypeSafetyError> {
     if size_of(type_) == 1 {
-        let actual_type = operand_stack.last().unwrap();
+        let actual_type = operand_stack.first().unwrap();
         is_assignable(actual_type, type_)?;
-        return Result::Ok((&operand_stack[..operand_stack.len()-1], actual_type.clone()));
+        return Result::Ok((&operand_stack[1..], actual_type.clone()));
     } else if size_of(type_) == 2 {
-        assert!(match &operand_stack[operand_stack.len() - 2] {
+        assert!(match &operand_stack[0] {
             UnifiedType::TopType => true,
             _ => false
         });
-        let actual_type = &operand_stack[operand_stack.len() - 1];
+        let actual_type = &operand_stack[1];
         is_assignable(actual_type, type_)?;
-        return Result::Ok((&operand_stack[..operand_stack.len()-2], actual_type.clone()));
+        return Result::Ok((&operand_stack[2..], actual_type.clone()));
     } else {
         panic!()
     }
@@ -91,17 +95,22 @@ pub fn size_of(unified_type: &UnifiedType) -> u64 {
 }
 
 pub fn push_operand_stack(operand_stack: &Vec<UnifiedType>, type_: &UnifiedType) -> Vec<UnifiedType> {
-    let mut operand_stack_copy = operand_stack.iter().map(|x| x.clone()).collect();
+    let mut operand_stack_copy = operand_stack.clone();
     match type_ {
         UnifiedType::VoidType => {
             operand_stack_copy
         }
         _ => {
             if size_of(type_) == 2 {
+                //todo this is janky and inefficient
+                operand_stack_copy.reverse();
+                operand_stack_copy.push(type_.clone());
                 operand_stack_copy.push(UnifiedType::TopType);
-                operand_stack_copy.push(type_.clone());
+                operand_stack_copy.reverse();
             } else if size_of(type_) == 1 {
+                operand_stack_copy.reverse();
                 operand_stack_copy.push(type_.clone());
+                operand_stack_copy.reverse();
             } else {
                 unimplemented!()
             }
