@@ -18,6 +18,8 @@ use crate::verifier::instructions::special::instruction_is_type_safe_getstatic;
 use crate::verifier::instructions::loads::instruction_is_type_safe_iload;
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_icmpeq;
 use crate::verifier::instructions::instruction_is_type_safe_ldc2_w;
+use crate::verifier::instructions::instruction_is_type_safe_pop;
+use crate::verifier::instructions::instruction_is_type_safe_ladd;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
@@ -181,7 +183,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::l2d => { unimplemented!() }
         InstructionInfo::l2f => { unimplemented!() }
         InstructionInfo::l2i => { unimplemented!() }
-        InstructionInfo::ladd => { unimplemented!() }
+        InstructionInfo::ladd => instruction_is_type_safe_ladd(env, offset,stack_frame),
         InstructionInfo::laload => { unimplemented!() }
         InstructionInfo::land => { unimplemented!() }
         InstructionInfo::lastore => { unimplemented!() }
@@ -219,7 +221,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::new(cp) => instruction_is_type_safe_new(cp as usize, env, offset, stack_frame),
         InstructionInfo::newarray(_) => { unimplemented!() }
         InstructionInfo::nop => { unimplemented!() }
-        InstructionInfo::pop => { unimplemented!() }
+        InstructionInfo::pop => instruction_is_type_safe_pop(env,offset,stack_frame),
         InstructionInfo::pop2 => { unimplemented!() }
         InstructionInfo::putfield(cp) => instruction_is_type_safe_putfield(cp, env, offset, stack_frame),
         InstructionInfo::putstatic(_) => { unimplemented!() }

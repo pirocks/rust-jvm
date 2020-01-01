@@ -223,10 +223,9 @@ pub fn can_safely_push(env: &Environment,input_operand_stack: &Vec<UnifiedType>,
 }
 
 pub fn pop_category1(input: &Vec<UnifiedType>) -> Result<(UnifiedType,Vec<UnifiedType>),TypeSafetyError>{
-    //todo tops are the wrong way round, though tbh everything is the wrong way round
-    if size_of(input.last().unwrap()) == 1{
-        let type_ = input.last().unwrap().clone();
-        let rest = input.as_slice()[..input.len()-1].to_vec();
+    if size_of(&input[0]) == 1{
+        let type_ = input[0].clone();
+        let rest = input.as_slice()[1..].to_vec();
         return Result::Ok((type_,rest));
     }else {
         unimplemented!()
@@ -302,13 +301,15 @@ pub fn pop_category1(input: &Vec<UnifiedType>) -> Result<(UnifiedType,Vec<Unifie
 //pub fn instruction_is_type_safe_l2i(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_ladd(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+
+pub fn instruction_is_type_safe_ladd(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let next_frame = valid_type_transition(env, vec![UnifiedType::LongType, UnifiedType::LongType], &UnifiedType::LongType, stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    //todo dup with other arithmetic
     let next_frame = valid_type_transition(env, vec![UnifiedType::LongType, UnifiedType::LongType], &UnifiedType::IntType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
@@ -382,11 +383,20 @@ pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: 
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_pop(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+
+pub fn instruction_is_type_safe_pop(_env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = &stack_frame.locals;
+    let flags = stack_frame.flag_this_uninit;
+    let (_type_,rest) = pop_category1(&stack_frame.stack_map)?;
+    let next_frame = Frame {
+        locals: locals.clone(),
+        stack_map: rest,
+        flag_this_uninit: flags
+    };
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_pop2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
