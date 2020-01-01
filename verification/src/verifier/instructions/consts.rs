@@ -21,20 +21,21 @@ pub fn instruction_is_type_safe_lconst_0(env: &Environment, _offset: usize, stac
 }
 
 
-//
-//
-//#[allow(unused)]
-//fn instruction_is_type_safe_aconst_null(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
-//    unimplemented!()
-//}
-//
+
+pub fn instruction_is_type_safe_aconst_null(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+    let next_frame = valid_type_transition(env,vec![], &UnifiedType::NullType,stack_frame)?;
+    //todo dup with above
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 
 //#[allow(unused)]
-//fn instruction_is_type_safe_dconst_0(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//pub fn instruction_is_type_safe_dconst_0(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//fn instruction_is_type_safe_fconst_0(env: &Environment, offset: usize, stack_frame: &Frame, next_frame: &Frame, exception_frame: &Frame) -> bool {
+//pub fn instruction_is_type_safe_fconst_0(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
 //    unimplemented!()
 //}

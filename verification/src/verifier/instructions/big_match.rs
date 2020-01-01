@@ -21,12 +21,13 @@ use crate::verifier::instructions::instruction_is_type_safe_ldc2_w;
 use crate::verifier::instructions::instruction_is_type_safe_pop;
 use crate::verifier::instructions::instruction_is_type_safe_ladd;
 use crate::verifier::instructions::branches::instruction_is_type_safe_ifnonnull;
+use crate::verifier::instructions::consts::instruction_is_type_safe_aconst_null;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
         InstructionInfo::aaload => { unimplemented!() }
         InstructionInfo::aastore => { unimplemented!() }
-        InstructionInfo::aconst_null => { unimplemented!() }
+        InstructionInfo::aconst_null => instruction_is_type_safe_aconst_null(env,offset,stack_frame),
         InstructionInfo::aload(_) => { unimplemented!() }
         InstructionInfo::aload_0 => instruction_is_type_safe_aload(0, env, offset, stack_frame),
         InstructionInfo::aload_1 => instruction_is_type_safe_aload(1, env, offset, stack_frame),
