@@ -8,7 +8,6 @@ use crate::classnames::ClassName;
 use std::fs::File;
 use std::fmt::Display;
 use std::fmt::Debug;
-use term::terminfo::parser::compiled::parse;
 
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
@@ -43,7 +42,7 @@ pub enum ClassLoadingError {
 
 #[derive(Debug)]
 pub struct Classpath{
-    pub name_to_path: HashMap<ClassName,Path>
+    pub name_to_path: HashMap<ClassName,Box<Path>>
 }
 
 #[derive(Debug)]
@@ -125,8 +124,8 @@ impl Loader for BootstrapLoader {
         match self.parsed.read().unwrap().get(name) {
             None => {
                 match self.classpath.name_to_path.get(name){
-                    None => unimplemented!("essentially need to handle not knowning of the existence of class referneced by another".to_string()),
-                    Some(path) => {
+                    None => unimplemented!("{}", "essentially need to handle not knowning of the existence of class referenced by another".to_string()),
+                    Some(_path) => {
 //                        let p = ParsingContext{
 //
 //                        };
@@ -175,6 +174,7 @@ lazy_static! {
             loaded: RwLock::new(HashMap::new()),
             parsed: RwLock::new(HashMap::new()),
             name: RwLock::new(LoaderName::BootstrapLoader),
+            classpath: unimplemented!()
         });
 
 }
