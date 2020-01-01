@@ -20,6 +20,7 @@ use crate::verifier::instructions::branches::instruction_is_type_safe_if_icmpeq;
 use crate::verifier::instructions::instruction_is_type_safe_ldc2_w;
 use crate::verifier::instructions::instruction_is_type_safe_pop;
 use crate::verifier::instructions::instruction_is_type_safe_ladd;
+use crate::verifier::instructions::branches::instruction_is_type_safe_ifnonnull;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction.instruction {
@@ -149,7 +150,11 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::ifge(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
         InstructionInfo::ifgt(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
         InstructionInfo::ifle(target) => ifeq_wrapper(instruction, env, offset, stack_frame, target),
-        InstructionInfo::ifnonnull(_) => { unimplemented!() }
+        InstructionInfo::ifnonnull(target) => {
+            let final_target = (target as isize) + (instruction.offset as isize);
+            assert!(final_target >= 0);
+            instruction_is_type_safe_ifnonnull(final_target as usize, env, offset, stack_frame)
+        },
         InstructionInfo::ifnull(_) => { unimplemented!() }
         InstructionInfo::iinc(_) => { unimplemented!() }
         InstructionInfo::iload(index) => instruction_is_type_safe_iload(index as usize, env, offset, stack_frame),

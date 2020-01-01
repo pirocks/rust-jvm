@@ -82,13 +82,14 @@ pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, _offset: 
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-//    unimplemented!()
-//}
-//
 
+pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+    let next_frame = can_pop(stack_frame,vec![UnifiedType::Reference])?;
+    target_is_type_safe(env,&next_frame,target)?;
+    //todo dup with above
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(env.method.prolog_class);
