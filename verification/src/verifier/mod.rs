@@ -31,30 +31,14 @@ pub struct InternalFrame {
 
 pub fn get_class(class: &ClassWithLoader) -> Arc<Classfile> {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
-
-    let referred_name = get_referred_name(&class.class_name);
-    if class.loader.initiating_loader_of(&class.class_name){
-        match class.loader.load_class(&class.class_name){
+    if class.loader.initiating_loader_of(&class.class_name) {
+        match class.loader.load_class(&class.class_name) {
             Ok(c) => c,
             Err(_) => panic!(),
         }
-    }else {
-        panic!()
+    } else {
+        class.loader.pre_load(&class.class_name)
     }
-//    match class.loader.loaded.read().unwrap().get(&class_entry) {
-//        None => {
-//            let map = class.loader.loading.read().unwrap();
-//            let option = map.get(&class_entry);
-//            match option {
-//                None => {
-//                    dbg!(map.keys());
-//                    panic!()
-//                }
-//                Some(c) => c.clone(),
-//            }
-//        }
-//        Some(c) => c.clone(),
-//    }
 }
 
 #[derive(Debug)]
@@ -107,10 +91,10 @@ pub fn class_is_type_safe(class: &ClassWithLoader) -> Result<(), TypeSafetyError
         dbg!(&res);
         //return early:
         match res {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                return  Result::Err(e);//return early on error for debugging purposes
-            },
+                return Result::Err(e);//return early on error for debugging purposes
+            }
         }
         res
     }).collect();
