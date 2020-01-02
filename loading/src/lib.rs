@@ -5,7 +5,6 @@ extern crate lazy_static;
 
 use std::sync::Arc;
 use std::fs::File;
-use rust_jvm_common::loading::BootstrapLoader;
 use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::ClassLoadingError;
@@ -14,6 +13,7 @@ use rust_jvm_common::loading::LoaderName;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::path::Path;
+use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct Classpath{
@@ -26,7 +26,7 @@ pub struct BootstrapLoader {
     pub parsed: RwLock<HashMap<ClassName, Arc<Classfile>>>,
     pub name: RwLock<LoaderName>,
     //for now the classpath is immutable so no locks are needed.
-    pub classpath: Classpath
+    pub classpath: RefCell<Classpath>
 }
 
 
@@ -73,7 +73,7 @@ lazy_static! {
             loaded: RwLock::new(HashMap::new()),
             parsed: RwLock::new(HashMap::new()),
             name: RwLock::new(LoaderName::BootstrapLoader),
-            classpath: unimplemented!()
+            classpath: RefCell::new(Classpath {name_to_path:HashMap::new()})
         });
 
 }

@@ -6,7 +6,6 @@ use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
 use crate::types::MethodDescriptor;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use rust_jvm_common::utils::get_super_class_name;
 use crate::types::Descriptor;
 

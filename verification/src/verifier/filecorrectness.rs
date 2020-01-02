@@ -1,10 +1,9 @@
 use std::sync::Arc;
 use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use crate::verifier::{ClassWithLoaderMethod, get_class};
-use rust_jvm_common::loading::{Loader, class_entry_from_string};
+use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classnames::{get_referred_name, class_name_legacy};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
-use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
@@ -33,11 +32,11 @@ fn different_runtime_package(class1: &ClassWithLoader, class2: &ClassWithLoader)
     return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(class1, class2);
 }
 
-#[allow(unused)]
 fn different_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    let packages1 = class_entry_from_string(&get_referred_name(&class1.class_name), false).packages;
-    let packages2 = class_entry_from_string(&get_referred_name(&class2.class_name), false).packages;
-    return packages1 != packages2;
+    unimplemented!()
+//    let packages1 = class_entry_from_string(&get_referred_name(&class1.class_name), false).packages;
+//    let packages2 = class_entry_from_string(&get_referred_name(&class2.class_name), false).packages;
+//    return packages1 != packages2;
 }
 
 //todo retries on this should be supressed.

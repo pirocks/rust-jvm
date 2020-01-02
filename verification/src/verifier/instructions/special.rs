@@ -20,7 +20,6 @@ use rust_jvm_common::classnames::get_referred_name;
 use crate::types::Descriptor;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::substitute;
-use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {

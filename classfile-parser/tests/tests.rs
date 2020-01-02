@@ -1,7 +1,6 @@
 use classfile_parser::parse_class_file;
 use std::fs::File;
 use rust_jvm_common::test_utils::get_test_resources;
-use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 
 #[test]
 pub fn basic_class_file_parse() {

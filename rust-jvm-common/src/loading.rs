@@ -1,9 +1,6 @@
 use core::fmt;
-use std::sync::{RwLock, Arc};
-use std::collections::HashMap;
+use std::sync::Arc;
 use crate::classfile::Classfile;
-use std::path::{MAIN_SEPARATOR, Path};
-use crate::classnames::class_name_legacy;
 use crate::classnames::ClassName;
 use std::fs::File;
 use std::fmt::Display;
@@ -87,22 +84,22 @@ pub trait Loader {
 
 //todo Loading Constraints
 
-pub fn class_entry(classfile: &Classfile) -> ClassEntry {
-    let name = class_name_legacy(classfile);
-    class_entry_from_string(&name, false)
-}
+//pub fn class_entry(classfile: &Classfile) -> ClassEntry {
+//    let name = class_name_legacy(classfile);
+//    class_entry_from_string(&name, false)
+//}
 
 
-pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
-    let split_on = if use_dots { '.' } else { MAIN_SEPARATOR };
-    let splitted: Vec<String> = str.clone().split(split_on).map(|s| { s.to_string() }).collect();
-    let packages = Vec::from(&splitted[0..splitted.len() - 1]);
-    let name = splitted.last().expect("This is a bug").replace(".class", "");//todo validate that this is replacing the last few chars
-    ClassEntry {
-        packages,
-        name: name.clone(),
-    }
-}
+//pub fn class_entry_from_string(str: &String, use_dots: bool) -> ClassEntry {
+//    let split_on = if use_dots { '.' } else { MAIN_SEPARATOR };
+//    let splitted: Vec<String> = str.clone().split(split_on).map(|s| { s.to_string() }).collect();
+//    let packages = Vec::from(&splitted[0..splitted.len() - 1]);
+//    let name = splitted.last().expect("This is a bug").replace(".class", "");//todo validate that this is replacing the last few chars
+//    ClassEntry {
+//        packages,
+//        name: name.clone(),
+//    }
+//}
 
 
 //#[derive(Debug)]

@@ -7,7 +7,6 @@ use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use rust_jvm_common::classnames::{ClassName, NameReference, class_name};
 use std::sync::Arc;
 use crate::verifier::filecorrectness::is_assignable;
-use rust_jvm_common::loading::BOOTSTRAP_LOADER;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
 
