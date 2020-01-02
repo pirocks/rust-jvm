@@ -35,7 +35,7 @@ pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_
 
 
 pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = can_pop(stack_frame, vec![UnifiedType::Reference, UnifiedType::Reference])?;
+    let next_frame = can_pop(&env.vf,stack_frame, vec![UnifiedType::Reference, UnifiedType::Reference])?;
     target_is_type_safe(env, &next_frame, target as usize)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
@@ -54,7 +54,7 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
         UnifiedType::IntType => {}
         _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string()))
     }
-    can_pop(stack_frame, vec![UnifiedType::IntType])?;
+    can_pop(&env.vf,stack_frame, vec![UnifiedType::IntType])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
@@ -62,8 +62,8 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
 
 pub fn instruction_is_type_safe_areturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let return_type = &env.return_type;
-    is_assignable(return_type, &UnifiedType::Reference)?;
-    can_pop(stack_frame,vec![return_type.clone()])?;
+    is_assignable(&env.vf,return_type, &UnifiedType::Reference)?;
+    can_pop(&env.vf,stack_frame,vec![return_type.clone()])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
@@ -71,21 +71,21 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, _offset: usize, stack
 
 
 pub fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-    let next_frame = can_pop(stack_frame,vec![UnifiedType::IntType,UnifiedType::IntType])?;
+    let next_frame = can_pop(&env.vf,stack_frame,vec![UnifiedType::IntType,UnifiedType::IntType])?;
     target_is_type_safe(env, &next_frame, target)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
 pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = can_pop(stack_frame,vec![UnifiedType::IntType])?;
+    let next_frame = can_pop(&env.vf,stack_frame,vec![UnifiedType::IntType])?;
     target_is_type_safe(env, &next_frame, target)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
 pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-    let next_frame = can_pop(stack_frame,vec![UnifiedType::Reference])?;
+    let next_frame = can_pop(&env.vf,stack_frame,vec![UnifiedType::Reference])?;
     target_is_type_safe(env,&next_frame,target)?;
     //todo dup with above
     let exception_frame = exception_stack_frame(stack_frame);
@@ -93,7 +93,7 @@ pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, _off
 }
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class = get_class(env.method.prolog_class);
+    let method_class = get_class(&env.vf,env.method.prolog_class);
     let constant_pool = &method_class.constant_pool;
     let (name_index,descriptor_index) = match &constant_pool[cp].kind{
         ConstantKind::InvokeDynamic(i) => {
@@ -133,10 +133,10 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _off
     }
 }
 
-fn invoke_special_init(env: &&Environment, stack_frame: &Frame, method_class_name: &String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name: &String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     stack_arg_list.reverse();
-    let temp_frame = can_pop(stack_frame, stack_arg_list)?;
+    let temp_frame = can_pop(&env.vf,stack_frame, stack_arg_list)?;
     let locals = temp_frame.locals;
     let operand_stack = &temp_frame.stack_map[1..];
     let flags = temp_frame.flag_this_uninit;
@@ -228,7 +228,7 @@ fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, _class: 
                         Some(new_this) => match new_this {
                             MergedCodeInstruction::Instruction(instr) => match instr.instruction {
                                 InstructionInfo::new(this) => {
-                                    let method_class = get_class(env.method.prolog_class);
+                                    let method_class = get_class(&env.vf,env.method.prolog_class);
                                     match &method_class.constant_pool[this as usize].kind {
                                         ConstantKind::Class(c) => {
                                             let class_name = ClassName::Ref(NameReference {
@@ -271,7 +271,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
         class_name: ClassName::Str(method_class_name),
         loader: current_loader.clone(),
     });
-    is_assignable(&current_class, &method_class)?;
+    is_assignable(&env.vf,&current_class, &method_class)?;
     let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     operand_arg_list_copy.push(current_class);
     operand_arg_list_copy.reverse();
@@ -318,14 +318,14 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     let method_class = ClassWithLoader { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };
     stack_arg_list.push(UnifiedType::Class(method_class));
     let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
-    let popped_frame = can_pop(stack_frame, arg_list)?;
+    let popped_frame = can_pop(&env.vf,stack_frame, arg_list)?;
     passes_protected_check(env, class_name.clone(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     let exception_stack_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
 }
 
 fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, MethodDescriptor) {
-    let classfile = &get_class(env.method.prolog_class);
+    let classfile = &get_class(&env.vf,env.method.prolog_class);
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {

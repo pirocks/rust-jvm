@@ -47,11 +47,11 @@ impl Loader for BootstrapLoader {
         LoaderName::BootstrapLoader
     }
 
-    fn pre_load(self, name: &ClassName) -> Arc<Classfile> {
+    fn pre_load(&self, name: &ClassName) -> Arc<Classfile> {
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         match self.parsed.read().unwrap().get(name) {
             None => {
-                match self.classpath.name_to_path.get(name){
+                match self.classpath.borrow().name_to_path.get(name){
                     None => unimplemented!("{}", "essentially need to handle not knowning of the existence of class referenced by another".to_string()),
                     Some(_path) => {
 //                        let p = ParsingContext{
@@ -68,12 +68,12 @@ impl Loader for BootstrapLoader {
 }
 
 
-lazy_static! {
-    pub static ref BOOTSTRAP_LOADER: Arc<dyn Loader + Send + Sync> = Arc::new(BootstrapLoader {
-            loaded: RwLock::new(HashMap::new()),
-            parsed: RwLock::new(HashMap::new()),
-            name: RwLock::new(LoaderName::BootstrapLoader),
-            classpath: RefCell::new(Classpath {name_to_path:HashMap::new()})
-        });
+//lazy_static! {
+//    pub static ref BOOTSTRAP_LOADER: Arc<dyn Loader + Send + Sync> = Arc::new(BootstrapLoader {
+//            loaded: RwLock::new(HashMap::new()),
+//            parsed: RwLock::new(HashMap::new()),
+//            name: RwLock::new(LoaderName::BootstrapLoader),
+//            classpath: Classpath {name_to_path:HashMap::new()}
+//        });
 
-}
+//}

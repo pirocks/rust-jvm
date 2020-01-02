@@ -7,7 +7,7 @@ pub fn basic_class_file_parse() {
     let mut test_resources_path = get_test_resources();
     test_resources_path.push("Main.class");
 
-    let _parsed = parse_class_file(File::open(test_resources_path.as_os_str()).unwrap(),BOOTSTRAP_LOADER.clone());
+    let _parsed = parse_class_file(File::open(test_resources_path.as_os_str()).unwrap(),unimplemented!()/*BOOTSTRAP_LOADER.clone()*/);
 //    dbg!(parsed);
     //todo asserts
 //    assert!(false);

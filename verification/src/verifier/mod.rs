@@ -8,6 +8,7 @@ use crate::types::MethodDescriptor;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::utils::get_super_class_name;
 use crate::types::Descriptor;
+use crate::VerifierContext;
 
 
 macro_rules! unknown_error_verifying {
@@ -28,7 +29,7 @@ pub struct InternalFrame {
     pub current_offset: u16,
 }
 
-pub fn get_class(class: &ClassWithLoader) -> Arc<Classfile> {
+pub fn get_class(_verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<Classfile> {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     if class.loader.initiating_loader_of(&class.class_name) {
         match class.loader.load_class(&class.class_name) {
@@ -54,7 +55,6 @@ pub struct Frame {
     pub flag_this_uninit: bool,
 }
 
-//pub fn nth1OperandStackIs
 
 #[derive(Debug)]
 pub enum TypeSafetyError {
@@ -62,9 +62,9 @@ pub enum TypeSafetyError {
     NeedToLoad(Vec<ClassName>),
 }
 
-pub fn class_is_type_safe(class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
+pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if get_referred_name(&class.class_name) == "java/lang/Object" {
-        if !is_bootstrap_loader(&class.loader) {
+        if !is_bootstrap_loader(vf,&class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
         }
         trace!("Class was java/lang/Object, skipping lots of overriding checks");
@@ -72,20 +72,20 @@ pub fn class_is_type_safe(class: &ClassWithLoader) -> Result<(), TypeSafetyError
         trace!("Class not java/lang/Object performing superclass checks");
         //class must have a superclass or be 'java/lang/Object'
         let mut chain = vec![];
-        super_class_chain(class, class.loader.clone(), &mut chain)?;
+        super_class_chain(vf,class, class.loader.clone(), &mut chain)?;
         if chain.is_empty() {
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
-        let super_class_name = get_super_class_name(&get_class(class));
-        let super_class = loaded_class_(super_class_name, BOOTSTRAP_LOADER.clone()).unwrap();
-        if class_is_final(&super_class) {
+        let super_class_name = get_super_class_name(&get_class(vf, class));
+        let super_class = loaded_class_(vf,super_class_name, vf.bootstrap_loader.clone()).unwrap();
+        if class_is_final(vf,&super_class) {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
         }
     }
-    let methods = get_class_methods(class);
+    let methods = get_class_methods(vf,class);
     trace!("got class methods:");
     let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
-        let res = method_is_type_safe(class, m);
+        let res = method_is_type_safe(vf,class, m);
         trace!("method was:");
         dbg!(&res);
         //return early:
@@ -103,7 +103,7 @@ pub fn class_is_type_safe(class: &ClassWithLoader) -> Result<(), TypeSafetyError
 
 fn passes_protected_check(env: &Environment, member_class_name: String, _member_name: String, _member_descriptor: Descriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
     let mut chain = vec![];
-    super_class_chain(env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
+    super_class_chain(&env.vf,env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
     if chain.iter().any(|x| { get_referred_name(&x.class_name) == member_class_name }) {
         unimplemented!()
     } else {
@@ -112,6 +112,6 @@ fn passes_protected_check(env: &Environment, member_class_name: String, _member_
 }
 
 #[allow(unused)]
-fn classes_in_other_pkg_with_protected_member(_class: &ClassWithLoader, _member_name: String, _member_descriptor: &MethodDescriptor, _member_class_name: String, _chain: Vec<ClassWithLoader>) -> Vec<ClassWithLoader> {
+fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, _class: &ClassWithLoader, _member_name: String, _member_descriptor: &MethodDescriptor, _member_class_name: String, _chain: Vec<ClassWithLoader>) -> Vec<ClassWithLoader> {
     unimplemented!()
 }

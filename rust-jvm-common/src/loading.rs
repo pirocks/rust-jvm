@@ -79,7 +79,7 @@ pub trait Loader {
 
 
     //pre loading parses the class file but does not verify
-    fn pre_load(self, name: &ClassName) -> Arc<Classfile>;
+    fn pre_load(&self, name: &ClassName) -> Arc<Classfile>;
 }
 
 //todo Loading Constraints

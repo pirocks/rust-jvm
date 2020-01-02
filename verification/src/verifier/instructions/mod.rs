@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
+use crate::VerifierContext;
 
 pub mod loads;
 pub mod consts;
@@ -65,7 +66,7 @@ pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCode
         MergedCodeInstruction::StackMap(s) => {
             match after_frame {
                 FrameResult::Regular(f) => {
-                    frame_is_assignable(f, &s.map_frame)?;
+                    frame_is_assignable(&env.vf,f, &s.map_frame)?;
                     merged_code_is_type_safe(env, rest, FrameResult::Regular(&s.map_frame))
                 }
                 FrameResult::AfterGoto => {
@@ -102,7 +103,7 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> Result<(), TypeSafetyError> {
     let frame = offset_stack_frame(env, target)?;
 //        None => { return TypeSafetyResult::NotSafe("No frame fround at target".to_string()); }
-    frame_is_assignable(stack_frame, &frame)?;
+    frame_is_assignable(&env.vf,stack_frame, &frame)?;
     Result::Ok(())
 }
 
@@ -122,10 +123,10 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
     offset <= handler.start && offset < handler.end
 }
 
-fn class_to_type(class: &ClassWithLoader) -> UnifiedType {
+fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> UnifiedType {
     let class_name = ClassName::Ref(NameReference {
-        index: get_class(class).this_class,
-        class_file: Arc::downgrade(&get_class(class)),
+        index: get_class(vf,class).this_class,
+        class_file: Arc::downgrade(&get_class(vf,class)),
     });
     UnifiedType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
 }
@@ -137,8 +138,8 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
     let locals_copy = locals.iter().map(|x| { x.clone() }).collect();
-    let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: vec![class_to_type(&exception_class)], flag_this_uninit: flags };
-    if operand_stack_has_legal_length(env, &vec![class_to_type(&exception_class)]) {
+    let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: vec![class_to_type(&env.vf,&exception_class)], flag_this_uninit: flags };
+    if operand_stack_has_legal_length(env, &vec![class_to_type(&env.vf,&exception_class)]) {
         target_is_type_safe(env, &true_exc_stack_frame, target)
     } else {
         Result::Err(TypeSafetyError::NotSafe("operand stack does not have legal length".to_string()))
@@ -176,9 +177,9 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
                 let exception_class = handler_exception_class(&h);
                 //todo how does bootstrap loader from throwable make its way into this
-                let class_name = class_name(&get_class(&exception_class));
-                let assignable = is_assignable(&UnifiedType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
-                                               &UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: BOOTSTRAP_LOADER.clone() }));
+                let class_name = class_name(&get_class(&env.vf,&exception_class));
+                let assignable = is_assignable(&env.vf,&UnifiedType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
+                                               &UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() }));
                 assignable?;
                 Result::Ok(())
             } else {
@@ -201,7 +202,7 @@ pub fn instruction_is_type_safe_dup(env: &Environment, _offset: usize, stack_fra
     let locals = &stack_frame.locals;
     let input_operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    let (type_,_rest)= pop_category1(input_operand_stack)?;
+    let (type_,_rest)= pop_category1(&env.vf,input_operand_stack)?;
     let output_operand_stack = can_safely_push(env,input_operand_stack,&type_)?;
     let next_frame  = Frame {
         locals: locals.clone(),
@@ -213,7 +214,7 @@ pub fn instruction_is_type_safe_dup(env: &Environment, _offset: usize, stack_fra
 }
 
 pub fn can_safely_push(env: &Environment,input_operand_stack: &Vec<UnifiedType>,type_:&UnifiedType) -> Result<Vec<UnifiedType>,TypeSafetyError>{
-    let output_operand_stack = push_operand_stack(input_operand_stack,type_);
+    let output_operand_stack = push_operand_stack(&env.vf,input_operand_stack,type_);
     if operand_stack_has_legal_length(env,&output_operand_stack){
         Result::Ok(output_operand_stack)
     }else {
@@ -221,8 +222,8 @@ pub fn can_safely_push(env: &Environment,input_operand_stack: &Vec<UnifiedType>,
     }
 }
 
-pub fn pop_category1(input: &Vec<UnifiedType>) -> Result<(UnifiedType,Vec<UnifiedType>),TypeSafetyError>{
-    if size_of(&input[0]) == 1{
+pub fn pop_category1(vf:&VerifierContext,input: &Vec<UnifiedType>) -> Result<(UnifiedType,Vec<UnifiedType>),TypeSafetyError>{
+    if size_of(vf,&input[0]) == 1{
         let type_ = input[0].clone();
         let rest = input.as_slice()[1..].to_vec();
         return Result::Ok((type_,rest));
@@ -314,7 +315,7 @@ fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame:
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn loadable_constant(c: &ConstantKind) -> UnifiedType{
+pub fn loadable_constant(vf: &VerifierContext,c: &ConstantKind) -> UnifiedType{
     match c {
         ConstantKind::Integer(_) => UnifiedType::IntType,
         ConstantKind::Float(_) => UnifiedType::FloatType,
@@ -322,11 +323,11 @@ pub fn loadable_constant(c: &ConstantKind) -> UnifiedType{
         ConstantKind::Double(_) => UnifiedType::DoubleType,
         ConstantKind::Class(_c) => {
             let class_name = ClassName::Str("java/lang/Class".to_string());
-            UnifiedType::Class(ClassWithLoader { class_name, loader: BOOTSTRAP_LOADER.clone() })
+            UnifiedType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         },
         ConstantKind::String(_) => {
             let class_name = ClassName::Str("java/lang/String".to_string());
-            UnifiedType::Class(ClassWithLoader { class_name, loader: BOOTSTRAP_LOADER.clone() })
+            UnifiedType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         },
         ConstantKind::MethodHandle(_) => unimplemented!(),
         ConstantKind::MethodType(_) => unimplemented!(),
@@ -337,8 +338,8 @@ pub fn loadable_constant(c: &ConstantKind) -> UnifiedType{
 }
 
 pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let _const = &get_class(env.method.prolog_class).constant_pool[cp as usize].kind;
-    let type_: UnifiedType = loadable_constant(_const);
+    let const_ = &get_class(&env.vf, env.method.prolog_class).constant_pool[cp as usize].kind;
+    let type_: UnifiedType = loadable_constant(&env.vf,const_);
     match type_ {
         UnifiedType::DoubleType => {return Result::Err(unknown_error_verifying!())},
         UnifiedType::LongType => {return Result::Err(unknown_error_verifying!())},
@@ -350,8 +351,8 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, s
 }
 
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let _const = &get_class(env.method.prolog_class).constant_pool[cp as usize].kind;
-    let type_: UnifiedType = loadable_constant(_const);//todo dup
+    let const_ = &get_class(&env.vf, env.method.prolog_class).constant_pool[cp as usize].kind;
+    let type_: UnifiedType = loadable_constant(&env.vf,const_);//todo dup
     match type_ {
         UnifiedType::DoubleType => {},
         UnifiedType::LongType => {},
@@ -383,10 +384,10 @@ pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: 
 //}
 //
 
-pub fn instruction_is_type_safe_pop(_env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_pop(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let flags = stack_frame.flag_this_uninit;
-    let (_type_,rest) = pop_category1(&stack_frame.stack_map)?;
+    let (_type_,rest) = pop_category1(&env.vf,&stack_frame.stack_map)?;
     let next_frame = Frame {
         locals: locals.clone(),
         stack_map: rest,

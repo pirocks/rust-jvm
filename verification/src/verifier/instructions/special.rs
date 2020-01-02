@@ -64,9 +64,9 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 //    unimplemented!()
 //}
 
-pub fn instruction_is_type_safe_athrow(_env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let to_pop = ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: BOOTSTRAP_LOADER.clone() };
-    can_pop(stack_frame,vec![UnifiedType::Class(to_pop)])?;
+pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let to_pop = ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() };
+    can_pop(&env.vf,stack_frame,vec![UnifiedType::Class(to_pop)])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
@@ -95,7 +95,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     if get_referred_name(&env.method.prolog_class.class_name) != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
-    let next_stack_frame = can_pop(stack_frame, vec![field_type, UnifiedType::UninitializedThis])?;
+    let next_stack_frame = can_pop(&env.vf,stack_frame, vec![field_type, UnifiedType::UninitializedThis])?;
     let exception_frame = exception_stack_frame(&stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
@@ -103,17 +103,17 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
-    let _popped_frame = can_pop(stack_frame, vec![field_type.clone()])?;
+    let _popped_frame = can_pop(&env.vf,stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, get_referred_name(&field_class_name), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
-    let next_stack_frame = can_pop(stack_frame, vec![field_type, UnifiedType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
+    let next_stack_frame = can_pop(&env.vf,stack_frame, vec![field_type, UnifiedType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     let exception_frame = exception_stack_frame(&stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
 
 
 fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, String, FieldDescriptor) {
-    let current_class = get_class(env.method.prolog_class);
+    let current_class = get_class(&env.vf,env.method.prolog_class);
     let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
     let (class_index, name_and_type_index) = match field_entry {
         ConstantKind::Fieldref(f) => {
@@ -160,7 +160,7 @@ pub fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize,
     let locals = &stack_frame.locals;
     let operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    match &get_class(env.method.prolog_class).constant_pool[cp].kind{
+    match &get_class(&env.vf,env.method.prolog_class).constant_pool[cp].kind{
         ConstantKind::Class(_) => {},
         _ => panic!()
     };

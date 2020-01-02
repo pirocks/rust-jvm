@@ -10,9 +10,7 @@ pub mod classpath_indexing;
 use log::{trace, info};
 
 use argparse::{ArgumentParser, Store, StoreTrue};
-use std::path::Path;
-use rust_jvm_common::loading::class_entry_from_string;
-use classpath_indexing::index_class_path;
+//use classpath_indexing::index_class_path;
 
 
 extern crate classfile_parser;
@@ -64,7 +62,7 @@ fn main() {
 //        println!("main_class_name is {}", main_class_path);
     }
 
-    let _indexed_classpath = index_class_path(Path::new(&class_path_file));
+//    let _indexed_classpath = index_class_path(Path::new(&class_path_file));
     trace!("{}","Indexing complete");
 //    let initial_jvm_state = JVMState {
 //        using_bootstrap_loader:true,
@@ -76,8 +74,8 @@ fn main() {
 
 
 //    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name,true),true);
-    let main_class_entry = class_entry_from_string(&main_class_name.to_string(), true);
-    unimplemented!("{}",main_class_entry)
+//    let main_class_entry = class_entry_from_string(&main_class_name.to_string(), true);
+//    unimplemented!("{}",main_class_entry)
 //    load_class(&mut initial_jvm_state, BOOTSTRAP_LOADER.clone(), main_class_entry, true);
 
 }

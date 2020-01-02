@@ -7,10 +7,11 @@ use crate::verifier::instructions::exception_stack_frame;
 use crate::verifier::instructions::ResultFrames;
 use crate::verifier::codecorrectness::pop_matching_type;
 use crate::verifier::codecorrectness::size_of;
+use crate::VerifierContext;
 
-fn store_is_type_safe(_env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame) -> Result<Frame,TypeSafetyError>{
-    let (next_stack , actual_type) = pop_matching_type(&frame.stack_map,&type_)?;
-    let new_locals = modify_local_variable(index,actual_type,&frame.locals)?;
+fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame) -> Result<Frame,TypeSafetyError>{
+    let (next_stack , actual_type) = pop_matching_type(&env.vf,&frame.stack_map,&type_)?;
+    let new_locals = modify_local_variable(&env.vf,index,actual_type,&frame.locals)?;
     Result::Ok(Frame {
         locals: new_locals,
         stack_map: next_stack.to_vec(),
@@ -18,12 +19,12 @@ fn store_is_type_safe(_env: &Environment, index: usize, type_: &UnifiedType, fra
     })
 }
 
-pub fn modify_local_variable(index:usize, type_: UnifiedType, locals: &Vec<UnifiedType>) -> Result<Vec<UnifiedType>,TypeSafetyError>{
+pub fn modify_local_variable(vf:&VerifierContext, index:usize, type_: UnifiedType, locals: &Vec<UnifiedType>) -> Result<Vec<UnifiedType>,TypeSafetyError>{
     let mut locals_copy = locals.clone();
-    if size_of(&locals[index]) == 1{
+    if size_of(vf,&locals[index]) == 1{
         locals_copy[index] = type_;
         Result::Ok(locals_copy)
-    }else if size_of(&locals[index]) ==  2{
+    }else if size_of(vf,&locals[index]) ==  2{
         assert!(&locals[index + 1] == &UnifiedType::TopType);//todo this isn't completely correct. Ideally this function should fail, instead of returning a assertion error
         locals_copy[index] = type_;
         Result::Ok(locals_copy)
