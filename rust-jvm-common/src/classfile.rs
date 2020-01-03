@@ -449,7 +449,6 @@ pub struct Float {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Long {
-    //unimplemented!()
     pub low_bytes: u32,
     pub high_bytes: u32,
 }
@@ -457,7 +456,8 @@ pub struct Long {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Double {
-    //unimplemented!()
+    pub low_bytes: u32,
+    pub high_bytes: u32,
 }
 
 #[derive(Debug)]

@@ -1,5 +1,6 @@
 use crate::parsing_util::{ParsingContext, read16, read8, read32};
 use rust_jvm_common::classfile::{ConstantKind, Utf8, Integer, Float, Long, Fieldref, Methodref, MethodType, NameAndType, InterfaceMethodref, MethodHandle, InvokeDynamic, ConstantInfo, InvalidConstant, Class, String_};
+use rust_jvm_common::classfile::Double;
 
 pub(crate) fn is_utf8(utf8 : &ConstantKind) -> Option<&Utf8>{
     return match utf8 {
@@ -52,7 +53,13 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
             let low_bytes = read32(p);
             ConstantKind::Long(Long {high_bytes, low_bytes })
         },
-        DOUBLE_CONST_NUM => { unimplemented!() },
+        DOUBLE_CONST_NUM => {
+            let high_bytes = read32(p);
+            let low_bytes = read32(p);
+            ConstantKind::Double(Double {
+                high_bytes, low_bytes
+            })
+        },
         CLASS_CONST_NUM => {
             let name_index = read16(p);
             ConstantKind::Class( Class { name_index } )

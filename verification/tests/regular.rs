@@ -27,6 +27,13 @@ pub fn can_verify_main() {
 
 #[test]
 //#[timeout(10000)]
+pub fn can_verify_float_double_arithmetic() {
+    let main_class_name = "FloatDoubleArithmetic".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
+
+#[test]
+#[timeout(10000)]
 pub fn can_verify_object() {
     let main_class_name = "java/lang/Object".to_string();
     verify_class_with_name(&main_class_name).unwrap();
