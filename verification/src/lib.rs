@@ -93,7 +93,7 @@ fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> (
         UnifiedType::ArrayReferenceType(art) => {
             res.push(UnifiedType::ArrayReferenceType(
                 ArrayType {
-                    sub_type: Box::from(UnifiedType::ArrayReferenceType(art))
+                    sub_type: Box::from(art.sub_type.clone())
                 }));
         }
         UnifiedType::VoidType => { panic!() }
