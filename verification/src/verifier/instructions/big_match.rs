@@ -26,6 +26,9 @@ use crate::verifier::instructions::stores::instruction_is_type_safe_lstore;
 use crate::verifier::instructions::stores::instruction_is_type_safe_istore;
 use crate::verifier::instructions::consts::instruction_is_type_safe_dconst_0;
 use crate::verifier::instructions::float::instruction_is_type_safe_dcmpg;
+use crate::verifier::instructions::float::instruction_is_type_safe_dadd;
+use crate::verifier::instructions::float::instruction_is_type_safe_d2f;
+use crate::verifier::instructions::float::instruction_is_type_safe_f2d;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -54,7 +57,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::caload => { unimplemented!() }
         InstructionInfo::castore => { unimplemented!() }
         InstructionInfo::checkcast(_) => { unimplemented!() }
-        InstructionInfo::d2f => { unimplemented!() }
+        InstructionInfo::d2f => instruction_is_type_safe_d2f(env,offset,stack_frame),
         InstructionInfo::d2i => { unimplemented!() }
         InstructionInfo::d2l => { unimplemented!() }
         InstructionInfo::dadd => { unimplemented!() }
@@ -70,7 +73,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dload_1 => { unimplemented!() }
         InstructionInfo::dload_2 => { unimplemented!() }
         InstructionInfo::dload_3 => { unimplemented!() }
-        InstructionInfo::dmul => { unimplemented!() }
+        InstructionInfo::dmul => instruction_is_type_safe_dadd(env,offset,stack_frame),
         InstructionInfo::dneg => { unimplemented!() }
         InstructionInfo::drem => { unimplemented!() }
         InstructionInfo::dreturn => { unimplemented!() }
@@ -86,7 +89,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dup2 => { unimplemented!() }
         InstructionInfo::dup2_x1 => { unimplemented!() }
         InstructionInfo::dup2_x2 => { unimplemented!() }
-        InstructionInfo::f2d => { unimplemented!() }
+        InstructionInfo::f2d => instruction_is_type_safe_f2d(env,offset,stack_frame),
         InstructionInfo::f2i => { unimplemented!() }
         InstructionInfo::f2l => { unimplemented!() }
         InstructionInfo::fadd => { unimplemented!() }
