@@ -438,7 +438,7 @@ fn flags(this_list: &Option<UnifiedType>) -> bool {
 
 
 fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
-    assert!(list.len() >= size);
+    assert!(list.len() < size);
     let mut res = vec![];
     for i in 0..size {
         res.push(match list.get(i) {
