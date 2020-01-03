@@ -40,34 +40,6 @@ fn different_package_name(_vf: &VerifierContext,_class1: &ClassWithLoader, _clas
 //    return packages1 != packages2;
 }
 
-//todo retries on this should be supressed.
-pub fn loaded_class(_vf: &VerifierContext,_class: &ClassWithLoader, _loader: Arc<dyn Loader + Send + Sync>) -> Result<ClassWithLoader, TypeSafetyError> {
-//    let _class_entry = class_entry_from_string(&get_referred_name(&class.class_name), false);
-//    match loader.loading.read().unwrap().get(&class_entry) {
-//        None => match loader.loaded.read().unwrap().get(&class_entry) {
-//            None => {
-//                dbg!(class);
-//                dbg!(class_entry);
-//                dbg!(loader.loading.read().unwrap().keys());
-//                dbg!(loader.loaded.read().unwrap().keys());
-//                Result::Err(TypeSafetyError::NeedToLoad(vec![class.class_name.clone()]))
-//            }
-//            Some(c) => {
-//                Result::Ok(ClassWithLoader {
-//                    loader: loader.clone(),
-//                    class_name: class_name(c),
-//                })
-//            }
-//        },
-//        Some(c) => {
-//            Result::Ok(ClassWithLoader {
-//                loader: loader.clone(),
-//                class_name: class_name(c),
-//            })
-//        }
-//    }
-    unimplemented!()
-}
 
 pub fn is_bootstrap_loader(vf: &VerifierContext,loader: &Arc<dyn Loader + Send + Sync>) -> bool {
     return std::sync::Arc::ptr_eq(loader, &vf.bootstrap_loader);
@@ -86,8 +58,15 @@ pub fn class_is_final(vf: &VerifierContext,class: &ClassWithLoader) -> bool {
 }
 
 
-pub fn loaded_class_(vf: &VerifierContext,class_name: String, loader: Arc<dyn Loader + Send + Sync>) -> Result<ClassWithLoader, TypeSafetyError> {
-    loaded_class(vf,&ClassWithLoader { class_name: ClassName::Str(class_name), loader: loader.clone() }, loader.clone())
+pub fn loaded_class(_vf: &VerifierContext,class_name: ClassName, loader: Arc<dyn Loader + Send + Sync>) -> Result<ClassWithLoader, TypeSafetyError> {
+    if loader.initiating_loader_of(&class_name){
+        Result::Ok(ClassWithLoader{ class_name, loader})
+    }else {
+        match loader.pre_load(&class_name){
+            Ok(_) => Result::Ok(ClassWithLoader{ class_name, loader}),
+            Err(_) => unimplemented!(),
+        }
+    }
 }
 
 
@@ -100,7 +79,7 @@ pub fn is_java_sub_class_of(vf: &VerifierContext,from: &ClassWithLoader, to: &Cl
         return Result::Ok(());
     }
     let mut chain = vec![];
-    super_class_chain(vf,&loaded_class(vf,from, from.loader.clone())?, from.loader.clone(), &mut chain)?;
+    super_class_chain(vf,&loaded_class(vf,from.class_name.clone(), from.loader.clone())?, from.loader.clone(), &mut chain)?;
     match chain.iter().find(|x| {
         x.class_name == to.class_name
     }) {
@@ -112,7 +91,7 @@ pub fn is_java_sub_class_of(vf: &VerifierContext,from: &ClassWithLoader, to: &Cl
             Result::Err(unknown_error_verifying!())
         }
         Some(c) => {
-            loaded_class(vf,&ClassWithLoader { class_name: c.class_name.clone(), loader: c.loader.clone() }, to.loader.clone())?;
+            loaded_class(vf,c.class_name.clone(), to.loader.clone())?;
             Result::Ok(())
         }
     }
@@ -209,7 +188,7 @@ pub fn is_assignable(vf: &VerifierContext,from: &UnifiedType, to: &UnifiedType) 
 }
 
 pub fn is_java_assignable(vf: &VerifierContext,from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
-    loaded_class(vf,to, to.loader.clone())?;
+    loaded_class(vf,to.class_name.clone(), to.loader.clone())?;
     if class_is_interface(vf,&ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() }) {
         return Result::Ok(());
     }
@@ -225,7 +204,7 @@ pub fn is_java_subclass_of(_vf: &VerifierContext,_sub: &ClassWithLoader, _super:
     unimplemented!()
 }
 
-pub fn class_super_class_name(vf: &VerifierContext,class: &ClassWithLoader) -> String {
+pub fn class_super_class_name(vf: &VerifierContext,class: &ClassWithLoader) -> ClassName {
     //todo dup, this must exist elsewhere
     let classfile = get_class(vf,class);
     let class_entry = &classfile.constant_pool[classfile.super_class as usize];
@@ -235,7 +214,7 @@ pub fn class_super_class_name(vf: &VerifierContext,class: &ClassWithLoader) -> S
         }
         _ => panic!()
     };
-    extract_string_from_utf8(utf8)
+    ClassName::Str(extract_string_from_utf8(utf8))//todo use weak ref + index instead
 }
 
 pub fn super_class_chain(vf: &VerifierContext,chain_start: &ClassWithLoader, loader: Arc<dyn Loader + Send + Sync>, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
@@ -247,11 +226,11 @@ pub fn super_class_chain(vf: &VerifierContext,chain_start: &ClassWithLoader, loa
             return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
         }
     }
-    let class = loaded_class(vf,&ClassWithLoader { class_name: chain_start.class_name.clone(), loader: loader.clone() }, loader.clone())?;//todo loader duplication
+    let class = loaded_class(vf,chain_start.class_name.clone(), loader.clone())?;//todo loader duplication
     let super_class_name = class_super_class_name(vf,&class);
-    let super_class = loaded_class_(vf,super_class_name.clone(), loader.clone())?;
+    let super_class = loaded_class(vf,super_class_name.clone(), loader.clone())?;
     res.push(super_class);
-    super_class_chain(vf,&loaded_class_(vf,super_class_name, loader.clone())?, loader.clone(), res)?;
+    super_class_chain(vf,&loaded_class(vf,super_class_name.clone(), loader.clone())?, loader.clone(), res)?;
     Result::Ok(())
 }
 
@@ -274,7 +253,7 @@ pub fn is_private(vf: &VerifierContext,method: &ClassWithLoaderMethod, class: &C
 
 pub fn does_not_override_final_method(vf: &VerifierContext,class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     dbg!(class_name_legacy(&get_class(vf,class)));
-    if class_name_legacy(&get_class(vf,class)) == "java/lang/Object" {
+    if get_referred_name(&class.class_name) == "java/lang/Object" {
         if is_bootstrap_loader(vf,&class.loader) {
             Result::Ok(())
         } else {
@@ -324,7 +303,7 @@ pub fn final_method_not_overridden(vf: &VerifierContext,method: &ClassWithLoader
 
 pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext,class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(),TypeSafetyError> {
     let super_class_name = class_super_class_name(vf,class);
-    let super_class = loaded_class_(vf,super_class_name,vf.bootstrap_loader.clone())?;
+    let super_class = loaded_class(vf,super_class_name,vf.bootstrap_loader.clone())?;
     let super_methods_list= get_class_methods(vf,&super_class);
     final_method_not_overridden(vf,method,&super_class,&super_methods_list)
 }

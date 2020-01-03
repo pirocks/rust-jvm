@@ -5,6 +5,7 @@ use crate::classfile::ACC_INTERFACE;
 use std::sync::Arc;
 use crate::classfile::Class;
 use crate::classfile::MethodInfo;
+use crate::classnames::ClassName;
 
 pub fn extract_string_from_utf8(utf8: &ConstantInfo) -> String {
     match &(utf8).kind {
@@ -60,7 +61,7 @@ pub fn extract_class_from_constant_pool(i: u16, classfile: &Arc<Classfile>) -> &
     }
 }
 
-pub fn get_super_class_name(class: &Classfile) -> String {
+pub fn get_super_class_name(class: &Classfile) -> ClassName {
     let class_info = match &(class.constant_pool[class.super_class as usize]).kind {
         ConstantKind::Class(c) => {
             c
@@ -69,7 +70,7 @@ pub fn get_super_class_name(class: &Classfile) -> String {
     };
     match &(class.constant_pool[class_info.name_index as usize]).kind {
         ConstantKind::Utf8(s) => {
-            return s.string.clone();
+            return ClassName::Str(s.string.clone());
         }
         _ => { panic!() }
     }

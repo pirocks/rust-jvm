@@ -1,8 +1,3 @@
-#[macro_use]
-extern crate lazy_static;
-
-
-
 use std::sync::Arc;
 use std::fs::File;
 use rust_jvm_common::loading::Loader;
@@ -13,11 +8,11 @@ use rust_jvm_common::loading::LoaderName;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::path::Path;
-use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct Classpath{
-    pub name_to_path: HashMap<ClassName,Box<Path>>
+    //base directories to search for a file in.
+    pub classpath_base : Vec<Box<Path>>
 }
 
 #[derive(Debug)]
@@ -26,7 +21,7 @@ pub struct BootstrapLoader {
     pub parsed: RwLock<HashMap<ClassName, Arc<Classfile>>>,
     pub name: RwLock<LoaderName>,
     //for now the classpath is immutable so no locks are needed.
-    pub classpath: RefCell<Classpath>
+    pub classpath: Classpath
 }
 
 
@@ -47,22 +42,24 @@ impl Loader for BootstrapLoader {
         LoaderName::BootstrapLoader
     }
 
-    fn pre_load(&self, name: &ClassName) -> Arc<Classfile> {
+    fn pre_load(&self, name: &ClassName) -> Result<Arc<Classfile>,ClassLoadingError> {
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         match self.parsed.read().unwrap().get(name) {
             None => {
-                match self.classpath.borrow().name_to_path.get(name){
-                    None => unimplemented!("{}", "essentially need to handle not knowning of the existence of class referenced by another".to_string()),
-                    Some(_path) => {
+                unimplemented!("{:?}",name);
+
+//                match self.classpath.name_to_path.get(name){
+//                    None => unimplemented!("{}", "essentially need to handle not knowning of the existence of class referenced by another".to_string()),
+//                    Some(_path) => {
 //                        let p = ParsingContext{
 //
 //                        };
-                        //todo this needs to be somewhere else, to avoid circular deps
-                        unimplemented!()
-                    },
-                }
+//                        todo this needs to be somewhere else, to avoid circular deps
+//                        unimplemented!()
+//                    },
+//                }
             }
-            Some(c) => c.clone(),
+            Some(c) => Result::Ok(c.clone()),
         }
     }
 }
@@ -75,5 +72,4 @@ impl Loader for BootstrapLoader {
 //            name: RwLock::new(LoaderName::BootstrapLoader),
 //            classpath: Classpath {name_to_path:HashMap::new()}
 //        });
-
 //}

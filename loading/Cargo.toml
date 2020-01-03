@@ -13,4 +13,5 @@ path = "src/lib.rs"
 
 [dependencies]
 rust-jvm-common = {path = "../rust-jvm-common"}
+verification = {path = "../verification"}
 lazy_static = "1.4.0"

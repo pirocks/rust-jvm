@@ -3,12 +3,13 @@ use std::sync::Arc;
 use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use rust_jvm_common::classnames::{get_referred_name, ClassName};
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
-use crate::verifier::filecorrectness::{super_class_chain, loaded_class_, class_is_final, is_bootstrap_loader, get_class_methods};
+use crate::verifier::filecorrectness::{super_class_chain, class_is_final, is_bootstrap_loader, get_class_methods};
 use crate::types::MethodDescriptor;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::utils::get_super_class_name;
 use crate::types::Descriptor;
 use crate::VerifierContext;
+use crate::verifier::filecorrectness::loaded_class;
 
 
 macro_rules! unknown_error_verifying {
@@ -37,7 +38,10 @@ pub fn get_class(_verifier_context: &VerifierContext, class: &ClassWithLoader) -
             Err(_) => panic!(),
         }
     } else {
-        class.loader.pre_load(&class.class_name)
+        match class.loader.pre_load(&class.class_name){
+            Ok(c) => c,
+            Err(_) => panic!(),
+        }
     }
 }
 
@@ -77,7 +81,7 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
         let super_class_name = get_super_class_name(&get_class(vf, class));
-        let super_class = loaded_class_(vf,super_class_name, vf.bootstrap_loader.clone()).unwrap();
+        let super_class = loaded_class(vf,super_class_name, vf.bootstrap_loader.clone()).unwrap();
         if class_is_final(vf,&super_class) {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
         }

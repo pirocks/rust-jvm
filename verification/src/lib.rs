@@ -21,8 +21,8 @@ pub mod verifier;
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
 */
-pub fn verify(to_verify: Arc<Classfile>,loader: Arc<dyn Loader + Send + Sync>) -> Result<(), TypeSafetyError> {
-    match class_is_type_safe(unimplemented!(),&ClassWithLoader {
+pub fn verify(vf:&VerifierContext,to_verify: Arc<Classfile>,loader: Arc<dyn Loader + Send + Sync>) -> Result<(), TypeSafetyError> {
+    match class_is_type_safe(vf,&ClassWithLoader {
         class_name: class_name(&to_verify),
         loader,
     }) {
