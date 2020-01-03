@@ -19,7 +19,7 @@ use verification::VerifierContext;
 use rust_jvm_common::classnames::class_name;
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_main() {
     let main_class_name = "Main".to_string();
     verify_class_with_name(&main_class_name).unwrap();

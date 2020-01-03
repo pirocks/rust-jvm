@@ -103,7 +103,7 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
 
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> Result<(), TypeSafetyError> {
     let frame = offset_stack_frame(env, target)?;
-//        None => { return TypeSafetyResult::NotSafe("No frame fround at target".to_string()); }
+    dbg!(&env.merged_code);
     frame_is_assignable(&env.vf,stack_frame, &frame)?;
     Result::Ok(())
 }
@@ -282,7 +282,7 @@ pub fn instruction_is_type_safe_iadd(env: &Environment, _offset: usize, stack_fr
 
 
 
-pub fn instruction_is_type_safe_iinc(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let should_be_int = nth0(index,locals);
     match should_be_int {
