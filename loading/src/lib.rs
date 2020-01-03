@@ -8,6 +8,9 @@ use rust_jvm_common::loading::LoaderName;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::path::Path;
+use rust_jvm_common::classnames::get_referred_name;
+use rust_jvm_common::classnames::class_name;
+use classfile_parser::parse_class_file;
 
 #[derive(Debug)]
 pub struct Classpath{
@@ -42,34 +45,29 @@ impl Loader for BootstrapLoader {
         LoaderName::BootstrapLoader
     }
 
-    fn pre_load(&self, name: &ClassName) -> Result<Arc<Classfile>,ClassLoadingError> {
+    //todo hacky and janky
+    fn pre_load(&self, self_arc: Arc<dyn Loader + Sync + Send>, name: &ClassName) -> Result<Arc<Classfile>,ClassLoadingError> {
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         match self.parsed.read().unwrap().get(name) {
             None => {
-                unimplemented!("{:?}",name);
-
-//                match self.classpath.name_to_path.get(name){
-//                    None => unimplemented!("{}", "essentially need to handle not knowning of the existence of class referenced by another".to_string()),
-//                    Some(_path) => {
-//                        let p = ParsingContext{
-//
-//                        };
-//                        todo this needs to be somewhere else, to avoid circular deps
-//                        unimplemented!()
-//                    },
-//                }
+                let found_class_file = self.classpath.classpath_base.iter().map(|x|{
+                    let mut path_buf = x.to_path_buf();
+                    path_buf.push(format!("{}.class",get_referred_name(name)));
+                    path_buf
+                }).find(|p|{
+                    p.exists()
+                });
+                match found_class_file {
+                    None => Result::Err(ClassLoadingError::ClassNotFoundException),
+                    Some(path) => {
+                        let file = File::open(path).unwrap();
+                        let classfile = parse_class_file((&file).try_clone().unwrap(), self_arc);
+                        self.parsed.write().unwrap().insert(class_name(&classfile),classfile.clone());
+                        Result::Ok(classfile)
+                    },
+                }
             }
             Some(c) => Result::Ok(c.clone()),
         }
     }
 }
-
-
-//lazy_static! {
-//    pub static ref BOOTSTRAP_LOADER: Arc<dyn Loader + Send + Sync> = Arc::new(BootstrapLoader {
-//            loaded: RwLock::new(HashMap::new()),
-//            parsed: RwLock::new(HashMap::new()),
-//            name: RwLock::new(LoaderName::BootstrapLoader),
-//            classpath: Classpath {name_to_path:HashMap::new()}
-//        });
-//}

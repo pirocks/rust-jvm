@@ -38,7 +38,7 @@ pub fn get_class(_verifier_context: &VerifierContext, class: &ClassWithLoader) -
             Err(_) => panic!(),
         }
     } else {
-        match class.loader.pre_load(&class.class_name){
+        match class.loader.pre_load(class.loader.clone(),&class.class_name){
             Ok(c) => c,
             Err(_) => panic!(),
         }

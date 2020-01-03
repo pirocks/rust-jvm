@@ -79,7 +79,7 @@ pub trait Loader {
 
 
     //pre loading parses the class file but does not verify
-    fn pre_load(&self, name: &ClassName) -> Result<Arc<Classfile>,ClassLoadingError>;
+    fn pre_load(&self, self_arc: Arc<dyn Loader + Send + Sync>, name: &ClassName) -> Result<Arc<Classfile>,ClassLoadingError>;
 }
 
 //todo Loading Constraints
