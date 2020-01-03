@@ -29,6 +29,7 @@ use crate::verifier::instructions::float::instruction_is_type_safe_dcmpg;
 use crate::verifier::instructions::float::instruction_is_type_safe_dadd;
 use crate::verifier::instructions::float::instruction_is_type_safe_d2f;
 use crate::verifier::instructions::float::instruction_is_type_safe_f2d;
+use crate::verifier::instructions::stores::instruction_is_type_safe_astore;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -45,11 +46,11 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::anewarray(_) => { unimplemented!() }
         InstructionInfo::areturn => instruction_is_type_safe_areturn(env, offset, stack_frame),
         InstructionInfo::arraylength => { unimplemented!() }
-        InstructionInfo::astore(_) => { unimplemented!() }
-        InstructionInfo::astore_0 => { unimplemented!() }
-        InstructionInfo::astore_1 => { unimplemented!() }
-        InstructionInfo::astore_2 => { unimplemented!() }
-        InstructionInfo::astore_3 => { unimplemented!() }
+        InstructionInfo::astore(i) => instruction_is_type_safe_astore(i as usize, env, offset, stack_frame),
+        InstructionInfo::astore_0 => instruction_is_type_safe_astore(0 as usize, env, offset, stack_frame),
+        InstructionInfo::astore_1 => instruction_is_type_safe_astore(1 as usize, env, offset, stack_frame),
+        InstructionInfo::astore_2 => instruction_is_type_safe_astore(2 as usize, env, offset, stack_frame),
+        InstructionInfo::astore_3 => instruction_is_type_safe_astore(3 as usize, env, offset, stack_frame),
         InstructionInfo::athrow => instruction_is_type_safe_athrow(env, offset, stack_frame),
         InstructionInfo::baload => { unimplemented!() }
         InstructionInfo::bastore => { unimplemented!() }
