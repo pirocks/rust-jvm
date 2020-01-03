@@ -57,14 +57,7 @@ impl PartialEq for ClassName {
                     &get_referred_name(self) == s
                 }
             },
-            ClassName::Str(s1) => match other {
-                ClassName::Str(s2) => {
-                    s1 == s2
-                }
-                ClassName::Ref(_) => {
-                    unimplemented!()
-                }
-            },
+            ClassName::Str(s1) => &get_referred_name(other) == s1
         }
     }
 }
