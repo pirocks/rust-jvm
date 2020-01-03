@@ -38,6 +38,7 @@ impl Debug for ClassWithLoader {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+//todo long run we should have a separate VerificationType enum
 pub enum UnifiedType {
     ByteType,
     CharType,

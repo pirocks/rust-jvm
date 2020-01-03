@@ -12,6 +12,7 @@ use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::classnames::{get_referred_name, class_name};
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
+use crate::verifier::codecorrectness::translate_types_to_vm_types;
 
 
 pub mod types;
@@ -93,7 +94,7 @@ fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> (
         UnifiedType::ArrayReferenceType(art) => {
             res.push(UnifiedType::ArrayReferenceType(
                 ArrayType {
-                    sub_type: Box::from(art.sub_type.clone())
+                    sub_type: Box::from(translate_types_to_vm_types(&art.sub_type))//todo should we use to_verification_type here?
                 }));
         }
         UnifiedType::VoidType => { panic!() }
