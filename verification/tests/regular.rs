@@ -33,7 +33,7 @@ pub fn can_verify_float_double_arithmetic() {
 }
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_with_main() {
     let main_class_name = "WithMain".to_string();
     verify_class_with_name(&main_class_name).unwrap();

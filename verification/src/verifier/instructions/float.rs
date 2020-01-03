@@ -2,16 +2,8 @@ use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::instructions::InstructionTypeSafe;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::codecorrectness::valid_type_transition;
 use rust_jvm_common::unified_types::UnifiedType;
-use crate::verifier::instructions::exception_stack_frame;
-use crate::verifier::instructions::ResultFrames;
-
-pub fn type_transition(env: &Environment, stack_frame: &Frame, expected_types:Vec<UnifiedType>,res_type:UnifiedType) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = valid_type_transition(env, expected_types, &res_type, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
-}
+use crate::verifier::instructions::type_transition;
 
 
 pub fn instruction_is_type_safe_d2f(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{

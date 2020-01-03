@@ -259,27 +259,49 @@ pub fn pop_category1(vf:&VerifierContext,input: &Vec<UnifiedType>) -> Result<(Un
 //}
 //
 //
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_i2d(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+
+pub fn instruction_is_type_safe_i2d(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env,stack_frame,vec![UnifiedType::IntType],UnifiedType::DoubleType)
+}
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_i2f(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_iadd(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_iinc(index: usize, value: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+
+pub fn type_transition(env: &Environment, stack_frame: &Frame, expected_types:Vec<UnifiedType>,res_type:UnifiedType) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let next_frame = valid_type_transition(env, expected_types, &res_type, stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
+pub fn instruction_is_type_safe_iadd(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env,stack_frame,vec![UnifiedType::IntType,UnifiedType::IntType],UnifiedType::IntType)
+}
+
+
+
+pub fn instruction_is_type_safe_iinc(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = &stack_frame.locals;
+    let should_be_int = nth0(index,locals);
+    match should_be_int {
+        UnifiedType::IntType => {
+            Result::Ok(InstructionTypeSafe::Safe(ResultFrames {
+                next_frame: Frame {
+                    locals: stack_frame.locals.clone(),
+                    stack_map: stack_frame.stack_map.clone(),
+                    flag_this_uninit: stack_frame.flag_this_uninit
+                },
+                exception_frame: exception_stack_frame(stack_frame)
+            }))
+        },
+        _ => {
+            Result::Err(unknown_error_verifying!())
+        }
+    }
+}
+
 //
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_ineg(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -404,11 +426,10 @@ pub fn instruction_is_type_safe_pop(env: &Environment, _offset: usize, stack_fra
 //}
 //
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_sipush(value: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_sipush(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env,stack_frame,vec![],UnifiedType::IntType)
+}
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_swap(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
