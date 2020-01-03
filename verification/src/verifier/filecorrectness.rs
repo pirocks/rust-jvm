@@ -134,6 +134,8 @@ pub fn is_assignable(vf: &VerifierContext,from: &UnifiedType, to: &UnifiedType) 
                 if a == a2 {
                     return Result::Ok(());
                 } else {
+                    dbg!(a);
+                    dbg!(a2);
                     unimplemented!()
                 }
             }

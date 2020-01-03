@@ -17,6 +17,7 @@ pub mod big_match;
 pub mod branches;
 pub mod stores;
 pub mod special;
+pub mod float;
 
 pub struct ResultFrames {
     pub next_frame: Frame,
