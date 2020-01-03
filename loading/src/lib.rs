@@ -48,7 +48,8 @@ impl Loader for BootstrapLoader {
     //todo hacky and janky
     fn pre_load(&self, self_arc: Arc<dyn Loader + Sync + Send>, name: &ClassName) -> Result<Arc<Classfile>,ClassLoadingError> {
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
-        match self.parsed.read().unwrap().get(name) {
+        let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x|x.clone());
+        match maybe_classfile {
             None => {
                 let found_class_file = self.classpath.classpath_base.iter().map(|x|{
                     let mut path_buf = x.to_path_buf();

@@ -29,7 +29,7 @@ impl Loader for EmptyLoader{
         unimplemented!()
     }
 
-    fn pre_load(&self, self_arc: Arc<dyn Loader + Sync + Send>, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn pre_load(&self, _self_arc: Arc<dyn Loader + Sync + Send>, _name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         unimplemented!()
     }
 }
