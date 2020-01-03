@@ -148,7 +148,11 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::iconst_4 => instruction_is_type_safe_iconst_m1(env, offset, stack_frame),
         InstructionInfo::iconst_5 => instruction_is_type_safe_iconst_m1(env, offset, stack_frame),
         InstructionInfo::idiv => { unimplemented!() }
-        InstructionInfo::if_acmpeq(_) => { unimplemented!() }
+        InstructionInfo::if_acmpeq(target) => {
+            let final_target = (*target as isize) + (instruction.offset as isize);
+            assert!(final_target >= 0);
+            instruction_is_type_safe_if_acmpeq(final_target as usize, env, offset, stack_frame)//same as eq case
+        }
         InstructionInfo::if_acmpne(target) => {
             let final_target = (*target as isize) + (instruction.offset as isize);
             assert!(final_target >= 0);

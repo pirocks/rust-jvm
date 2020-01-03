@@ -128,13 +128,13 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
 pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (method_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
     if method_name == "<init>" {
-        invoke_special_init(&env, stack_frame, &method_class_name, &parsed_descriptor)
+        invoke_special_init(&env, stack_frame, &ClassName::Str(method_class_name), &parsed_descriptor)
     } else {
         invoke_special_not_init(env, stack_frame, method_class_name, method_name, &parsed_descriptor)
     }
 }
 
-fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name: &String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name: &ClassName, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     stack_arg_list.reverse();
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
@@ -149,7 +149,7 @@ fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name
     match first {
         UnifiedType::Uninitialized(address) => {
             let uninit_address = UnifiedType::Uninitialized(UninitializedVariableInfo { offset: address.offset });
-            let this = rewritten_uninitialized_type(&uninit_address, env, &ClassWithLoader { class_name: ClassName::Str(method_class_name.clone()), loader: current_class_loader })?;
+            let this = rewritten_uninitialized_type(&uninit_address, env, &ClassWithLoader { class_name: method_class_name.clone(), loader: current_class_loader })?;
             let next_flags = rewritten_initialization_flags(&uninit_address, flags);
             let this_class = UnifiedType::Class(this);
             let next_operand_stack = substitute_operand_stack(&uninit_address, &this_class, &operand_stack);
@@ -168,7 +168,7 @@ fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name
             Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame: next_stack_frame, exception_frame: exception_stack_frame }))
         }
         UnifiedType::UninitializedThis => {
-            let this = rewritten_uninitialized_type(&UnifiedType::UninitializedThis, env, &ClassWithLoader { class_name: ClassName::Str(method_class_name.clone()), loader: current_class_loader })?;
+            let this = rewritten_uninitialized_type(&UnifiedType::UninitializedThis, env, &ClassWithLoader { class_name: method_class_name.clone(), loader: current_class_loader })?;
             let flag_this_uninit = rewritten_initialization_flags(&UnifiedType::UninitializedThis, flags);
             let this_class = UnifiedType::Class(this);
             let next_operand_stack = substitute_operand_stack(&UnifiedType::UninitializedThis, &this_class, &operand_stack);
@@ -327,7 +327,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     stack_arg_list.push(UnifiedType::Class(method_class));
     let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
-    passes_protected_check(env, class_name.clone(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
+    passes_protected_check(env, ClassName::Str(class_name.clone()), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     let exception_stack_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
 }
@@ -339,6 +339,7 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, Metho
         ConstantKind::Methodref(m) => {
             let c = extract_class_from_constant_pool(m.class_index, &classfile);
             let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
+            //todo ideally for name we would return weak ref.
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
             let parsed_descriptor = match parse_method_descriptor(&env.class_loader, descriptor.as_str()) {
                 None => { unimplemented!() }
