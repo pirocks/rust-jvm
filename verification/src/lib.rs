@@ -13,6 +13,7 @@ use rust_jvm_common::classnames::{get_referred_name, class_name};
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::codecorrectness::translate_types_to_vm_types;
+use std::collections::vec_deque::VecDeque;
 
 
 pub mod types;
@@ -110,5 +111,74 @@ pub struct VerifierContext{
 impl Clone for VerifierContext{
     fn clone(&self) -> Self {
         VerifierContext { bootstrap_loader: self.bootstrap_loader.clone() }
+    }
+}
+
+#[derive(Eq,Debug)]
+pub struct OperandStack{
+    data: VecDeque<UnifiedType>
+}
+
+impl Clone for OperandStack{
+    fn clone(&self) -> Self {
+        OperandStack {
+            data: self.data.clone()
+        }
+    }
+}
+
+impl PartialEq for OperandStack{
+    fn eq(&self, other: &OperandStack) -> bool {
+        unimplemented!()
+    }
+}
+
+
+impl OperandStack{
+
+    pub fn operand_push(&mut self, type_: UnifiedType){
+        self.data.push_front(type_);
+    }
+
+    pub fn operand_pop(&mut self) -> UnifiedType{
+        self.data.pop_front().unwrap()
+    }
+
+    pub fn len(&self) -> usize{
+        self.data.len()
+    }
+
+    pub fn peek(&self) -> UnifiedType{
+        self.data.front().unwrap().clone()
+    }
+
+    pub fn new_prolog_display_order(types: &Vec<UnifiedType>) -> OperandStack{
+        dbg!(types);
+        let mut o = OperandStack::empty();
+        for type_ in types{
+            o.operand_push(type_.clone())
+        }
+        dbg!(&o);
+        o
+    }
+
+    pub fn new_reverse_display_order(types: &Vec<UnifiedType>) -> OperandStack{
+        unimplemented!()
+    }
+
+    pub fn empty() -> OperandStack{
+        OperandStack { data: VecDeque::new() }
+    }
+
+    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, UnifiedType>{
+        self.data.iter()
+    }
+
+    pub(crate) fn substitute(&mut self, old: & UnifiedType, new: &UnifiedType){
+        for entry in &mut self.data{
+            if entry == old{
+                *entry = new.clone();
+            }
+        }
     }
 }

@@ -10,11 +10,12 @@ use crate::verifier::codecorrectness::size_of;
 use crate::VerifierContext;
 
 fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame) -> Result<Frame,TypeSafetyError>{
-    let (next_stack , actual_type) = pop_matching_type(&env.vf,&frame.stack_map,&type_)?;
+    let mut next_stack = frame.stack_map.clone();
+    let actual_type = pop_matching_type(&env.vf, &mut next_stack, &type_)?;
     let new_locals = modify_local_variable(&env.vf,index,actual_type,&frame.locals)?;
     Result::Ok(Frame {
         locals: new_locals,
-        stack_map: next_stack.to_vec(),
+        stack_map: next_stack,
         flag_this_uninit: frame.flag_this_uninit
     })
 }

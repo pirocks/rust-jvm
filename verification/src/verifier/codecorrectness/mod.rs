@@ -19,6 +19,7 @@ use crate::verifier::filecorrectness::get_access_flags;
 use rust_jvm_common::utils::method_name;
 use crate::{StackMap, VerifierContext};
 use rust_jvm_common::classnames::ClassName;
+use crate::OperandStack;
 
 pub mod stackmapframes;
 
@@ -41,8 +42,8 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<Uni
 // lists are stored in same order as prolog, e.g. 0 is first elem, n-1 is last.
 // This is problematic for adding to the beginning of a Vec. as a result linked lists may be used in impl.
 // alternatively results can be reversed at the end.
-pub fn pop_matching_list(vf:&VerifierContext,pop_from: &Vec<UnifiedType>, pop: Vec<UnifiedType>) -> Result<Vec<UnifiedType>, TypeSafetyError> {
-    let result = pop_matching_list_impl(vf,pop_from.as_slice(), pop.as_slice());
+pub fn pop_matching_list(vf:&VerifierContext,pop_from: &OperandStack, pop: Vec<UnifiedType>) -> Result<OperandStack, TypeSafetyError> {
+    let result = pop_matching_list_impl(vf,&mut pop_from.clone(), pop.as_slice());
     if pop_from.len() > 1 && pop.len() > 1{
         dbg!("Attempt to pop matching:");
         dbg!(&pop_from);
@@ -52,29 +53,33 @@ pub fn pop_matching_list(vf:&VerifierContext,pop_from: &Vec<UnifiedType>, pop: V
     return result;
 }
 
-pub fn pop_matching_list_impl(vf:&VerifierContext,pop_from: &[UnifiedType], pop: &[UnifiedType]) -> Result<Vec<UnifiedType>, TypeSafetyError> {
+pub fn pop_matching_list_impl(vf:&VerifierContext,pop_from: &mut OperandStack, pop: &[UnifiedType]) -> Result<OperandStack, TypeSafetyError> {
     if pop.is_empty() {
-        Result::Ok(pop_from.to_vec())//todo inefficent copying
+        Result::Ok(pop_from.clone())//todo inefficent copying
     } else {
         let to_pop = pop.first().unwrap();
-        let (pop_result, _) = pop_matching_type(vf,pop_from, to_pop)?;
-        return pop_matching_list_impl(vf,&pop_result, &pop[1..]);
+        pop_matching_type(vf,pop_from, to_pop)?;
+        return pop_matching_list_impl(vf,pop_from, &pop[1..]);
     }
 }
 
-pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l [UnifiedType], type_: &UnifiedType) -> Result<(&'l [UnifiedType], UnifiedType), TypeSafetyError> {
+pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l mut  OperandStack, type_: &UnifiedType) -> Result<UnifiedType, TypeSafetyError> {
     if size_of(vf,type_) == 1 {
-        let actual_type = &operand_stack[0];
-        is_assignable(vf,actual_type, type_)?;
-        return Result::Ok((&operand_stack[1..], actual_type.clone()));
+        let actual_type = operand_stack.peek();
+        is_assignable(vf,&actual_type, type_)?;
+        operand_stack.operand_pop();
+        return Result::Ok(actual_type.clone());
     } else if size_of(vf,type_) == 2 {
-        assert!(match &operand_stack[0] {
+        assert!(match &operand_stack.peek() {
             UnifiedType::TopType => true,
             _ => false
         });
-        let actual_type = &operand_stack[1];
-        is_assignable(vf,actual_type, type_)?;
-        return Result::Ok((&operand_stack[2..], actual_type.clone()));
+        operand_stack.operand_pop();
+        let actual_type = &operand_stack.peek();
+        //todo if not assignable we need to roll back top pop
+        is_assignable(vf,actual_type, type_).unwrap();
+        operand_stack.operand_pop();
+        return Result::Ok(actual_type.clone());
     } else {
         panic!()
     }
@@ -96,7 +101,7 @@ pub fn size_of(vf:&VerifierContext,unified_type: &UnifiedType) -> u64 {
     }
 }
 
-pub fn push_operand_stack(vf:&VerifierContext,operand_stack: &Vec<UnifiedType>, type_: &UnifiedType) -> Vec<UnifiedType> {
+pub fn push_operand_stack(vf:&VerifierContext,operand_stack: &OperandStack, type_: &UnifiedType) -> OperandStack {
     let mut operand_stack_copy = operand_stack.clone();
     match type_ {
         UnifiedType::VoidType => {
@@ -104,15 +109,10 @@ pub fn push_operand_stack(vf:&VerifierContext,operand_stack: &Vec<UnifiedType>, 
         }
         _ => {
             if size_of(vf,type_) == 2 {
-                //todo this is janky and inefficient
-                operand_stack_copy.reverse();
-                operand_stack_copy.push(type_.clone());
-                operand_stack_copy.push(UnifiedType::TopType);
-                operand_stack_copy.reverse();
+                operand_stack_copy.operand_push(type_.clone());
+                operand_stack_copy.operand_push(UnifiedType::TopType);
             } else if size_of(vf,type_) == 1 {
-                operand_stack_copy.reverse();
-                operand_stack_copy.push(type_.clone());
-                operand_stack_copy.reverse();
+                operand_stack_copy.operand_push(type_.clone());
             } else {
                 unimplemented!()
             }
@@ -122,7 +122,7 @@ pub fn push_operand_stack(vf:&VerifierContext,operand_stack: &Vec<UnifiedType>, 
 }
 
 
-pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: &Vec<UnifiedType>) -> bool {
+pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: &OperandStack) -> bool {
     operand_stack.len() <= environment.max_stack as usize
 }
 //
@@ -412,7 +412,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = expand_to_length(this_args, frame_size as usize, UnifiedType::TopType);
-    return (Frame { locals, flag_this_uninit, stack_map: vec![] }, parsed_descriptor.return_type);
+    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type);
 }
 
 

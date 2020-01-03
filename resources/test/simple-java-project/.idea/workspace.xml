@@ -2,8 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9055077e-5b26-4821-a46a-98674aadb006" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../verification/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/codecorrectness/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/codecorrectness/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/codecorrectness/stackmapframes.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/codecorrectness/stackmapframes.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/branches.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/branches.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/stores.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/stores.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../../verification/tests/regular.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/tests/regular.rs" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/target/" />
@@ -65,7 +71,7 @@
         <entry file="file://$PROJECT_DIR$/src/main/java/FloatDoubleArithmetic.java">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="162">
-              <caret line="9" column="15" lean-forward="true" selection-start-line="9" selection-start-column="15" selection-end-line="9" selection-end-column="15" />
+              <caret line="9" column="15" selection-start-line="9" selection-start-column="15" selection-end-line="9" selection-end-column="15" />
             </state>
           </provider>
         </entry>
@@ -74,7 +80,7 @@
         <entry file="file://$PROJECT_DIR$/src/main/java/WithMain.java">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="54">
-              <caret line="3" column="22" lean-forward="true" selection-start-line="3" selection-start-column="22" selection-end-line="3" selection-end-column="22" />
+              <caret line="3" column="22" selection-start-line="3" selection-start-column="22" selection-end-line="3" selection-end-column="22" />
               <folding>
                 <element signature="e#65#66#0" expanded="true" />
                 <element signature="e#88#89#0" expanded="true" />
@@ -176,7 +182,7 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1578072996581" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1578089375244" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/pom.xml" />
   </component>
   <component name="RunDashboard">
@@ -264,7 +270,7 @@
     <entry file="file://$PROJECT_DIR$/src/main/java/FloatDoubleArithmetic.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="162">
-          <caret line="9" column="15" lean-forward="true" selection-start-line="9" selection-start-column="15" selection-end-line="9" selection-end-column="15" />
+          <caret line="9" column="15" selection-start-line="9" selection-start-column="15" selection-end-line="9" selection-end-column="15" />
         </state>
       </provider>
     </entry>
@@ -278,7 +284,7 @@
     <entry file="file://$PROJECT_DIR$/src/main/java/WithMain.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="54">
-          <caret line="3" column="22" lean-forward="true" selection-start-line="3" selection-start-column="22" selection-end-line="3" selection-end-column="22" />
+          <caret line="3" column="22" selection-start-line="3" selection-start-column="22" selection-end-line="3" selection-end-column="22" />
           <folding>
             <element signature="e#65#66#0" expanded="true" />
             <element signature="e#88#89#0" expanded="true" />

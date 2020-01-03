@@ -10,6 +10,7 @@ use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
 use crate::VerifierContext;
+use crate::OperandStack;
 
 pub mod loads;
 pub mod consts;
@@ -91,7 +92,7 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
             Instruction(_) => panic!(),
             StackMap(s) => Frame {
                 locals: s.map_frame.locals.iter().map(|x| x.clone()).collect(),
-                stack_map: s.map_frame.stack_map.iter().map(|x| x.clone()).collect(),
+                stack_map: s.map_frame.stack_map.clone(),
                 flag_this_uninit: s.map_frame.flag_this_uninit,
             },
         }
@@ -139,8 +140,9 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
     let locals_copy = locals.iter().map(|x| { x.clone() }).collect();
-    let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: vec![class_to_type(&env.vf,&exception_class)], flag_this_uninit: flags };
-    if operand_stack_has_legal_length(env, &vec![class_to_type(&env.vf,&exception_class)]) {
+    let stack_map = OperandStack::new_prolog_display_order(&vec![class_to_type(&env.vf, &exception_class)]);
+    let true_exc_stack_frame = Frame { locals: locals_copy, stack_map:stack_map.clone(), flag_this_uninit: flags };
+    if operand_stack_has_legal_length(env, &stack_map.clone()) {
         target_is_type_safe(env, &true_exc_stack_frame, target)
     } else {
         Result::Err(TypeSafetyError::NotSafe("operand stack does not have legal length".to_string()))
@@ -203,7 +205,7 @@ pub fn instruction_is_type_safe_dup(env: &Environment, _offset: usize, stack_fra
     let locals = &stack_frame.locals;
     let input_operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    let (type_,_rest)= pop_category1(&env.vf,input_operand_stack)?;
+    let type_= pop_category1(&env.vf,&mut input_operand_stack.clone())?;
     let output_operand_stack = can_safely_push(env,input_operand_stack,&type_)?;
     let next_frame  = Frame {
         locals: locals.clone(),
@@ -214,7 +216,7 @@ pub fn instruction_is_type_safe_dup(env: &Environment, _offset: usize, stack_fra
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn can_safely_push(env: &Environment,input_operand_stack: &Vec<UnifiedType>,type_:&UnifiedType) -> Result<Vec<UnifiedType>,TypeSafetyError>{
+pub fn can_safely_push(env: &Environment,input_operand_stack: &OperandStack,type_:&UnifiedType) -> Result<OperandStack,TypeSafetyError>{
     let output_operand_stack = push_operand_stack(&env.vf,input_operand_stack,type_);
     if operand_stack_has_legal_length(env,&output_operand_stack){
         Result::Ok(output_operand_stack)
@@ -223,11 +225,10 @@ pub fn can_safely_push(env: &Environment,input_operand_stack: &Vec<UnifiedType>,
     }
 }
 
-pub fn pop_category1(vf:&VerifierContext,input: &Vec<UnifiedType>) -> Result<(UnifiedType,Vec<UnifiedType>),TypeSafetyError>{
-    if size_of(vf,&input[0]) == 1{
-        let type_ = input[0].clone();
-        let rest = input.as_slice()[1..].to_vec();
-        return Result::Ok((type_,rest));
+pub fn pop_category1(vf:&VerifierContext,input: &mut OperandStack) -> Result<UnifiedType,TypeSafetyError>{
+    if size_of(vf,&input.peek()) == 1{
+        let type_ = input.operand_pop();
+        return Result::Ok(type_);
     }else {
         unimplemented!()
     }
@@ -410,7 +411,8 @@ pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: 
 pub fn instruction_is_type_safe_pop(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let flags = stack_frame.flag_this_uninit;
-    let (_type_,rest) = pop_category1(&env.vf,&stack_frame.stack_map)?;
+    let mut rest = stack_frame.stack_map.clone();
+    let _type_ = pop_category1(&env.vf,&mut rest)?;
     let next_frame = Frame {
         locals: locals.clone(),
         stack_map: rest,
@@ -449,6 +451,6 @@ fn same_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool
 
 
 pub fn exception_stack_frame(f: &Frame) -> Frame {
-    Frame { locals: f.locals.iter().map(|x| x.clone()).collect(), stack_map: vec![], flag_this_uninit: f.flag_this_uninit }
+    Frame { locals: f.locals.iter().map(|x| x.clone()).collect(), stack_map: OperandStack::empty(), flag_this_uninit: f.flag_this_uninit }
 }
 

@@ -10,6 +10,7 @@ use rust_jvm_common::utils::get_super_class_name;
 use crate::types::Descriptor;
 use crate::VerifierContext;
 use crate::verifier::filecorrectness::loaded_class;
+use crate::OperandStack;
 
 
 macro_rules! unknown_error_verifying {
@@ -55,7 +56,7 @@ pub struct ClassWithLoaderMethod<'l> {
 #[derive(Debug)]
 pub struct Frame {
     pub locals: Vec<UnifiedType>,
-    pub stack_map: Vec<UnifiedType>,
+    pub stack_map: OperandStack,
     pub flag_this_uninit: bool,
 }
 
