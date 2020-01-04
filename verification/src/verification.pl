@@ -566,20 +566,25 @@ classesInOtherPkgWithProtectedMember(Class, MemberName,
     differentRuntimePackage(Class, class(MemberClassName, L)),
     loadedClass(MemberClassName, L, Super),
     isProtected(Super, MemberName, MemberDescriptor),
-    classesInOtherPkgWithProtectedMember(Class, MemberName, MemberDescriptor, MemberClassName, Tail, T).
+    classesInOtherPkgWithProtectedMember(
+    Class, MemberName, MemberDescriptor, MemberClassName, Tail, T).
 
-classesInOtherPkgWithProtectedMember(Class, MemberName,MemberDescriptor, MemberClassName,[class(MemberClassName, L) | Tail],T) :-
+classesInOtherPkgWithProtectedMember(Class, MemberName,
+    MemberDescriptor, MemberClassName,
+    [class(MemberClassName, L) | Tail],T) :-
     differentRuntimePackage(Class, class(MemberClassName, L)),
     loadedClass(MemberClassName, L, Super),
     isNotProtected(Super, MemberName, MemberDescriptor),
-    classesInOtherPkgWithProtectedMember(Class, MemberName, MemberDescriptor, MemberClassName, Tail, T).
+    classesInOtherPkgWithProtectedMember(
+    Class, MemberName, MemberDescriptor, MemberClassName, Tail, T).
 
 classesInOtherPkgWithProtectedMember(Class, MemberName,
                                     MemberDescriptor, MemberClassName,
                                     [class(MemberClassName, L) | Tail],
                                     T) :-
     sameRuntimePackage(Class, class(MemberClassName, L)),
-    classesInOtherPkgWithProtectedMember(Class, MemberName, MemberDescriptor, MemberClassName, Tail, T).
+    classesInOtherPkgWithProtectedMember(
+    Class, MemberName, MemberDescriptor, MemberClassName, Tail, T).
 
 sameRuntimePackage(Class1, Class2) :-
     classDefiningLoader(Class1, L),

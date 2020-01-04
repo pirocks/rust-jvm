@@ -14,7 +14,6 @@ pub struct ArrayType {
     pub sub_type: Box<UnifiedType>
 }
 
-//#[derive(Debug)]
 pub struct ClassWithLoader {
     pub class_name: ClassName,
     pub loader: Arc<dyn Loader + Sync + Send>,
@@ -24,6 +23,12 @@ impl PartialEq for ClassWithLoader {
     fn eq(&self, other: &ClassWithLoader) -> bool {
         self.class_name == other.class_name &&
             Arc::ptr_eq(&self.loader, &other.loader)
+    }
+}
+
+impl Clone for ClassWithLoader{
+    fn clone(&self) -> Self {
+        ClassWithLoader { class_name: self.class_name.clone(), loader: self.loader.clone() }
     }
 }
 

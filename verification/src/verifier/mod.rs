@@ -10,6 +10,9 @@ use crate::types::Descriptor;
 use crate::VerifierContext;
 use crate::verifier::filecorrectness::loaded_class;
 use crate::OperandStack;
+use crate::verifier::filecorrectness::different_runtime_package;
+use crate::verifier::filecorrectness::is_protected;
+use crate::verifier::filecorrectness::is_assignable;
 
 
 macro_rules! unknown_error_verifying {
@@ -105,20 +108,25 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
     Ok(())
 }
 
-pub fn passes_protected_check(env: &Environment, member_class_name: ClassName, member_name: String, member_descriptor: Descriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+pub fn passes_protected_check(env: &Environment, member_class_name: ClassName, member_name: String, member_descriptor: Descriptor, stack_frame: &Frame) -> Result<(), TypeSafetyError> {
     let mut chain = vec![];
     super_class_chain(&env.vf, env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
     if chain.iter().any(|x| {
         dbg!(&x);
-        x.class_name == member_class_name
+        &x.class_name == &member_class_name
     }) {
         //not my descriptive variable name
         //the spec's name not mine
-        let list = classes_in_other_pkg_with_protected_member(&env.vf, env.method.prolog_class, member_name, &member_descriptor, member_class_name, chain);
+        let list = classes_in_other_pkg_with_protected_member(&env.vf, env.method.prolog_class, member_name.clone(), &member_descriptor, member_class_name.clone(), chain)?;
         if list.is_empty() {
-            panic!()
+            Result::Ok(())
         } else {
-            unimplemented!()
+            let referenced_class = loaded_class(&env.vf, member_class_name, env.class_loader.clone())?;
+            if is_protected(&env.vf, &referenced_class, member_name.clone(), &member_descriptor){
+                is_assignable(&env.vf,&stack_frame.stack_map.peek(),&UnifiedType::Class(env.method.prolog_class.clone()))
+            }else {
+                Result::Ok(())
+            }
         }
     } else {
         Result::Ok(())
@@ -126,17 +134,44 @@ pub fn passes_protected_check(env: &Environment, member_class_name: ClassName, m
 }
 
 
-pub fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, class: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor, member_class_name: ClassName, chain: Vec<ClassWithLoader>) -> Vec<ClassWithLoader> {
-
+pub fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, class: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor, member_class_name: ClassName, chain: Vec<ClassWithLoader>) -> Result<Vec<ClassWithLoader>,TypeSafetyError> {
+    let mut res = vec![];
+    classes_in_other_pkg_with_protected_member_impl(vf,class,member_name,member_descriptor,member_class_name,chain.as_slice(),&mut res)?;
+    Result::Ok(res)
 }
 
 
-fn classes_in_other_pkg_with_protected_member_impl(vf: &VerifierContext, class: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor, member_class_name: ClassName, chain: &[ClassWithLoader]) -> Vec<ClassWithLoader> {
-    if chain.is_empty() {
-        vec![]
-    } else {
+fn classes_in_other_pkg_with_protected_member_impl(
+    vf: &VerifierContext,
+    class: &ClassWithLoader,
+    member_name: String,
+    member_descriptor: &Descriptor,
+    member_class_name: ClassName,
+    chain: &[ClassWithLoader],
+    res: &mut Vec<ClassWithLoader>) -> Result<(),TypeSafetyError> {
+    if !chain.is_empty() {
         let first = &chain[0];
         let rest = &chain[1..];
+        if first.class_name != member_class_name{
+            return Result::Err(unknown_error_verifying!())
+        }
+        let l = first.loader.clone();
+        if different_runtime_package(vf, class,first){
+            let super_ = loaded_class(vf,member_class_name.clone(),l)?;
+            if is_protected(vf,&super_,member_name.clone(),member_descriptor){
+                dbg!(&res);
+                res.push(first.clone())
+            }
+        }
+        classes_in_other_pkg_with_protected_member_impl(
+            vf,
+            class,
+            member_name.clone(),
+            member_descriptor,
+            member_class_name.clone(),
+            rest,
+            res)?;
     }
+    Result::Ok(())
 }
 
