@@ -38,12 +38,13 @@ use crate::verifier::instructions::instruction_is_type_safe_iinc;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokeinterface;
 use crate::verifier::instructions::special::instruction_is_type_safe_monitorenter;
 use crate::verifier::instructions::special::instruction_is_type_safe_arraylength;
+use crate::verifier::instructions::loads::instruction_is_type_safe_aaload;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
     dbg!(instruction);
     match &instruction.instruction {
-        InstructionInfo::aaload => { unimplemented!() }
+        InstructionInfo::aaload => instruction_is_type_safe_aaload(env,offset,stack_frame),
         InstructionInfo::aastore => { unimplemented!() }
         InstructionInfo::aconst_null => instruction_is_type_safe_aconst_null(env, offset, stack_frame),
         InstructionInfo::aload(i) => instruction_is_type_safe_aload(*i as usize, env, offset, stack_frame),

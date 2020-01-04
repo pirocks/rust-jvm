@@ -68,7 +68,7 @@ pub fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, st
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-fn array_component_type(type_ :UnifiedType) -> Result<UnifiedType,TypeSafetyError>{
+pub fn array_component_type(type_ :UnifiedType) -> Result<UnifiedType,TypeSafetyError>{
     use std::ops::Deref;
     Result::Ok(match type_ {
         UnifiedType::ArrayReferenceType(a) => a.sub_type.deref().clone(),
@@ -77,7 +77,7 @@ fn array_component_type(type_ :UnifiedType) -> Result<UnifiedType,TypeSafetyErro
     })
 }
 
-fn nth1_operand_stack_is(i: usize, frame: &Frame) -> Result<UnifiedType,TypeSafetyError>{
+pub fn nth1_operand_stack_is(i: usize, frame: &Frame) -> Result<UnifiedType,TypeSafetyError>{
     Result::Ok(nth1(i,&frame.stack_map))
 }
 

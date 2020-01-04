@@ -11,6 +11,7 @@ use std::fmt::Error;
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ArrayType {
+    //todo why does this struct exist
     pub sub_type: Box<UnifiedType>
 }
 
