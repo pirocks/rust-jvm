@@ -4,7 +4,7 @@ use crate::verifier::{Frame, get_class};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
 use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
-use rust_jvm_common::classnames::{ClassName, NameReference, class_name};
+use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;

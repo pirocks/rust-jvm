@@ -35,6 +35,7 @@ use crate::verifier::instructions::instruction_is_type_safe_sipush;
 use crate::verifier::instructions::instruction_is_type_safe_i2d;
 use crate::verifier::instructions::stores::instruction_is_type_safe_dstore;
 use crate::verifier::instructions::instruction_is_type_safe_iinc;
+use crate::verifier::instructions::branches::instruction_is_type_safe_invokeinterface;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -190,7 +191,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::ineg => { unimplemented!() }
         InstructionInfo::instanceof(_) => { unimplemented!() }
         InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, offset, stack_frame),
-        InstructionInfo::invokeinterface(_) => { unimplemented!() }
+        InstructionInfo::invokeinterface(ii) => instruction_is_type_safe_invokeinterface(ii.index as usize,ii.count as usize,env,offset,stack_frame),
         InstructionInfo::invokespecial(cp) => instruction_is_type_safe_invokespecial(*cp as usize, env, offset, stack_frame),
         InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(*cp as usize, env, offset, stack_frame),
         InstructionInfo::invokevirtual(v) => instruction_is_type_safe_invokevirtual(*v as usize, env, offset, stack_frame),

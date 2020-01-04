@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9055077e-5b26-4821-a46a-98674aadb006" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/codecorrectness/stackmapframes.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/codecorrectness/stackmapframes.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/big_match.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/big_match.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/branches.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../../verification/src/verifier/instructions/branches.rs" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/target/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -22,6 +24,7 @@
     <session id="2131032626">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
+          <entry key="project.closed" value="1" />
           <entry key="project.open.time.1" value="1" />
           <entry key="project.open.time.2" value="1" />
           <entry key="project.opened" value="2" />
@@ -111,7 +114,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="ProjectFrameBounds" extendedState="7">
     <option name="y" value="22" />
     <option name="width" value="1680" />
     <option name="height" value="1004" />
@@ -211,7 +214,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="22" width="1680" height="1004" extended-state="6" />
+    <frame x="0" y="22" width="1680" height="1004" extended-state="7" />
     <editor active="true" />
     <layout>
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.25337422" />
