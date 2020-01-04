@@ -273,10 +273,10 @@ pub struct Handler {
     pub class_name: Option<ClassName>
 }
 
-pub fn handler_exception_class(handler: &Handler) -> ClassWithLoader {
+pub fn handler_exception_class(vf: &VerifierContext,handler: &Handler) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
-        None => { unimplemented!("Return java/lang/Throwable") }
+        None => { ClassWithLoader{ class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: vf.bootstrap_loader.clone() } }
         Some(_s) => { unimplemented!("Need to get class from state") }
     }
 }

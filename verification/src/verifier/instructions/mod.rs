@@ -126,17 +126,15 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 }
 
 fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> UnifiedType {
-    let class_name = ClassName::Ref(NameReference {
-        index: get_class(vf,class).this_class,
-        class_file: Arc::downgrade(&get_class(vf,class)),
-    });
+    let classfile = get_class(vf, class);
+    let class_name = class_name(&classfile);
     UnifiedType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
 }
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> Result<(), TypeSafetyError> {
     let target = handler.target;
     let _class_loader = &env.class_loader;
-    let exception_class = handler_exception_class(handler);
+    let exception_class = handler_exception_class(&env.vf,handler);
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
     let locals_copy = locals.iter().map(|x| { x.clone() }).collect();
@@ -178,7 +176,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
         if start_is_member_of(h.start, env.merged_code.unwrap()) {
             let _target_stack_frame = offset_stack_frame(env, h.target)?;
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
-                let exception_class = handler_exception_class(&h);
+                let exception_class = handler_exception_class(&env.vf,&h);
                 //todo how does bootstrap loader from throwable make its way into this
                 let class_name = class_name(&get_class(&env.vf,&exception_class));
                 let assignable = is_assignable(&env.vf,&UnifiedType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
@@ -197,8 +195,15 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
 }
 
 
-pub fn instructions_include_end(_instructs: &Vec<MergedCodeInstruction>, _end: usize) -> bool {
-    unimplemented!()
+pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usize) -> bool {
+    instructs.iter().any(|x: &MergedCodeInstruction|{
+        match x{
+            MergedCodeInstruction::Instruction(i) => {
+                i.offset == end
+            },
+            MergedCodeInstruction::StackMap(_) => false,
+        }
+    })
 }
 
 pub fn instruction_is_type_safe_dup(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError>  {

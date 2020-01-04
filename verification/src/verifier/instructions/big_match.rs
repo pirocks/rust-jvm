@@ -175,7 +175,11 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             assert!(final_target >= 0);
             instruction_is_type_safe_ifnonnull(final_target as usize, env, offset, stack_frame)
         }
-        InstructionInfo::ifnull(_) => { unimplemented!() }
+        InstructionInfo::ifnull(target) => {
+            let final_target = (*target as isize) + (instruction.offset as isize);
+            assert!(final_target >= 0);
+            instruction_is_type_safe_ifnonnull(final_target as usize, env, offset, stack_frame)
+        }
         InstructionInfo::iinc(iinc) => instruction_is_type_safe_iinc(iinc.index as usize, env, offset, stack_frame),
         InstructionInfo::iload(index) => instruction_is_type_safe_iload(*index as usize, env, offset, stack_frame),
         InstructionInfo::iload_0 => instruction_is_type_safe_iload(0, env, offset, stack_frame),
