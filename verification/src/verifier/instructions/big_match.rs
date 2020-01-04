@@ -37,6 +37,7 @@ use crate::verifier::instructions::stores::instruction_is_type_safe_dstore;
 use crate::verifier::instructions::instruction_is_type_safe_iinc;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokeinterface;
 use crate::verifier::instructions::special::instruction_is_type_safe_monitorenter;
+use crate::verifier::instructions::special::instruction_is_type_safe_arraylength;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -45,14 +46,14 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::aaload => { unimplemented!() }
         InstructionInfo::aastore => { unimplemented!() }
         InstructionInfo::aconst_null => instruction_is_type_safe_aconst_null(env, offset, stack_frame),
-        InstructionInfo::aload(_) => { unimplemented!() }
+        InstructionInfo::aload(i) => instruction_is_type_safe_aload(*i as usize, env, offset, stack_frame),
         InstructionInfo::aload_0 => instruction_is_type_safe_aload(0, env, offset, stack_frame),
         InstructionInfo::aload_1 => instruction_is_type_safe_aload(1, env, offset, stack_frame),
         InstructionInfo::aload_2 => instruction_is_type_safe_aload(2, env, offset, stack_frame),
         InstructionInfo::aload_3 => instruction_is_type_safe_aload(3, env, offset, stack_frame),
         InstructionInfo::anewarray(_) => { unimplemented!() }
         InstructionInfo::areturn => instruction_is_type_safe_areturn(env, offset, stack_frame),
-        InstructionInfo::arraylength => { unimplemented!() }
+        InstructionInfo::arraylength => instruction_is_type_safe_arraylength(env,offset,stack_frame),
         InstructionInfo::astore(i) => instruction_is_type_safe_astore(*i as usize, env, offset, stack_frame),
         InstructionInfo::astore_0 => instruction_is_type_safe_astore(0 as usize, env, offset, stack_frame),
         InstructionInfo::astore_1 => instruction_is_type_safe_astore(1 as usize, env, offset, stack_frame),

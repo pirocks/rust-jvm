@@ -20,6 +20,7 @@ use rust_jvm_common::classnames::get_referred_name;
 use crate::types::Descriptor;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::substitute;
+use crate::OperandStack;
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -57,12 +58,31 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 //pub fn instruction_is_type_safe_anewarray(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
-//
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+
+pub fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let array_type = nth1_operand_stack_is(1,stack_frame)?;
+    array_component_type(array_type)?;
+    let next_frame = valid_type_transition(env, vec![UnifiedType::TopType], &UnifiedType::IntType, stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
+fn array_component_type(type_ :UnifiedType) -> Result<UnifiedType,TypeSafetyError>{
+    use std::ops::Deref;
+    Result::Ok(match type_ {
+        UnifiedType::ArrayReferenceType(a) => a.sub_type.deref().clone(),
+        UnifiedType::NullType => UnifiedType::NullType,
+        _ => panic!()
+    })
+}
+
+fn nth1_operand_stack_is(i: usize, frame: &Frame) -> Result<UnifiedType,TypeSafetyError>{
+    Result::Ok(nth1(i,&frame.stack_map))
+}
+
+fn nth1(i:usize,o:&OperandStack) -> UnifiedType{
+    o.data[i + 1].clone()
+}
 
 pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
     let to_pop = ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() };
@@ -70,7 +90,8 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
-//
+
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
