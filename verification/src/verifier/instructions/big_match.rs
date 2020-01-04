@@ -36,6 +36,7 @@ use crate::verifier::instructions::instruction_is_type_safe_i2d;
 use crate::verifier::instructions::stores::instruction_is_type_safe_dstore;
 use crate::verifier::instructions::instruction_is_type_safe_iinc;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokeinterface;
+use crate::verifier::instructions::special::instruction_is_type_safe_monitorenter;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -246,7 +247,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lsub => { unimplemented!() }
         InstructionInfo::lushr => { unimplemented!() }
         InstructionInfo::lxor => { unimplemented!() }
-        InstructionInfo::monitorenter => { unimplemented!() }
+        InstructionInfo::monitorenter => instruction_is_type_safe_monitorenter(env,offset,stack_frame),
         InstructionInfo::monitorexit => { unimplemented!() }
         InstructionInfo::multianewarray(_) => { unimplemented!() }
         InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize, env, offset, stack_frame),

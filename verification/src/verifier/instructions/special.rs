@@ -145,11 +145,12 @@ fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, Strin
 //}
 //
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_monitorenter(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_monitorenter(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let next_frame = can_pop(&env.vf,stack_frame,vec![UnifiedType::Reference])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
