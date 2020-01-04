@@ -104,6 +104,7 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
             dbg!(&from.class_name);
             dbg!(&to.class_name);
             dbg!(&chain);
+            panic!();
             Result::Err(unknown_error_verifying!())
         }
         Some(c) => {

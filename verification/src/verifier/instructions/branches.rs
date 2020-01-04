@@ -361,9 +361,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         .rev()
         .map(|x| x.clone())
         .collect();
-    //we reverse again before pushing because push applies to the end of the list.
-    let mut stack_arg_list: Vec<UnifiedType> = arg_list.iter().map(|x| x.clone()).collect();
-    stack_arg_list.reverse();
+    let mut stack_arg_list: Vec<UnifiedType> = arg_list.clone();
     let current_loader = &env.class_loader;
     let method_class = ClassWithLoader { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };
     stack_arg_list.push(UnifiedType::Class(method_class));

@@ -26,9 +26,9 @@ pub mod stackmapframes;
 
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
-//    dbg!(&expected_types_on_stack);
+    dbg!(&expected_types_on_stack);
 //    dbg!(&result_type);
-//    dbg!(&input_frame);
+    dbg!(&input_frame.stack_map);
     let input_operand_stack = &input_frame.stack_map;
     let interim_operand_stack = pop_matching_list(&env.vf,input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&env.vf,&interim_operand_stack, &result_type);
@@ -44,13 +44,13 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<Uni
 // This is problematic for adding to the beginning of a Vec. as a result linked lists may be used in impl.
 // alternatively results can be reversed at the end.
 pub fn pop_matching_list(vf:&VerifierContext,pop_from: &OperandStack, pop: Vec<UnifiedType>) -> Result<OperandStack, TypeSafetyError> {
-    let result = pop_matching_list_impl(vf,&mut pop_from.clone(), pop.as_slice());
     if pop_from.len() > 1 && pop.len() > 1{
         dbg!("Attempt to pop matching:");
         dbg!(&pop_from);
         dbg!(&pop);
-        dbg!(&result);
     }
+    let result = pop_matching_list_impl(vf,&mut pop_from.clone(), pop.as_slice());
+    dbg!(&result);
     return result;
 }
 
