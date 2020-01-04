@@ -44,11 +44,11 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<Uni
 // This is problematic for adding to the beginning of a Vec. as a result linked lists may be used in impl.
 // alternatively results can be reversed at the end.
 pub fn pop_matching_list(vf:&VerifierContext,pop_from: &OperandStack, pop: Vec<UnifiedType>) -> Result<OperandStack, TypeSafetyError> {
-    if pop_from.len() > 1 && pop.len() > 1{
+//    if pop_from.len() > 1 && pop.len() > 1{
         dbg!("Attempt to pop matching:");
         dbg!(&pop_from);
         dbg!(&pop);
-    }
+//    }
     let result = pop_matching_list_impl(vf,&mut pop_from.clone(), pop.as_slice());
     dbg!(&result);
     return result;
@@ -414,7 +414,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = expand_to_length(this_args, frame_size as usize, UnifiedType::TopType);
-    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type);
+    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, translate_types_to_vm_types(&parsed_descriptor.return_type));
 }
 
 

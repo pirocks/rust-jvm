@@ -153,7 +153,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
                 } else {
                     dbg!(a);
                     dbg!(a2);
-                    is_java_assignable(vf,from, to)
+                    is_java_assignable(vf, from, to)
                 }
             }
             //technically the next case should be partially part of is_java_assignable but is here
@@ -195,7 +195,11 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
         UnifiedType::OneWord => match to {
             UnifiedType::OneWord => Result::Ok(()),
             UnifiedType::TopType => Result::Ok(()),
-            _ => { /*dbg!(to);*/Result::Err(unknown_error_verifying!()) }
+            UnifiedType::Class(c) => {
+                dbg!(c);
+                panic!()
+            }
+            _ => { dbg!(to);Result::Err(unknown_error_verifying!()) }
         },
         UnifiedType::TwoWord => match to {
             UnifiedType::TwoWord => Result::Ok(()),
@@ -205,11 +209,14 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
                 Result::Err(unknown_error_verifying!())
             }
         },
-        _ => panic!("This is a bug"),//todo , should have a better message function
+        _ => {
+            dbg!(from);
+            panic!("This is a bug")
+        }//todo , should have a better message function
     }
 }
 
-fn atom(t: &UnifiedType) -> bool{
+fn atom(t: &UnifiedType) -> bool {
     match t {
         UnifiedType::ByteType |
         UnifiedType::CharType |
@@ -237,41 +244,41 @@ fn atom(t: &UnifiedType) -> bool{
     }
 }
 
-fn is_java_assignable(vf: &VerifierContext,left: &UnifiedType, right: &UnifiedType) -> Result<(),TypeSafetyError>{
+fn is_java_assignable(vf: &VerifierContext, left: &UnifiedType, right: &UnifiedType) -> Result<(), TypeSafetyError> {
     match left {
         UnifiedType::Class(c1) => {
             match right {
                 UnifiedType::Class(c2) => {
-                    is_java_assignable_class(vf,c1,c2)
-                },
+                    is_java_assignable_class(vf, c1, c2)
+                }
                 UnifiedType::ArrayReferenceType(_a) => {
                     unimplemented!()
-                },
+                }
                 _ => unimplemented!()
             }
-        },
+        }
         UnifiedType::ArrayReferenceType(a1) => {
             match right {
                 UnifiedType::Class(_c) => {
                     unimplemented!()
-                },
+                }
                 UnifiedType::ArrayReferenceType(a2) => {
-                    is_java_assignable_array_types(vf,a1.sub_type.deref(),a2.sub_type.deref())
-                },
+                    is_java_assignable_array_types(vf, a1.sub_type.deref(), a2.sub_type.deref())
+                }
                 _ => unimplemented!()
             }
-        },
+        }
         _ => unimplemented!()
     }
 }
 
-fn is_java_assignable_array_types(vf: &VerifierContext,left: &UnifiedType, right:&UnifiedType) -> Result<(), TypeSafetyError> {
-    if atom(&left) && atom(&right){
+fn is_java_assignable_array_types(vf: &VerifierContext, left: &UnifiedType, right: &UnifiedType) -> Result<(), TypeSafetyError> {
+    if atom(&left) && atom(&right) {
         if left == right {
-            return Result::Ok(())
+            return Result::Ok(());
         }
     }
-    if !atom(&left) && !atom(&right){
+    if !atom(&left) && !atom(&right) {
         return is_java_assignable(vf, left, right);
     }
     Result::Err(unknown_error_verifying!())

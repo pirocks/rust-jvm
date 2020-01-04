@@ -19,6 +19,8 @@ use crate::OperandStack;
 use classfile_parser::types::Descriptor;
 use classfile_parser::types::parse_method_descriptor;
 use classfile_parser::types::MethodDescriptor;
+use classfile_parser::types::parse_field_descriptor;
+use rust_jvm_common::classnames::get_referred_name;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -119,22 +121,22 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.prolog_class);
     let constant_pool = &method_class.constant_pool;
-    let ((name_index,descriptor_index),class_index) = match &constant_pool[cp].kind {
+    let ((name_index, descriptor_index), class_index) = match &constant_pool[cp].kind {
         ConstantKind::InterfaceMethodref(i) => {
             (match &constant_pool[i.nt_index as usize].kind {
                 ConstantKind::NameAndType(nt) => {
                     (nt.name_index as usize, nt.descriptor_index as usize)
-                },
+                }
                 _ => panic!()
             }, i.class_index as usize)
         }
         _ => panic!()
     };
-    let method_intf_name = extract_string_from_utf8(match &constant_pool[class_index].kind{
-        ConstantKind::Class(c) => {&constant_pool[c.name_index as usize]},
+    let method_intf_name = extract_string_from_utf8(match &constant_pool[class_index].kind {
+        ConstantKind::Class(c) => { &constant_pool[c.name_index as usize] }
         _ => panic!()
     });
     let method_name = extract_string_from_utf8(&constant_pool[name_index]);
@@ -150,29 +152,33 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     operand_arg_list.push(UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str(method_intf_name), loader: current_loader }));
     operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
-    let temp_frame = can_pop(&env.vf,stack_frame,stack_arg_list)?;
-    let next_frame = valid_type_transition(env,vec![],&return_type,&temp_frame)?;
-    count_is_valid(count,stack_frame,&temp_frame)?;
+    let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
+    let next_frame = valid_type_transition(env, vec![], &return_type, &temp_frame)?;
+    count_is_valid(count, stack_frame, &temp_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-fn count_is_valid(count:usize , input_frame:&Frame,output_frame:&Frame) -> Result<(),TypeSafetyError>{
+fn count_is_valid(count: usize, input_frame: &Frame, output_frame: &Frame) -> Result<(), TypeSafetyError> {
     let len1 = input_frame.stack_map.len();
     let len2 = output_frame.stack_map.len();
-    if count == len1 - len2{
+    if count == len1 - len2 {
         Result::Ok(())
-    }else {
+    } else {
         Result::Err(unknown_error_verifying!())
     }
 }
 
 pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (method_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    let method_class_name = match method_class_type {
+        UnifiedType::Class(c) => c.class_name,
+        _ => panic!()
+    };
     if method_name == "<init>" {
-        invoke_special_init(&env, stack_frame, &ClassName::Str(method_class_name), &parsed_descriptor)
+        invoke_special_init(&env, stack_frame, &method_class_name, &parsed_descriptor)
     } else {
-        invoke_special_not_init(env, stack_frame, method_class_name, method_name, &parsed_descriptor)
+        invoke_special_not_init(env, stack_frame, get_referred_name(&method_class_name), method_name, &parsed_descriptor)
     }
 }
 
@@ -244,7 +250,7 @@ pub fn substitute(old: &UnifiedType, new: &UnifiedType, list: &[UnifiedType]) ->
 
 pub fn substitute_operand_stack(old: &UnifiedType, new: &UnifiedType, list: &OperandStack) -> OperandStack {
     let mut o = list.clone();
-    o.substitute(old,new);
+    o.substitute(old, new);
     o
 }
 
@@ -325,11 +331,12 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
     let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     operand_arg_list_copy.push(current_class);
     operand_arg_list_copy.reverse();
-    let next_frame = valid_type_transition(env, operand_arg_list_copy, &parsed_descriptor.return_type, stack_frame)?;
+    let return_type = translate_types_to_vm_types(&parsed_descriptor.return_type);
+    let next_frame = valid_type_transition(env, operand_arg_list_copy, &return_type, stack_frame)?;
     let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     operand_arg_list_copy2.push(method_class);
     operand_arg_list_copy2.reverse();
-    valid_type_transition(env, operand_arg_list_copy2, &parsed_descriptor.return_type, stack_frame)?;
+    valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     return Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }));
 }
@@ -344,13 +351,19 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
         .rev()
         .map(|x| x.clone())
         .collect();
-    let next_frame = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
+    let return_type = translate_types_to_vm_types(&parsed_descriptor.return_type);
+    let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
 }
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    let class_name = match class_type {
+        UnifiedType::Class(c) => c.class_name,
+        _ => panic!()
+    };
+
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
@@ -363,16 +376,17 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         .collect();
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.clone();
     let current_loader = &env.class_loader;
-    let method_class = ClassWithLoader { class_name: ClassName::Str(class_name.clone()), loader: current_loader.clone() };
+    let method_class = ClassWithLoader { class_name:class_name.clone(), loader: current_loader.clone() };
     stack_arg_list.push(UnifiedType::Class(method_class));
-    let nf = valid_type_transition(env, stack_arg_list, &parsed_descriptor.return_type, stack_frame)?;
+    let return_type = translate_types_to_vm_types(&parsed_descriptor.return_type);
+    let nf = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
-    passes_protected_check(env, ClassName::Str(class_name.clone()), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
+    passes_protected_check(env, class_name.clone(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     let exception_stack_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
 }
 
-fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, MethodDescriptor) {
+fn get_method_descriptor(cp: usize, env: &Environment) -> (UnifiedType, String, MethodDescriptor) {
     let classfile = &get_class(&env.vf, env.method.prolog_class);
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
@@ -389,7 +403,20 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (String, String, Metho
         }
         _ => unimplemented!()
     };
-    (class_name, method_name, parsed_descriptor)
+    if class_name.contains("[") {
+        let class_type = match parse_field_descriptor(&env.class_loader, class_name.as_str()) {
+            None => panic!(),
+            Some(s) => s.field_type,
+        };
+        (class_type, method_name, parsed_descriptor)
+    } else {
+        (UnifiedType::Class(ClassWithLoader {
+            class_name: ClassName::Str(class_name),
+            loader: env.class_loader.clone(),
+        }),
+         method_name,
+         parsed_descriptor)
+    }
 }
 
 //#[allow(unused)]

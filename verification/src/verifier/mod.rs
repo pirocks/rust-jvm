@@ -108,12 +108,14 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
     Ok(())
 }
 
-pub fn passes_protected_check(env: &Environment, member_class_name: ClassName, member_name: String, member_descriptor: Descriptor, stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+pub fn passes_protected_check(env: &Environment, member_class_type: &UnifiedType, member_name: String, member_descriptor: Descriptor, stack_frame: &Frame) -> Result<(), TypeSafetyError> {
     let mut chain = vec![];
     super_class_chain(&env.vf, env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
     if chain.iter().any(|x| {
-        dbg!(&x);
-        &x.class_name == &member_class_name
+        match member_class_type{
+            UnifiedType::Class(c) => &x.class_name == &c.class_name,
+            UnifiedType::ArrayReferenceType(a) => false,
+        }
     }) {
         //not my descriptive variable name
         //the spec's name not mine

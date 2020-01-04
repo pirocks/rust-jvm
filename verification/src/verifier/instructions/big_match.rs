@@ -208,7 +208,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::istore_1 => instruction_is_type_safe_istore(1, env, offset, stack_frame),
         InstructionInfo::istore_2 => instruction_is_type_safe_istore(2, env, offset, stack_frame),
         InstructionInfo::istore_3 => instruction_is_type_safe_istore(3, env, offset, stack_frame),
-        InstructionInfo::isub => { unimplemented!() }
+        InstructionInfo::isub => instruction_is_type_safe_iadd(env,offset,stack_frame),
         InstructionInfo::iushr => { unimplemented!() }
         InstructionInfo::ixor => { unimplemented!() }
         InstructionInfo::jsr(_) => { unimplemented!() }
@@ -250,7 +250,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lushr => { unimplemented!() }
         InstructionInfo::lxor => { unimplemented!() }
         InstructionInfo::monitorenter => instruction_is_type_safe_monitorenter(env,offset,stack_frame),
-        InstructionInfo::monitorexit => { unimplemented!() }
+        InstructionInfo::monitorexit => instruction_is_type_safe_monitorenter(env,offset,stack_frame),
         InstructionInfo::multianewarray(_) => { unimplemented!() }
         InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize, env, offset, stack_frame),
         InstructionInfo::newarray(_) => { unimplemented!() }
