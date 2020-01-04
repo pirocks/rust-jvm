@@ -8,6 +8,7 @@ use classfile_parser::{code_attribute, stack_map_table_attribute};
 use crate::{init_frame, VerifierContext};
 use crate::StackMap;
 use crate::OperandStack;
+use crate::verifier::codecorrectness::expand_to_length;
 
 pub fn get_stack_map_frames(vf: &VerifierContext,class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
@@ -42,7 +43,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext,class: &ClassWithLoader, method
         res.push(StackMap {
             offset: frame.current_offset as usize,
             map_frame: Frame {
-                locals: frame.locals.iter().map(|x| { x.clone() }).collect(),
+                locals: expand_to_length(frame.locals.clone(),frame.max_locals as usize,UnifiedType::TopType),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack),
                 flag_this_uninit: false,
             },
