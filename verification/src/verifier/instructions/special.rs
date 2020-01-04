@@ -60,6 +60,7 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 //}
 
 pub fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    dbg!(stack_frame);
     let array_type = nth1_operand_stack_is(1,stack_frame)?;
     array_component_type(array_type)?;
     let next_frame = valid_type_transition(env, vec![UnifiedType::TopType], &UnifiedType::IntType, stack_frame)?;
@@ -81,7 +82,7 @@ fn nth1_operand_stack_is(i: usize, frame: &Frame) -> Result<UnifiedType,TypeSafe
 }
 
 fn nth1(i:usize,o:&OperandStack) -> UnifiedType{
-    o.data[i + 1].clone()
+    o.data[i - 1].clone()
 }
 
 pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
