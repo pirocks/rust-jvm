@@ -5,12 +5,12 @@ use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
 use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use rust_jvm_common::classnames::{ClassName, NameReference, class_name};
-use std::sync::Arc;
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
 use crate::VerifierContext;
 use crate::OperandStack;
+use rust_jvm_common::utils::method_name;
 
 pub mod loads;
 pub mod consts;
@@ -104,7 +104,10 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
 
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> Result<(), TypeSafetyError> {
     let frame = offset_stack_frame(env, target)?;
-    dbg!(&env.merged_code);
+//    dbg!(&env.merged_code);
+    let classfile = get_class(&env.vf, &env.method.prolog_class);
+    dbg!(method_name(&classfile, &classfile.methods[env.method.method_index as usize]));
+    dbg!(env.merged_code);
     frame_is_assignable(&env.vf,stack_frame, &frame)?;
     Result::Ok(())
 }
@@ -115,6 +118,8 @@ fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_st
         is_applicable_handler(offset as usize, h)
     });
     let res: Result<Vec<_>, _> = applicable_handler.map(|h| {
+        dbg!(&h);
+        dbg!(offset);
         instruction_satisfies_handler(env, exception_stack_frame, h)
     }).collect();
     res?;
@@ -122,7 +127,7 @@ fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_st
 }
 
 fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
-    offset <= handler.start && offset < handler.end
+    offset >= handler.start && offset < handler.end
 }
 
 fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> UnifiedType {

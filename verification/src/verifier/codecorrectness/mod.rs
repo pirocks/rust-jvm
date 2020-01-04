@@ -161,6 +161,8 @@ pub fn can_pop(vf:&VerifierContext,input_frame: &Frame, types: Vec<UnifiedType>)
 }
 
 pub fn frame_is_assignable(vf:&VerifierContext,left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
+    dbg!(left);
+    dbg!(right);
     let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| {
         is_assignable(vf,left_, right_)
     }).collect();
@@ -177,8 +179,6 @@ pub fn frame_is_assignable(vf:&VerifierContext,left: &Frame, right: &Frame) -> R
         } {
         Result::Ok(())
     } else {
-        dbg!(left);
-        dbg!(right);
         panic!();
         Result::Err(unknown_error_verifying!())
     }
@@ -266,6 +266,7 @@ pub fn method_with_code_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader
     Result::Ok(())
 }
 
+#[derive(Debug)]
 pub struct Handler {
     pub start: usize,
     pub end: usize,
