@@ -13,6 +13,7 @@ use crate::VerifierContext;
 use classfile_parser::types::Descriptor;
 use classfile_parser::types::parse_field_descriptor;
 use classfile_parser::types::parse_method_descriptor;
+use std::ops::Deref;
 
 #[allow(unused)]
 fn same_runtime_package(vf: &VerifierContext, class1: ClassWithLoader, class2: &ClassWithLoader) -> bool {
@@ -139,7 +140,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
                 if c == c2 {
                     return Result::Ok(());
                 } else {
-                    return is_java_assignable(vf, c, c2);
+                    return is_java_assignable_class(vf, c, c2);
                 }
             }
             _ => is_assignable(vf, &UnifiedType::Reference, to)
@@ -151,7 +152,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
                 } else {
                     dbg!(a);
                     dbg!(a2);
-                    unimplemented!()
+                    is_java_assignable(vf,from, to)
                 }
             }
             //technically the next case should be partially part of is_java_assignable but is here
@@ -207,7 +208,75 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
     }
 }
 
-pub fn is_java_assignable(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
+fn atom(t: &UnifiedType) -> bool{
+    match t {
+        UnifiedType::ByteType |
+        UnifiedType::CharType |
+        UnifiedType::DoubleType |
+        UnifiedType::FloatType |
+        UnifiedType::IntType |
+        UnifiedType::LongType |
+        UnifiedType::ShortType |
+        UnifiedType::VoidType |
+        UnifiedType::TopType |
+        UnifiedType::NullType |
+        UnifiedType::UninitializedThis |
+        UnifiedType::TwoWord |
+        UnifiedType::OneWord |
+        UnifiedType::Reference |
+        UnifiedType::UninitializedEmpty |
+        UnifiedType::BooleanType => {
+            true
+        }
+        UnifiedType::Class(_) |
+        UnifiedType::ArrayReferenceType(_) |
+        UnifiedType::Uninitialized(_) => {
+            false
+        }
+    }
+}
+
+fn is_java_assignable(vf: &VerifierContext,left: &UnifiedType, right: &UnifiedType) -> Result<(),TypeSafetyError>{
+    match left {
+        UnifiedType::Class(c1) => {
+            match right {
+                UnifiedType::Class(c2) => {
+                    is_java_assignable_class(vf,c1,c2)
+                },
+                UnifiedType::ArrayReferenceType(_a) => {
+                    unimplemented!()
+                },
+                _ => unimplemented!()
+            }
+        },
+        UnifiedType::ArrayReferenceType(a1) => {
+            match right {
+                UnifiedType::Class(_c) => {
+                    unimplemented!()
+                },
+                UnifiedType::ArrayReferenceType(a2) => {
+                    is_java_assignable_array_types(vf,a1.sub_type.deref(),a2.sub_type.deref())
+                },
+                _ => unimplemented!()
+            }
+        },
+        _ => unimplemented!()
+    }
+}
+
+fn is_java_assignable_array_types(vf: &VerifierContext,left: &UnifiedType, right:&UnifiedType) -> Result<(), TypeSafetyError> {
+    if atom(&left) && atom(&right){
+        if left == right {
+            return Result::Ok(())
+        }
+    }
+    if !atom(&left) && !atom(&right){
+        return is_java_assignable(vf, left, right);
+    }
+    Result::Err(unknown_error_verifying!())
+}
+
+fn is_java_assignable_class(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     loaded_class(vf, to.class_name.clone(), to.loader.clone())?;
     if class_is_interface(vf, &ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() }) {
         return Result::Ok(());

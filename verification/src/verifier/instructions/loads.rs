@@ -11,7 +11,7 @@ use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
 
 
-pub fn instruction_is_type_safe_aaload(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_aaload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = nth1_operand_stack_is(2,stack_frame)?;
     let component_type = array_component_type(array_type)?;
     let bl = env.vf.bootstrap_loader.clone();

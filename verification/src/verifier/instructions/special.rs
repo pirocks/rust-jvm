@@ -59,7 +59,7 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 //    unimplemented!()
 //}
 
-pub fn instruction_is_type_safe_arraylength(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_arraylength(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(stack_frame);
     let array_type = nth1_operand_stack_is(1,stack_frame)?;
     array_component_type(array_type)?;

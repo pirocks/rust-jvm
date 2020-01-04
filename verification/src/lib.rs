@@ -127,7 +127,7 @@ impl Clone for OperandStack{
 }
 
 impl PartialEq for OperandStack{
-    fn eq(&self, other: &OperandStack) -> bool {
+    fn eq(&self, _other: &OperandStack) -> bool {
         unimplemented!()
     }
 }
@@ -161,7 +161,7 @@ impl OperandStack{
         o
     }
 
-    pub fn new_reverse_display_order(types: &Vec<UnifiedType>) -> OperandStack{
+    pub fn new_reverse_display_order(_types: &Vec<UnifiedType>) -> OperandStack{
         unimplemented!()
     }
 

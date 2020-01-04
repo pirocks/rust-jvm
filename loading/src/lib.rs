@@ -33,11 +33,11 @@ impl Loader for BootstrapLoader {
         self.loaded.read().unwrap().contains_key(class)
     }
 
-    fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError> {
+    fn find_representation_of(&self, _class: &ClassName) -> Result<File, ClassLoadingError> {
         unimplemented!()
     }
 
-    fn load_class(&self, class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn load_class(&self, _class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         unimplemented!()
     }
 
