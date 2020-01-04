@@ -16,7 +16,6 @@ use crate::verifier::codecorrectness::translate_types_to_vm_types;
 use std::collections::vec_deque::VecDeque;
 
 
-pub mod types;
 pub mod verifier;
 
 

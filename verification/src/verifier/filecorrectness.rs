@@ -10,9 +10,9 @@ use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
 use rust_jvm_common::classfile::ConstantKind;
 use rust_jvm_common::loading::LoaderName;
 use crate::VerifierContext;
-use crate::types::Descriptor;
-use crate::types::parse_method_descriptor;
-use crate::types::parse_field_descriptor;
+use classfile_parser::types::Descriptor;
+use classfile_parser::types::parse_field_descriptor;
+use classfile_parser::types::parse_method_descriptor;
 
 #[allow(unused)]
 fn same_runtime_package(vf: &VerifierContext, class1: ClassWithLoader, class2: &ClassWithLoader) -> bool {

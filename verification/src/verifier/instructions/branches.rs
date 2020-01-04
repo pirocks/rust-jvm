@@ -6,19 +6,19 @@ use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::utils::name_and_type_extractor;
-use crate::types::MethodDescriptor;
 
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::passes_protected_check;
 use rust_jvm_common::utils::extract_class_from_constant_pool;
-use crate::types::parse_method_descriptor;
 use crate::verifier::codecorrectness::valid_type_transition;
 use rust_jvm_common::classnames::{ClassName, NameReference};
 use crate::verifier::filecorrectness::is_assignable;
-use crate::types::Descriptor;
 use std::sync::Arc;
 use crate::verifier::codecorrectness::translate_types_to_vm_types;
 use crate::OperandStack;
+use classfile_parser::types::Descriptor;
+use classfile_parser::types::parse_method_descriptor;
+use classfile_parser::types::MethodDescriptor;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {

@@ -8,8 +8,6 @@ use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classnames::NameReference;
 use std::sync::Arc;
-use crate::types::parse_field_descriptor;
-use crate::types::FieldDescriptor;
 use crate::verifier::codecorrectness::can_pop;
 use crate::verifier::passes_protected_check;
 use rust_jvm_common::unified_types::UnifiedType;
@@ -17,10 +15,12 @@ use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::instructions::exception_stack_frame;
 use crate::verifier::instructions::ResultFrames;
 use rust_jvm_common::classnames::get_referred_name;
-use crate::types::Descriptor;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::substitute;
 use crate::OperandStack;
+use classfile_parser::types::Descriptor;
+use classfile_parser::types::FieldDescriptor;
+use classfile_parser::types::parse_field_descriptor;
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {

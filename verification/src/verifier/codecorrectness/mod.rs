@@ -5,7 +5,6 @@ use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use std::sync::Arc;
 use crate::verifier::instructions::{handers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
-use crate::types::{parse_method_descriptor, MethodDescriptor};
 
 use std::option::Option::Some;
 use rust_jvm_common::unified_types::{UnifiedType, ArrayType, ClassWithLoader};
@@ -20,6 +19,8 @@ use rust_jvm_common::utils::method_name;
 use crate::{StackMap, VerifierContext};
 use rust_jvm_common::classnames::ClassName;
 use crate::OperandStack;
+use classfile_parser::types::parse_method_descriptor;
+use classfile_parser::types::MethodDescriptor;
 
 pub mod stackmapframes;
 

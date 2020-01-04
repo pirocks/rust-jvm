@@ -6,13 +6,13 @@ use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, class_is_final, is_bootstrap_loader, get_class_methods};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::utils::get_super_class_name;
-use crate::types::Descriptor;
 use crate::VerifierContext;
 use crate::verifier::filecorrectness::loaded_class;
 use crate::OperandStack;
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
 use crate::verifier::filecorrectness::is_assignable;
+use classfile_parser::types::Descriptor;
 
 
 macro_rules! unknown_error_verifying {

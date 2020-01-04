@@ -3,9 +3,10 @@ use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, Bootstr
 use crate::constant_infos::is_utf8;
 use crate::code::parse_code_raw;
 use rust_jvm_common::unified_types::UnifiedType;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::utils::extract_string_from_utf8;
+use crate::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ClassWithLoader;
+use rust_jvm_common::classnames::ClassName;
 
 pub fn parse_attribute(p: &mut ParsingContext) -> AttributeInfo {
     let attribute_name_index = read16(p);
@@ -260,9 +261,15 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
                 ConstantKind::String(_c) => panic!(),
                 _ => { panic!() }
             };
-            let class_name = ClassName::Str(extract_string_from_utf8(&p.constant_pool[index as usize]));
-            UnifiedType::Class(ClassWithLoader {class_name, loader: p.loader.clone() } )
-//            UnifiedType::ReferenceType(ClassName::Ref(NameReference { class_file:Rc::downgrade(classfile), index }))
+            let type_descriptor = extract_string_from_utf8(&p.constant_pool[index as usize]);
+            dbg!(&type_descriptor);
+            if type_descriptor.starts_with("[") {
+                let res_descriptor = parse_field_descriptor(&p.loader.clone(),type_descriptor.as_str()).unwrap();
+                res_descriptor.field_type
+            }else {
+                UnifiedType::Class(ClassWithLoader {class_name:ClassName::Str(type_descriptor), loader: p.loader.clone() })
+            }
+
         },
         _ => { unimplemented!("{}", type_) }
     }
