@@ -108,14 +108,11 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
     Ok(())
 }
 
-pub fn passes_protected_check(env: &Environment, member_class_type: &UnifiedType, member_name: String, member_descriptor: Descriptor, stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+pub fn passes_protected_check(env: &Environment, member_class_name: &ClassName, member_name: String, member_descriptor: Descriptor, stack_frame: &Frame) -> Result<(), TypeSafetyError> {
     let mut chain = vec![];
     super_class_chain(&env.vf, env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
     if chain.iter().any(|x| {
-        match member_class_type{
-            UnifiedType::Class(c) => &x.class_name == &c.class_name,
-            UnifiedType::ArrayReferenceType(a) => false,
-        }
+        &x.class_name == member_class_name
     }) {
         //not my descriptive variable name
         //the spec's name not mine
@@ -123,7 +120,7 @@ pub fn passes_protected_check(env: &Environment, member_class_type: &UnifiedType
         if list.is_empty() {
             Result::Ok(())
         } else {
-            let referenced_class = loaded_class(&env.vf, member_class_name, env.class_loader.clone())?;
+            let referenced_class = loaded_class(&env.vf, member_class_name.clone(), env.class_loader.clone())?;
             if is_protected(&env.vf, &referenced_class, member_name.clone(), &member_descriptor){
                 is_assignable(&env.vf,&stack_frame.stack_map.peek(),&UnifiedType::Class(env.method.prolog_class.clone()))
             }else {

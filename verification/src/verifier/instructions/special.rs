@@ -31,7 +31,7 @@ use classfile_parser::types::parse_field_descriptor;
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
-    passes_protected_check(env, field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
+    passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
     let next_frame = valid_type_transition(env, vec![UnifiedType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })], &field_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -126,7 +126,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
     let _popped_frame = can_pop(&env.vf,stack_frame, vec![field_type.clone()])?;
-    passes_protected_check(env, field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
+    passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
     let next_stack_frame = can_pop(&env.vf,stack_frame, vec![field_type, UnifiedType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     let exception_frame = exception_stack_frame(&stack_frame);

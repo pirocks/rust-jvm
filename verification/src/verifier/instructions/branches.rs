@@ -212,7 +212,7 @@ fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name
                 stack_map: OperandStack::empty(),
                 flag_this_uninit: flags,
             };
-            passes_protected_check(env, method_class_name.clone(), "<init>".to_string(), Descriptor::Method(&parsed_descriptor), &next_stack_frame)?;
+            passes_protected_check(env, &method_class_name.clone(), "<init>".to_string(), Descriptor::Method(&parsed_descriptor), &next_stack_frame)?;
             Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame: next_stack_frame, exception_frame: exception_stack_frame }))
         }
         UnifiedType::UninitializedThis => {
@@ -359,8 +359,11 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
-    let class_name = match class_type {
-        UnifiedType::Class(c) => c.class_name,
+    let (class_name,method_class) = match class_type {
+        UnifiedType::Class(c) => (Some(c.class_name.clone()),UnifiedType::Class(c.clone())),
+        UnifiedType::ArrayReferenceType(a) => {
+            (None,UnifiedType::ArrayReferenceType(a))
+        }
         _ => panic!()
     };
 
@@ -375,13 +378,13 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         .map(|x| x.clone())
         .collect();
     let mut stack_arg_list: Vec<UnifiedType> = arg_list.clone();
-    let current_loader = &env.class_loader;
-    let method_class = ClassWithLoader { class_name:class_name.clone(), loader: current_loader.clone() };
-    stack_arg_list.push(UnifiedType::Class(method_class));
+    stack_arg_list.push(method_class);
     let return_type = translate_types_to_vm_types(&parsed_descriptor.return_type);
     let nf = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
-    passes_protected_check(env, class_name.clone(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
+    if class_name.is_some(){
+        passes_protected_check(env, &class_name.unwrap(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
+    }
     let exception_stack_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
 }
