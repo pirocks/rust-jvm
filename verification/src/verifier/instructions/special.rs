@@ -16,7 +16,7 @@ use crate::verifier::instructions::exception_stack_frame;
 use crate::verifier::instructions::ResultFrames;
 use rust_jvm_common::classnames::get_referred_name;
 use rust_jvm_common::classfile::CPIndex;
-use crate::verifier::instructions::branches::substitute;
+use crate::verifier::instructions::branches::{substitute, possibly_array_to_type};
 use crate::OperandStack;
 use classfile_parser::types::Descriptor;
 use classfile_parser::types::FieldDescriptor;
@@ -38,10 +38,10 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
-    let next_frame = valid_type_transition(env,vec![],&field_type,stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![], &field_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
@@ -59,16 +59,16 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 //    unimplemented!()
 //}
 
-pub fn instruction_is_type_safe_arraylength(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_arraylength(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(stack_frame);
-    let array_type = nth1_operand_stack_is(1,stack_frame)?;
+    let array_type = nth1_operand_stack_is(1, stack_frame)?;
     array_component_type(array_type)?;
     let next_frame = valid_type_transition(env, vec![UnifiedType::TopType], &UnifiedType::IntType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn array_component_type(type_ :UnifiedType) -> Result<UnifiedType,TypeSafetyError>{
+pub fn array_component_type(type_: UnifiedType) -> Result<UnifiedType, TypeSafetyError> {
     use std::ops::Deref;
     Result::Ok(match type_ {
         UnifiedType::ArrayReferenceType(a) => a.sub_type.deref().clone(),
@@ -77,27 +77,37 @@ pub fn array_component_type(type_ :UnifiedType) -> Result<UnifiedType,TypeSafety
     })
 }
 
-pub fn nth1_operand_stack_is(i: usize, frame: &Frame) -> Result<UnifiedType,TypeSafetyError>{
-    Result::Ok(nth1(i,&frame.stack_map))
+pub fn nth1_operand_stack_is(i: usize, frame: &Frame) -> Result<UnifiedType, TypeSafetyError> {
+    Result::Ok(nth1(i, &frame.stack_map))
 }
 
-fn nth1(i:usize,o:&OperandStack) -> UnifiedType{
+fn nth1(i: usize, o: &OperandStack) -> UnifiedType {
     o.data[i - 1].clone()
 }
 
-pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let to_pop = ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() };
-    can_pop(&env.vf,stack_frame,vec![UnifiedType::Class(to_pop)])?;
+    can_pop(&env.vf, stack_frame, vec![UnifiedType::Class(to_pop)])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
+//todo duplication with class name parsing and array logic
+pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let object_class = ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: env.vf.bootstrap_loader.clone() };
+    let class = get_class(&env.vf, env.method.prolog_class);
+    let result_type = match &class.constant_pool[index].kind{
+        ConstantKind::Class(c) => {
+            let name = extract_string_from_utf8(&class.constant_pool[c.name_index as usize]);
+            possibly_array_to_type(env,name)
+        },
+        _ => panic!()
+    };
+    let next_frame = valid_type_transition(env, vec![UnifiedType::Class(object_class)], &result_type, stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
 
 pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match instruction_is_type_safe_putfield_first_case(cp, env, offset, stack_frame) {
@@ -117,7 +127,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     if get_referred_name(&env.method.prolog_class.class_name) != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
-    let next_stack_frame = can_pop(&env.vf,stack_frame, vec![field_type, UnifiedType::UninitializedThis])?;
+    let next_stack_frame = can_pop(&env.vf, stack_frame, vec![field_type, UnifiedType::UninitializedThis])?;
     let exception_frame = exception_stack_frame(&stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
@@ -125,17 +135,17 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
-    let _popped_frame = can_pop(&env.vf,stack_frame, vec![field_type.clone()])?;
+    let _popped_frame = can_pop(&env.vf, stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
-    let next_stack_frame = can_pop(&env.vf,stack_frame, vec![field_type, UnifiedType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
+    let next_stack_frame = can_pop(&env.vf, stack_frame, vec![field_type, UnifiedType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     let exception_frame = exception_stack_frame(&stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
 
 
 fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, String, FieldDescriptor) {
-    let current_class = get_class(&env.vf,env.method.prolog_class);
+    let current_class = get_class(&env.vf, env.method.prolog_class);
     let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
     let (class_index, name_and_type_index) = match field_entry {
         ConstantKind::Fieldref(f) => {
@@ -167,8 +177,8 @@ fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, Strin
 //}
 //
 
-pub fn instruction_is_type_safe_monitorenter(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = can_pop(&env.vf,stack_frame,vec![UnifiedType::Reference])?;
+pub fn instruction_is_type_safe_monitorenter(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let next_frame = can_pop(&env.vf, stack_frame, vec![UnifiedType::Reference])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
@@ -183,24 +193,24 @@ pub fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize,
     let locals = &stack_frame.locals;
     let operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    match &get_class(&env.vf,env.method.prolog_class).constant_pool[cp].kind{
-        ConstantKind::Class(_) => {},
+    match &get_class(&env.vf, env.method.prolog_class).constant_pool[cp].kind {
+        ConstantKind::Class(_) => {}
         _ => panic!()
     };
-    let new_item = UnifiedType::Uninitialized(UninitializedVariableInfo {offset:offset as u16});
-    match operand_stack.iter().find(|x|{
+    let new_item = UnifiedType::Uninitialized(UninitializedVariableInfo { offset: offset as u16 });
+    match operand_stack.iter().find(|x| {
         x == &&new_item
-    }){
-        None => {},
+    }) {
+        None => {}
         Some(_) => return Result::Err(unknown_error_verifying!()),
     };
-    let new_locals =substitute(&new_item,&UnifiedType::TopType,locals.as_slice());
-    let next_frame= valid_type_transition(env,vec![],&new_item,&Frame {
+    let new_locals = substitute(&new_item, &UnifiedType::TopType, locals.as_slice());
+    let next_frame = valid_type_transition(env, vec![], &new_item, &Frame {
         locals: new_locals,
         stack_map: operand_stack.clone(),
-        flag_this_uninit: flags
+        flag_this_uninit: flags,
     })?;
-    let exception_frame= exception_stack_frame(stack_frame);
+    let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 

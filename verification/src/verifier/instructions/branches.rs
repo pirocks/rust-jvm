@@ -359,10 +359,10 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
-    let (class_name,method_class) = match class_type {
-        UnifiedType::Class(c) => (Some(c.class_name.clone()),UnifiedType::Class(c.clone())),
+    let (class_name, method_class) = match class_type {
+        UnifiedType::Class(c) => (Some(c.class_name.clone()), UnifiedType::Class(c.clone())),
         UnifiedType::ArrayReferenceType(a) => {
-            (None,UnifiedType::ArrayReferenceType(a))
+            (None, UnifiedType::ArrayReferenceType(a))
         }
         _ => panic!()
     };
@@ -382,7 +382,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     let return_type = translate_types_to_vm_types(&parsed_descriptor.return_type);
     let nf = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
-    if class_name.is_some(){
+    if class_name.is_some() {
         passes_protected_check(env, &class_name.unwrap(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     }
     let exception_stack_frame = exception_stack_frame(stack_frame);
@@ -406,19 +406,21 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (UnifiedType, String, 
         }
         _ => unimplemented!()
     };
+    (possibly_array_to_type(env, class_name), method_name, parsed_descriptor)
+}
+
+pub fn possibly_array_to_type(env: &Environment, class_name: String) -> UnifiedType {
     if class_name.contains("[") {
         let class_type = match parse_field_descriptor(&env.class_loader, class_name.as_str()) {
             None => panic!(),
             Some(s) => s.field_type,
         };
-        (class_type, method_name, parsed_descriptor)
+        class_type
     } else {
-        (UnifiedType::Class(ClassWithLoader {
+        UnifiedType::Class(ClassWithLoader {
             class_name: ClassName::Str(class_name),
             loader: env.class_loader.clone(),
-        }),
-         method_name,
-         parsed_descriptor)
+        })
     }
 }
 

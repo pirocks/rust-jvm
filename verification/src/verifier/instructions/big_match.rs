@@ -13,7 +13,7 @@ use crate::verifier::instructions::consts::instruction_is_type_safe_lconst_0;
 use crate::verifier::instructions::branches::instruction_is_type_safe_return;
 use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
-use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield, instruction_is_type_safe_new, instruction_is_type_safe_athrow};
+use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield, instruction_is_type_safe_new, instruction_is_type_safe_athrow, instruction_is_type_safe_checkcast};
 use crate::verifier::instructions::special::instruction_is_type_safe_getstatic;
 use crate::verifier::instructions::loads::instruction_is_type_safe_iload;
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_icmpeq;
@@ -66,7 +66,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::bipush(_) => instruction_is_type_safe_sipush(env, offset, stack_frame),
         InstructionInfo::caload => { unimplemented!() }
         InstructionInfo::castore => { unimplemented!() }
-        InstructionInfo::checkcast(_) => { unimplemented!() }
+        InstructionInfo::checkcast(cp) => instruction_is_type_safe_checkcast(*cp as usize,env,offset,stack_frame),
         InstructionInfo::d2f => instruction_is_type_safe_d2f(env, offset, stack_frame),
         InstructionInfo::d2i => { unimplemented!() }
         InstructionInfo::d2l => { unimplemented!() }
