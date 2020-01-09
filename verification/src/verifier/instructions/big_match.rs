@@ -39,6 +39,7 @@ use crate::verifier::instructions::branches::instruction_is_type_safe_invokeinte
 use crate::verifier::instructions::special::instruction_is_type_safe_monitorenter;
 use crate::verifier::instructions::special::instruction_is_type_safe_arraylength;
 use crate::verifier::instructions::loads::instruction_is_type_safe_aaload;
+use crate::verifier::instructions::special::instruction_is_type_safe_putstatic;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -258,7 +259,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::pop => instruction_is_type_safe_pop(env, offset, stack_frame),
         InstructionInfo::pop2 => { unimplemented!() }
         InstructionInfo::putfield(cp) => instruction_is_type_safe_putfield(*cp, env, offset, stack_frame),
-        InstructionInfo::putstatic(_) => { unimplemented!() }
+        InstructionInfo::putstatic(cp) => instruction_is_type_safe_putstatic(*cp, env, offset, stack_frame),
         InstructionInfo::ret(_) => { unimplemented!() }
         InstructionInfo::return_ => instruction_is_type_safe_return(env, offset, stack_frame),
         InstructionInfo::saload => { unimplemented!() }

@@ -172,11 +172,14 @@ fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, Strin
     (field_class_name, field_name, field_descriptor)
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_putstatic(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
+    let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
+    let next_frame = can_pop(&env.vf,stack_frame,vec![field_type])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 
 pub fn instruction_is_type_safe_monitorenter(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![UnifiedType::Reference])?;
