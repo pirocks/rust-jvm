@@ -8,6 +8,10 @@ use crate::verifier::instructions::ResultFrames;
 use crate::verifier::codecorrectness::pop_matching_type;
 use crate::verifier::codecorrectness::size_of;
 use crate::VerifierContext;
+use crate::verifier::codecorrectness::can_pop;
+use rust_jvm_common::unified_types::ClassWithLoader;
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::unified_types::ArrayType;
 
 fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame) -> Result<Frame,TypeSafetyError>{
     let mut next_stack = frame.stack_map.clone();
@@ -34,10 +38,15 @@ pub fn modify_local_variable(vf:&VerifierContext, index:usize, type_: UnifiedTyp
     }
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_aastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_aastore(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
+    let object = ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: env.vf.bootstrap_loader.clone() };
+    let object_type = UnifiedType::Class(object);
+    let object_array = UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::new(object_type.clone()) });
+    let next_frame= can_pop(&env.vf, stack_frame, vec![object_type,UnifiedType::IntType, object_array])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
+
+}
 
 pub fn instruction_is_type_safe_astore(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
     let next_frame = store_is_type_safe(env,index,&UnifiedType::Reference,stack_frame)?;

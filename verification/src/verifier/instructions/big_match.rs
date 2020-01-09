@@ -41,13 +41,14 @@ use crate::verifier::instructions::special::instruction_is_type_safe_arraylength
 use crate::verifier::instructions::loads::instruction_is_type_safe_aaload;
 use crate::verifier::instructions::special::instruction_is_type_safe_putstatic;
 use crate::verifier::instructions::special::instruction_is_type_safe_anewarray;
+use crate::verifier::instructions::stores::instruction_is_type_safe_aastore;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
     dbg!(instruction);
     match &instruction.instruction {
         InstructionInfo::aaload => instruction_is_type_safe_aaload(env,offset,stack_frame),
-        InstructionInfo::aastore => { unimplemented!() }
+        InstructionInfo::aastore => instruction_is_type_safe_aastore(env,offset,stack_frame),
         InstructionInfo::aconst_null => instruction_is_type_safe_aconst_null(env, offset, stack_frame),
         InstructionInfo::aload(i) => instruction_is_type_safe_aload(*i as usize, env, offset, stack_frame),
         InstructionInfo::aload_0 => instruction_is_type_safe_aload(0, env, offset, stack_frame),
