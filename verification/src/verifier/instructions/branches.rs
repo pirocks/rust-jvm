@@ -185,6 +185,7 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _off
 fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name: &ClassName, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
     stack_arg_list.reverse();
+    dbg!(&stack_arg_list);
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let locals = temp_frame.locals;
     let mut operand_stack = temp_frame.stack_map.clone();
@@ -194,6 +195,7 @@ fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name
 //    match first {
 //        None => unimplemented!(),
 //        Some(u) => {
+    dbg!(&operand_stack);
     match first {
         UnifiedType::Uninitialized(address) => {
             let uninit_address = UnifiedType::Uninitialized(UninitializedVariableInfo { offset: address.offset });

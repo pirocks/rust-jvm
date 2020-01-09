@@ -97,6 +97,7 @@ pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &AppendFrame
     for new_local in append_frame.locals.iter() {
         add_new_local(frame, new_local)
     }
+    frame.stack.clear();
 }
 
 pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
