@@ -21,6 +21,7 @@ use rust_jvm_common::classnames::ClassName;
 use crate::OperandStack;
 use classfile_parser::types::parse_method_descriptor;
 use classfile_parser::types::MethodDescriptor;
+use rust_jvm_common::classfile::ConstantKind;
 
 pub mod stackmapframes;
 
@@ -219,18 +220,23 @@ pub struct ParsedCodeAttribute<'l> {
 }
 
 pub fn get_handlers(vf:&VerifierContext,class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
-    code.exception_table.iter().map(|f| {
-        Handler {
-            start: f.start_pc as usize,
-            end: f.end_pc as usize,
-            target: f.handler_pc as usize,
-            class_name: if f.catch_type == 0 { None } else {
-                Some(ClassName::Ref(NameReference {// should be a name as is currently b/c spec says so.
-                    index: f.catch_type,
-                    class_file: Arc::downgrade(&get_class(vf,class)),
-                }))
-            },
-        }
+    code.exception_table.iter().map(|f| Handler {
+        start: f.start_pc as usize,
+        end: f.end_pc as usize,
+        target: f.handler_pc as usize,
+        class_name: if f.catch_type == 0 { None } else {
+            let classfile = get_class(vf, class);
+            let catch_type_name_index = match &classfile.constant_pool[f.catch_type as usize].kind {
+                ConstantKind::Class(c) => {
+                    c.name_index
+                }
+                _ => panic!()
+            };
+            Some(ClassName::Ref(NameReference {// should be a name as is currently b/c spec says so.
+                index: catch_type_name_index,
+                class_file: Arc::downgrade(&get_class(vf, class)),
+            }))
+        },
     }).collect()
 }
 
@@ -275,11 +281,16 @@ pub struct Handler {
     pub class_name: Option<ClassName>
 }
 
-pub fn handler_exception_class(vf: &VerifierContext,handler: &Handler) -> ClassWithLoader {
+pub fn handler_exception_class(vf: &VerifierContext,handler: &Handler, loader: Arc<dyn Loader + Send + Sync>) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
         None => { ClassWithLoader{ class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: vf.bootstrap_loader.clone() } }
-        Some(_s) => { unimplemented!("Need to get class from state") }
+        Some(s) => {
+//            let _classfile = loader.pre_load(loader.clone(),s).unwrap();
+            // then class in question exists
+            // todo compare against throwable , but not here ?
+            ClassWithLoader { class_name: s.clone(), loader: loader.clone() }
+        }
     }
 }
 //

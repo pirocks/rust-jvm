@@ -139,7 +139,7 @@ fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> UnifiedType {
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> Result<(), TypeSafetyError> {
     let target = handler.target;
     let _class_loader = &env.class_loader;
-    let exception_class = handler_exception_class(&env.vf,handler);
+    let exception_class = handler_exception_class(&env.vf,handler,env.class_loader.clone());
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
     let locals_copy = locals.iter().map(|x| { x.clone() }).collect();
@@ -181,7 +181,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
         if start_is_member_of(h.start, env.merged_code.unwrap()) {
             let _target_stack_frame = offset_stack_frame(env, h.target)?;
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
-                let exception_class = handler_exception_class(&env.vf,&h);
+                let exception_class = handler_exception_class(&env.vf,&h, env.class_loader.clone());
                 //todo how does bootstrap loader from throwable make its way into this
                 let class_name = class_name(&get_class(&env.vf,&exception_class));
                 let assignable = is_assignable(&env.vf,&UnifiedType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
