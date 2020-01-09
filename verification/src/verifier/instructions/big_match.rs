@@ -42,6 +42,7 @@ use crate::verifier::instructions::loads::instruction_is_type_safe_aaload;
 use crate::verifier::instructions::special::instruction_is_type_safe_putstatic;
 use crate::verifier::instructions::special::instruction_is_type_safe_anewarray;
 use crate::verifier::instructions::stores::instruction_is_type_safe_aastore;
+use crate::verifier::instructions::special::instruction_is_type_safe_instanceof;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -195,7 +196,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::iload_3 => instruction_is_type_safe_iload(3, env, offset, stack_frame),
         InstructionInfo::imul => { unimplemented!() }
         InstructionInfo::ineg => { unimplemented!() }
-        InstructionInfo::instanceof(_) => { unimplemented!() }
+        InstructionInfo::instanceof(cp) => instruction_is_type_safe_instanceof(*cp,env,offset,stack_frame),
         InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, offset, stack_frame),
         InstructionInfo::invokeinterface(ii) => instruction_is_type_safe_invokeinterface(ii.index as usize,ii.count as usize,env,offset,stack_frame),
         InstructionInfo::invokespecial(cp) => instruction_is_type_safe_invokespecial(*cp as usize, env, offset, stack_frame),
@@ -204,15 +205,15 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::ior => { unimplemented!() }
         InstructionInfo::irem => { unimplemented!() }
         InstructionInfo::ireturn => instruction_is_type_safe_ireturn(env, offset, stack_frame),
-        InstructionInfo::ishl => { unimplemented!() }
-        InstructionInfo::ishr => { unimplemented!() }
+        InstructionInfo::ishl => instruction_is_type_safe_iadd(env,offset,stack_frame),
+        InstructionInfo::ishr => instruction_is_type_safe_iadd(env,offset,stack_frame),
         InstructionInfo::istore(i) => instruction_is_type_safe_istore(*i as usize, env, offset, stack_frame),
         InstructionInfo::istore_0 => instruction_is_type_safe_istore(0, env, offset, stack_frame),
         InstructionInfo::istore_1 => instruction_is_type_safe_istore(1, env, offset, stack_frame),
         InstructionInfo::istore_2 => instruction_is_type_safe_istore(2, env, offset, stack_frame),
         InstructionInfo::istore_3 => instruction_is_type_safe_istore(3, env, offset, stack_frame),
         InstructionInfo::isub => instruction_is_type_safe_iadd(env,offset,stack_frame),
-        InstructionInfo::iushr => { unimplemented!() }
+        InstructionInfo::iushr => instruction_is_type_safe_iadd(env,offset,stack_frame),
         InstructionInfo::ixor => { unimplemented!() }
         InstructionInfo::jsr(_) => { unimplemented!() }
         InstructionInfo::jsr_w(_) => { unimplemented!() }

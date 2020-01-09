@@ -411,7 +411,18 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (UnifiedType, String, 
             };
             (class_name, method_name, parsed_descriptor)
         }
-        _ => unimplemented!()
+        ConstantKind::InterfaceMethodref(m) => {
+            //todo dup?
+            let c = extract_class_from_constant_pool(m.class_index, &classfile);
+            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
+            let (method_name, descriptor) = name_and_type_extractor(m.nt_index, classfile);
+            let parsed_descriptor = match parse_method_descriptor(&env.class_loader, descriptor.as_str()) {
+                None => { unimplemented!() }
+                Some(pd) => { pd }
+            };
+            (class_name, method_name, parsed_descriptor)
+        }
+        _ => unimplemented!("{:?}",c)
     };
     (possibly_array_to_type(env, class_name), method_name, parsed_descriptor)
 }

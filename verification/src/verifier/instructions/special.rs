@@ -23,11 +23,15 @@ use classfile_parser::types::FieldDescriptor;
 use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ArrayType;
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+//    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
+    let bl = &env.vf.bootstrap_loader.clone();
+    let object = UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: bl.clone() });
+    let next_frame= valid_type_transition(env, vec![object], &UnifiedType::IntType, stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
 
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
@@ -55,6 +59,13 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 
 
 pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let sub_type = Box::new(extract_constant_pool_entry_as_type(cp, &env));
+    let next_frame = valid_type_transition(env, vec![UnifiedType::IntType], &UnifiedType::ArrayReferenceType(ArrayType { sub_type }), stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
+fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> UnifiedType {
     let class = get_class(&env.vf, &env.method.prolog_class);
     let class_name = match &class.constant_pool[cp as usize].kind {
         ConstantKind::Class(c) => {
@@ -62,10 +73,8 @@ pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, _offse
         }
         _ => panic!()
     };
-    let sub_type = Box::new(possibly_array_to_type(env, class_name));
-    let next_frame = valid_type_transition(env, vec![UnifiedType::IntType], &UnifiedType::ArrayReferenceType(ArrayType { sub_type }), stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    let subtype = possibly_array_to_type(env, class_name);
+    subtype
 }
 
 pub fn instruction_is_type_safe_arraylength(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
