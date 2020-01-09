@@ -7,9 +7,11 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct MethodDescriptor { pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }
 
+#[derive(Debug)]
 pub struct FieldDescriptor { pub field_type: UnifiedType }
 
 
+#[derive(Debug)]
 pub enum Descriptor<'l> {
     Method(&'l MethodDescriptor),
     Field(&'l FieldDescriptor)

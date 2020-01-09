@@ -117,11 +117,14 @@ pub fn passes_protected_check(env: &Environment, member_class_name: &ClassName, 
         //not my descriptive variable name
         //the spec's name not mine
         let list = classes_in_other_pkg_with_protected_member(&env.vf, env.method.prolog_class, member_name.clone(), &member_descriptor, member_class_name.clone(), chain)?;
+        dbg!(&list);
         if list.is_empty() {
             Result::Ok(())
         } else {
             let referenced_class = loaded_class(&env.vf, member_class_name.clone(), env.class_loader.clone())?;
-            if is_protected(&env.vf, &referenced_class, member_name.clone(), &member_descriptor){
+            let protected = is_protected(&env.vf, &referenced_class, member_name.clone(), &member_descriptor);
+            dbg!(protected);
+            if protected {
                 is_assignable(&env.vf,&stack_frame.stack_map.peek(),&UnifiedType::Class(env.method.prolog_class.clone()))
             }else {
                 Result::Ok(())

@@ -3,7 +3,7 @@ use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classnames::{get_referred_name, class_name_legacy};
-use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL};
+use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL, ACC_PROTECTED};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
@@ -412,21 +412,28 @@ pub fn get_access_flags(vf: &VerifierContext, class: &ClassWithLoader, method: &
 
 //todo ClassName v. Name
 pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor) -> bool {
+    dbg!(super_);
+    dbg!(&member_name);
+    dbg!(&member_descriptor);
     let class = get_class(vf, super_);
     for method in &class.methods {
         let method_name = extract_string_from_utf8(&class.constant_pool[method.name_index as usize]);
         if member_name == method_name {
             let method_descriptor_string = extract_string_from_utf8(&class.constant_pool[method.descriptor_index as usize]);
             let parsed_member_types = match parse_method_descriptor(&super_.loader, method_descriptor_string.as_str()) {
-                None => continue,
+                None => panic!(),
                 Some(str_) => str_,
             };
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
-                _ => { continue; }
+                _ => { panic!(); }
             };
             if parsed_member_types.parameter_types == member_types.parameter_types && parsed_member_types.return_type == member_types.return_type {
-                return true;
+                if (method.access_flags & ACC_PROTECTED) > 0 {
+                    return true;
+                }else{
+                    return false;
+                }
             }
         }
     }
@@ -435,17 +442,21 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
         if member_name == field_name {
             let field_descriptor_string = extract_string_from_utf8(&class.constant_pool[field.descriptor_index as usize]);
             let parsed_member_type = match parse_field_descriptor(&super_.loader, field_descriptor_string.as_str()) {
-                None => continue,
+                None => panic!(),
                 Some(str_) => str_,
             };
             let field_type = match member_descriptor {
                 Descriptor::Field(f) => f,
-                _ => continue
+                _ => panic!()
             };
             if parsed_member_type.field_type == field_type.field_type {
-                return true;
+                if (field.access_flags & ACC_PROTECTED) > 0{
+                    return true;
+                }else {
+                    return false;
+                }
             }
         }
     }
-    return false;
+    panic!()
 }

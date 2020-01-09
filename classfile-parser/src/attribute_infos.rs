@@ -262,7 +262,6 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
                 _ => { panic!() }
             };
             let type_descriptor = extract_string_from_utf8(&p.constant_pool[index as usize]);
-            dbg!(&type_descriptor);
             if type_descriptor.starts_with("[") {
                 let res_descriptor = parse_field_descriptor(&p.loader.clone(),type_descriptor.as_str()).unwrap();
                 res_descriptor.field_type

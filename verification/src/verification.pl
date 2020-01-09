@@ -1286,7 +1286,7 @@ instructionIsTypeSafe(invokevirtual(CP), Environment, _Offset, StackFrame,NextSt
     currentClassLoader(Environment, CurrentLoader),
     reverse([class(MethodClassName, CurrentLoader) | OperandArgList],StackArgList),
     validTypeTransition(Environment, StackArgList, ReturnType,StackFrame, NextStackFrame),
-    canPop(StackFrame, ArgList, PoppedFrame),
+    canPop(StackFrame, ArgList, PoppedFrame),% actual object at end of arg list
     passesProtectedCheck(Environment, MethodClassName, MethodName,Descriptor, PoppedFrame),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
