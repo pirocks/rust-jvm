@@ -40,6 +40,7 @@ use crate::verifier::instructions::special::instruction_is_type_safe_monitorente
 use crate::verifier::instructions::special::instruction_is_type_safe_arraylength;
 use crate::verifier::instructions::loads::instruction_is_type_safe_aaload;
 use crate::verifier::instructions::special::instruction_is_type_safe_putstatic;
+use crate::verifier::instructions::special::instruction_is_type_safe_anewarray;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -53,7 +54,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::aload_1 => instruction_is_type_safe_aload(1, env, offset, stack_frame),
         InstructionInfo::aload_2 => instruction_is_type_safe_aload(2, env, offset, stack_frame),
         InstructionInfo::aload_3 => instruction_is_type_safe_aload(3, env, offset, stack_frame),
-        InstructionInfo::anewarray(_) => { unimplemented!() }
+        InstructionInfo::anewarray(cp) => instruction_is_type_safe_anewarray(*cp,env,offset,stack_frame),
         InstructionInfo::areturn => instruction_is_type_safe_areturn(env, offset, stack_frame),
         InstructionInfo::arraylength => instruction_is_type_safe_arraylength(env,offset,stack_frame),
         InstructionInfo::astore(i) => instruction_is_type_safe_astore(*i as usize, env, offset, stack_frame),

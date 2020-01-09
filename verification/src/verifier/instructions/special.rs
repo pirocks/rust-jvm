@@ -21,6 +21,7 @@ use crate::OperandStack;
 use classfile_parser::types::Descriptor;
 use classfile_parser::types::FieldDescriptor;
 use classfile_parser::types::parse_field_descriptor;
+use rust_jvm_common::unified_types::ArrayType;
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_instanceof(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -53,11 +54,19 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 //}
 
 
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_anewarray(cp: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let class = get_class(&env.vf, &env.method.prolog_class);
+    let class_name = match &class.constant_pool[cp as usize].kind {
+        ConstantKind::Class(c) => {
+            extract_string_from_utf8(&class.constant_pool[c.name_index as usize])
+        }
+        _ => panic!()
+    };
+    let sub_type = Box::new(possibly_array_to_type(env, class_name));
+    let next_frame = valid_type_transition(env, vec![UnifiedType::IntType], &UnifiedType::ArrayReferenceType(ArrayType { sub_type }), stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
 
 pub fn instruction_is_type_safe_arraylength(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(stack_frame);
@@ -96,11 +105,11 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_
 pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let object_class = ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: env.vf.bootstrap_loader.clone() };
     let class = get_class(&env.vf, env.method.prolog_class);
-    let result_type = match &class.constant_pool[index].kind{
+    let result_type = match &class.constant_pool[index].kind {
         ConstantKind::Class(c) => {
             let name = extract_string_from_utf8(&class.constant_pool[c.name_index as usize]);
-            possibly_array_to_type(env,name)
-        },
+            possibly_array_to_type(env, name)
+        }
         _ => panic!()
     };
     dbg!(&result_type);
@@ -172,10 +181,10 @@ fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, Strin
     (field_class_name, field_name, field_descriptor)
 }
 
-pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
-    let next_frame = can_pop(&env.vf,stack_frame,vec![field_type])?;
+    let next_frame = can_pop(&env.vf, stack_frame, vec![field_type])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
