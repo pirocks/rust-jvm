@@ -150,7 +150,7 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     let current_loader = env.class_loader.clone();
     //todo this is almost certainly wrong.
     operand_arg_list.push(UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str(method_intf_name), loader: current_loader }));
-    operand_arg_list.reverse();
+//    operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let next_frame = valid_type_transition(env, vec![], &return_type, &temp_frame)?;

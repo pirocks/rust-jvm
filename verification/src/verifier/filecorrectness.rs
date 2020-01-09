@@ -158,6 +158,9 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
             }
             //technically the next case should be partially part of is_java_assignable but is here
             UnifiedType::Class(c) => {
+                if is_java_assignable(vf,from,to).is_ok(){
+                    return Result::Ok(())
+                }
                 if !is_assignable(vf, &UnifiedType::Reference, to).is_ok() {
                     //todo okay to use name like that?
                     if c.class_name == ClassName::Str("java/lang/Object".to_string()) &&
@@ -259,7 +262,10 @@ fn is_java_assignable(vf: &VerifierContext, left: &UnifiedType, right: &UnifiedT
         }
         UnifiedType::ArrayReferenceType(a1) => {
             match right {
-                UnifiedType::Class(_c) => {
+                UnifiedType::Class(c) => {
+                    if c.class_name == ClassName::Str("java/lang/Object".to_string()) && &vf.bootstrap_loader.name() == &c.loader.name(){
+                        return Result::Ok(())
+                    }
                     unimplemented!()
                 }
                 UnifiedType::ArrayReferenceType(a2) => {

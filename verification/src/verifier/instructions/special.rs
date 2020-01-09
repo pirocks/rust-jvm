@@ -103,6 +103,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, _offs
         },
         _ => panic!()
     };
+    dbg!(&result_type);
     let next_frame = valid_type_transition(env, vec![UnifiedType::Class(object_class)], &result_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
