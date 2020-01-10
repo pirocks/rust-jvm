@@ -66,6 +66,12 @@ pub fn can_verify_exceptions() {
     verify_class_with_name(&main_class_name).unwrap();
 }
 
+#[test]
+//#[timeout(10000)]
+pub fn can_verify_hash_map() {
+    let main_class_name = "java/util/HashMap".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
 
 
 fn verify_class_with_name(main_class_name: &String) -> Result<(),TypeSafetyError>{

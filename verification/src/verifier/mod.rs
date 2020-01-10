@@ -116,6 +116,7 @@ pub fn passes_protected_check(env: &Environment, member_class_name: &ClassName, 
     }) {
         //not my descriptive variable name
         //the spec's name not mine
+        dbg!(&chain);
         let list = classes_in_other_pkg_with_protected_member(&env.vf, env.method.prolog_class, member_name.clone(), &member_descriptor, member_class_name.clone(), chain)?;
         dbg!(&list);
         if list.is_empty() {
@@ -155,6 +156,9 @@ fn classes_in_other_pkg_with_protected_member_impl(
         let first = &chain[0];
         let rest = &chain[1..];
         if first.class_name != member_class_name{
+            dbg!(&chain);
+            dbg!(&member_class_name);
+            panic!();
             return Result::Err(unknown_error_verifying!())
         }
         let l = first.loader.clone();
