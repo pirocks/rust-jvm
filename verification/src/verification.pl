@@ -803,8 +803,7 @@ instructionIsTypeSafe(dup_x1, Environment, _Offset, StackFrame,NextStackFrame, E
     StackFrame = frame(Locals, InputOperandStack, Flags),
     popCategory1(InputOperandStack, Type1, Stack1),
     popCategory1(Stack1, Type2, Rest),
-    canSafelyPushList(Environment, Rest, [Type1, Type2, Type1],
-    OutputOperandStack),
+    canSafelyPushList(Environment, Rest, [Type1, Type2, Type1], OutputOperandStack),
     NextStackFrame = frame(Locals, OutputOperandStack, Flags),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 

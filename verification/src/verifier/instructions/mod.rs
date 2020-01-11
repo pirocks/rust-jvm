@@ -11,6 +11,7 @@ use rust_jvm_common::classfile::CPIndex;
 use crate::VerifierContext;
 use crate::OperandStack;
 use rust_jvm_common::utils::method_name;
+use std::intrinsics::uninit;
 
 pub mod loads;
 pub mod consts;
@@ -246,10 +247,16 @@ pub fn pop_category1(vf:&VerifierContext,input: &mut OperandStack) -> Result<Uni
     }
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_dup_x1(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_dup_x1(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = &stack_frame.locals;
+    let input_operand_stack = &stack_frame.stack_map;
+    let flags = stack_frame.flag_this_uninit;
+    let mut stack_1 = input_operand_stack.clone();
+    let type_1 = pop_category1(&env.vf,&mut stack_1)?;
+    let mut stack_2 = stack_1.clone();
+    let type_2= pop_category1(&env.vf,&mut stack_2)?;
+    unimplemented!()
+}
 //
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_dup_x2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
