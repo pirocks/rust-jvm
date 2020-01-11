@@ -9,7 +9,7 @@ use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
 use crate::verifier::instructions::branches::instruction_is_type_safe_ireturn;
 use crate::verifier::instructions::instruction_is_type_safe_lcmp;
-use crate::verifier::instructions::consts::instruction_is_type_safe_lconst_0;
+use crate::verifier::instructions::consts::{instruction_is_type_safe_lconst_0, instruction_is_type_safe_fconst_0};
 use crate::verifier::instructions::branches::instruction_is_type_safe_return;
 use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
@@ -111,7 +111,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fastore => { unimplemented!() }
         InstructionInfo::fcmpg => { unimplemented!() }
         InstructionInfo::fcmpl => { unimplemented!() }
-        InstructionInfo::fconst_0 => { unimplemented!() }
+        InstructionInfo::fconst_0 => instruction_is_type_safe_fconst_0(env,offset,stack_frame),
         InstructionInfo::fconst_1 => { unimplemented!() }
         InstructionInfo::fconst_2 => { unimplemented!() }
         InstructionInfo::fdiv => { unimplemented!() }

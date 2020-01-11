@@ -11,7 +11,6 @@ use crate::verifier::filecorrectness::loaded_class;
 use crate::OperandStack;
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
-use crate::verifier::filecorrectness::is_assignable;
 use classfile_parser::types::Descriptor;
 
 
