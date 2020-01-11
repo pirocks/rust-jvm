@@ -277,11 +277,10 @@ pub fn instruction_is_type_safe_i2d(env: &Environment, _offset: usize, stack_fra
     type_transition(env,stack_frame,vec![UnifiedType::IntType],UnifiedType::DoubleType)
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_i2f(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_i2f(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env,stack_frame,vec![UnifiedType::IntType],UnifiedType::FloatType)
+}
+
 
 pub fn type_transition(env: &Environment, stack_frame: &Frame, expected_types:Vec<UnifiedType>,res_type:UnifiedType) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = valid_type_transition(env, expected_types, &res_type, stack_frame)?;

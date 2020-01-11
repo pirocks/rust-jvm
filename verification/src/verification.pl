@@ -926,8 +926,7 @@ instructionIsTypeSafe(f2d, Environment, _Offset, StackFrame,NextStackFrame, Exce
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
 instructionIsTypeSafe(f2i, Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
-    validTypeTransition(Environment, [float], int,
-    StackFrame, NextStackFrame),
+    validTypeTransition(Environment, [float], int, StackFrame, NextStackFrame),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
 instructionIsTypeSafe(f2l, Environment, _Offset, StackFrame, NextStackFrame, ExceptionStackFrame) :-
@@ -1038,8 +1037,7 @@ instructionIsTypeSafe(i2d, Environment, _Offset, StackFrame,NextStackFrame, Exce
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
 instructionIsTypeSafe(i2f, Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
-    validTypeTransition(Environment, [int], float,
-    StackFrame, NextStackFrame),
+    validTypeTransition(Environment, [int], float, StackFrame, NextStackFrame),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
 instructionHasEquivalentTypeRule(i2s, ineg).

@@ -39,26 +39,23 @@ pub fn instruction_is_type_safe_f2d(env: &Environment, _offset: usize, stack_fra
     type_transition(env,stack_frame,vec![UnifiedType::FloatType],UnifiedType::DoubleType)
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_f2i(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_f2i(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+    type_transition(env,stack_frame,vec![UnifiedType::FloatType],UnifiedType::IntType)
+}
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_f2l(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
 //    unimplemented!()
 //}
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_fadd(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_fcmpg(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
-//    unimplemented!()
-//}
-//
+
+pub fn instruction_is_type_safe_fadd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+    type_transition(env,stack_frame,vec![UnifiedType::FloatType,UnifiedType::FloatType],UnifiedType::FloatType)
+}
+
+pub fn instruction_is_type_safe_fcmpg(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+    type_transition(env,stack_frame,vec![UnifiedType::FloatType,UnifiedType::FloatType],UnifiedType::IntType)
+}
+
 //
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_fneg(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
