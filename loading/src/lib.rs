@@ -13,9 +13,9 @@ use rust_jvm_common::classnames::class_name;
 use classfile_parser::parse_class_file;
 
 #[derive(Debug)]
-pub struct Classpath{
+pub struct Classpath {
     //base directories to search for a file in.
-    pub classpath_base : Vec<Box<Path>>
+    pub classpath_base: Vec<Box<Path>>
 }
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ pub struct BootstrapLoader {
     pub parsed: RwLock<HashMap<ClassName, Arc<Classfile>>>,
     pub name: RwLock<LoaderName>,
     //for now the classpath is immutable so no locks are needed.
-    pub classpath: Classpath
+    pub classpath: Classpath,
 }
 
 
@@ -46,26 +46,29 @@ impl Loader for BootstrapLoader {
     }
 
     //todo hacky and janky
-    fn pre_load(&self, self_arc: Arc<dyn Loader + Sync + Send>, name: &ClassName) -> Result<Arc<Classfile>,ClassLoadingError> {
+    fn pre_load(&self, self_arc: Arc<dyn Loader + Sync + Send>, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
-        let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x|x.clone());
+        let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());
         match maybe_classfile {
             None => {
-                let found_class_file = self.classpath.classpath_base.iter().map(|x|{
+                let found_class_file = self.classpath.classpath_base.iter().map(|x| {
                     let mut path_buf = x.to_path_buf();
-                    path_buf.push(format!("{}.class",get_referred_name(name)));
+                    path_buf.push(format!("{}.class", get_referred_name(name)));
                     path_buf
-                }).find(|p|{
+                }).find(|p| {
                     p.exists()
                 });
                 match found_class_file {
-                    None => Result::Err(ClassLoadingError::ClassNotFoundException),
+                    None => {
+                        dbg!(name);
+                        Result::Err(ClassLoadingError::ClassNotFoundException)
+                    }
                     Some(path) => {
                         let file = File::open(path).unwrap();
                         let classfile = parse_class_file((&file).try_clone().unwrap(), self_arc);
-                        self.parsed.write().unwrap().insert(class_name(&classfile),classfile.clone());
+                        self.parsed.write().unwrap().insert(class_name(&classfile), classfile.clone());
                         Result::Ok(classfile)
-                    },
+                    }
                 }
             }
             Some(c) => Result::Ok(c.clone()),

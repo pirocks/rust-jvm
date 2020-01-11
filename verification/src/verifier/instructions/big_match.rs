@@ -214,7 +214,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::istore_3 => instruction_is_type_safe_istore(3, env, offset, stack_frame),
         InstructionInfo::isub => instruction_is_type_safe_iadd(env,offset,stack_frame),
         InstructionInfo::iushr => instruction_is_type_safe_iadd(env,offset,stack_frame),
-        InstructionInfo::ixor => { unimplemented!() }
+        InstructionInfo::ixor => instruction_is_type_safe_iadd(env,offset,stack_frame),
         InstructionInfo::jsr(_) => { unimplemented!() }
         InstructionInfo::jsr_w(_) => { unimplemented!() }
         InstructionInfo::l2d => { unimplemented!() }

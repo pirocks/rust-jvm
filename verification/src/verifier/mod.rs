@@ -108,32 +108,34 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
     Ok(())
 }
 
-pub fn passes_protected_check(env: &Environment, member_class_name: &ClassName, member_name: String, member_descriptor: Descriptor, stack_frame: &Frame) -> Result<(), TypeSafetyError> {
-    let mut chain = vec![];
-    super_class_chain(&env.vf, env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
-    if chain.iter().any(|x| {
-        &x.class_name == member_class_name
-    }) {
-        //not my descriptive variable name
-        //the spec's name not mine
-        dbg!(&chain);
-        let list = classes_in_other_pkg_with_protected_member(&env.vf, env.method.prolog_class, member_name.clone(), &member_descriptor, member_class_name.clone(), chain)?;
-        dbg!(&list);
-        if list.is_empty() {
-            Result::Ok(())
-        } else {
-            let referenced_class = loaded_class(&env.vf, member_class_name.clone(), env.class_loader.clone())?;
-            let protected = is_protected(&env.vf, &referenced_class, member_name.clone(), &member_descriptor);
-            dbg!(protected);
-            if protected {
-                is_assignable(&env.vf,&stack_frame.stack_map.peek(),&UnifiedType::Class(env.method.prolog_class.clone()))
-            }else {
-                Result::Ok(())
-            }
-        }
-    } else {
-        Result::Ok(())
-    }
+pub fn passes_protected_check(_env: &Environment, _member_class_name: &ClassName, _member_name: String, _member_descriptor: Descriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+// todo waiting on stackoverflow / further clarification
+    Result::Ok(())
+//    let mut chain = vec![];
+//    super_class_chain(&env.vf, env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
+//    if chain.iter().any(|x| {
+//        &x.class_name == member_class_name
+//    }) {
+//        //not my descriptive variable name
+//        //the spec's name not mine
+//        dbg!(&chain);
+//        let list = classes_in_other_pkg_with_protected_member(&env.vf, env.method.prolog_class, member_name.clone(), &member_descriptor, member_class_name.clone(), chain)?;
+//        dbg!(&list);
+//        if list.is_empty() {
+//            Result::Ok(())
+//        } else {
+//            let referenced_class = loaded_class(&env.vf, member_class_name.clone(), env.class_loader.clone())?;
+//            let protected = is_protected(&env.vf, &referenced_class, member_name.clone(), &member_descriptor);
+//            dbg!(protected);
+//            if protected {
+//                is_assignable(&env.vf,&stack_frame.stack_map.peek(),&UnifiedType::Class(env.method.prolog_class.clone()))
+//            }else {
+//                Result::Ok(())
+//            }
+//        }
+//    } else {
+//        Result::Ok(())
+//    }
 }
 
 
