@@ -71,10 +71,11 @@ pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, _offset: 
 //    unimplemented!()
 //}
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_fload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_fload(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
+    let next_frame = load_is_type_safe(env,index,&UnifiedType::FloatType,stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_iaload(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{

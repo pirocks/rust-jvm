@@ -1,5 +1,5 @@
 use rust_jvm_common::classfile::{InstructionInfo, Instruction};
-use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload};
+use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload, instruction_is_type_safe_fload};
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
@@ -115,11 +115,11 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fconst_1 => { unimplemented!() }
         InstructionInfo::fconst_2 => { unimplemented!() }
         InstructionInfo::fdiv => { unimplemented!() }
-        InstructionInfo::fload(_) => { unimplemented!() }
-        InstructionInfo::fload_0 => { unimplemented!() }
-        InstructionInfo::fload_1 => { unimplemented!() }
-        InstructionInfo::fload_2 => { unimplemented!() }
-        InstructionInfo::fload_3 => { unimplemented!() }
+        InstructionInfo::fload(i) => instruction_is_type_safe_fload(*i as usize,env,offset,stack_frame),
+        InstructionInfo::fload_0 => instruction_is_type_safe_fload(0,env,offset,stack_frame),
+        InstructionInfo::fload_1 => instruction_is_type_safe_fload(1,env,offset,stack_frame),
+        InstructionInfo::fload_2 => instruction_is_type_safe_fload(2,env,offset,stack_frame),
+        InstructionInfo::fload_3 => instruction_is_type_safe_fload(3,env,offset,stack_frame),
         InstructionInfo::fmul => { unimplemented!() }
         InstructionInfo::fneg => { unimplemented!() }
         InstructionInfo::frem => { unimplemented!() }
