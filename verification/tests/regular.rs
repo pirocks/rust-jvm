@@ -74,11 +74,19 @@ pub fn can_verify_hash_map() {
 }
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_system() {
     let main_class_name = "java/lang/System".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
+
+#[test]
+//#[timeout(10000)]
+pub fn can_verify_input_stream() {
+    let main_class_name = "java/io/InputStream".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
+
 
 
 fn verify_class_with_name(main_class_name: &String) -> Result<(),TypeSafetyError>{
