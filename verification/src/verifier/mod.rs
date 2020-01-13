@@ -49,7 +49,7 @@ pub fn get_class(_verifier_context: &VerifierContext, class: &ClassWithLoader) -
 
 #[derive(Debug)]
 pub struct ClassWithLoaderMethod<'l> {
-    pub prolog_class: &'l ClassWithLoader,
+    pub class: &'l ClassWithLoader,
     pub method_index: usize,
 }
 

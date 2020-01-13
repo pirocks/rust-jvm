@@ -64,7 +64,7 @@ pub fn is_bootstrap_loader(vf: &VerifierContext, loader: &Arc<dyn Loader + Send 
 pub fn get_class_methods<'l>(vf: &VerifierContext, class: &'l ClassWithLoader) -> Vec<ClassWithLoaderMethod<'l>> {
     let mut res = vec![];
     for method_index in 0..get_class(vf, class).methods.len() {
-        res.push(ClassWithLoaderMethod { prolog_class: class, method_index })
+        res.push(ClassWithLoaderMethod { class: class, method_index })
     }
     res
 }
@@ -346,11 +346,13 @@ pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, cla
 
 pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if same
+//    assert!(class == method.class);
     (get_access_flags(vf, class, method) & ACC_STATIC) > 0
 }
 
 pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if method class and class same
+//    assert!(class == method.class);
     (get_access_flags(vf, class, method) & ACC_PRIVATE) > 0
 }
 
@@ -372,12 +374,12 @@ pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoa
 }
 
 pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, super_method_list: &Vec<ClassWithLoaderMethod>) -> Result<(), TypeSafetyError> {
-    let method_class = get_class(vf, method.prolog_class);
+    let method_class = get_class(vf, method.class);
     let method_info = &method_class.methods[method.method_index];
     let method_name_ = method_name(&method_class, method_info);
     let descriptor_string = extract_string_from_utf8(&method_class.constant_pool[method_info.descriptor_index as usize]);
     let matching_method = super_method_list.iter().find(|x| {
-        let x_method_class = get_class(vf, x.prolog_class);
+        let x_method_class = get_class(vf, x.class);
         let x_method_info = &x_method_class.methods[x.method_index];
         let x_method_name = method_name(&x_method_class, x_method_info);
         let x_descriptor_string = extract_string_from_utf8(&x_method_class.constant_pool[x_method_info.descriptor_index as usize]);
@@ -411,9 +413,9 @@ pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class:
     final_method_not_overridden(vf, method, &super_class, &super_methods_list)
 }
 
-pub fn get_access_flags(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
+pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
 //    assert!(method.prolog_class == class);//todo why the duplicate parameters?
-    get_class(vf, class).methods[method.method_index as usize].access_flags
+    get_class(vf, method.class).methods[method.method_index as usize].access_flags
 }
 
 //todo ClassName v. Name

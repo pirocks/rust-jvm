@@ -404,7 +404,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     //    flags(ThisList, Flags),
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
-    let method_descriptor = extract_string_from_utf8(&get_class(vf,class).constant_pool[get_class(vf,method.prolog_class).methods[method.method_index as usize].descriptor_index as usize]);
+    let method_descriptor = extract_string_from_utf8(&get_class(vf,class).constant_pool[get_class(vf,method.class).methods[method.method_index as usize].descriptor_index as usize]);
     let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types
@@ -465,10 +465,10 @@ fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) ->
 
 
 fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Option<UnifiedType> {
-    let method_access_flags = get_class(vf,method.prolog_class).methods[method.method_index].access_flags;
+    let method_access_flags = get_class(vf,method.class).methods[method.method_index].access_flags;
     if method_access_flags & ACC_STATIC > 0 {
         //todo dup
-        let classfile = &get_class(vf,method.prolog_class);
+        let classfile = &get_class(vf,method.class);
         let method_name_info = &classfile.constant_pool[classfile.methods[method.method_index].name_index as usize];
         let method_name = extract_string_from_utf8(method_name_info);
         if method_name != "<init>" {
@@ -483,7 +483,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 }
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<UnifiedType, TypeSafetyError> {
-    let method_name = method_name(&get_class(vf,method.prolog_class), &get_class(vf,method.prolog_class).methods[method.method_index]);
+    let method_name = method_name(&get_class(vf,method.class), &get_class(vf, method.class).methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class.class_name) == "java/lang/Object" {
             Result::Ok(UnifiedType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))

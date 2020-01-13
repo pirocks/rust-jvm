@@ -95,7 +95,7 @@ pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, _off
 }
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class = get_class(&env.vf, env.method.prolog_class);
+    let method_class = get_class(&env.vf, env.method.class);
     let constant_pool = &method_class.constant_pool;
     let (name_index, descriptor_index) = match &constant_pool[cp].kind {
         ConstantKind::InvokeDynamic(i) => {
@@ -112,9 +112,9 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
     if call_site_name == "<init>" || call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
     }
-    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
+    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().rev().map(translate_types_to_vm_types).collect();
     let return_type = translate_types_to_vm_types(&descriptor.return_type);
-    operand_arg_list.reverse();
+//    operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -122,7 +122,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
 }
 
 pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class = get_class(&env.vf, env.method.prolog_class);
+    let method_class = get_class(&env.vf, env.method.class);
     let constant_pool = &method_class.constant_pool;
     let ((name_index, descriptor_index), class_index) = match &constant_pool[cp].kind {
         ConstantKind::InterfaceMethodref(i) => {
@@ -145,7 +145,7 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     if method_name == "<init>" || method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
     }
-    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
+    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().rev().map(translate_types_to_vm_types).collect();
     let return_type = translate_types_to_vm_types(&descriptor.return_type);
     let current_loader = env.class_loader.clone();
     //todo this is almost certainly wrong.
@@ -286,7 +286,7 @@ fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, _class: 
                         Some(new_this) => match new_this {
                             MergedCodeInstruction::Instruction(instr) => match instr.instruction {
                                 InstructionInfo::new(this) => {
-                                    let method_class = get_class(&env.vf, env.method.prolog_class);
+                                    let method_class = get_class(&env.vf, env.method.class);
                                     match &method_class.constant_pool[this as usize].kind {
                                         ConstantKind::Class(c) => {
                                             let class_name = ClassName::Ref(NameReference {
@@ -309,7 +309,7 @@ fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, _class: 
         UnifiedType::UninitializedThis => {
             //todo there needs to be some weird retry logic here/in invoke_special b/c This is not strictly a return value in the prolog class, and there is a more complex
             // version of this branch which would be triggered by verificaion failure for this invoke special.
-            Result::Ok(ClassWithLoader { class_name: env.method.prolog_class.class_name.clone(), loader: env.method.prolog_class.loader.clone() })
+            Result::Ok(ClassWithLoader { class_name: env.method.class.class_name.clone(), loader: env.method.class.loader.clone() })
         }
         _ => { panic!() }
     }
@@ -319,8 +319,8 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
     if method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string()));
     }
-    let current_class_name = env.method.prolog_class.class_name.clone();
-    let current_loader = env.method.prolog_class.loader.clone();
+    let current_class_name = env.method.class.class_name.clone();
+    let current_loader = env.method.class.loader.clone();
     let current_class = UnifiedType::Class(ClassWithLoader {
         class_name: current_class_name,
         loader: current_loader.clone(),
@@ -330,14 +330,14 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
         loader: current_loader.clone(),
     });
     is_assignable(&env.vf, &current_class, &method_class)?;
-    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
+    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(translate_types_to_vm_types).collect();
     operand_arg_list_copy.push(current_class);
-    operand_arg_list_copy.reverse();
+//    operand_arg_list_copy.reverse();
     let return_type = translate_types_to_vm_types(&parsed_descriptor.return_type);
     let next_frame = valid_type_transition(env, operand_arg_list_copy, &return_type, stack_frame)?;
-    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
+    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(translate_types_to_vm_types).collect();
     operand_arg_list_copy2.push(method_class);
-    operand_arg_list_copy2.reverse();
+//    operand_arg_list_copy2.reverse();
     valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     return Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }));
@@ -397,7 +397,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
 }
 
 fn get_method_descriptor(cp: usize, env: &Environment) -> (UnifiedType, String, MethodDescriptor) {
-    let classfile = &get_class(&env.vf, env.method.prolog_class);
+    let classfile = &get_class(&env.vf, env.method.class);
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {
@@ -451,7 +451,11 @@ pub fn possibly_array_to_type(env: &Environment, class_name: String) -> UnifiedT
 //    unimplemented!()
 //}
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_freturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_freturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+    if env.return_type != UnifiedType::FloatType{
+        return Result::Err(unknown_error_verifying!());
+    }
+    can_pop(&env.vf,stack_frame,vec![UnifiedType::FloatType])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+}
