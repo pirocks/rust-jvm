@@ -81,9 +81,23 @@ pub fn can_verify_system() {
 }
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_input_stream() {
     let main_class_name = "java/io/InputStream".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
+
+#[test]
+//#[timeout(10000)]
+pub fn can_verify_print_stream() {
+    let main_class_name = "java/io/PrintStream".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
+
+#[test]
+//#[timeout(10000)]
+pub fn can_verify_security_manger() {
+    let main_class_name = "java/lang/SecurityManager".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
