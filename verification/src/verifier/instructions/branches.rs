@@ -431,15 +431,15 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (UnifiedType, String, 
     (possibly_array_to_type(env, class_name), method_name, parsed_descriptor)
 }
 
-pub fn possibly_array_to_type(env: &Environment, class_name: String) -> VerificationType {
+pub fn possibly_array_to_type(env: &Environment, class_name: String) -> ParsedType {
     if class_name.contains("[") {
         let class_type = match parse_field_descriptor(&env.class_loader, class_name.as_str()) {
             None => panic!(),
             Some(s) => s.field_type,
         };
-        class_type.to_verification_type()
+        class_type
     } else {
-        VerificationType::Class(ClassWithLoader {
+        ParsedType::Class(ClassWithLoader {
             class_name: ClassName::Str(class_name),
             loader: env.class_loader.clone(),
         })

@@ -11,6 +11,7 @@ use rust_jvm_common::classfile::CPIndex;
 use crate::VerifierContext;
 use crate::OperandStack;
 use rust_jvm_common::utils::method_name;
+use rust_jvm_common::unified_types::VerificationType;
 
 pub mod loads;
 pub mod consts;
@@ -135,7 +136,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> UnifiedType {
     let classfile = get_class(vf, class);
     let class_name = class_name(&classfile);
-    UnifiedType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
+    VerificationType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
 }
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> Result<(), TypeSafetyError> {
@@ -154,7 +155,7 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     }
 }
 
-pub fn nth0(index: usize, locals: &Vec<UnifiedType>) -> UnifiedType {
+pub fn nth0(index: usize, locals: &Vec<VerificationType>) -> VerificationType {
     match locals.get(index) {
         None => unimplemented!(),
         Some(res) => res.clone(),
@@ -186,8 +187,8 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 //todo how does bootstrap loader from throwable make its way into this
                 let class_name = class_name(&get_class(&env.vf, &exception_class));
-                let assignable = is_assignable(&env.vf, &UnifiedType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
-                                               &UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() }));
+                let assignable = is_assignable(&env.vf, &VerificationType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
+                                               &VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() }));
                 assignable?;
                 Result::Ok(())
             } else {
@@ -228,7 +229,7 @@ pub fn instruction_is_type_safe_dup(env: &Environment, _offset: usize, stack_fra
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn can_safely_push(env: &Environment, input_operand_stack: &OperandStack, type_: &UnifiedType) -> Result<OperandStack, TypeSafetyError> {
+pub fn can_safely_push(env: &Environment, input_operand_stack: &OperandStack, type_: &VerificationType) -> Result<OperandStack, TypeSafetyError> {
     let output_operand_stack = push_operand_stack(&env.vf, input_operand_stack, type_);
     if operand_stack_has_legal_length(env, &output_operand_stack) {
         Result::Ok(output_operand_stack)
@@ -344,22 +345,22 @@ fn dup_x2_form2_is_type_safe(env: &Environment, input_stack: &OperandStack) -> R
 //
 
 pub fn instruction_is_type_safe_i2d(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env, stack_frame, vec![UnifiedType::IntType], UnifiedType::DoubleType)
+    type_transition(env, stack_frame, vec![VerificationType::IntType], VerificationType::DoubleType)
 }
 
 pub fn instruction_is_type_safe_i2f(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env, stack_frame, vec![UnifiedType::IntType], UnifiedType::FloatType)
+    type_transition(env, stack_frame, vec![VerificationType::IntType], VerificationType::FloatType)
 }
 
 
-pub fn type_transition(env: &Environment, stack_frame: &Frame, expected_types: Vec<UnifiedType>, res_type: UnifiedType) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn type_transition(env: &Environment, stack_frame: &Frame, expected_types: Vec<VerificationType>, res_type: VerificationType) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = valid_type_transition(env, expected_types, &res_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
 pub fn instruction_is_type_safe_iadd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env, stack_frame, vec![UnifiedType::IntType, UnifiedType::IntType], UnifiedType::IntType)
+    type_transition(env, stack_frame, vec![VerificationType::IntType, VerificationType::IntType], VerificationType::IntType)
 }
 
 
@@ -367,7 +368,7 @@ pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, _offset: 
     let locals = &stack_frame.locals;
     let should_be_int = nth0(index, locals);
     match should_be_int {
-        UnifiedType::IntType => {
+        VerificationType::IntType => {
             Result::Ok(InstructionTypeSafe::Safe(ResultFrames {
                 next_frame: Frame {
                     locals: stack_frame.locals.clone(),
@@ -384,7 +385,7 @@ pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, _offset: 
 }
 
 pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env,stack_frame,vec![UnifiedType::IntType],UnifiedType::IntType)
+    type_transition(env,stack_frame,vec![VerificationType::IntType],VerificationType::IntType)
 }
 
 //
@@ -405,31 +406,31 @@ pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_fr
 //}
 
 pub fn instruction_is_type_safe_ladd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = valid_type_transition(env, vec![UnifiedType::LongType, UnifiedType::LongType], &UnifiedType::LongType, stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![VerificationType::LongType, VerificationType::LongType], &VerificationType::LongType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
 fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo dup with other arithmetic
-    let next_frame = valid_type_transition(env, vec![UnifiedType::LongType, UnifiedType::LongType], &UnifiedType::IntType, stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![VerificationType::LongType, VerificationType::LongType], &VerificationType::IntType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> UnifiedType {
+pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> VerificationType {
     match c {
-        ConstantKind::Integer(_) => UnifiedType::IntType,
-        ConstantKind::Float(_) => UnifiedType::FloatType,
-        ConstantKind::Long(_) => UnifiedType::LongType,
-        ConstantKind::Double(_) => UnifiedType::DoubleType,
+        ConstantKind::Integer(_) => VerificationType::IntType,
+        ConstantKind::Float(_) => VerificationType::FloatType,
+        ConstantKind::Long(_) => VerificationType::LongType,
+        ConstantKind::Double(_) => VerificationType::DoubleType,
         ConstantKind::Class(_c) => {
             let class_name = ClassName::Str("java/lang/Class".to_string());
-            UnifiedType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
+            VerificationType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         }
         ConstantKind::String(_) => {
             let class_name = ClassName::Str("java/lang/String".to_string());
-            UnifiedType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
+            VerificationType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         }
         ConstantKind::MethodHandle(_) => unimplemented!(),
         ConstantKind::MethodType(_) => unimplemented!(),
@@ -441,10 +442,10 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> UnifiedType 
 
 pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
-    let type_: UnifiedType = loadable_constant(&env.vf, const_);
+    let type_: VerificationType = loadable_constant(&env.vf, const_);
     match type_ {
-        UnifiedType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
-        UnifiedType::LongType => { return Result::Err(unknown_error_verifying!()); }
+        VerificationType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
+        VerificationType::LongType => { return Result::Err(unknown_error_verifying!()); }
         _ => {}
     };
     let next_frame = valid_type_transition(env, vec![], &type_, stack_frame)?;
@@ -454,10 +455,10 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, s
 
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
-    let type_: UnifiedType = loadable_constant(&env.vf, const_);//todo dup
+    let type_: VerificationType = loadable_constant(&env.vf, const_);//todo dup
     match type_ {
-        UnifiedType::DoubleType => {}
-        UnifiedType::LongType => {}
+        VerificationType::DoubleType => {}
+        VerificationType::LongType => {}
         _ => { return Result::Err(unknown_error_verifying!()); }
     };
     let next_frame = valid_type_transition(env, vec![], &type_, stack_frame)?;
@@ -506,7 +507,7 @@ pub fn instruction_is_type_safe_pop(env: &Environment, _offset: usize, stack_fra
 //
 
 pub fn instruction_is_type_safe_sipush(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env, stack_frame, vec![], UnifiedType::IntType)
+    type_transition(env, stack_frame, vec![], VerificationType::IntType)
 }
 
 //#[allow(unused)]

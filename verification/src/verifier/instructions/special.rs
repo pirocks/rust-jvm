@@ -22,6 +22,7 @@ use classfile_parser::types::FieldDescriptor;
 use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::VerificationType;
+use rust_jvm_common::unified_types::ParsedType;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
@@ -60,12 +61,12 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 
 pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let sub_type = Box::new(extract_constant_pool_entry_as_type(cp, &env));
-    let next_frame = valid_type_transition(env, vec![UnifiedType::IntType], &UnifiedType::ArrayReferenceType(ArrayType { sub_type }), stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![VerificationType::IntType], &VerificationType::ArrayReferenceType(ArrayType { sub_type }), stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> UnifiedType {
+fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> ParsedType {
     let class = get_class(&env.vf, &env.method.class);
     let class_name = match &class.constant_pool[cp as usize].kind {
         ConstantKind::Class(c) => {
@@ -81,16 +82,16 @@ pub fn instruction_is_type_safe_arraylength(env: &Environment, _offset: usize, s
     dbg!(stack_frame);
     let array_type = nth1_operand_stack_is(1, stack_frame)?;
     array_component_type(array_type)?;
-    let next_frame = valid_type_transition(env, vec![UnifiedType::TopType], &UnifiedType::IntType, stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![VerificationType::TopType], &VerificationType::IntType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn array_component_type(type_: UnifiedType) -> Result<UnifiedType, TypeSafetyError> {
+pub fn array_component_type(type_: VerificationType) -> Result<ParsedType, TypeSafetyError> {
     use std::ops::Deref;
     Result::Ok(match type_ {
-        UnifiedType::ArrayReferenceType(a) => a.sub_type.deref().clone(),
-        UnifiedType::NullType => UnifiedType::NullType,
+        VerificationType::ArrayReferenceType(a) => a.sub_type.deref().clone(),
+        VerificationType::NullType => ParsedType::NullType,
         _ => panic!()
     })
 }
@@ -105,7 +106,7 @@ fn nth1(i: usize, o: &OperandStack) -> UnifiedType {
 
 pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let to_pop = ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() };
-    can_pop(&env.vf, stack_frame, vec![UnifiedType::Class(to_pop)])?;
+    can_pop(&env.vf, stack_frame, vec![VerificationType::Class(to_pop)])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
@@ -122,7 +123,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, _offs
         _ => panic!()
     };
     dbg!(&result_type);
-    let next_frame = valid_type_transition(env, vec![UnifiedType::Class(object_class)], &result_type, stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![VerificationType::Class(object_class)], &result_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
@@ -146,7 +147,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     if get_referred_name(&env.method.class.class_name) != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
-    let next_stack_frame = can_pop(&env.vf, stack_frame, vec![field_type, UnifiedType::UninitializedThis])?;
+    let next_stack_frame = can_pop(&env.vf, stack_frame, vec![field_type, VerificationType::UninitializedThis])?;
     let exception_frame = exception_stack_frame(&stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
@@ -157,7 +158,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
     let _popped_frame = can_pop(&env.vf, stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
-    let next_stack_frame = can_pop(&env.vf, stack_frame, vec![field_type, UnifiedType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
+    let next_stack_frame = can_pop(&env.vf, stack_frame, vec![field_type, VerificationType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     let exception_frame = exception_stack_frame(&stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame: next_stack_frame }))
 }
@@ -200,7 +201,7 @@ pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, _offse
 
 
 pub fn instruction_is_type_safe_monitorenter(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = can_pop(&env.vf, stack_frame, vec![UnifiedType::Reference])?;
+    let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::Reference])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
@@ -219,14 +220,14 @@ pub fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize,
         ConstantKind::Class(_) => {}
         _ => panic!()
     };
-    let new_item = UnifiedType::Uninitialized(UninitializedVariableInfo { offset: offset as u16 });
+    let new_item = VerificationType::Uninitialized(UninitializedVariableInfo { offset: offset as u16 });
     match operand_stack.iter().find(|x| {
         x == &&new_item
     }) {
         None => {}
         Some(_) => return Result::Err(unknown_error_verifying!()),
     };
-    let new_locals = substitute(&new_item, &UnifiedType::TopType, locals.as_slice());
+    let new_locals = substitute(&new_item, &VerificationType::TopType, locals.as_slice());
     let next_frame = valid_type_transition(env, vec![], &new_item, &Frame {
         locals: new_locals,
         stack_map: operand_stack.clone(),

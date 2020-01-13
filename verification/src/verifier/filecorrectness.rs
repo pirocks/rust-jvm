@@ -14,6 +14,7 @@ use classfile_parser::types::Descriptor;
 use classfile_parser::types::parse_field_descriptor;
 use classfile_parser::types::parse_method_descriptor;
 use std::ops::Deref;
+use rust_jvm_common::unified_types::VerificationType;
 
 #[allow(unused)]
 fn same_runtime_package(vf: &VerifierContext, class1: ClassWithLoader, class2: &ClassWithLoader) -> bool {
@@ -116,38 +117,38 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
 
 pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSafetyError> {
     match from {
-        UnifiedType::DoubleType => match to {
-            UnifiedType::DoubleType => Result::Ok(()),
-            _ => is_assignable(vf, &UnifiedType::TwoWord, to)
+        VerificationType::DoubleType => match to {
+            VerificationType::DoubleType => Result::Ok(()),
+            _ => is_assignable(vf, &VerificationType::TwoWord, to)
         },
-        UnifiedType::LongType => match to {
-            UnifiedType::LongType => Result::Ok(()),
-            _ => is_assignable(vf, &UnifiedType::TwoWord, to)
+        VerificationType::LongType => match to {
+            VerificationType::LongType => Result::Ok(()),
+            _ => is_assignable(vf, &VerificationType::TwoWord, to)
         },
-        UnifiedType::FloatType => match to {
-            UnifiedType::FloatType => Result::Ok(()),
-            _ => is_assignable(vf, &UnifiedType::OneWord, to)
+        VerificationType::FloatType => match to {
+            VerificationType::FloatType => Result::Ok(()),
+            _ => is_assignable(vf, &VerificationType::OneWord, to)
         },
-        UnifiedType::IntType => match to {
-            UnifiedType::IntType => Result::Ok(()),
-            _ => is_assignable(vf, &UnifiedType::OneWord, to)
+        VerificationType::IntType => match to {
+            VerificationType::IntType => Result::Ok(()),
+            _ => is_assignable(vf, &VerificationType::OneWord, to)
         },
-        UnifiedType::Reference => match to {
-            UnifiedType::Reference => Result::Ok(()),
-            _ => is_assignable(vf, &UnifiedType::OneWord, to)
+        VerificationType::Reference => match to {
+            VerificationType::Reference => Result::Ok(()),
+            _ => is_assignable(vf, &VerificationType::OneWord, to)
         }
-        UnifiedType::Class(c) => match to {
-            UnifiedType::Class(c2) => {
+        VerificationType::Class(c) => match to {
+            VerificationType::Class(c2) => {
                 if c == c2 {
                     return Result::Ok(());
                 } else {
                     return is_java_assignable_class(vf, c, c2);
                 }
             }
-            _ => is_assignable(vf, &UnifiedType::Reference, to)
+            _ => is_assignable(vf, &VerificationType::Reference, to)
         },
-        UnifiedType::ArrayReferenceType(a) => match to {
-            UnifiedType::ArrayReferenceType(a2) => {
+        VerificationType::ArrayReferenceType(a) => match to {
+            VerificationType::ArrayReferenceType(a2) => {
                 if a == a2 {
                     return Result::Ok(());
                 } else {
@@ -157,56 +158,56 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
                 }
             }
             //technically the next case should be partially part of is_java_assignable but is here
-            UnifiedType::Class(c) => {
+            VerificationType::Class(c) => {
                 if is_java_assignable(vf,from,to).is_ok(){
                     return Result::Ok(())
                 }
-                if !is_assignable(vf, &UnifiedType::Reference, to).is_ok() {
+                if !is_assignable(vf, &VerificationType::Reference, to).is_ok() {
                     //todo okay to use name like that?
                     if c.class_name == ClassName::Str("java/lang/Object".to_string()) &&
                         c.loader.name() == LoaderName::BootstrapLoader {
                         return Result::Ok(());
                     }
                 }
-                is_assignable(vf, &UnifiedType::Reference, to)
+                is_assignable(vf, &VerificationType::Reference, to)
             }
-            _ => is_assignable(vf, &UnifiedType::Reference, to)
+            _ => is_assignable(vf, &VerificationType::Reference, to)
         },
-        UnifiedType::TopType => match to {
-            UnifiedType::TopType => Result::Ok(()),
+        VerificationType::TopType => match to {
+            VerificationType::TopType => Result::Ok(()),
             _ => panic!("This might be a bug. It's a weird edge case"),
         },
-        UnifiedType::UninitializedEmpty => match to {
-            UnifiedType::UninitializedEmpty => Result::Ok(()),
-            _ => is_assignable(vf, &UnifiedType::Reference, to)
+        VerificationType::UninitializedEmpty => match to {
+            VerificationType::UninitializedEmpty => Result::Ok(()),
+            _ => is_assignable(vf, &VerificationType::Reference, to)
         },
-        UnifiedType::Uninitialized(_) => match to {
-            UnifiedType::Uninitialized(_) => unimplemented!(),
-            _ => is_assignable(vf, &UnifiedType::UninitializedEmpty, to)
+        VerificationType::Uninitialized(_) => match to {
+            VerificationType::Uninitialized(_) => unimplemented!(),
+            _ => is_assignable(vf, &VerificationType::UninitializedEmpty, to)
         },
-        UnifiedType::UninitializedThis => match to {
-            UnifiedType::UninitializedThis => Result::Ok(()),
-            _ => is_assignable(vf, &UnifiedType::UninitializedEmpty, to)
+        VerificationType::UninitializedThis => match to {
+            VerificationType::UninitializedThis => Result::Ok(()),
+            _ => is_assignable(vf, &VerificationType::UninitializedEmpty, to)
         },
-        UnifiedType::NullType => match to {
-            UnifiedType::NullType => Result::Ok(()),
-            UnifiedType::Class(_) => Result::Ok(()),
-            UnifiedType::ArrayReferenceType(_) => Result::Ok(()),
+        VerificationType::NullType => match to {
+            VerificationType::NullType => Result::Ok(()),
+            VerificationType::Class(_) => Result::Ok(()),
+            VerificationType::ArrayReferenceType(_) => Result::Ok(()),
             //todo really need to do something about these magic strings
-            _ => is_assignable(vf, &UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: vf.bootstrap_loader.clone() }), to),
+            _ => is_assignable(vf, &VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: vf.bootstrap_loader.clone() }), to),
         },
-        UnifiedType::OneWord => match to {
-            UnifiedType::OneWord => Result::Ok(()),
-            UnifiedType::TopType => Result::Ok(()),
-            UnifiedType::Class(c) => {
+        VerificationType::OneWord => match to {
+            VerificationType::OneWord => Result::Ok(()),
+            VerificationType::TopType => Result::Ok(()),
+            VerificationType::Class(c) => {
                 dbg!(c);
                 panic!()
             }
             _ => { dbg!(to);Result::Err(unknown_error_verifying!()) }
         },
-        UnifiedType::TwoWord => match to {
-            UnifiedType::TwoWord => Result::Ok(()),
-            UnifiedType::TopType => Result::Ok(()),
+        VerificationType::TwoWord => match to {
+            VerificationType::TwoWord => Result::Ok(()),
+            VerificationType::TopType => Result::Ok(()),
             _ => {
                 dbg!(to);
                 Result::Err(unknown_error_verifying!())
@@ -219,56 +220,56 @@ pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType)
     }
 }
 
-fn atom(t: &UnifiedType) -> bool {
+fn atom(t: &VerificationType) -> bool {
     match t {
-        UnifiedType::ByteType |
-        UnifiedType::CharType |
-        UnifiedType::DoubleType |
-        UnifiedType::FloatType |
-        UnifiedType::IntType |
-        UnifiedType::LongType |
-        UnifiedType::ShortType |
-        UnifiedType::VoidType |
-        UnifiedType::TopType |
-        UnifiedType::NullType |
-        UnifiedType::UninitializedThis |
-        UnifiedType::TwoWord |
-        UnifiedType::OneWord |
-        UnifiedType::Reference |
-        UnifiedType::UninitializedEmpty |
-        UnifiedType::BooleanType => {
+        VerificationType::ByteType |
+        VerificationType::CharType |
+        VerificationType::DoubleType |
+        VerificationType::FloatType |
+        VerificationType::IntType |
+        VerificationType::LongType |
+        VerificationType::ShortType |
+        VerificationType::VoidType |
+        VerificationType::TopType |
+        VerificationType::NullType |
+        VerificationType::UninitializedThis |
+        VerificationType::TwoWord |
+        VerificationType::OneWord |
+        VerificationType::Reference |
+        VerificationType::UninitializedEmpty |
+        VerificationType::BooleanType => {
             true
         }
-        UnifiedType::Class(_) |
-        UnifiedType::ArrayReferenceType(_) |
-        UnifiedType::Uninitialized(_) => {
+        VerificationType::Class(_) |
+        VerificationType::ArrayReferenceType(_) |
+        VerificationType::Uninitialized(_) => {
             false
         }
     }
 }
 
-fn is_java_assignable(vf: &VerifierContext, left: &UnifiedType, right: &UnifiedType) -> Result<(), TypeSafetyError> {
+fn is_java_assignable(vf: &VerifierContext, left: &VerificationType, right: &VerificationType) -> Result<(), TypeSafetyError> {
     match left {
-        UnifiedType::Class(c1) => {
+        VerificationType::Class(c1) => {
             match right {
-                UnifiedType::Class(c2) => {
+                VerificationType::Class(c2) => {
                     is_java_assignable_class(vf, c1, c2)
                 }
-                UnifiedType::ArrayReferenceType(_a) => {
+                VerificationType::ArrayReferenceType(_a) => {
                     unimplemented!()
                 }
                 _ => unimplemented!()
             }
         }
-        UnifiedType::ArrayReferenceType(a1) => {
+        VerificationType::ArrayReferenceType(a1) => {
             match right {
-                UnifiedType::Class(c) => {
+                VerificationType::Class(c) => {
                     if c.class_name == ClassName::Str("java/lang/Object".to_string()) && &vf.bootstrap_loader.name() == &c.loader.name(){
                         return Result::Ok(())
                     }
                     unimplemented!()
                 }
-                UnifiedType::ArrayReferenceType(a2) => {
+                VerificationType::ArrayReferenceType(a2) => {
                     is_java_assignable_array_types(vf, a1.sub_type.deref(), a2.sub_type.deref())
                 }
                 _ => unimplemented!()
@@ -278,7 +279,7 @@ fn is_java_assignable(vf: &VerifierContext, left: &UnifiedType, right: &UnifiedT
     }
 }
 
-fn is_java_assignable_array_types(vf: &VerifierContext, left: &UnifiedType, right: &UnifiedType) -> Result<(), TypeSafetyError> {
+fn is_java_assignable_array_types(vf: &VerifierContext, left: &VerificationType, right: &VerificationType) -> Result<(), TypeSafetyError> {
     if atom(&left) && atom(&right) {
         if left == right {
             return Result::Ok(());
