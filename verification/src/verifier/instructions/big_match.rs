@@ -50,6 +50,7 @@ use crate::verifier::instructions::instruction_is_type_safe_ineg;
 use crate::verifier::instructions::stores::instruction_is_type_safe_bastore;
 use crate::verifier::instructions::branches::instruction_is_type_safe_lreturn;
 use crate::verifier::instructions::instruction_is_type_safe_l2i;
+use crate::verifier::instructions::special::instruction_is_type_safe_newarray;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -264,7 +265,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::monitorexit => instruction_is_type_safe_monitorenter(env,offset,stack_frame),
         InstructionInfo::multianewarray(_) => { unimplemented!() }
         InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize, env, offset, stack_frame),
-        InstructionInfo::newarray(_) => { unimplemented!() }
+        InstructionInfo::newarray(type_code) => instruction_is_type_safe_newarray(*type_code as usize,env,offset,stack_frame),
         InstructionInfo::nop => { unimplemented!() }
         InstructionInfo::pop => instruction_is_type_safe_pop(env, offset, stack_frame),
         InstructionInfo::pop2 => { unimplemented!() }

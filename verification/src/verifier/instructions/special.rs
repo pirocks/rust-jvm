@@ -23,6 +23,7 @@ use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
+use crate::verifier::instructions::type_transition;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
@@ -237,12 +238,25 @@ pub fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize,
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let element_type = primitive_array_info(type_code);
+    type_transition(env,stack_frame,vec![VerificationType::IntType],VerificationType::ArrayReferenceType(ArrayType {sub_type:Box::new(element_type)}))
+}
 
-//
+fn primitive_array_info(type_code: usize) -> ParsedType {
+   match type_code{
+       4 => ParsedType::BooleanType,
+       5 => ParsedType::CharType,
+       6 => ParsedType::FloatType,
+       7 => ParsedType::DoubleType,
+       8 => ParsedType::ByteType,
+       9 => ParsedType::ShortType,
+       10 => ParsedType::IntType,
+       11 => ParsedType::LongType,
+       _ => panic!()
+   }
+}
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
