@@ -7,7 +7,7 @@ use crate::verifier::instructions::{handers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
 
 use std::option::Option::Some;
-use rust_jvm_common::unified_types::{ArrayType, ClassWithLoader};
+use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
 use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
@@ -398,7 +398,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
 //    }
 //}
 
-fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, UnifiedType) {
+fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, VerificationType) {
     //methodInitialStackFrame(Class, Method, FrameSize, frame(Locals, [], Flags),ReturnType):-
     //    methodDescriptor(Method, Descriptor),
     //    parseMethodDescriptor(Descriptor, RawArgs, ReturnType),
@@ -412,14 +412,14 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types
             .iter()
-            .map(|x| translate_types_to_vm_types(x))
+            .map(ParsedType::to_verification_type)
             .collect(),
-        return_type: translate_types_to_vm_types(&initial_parsed_descriptor.return_type),
+        return_type: initial_parsed_descriptor.return_type.clone(),
     };
     let this_list = method_initial_this_type(vf,class, method);
     let flag_this_uninit = flags(&this_list);
     //todo this long and frequently duped
-    let args = expand_type_list(vf,parsed_descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect());
+    let args = expand_type_list(vf,parsed_descriptor.parameter_types.iter().map(ParsedType::to_verification_type).collect());
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
         this_args.push(x.clone());
@@ -428,7 +428,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = expand_to_length(this_args, frame_size as usize, VerificationType::TopType);
-    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, translate_types_to_vm_types(&parsed_descriptor.return_type));
+    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type.to_verification_type());
 }
 
 

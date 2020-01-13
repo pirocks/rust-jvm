@@ -115,7 +115,7 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
     }
 }
 
-pub fn is_assignable(vf: &VerifierContext, from: &UnifiedType, to: &UnifiedType) -> Result<(), TypeSafetyError> {
+pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &VerificationType) -> Result<(), TypeSafetyError> {
     match from {
         VerificationType::DoubleType => match to {
             VerificationType::DoubleType => Result::Ok(()),

@@ -8,7 +8,6 @@ use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::InternalFrame;
-use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::classnames::{get_referred_name, class_name};
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
@@ -60,40 +59,40 @@ pub fn init_frame(parameter_types: Vec<ParsedType>, this_pointer: Option<ParsedT
     InternalFrame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
 }
 
-fn locals_push_convert_type(res: &mut Vec<VerificationType>, type_: ParsedType) -> () {
+fn locals_push_convert_type(res: &mut Vec<ParsedType>, type_: ParsedType) -> () {
     match type_ {
         ParsedType::ByteType => {
-            res.push(VerificationType::IntType);
+            res.push(ParsedType::ByteType);
         }
         ParsedType::CharType => {
-            res.push(VerificationType::IntType);
+            res.push(ParsedType::CharType);
         }
         ParsedType::DoubleType => {
-            res.push(VerificationType::DoubleType);
-            res.push(VerificationType::TopType);
+            res.push(ParsedType::DoubleType);
+            res.push(ParsedType::TopType);
         }
         ParsedType::FloatType => {
-            res.push(VerificationType::FloatType);
+            res.push(ParsedType::FloatType);
         }
         ParsedType::IntType => {
-            res.push(VerificationType::IntType);
+            res.push(ParsedType::IntType);
         }
         ParsedType::LongType => {
-            res.push(VerificationType::LongType);
-            res.push(VerificationType::TopType);
+            res.push(ParsedType::LongType);
+            res.push(ParsedType::TopType);
         }
         ParsedType::Class(r) => {
             assert_ne!(get_referred_name(&r.class_name).chars().nth(0).unwrap(), '[');
-            res.push(VerificationType::Class(r));
+            res.push(ParsedType::Class(r));
         }
         ParsedType::ShortType => {
-            res.push(VerificationType::IntType);
+            res.push(ParsedType::ShortType);
         }
         ParsedType::BooleanType => {
-            res.push(VerificationType::IntType);
+            res.push(ParsedType::BooleanType);
         }
         ParsedType::ArrayReferenceType(art) => {
-            res.push(VerificationType::ArrayReferenceType(art.clone()));
+            res.push(ParsedType::ArrayReferenceType(art.clone()));
         }
         ParsedType::VoidType => { panic!() }
         _ => { panic!("Case wasn't coverred with non-unified types") }

@@ -133,7 +133,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
     offset >= handler.start && offset < handler.end
 }
 
-fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> UnifiedType {
+fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> VerificationType {
     let classfile = get_class(vf, class);
     let class_name = class_name(&classfile);
     VerificationType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
@@ -238,7 +238,7 @@ pub fn can_safely_push(env: &Environment, input_operand_stack: &OperandStack, ty
     }
 }
 
-pub fn pop_category1(vf: &VerifierContext, input: &mut OperandStack) -> Result<UnifiedType, TypeSafetyError> {
+pub fn pop_category1(vf: &VerifierContext, input: &mut OperandStack) -> Result<VerificationType, TypeSafetyError> {
     if size_of(vf, &input.peek()) == 1 {
         let type_ = input.operand_pop();
         return Result::Ok(type_);
@@ -265,7 +265,7 @@ pub fn instruction_is_type_safe_dup_x1(env: &Environment, _offset: usize, stack_
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn can_safely_push_list(env: &Environment, input_stack: &OperandStack, types: Vec<UnifiedType>) -> Result<OperandStack, TypeSafetyError> {
+pub fn can_safely_push_list(env: &Environment, input_stack: &OperandStack, types: Vec<VerificationType>) -> Result<OperandStack, TypeSafetyError> {
     let output_stack = can_push_list(&env.vf, input_stack, types.as_slice())?;
     if !operand_stack_has_legal_length(env, &output_stack) {
         return Result::Err(unknown_error_verifying!());
@@ -273,7 +273,7 @@ pub fn can_safely_push_list(env: &Environment, input_stack: &OperandStack, types
     Result::Ok(output_stack)
 }
 
-pub fn can_push_list(vf: &VerifierContext, input_stack: &OperandStack, types: &[UnifiedType]) -> Result<OperandStack, TypeSafetyError> {
+pub fn can_push_list(vf: &VerifierContext, input_stack: &OperandStack, types: &[VerificationType]) -> Result<OperandStack, TypeSafetyError> {
     if types.is_empty() {
         return Result::Ok(input_stack.clone());
     }

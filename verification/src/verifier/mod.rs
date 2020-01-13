@@ -13,6 +13,7 @@ use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
 use classfile_parser::types::Descriptor;
 use rust_jvm_common::unified_types::VerificationType;
+use rust_jvm_common::unified_types::ParsedType;
 
 
 macro_rules! unknown_error_verifying {
@@ -27,8 +28,8 @@ pub mod filecorrectness;
 pub mod codecorrectness;
 
 pub struct InternalFrame {
-    pub locals: Vec<UnifiedType>,
-    pub stack: Vec<UnifiedType>,
+    pub locals: Vec<ParsedType>,
+    pub stack: Vec<ParsedType>,
     pub max_locals: u16,
     pub current_offset: u16,
 }
