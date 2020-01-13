@@ -1039,6 +1039,8 @@ instructionIsTypeSafe(i2f, Environment, _Offset, StackFrame,NextStackFrame, Exce
     validTypeTransition(Environment, [int], float, StackFrame, NextStackFrame),
     exceptionStackFrame(StackFrame, ExceptionStackFrame).
 
+instructionIsTypeSafe(i2l, Environment, _Offset, StackFrame,                      NextStackFrame, ExceptionStackFrame) :-     validTypeTransition(Environment, [int], long,                        StackFrame, NextStackFrame),    exceptionStackFrame(StackFrame, ExceptionStackFrame).
+
 instructionHasEquivalentTypeRule(i2s, ineg).
 
 instructionIsTypeSafe(iadd, Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-

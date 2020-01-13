@@ -51,6 +51,7 @@ use crate::verifier::instructions::stores::instruction_is_type_safe_bastore;
 use crate::verifier::instructions::branches::instruction_is_type_safe_lreturn;
 use crate::verifier::instructions::instruction_is_type_safe_l2i;
 use crate::verifier::instructions::special::instruction_is_type_safe_newarray;
+use crate::verifier::instructions::instruction_is_type_safe_i2l;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -150,7 +151,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::i2c => { unimplemented!() }
         InstructionInfo::i2d => instruction_is_type_safe_i2d(env, offset, stack_frame),
         InstructionInfo::i2f => instruction_is_type_safe_i2f(env,offset,stack_frame),
-        InstructionInfo::i2l => { unimplemented!() }
+        InstructionInfo::i2l => instruction_is_type_safe_i2l(env,offset,stack_frame),
         InstructionInfo::i2s => instruction_is_type_safe_i2f(env,offset,stack_frame),
         InstructionInfo::iadd => instruction_is_type_safe_iadd(env, offset, stack_frame),
         InstructionInfo::iaload => { unimplemented!() }
@@ -258,7 +259,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lstore_1 => instruction_is_type_safe_lstore(1, env, offset, stack_frame),
         InstructionInfo::lstore_2 => instruction_is_type_safe_lstore(2, env, offset, stack_frame),
         InstructionInfo::lstore_3 => instruction_is_type_safe_lstore(3, env, offset, stack_frame),
-        InstructionInfo::lsub => { unimplemented!() }
+        InstructionInfo::lsub => instruction_is_type_safe_ladd(env,offset,stack_frame),
         InstructionInfo::lushr => { unimplemented!() }
         InstructionInfo::lxor => { unimplemented!() }
         InstructionInfo::monitorenter => instruction_is_type_safe_monitorenter(env,offset,stack_frame),
