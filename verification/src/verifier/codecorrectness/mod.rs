@@ -7,7 +7,7 @@ use crate::verifier::instructions::{handers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
 
 use std::option::Option::Some;
-use rust_jvm_common::unified_types::{UnifiedType, ArrayType, ClassWithLoader};
+use rust_jvm_common::unified_types::{ArrayType, ClassWithLoader};
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
 use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
@@ -22,11 +22,13 @@ use crate::OperandStack;
 use classfile_parser::types::parse_method_descriptor;
 use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::classfile::ConstantKind;
+use rust_jvm_common::unified_types::VerificationType;
+use rust_jvm_common::unified_types::ParsedType;
 
 pub mod stackmapframes;
 
 
-pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<UnifiedType>, result_type: &UnifiedType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
+pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VerificationType>, result_type: &VerificationType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
     dbg!(&expected_types_on_stack);
 //    dbg!(&result_type);
     dbg!(&input_frame.stack_map);
@@ -324,7 +326,7 @@ pub enum UnifiedInstruction {}
 #[allow(dead_code)]
 pub struct Environment<'l> {
     pub method: &'l ClassWithLoaderMethod<'l>,
-    pub return_type: UnifiedType,
+    pub return_type: VerificationType,
     pub frame_size: u16,
     pub max_stack: u16,
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
@@ -367,34 +369,34 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
     return res;
 }
-
-pub fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType {
-    match type_ {
-        UnifiedType::ByteType => UnifiedType::IntType,
-        UnifiedType::CharType => UnifiedType::IntType,
-        UnifiedType::ShortType => UnifiedType::IntType,
-        UnifiedType::DoubleType => UnifiedType::DoubleType,
-        UnifiedType::FloatType => UnifiedType::FloatType,
-        UnifiedType::IntType => UnifiedType::IntType,
-        UnifiedType::BooleanType => UnifiedType::IntType,
-        UnifiedType::LongType => UnifiedType::LongType,
-        UnifiedType::Class(_) => type_.clone(),
-        UnifiedType::ArrayReferenceType(_) => {
-            type_.clone()
-//            let translated_subtype = translate_types_to_vm_types(&a.sub_type);
-//            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::new(translated_subtype) })
-        }
-        UnifiedType::VoidType => UnifiedType::VoidType,
-        UnifiedType::TopType => panic!(),
-        UnifiedType::NullType => panic!(),
-        UnifiedType::Uninitialized(_) => panic!(),
-        UnifiedType::UninitializedThis => panic!(),
-        UnifiedType::TwoWord => panic!(),
-        UnifiedType::OneWord => panic!(),
-        UnifiedType::Reference => panic!(),
-        UnifiedType::UninitializedEmpty => panic!(),
-    }
-}
+//
+//pub fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType {
+//    match type_ {
+//        UnifiedType::ByteType => UnifiedType::IntType,
+//        UnifiedType::CharType => UnifiedType::IntType,
+//        UnifiedType::ShortType => UnifiedType::IntType,
+//        UnifiedType::DoubleType => UnifiedType::DoubleType,
+//        UnifiedType::FloatType => UnifiedType::FloatType,
+//        UnifiedType::IntType => UnifiedType::IntType,
+//        UnifiedType::BooleanType => UnifiedType::IntType,
+//        UnifiedType::LongType => UnifiedType::LongType,
+//        UnifiedType::Class(_) => type_.clone(),
+//        UnifiedType::ArrayReferenceType(_) => {
+//            type_.clone()
+////            let translated_subtype = translate_types_to_vm_types(&a.sub_type);
+////            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::new(translated_subtype) })
+//        }
+//        UnifiedType::VoidType => UnifiedType::VoidType,
+//        UnifiedType::TopType => panic!(),
+//        UnifiedType::NullType => panic!(),
+//        UnifiedType::Uninitialized(_) => panic!(),
+//        UnifiedType::UninitializedThis => panic!(),
+//        UnifiedType::TwoWord => panic!(),
+//        UnifiedType::OneWord => panic!(),
+//        UnifiedType::Reference => panic!(),
+//        UnifiedType::UninitializedEmpty => panic!(),
+//    }
+//}
 
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, UnifiedType) {
     //methodInitialStackFrame(Class, Method, FrameSize, frame(Locals, [], Flags),ReturnType):-

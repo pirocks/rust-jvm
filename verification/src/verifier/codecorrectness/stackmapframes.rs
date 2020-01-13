@@ -2,7 +2,7 @@ use crate::verifier::{InternalFrame, get_class};
 use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
 use rust_jvm_common::utils::extract_string_from_utf8;
-use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
+use rust_jvm_common::unified_types::ClassWithLoader;
 use classfile_parser::{code_attribute, stack_map_table_attribute};
 use crate::{init_frame, VerifierContext};
 use crate::StackMap;

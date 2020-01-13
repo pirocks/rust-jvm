@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
+use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classnames::{get_referred_name, class_name_legacy};

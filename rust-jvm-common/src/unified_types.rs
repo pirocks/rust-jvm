@@ -68,7 +68,7 @@ pub enum ParsedType {
 }
 
 impl ParsedType {
-    fn to_verification_type(&self) -> VerificationType {
+    pub fn to_verification_type(&self) -> VerificationType {
         match self {
             ParsedType::ByteType => VerificationType::IntType,
             ParsedType::CharType => VerificationType::IntType,

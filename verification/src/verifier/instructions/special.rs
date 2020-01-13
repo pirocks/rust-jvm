@@ -1,4 +1,4 @@
-use crate::verifier::codecorrectness::{Environment, valid_type_transition, translate_types_to_vm_types};
+use crate::verifier::codecorrectness::{Environment, valid_type_transition};
 use crate::verifier::Frame;
 use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames};
 use crate::verifier::TypeSafetyError;
@@ -10,7 +10,6 @@ use rust_jvm_common::classnames::NameReference;
 use std::sync::Arc;
 use crate::verifier::codecorrectness::can_pop;
 use crate::verifier::passes_protected_check;
-use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::instructions::exception_stack_frame;
 use crate::verifier::instructions::ResultFrames;
@@ -22,12 +21,13 @@ use classfile_parser::types::Descriptor;
 use classfile_parser::types::FieldDescriptor;
 use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ArrayType;
+use rust_jvm_common::unified_types::VerificationType;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
     let bl = &env.vf.bootstrap_loader.clone();
-    let object = UnifiedType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: bl.clone() });
-    let next_frame= valid_type_transition(env, vec![object], &UnifiedType::IntType, stack_frame)?;
+    let object = VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: bl.clone() });
+    let next_frame= valid_type_transition(env, vec![object], &VerificationType::IntType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
@@ -38,7 +38,7 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
-    let next_frame = valid_type_transition(env, vec![UnifiedType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })], &field_type, stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![VerificationType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })], &field_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }

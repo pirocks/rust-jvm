@@ -12,7 +12,6 @@ use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::classnames::{get_referred_name, class_name};
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::codecorrectness::translate_types_to_vm_types;
 use std::collections::vec_deque::VecDeque;
 
 

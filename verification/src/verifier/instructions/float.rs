@@ -2,7 +2,6 @@ use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::instructions::InstructionTypeSafe;
 use crate::verifier::TypeSafetyError;
-use rust_jvm_common::unified_types::UnifiedType;
 use crate::verifier::instructions::type_transition;
 
 

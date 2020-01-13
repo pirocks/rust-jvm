@@ -1,6 +1,6 @@
 use log::trace;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
+use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::{get_referred_name, ClassName};
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, class_is_final, is_bootstrap_loader, get_class_methods};
@@ -12,6 +12,7 @@ use crate::OperandStack;
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
 use classfile_parser::types::Descriptor;
+use rust_jvm_common::unified_types::VerificationType;
 
 
 macro_rules! unknown_error_verifying {
@@ -56,7 +57,7 @@ pub struct ClassWithLoaderMethod<'l> {
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
 pub struct Frame {
-    pub locals: Vec<UnifiedType>,
+    pub locals: Vec<VerificationType>,
     pub stack_map: OperandStack,
     pub flag_this_uninit: bool,
 }
