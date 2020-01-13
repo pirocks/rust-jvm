@@ -346,13 +346,13 @@ pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, cla
 
 pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if same
-    assert!(class == method.class);
+//    assert!(class == method.class);
     (get_access_flags(vf, class, method) & ACC_STATIC) > 0
 }
 
 pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if method class and class same
-    assert!(class == method.class);
+//    assert!(class == method.class);
     (get_access_flags(vf, class, method) & ACC_PRIVATE) > 0
 }
 
@@ -413,9 +413,9 @@ pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class:
     final_method_not_overridden(vf, method, &super_class, &super_methods_list)
 }
 
-pub fn get_access_flags(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
+pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
 //    assert!(method.prolog_class == class);//todo why the duplicate parameters?
-    get_class(vf, class).methods[method.method_index as usize].access_flags
+    get_class(vf, method.class).methods[method.method_index as usize].access_flags
 }
 
 //todo ClassName v. Name
