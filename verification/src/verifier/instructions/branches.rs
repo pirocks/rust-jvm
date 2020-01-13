@@ -451,7 +451,11 @@ pub fn possibly_array_to_type(env: &Environment, class_name: String) -> UnifiedT
 //    unimplemented!()
 //}
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_freturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_freturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+    if env.return_type != UnifiedType::FloatType{
+        return Result::Err(unknown_error_verifying!());
+    }
+    can_pop(&env.vf,stack_frame,vec![UnifiedType::FloatType])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+}
