@@ -88,7 +88,7 @@ fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
             UnifiedType::Class(ClassWithLoader {class_name, loader: o.loader.clone() })
         }
         UnifiedType::Uninitialized(u) => UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset }),
-        UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_recurse(&a.sub_type)) }),
+        UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_recurse_2(&a.sub_type)) }),
 
         UnifiedType::TopType => UnifiedType::TopType,
         UnifiedType::IntType => UnifiedType::IntType,
@@ -97,6 +97,31 @@ fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
         UnifiedType::DoubleType => UnifiedType::DoubleType,
         UnifiedType::NullType => UnifiedType::NullType,
         UnifiedType::UninitializedThis => UnifiedType::UninitializedThis,
+        _ => { dbg!(to_copy);panic!("Case wasn't covered with non-unified types") }
+    }
+}
+
+//todo this is more than a little messed up
+fn copy_recurse_2(to_copy: &UnifiedType) -> UnifiedType {
+    match to_copy {
+        UnifiedType::Class(o) => {
+            let class_name = match &o.class_name {
+                ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
+                ClassName::Str(s) => { ClassName::Str(s.clone()) }
+            };
+            UnifiedType::Class(ClassWithLoader {class_name, loader: o.loader.clone() })
+        }
+        UnifiedType::Uninitialized(u) => UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset }),
+        UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_recurse_2(&a.sub_type)) }),
+
+        UnifiedType::TopType => UnifiedType::TopType,
+        UnifiedType::IntType => UnifiedType::IntType,
+        UnifiedType::FloatType => UnifiedType::FloatType,
+        UnifiedType::LongType => UnifiedType::LongType,
+        UnifiedType::DoubleType => UnifiedType::DoubleType,
+        UnifiedType::NullType => UnifiedType::NullType,
+        UnifiedType::UninitializedThis => UnifiedType::UninitializedThis,
+        UnifiedType::ByteType => UnifiedType::ByteType,
         _ => { dbg!(to_copy);panic!("Case wasn't covered with non-unified types") }
     }
 }

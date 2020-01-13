@@ -47,6 +47,7 @@ use crate::verifier::instructions::instruction_is_type_safe_dup_x1;
 use crate::verifier::instructions::instruction_is_type_safe_dup_x2;
 use crate::verifier::instructions::branches::instruction_is_type_safe_freturn;
 use crate::verifier::instructions::instruction_is_type_safe_ineg;
+use crate::verifier::instructions::stores::instruction_is_type_safe_bastore;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -70,7 +71,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::astore_3 => instruction_is_type_safe_astore(3 as usize, env, offset, stack_frame),
         InstructionInfo::athrow => instruction_is_type_safe_athrow(env, offset, stack_frame),
         InstructionInfo::baload => { unimplemented!() }
-        InstructionInfo::bastore => { unimplemented!() }
+        InstructionInfo::bastore => instruction_is_type_safe_bastore(env,offset,stack_frame),
         InstructionInfo::bipush(_) => instruction_is_type_safe_sipush(env, offset, stack_frame),
         InstructionInfo::caload => { unimplemented!() }
         InstructionInfo::castore => { unimplemented!() }

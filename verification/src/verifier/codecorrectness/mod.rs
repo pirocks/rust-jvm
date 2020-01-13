@@ -379,9 +379,10 @@ pub fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType {
         UnifiedType::BooleanType => UnifiedType::IntType,
         UnifiedType::LongType => UnifiedType::LongType,
         UnifiedType::Class(_) => type_.clone(),
-        UnifiedType::ArrayReferenceType(a) => {
-            let translated_subtype = translate_types_to_vm_types(&a.sub_type);
-            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::new(translated_subtype) })
+        UnifiedType::ArrayReferenceType(_) => {
+            type_.clone()
+//            let translated_subtype = translate_types_to_vm_types(&a.sub_type);
+//            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::new(translated_subtype) })
         }
         UnifiedType::VoidType => UnifiedType::VoidType,
         UnifiedType::TopType => panic!(),

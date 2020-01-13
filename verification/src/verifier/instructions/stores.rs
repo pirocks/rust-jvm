@@ -12,6 +12,8 @@ use crate::verifier::codecorrectness::can_pop;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::ArrayType;
+use crate::verifier::instructions::special::nth1_operand_stack_is;
+use std::ops::Deref;
 
 fn store_is_type_safe(env: &Environment, index: usize, type_: &UnifiedType, frame: &Frame) -> Result<Frame,TypeSafetyError>{
     let mut next_stack = frame.stack_map.clone();
@@ -55,10 +57,26 @@ pub fn instruction_is_type_safe_astore(index: usize, env: &Environment, _offset:
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_bastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_bastore(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
+    let array_type = nth1_operand_stack_is(3,stack_frame)?;
+    is_small_array(array_type)?;
+    let next_frame = can_pop(&env.vf, stack_frame, vec![UnifiedType::IntType, UnifiedType::IntType, UnifiedType::TopType])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
+}
+
+pub fn is_small_array(array_type: UnifiedType) -> Result<(),TypeSafetyError> {
+    dbg!(&array_type);
+    match array_type {
+        UnifiedType::NullType => Result::Ok(()),
+        UnifiedType::ArrayReferenceType(a) => match &a.sub_type.deref() {
+            UnifiedType::ByteType => Result::Ok(()),
+            UnifiedType::BooleanType => Result::Ok(()),
+            _ => Result::Err(unknown_error_verifying!())
+        },
+        _ => Result::Err(unknown_error_verifying!())
+    }
+}
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_castore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
