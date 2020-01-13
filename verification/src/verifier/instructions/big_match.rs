@@ -207,7 +207,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::invokespecial(cp) => instruction_is_type_safe_invokespecial(*cp as usize, env, offset, stack_frame),
         InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(*cp as usize, env, offset, stack_frame),
         InstructionInfo::invokevirtual(v) => instruction_is_type_safe_invokevirtual(*v as usize, env, offset, stack_frame),
-        InstructionInfo::ior => { unimplemented!() }
+        InstructionInfo::ior => instruction_is_type_safe_iadd(env,offset,stack_frame),
         InstructionInfo::irem => { unimplemented!() }
         InstructionInfo::ireturn => instruction_is_type_safe_ireturn(env, offset, stack_frame),
         InstructionInfo::ishl => instruction_is_type_safe_iadd(env,offset,stack_frame),
