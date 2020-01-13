@@ -174,7 +174,7 @@ fn count_is_valid(count: usize, input_frame: &Frame, output_frame: &Frame) -> Re
 pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
     let method_class_name = match method_class_type {
-        VerificationType::Class(c) => c.class_name,
+        ParsedType::Class(c) => c.class_name,
         _ => panic!()
     };
     if method_name == "<init>" {
@@ -366,8 +366,8 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
     let (class_name, method_class) = match class_type {
-        VerificationType::Class(c) => (Some(c.class_name.clone()), VerificationType::Class(c.clone())),
-        VerificationType::ArrayReferenceType(a) => {
+        ParsedType::Class(c) => (Some(c.class_name.clone()), VerificationType::Class(c.clone())),
+        ParsedType::ArrayReferenceType(a) => {
             (None, VerificationType::ArrayReferenceType(a))
         }
         _ => panic!()
@@ -456,7 +456,7 @@ pub fn possibly_array_to_type(env: &Environment, class_name: String) -> ParsedTy
 //}
 
 pub fn instruction_is_type_safe_freturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-    if env.return_type != ParsedType::FloatType{
+    if env.return_type != VerificationType::FloatType{
         return Result::Err(unknown_error_verifying!());
     }
     can_pop(&env.vf,stack_frame,vec![VerificationType::FloatType])?;

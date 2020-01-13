@@ -118,7 +118,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, _offs
     let result_type = match &class.constant_pool[index].kind {
         ConstantKind::Class(c) => {
             let name = extract_string_from_utf8(&class.constant_pool[c.name_index as usize]);
-            possibly_array_to_type(env, name)
+            possibly_array_to_type(env, name).to_verification_type()
         }
         _ => panic!()
     };

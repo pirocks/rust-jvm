@@ -15,6 +15,7 @@ use classfile_parser::types::parse_field_descriptor;
 use classfile_parser::types::parse_method_descriptor;
 use std::ops::Deref;
 use rust_jvm_common::unified_types::VerificationType;
+use rust_jvm_common::unified_types::ParsedType;
 
 #[allow(unused)]
 fn same_runtime_package(vf: &VerifierContext, class1: ClassWithLoader, class2: &ClassWithLoader) -> bool {
@@ -220,29 +221,29 @@ pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &Verific
     }
 }
 
-fn atom(t: &VerificationType) -> bool {
+fn atom(t: &ParsedType) -> bool {
     match t {
-        VerificationType::ByteType |
-        VerificationType::CharType |
-        VerificationType::DoubleType |
-        VerificationType::FloatType |
-        VerificationType::IntType |
-        VerificationType::LongType |
-        VerificationType::ShortType |
-        VerificationType::VoidType |
-        VerificationType::TopType |
-        VerificationType::NullType |
-        VerificationType::UninitializedThis |
-        VerificationType::TwoWord |
-        VerificationType::OneWord |
-        VerificationType::Reference |
-        VerificationType::UninitializedEmpty |
-        VerificationType::BooleanType => {
+        ParsedType::ByteType |
+        ParsedType::CharType |
+        ParsedType::DoubleType |
+        ParsedType::FloatType |
+        ParsedType::IntType |
+        ParsedType::LongType |
+        ParsedType::ShortType |
+        ParsedType::VoidType |
+        ParsedType::TopType |
+        ParsedType::NullType |
+        ParsedType::UninitializedThis |
+//        ParsedType::TwoWord |
+//        ParsedType::OneWord |
+//        ParsedType::Reference |
+//        ParsedType::UninitializedEmpty |
+        ParsedType::BooleanType => {
             true
         }
-        VerificationType::Class(_) |
-        VerificationType::ArrayReferenceType(_) |
-        VerificationType::Uninitialized(_) => {
+        ParsedType::Class(_) |
+        ParsedType::ArrayReferenceType(_) |
+        ParsedType::Uninitialized(_) => {
             false
         }
     }
@@ -279,14 +280,14 @@ fn is_java_assignable(vf: &VerifierContext, left: &VerificationType, right: &Ver
     }
 }
 
-fn is_java_assignable_array_types(vf: &VerifierContext, left: &VerificationType, right: &VerificationType) -> Result<(), TypeSafetyError> {
+fn is_java_assignable_array_types(vf: &VerifierContext, left: &ParsedType, right: &ParsedType) -> Result<(), TypeSafetyError> {
     if atom(&left) && atom(&right) {
         if left == right {
             return Result::Ok(());
         }
     }
     if !atom(&left) && !atom(&right) {
-        return is_java_assignable(vf, left, right);
+        return is_java_assignable(vf, &left.to_verification_type(), &right.to_verification_type());//todo so is this correct or does the spec handle this in full generality?
     }
     Result::Err(unknown_error_verifying!())
 }

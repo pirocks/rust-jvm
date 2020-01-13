@@ -410,10 +410,10 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     let method_descriptor = extract_string_from_utf8(&get_class(vf,class).constant_pool[get_class(vf,method.class).methods[method.method_index as usize].descriptor_index as usize]);
     let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
-        parameter_types: initial_parsed_descriptor.parameter_types
-            .iter()
-            .map(ParsedType::to_verification_type)
-            .collect(),
+        parameter_types: initial_parsed_descriptor.parameter_types.clone()
+//            .iter()
+//            .map(ParsedType::to_verification_type)
+            /*.collect()*/,
         return_type: initial_parsed_descriptor.return_type.clone(),
     };
     let this_list = method_initial_this_type(vf,class, method);
@@ -427,7 +427,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     args.iter().for_each(|x| {
         this_args.push(x.clone())
     });
-    let locals = expand_to_length(this_args, frame_size as usize, VerificationType::TopType);
+    let locals = expand_to_length_verification(this_args, frame_size as usize, VerificationType::TopType);
     return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type.to_verification_type());
 }
 
@@ -454,7 +454,20 @@ fn flags(this_list: &Option<VerificationType>) -> bool {
 }
 
 
-fn expand_to_length(list: Vec<VerificationType>, size: usize, filler: VerificationType) -> Vec<VerificationType> {
+fn expand_to_length(list: Vec<ParsedType>, size: usize, filler: ParsedType) -> Vec<ParsedType> {
+    assert!(list.len() <= size);
+    let mut res = vec![];
+    for i in 0..size {
+        res.push(match list.get(i) {
+            None => { filler.clone() }
+            Some(elem) => { elem.clone() }
+        })
+    }
+    return res;
+}
+
+
+fn expand_to_length_verification(list: Vec<VerificationType>, size: usize, filler: VerificationType) -> Vec<VerificationType> {
     assert!(list.len() <= size);
     let mut res = vec![];
     for i in 0..size {

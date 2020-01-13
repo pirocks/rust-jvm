@@ -11,10 +11,10 @@ use crate::verifier::codecorrectness::expand_to_length;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
 
-pub fn get_stack_map_frames(vf: &VerifierContext,class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
+pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
     let code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
-    let descriptor_str = extract_string_from_utf8(&get_class(vf,class).constant_pool[method_info.descriptor_index as usize]);
+    let descriptor_str = extract_string_from_utf8(&get_class(vf, class).constant_pool[method_info.descriptor_index as usize]);
     let parsed_descriptor = parse_method_descriptor(&class.loader, descriptor_str.as_str()).expect("Error parsing method descriptor");
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
@@ -44,8 +44,13 @@ pub fn get_stack_map_frames(vf: &VerifierContext,class: &ClassWithLoader, method
         res.push(StackMap {
             offset: frame.current_offset as usize,
             map_frame: Frame {
-                locals: expand_to_length(frame.locals.clone(),frame.max_locals as usize,ParsedType::TopType),
-                stack_map: OperandStack::new_prolog_display_order(&frame.stack),
+                locals: expand_to_length(frame.locals.clone(), frame.max_locals as usize, ParsedType::TopType)
+                    .iter()
+                    .map(ParsedType::to_verification_type)
+                    .collect(),
+                stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter()
+                    .map(ParsedType::to_verification_type)
+                    .collect()),
                 flag_this_uninit: false,
             },
         });

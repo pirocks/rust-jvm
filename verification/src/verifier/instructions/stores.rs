@@ -43,8 +43,8 @@ pub fn modify_local_variable(vf:&VerifierContext, index:usize, type_: Verificati
 
 pub fn instruction_is_type_safe_aastore(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
     let object = ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: env.vf.bootstrap_loader.clone() };
-    let object_type = ParsedType::Class(object);
-    let object_array = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(object_type.clone()) });
+    let object_type = VerificationType::Class(object.clone());
+    let object_array = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::Class(object)) });
     let next_frame= can_pop(&env.vf, stack_frame, vec![object_type,VerificationType::IntType, object_array])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
