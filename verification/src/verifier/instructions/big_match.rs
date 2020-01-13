@@ -121,7 +121,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fload_1 => instruction_is_type_safe_fload(1,env,offset,stack_frame),
         InstructionInfo::fload_2 => instruction_is_type_safe_fload(2,env,offset,stack_frame),
         InstructionInfo::fload_3 => instruction_is_type_safe_fload(3,env,offset,stack_frame),
-        InstructionInfo::fmul => { unimplemented!() }
+        InstructionInfo::fmul => instruction_is_type_safe_fadd(env,offset,stack_frame),
         InstructionInfo::fneg => { unimplemented!() }
         InstructionInfo::frem => { unimplemented!() }
         InstructionInfo::freturn => { unimplemented!() }
