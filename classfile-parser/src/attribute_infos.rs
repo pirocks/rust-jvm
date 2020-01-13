@@ -253,6 +253,7 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
         2 => UnifiedType::FloatType,
         3 => UnifiedType::DoubleType,
         4 => UnifiedType::LongType,
+        6 => UnifiedType::UninitializedThis,
         7 => {
             let original_index = read16(p);
             let index = match &p.constant_pool[original_index as usize].kind {
