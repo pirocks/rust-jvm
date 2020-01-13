@@ -400,10 +400,10 @@ pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_fr
 //    unimplemented!()
 //}
 //
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_l2i(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+
+pub fn instruction_is_type_safe_l2i(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env,stack_frame,vec![VerificationType::LongType],VerificationType::IntType)
+}
 
 pub fn instruction_is_type_safe_ladd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = valid_type_transition(env, vec![VerificationType::LongType, VerificationType::LongType], &VerificationType::LongType, stack_frame)?;

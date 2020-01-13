@@ -48,6 +48,8 @@ use crate::verifier::instructions::instruction_is_type_safe_dup_x2;
 use crate::verifier::instructions::branches::instruction_is_type_safe_freturn;
 use crate::verifier::instructions::instruction_is_type_safe_ineg;
 use crate::verifier::instructions::stores::instruction_is_type_safe_bastore;
+use crate::verifier::instructions::branches::instruction_is_type_safe_lreturn;
+use crate::verifier::instructions::instruction_is_type_safe_l2i;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -224,7 +226,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::jsr_w(_) => { unimplemented!() }
         InstructionInfo::l2d => { unimplemented!() }
         InstructionInfo::l2f => { unimplemented!() }
-        InstructionInfo::l2i => { unimplemented!() }
+        InstructionInfo::l2i => instruction_is_type_safe_l2i(env,offset,stack_frame),
         InstructionInfo::ladd => instruction_is_type_safe_ladd(env, offset, stack_frame),
         InstructionInfo::laload => { unimplemented!() }
         InstructionInfo::land => { unimplemented!() }
@@ -246,7 +248,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lookupswitch(_) => { unimplemented!() }
         InstructionInfo::lor => { unimplemented!() }
         InstructionInfo::lrem => { unimplemented!() }
-        InstructionInfo::lreturn => { unimplemented!() }
+        InstructionInfo::lreturn => instruction_is_type_safe_lreturn(env,offset,stack_frame),
         InstructionInfo::lshl => { unimplemented!() }
         InstructionInfo::lshr => { unimplemented!() }
         //todo offtopic but offset is like the most useless param ever.

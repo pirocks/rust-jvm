@@ -446,10 +446,17 @@ pub fn possibly_array_to_type(env: &Environment, class_name: String) -> ParsedTy
     }
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_lreturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_lreturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+    match env.return_type {
+        VerificationType::LongType => {
+            can_pop(&env.vf,stack_frame,vec![VerificationType::LongType])?;
+            let exception_frame = exception_stack_frame(stack_frame);
+            Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+        },
+        _ => Result::Err(unknown_error_verifying!())
+    }
+}
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_dreturn(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
 //    unimplemented!()
