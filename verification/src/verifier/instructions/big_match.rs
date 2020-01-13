@@ -43,6 +43,7 @@ use crate::verifier::instructions::special::instruction_is_type_safe_putstatic;
 use crate::verifier::instructions::special::instruction_is_type_safe_anewarray;
 use crate::verifier::instructions::stores::instruction_is_type_safe_aastore;
 use crate::verifier::instructions::special::instruction_is_type_safe_instanceof;
+use crate::verifier::instructions::instruction_is_type_safe_dup_x1;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -98,7 +99,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dstore_3 => instruction_is_type_safe_dstore(3,env,offset,stack_frame),
         InstructionInfo::dsub => { unimplemented!() }
         InstructionInfo::dup => instruction_is_type_safe_dup(env, offset, stack_frame),
-        InstructionInfo::dup_x1 => instruction_is_type_safe_dup_x1(),
+        InstructionInfo::dup_x1 => instruction_is_type_safe_dup_x1(env,offset,stack_frame),
         InstructionInfo::dup_x2 => { unimplemented!() }
         InstructionInfo::dup2 => { unimplemented!() }
         InstructionInfo::dup2_x1 => { unimplemented!() }
