@@ -46,6 +46,7 @@ use crate::verifier::instructions::special::instruction_is_type_safe_instanceof;
 use crate::verifier::instructions::instruction_is_type_safe_dup_x1;
 use crate::verifier::instructions::instruction_is_type_safe_dup_x2;
 use crate::verifier::instructions::branches::instruction_is_type_safe_freturn;
+use crate::verifier::instructions::instruction_is_type_safe_ineg;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -141,7 +142,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             instruction_is_type_safe_goto(final_target as usize, env, offset, stack_frame)
         }
         InstructionInfo::goto_w(_) => { unimplemented!() }
-        InstructionInfo::i2b => { unimplemented!() }
+        InstructionInfo::i2b => instruction_is_type_safe_ineg(env,offset,stack_frame),
         InstructionInfo::i2c => { unimplemented!() }
         InstructionInfo::i2d => instruction_is_type_safe_i2d(env, offset, stack_frame),
         InstructionInfo::i2f => instruction_is_type_safe_i2f(env,offset,stack_frame),

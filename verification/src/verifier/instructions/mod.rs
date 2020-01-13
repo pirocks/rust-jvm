@@ -383,12 +383,10 @@ pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, _offset: 
     }
 }
 
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_ineg(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env,stack_frame,vec![UnifiedType::IntType],UnifiedType::IntType)
+}
+
 //
 //
 //#[allow(unused)]

@@ -112,7 +112,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
     if call_site_name == "<init>" || call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
     }
-    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().rev().map(translate_types_to_vm_types).collect();
+    let operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().rev().map(translate_types_to_vm_types).collect();
     let return_type = translate_types_to_vm_types(&descriptor.return_type);
 //    operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
