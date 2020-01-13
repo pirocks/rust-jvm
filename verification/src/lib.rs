@@ -13,6 +13,8 @@ use rust_jvm_common::classnames::{get_referred_name, class_name};
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
+use rust_jvm_common::unified_types::VerificationType;
+use rust_jvm_common::unified_types::ParsedType;
 
 
 pub mod verifier;
@@ -44,7 +46,7 @@ pub struct StackMap {
 }
 
 
-pub fn init_frame(parameter_types: Vec<UnifiedType>, this_pointer: Option<UnifiedType>, max_locals: u16) -> InternalFrame {
+pub fn init_frame(parameter_types: Vec<ParsedType>, this_pointer: Option<ParsedType>, max_locals: u16) -> InternalFrame {
     let mut locals = Vec::with_capacity(max_locals as usize);
     match this_pointer {
         None => {}//class is static etc.
@@ -58,45 +60,42 @@ pub fn init_frame(parameter_types: Vec<UnifiedType>, this_pointer: Option<Unifie
     InternalFrame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
 }
 
-fn locals_push_convert_type(res: &mut Vec<UnifiedType>, type_: UnifiedType) -> () {
+fn locals_push_convert_type(res: &mut Vec<VerificationType>, type_: ParsedType) -> () {
     match type_ {
-        UnifiedType::ByteType => {
-            res.push(UnifiedType::IntType);
+        ParsedType::ByteType => {
+            res.push(VerificationType::IntType);
         }
-        UnifiedType::CharType => {
-            res.push(UnifiedType::IntType);
+        ParsedType::CharType => {
+            res.push(VerificationType::IntType);
         }
-        UnifiedType::DoubleType => {
-            res.push(UnifiedType::DoubleType);
-            res.push(UnifiedType::TopType);
+        ParsedType::DoubleType => {
+            res.push(VerificationType::DoubleType);
+            res.push(VerificationType::TopType);
         }
-        UnifiedType::FloatType => {
-            res.push(UnifiedType::FloatType);
+        ParsedType::FloatType => {
+            res.push(VerificationType::FloatType);
         }
-        UnifiedType::IntType => {
-            res.push(UnifiedType::IntType);
+        ParsedType::IntType => {
+            res.push(VerificationType::IntType);
         }
-        UnifiedType::LongType => {
-            res.push(UnifiedType::LongType);
-            res.push(UnifiedType::TopType);
+        ParsedType::LongType => {
+            res.push(VerificationType::LongType);
+            res.push(VerificationType::TopType);
         }
-        UnifiedType::Class(r) => {
+        ParsedType::Class(r) => {
             assert_ne!(get_referred_name(&r.class_name).chars().nth(0).unwrap(), '[');
-            res.push(UnifiedType::Class(r));
+            res.push(VerificationType::Class(r));
         }
-        UnifiedType::ShortType => {
-            res.push(UnifiedType::IntType);
+        ParsedType::ShortType => {
+            res.push(VerificationType::IntType);
         }
-        UnifiedType::BooleanType => {
-            res.push(UnifiedType::IntType);
+        ParsedType::BooleanType => {
+            res.push(VerificationType::IntType);
         }
-        UnifiedType::ArrayReferenceType(art) => {
-            res.push(UnifiedType::ArrayReferenceType(
-                ArrayType {
-                    sub_type: Box::from(translate_types_to_vm_types(&art.sub_type))//todo should we use to_verification_type here?
-                }));
+        ParsedType::ArrayReferenceType(art) => {
+            res.push(VerificationType::ArrayReferenceType(art.clone()));
         }
-        UnifiedType::VoidType => { panic!() }
+        ParsedType::VoidType => { panic!() }
         _ => { panic!("Case wasn't coverred with non-unified types") }
     }
 }
@@ -114,7 +113,7 @@ impl Clone for VerifierContext{
 
 #[derive(Eq,Debug)]
 pub struct OperandStack{
-    data: VecDeque<UnifiedType>
+    data: VecDeque<VerificationType>
 }
 
 impl Clone for OperandStack{
@@ -134,11 +133,11 @@ impl PartialEq for OperandStack{
 
 impl OperandStack{
 
-    pub fn operand_push(&mut self, type_: UnifiedType){
+    pub fn operand_push(&mut self, type_: VerificationType){
         self.data.push_front(type_);
     }
 
-    pub fn operand_pop(&mut self) -> UnifiedType{
+    pub fn operand_pop(&mut self) -> VerificationType{
         self.data.pop_front().unwrap()
     }
 
@@ -146,11 +145,11 @@ impl OperandStack{
         self.data.len()
     }
 
-    pub fn peek(&self) -> UnifiedType{
+    pub fn peek(&self) -> VerificationType{
         self.data.front().unwrap().clone()
     }
 
-    pub fn new_prolog_display_order(types: &Vec<UnifiedType>) -> OperandStack{
+    pub fn new_prolog_display_order(types: &Vec<VerificationType>) -> OperandStack{
         dbg!(types);
         let mut o = OperandStack::empty();
         for type_ in types{
@@ -160,7 +159,7 @@ impl OperandStack{
         o
     }
 
-    pub fn new_reverse_display_order(_types: &Vec<UnifiedType>) -> OperandStack{
+    pub fn new_reverse_display_order(_types: &Vec<VerificationType>) -> OperandStack{
         unimplemented!()
     }
 
@@ -168,11 +167,11 @@ impl OperandStack{
         OperandStack { data: VecDeque::new() }
     }
 
-    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, UnifiedType>{
+    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, VerificationType>{
         self.data.iter()
     }
 
-    pub(crate) fn substitute(&mut self, old: & UnifiedType, new: &UnifiedType){
+    pub(crate) fn substitute(&mut self, old: & VerificationType, new: &VerificationType){
         for entry in &mut self.data{
             if entry == old{
                 *entry = new.clone();

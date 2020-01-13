@@ -46,7 +46,7 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<Ver
 // lists are stored in same order as prolog, e.g. 0 is first elem, n-1 is last.
 // This is problematic for adding to the beginning of a Vec. as a result linked lists may be used in impl.
 // alternatively results can be reversed at the end.
-pub fn pop_matching_list(vf:&VerifierContext,pop_from: &OperandStack, pop: Vec<UnifiedType>) -> Result<OperandStack, TypeSafetyError> {
+pub fn pop_matching_list(vf:&VerifierContext,pop_from: &OperandStack, pop: Vec<VerificationType>) -> Result<OperandStack, TypeSafetyError> {
 //    if pop_from.len() > 1 && pop.len() > 1{
         dbg!("Attempt to pop matching:");
         dbg!(&pop_from);
@@ -57,7 +57,7 @@ pub fn pop_matching_list(vf:&VerifierContext,pop_from: &OperandStack, pop: Vec<U
     return result;
 }
 
-pub fn pop_matching_list_impl(vf:&VerifierContext,pop_from: &mut OperandStack, pop: &[UnifiedType]) -> Result<OperandStack, TypeSafetyError> {
+pub fn pop_matching_list_impl(vf:&VerifierContext,pop_from: &mut OperandStack, pop: &[VerificationType]) -> Result<OperandStack, TypeSafetyError> {
     if pop.is_empty() {
         Result::Ok(pop_from.clone())//todo inefficent copying
     } else {
@@ -67,7 +67,7 @@ pub fn pop_matching_list_impl(vf:&VerifierContext,pop_from: &mut OperandStack, p
     }
 }
 
-pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l mut  OperandStack, type_: &UnifiedType) -> Result<UnifiedType, TypeSafetyError> {
+pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l mut  OperandStack, type_: &VerificationType) -> Result<VerificationType, TypeSafetyError> {
     if size_of(vf,type_) == 1 {
         let actual_type = operand_stack.peek();
         is_assignable(vf,&actual_type, type_)?;
@@ -75,7 +75,7 @@ pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l mut  Operand
         return Result::Ok(actual_type.clone());
     } else if size_of(vf,type_) == 2 {
         assert!(match &operand_stack.peek() {
-            UnifiedType::TopType => true,
+            VerificationType::TopType => true,
             _ => false
         });
         operand_stack.operand_pop();
@@ -90,13 +90,13 @@ pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l mut  Operand
 }
 
 
-pub fn size_of(vf:&VerifierContext,unified_type: &UnifiedType) -> u64 {
+pub fn size_of(vf:&VerifierContext,unified_type: &VerificationType) -> u64 {
     match unified_type {
-        UnifiedType::TopType => { 1 }
+        VerificationType::TopType => { 1 }
         _ => {
-            if is_assignable(vf,unified_type, &UnifiedType::TwoWord).is_ok() {
+            if is_assignable(vf,unified_type, &VerificationType::TwoWord).is_ok() {
                 2
-            } else if is_assignable(vf,unified_type, &UnifiedType::OneWord).is_ok() {
+            } else if is_assignable(vf,unified_type, &VerificationType::OneWord).is_ok() {
                 1
             } else {
                 panic!("This is a bug")
@@ -105,16 +105,16 @@ pub fn size_of(vf:&VerifierContext,unified_type: &UnifiedType) -> u64 {
     }
 }
 
-pub fn push_operand_stack(vf:&VerifierContext,operand_stack: &OperandStack, type_: &UnifiedType) -> OperandStack {
+pub fn push_operand_stack(vf:&VerifierContext,operand_stack: &OperandStack, type_: &VerificationType) -> OperandStack {
     let mut operand_stack_copy = operand_stack.clone();
     match type_ {
-        UnifiedType::VoidType => {
+        VerificationType::VoidType => {
             operand_stack_copy
         }
         _ => {
             if size_of(vf,type_) == 2 {
                 operand_stack_copy.operand_push(type_.clone());
-                operand_stack_copy.operand_push(UnifiedType::TopType);
+                operand_stack_copy.operand_push(VerificationType::TopType);
             } else if size_of(vf,type_) == 1 {
                 operand_stack_copy.operand_push(type_.clone());
             } else {
@@ -131,27 +131,27 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
 }
 //
 //#[allow(unused)]
-//pub fn pop_category_1(types: Vec<UnifiedType>) -> Option<(UnifiedType, Vec<UnifiedType>)> {
+//pub fn pop_category_1(types: Vec<VerificationType>) -> Option<(VerificationType, Vec<VerificationType>)> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//pub fn can_safely_push(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_: UnifiedType) -> Option<Vec<UnifiedType>> {
+//pub fn can_safely_push(environment: Environment, input_operand_stack: Vec<VerificationType>, type_: VerificationType) -> Option<Vec<VerificationType>> {
 //    unimplemented!();
 //}
 //
 //#[allow(unused)]
-//pub fn can_safely_push_list(environment: Environment, input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
+//pub fn can_safely_push_list(environment: Environment, input_operand_stack: Vec<VerificationType>, type_list: Vec<VerificationType>) -> Option<Vec<VerificationType>> {
 //    unimplemented!()
 //}
 //
 //#[allow(unused)]
-//pub fn can_push_list(input_operand_stack: Vec<UnifiedType>, type_list: Vec<UnifiedType>) -> Option<Vec<UnifiedType>> {
+//pub fn can_push_list(input_operand_stack: Vec<VerificationType>, type_list: Vec<VerificationType>) -> Option<Vec<VerificationType>> {
 //    unimplemented!()
 //}
 //
 
-pub fn can_pop(vf:&VerifierContext,input_frame: &Frame, types: Vec<UnifiedType>) -> Result<Frame, TypeSafetyError> {
+pub fn can_pop(vf:&VerifierContext,input_frame: &Frame, types: Vec<VerificationType>) -> Result<Frame, TypeSafetyError> {
     let poped_stack = pop_matching_list(vf,&input_frame.stack_map, types)?;
     Result::Ok(Frame {
         locals: input_frame
@@ -370,13 +370,13 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
     return res;
 }
 //
-//pub fn translate_types_to_vm_types(type_: &UnifiedType) -> UnifiedType {
+//pub fn translate_types_to_vm_types(type_: &VerificationType) -> VerificationType {
 //    match type_ {
-//        UnifiedType::ByteType => UnifiedType::IntType,
-//        UnifiedType::CharType => UnifiedType::IntType,
-//        UnifiedType::ShortType => UnifiedType::IntType,
-//        UnifiedType::DoubleType => UnifiedType::DoubleType,
-//        UnifiedType::FloatType => UnifiedType::FloatType,
+//        VerificationType::ByteType => VerificationType::IntType,
+//        VerificationType::CharType => VerificationType::IntType,
+//        VerificationType::ShortType => VerificationType::IntType,
+//        VerificationType::DoubleType => VerificationType::DoubleType,
+//        VerificationType::FloatType => UnifiedType::FloatType,
 //        UnifiedType::IntType => UnifiedType::IntType,
 //        UnifiedType::BooleanType => UnifiedType::IntType,
 //        UnifiedType::LongType => UnifiedType::LongType,
@@ -427,34 +427,34 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     args.iter().for_each(|x| {
         this_args.push(x.clone())
     });
-    let locals = expand_to_length(this_args, frame_size as usize, UnifiedType::TopType);
+    let locals = expand_to_length(this_args, frame_size as usize, VerificationType::TopType);
     return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, translate_types_to_vm_types(&parsed_descriptor.return_type));
 }
 
 
-fn expand_type_list(vf: &VerifierContext, list: Vec<UnifiedType>) -> Vec<UnifiedType> {
+fn expand_type_list(vf: &VerifierContext, list: Vec<VerificationType>) -> Vec<VerificationType> {
     return list.iter().flat_map(|x| {
         if size_of(vf,x) == 1 {
             vec![x.clone()]
         } else {
             assert!(size_of(vf,x) == 2);
-            vec![x.clone(), UnifiedType::TopType]
+            vec![x.clone(), VerificationType::TopType]
         }
     }).collect();
 }
 
-fn flags(this_list: &Option<UnifiedType>) -> bool {
+fn flags(this_list: &Option<VerificationType>) -> bool {
     match this_list {
         None => false,
         Some(s) => match s {
-            UnifiedType::UninitializedThis => true,
+            VerificationType::UninitializedThis => true,
             _ => false
         }
     }
 }
 
 
-fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) -> Vec<UnifiedType> {
+fn expand_to_length(list: Vec<VerificationType>, size: usize, filler: VerificationType) -> Vec<VerificationType> {
     assert!(list.len() <= size);
     let mut res = vec![];
     for i in 0..size {
@@ -467,7 +467,7 @@ fn expand_to_length(list: Vec<UnifiedType>, size: usize, filler: UnifiedType) ->
 }
 
 
-fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Option<UnifiedType> {
+fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Option<VerificationType> {
     let method_access_flags = get_class(vf,method.class).methods[method.method_index].access_flags;
     if method_access_flags & ACC_STATIC > 0 {
         //todo dup
@@ -485,21 +485,21 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 //    return Some(UnifiedType::UninitializedThis);
 }
 
-fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<UnifiedType, TypeSafetyError> {
+fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VerificationType, TypeSafetyError> {
     let method_name = method_name(&get_class(vf,method.class), &get_class(vf, method.class).methods[method.method_index]);
     if method_name == "<init>" {
         if get_referred_name(&class.class_name) == "java/lang/Object" {
-            Result::Ok(UnifiedType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))
+            Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))
         } else {
             let mut chain = vec![];
             super_class_chain(vf,class, class.loader.clone(), &mut chain)?;
             if !chain.is_empty() {
-                Result::Ok(UnifiedType::UninitializedThis)
+                Result::Ok(VerificationType::UninitializedThis)
             } else {
                 unimplemented!()
             }
         }
     } else {
-        Result::Ok(UnifiedType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))
+        Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))
     }
 }

@@ -9,6 +9,7 @@ use crate::StackMap;
 use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
 use classfile_parser::types::parse_method_descriptor;
+use rust_jvm_common::unified_types::ParsedType;
 
 pub fn get_stack_map_frames(vf: &VerifierContext,class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
@@ -20,7 +21,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext,class: &ClassWithLoader, method
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {
         None
     } else {
-        Some(UnifiedType::Class(ClassWithLoader { class_name: class.class_name.clone(), loader: class.loader.clone() }))
+        Some(ParsedType::Class(ClassWithLoader { class_name: class.class_name.clone(), loader: class.loader.clone() }))
     };
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
@@ -43,7 +44,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext,class: &ClassWithLoader, method
         res.push(StackMap {
             offset: frame.current_offset as usize,
             map_frame: Frame {
-                locals: expand_to_length(frame.locals.clone(),frame.max_locals as usize,UnifiedType::TopType),
+                locals: expand_to_length(frame.locals.clone(),frame.max_locals as usize,ParsedType::TopType),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack),
                 flag_this_uninit: false,
             },
@@ -106,23 +107,23 @@ pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
 }
 
 
-fn push_to_stack(frame: &mut InternalFrame, new_local: &UnifiedType) {
+fn push_to_stack(frame: &mut InternalFrame, new_local: &ParsedType) {
     add_verification_type_to_array(&mut frame.stack, new_local)
 }
 
-fn add_new_local(frame: &mut InternalFrame, new_local: &UnifiedType) {
+fn add_new_local(frame: &mut InternalFrame, new_local: &ParsedType) {
     add_verification_type_to_array(&mut frame.locals, new_local)
 }
 
-fn add_verification_type_to_array(locals: &mut Vec<UnifiedType>, new_local: &UnifiedType) -> () {
+fn add_verification_type_to_array(locals: &mut Vec<ParsedType>, new_local: &ParsedType) -> () {
     match new_local.clone() {
-        UnifiedType::DoubleType => {
-            locals.push(UnifiedType::DoubleType);
-            locals.push(UnifiedType::TopType);
+        ParsedType::DoubleType => {
+            locals.push(ParsedType::DoubleType);
+            locals.push(ParsedType::TopType);
         }
-        UnifiedType::LongType => {
-            locals.push(UnifiedType::LongType);
-            locals.push(UnifiedType::TopType);
+        ParsedType::LongType => {
+            locals.push(ParsedType::LongType);
+            locals.push(ParsedType::TopType);
         }
         new => { locals.push(new); }
     }
