@@ -3,16 +3,21 @@ use crate::classfile::UninitializedVariableInfo;
 use crate::loading::Loader;
 use std::sync::Arc;
 use crate::classnames::get_referred_name;
-use crate::classnames::NameReference;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Error;
+use std::ops::Deref;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ArrayType {
-    //todo why does this struct exist
-    pub sub_type: Box<UnifiedType>
+    pub sub_type: Box<ParsedType>
+}
+
+impl Clone for ArrayType{
+    fn clone(&self) -> Self {
+        ArrayType { sub_type: Box::new(self.sub_type.deref().clone()) }
+    }
 }
 
 pub struct ClassWithLoader {
@@ -27,7 +32,7 @@ impl PartialEq for ClassWithLoader {
     }
 }
 
-impl Clone for ClassWithLoader{
+impl Clone for ClassWithLoader {
     fn clone(&self) -> Self {
         ClassWithLoader { class_name: self.class_name.clone(), loader: self.loader.clone() }
     }
@@ -38,14 +43,13 @@ impl Eq for ClassWithLoader {}
 
 impl Debug for ClassWithLoader {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f,"<{},{}>",get_referred_name(&self.class_name),self.loader.name())
+        write!(f, "<{},{}>", get_referred_name(&self.class_name), self.loader.name())
     }
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-//todo long run we should have a separate VerificationType enum
-pub enum UnifiedType {
+pub enum ParsedType {
     ByteType,
     CharType,
     DoubleType,
@@ -61,6 +65,44 @@ pub enum UnifiedType {
     NullType,
     Uninitialized(UninitializedVariableInfo),
     UninitializedThis,
+}
+
+impl ParsedType {
+    fn to_verification_type(&self) -> VerificationType {
+        match self {
+            ParsedType::ByteType => VerificationType::IntType,
+            ParsedType::CharType => VerificationType::IntType,
+            ParsedType::DoubleType => VerificationType::DoubleType,
+            ParsedType::FloatType => VerificationType::FloatType,
+            ParsedType::IntType => VerificationType::IntType,
+            ParsedType::LongType => VerificationType::LongType,
+            ParsedType::Class(cl) => VerificationType::Class(cl.clone()),
+            ParsedType::ShortType => VerificationType::IntType,
+            ParsedType::BooleanType => VerificationType::IntType,
+            ParsedType::ArrayReferenceType(at) => VerificationType::ArrayReferenceType(at.clone()),
+            ParsedType::VoidType => VerificationType::VoidType,
+            ParsedType::TopType => VerificationType::TopType,
+            ParsedType::NullType => VerificationType::NullType,
+            ParsedType::Uninitialized(uvi) => VerificationType::Uninitialized(uvi.clone()),
+            ParsedType::UninitializedThis => VerificationType::UninitializedThis
+        }
+    }
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub enum VerificationType {// todo perhaps this should reside in the verifier
+    DoubleType,
+    FloatType,
+    IntType,
+    LongType,
+    Class(ClassWithLoader),
+    ArrayReferenceType(ArrayType),
+    VoidType,
+    TopType,
+    NullType,
+    Uninitialized(UninitializedVariableInfo),
+    UninitializedThis,
     //below here used internally in isAssignable
 
     TwoWord,
@@ -69,59 +111,47 @@ pub enum UnifiedType {
     UninitializedEmpty,
 }
 
-
-impl Clone for UnifiedType{
+impl Clone for ParsedType {
     fn clone(&self) -> Self {
-        copy_recurse(self)
+        match self {
+            ParsedType::ByteType => ParsedType::ByteType,
+            ParsedType::CharType => ParsedType::CharType,
+            ParsedType::DoubleType => ParsedType::DoubleType,
+            ParsedType::FloatType => ParsedType::FloatType,
+            ParsedType::IntType => ParsedType::IntType,
+            ParsedType::LongType => ParsedType::LongType,
+            ParsedType::Class(cl) => ParsedType::Class(cl.clone()),
+            ParsedType::ShortType => ParsedType::ShortType,
+            ParsedType::BooleanType => ParsedType::BooleanType,
+            ParsedType::ArrayReferenceType(at) => ParsedType::ArrayReferenceType(at.clone()),
+            ParsedType::VoidType => ParsedType::VoidType,
+            ParsedType::TopType => ParsedType::TopType,
+            ParsedType::NullType => ParsedType::NullType,
+            ParsedType::Uninitialized(uvi) => ParsedType::Uninitialized(uvi.clone()),
+            ParsedType::UninitializedThis => ParsedType::UninitializedThis
+        }
     }
 }
 
 
-fn copy_recurse(to_copy: &UnifiedType) -> UnifiedType {
-
-    match to_copy {
-        UnifiedType::Class(o) => {
-            let class_name = match &o.class_name {
-                ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
-                ClassName::Str(s) => { ClassName::Str(s.clone()) }
-            };
-            UnifiedType::Class(ClassWithLoader {class_name, loader: o.loader.clone() })
+impl Clone for VerificationType {
+    fn clone(&self) -> Self {
+        match self {
+            VerificationType::DoubleType => VerificationType::DoubleType,
+            VerificationType::FloatType => VerificationType::FloatType,
+            VerificationType::IntType => VerificationType::IntType,
+            VerificationType::LongType => VerificationType::LongType,
+            VerificationType::Class(cl) => VerificationType::Class(cl.clone()),
+            VerificationType::ArrayReferenceType(at) => VerificationType::ArrayReferenceType(at.clone()),
+            VerificationType::VoidType => VerificationType::VoidType,
+            VerificationType::TopType => VerificationType::TopType,
+            VerificationType::NullType => VerificationType::NullType,
+            VerificationType::Uninitialized(uvi) => VerificationType::Uninitialized(uvi.clone()),
+            VerificationType::UninitializedThis => VerificationType::UninitializedThis,
+            VerificationType::TwoWord => VerificationType::TwoWord,
+            VerificationType::OneWord => VerificationType::OneWord,
+            VerificationType::Reference => VerificationType::TwoWord,
+            VerificationType::UninitializedEmpty => VerificationType::OneWord,
         }
-        UnifiedType::Uninitialized(u) => UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset }),
-        UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_recurse_2(&a.sub_type)) }),
-
-        UnifiedType::TopType => UnifiedType::TopType,
-        UnifiedType::IntType => UnifiedType::IntType,
-        UnifiedType::FloatType => UnifiedType::FloatType,
-        UnifiedType::LongType => UnifiedType::LongType,
-        UnifiedType::DoubleType => UnifiedType::DoubleType,
-        UnifiedType::NullType => UnifiedType::NullType,
-        UnifiedType::UninitializedThis => UnifiedType::UninitializedThis,
-        _ => { dbg!(to_copy);panic!("Case wasn't covered with non-unified types") }
-    }
-}
-
-//todo this is more than a little messed up
-fn copy_recurse_2(to_copy: &UnifiedType) -> UnifiedType {
-    match to_copy {
-        UnifiedType::Class(o) => {
-            let class_name = match &o.class_name {
-                ClassName::Ref(r) => { ClassName::Ref(NameReference { class_file: r.class_file.clone(), index: r.index }) }
-                ClassName::Str(s) => { ClassName::Str(s.clone()) }
-            };
-            UnifiedType::Class(ClassWithLoader {class_name, loader: o.loader.clone() })
-        }
-        UnifiedType::Uninitialized(u) => UnifiedType::Uninitialized(UninitializedVariableInfo { offset: u.offset }),
-        UnifiedType::ArrayReferenceType(a) => UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(copy_recurse_2(&a.sub_type)) }),
-
-        UnifiedType::TopType => UnifiedType::TopType,
-        UnifiedType::IntType => UnifiedType::IntType,
-        UnifiedType::FloatType => UnifiedType::FloatType,
-        UnifiedType::LongType => UnifiedType::LongType,
-        UnifiedType::DoubleType => UnifiedType::DoubleType,
-        UnifiedType::NullType => UnifiedType::NullType,
-        UnifiedType::UninitializedThis => UnifiedType::UninitializedThis,
-        UnifiedType::ByteType => UnifiedType::ByteType,
-        _ => { dbg!(to_copy);panic!("Case wasn't covered with non-unified types") }
     }
 }

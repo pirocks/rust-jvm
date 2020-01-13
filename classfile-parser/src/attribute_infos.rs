@@ -2,11 +2,11 @@ use crate::parsing_util::{ParsingContext, read16, read32, read8};
 use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers};
 use crate::constant_infos::is_utf8;
 use crate::code::parse_code_raw;
-use rust_jvm_common::unified_types::UnifiedType;
 use rust_jvm_common::utils::extract_string_from_utf8;
 use crate::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::unified_types::ParsedType;
 
 pub fn parse_attribute(p: &mut ParsingContext) -> AttributeInfo {
     let attribute_name_index = read16(p);
@@ -244,16 +244,16 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
     }
 }
 
-fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
+fn parse_verification_type_info(p: &mut ParsingContext) -> ParsedType {
     let type_ = read8(p);
     //todo magic constants
     match type_ {
-        0 => UnifiedType::TopType,
-        1 => UnifiedType::IntType,
-        2 => UnifiedType::FloatType,
-        3 => UnifiedType::DoubleType,
-        4 => UnifiedType::LongType,
-        6 => UnifiedType::UninitializedThis,
+        0 => ParsedType::TopType,
+        1 => ParsedType::IntType,
+        2 => ParsedType::FloatType,
+        3 => ParsedType::DoubleType,
+        4 => ParsedType::LongType,
+        6 => ParsedType::UninitializedThis,
         7 => {
             let original_index = read16(p);
             let index = match &p.constant_pool[original_index as usize].kind {
@@ -267,7 +267,7 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> UnifiedType {
                 let res_descriptor = parse_field_descriptor(&p.loader.clone(),type_descriptor.as_str()).unwrap();
                 res_descriptor.field_type
             }else {
-                UnifiedType::Class(ClassWithLoader {class_name:ClassName::Str(type_descriptor), loader: p.loader.clone() })
+                ParsedType::Class(ClassWithLoader {class_name:ClassName::Str(type_descriptor), loader: p.loader.clone() })
             }
 
         },

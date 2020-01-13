@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::verifier::class_is_type_safe;
 use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
+use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::InternalFrame;
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::classnames::{get_referred_name, class_name};

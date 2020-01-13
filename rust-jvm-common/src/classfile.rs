@@ -1,5 +1,5 @@
 use std::hash::Hasher;
-use crate::unified_types::UnifiedType;
+use crate::unified_types::ParsedType;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -184,13 +184,19 @@ pub struct ObjectVariableInfo {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ArrayVariableInfo {
-    pub array_type: UnifiedType
+    pub array_type: ParsedType
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct UninitializedVariableInfo {
     pub offset: u16
+}
+
+impl Clone for UninitializedVariableInfo{
+    fn clone(&self) -> Self {
+        UninitializedVariableInfo { offset: self.offset }
+    }
 }
 
 #[derive(Debug)]
@@ -220,14 +226,14 @@ pub struct SameFrame {
 #[derive(Eq, PartialEq)]
 pub struct SameLocals1StackItemFrame {
     pub offset_delta: u16,
-    pub stack: UnifiedType,
+    pub stack: ParsedType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SameLocals1StackItemFrameExtended {
     pub offset_delta: u16,
-    pub stack: UnifiedType,
+    pub stack: ParsedType,
 }
 
 #[derive(Debug)]
@@ -247,7 +253,7 @@ pub struct SameFrameExtended {
 #[derive(Eq, PartialEq)]
 pub struct AppendFrame {
     pub offset_delta: u16,
-    pub locals: Vec<UnifiedType>,
+    pub locals: Vec<ParsedType>,
 }
 
 #[derive(Debug)]
@@ -255,9 +261,9 @@ pub struct AppendFrame {
 pub struct FullFrame {
     pub offset_delta: u16,
     pub number_of_locals: u16,
-    pub locals: Vec<UnifiedType>,
+    pub locals: Vec<ParsedType>,
     pub number_of_stack_items: u16,
-    pub stack: Vec<UnifiedType>,
+    pub stack: Vec<ParsedType>,
 }
 
 #[derive(Debug)]

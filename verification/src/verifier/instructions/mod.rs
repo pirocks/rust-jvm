@@ -3,7 +3,7 @@ use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
 use crate::verifier::{Frame, get_class};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
-use rust_jvm_common::unified_types::{UnifiedType, ClassWithLoader};
+use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;

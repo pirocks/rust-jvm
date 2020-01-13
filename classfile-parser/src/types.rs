@@ -1,14 +1,15 @@
-use rust_jvm_common::unified_types::{UnifiedType, ArrayType};
+use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::loading::Loader;
 use std::sync::Arc;
+use rust_jvm_common::unified_types::ParsedType;
 
 #[derive(Debug)]
-pub struct MethodDescriptor { pub parameter_types: Vec<UnifiedType>, pub return_type: UnifiedType }
+pub struct MethodDescriptor { pub parameter_types: Vec<ParsedType>, pub return_type: ParsedType }
 
 #[derive(Debug)]
-pub struct FieldDescriptor { pub field_type: UnifiedType }
+pub struct FieldDescriptor { pub field_type: ParsedType }
 
 
 #[derive(Debug)]
@@ -21,21 +22,21 @@ pub fn eat_one(str_: &str) -> &str {
     &str_[1..str_.len()]
 }
 
-pub fn parse_base_type(str_: &str) -> Option<(&str, UnifiedType)> {
+pub fn parse_base_type(str_: &str) -> Option<(&str, ParsedType)> {
     Some((eat_one(str_), match str_.chars().nth(0)? {
-        'B' => UnifiedType::ByteType,
-        'C' => UnifiedType::CharType,
-        'D' => UnifiedType::DoubleType,
-        'F' => UnifiedType::FloatType,
-        'I' => UnifiedType::IntType,
-        'J' => UnifiedType::LongType,
-        'S' => UnifiedType::ShortType,
-        'Z' => UnifiedType::BooleanType,
+        'B' => ParsedType::ByteType,
+        'C' => ParsedType::CharType,
+        'D' => ParsedType::DoubleType,
+        'F' => ParsedType::FloatType,
+        'I' => ParsedType::IntType,
+        'J' => ParsedType::LongType,
+        'S' => ParsedType::ShortType,
+        'Z' => ParsedType::BooleanType,
         _ => return None
     }))
 }
 
-pub fn parse_object_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, UnifiedType)> {
+pub fn parse_object_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     match str_.chars().nth(0)? {
         'L' => {
             let str_without_l = eat_one(str_);
@@ -44,7 +45,7 @@ pub fn parse_object_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
             let class_name = ClassName::Str(class_name.to_string());
-            Some((remaining_to_parse, UnifiedType::Class(ClassWithLoader { class_name,  loader:loader.clone()  })))
+            Some((remaining_to_parse, ParsedType::Class(ClassWithLoader { class_name,  loader:loader.clone()  })))
         }
         _ => {
             return None;
@@ -52,18 +53,18 @@ pub fn parse_object_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_
     }
 }
 
-pub fn parse_array_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, UnifiedType)> {
+pub fn parse_array_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     match str_.chars().nth(0)? {
         '[' => {
             let (remaining_to_parse, sub_type) = parse_component_type(loader,&str_[1..str_.len()])?;
-            let array_type = UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::from(sub_type) });
+            let array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::from(sub_type) });
             Some((remaining_to_parse, array_type))
         }
         _ => None
     }
 }
 
-pub fn parse_field_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, UnifiedType)> {
+pub fn parse_field_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     parse_array_type(loader,str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
             parse_object_type(loader,str_).or_else(|| {
@@ -86,7 +87,7 @@ pub fn parse_field_descriptor(loader: &Arc<dyn Loader + Send + Sync>,str_: &str)
     }
 }
 
-pub fn parse_component_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, UnifiedType)> {
+pub fn parse_component_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     parse_field_type(loader,str_)
 }
 
@@ -116,18 +117,18 @@ pub fn parse_method_descriptor(loader: &Arc<dyn Loader + Send + Sync>,str_: &str
     }
 }
 
-pub fn parse_parameter_descriptor<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, UnifiedType)> {
+pub fn parse_parameter_descriptor<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     parse_field_type(loader,str_)
 }
 
-pub fn parse_void_descriptor(str_: &str) -> Option<(&str, UnifiedType)> {
+pub fn parse_void_descriptor(str_: &str) -> Option<(&str, ParsedType)> {
     match str_.chars().nth(0)? {
-        'V' => Some((eat_one(str_), UnifiedType::VoidType)),
+        'V' => Some((eat_one(str_), ParsedType::VoidType)),
         _ => return None
     }
 }
 
-pub fn parse_return_descriptor<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, UnifiedType)> {
+pub fn parse_return_descriptor<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     parse_void_descriptor(str_).or_else(|| {
         parse_field_type(loader,str_)
     })
