@@ -95,7 +95,7 @@ pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, _off
 }
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class = get_class(&env.vf, env.method.prolog_class);
+    let method_class = get_class(&env.vf, env.method.class);
     let constant_pool = &method_class.constant_pool;
     let (name_index, descriptor_index) = match &constant_pool[cp].kind {
         ConstantKind::InvokeDynamic(i) => {
@@ -122,7 +122,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
 }
 
 pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class = get_class(&env.vf, env.method.prolog_class);
+    let method_class = get_class(&env.vf, env.method.class);
     let constant_pool = &method_class.constant_pool;
     let ((name_index, descriptor_index), class_index) = match &constant_pool[cp].kind {
         ConstantKind::InterfaceMethodref(i) => {
@@ -286,7 +286,7 @@ fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, _class: 
                         Some(new_this) => match new_this {
                             MergedCodeInstruction::Instruction(instr) => match instr.instruction {
                                 InstructionInfo::new(this) => {
-                                    let method_class = get_class(&env.vf, env.method.prolog_class);
+                                    let method_class = get_class(&env.vf, env.method.class);
                                     match &method_class.constant_pool[this as usize].kind {
                                         ConstantKind::Class(c) => {
                                             let class_name = ClassName::Ref(NameReference {
@@ -309,7 +309,7 @@ fn rewritten_uninitialized_type(type_: &UnifiedType, env: &Environment, _class: 
         UnifiedType::UninitializedThis => {
             //todo there needs to be some weird retry logic here/in invoke_special b/c This is not strictly a return value in the prolog class, and there is a more complex
             // version of this branch which would be triggered by verificaion failure for this invoke special.
-            Result::Ok(ClassWithLoader { class_name: env.method.prolog_class.class_name.clone(), loader: env.method.prolog_class.loader.clone() })
+            Result::Ok(ClassWithLoader { class_name: env.method.class.class_name.clone(), loader: env.method.class.loader.clone() })
         }
         _ => { panic!() }
     }
@@ -319,8 +319,8 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
     if method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string()));
     }
-    let current_class_name = env.method.prolog_class.class_name.clone();
-    let current_loader = env.method.prolog_class.loader.clone();
+    let current_class_name = env.method.class.class_name.clone();
+    let current_loader = env.method.class.loader.clone();
     let current_class = UnifiedType::Class(ClassWithLoader {
         class_name: current_class_name,
         loader: current_loader.clone(),
@@ -397,7 +397,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
 }
 
 fn get_method_descriptor(cp: usize, env: &Environment) -> (UnifiedType, String, MethodDescriptor) {
-    let classfile = &get_class(&env.vf, env.method.prolog_class);
+    let classfile = &get_class(&env.vf, env.method.class);
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {

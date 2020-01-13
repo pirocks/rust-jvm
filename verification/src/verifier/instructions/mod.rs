@@ -105,7 +105,7 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> Result<(), TypeSafetyError> {
     let frame = offset_stack_frame(env, target)?;
     dbg!(&env.merged_code);
-    let classfile = get_class(&env.vf, &env.method.prolog_class);
+    let classfile = get_class(&env.vf, &env.method.class);
     dbg!(method_name(&classfile, &classfile.methods[env.method.method_index as usize]));
     dbg!(&frame);
     dbg!(target);
@@ -254,39 +254,78 @@ pub fn instruction_is_type_safe_dup_x1(env: &Environment, _offset: usize, stack_
     let type_1 = pop_category1(&env.vf, &mut stack_1)?;
     let mut rest = stack_1.clone();
     let type_2 = pop_category1(&env.vf, &mut rest)?;
-    let output_stack = can_safely_push_list(env,&rest,vec![type_1.clone(),type_2,type_1])?;
+    let output_stack = can_safely_push_list(env, &rest, vec![type_1.clone(), type_2, type_1])?;
     let next_frame = Frame {
         locals: locals.clone(),
         stack_map: output_stack,
-        flag_this_uninit: flags
+        flag_this_uninit: flags,
     };
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
 pub fn can_safely_push_list(env: &Environment, input_stack: &OperandStack, types: Vec<UnifiedType>) -> Result<OperandStack, TypeSafetyError> {
-    let output_stack = can_push_list(&env.vf,input_stack, types.as_slice())?;
-    if !operand_stack_has_legal_length(env,&output_stack){
+    let output_stack = can_push_list(&env.vf, input_stack, types.as_slice())?;
+    if !operand_stack_has_legal_length(env, &output_stack) {
         return Result::Err(unknown_error_verifying!());
     }
     Result::Ok(output_stack)
 }
 
-pub fn can_push_list(vf: &VerifierContext, input_stack: &OperandStack, types: &[UnifiedType]) -> Result<OperandStack, TypeSafetyError>{
+pub fn can_push_list(vf: &VerifierContext, input_stack: &OperandStack, types: &[UnifiedType]) -> Result<OperandStack, TypeSafetyError> {
     if types.is_empty() {
         return Result::Ok(input_stack.clone());
     }
     let type_ = &types[0];
     let rest = &types[1..];
-    let interim_stack = push_operand_stack(vf,input_stack,type_);
-    can_push_list(vf,&interim_stack,rest)
+    let interim_stack = push_operand_stack(vf, input_stack, type_);
+    can_push_list(vf, &interim_stack, rest)
 }
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_dup_x2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+
+pub fn instruction_is_type_safe_dup_x2(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = &stack_frame.locals;
+    let input_stack = &stack_frame.stack_map;
+    let flags = stack_frame.flag_this_uninit;
+    let output_stack = dup_x2_form_is_type_safe(env, input_stack)?;
+    let next_frame = Frame {
+        locals: locals.clone(),
+        stack_map: output_stack,
+        flag_this_uninit: flags,
+    };
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
+
+fn dup_x2_form_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
+    match dup_x2_form1_is_type_safe(env,input_stack) {
+        Ok(o) => Result::Ok(o),
+        Err(_) => match dup_x2_form2_is_type_safe(env, input_stack){
+            Ok(o) => Result::Ok(o),
+            Err(e) => Result::Err(e),
+        },
+    }
+}
+
+
+fn dup_x2_form1_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
+    let mut stack1 = input_stack.clone();
+    let type1 = pop_category1(&env.vf,& mut stack1)?;
+    let mut stack2 = stack1.clone();
+    let type2 = pop_category1(&env.vf, &mut stack2)?;
+    let mut rest = stack2.clone();
+    let type3 = pop_category1(&env.vf, &mut rest)?;
+    can_safely_push_list(env,&rest,vec![type1.clone(),type3,type2,type1])
+}
+
+fn dup_x2_form2_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
+    let mut stack1 = input_stack.clone();
+    let type1 = pop_category1(&env.vf,&mut stack1)?;
+    let mut rest = stack1.clone();
+    let type2 = pop_category1(&env.vf,&mut rest)?;
+    can_safely_push_list(env,input_stack,vec![type1.clone(),type2,type1])
+}
+
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_dup2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
@@ -403,7 +442,7 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> UnifiedType 
 }
 
 pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.prolog_class).constant_pool[cp as usize].kind;
+    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
     let type_: UnifiedType = loadable_constant(&env.vf, const_);
     match type_ {
         UnifiedType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
@@ -416,7 +455,7 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, s
 }
 
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.prolog_class).constant_pool[cp as usize].kind;
+    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
     let type_: UnifiedType = loadable_constant(&env.vf, const_);//todo dup
     match type_ {
         UnifiedType::DoubleType => {}

@@ -66,7 +66,7 @@ pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, _offse
 }
 
 fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> UnifiedType {
-    let class = get_class(&env.vf, &env.method.prolog_class);
+    let class = get_class(&env.vf, &env.method.class);
     let class_name = match &class.constant_pool[cp as usize].kind {
         ConstantKind::Class(c) => {
             extract_string_from_utf8(&class.constant_pool[c.name_index as usize])
@@ -113,7 +113,7 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, _offset: usize, stack_
 //todo duplication with class name parsing and array logic
 pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let object_class = ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: env.vf.bootstrap_loader.clone() };
-    let class = get_class(&env.vf, env.method.prolog_class);
+    let class = get_class(&env.vf, env.method.class);
     let result_type = match &class.constant_pool[index].kind {
         ConstantKind::Class(c) => {
             let name = extract_string_from_utf8(&class.constant_pool[c.name_index as usize]);
@@ -139,11 +139,11 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     //todo duplication
     let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
     let field_type = translate_types_to_vm_types(&field_descriptor.field_type);
-    if env.method.prolog_class.class_name != field_class_name {
+    if env.method.class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
     }
     //todo is this equivalent to isInit
-    if get_referred_name(&env.method.prolog_class.class_name) != "<init>" {
+    if get_referred_name(&env.method.class.class_name) != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
     let next_stack_frame = can_pop(&env.vf, stack_frame, vec![field_type, UnifiedType::UninitializedThis])?;
@@ -164,7 +164,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 
 
 fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, String, FieldDescriptor) {
-    let current_class = get_class(&env.vf, env.method.prolog_class);
+    let current_class = get_class(&env.vf, env.method.class);
     let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
     let (class_index, name_and_type_index) = match field_entry {
         ConstantKind::Fieldref(f) => {
@@ -215,7 +215,7 @@ pub fn instruction_is_type_safe_new(cp: usize, env: &Environment, offset: usize,
     let locals = &stack_frame.locals;
     let operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    match &get_class(&env.vf, env.method.prolog_class).constant_pool[cp].kind {
+    match &get_class(&env.vf, env.method.class).constant_pool[cp].kind {
         ConstantKind::Class(_) => {}
         _ => panic!()
     };
