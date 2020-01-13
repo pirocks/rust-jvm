@@ -112,9 +112,9 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
     if call_site_name == "<init>" || call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
     }
-    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
+    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().rev().map(translate_types_to_vm_types).collect();
     let return_type = translate_types_to_vm_types(&descriptor.return_type);
-    operand_arg_list.reverse();
+//    operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -145,7 +145,7 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     if method_name == "<init>" || method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
     }
-    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().map(|x| translate_types_to_vm_types(x)).collect();
+    let mut operand_arg_list: Vec<UnifiedType> = descriptor.parameter_types.iter().rev().map(translate_types_to_vm_types).collect();
     let return_type = translate_types_to_vm_types(&descriptor.return_type);
     let current_loader = env.class_loader.clone();
     //todo this is almost certainly wrong.
