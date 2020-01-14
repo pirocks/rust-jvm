@@ -54,10 +54,10 @@ impl PartialEq for ClassName {
                     r1.class_file.ptr_eq(&r2.class_file) && r1.index == r2.index
                 }
                 ClassName::Str(s) => {
-                    &get_referred_name(self) == s
+                    &self.get_referred_name() == s
                 }
             },
-            ClassName::Str(s1) => &get_referred_name(other) == s1
+            ClassName::Str(s1) => &other.get_referred_name() == s1
         }
     }
 }
@@ -81,31 +81,35 @@ impl std::clone::Clone for ClassName {
 
 impl std::fmt::Debug for ClassName{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f,"{}",get_referred_name(self))
+        write!(f,"{}",self.get_referred_name())
     }
 }
 
-pub fn get_referred_name(ref_ : &ClassName) -> String{
-    match ref_{
-        ClassName::Ref(r) => {
-            let upgraded_class_ref = match r.class_file.upgrade() {
-                None => {panic!()},
-                Some(s) => s
-            };
-            return extract_string_from_utf8(&upgraded_class_ref.constant_pool[r.index as usize])
-        },
-        ClassName::Str(s) => {s.clone()},//todo this clone may be expensive, ditch?
+impl ClassName{
+    pub fn get_referred_name(&self) -> String{
+        match self{
+            ClassName::Ref(r) => {
+                let upgraded_class_ref = match r.class_file.upgrade() {
+                    None => {panic!()},
+                    Some(s) => s
+                };
+                return extract_string_from_utf8(&upgraded_class_ref.constant_pool[r.index as usize])
+            },
+            ClassName::Str(s) => {s.clone()},//todo this clone may be expensive, ditch?
+        }
     }
 }
 
 
-pub fn class_name_legacy(class: &Classfile) -> String {
-    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
-        ConstantKind::Class(c) => { c }
-        _ => { panic!() }
-    };
-    return extract_string_from_utf8(&class.constant_pool[class_info_entry.name_index as usize]);
-}
+
+
+//pub fn class_name_legacy(class: &Classfile) -> String {
+//    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
+//        ConstantKind::Class(c) => { c }
+//        _ => { panic!() }
+//    };
+//    return extract_string_from_utf8(&class.constant_pool[class_info_entry.name_index as usize]);
+//}
 
 pub fn class_name(class: &Arc<Classfile>) -> ClassName {
     let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {

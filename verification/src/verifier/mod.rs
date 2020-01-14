@@ -1,7 +1,7 @@
 use log::trace;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::ClassWithLoader;
-use rust_jvm_common::classnames::{get_referred_name, ClassName};
+use rust_jvm_common::classnames::ClassName;
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, class_is_final, is_bootstrap_loader, get_class_methods};
 use rust_jvm_common::classfile::Classfile;
@@ -71,7 +71,7 @@ pub enum TypeSafetyError {
 }
 
 pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
-    if get_referred_name(&class.class_name) == "java/lang/Object" {
+    if class.class_name.get_referred_name() == "java/lang/Object" {
         if !is_bootstrap_loader(vf, &class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
         }

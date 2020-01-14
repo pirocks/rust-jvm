@@ -13,7 +13,6 @@ use crate::verifier::passes_protected_check;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::instructions::exception_stack_frame;
 use crate::verifier::instructions::ResultFrames;
-use rust_jvm_common::classnames::get_referred_name;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::{substitute, possibly_array_to_type};
 use crate::OperandStack;
@@ -145,7 +144,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
         return Result::Err(unknown_error_verifying!());
     }
     //todo is this equivalent to isInit
-    if get_referred_name(&env.method.class.class_name) != "<init>" {
+    if env.method.class.class_name.get_referred_name() != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
     let next_stack_frame = can_pop(&env.vf, stack_frame, vec![field_type, VerificationType::UninitializedThis])?;

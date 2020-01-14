@@ -9,7 +9,7 @@ use crate::verifier::instructions::merged_code_is_type_safe;
 use std::option::Option::Some;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
-use rust_jvm_common::classnames::{NameReference, class_name, get_referred_name};
+use rust_jvm_common::classnames::{NameReference, class_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;
 use classfile_parser::code_attribute;
@@ -501,7 +501,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VerificationType, TypeSafetyError> {
     let method_name = method_name(&get_class(vf,method.class), &get_class(vf, method.class).methods[method.method_index]);
     if method_name == "<init>" {
-        if get_referred_name(&class.class_name) == "java/lang/Object" {
+        if class.class_name.get_referred_name() == "java/lang/Object" {
             Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))
         } else {
             let mut chain = vec![];

@@ -151,7 +151,9 @@ dependencies = [
 name = "jar-manipulation"
 version = "0.1.0"
 dependencies = [
+ "ntest_timeout 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-jvm-common 0.1.0",
+ "timebomb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "zip 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

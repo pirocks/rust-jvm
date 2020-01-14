@@ -18,7 +18,6 @@ use classfile_parser::types::Descriptor;
 use classfile_parser::types::parse_method_descriptor;
 use classfile_parser::types::MethodDescriptor;
 use classfile_parser::types::parse_field_descriptor;
-use rust_jvm_common::classnames::get_referred_name;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
 
@@ -180,7 +179,7 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _off
     if method_name == "<init>" {
         invoke_special_init(&env, stack_frame, &method_class_name, &parsed_descriptor)
     } else {
-        invoke_special_not_init(env, stack_frame, get_referred_name(&method_class_name), method_name, &parsed_descriptor)
+        invoke_special_not_init(env, stack_frame, method_class_name.get_referred_name(), method_name, &parsed_descriptor)
     }
 }
 

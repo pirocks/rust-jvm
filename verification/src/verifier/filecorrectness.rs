@@ -2,7 +2,6 @@ use std::sync::Arc;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use rust_jvm_common::loading::Loader;
-use rust_jvm_common::classnames::{get_referred_name, class_name_legacy};
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL, ACC_PROTECTED};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
@@ -39,8 +38,8 @@ pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader,
 }
 
 fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    let name1 = get_referred_name(&class1.class_name);
-    let name2 = get_referred_name(&class2.class_name);
+    let name1 = class1.class_name.get_referred_name();
+    let name2 = class2.class_name.get_referred_name();
     let split1: Vec<&str> = name1.split("/").collect();
     let split2: Vec<&str> = name2.split("/").collect();
     assert!(split1.len() >= 1);
@@ -93,7 +92,7 @@ pub fn class_is_interface(vf: &VerifierContext, class: &ClassWithLoader) -> bool
 }
 
 pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
-    if get_referred_name(&from.class_name) == get_referred_name(&to.class_name) {
+    if from.class_name.get_referred_name() == to.class_name.get_referred_name() {
         return Result::Ok(());
     }
     let mut chain = vec![];
@@ -301,8 +300,8 @@ fn is_java_assignable_class(vf: &VerifierContext, from: &ClassWithLoader, to: &C
 }
 
 pub fn is_array_interface(_vf: &VerifierContext, class: ClassWithLoader) -> bool {
-    get_referred_name(&class.class_name) == "java/lang/Cloneable" ||
-        get_referred_name(&class.class_name) == "java/io/Serializable"
+    class.class_name.get_referred_name() == "java/lang/Cloneable" ||
+        class.class_name.get_referred_name() == "java/io/Serializable"
 }
 
 pub fn is_java_subclass_of(_vf: &VerifierContext, _sub: &ClassWithLoader, _super: &ClassWithLoader) {
@@ -323,7 +322,7 @@ pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> 
 }
 
 pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: Arc<dyn Loader + Send + Sync>, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
-    if get_referred_name(&chain_start.class_name) == "java/lang/Object" {
+    if chain_start.class_name.get_referred_name() == "java/lang/Object" {
         //todo magic constant
         if /*res.is_empty() &&*/ is_bootstrap_loader(vf, &loader) {
             return Result::Ok(());
@@ -359,8 +358,8 @@ pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &
 }
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    dbg!(class_name_legacy(&get_class(vf,class)));
-    if get_referred_name(&class.class_name) == "java/lang/Object" {
+    dbg!(class);
+    if class.class_name.get_referred_name() == "java/lang/Object" {
         if is_bootstrap_loader(vf, &class.loader) {
             Result::Ok(())
         } else {

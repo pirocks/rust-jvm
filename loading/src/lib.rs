@@ -8,7 +8,6 @@ use rust_jvm_common::loading::LoaderName;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::path::Path;
-use rust_jvm_common::classnames::get_referred_name;
 use rust_jvm_common::classnames::class_name;
 use classfile_parser::parse_class_file;
 
@@ -53,7 +52,7 @@ impl Loader for BootstrapLoader {
             None => {
                 let found_class_file = self.classpath.classpath_base.iter().map(|x| {
                     let mut path_buf = x.to_path_buf();
-                    path_buf.push(format!("{}.class", get_referred_name(name)));
+                    path_buf.push(format!("{}.class", name.get_referred_name()));
                     path_buf
                 }).find(|p| {
                     p.exists()

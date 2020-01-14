@@ -2,7 +2,6 @@ use crate::classnames::ClassName;
 use crate::classfile::UninitializedVariableInfo;
 use crate::loading::Loader;
 use std::sync::Arc;
-use crate::classnames::get_referred_name;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Error;
@@ -43,7 +42,7 @@ impl Eq for ClassWithLoader {}
 
 impl Debug for ClassWithLoader {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "<{},{}>", get_referred_name(&self.class_name), self.loader.name())
+        write!(f, "<{},{}>", &self.class_name.get_referred_name(), self.loader.name())
     }
 }
 

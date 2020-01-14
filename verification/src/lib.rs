@@ -8,7 +8,7 @@ use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::InternalFrame;
-use rust_jvm_common::classnames::{get_referred_name, class_name};
+use rust_jvm_common::classnames::class_name;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
@@ -82,7 +82,7 @@ fn locals_push_convert_type(res: &mut Vec<ParsedType>, type_: ParsedType) -> () 
             res.push(ParsedType::TopType);
         }
         ParsedType::Class(r) => {
-            assert_ne!(get_referred_name(&r.class_name).chars().nth(0).unwrap(), '[');
+            assert_ne!(r.class_name.get_referred_name().chars().nth(0).unwrap(), '[');
             res.push(ParsedType::Class(r));
         }
         ParsedType::ShortType => {
