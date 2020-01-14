@@ -27,6 +27,7 @@ fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
     assert!(npairs > 0);
     let mut pairs = vec![];
     for _ in 0..npairs{
+        //key target
         pairs.push((read_i32(c)?,read_i32(c)?));
     }
     return Some(LookupSwitch {

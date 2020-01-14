@@ -10,7 +10,6 @@ use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
 use crate::VerifierContext;
 use crate::OperandStack;
-use rust_jvm_common::utils::method_name;
 use rust_jvm_common::unified_types::VerificationType;
 
 pub mod loads;
@@ -106,7 +105,7 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> Result<(), TypeSafetyError> {
     let frame = offset_stack_frame(env, target)?;
 //    dbg!(&env.merged_code);
-    let classfile = get_class(&env.vf, &env.method.class);
+//    let _classfile = get_class(&env.vf, &env.method.class);
 //    dbg!(method_name(&classfile, &classfile.methods[env.method.method_index as usize]));
 //    dbg!(&frame);
 //    dbg!(target);

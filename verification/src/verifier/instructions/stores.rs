@@ -79,10 +79,11 @@ pub fn is_small_array(array_type: VerificationType) -> Result<(),TypeSafetyError
     }
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_castore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_castore(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
+    let next_frame = can_pop(&env.vf,stack_frame,vec![VerificationType::IntType,VerificationType::IntType,VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) })])?;
+    let exception_frame= exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_dastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
