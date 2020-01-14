@@ -1,27 +1,21 @@
 use rust_jvm_common::classfile::ConstantInfo;
+use rust_jvm_common::classfile::Instruction;
+use rust_jvm_common::classfile::InstructionInfo;
+use std::sync::Arc;
 
 pub struct InterpreterState {
-    pub local_vars: Vec<u32>,
-    pub operand_stack: Vec<u32>,
+    pub class_pointer: Arc<RuntimeClass>,
+    pub local_vars: Vec<JavaValue>,
+    pub operand_stack: Vec<JavaValue>,
     pub pc: usize,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
     pub pc_offset: isize,
     pub terminate: bool,
 }
 
-pub fn do_instruction(_code: &[u8], _state: &mut InterpreterState, _constant_pool: &Vec<ConstantInfo>) {
-//    use interpreter::interpreter_util::*;
-//    use interpreter::branch_instructions::*;
-//    use interpreter::double_instructions::*;
-//    use interpreter::dup_instructions::*;
-//    use interpreter::float_instructions::*;
-//    use interpreter::integer_instructions::*;
-//    use interpreter::long_instructions::*;
-
-
-    let _opcode = unimplemented!();//read_opcode(code[0]);
-//    _state.pc_offset = 1;//offset the opcode which was just read
-//    match opcode {
+pub fn do_instruction(instruct: InstructionInfo, state: &mut InterpreterState) {
+    state.pc_offset = 1;//offset the opcode which was just read
+    match instruct {
         /*InstructionType::aaload => load_u64(_state),
         InstructionType::aastore => store_i64(_state),
         InstructionType::aconst_null => push_long(0, _state),
@@ -306,8 +300,8 @@ pub fn do_instruction(_code: &[u8], _state: &mut InterpreterState, _constant_poo
         InstructionType::swap => {}
         InstructionType::tableswitch => {}
         InstructionType::wide => {}*/
-//        _ => {dbg!(opcode);unimplemented!()}
-//    }
+        _ => {dbg!(opcode);unimplemented!()}
+    }
 }
 
 pub mod double_instructions;
