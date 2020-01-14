@@ -20,3 +20,4 @@ classfile-parser = {path = "../classfile-parser"}
 ntest_timeout = "0.3.0"
 timebomb = "0.1.2"
 loading = {path = "../loading"}
+jar-manipulation = {path = "../jar-manipulation"}

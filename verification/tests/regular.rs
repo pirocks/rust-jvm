@@ -3,13 +3,12 @@ extern crate timebomb;
 extern crate rust_jvm_common;
 
 use ntest_timeout::timeout;
-use rust_jvm_common::test_utils::get_test_resources;
+use rust_jvm_common::test_utils::get_test_resources_global;
 use std::collections::HashMap;
 use verification::verifier::TypeSafetyError;
 use std::sync::Arc;
 use std::path::Path;
-use classfile_parser::parse_class_file;
-use std::fs::File;
+use std::path::PathBuf;
 use loading::BootstrapLoader;
 use std::sync::RwLock;
 use loading::Classpath;
@@ -17,31 +16,34 @@ use rust_jvm_common::loading::LoaderName;
 use verification::verify;
 use verification::VerifierContext;
 use rust_jvm_common::classnames::class_name;
+use jar_manipulation::JarHandle;
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::test_utils::get_test_resources_local;
+
+//#[test]
+//#[timeout(10000)]
+//pub fn can_verify_main() {
+//    let main_class_name = "Main".to_string();
+//    verify_class_with_name(&main_class_name).unwrap();
+//}
+//
+//#[test]
+//#[timeout(10000)]
+//pub fn can_verify_float_double_arithmetic() {
+//    let main_class_name = "FloatDoubleArithmetic".to_string();
+//    verify_class_with_name(&main_class_name).unwrap();
+//}
+//
+//#[test]
+//#[timeout(10000)]
+//pub fn can_verify_with_main() {
+//    let main_class_name = "WithMain".to_string();
+//    verify_class_with_name(&main_class_name).unwrap();
+//}
+
 
 #[test]
-#[timeout(10000)]
-pub fn can_verify_main() {
-    let main_class_name = "Main".to_string();
-    verify_class_with_name(&main_class_name).unwrap();
-}
-
-#[test]
-#[timeout(10000)]
-pub fn can_verify_float_double_arithmetic() {
-    let main_class_name = "FloatDoubleArithmetic".to_string();
-    verify_class_with_name(&main_class_name).unwrap();
-}
-
-#[test]
-#[timeout(10000)]
-pub fn can_verify_with_main() {
-    let main_class_name = "WithMain".to_string();
-    verify_class_with_name(&main_class_name).unwrap();
-}
-
-
-#[test]
-#[timeout(10000)]
+//#[timeout(10000)]
 pub fn can_verify_object() {
     let main_class_name = "java/lang/Object".to_string();
     verify_class_with_name(&main_class_name).unwrap();
@@ -104,21 +106,24 @@ pub fn can_verify_security_manger() {
 
 
 fn verify_class_with_name(main_class_name: &String) -> Result<(),TypeSafetyError>{
-    let mut resources = get_test_resources();
-    resources.push(format!("{}.class",main_class_name));
-    verify_impl(resources.as_path(),get_test_resources().as_path())
+    let mut base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    base.push("../");
+    base.push("verification/resources/test");
+    base.push("rt.jar");
+    dbg!(&base);
+    verify_impl(&ClassName::Str(main_class_name.clone()), base.as_path())
 }
 
-fn verify_impl(path_of_class: &Path, class_path : &Path) -> Result<(), TypeSafetyError> {
+fn verify_impl(classname: &ClassName, jar_path : &Path) -> Result<(), TypeSafetyError> {
     let loader = BootstrapLoader {
         loaded: RwLock::new(HashMap::new()),
         parsed: RwLock::new(HashMap::new()),
         name: RwLock::new(LoaderName::BootstrapLoader),
-        classpath: Classpath { classpath_base: vec![class_path.to_path_buf().into_boxed_path()] }
+        classpath: Classpath { classpath_base: vec![] }
     };
-    let file = File::open(path_of_class).unwrap();
     let bootstrap_loader = Arc::new(loader);
-    let classfile = parse_class_file(&mut (&file).try_clone().unwrap(), bootstrap_loader.clone());
+    let mut jar_handle = JarHandle::new(jar_path.into()).unwrap();
+    let classfile = jar_handle.lookup(classname,bootstrap_loader.clone()).unwrap();
     bootstrap_loader.parsed.write().unwrap().insert(class_name(&classfile),classfile.clone());
 
 

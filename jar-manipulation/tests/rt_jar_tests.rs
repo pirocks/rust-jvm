@@ -21,6 +21,5 @@ pub fn can_open_rt_jar() {
 pub fn can_get_object() {
     let p = Path::new("/homes/fpn17/Desktop/jdk8u232-b09/jre/lib/rt.jar");
     let mut j = JarHandle::new(p.into()).unwrap();
-    j.lookup(ClassName::Str("java/lang/Object".to_string()),Arc::new(EmptyLoader{})).unwrap();
-
+    j.lookup(&ClassName::Str("java/lang/Object".to_string()),Arc::new(EmptyLoader{})).unwrap();
 }

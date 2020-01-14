@@ -496,6 +496,7 @@ name = "verification"
 version = "0.1.0"
 dependencies = [
  "classfile-parser 0.1.0",
+ "jar-manipulation 0.1.0",
  "loading 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ntest_timeout 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
