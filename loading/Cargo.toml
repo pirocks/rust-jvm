@@ -15,4 +15,3 @@ path = "src/lib.rs"
 rust-jvm-common = {path = "../rust-jvm-common"}
 verification = {path = "../verification"}
 classfile-parser = {path = "../classfile-parser"}
-lazy_static = "1.4.0"

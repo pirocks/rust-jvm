@@ -10,4 +10,3 @@ edition = "2018"
 path = "src/lib.rs"
 
 [dependencies]
-lazy_static = "1.4.0"
