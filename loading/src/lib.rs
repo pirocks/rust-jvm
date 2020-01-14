@@ -10,9 +10,11 @@ use std::sync::RwLock;
 use std::path::Path;
 use rust_jvm_common::classnames::class_name;
 use classfile_parser::parse_class_file;
+use jar_manipulation::JarHandle;
 
 #[derive(Debug)]
 pub struct Classpath {
+    pub jars: Vec<Box<Path>>,
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>
 }
@@ -46,10 +48,24 @@ impl Loader for BootstrapLoader {
 
     //todo hacky and janky
     fn pre_load(&self, self_arc: Arc<dyn Loader + Sync + Send>, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+        //todo assert self arc is same
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());
         match maybe_classfile {
             None => {
+                let jar_class_file: Option<Arc<Classfile>> = self.classpath.jars.iter().find_map(|x|{
+                    let mut handle = JarHandle::new(x.clone()).unwrap();
+                    match handle.lookup(name,self_arc.clone()){
+                        Ok(c) => Some(c),
+                        Err(_) => None,
+                    }
+                });
+                match jar_class_file{
+                    None => {},
+                    Some(c) => {
+                        return Result::Ok(c)
+                    },
+                }
                 let found_class_file = self.classpath.classpath_base.iter().map(|x| {
                     let mut path_buf = x.to_path_buf();
                     path_buf.push(format!("{}.class", name.get_referred_name()));

@@ -3,7 +3,6 @@ extern crate timebomb;
 extern crate rust_jvm_common;
 
 use ntest_timeout::timeout;
-use rust_jvm_common::test_utils::get_test_resources_global;
 use std::collections::HashMap;
 use verification::verifier::TypeSafetyError;
 use std::sync::Arc;
@@ -18,7 +17,6 @@ use verification::VerifierContext;
 use rust_jvm_common::classnames::class_name;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::test_utils::get_test_resources_local;
 
 //#[test]
 //#[timeout(10000)]
@@ -43,7 +41,7 @@ use rust_jvm_common::test_utils::get_test_resources_local;
 
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_object() {
     let main_class_name = "java/lang/Object".to_string();
     verify_class_with_name(&main_class_name).unwrap();
@@ -69,21 +67,21 @@ pub fn can_verify_exceptions() {
 }
 
 #[test]
-#[timeout(10000)]
+//#[timeout(30000)]
 pub fn can_verify_hash_map() {
     let main_class_name = "java/util/HashMap".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
-#[timeout(10000)]
+//#[timeout(10000)]
 pub fn can_verify_system() {
     let main_class_name = "java/lang/System".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
-#[timeout(10000)]
+//#[timeout(10000)]
 pub fn can_verify_input_stream() {
     let main_class_name = "java/io/InputStream".to_string();
     verify_class_with_name(&main_class_name).unwrap();
@@ -119,7 +117,7 @@ fn verify_impl(classname: &ClassName, jar_path : &Path) -> Result<(), TypeSafety
         loaded: RwLock::new(HashMap::new()),
         parsed: RwLock::new(HashMap::new()),
         name: RwLock::new(LoaderName::BootstrapLoader),
-        classpath: Classpath { classpath_base: vec![] }
+        classpath: Classpath { jars: vec![jar_path.to_path_buf().into_boxed_path()], classpath_base: vec![] }
     };
     let bootstrap_loader = Arc::new(loader);
     let mut jar_handle = JarHandle::new(jar_path.into()).unwrap();
