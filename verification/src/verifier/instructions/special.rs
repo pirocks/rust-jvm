@@ -23,6 +23,7 @@ use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::verifier::instructions::type_transition;
+use crate::verifier::instructions::target_is_type_safe;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
@@ -53,10 +54,15 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offse
 }
 
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+
+pub fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let branch_frame = can_pop(&env.vf,stack_frame,vec![VerificationType::IntType])?;
+    for t in targets {
+        target_is_type_safe(env,&branch_frame,t)?;
+    }
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+}
 
 
 pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {

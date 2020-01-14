@@ -102,12 +102,19 @@ pub fn can_verify_security_manger() {
 }
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_console() {
     let main_class_name = "java/io/Console".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
+
+#[test]
+//#[timeout(10000)]
+pub fn can_verify_properties() {
+    let main_class_name = "java/util/Properties".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
 
 fn verify_class_with_name(main_class_name: &String) -> Result<(),TypeSafetyError>{
     let mut base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
