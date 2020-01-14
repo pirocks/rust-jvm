@@ -7,6 +7,7 @@ use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::parsing_util::ParsingContext;
+use rust_jvm_common::classfile::EnclosingMethod;
 
 pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
     let attribute_name_index = p.read16();
@@ -44,6 +45,8 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
         parse_nest_members(p)
     } else if name == "NestHost" {
         parse_nest_host(p)
+    } else if name == "EnclosingMethod" {
+        parse_enclosing_method(p)
     } else {
         unimplemented!("{}", name);
     };
@@ -52,6 +55,12 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
         attribute_length,
         attribute_type,
     }
+}
+
+fn parse_enclosing_method(p: &mut dyn ParsingContext) -> AttributeType {
+    let class_index = p.read16();
+    let method_index = p.read16();
+    AttributeType::EnclosingMethod(EnclosingMethod { class_index, method_index })
 }
 
 fn parse_nest_host(p: &mut dyn ParsingContext) -> AttributeType {
@@ -129,7 +138,7 @@ fn parse_exceptions(p: &mut dyn ParsingContext) -> AttributeType {
 }
 
 fn parse_signature(p: &mut dyn ParsingContext) -> AttributeType {
-    return AttributeType::Signature(Signature { signature_index: p.read16 ()});
+    return AttributeType::Signature(Signature { signature_index: p.read16() });
 }
 
 fn parse_element_value(p: &mut dyn ParsingContext) -> ElementValue {
@@ -257,20 +266,19 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> ParsedType {
         7 => {
             let original_index = p.read16();
             let index = match &p.constant_pool_borrow()[original_index as usize].kind {
-                ConstantKind::Utf8(_u) => { panic!();/*original_index */},
+                ConstantKind::Utf8(_u) => { panic!();/*original_index */ }
                 ConstantKind::Class(c) => c.name_index,
                 ConstantKind::String(_c) => panic!(),
                 _ => { panic!() }
             };
             let type_descriptor = extract_string_from_utf8(&p.constant_pool_borrow()[index as usize]);
             if type_descriptor.starts_with("[") {
-                let res_descriptor = parse_field_descriptor(&p.loader(),type_descriptor.as_str()).unwrap();
+                let res_descriptor = parse_field_descriptor(&p.loader(), type_descriptor.as_str()).unwrap();
                 res_descriptor.field_type
-            }else {
-                ParsedType::Class(ClassWithLoader {class_name:ClassName::Str(type_descriptor), loader: p.loader() })
+            } else {
+                ParsedType::Class(ClassWithLoader { class_name: ClassName::Str(type_descriptor), loader: p.loader() })
             }
-
-        },
+        }
         _ => { unimplemented!("{}", type_) }
     }
 }

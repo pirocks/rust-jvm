@@ -18,7 +18,8 @@ pub struct InnerClasses {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct EnclosingMethod {
-    //todo
+    pub class_index: CPIndex,
+    pub method_index: CPIndex
 }
 
 #[derive(Debug)]

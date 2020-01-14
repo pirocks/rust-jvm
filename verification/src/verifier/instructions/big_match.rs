@@ -52,6 +52,7 @@ use crate::verifier::instructions::branches::instruction_is_type_safe_lreturn;
 use crate::verifier::instructions::instruction_is_type_safe_l2i;
 use crate::verifier::instructions::special::instruction_is_type_safe_newarray;
 use crate::verifier::instructions::instruction_is_type_safe_i2l;
+use crate::verifier::instructions::loads::instruction_is_type_safe_caload;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     dbg!(&stack_frame.stack_map);
@@ -77,7 +78,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::baload => { unimplemented!() }
         InstructionInfo::bastore => instruction_is_type_safe_bastore(env,offset,stack_frame),
         InstructionInfo::bipush(_) => instruction_is_type_safe_sipush(env, offset, stack_frame),
-        InstructionInfo::caload => { unimplemented!() }
+        InstructionInfo::caload => instruction_is_type_safe_caload(env,offset,stack_frame),
         InstructionInfo::castore => { unimplemented!() }
         InstructionInfo::checkcast(cp) => instruction_is_type_safe_checkcast(*cp as usize,env,offset,stack_frame),
         InstructionInfo::d2f => instruction_is_type_safe_d2f(env, offset, stack_frame),
@@ -203,7 +204,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::iload_1 => instruction_is_type_safe_iload(1, env, offset, stack_frame),
         InstructionInfo::iload_2 => instruction_is_type_safe_iload(2, env, offset, stack_frame),
         InstructionInfo::iload_3 => instruction_is_type_safe_iload(3, env, offset, stack_frame),
-        InstructionInfo::imul => { unimplemented!() }
+        InstructionInfo::imul => instruction_is_type_safe_iadd(env,offset,stack_frame),
         InstructionInfo::ineg => { unimplemented!() }
         InstructionInfo::instanceof(cp) => instruction_is_type_safe_instanceof(*cp,env,offset,stack_frame),
         InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, offset, stack_frame),

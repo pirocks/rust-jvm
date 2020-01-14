@@ -10,6 +10,7 @@ use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
+use crate::verifier::instructions::type_transition;
 
 
 pub fn instruction_is_type_safe_aaload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -52,10 +53,9 @@ pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, _offset: 
 //    unimplemented!()
 //}
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_caload(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_caload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
+    type_transition(env,stack_frame,vec![VerificationType::IntType,VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) })],VerificationType::IntType)
+}
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_daload(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
