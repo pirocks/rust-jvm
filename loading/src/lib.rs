@@ -61,28 +61,12 @@ impl Loader for BootstrapLoader {
                     }
                 });
                 match jar_class_file{
-                    None => {},
-                    Some(c) => {
-                        return Result::Ok(c)
-                    },
-                }
-                let found_class_file = self.classpath.classpath_base.iter().map(|x| {
-                    let mut path_buf = x.to_path_buf();
-                    path_buf.push(format!("{}.class", name.get_referred_name()));
-                    path_buf
-                }).find(|p| {
-                    p.exists()
-                });
-                match found_class_file {
                     None => {
-                        dbg!(name);
-                        Result::Err(ClassLoadingError::ClassNotFoundException)
-                    }
-                    Some(path) => {
-                        let file = File::open(path).unwrap();
-                        let classfile = parse_class_file(&mut (&file).try_clone().unwrap(), self_arc);
-                        Result::Ok(classfile)
-                    }
+                        self.search_class_files(self_arc, name)
+                    },
+                    Some(c) => {
+                        Result::Ok(c)
+                    },
                 }
             }
             Some(c) => Result::Ok(c.clone()),
@@ -93,6 +77,29 @@ impl Loader for BootstrapLoader {
                 Result::Ok(c)
             },
             Err(_) => res,
+        }
+    }
+}
+
+impl BootstrapLoader {
+    fn search_class_files(&self, self_arc: Arc<dyn Loader + Send + Sync>, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+        let found_class_file = self.classpath.classpath_base.iter().map(|x| {
+            let mut path_buf = x.to_path_buf();
+            path_buf.push(format!("{}.class", name.get_referred_name()));
+            path_buf
+        }).find(|p| {
+            p.exists()
+        });
+        match found_class_file {
+            None => {
+                dbg!(name);
+                Result::Err(ClassLoadingError::ClassNotFoundException)
+            }
+            Some(path) => {
+                let file = File::open(path).unwrap();
+                let classfile = parse_class_file(&mut (&file).try_clone().unwrap(), self_arc);
+                Result::Ok(classfile)
+            }
         }
     }
 }
