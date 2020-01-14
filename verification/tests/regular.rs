@@ -49,14 +49,14 @@ pub fn can_verify_object() {
 
 
 #[test]
-//#[timeout(30000)]
+#[timeout(30000)]
 pub fn can_verify_map() {
     let main_class_name = "java/util/Map".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
-//#[timeout(30000)]
+#[timeout(30000)]
 pub fn can_verify_exceptions() {
     let main_class_name = "java/lang/Throwable".to_string();
     verify_class_with_name(&main_class_name).unwrap();
@@ -67,40 +67,46 @@ pub fn can_verify_exceptions() {
 }
 
 #[test]
-//#[timeout(30000)]
+#[timeout(30000)]
 pub fn can_verify_hash_map() {
     let main_class_name = "java/util/HashMap".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_system() {
     let main_class_name = "java/lang/System".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_input_stream() {
     let main_class_name = "java/io/InputStream".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_print_stream() {
     let main_class_name = "java/io/PrintStream".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
 #[test]
-//#[timeout(10000)]
+#[timeout(10000)]
 pub fn can_verify_security_manger() {
     let main_class_name = "java/lang/SecurityManager".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 
+#[test]
+//#[timeout(10000)]
+pub fn can_verify_console() {
+    let main_class_name = "java/io/Console".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
 
 
 fn verify_class_with_name(main_class_name: &String) -> Result<(),TypeSafetyError>{
