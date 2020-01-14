@@ -113,3 +113,26 @@ pub trait Loader {
 pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
 
+pub struct EmptyLoader {}
+
+impl Loader for EmptyLoader {
+    fn initiating_loader_of(&self, _class: &ClassName) -> bool {
+        unimplemented!()
+    }
+
+    fn find_representation_of(&self, _class: &ClassName) -> Result<File, ClassLoadingError> {
+        unimplemented!()
+    }
+
+    fn load_class(&self, _class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+        unimplemented!()
+    }
+
+    fn name(&self) -> LoaderName {
+        unimplemented!()
+    }
+
+    fn pre_load(&self, _self_arc: Arc<dyn Loader + Sync + Send>, _name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+        unimplemented!()
+    }
+}

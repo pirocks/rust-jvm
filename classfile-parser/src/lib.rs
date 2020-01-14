@@ -3,13 +3,13 @@ pub mod code;
 pub mod constant_infos;
 
 use std::sync::Arc;
-use std::fs::File;
 use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo, ACC_ABSTRACT, FieldInfo, Classfile, ACC_NATIVE};
 use crate::attribute_infos::parse_attributes;
 use crate::constant_infos::parse_constant_infos;
 use rust_jvm_common::loading::Loader;
 use crate::parsing_util::ParsingContext;
 use crate::parsing_util::FileParsingContext;
+use std::io::Read;
 
 
 pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
@@ -94,8 +94,8 @@ pub fn parse_methods(p: &mut dyn ParsingContext, methods_count: u16) -> Vec<Meth
     return res;
 }
 
-pub fn parse_class_file(f: File, loader: Arc<dyn Loader + Send + Sync>) -> Arc<Classfile> {
-    let mut p = FileParsingContext { constant_pool: None, f, loader };
+pub fn parse_class_file(read:&mut dyn Read, loader: Arc<dyn Loader + Send + Sync>) -> Arc<Classfile> {
+    let mut p = FileParsingContext { constant_pool: None, read, loader };
     let mut class_file = parse_from_context(&mut p);
     class_file.constant_pool = p.constant_pool();//todo to avoid this yuckiness two pass parsing could be used
     Arc::new(class_file)

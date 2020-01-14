@@ -64,7 +64,7 @@ impl Loader for BootstrapLoader {
                     }
                     Some(path) => {
                         let file = File::open(path).unwrap();
-                        let classfile = parse_class_file((&file).try_clone().unwrap(), self_arc);
+                        let classfile = parse_class_file(&mut (&file).try_clone().unwrap(), self_arc);
                         self.parsed.write().unwrap().insert(class_name(&classfile), classfile.clone());
                         Result::Ok(classfile)
                     }

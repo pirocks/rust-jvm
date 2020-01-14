@@ -118,7 +118,7 @@ fn verify_impl(path_of_class: &Path, class_path : &Path) -> Result<(), TypeSafet
     };
     let file = File::open(path_of_class).unwrap();
     let bootstrap_loader = Arc::new(loader);
-    let classfile = parse_class_file((&file).try_clone().unwrap(), bootstrap_loader.clone());
+    let classfile = parse_class_file(&mut (&file).try_clone().unwrap(), bootstrap_loader.clone());
     bootstrap_loader.parsed.write().unwrap().insert(class_name(&classfile),classfile.clone());
 
 

@@ -7,39 +7,38 @@ use std::fs::File;
 use std::error::Error;
 use std::fmt::Formatter;
 use std::fmt;
+use classfile_parser::parse_class_file;
+use rust_jvm_common::loading::Loader;
 
 pub struct JarHandle {
-    path: Box<Path>,
-    zip_archive: ZipArchive<File>,//todo what if loaded from something other than file?
+    pub path: Box<Path>,
+    pub zip_archive: ZipArchive<File>,//todo what if loaded from something other than file?
 }
 
 #[derive(Debug)]
-pub struct NoClassFoundInJarError{}
+pub struct NoClassFoundInJarError {}
 
-impl std::fmt::Display for NoClassFoundInJarError{
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+impl std::fmt::Display for NoClassFoundInJarError {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         unimplemented!()
     }
 }
 
-impl Error for NoClassFoundInJarError{
-
-}
+impl Error for NoClassFoundInJarError {}
 
 impl JarHandle {
-    fn new(path: Box<Path>) -> Result<JarHandle,Box<dyn Error>> {
-        let f= File::open(&path)?;
+    pub fn new(path: Box<Path>) -> Result<JarHandle, Box<dyn Error>> {
+        let f = File::open(&path)?;
         let zip_archive = zip::ZipArchive::new(f)?;
         Result::Ok(JarHandle { path, zip_archive })
     }
 
-    fn lookup(&mut self, class_name: ClassName) -> Result<Arc<Classfile>,Box<dyn Error>>{
-        let lookup_res = &self.zip_archive.by_name(class_name.get_referred_name().as_str())?;
-        if lookup_res.is_file(){
-            unimplemented!()
-        }else {
-            Result::Err(Box::new(NoClassFoundInJarError{}))
+    pub fn lookup(&mut self, class_name: ClassName, loader: Arc<dyn Loader + Sync + Send>) -> Result<Arc<Classfile>, Box<dyn Error>> {
+        let lookup_res = &mut self.zip_archive.by_name(format!("{}.class",class_name.get_referred_name()).as_str())?;//todo dup
+        if lookup_res.is_file() {
+            Result::Ok(parse_class_file(lookup_res,loader.clone()))
+        } else {
+            Result::Err(Box::new(NoClassFoundInJarError {}))
         }
-
     }
 }
