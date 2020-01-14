@@ -1,4 +1,3 @@
-use crate::parsing_util::{ParsingContext, read16, read32, read8};
 use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers};
 use crate::constant_infos::is_utf8;
 use crate::code::parse_code_raw;
@@ -7,11 +6,12 @@ use crate::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::ParsedType;
+use crate::parsing_util::ParsingContext;
 
-pub fn parse_attribute(p: &mut ParsingContext) -> AttributeInfo {
-    let attribute_name_index = read16(p);
-    let attribute_length = read32(p);
-    let name_pool = &p.constant_pool[attribute_name_index as usize];
+pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
+    let attribute_name_index = p.read16();
+    let attribute_length = p.read32();
+    let name_pool = &p.constant_pool_borrow()[attribute_name_index as usize];
     assert!(is_utf8(&name_pool.kind).is_some());
     let name_struct = is_utf8(&name_pool.kind).expect("Classfile may be corrupted, invalid constant encountered.");
     let name = &name_struct.string;
@@ -54,29 +54,29 @@ pub fn parse_attribute(p: &mut ParsingContext) -> AttributeInfo {
     }
 }
 
-fn parse_nest_host(p: &mut ParsingContext) -> AttributeType {
-    let host_class_index = read16(p);
+fn parse_nest_host(p: &mut dyn ParsingContext) -> AttributeType {
+    let host_class_index = p.read16();
     AttributeType::NestHost(NestHost { host_class_index })
 }
 
-fn parse_nest_members(p: &mut ParsingContext) -> AttributeType {
-    let number_of_classes = read16(p);
+fn parse_nest_members(p: &mut dyn ParsingContext) -> AttributeType {
+    let number_of_classes = p.read16();
     let mut classes = Vec::with_capacity(number_of_classes as usize);
     for _ in 0..number_of_classes {
-        classes.push(read16(p));
+        classes.push(p.read16());
     }
     AttributeType::NestMembers(NestMembers { classes })
 }
 
-fn parse_constant_value_index(p: &mut ParsingContext) -> AttributeType {
-    let constant_value_index = read16(p);
+fn parse_constant_value_index(p: &mut dyn ParsingContext) -> AttributeType {
+    let constant_value_index = p.read16();
     AttributeType::ConstantValue(ConstantValue {
         constant_value_index
     })
 }
 
-fn parse_bootstrap_methods(p: &mut ParsingContext) -> AttributeType {
-    let num_bootstrap_methods = read16(p);
+fn parse_bootstrap_methods(p: &mut dyn ParsingContext) -> AttributeType {
+    let num_bootstrap_methods = p.read16();
     let mut bootstrap_methods = Vec::with_capacity(num_bootstrap_methods as usize);
     bootstrap_methods.push(parse_bootstrap_method(p));
     AttributeType::BootstrapMethods(BootstrapMethods {
@@ -84,26 +84,26 @@ fn parse_bootstrap_methods(p: &mut ParsingContext) -> AttributeType {
     })
 }
 
-fn parse_bootstrap_method(p: &mut ParsingContext) -> BootstrapMethod {
-    let bootstrap_method_ref = read16(p);
-    let num_bootstrap_args = read16(p);
+fn parse_bootstrap_method(p: &mut dyn ParsingContext) -> BootstrapMethod {
+    let bootstrap_method_ref = p.read16();
+    let num_bootstrap_args = p.read16();
     let mut bootstrap_arguments = Vec::with_capacity(num_bootstrap_args as usize);
     for _ in 0..num_bootstrap_args {
-        bootstrap_arguments.push(read16(p));
+        bootstrap_arguments.push(p.read16());
     }
     BootstrapMethod { bootstrap_arguments, bootstrap_method_ref }
 }
 
-fn parse_inner_class(p: &mut ParsingContext) -> InnerClass {
-    let inner_class_info_index = read16(p);
-    let outer_class_info_index = read16(p);
-    let inner_name_index = read16(p);
-    let inner_class_access_flags = read16(p);
+fn parse_inner_class(p: &mut dyn ParsingContext) -> InnerClass {
+    let inner_class_info_index = p.read16();
+    let outer_class_info_index = p.read16();
+    let inner_name_index = p.read16();
+    let inner_class_access_flags = p.read16();
     InnerClass { inner_class_access_flags, inner_class_info_index, inner_name_index, outer_class_info_index }
 }
 
-fn parse_inner_classes(p: &mut ParsingContext) -> AttributeType {
-    let number_of_classes = read16(p);
+fn parse_inner_classes(p: &mut dyn ParsingContext) -> AttributeType {
+    let number_of_classes = p.read16();
     let mut classes = Vec::with_capacity(number_of_classes as usize);
     for _ in 0..number_of_classes {
         classes.push(parse_inner_class(p))
@@ -115,38 +115,38 @@ fn parse_inner_classes(p: &mut ParsingContext) -> AttributeType {
     )
 }
 
-fn parse_deprecated(_: &mut ParsingContext) -> AttributeType {
+fn parse_deprecated(_: &mut dyn ParsingContext) -> AttributeType {
     AttributeType::Deprecated(Deprecated {})
 }
 
-fn parse_exceptions(p: &mut ParsingContext) -> AttributeType {
-    let num_exceptions = read16(p);
+fn parse_exceptions(p: &mut dyn ParsingContext) -> AttributeType {
+    let num_exceptions = p.read16();
     let mut exception_index_table = Vec::new();
     for _ in 0..num_exceptions {
-        exception_index_table.push(read16(p));
+        exception_index_table.push(p.read16());
     }
     AttributeType::Exceptions(Exceptions { exception_index_table })
 }
 
-fn parse_signature(p: &mut ParsingContext) -> AttributeType {
-    return AttributeType::Signature(Signature { signature_index: read16(p) });
+fn parse_signature(p: &mut dyn ParsingContext) -> AttributeType {
+    return AttributeType::Signature(Signature { signature_index: p.read16 ()});
 }
 
-fn parse_element_value(p: &mut ParsingContext) -> ElementValue {
-    let tag = read8(p) as char;
+fn parse_element_value(p: &mut dyn ParsingContext) -> ElementValue {
+    let tag = p.read8() as char;
     match tag {
         'B' => { unimplemented!() }
         'C' => { unimplemented!() }
         'S' => { unimplemented!() }
         's' => {
-            ElementValue::String(read16(p))
+            ElementValue::String(p.read16())
         }
         _ => { unimplemented!("{}", tag) }
     }
 }
 
-fn parse_element_value_pair(p: &mut ParsingContext) -> ElementValuePair {
-    let element_name_index = read16(p);
+fn parse_element_value_pair(p: &mut dyn ParsingContext) -> ElementValuePair {
+    let element_name_index = p.read16();
     let value = parse_element_value(p);
     return ElementValuePair {
         element_name_index,
@@ -154,9 +154,9 @@ fn parse_element_value_pair(p: &mut ParsingContext) -> ElementValuePair {
     };
 }
 
-fn parse_annotation(p: &mut ParsingContext) -> Annotation {
-    let type_index = read16(p);
-    let num_element_value_pairs = read16(p);
+fn parse_annotation(p: &mut dyn ParsingContext) -> Annotation {
+    let type_index = p.read16();
+    let num_element_value_pairs = p.read16();
     let mut element_value_pairs: Vec<ElementValuePair> = Vec::with_capacity(num_element_value_pairs as usize);
     for _ in 0..num_element_value_pairs {
         element_value_pairs.push(parse_element_value_pair(p));
@@ -168,8 +168,8 @@ fn parse_annotation(p: &mut ParsingContext) -> Annotation {
     };
 }
 
-fn parse_runtime_visible_annotations(p: &mut ParsingContext) -> AttributeType {
-    let num_annotations = read16(p);
+fn parse_runtime_visible_annotations(p: &mut dyn ParsingContext) -> AttributeType {
+    let num_annotations = p.read16();
     let mut annotations = Vec::with_capacity(num_annotations as usize);
     for _ in 0..num_annotations {
         annotations.push(parse_annotation(p));
@@ -178,8 +178,8 @@ fn parse_runtime_visible_annotations(p: &mut ParsingContext) -> AttributeType {
 }
 
 
-fn parse_stack_map_table(p: &mut ParsingContext) -> AttributeType {
-    let number_of_entries = read16(p);
+fn parse_stack_map_table(p: &mut dyn ParsingContext) -> AttributeType {
+    let number_of_entries = p.read16();
     let mut entries = Vec::with_capacity(number_of_entries as usize);
     for _ in 0..number_of_entries {
         entries.push(parse_stack_map_table_entry(p));
@@ -187,8 +187,8 @@ fn parse_stack_map_table(p: &mut ParsingContext) -> AttributeType {
     return AttributeType::StackMapTable(StackMapTable { entries });
 }
 
-fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
-    let type_of_frame = read8(p);
+fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> StackMapFrame {
+    let type_of_frame = p.read8();
     //todo magic constants
 //    match type_of_frame {
     if type_of_frame <= 63 {//todo <= or <
@@ -199,7 +199,7 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
             stack: parse_verification_type_info(p),
         })
     } else if 252 <= type_of_frame && type_of_frame <= 254 { //todo <= or <
-        let offset_delta = read16(p);
+        let offset_delta = p.read16();
         let locals_size = type_of_frame - 251;
         let mut locals = Vec::with_capacity(locals_size as usize);
         for _ in 0..locals_size {
@@ -210,13 +210,13 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
             locals,
         })
     } else if type_of_frame == 255 {
-        let offset_delta = read16(p);
-        let number_of_locals = read16(p);
+        let offset_delta = p.read16();
+        let number_of_locals = p.read16();
         let mut locals = Vec::with_capacity(number_of_locals as usize);
         for _ in 0..number_of_locals {
             locals.push(parse_verification_type_info(p));
         }
-        let number_of_stack_items = read16(p);
+        let number_of_stack_items = p.read16();
         let mut stack = Vec::with_capacity(number_of_stack_items as usize);
         for _ in 0..number_of_stack_items {
             stack.push(parse_verification_type_info(p));
@@ -229,14 +229,14 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
             stack,
         })
     } else if type_of_frame >= 248 && type_of_frame <= 250 {
-        let offset_delta = read16(p);
+        let offset_delta = p.read16();
         let k_frames_to_chop = 251 - type_of_frame;
         StackMapFrame::ChopFrame(ChopFrame { offset_delta, k_frames_to_chop })
     } else if type_of_frame == 251 {
-        let offset_delta = read16(p);
+        let offset_delta = p.read16();
         StackMapFrame::SameFrameExtended(SameFrameExtended { offset_delta })
     } else if type_of_frame == 247 {
-        let offset_delta = read16(p);
+        let offset_delta = p.read16();
         let stack = parse_verification_type_info(p);
         StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack })
     } else {
@@ -244,8 +244,8 @@ fn parse_stack_map_table_entry(p: &mut ParsingContext) -> StackMapFrame {
     }
 }
 
-fn parse_verification_type_info(p: &mut ParsingContext) -> ParsedType {
-    let type_ = read8(p);
+fn parse_verification_type_info(p: &mut dyn ParsingContext) -> ParsedType {
+    let type_ = p.read8();
     //todo magic constants
     match type_ {
         0 => ParsedType::TopType,
@@ -255,19 +255,19 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> ParsedType {
         4 => ParsedType::LongType,
         6 => ParsedType::UninitializedThis,
         7 => {
-            let original_index = read16(p);
-            let index = match &p.constant_pool[original_index as usize].kind {
+            let original_index = p.read16();
+            let index = match &p.constant_pool_borrow()[original_index as usize].kind {
                 ConstantKind::Utf8(_u) => { panic!();/*original_index */},
                 ConstantKind::Class(c) => c.name_index,
                 ConstantKind::String(_c) => panic!(),
                 _ => { panic!() }
             };
-            let type_descriptor = extract_string_from_utf8(&p.constant_pool[index as usize]);
+            let type_descriptor = extract_string_from_utf8(&p.constant_pool_borrow()[index as usize]);
             if type_descriptor.starts_with("[") {
-                let res_descriptor = parse_field_descriptor(&p.loader.clone(),type_descriptor.as_str()).unwrap();
+                let res_descriptor = parse_field_descriptor(&p.loader(),type_descriptor.as_str()).unwrap();
                 res_descriptor.field_type
             }else {
-                ParsedType::Class(ClassWithLoader {class_name:ClassName::Str(type_descriptor), loader: p.loader.clone() })
+                ParsedType::Class(ClassWithLoader {class_name:ClassName::Str(type_descriptor), loader: p.loader() })
             }
 
         },
@@ -275,8 +275,8 @@ fn parse_verification_type_info(p: &mut ParsingContext) -> ParsedType {
     }
 }
 
-fn parse_sourcefile(p: &mut ParsingContext) -> AttributeType {
-    let sourcefile_index = read16(p);
+fn parse_sourcefile(p: &mut dyn ParsingContext) -> AttributeType {
+    let sourcefile_index = p.read16();
     return AttributeType::SourceFile(
         SourceFile {
             sourcefile_index
@@ -284,8 +284,8 @@ fn parse_sourcefile(p: &mut ParsingContext) -> AttributeType {
     );
 }
 
-fn parse_local_variable_table(p: &mut ParsingContext) -> AttributeType {
-    let local_variable_table_length = read16(p);
+fn parse_local_variable_table(p: &mut dyn ParsingContext) -> AttributeType {
+    let local_variable_table_length = p.read16();
     let mut local_variable_table = Vec::with_capacity(local_variable_table_length as usize);
     for _ in 0..local_variable_table_length {
         local_variable_table.push(read_local_variable_table_entry(p));
@@ -297,12 +297,12 @@ fn parse_local_variable_table(p: &mut ParsingContext) -> AttributeType {
     );
 }
 
-fn read_local_variable_table_entry(p: &mut ParsingContext) -> LocalVariableTableEntry {
-    let start_pc = read16(p);
-    let length = read16(p);
-    let name_index = read16(p);
-    let descriptor_index = read16(p);
-    let index = read16(p);
+fn read_local_variable_table_entry(p: &mut dyn ParsingContext) -> LocalVariableTableEntry {
+    let start_pc = p.read16();
+    let length = p.read16();
+    let name_index = p.read16();
+    let descriptor_index = p.read16();
+    let index = p.read16();
     return LocalVariableTableEntry {
         start_pc,
         length,
@@ -312,8 +312,8 @@ fn read_local_variable_table_entry(p: &mut ParsingContext) -> LocalVariableTable
     };
 }
 
-fn parse_line_number_table(p: &mut ParsingContext) -> AttributeType {
-    let line_number_table_length = read16(p);
+fn parse_line_number_table(p: &mut dyn ParsingContext) -> AttributeType {
+    let line_number_table_length = p.read16();
     let mut line_number_table = Vec::with_capacity(line_number_table_length as usize);
     for _ in 0..line_number_table_length {
         line_number_table.push(parse_line_number_table_entry(p));
@@ -325,37 +325,37 @@ fn parse_line_number_table(p: &mut ParsingContext) -> AttributeType {
     );
 }
 
-fn parse_line_number_table_entry(p: &mut ParsingContext) -> LineNumberTableEntry {
-    let start_pc = read16(p);
-    let line_number = read16(p);
+fn parse_line_number_table_entry(p: &mut dyn ParsingContext) -> LineNumberTableEntry {
+    let start_pc = p.read16();
+    let line_number = p.read16();
     return LineNumberTableEntry {
         start_pc,
         line_number,
     };
 }
 
-fn parse_exception_table_entry(p: &mut ParsingContext) -> ExceptionTableElem {
-    let start_pc = read16(p);
-    let end_pc = read16(p);
-    let handler_pc = read16(p);
-    let catch_type = read16(p);
+fn parse_exception_table_entry(p: &mut dyn ParsingContext) -> ExceptionTableElem {
+    let start_pc = p.read16();
+    let end_pc = p.read16();
+    let handler_pc = p.read16();
+    let catch_type = p.read16();
     return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type };
 }
 
-fn parse_code(p: &mut ParsingContext) -> AttributeType {
-    let max_stack = read16(p);
-    let max_locals = read16(p);
-    let code_length = read32(p);
+fn parse_code(p: &mut dyn ParsingContext) -> AttributeType {
+    let max_stack = p.read16();
+    let max_locals = p.read16();
+    let code_length = p.read32();
     let mut code = Vec::with_capacity(code_length as usize);
     for _ in 0..code_length {
-        code.push(read8(p));
+        code.push(p.read8());
     }
-    let exception_table_length = read16(p);
+    let exception_table_length = p.read16();
     let mut exception_table = Vec::with_capacity(exception_table_length as usize);
     for _ in 0..exception_table_length {
         exception_table.push(parse_exception_table_entry(p));
     }
-    let attributes_count = read16(p);
+    let attributes_count = p.read16();
     let attributes = parse_attributes(p, attributes_count);
 
     let parsed_code = parse_code_raw(code.as_slice());
@@ -371,7 +371,7 @@ fn parse_code(p: &mut ParsingContext) -> AttributeType {
 }
 
 
-pub fn parse_attributes(p: &mut ParsingContext, num_attributes: u16) -> Vec<AttributeInfo> {
+pub fn parse_attributes(p: &mut dyn ParsingContext, num_attributes: u16) -> Vec<AttributeInfo> {
     let mut res = Vec::with_capacity(num_attributes as usize);
     for _ in 0..num_attributes {
         res.push(parse_attribute(p));

@@ -9,3 +9,8 @@ edition = "2018"
 [dependencies]
 rust-jvm-common = {path = "../rust-jvm-common"}
 zip = "0.5.4"
+classfile-parser = {path = "../classfile-parser"}
+
+[dev-dependencies]
+ntest_timeout = "0.3.0"
+timebomb = "0.1.2"

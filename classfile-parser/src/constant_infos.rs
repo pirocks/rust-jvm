@@ -1,4 +1,4 @@
-use crate::parsing_util::{ParsingContext, read16, read8, read32};
+use crate::parsing_util::ParsingContext;
 use rust_jvm_common::classfile::{ConstantKind, Utf8, Integer, Float, Long, Fieldref, Methodref, MethodType, NameAndType, InterfaceMethodref, MethodHandle, InvokeDynamic, ConstantInfo, InvalidConstant, Class, String_};
 use rust_jvm_common::classfile::Double;
 
@@ -28,83 +28,83 @@ const MODULE_CONST_NUM: u8 = 19;
 const PACKAGE_CONST_NUM: u8 = 20;
 const INVALID_CONSTANT_CONST_NUM: u8 = 21;
 
-pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
-    let kind = read8(p);
+pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo{
+    let kind = p.read8();
     let result_kind: ConstantKind = match kind {
         UTF8_CONST_NUM => {
-            let length = read16(p);
+            let length = p.read16();
             let mut buffer = Vec::new();
             for _ in 0..length{
-                buffer.push(read8(p))
+                buffer.push(p.read8())
             }
             let str_ = String::from_utf8(buffer).expect("Invalid utf8 in constant pool");
             ConstantKind::Utf8( Utf8 { length, string: str_ } )
         },
         INTEGER_CONST_NUM => {
-            let bytes = read32(p);
+            let bytes = p.read32();
             ConstantKind::Integer(Integer {bytes})
         },
         FLOAT_CONST_NUM => {
-            let bytes = read32(p);
+            let bytes = p.read32();
             ConstantKind::Float(Float {bytes})
         },
         LONG_CONST_NUM => {
-            let high_bytes = read32(p);
-            let low_bytes = read32(p);
+            let high_bytes = p.read32();
+            let low_bytes = p.read32();
             ConstantKind::Long(Long {high_bytes, low_bytes })
         },
         DOUBLE_CONST_NUM => {
-            let high_bytes = read32(p);
-            let low_bytes = read32(p);
+            let high_bytes = p.read32();
+            let low_bytes = p.read32();
             ConstantKind::Double(Double {
                 high_bytes, low_bytes
             })
         },
         CLASS_CONST_NUM => {
-            let name_index = read16(p);
+            let name_index = p.read16();
             ConstantKind::Class( Class { name_index } )
         },
         STRING_CONST_NUM => {
-            let string_index = read16(p);
+            let string_index = p.read16();
             ConstantKind::String( String_ { string_index } )
         },
         FIELDREF_CONST_NUM => {
-            let class_index = read16(p);
-            let name_and_type_index = read16(p);
+            let class_index = p.read16();
+            let name_and_type_index = p.read16();
             ConstantKind::Fieldref( Fieldref {class_index,name_and_type_index})
         },
         METHODREF_CONST_NUM => {
-            let class_index = read16(p);
-            let name_and_type_index = read16(p);
+            let class_index = p.read16();
+            let name_and_type_index = p.read16();
             ConstantKind::Methodref( Methodref {class_index,name_and_type_index})
         },
         INTERFACE_METHODREF_CONST_NUM => {
-            let class_index = read16(p);
-            let nt_index = read16(p);
+            let class_index = p.read16();
+            let nt_index = p.read16();
             ConstantKind::InterfaceMethodref(InterfaceMethodref { class_index, nt_index })
         },
         NAME_AND_TYPE_CONST_NUM => {
-            let name_index = read16(p);
-            let descriptor_index = read16(p);
+            let name_index = p.read16();
+            let descriptor_index = p.read16();
             ConstantKind::NameAndType( NameAndType { name_index,descriptor_index } )
         },
         METHOD_HANDLE_CONST_NUM => {
-            let reference_kind = read8(p);
-            let reference_index = read16(p);
+            let reference_kind = p.read8();
+            let reference_index = p.read16();
             ConstantKind::MethodHandle(MethodHandle {
                 reference_kind, reference_index
             })
         },
         METHOD_TYPE_CONST_NUM => {
-            let descriptor_index = read16(p);
+            let descriptor_index = p.read16();
             ConstantKind::MethodType(MethodType {
                 descriptor_index
             })
         },
         DYNAMIC_CONST_NUM => { unimplemented!() },
         INVOKE_DYNAMIC_CONST_NUM => {
-            let bootstrap_method_attr_index = read16(p);
-            let name_and_type_index = read16(p);
+            let bootstrap_method_attr_index = p.read16();
+            let name_and_type_index = p.read16();
             ConstantKind::InvokeDynamic(InvokeDynamic {
                 bootstrap_method_attr_index,
                 name_and_type_index,
@@ -126,7 +126,7 @@ pub fn parse_constant_info(p: &mut ParsingContext) -> ConstantInfo{
 }
 
 
-pub fn parse_constant_infos(p: &mut ParsingContext, constant_pool_count: u16) -> Vec<ConstantInfo> {
+pub fn parse_constant_infos(p: &mut dyn ParsingContext, constant_pool_count: u16) -> Vec<ConstantInfo> {
     let mut constants = Vec::with_capacity(constant_pool_count as usize);
     let mut skip_next_iter = true;
     //skip first loop iteration b/c the first element of the constant pool isn't a thing
