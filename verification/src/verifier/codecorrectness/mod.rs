@@ -3,7 +3,7 @@ use crate::verifier::{Frame, ClassWithLoaderMethod, get_class};
 use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
 use std::sync::Arc;
-use crate::verifier::instructions::{handers_are_legal, FrameResult};
+use crate::verifier::instructions::{handlers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
 
 use std::option::Option::Some;
@@ -270,7 +270,7 @@ pub fn method_with_code_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader
     dbg!(&frame_size);
 //    dbg!(&return_type);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
-    handers_are_legal(&env)?;
+    handlers_are_legal(&env)?;
     merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame))?;
     Result::Ok(())
 }

@@ -11,8 +11,6 @@ use std::path::Path;
 use rust_jvm_common::classnames::class_name;
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
-use std::cell::RefCell;
-use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct Classpath {
@@ -53,12 +51,11 @@ impl Loader for BootstrapLoader {
         //todo assert self arc is same
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());
-        match maybe_classfile {
+        let res = match maybe_classfile {
             None => {
                 let jar_class_file: Option<Arc<Classfile>> = self.classpath.jars.iter().find_map(|h|{
-                    let mut h2 = h.borrow_mut();
-                    let handle = h2.deref_mut().deref_mut();
-                    match handle.lookup(name,self_arc.clone()){
+                    let mut h2 = h.write().unwrap();
+                    match h2.lookup(name,self_arc.clone()){
                         Ok(c) => Some(c),
                         Err(_) => None,
                     }
@@ -84,12 +81,18 @@ impl Loader for BootstrapLoader {
                     Some(path) => {
                         let file = File::open(path).unwrap();
                         let classfile = parse_class_file(&mut (&file).try_clone().unwrap(), self_arc);
-                        self.parsed.write().unwrap().insert(class_name(&classfile), classfile.clone());
                         Result::Ok(classfile)
                     }
                 }
             }
             Some(c) => Result::Ok(c.clone()),
+        };
+        match res {
+            Ok(c) => {
+                self.parsed.write().unwrap().insert(class_name(&c), c.clone());
+                Result::Ok(c)
+            },
+            Err(_) => res,
         }
     }
 }

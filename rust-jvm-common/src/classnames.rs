@@ -90,8 +90,8 @@ impl ClassName{
         match self{
             ClassName::Ref(r) => {
                 let upgraded_class_ref = match r.class_file.upgrade() {
-                    None => {panic!()},
-                    Some(s) => s
+                    None => panic!(),
+                    Some(c) => c
                 };
                 return extract_string_from_utf8(&upgraded_class_ref.constant_pool[r.index as usize])
             },

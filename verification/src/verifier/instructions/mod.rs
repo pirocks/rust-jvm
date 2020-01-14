@@ -163,7 +163,7 @@ pub fn nth0(index: usize, locals: &Vec<VerificationType>) -> VerificationType {
 }
 
 
-pub fn handers_are_legal(env: &Environment) -> Result<(), TypeSafetyError> {
+pub fn handlers_are_legal(env: &Environment) -> Result<(), TypeSafetyError> {
     let handlers = &env.handlers;
     let res: Result<Vec<_>, _> = handlers.iter().map(|h| {
         handler_is_legal(env, h)
@@ -186,11 +186,10 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 //todo how does bootstrap loader from throwable make its way into this
+                //todo why do I take the class name when I already know it
                 let class_name = class_name(&get_class(&env.vf, &exception_class));
-                let assignable = is_assignable(&env.vf, &VerificationType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
-                                               &VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() }));
-                assignable?;
-                Result::Ok(())
+                is_assignable(&env.vf, &VerificationType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
+                                               &VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() }))
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
             }

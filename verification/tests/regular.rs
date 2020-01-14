@@ -17,7 +17,6 @@ use verification::VerifierContext;
 use rust_jvm_common::classnames::class_name;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classnames::ClassName;
-use std::cell::RefCell;
 
 //#[test]
 //#[timeout(10000)]
@@ -118,7 +117,7 @@ fn verify_impl(classname: &ClassName, jar_path : &Path) -> Result<(), TypeSafety
         loaded: RwLock::new(HashMap::new()),
         parsed: RwLock::new(HashMap::new()),
         name: RwLock::new(LoaderName::BootstrapLoader),
-        classpath: Classpath { jars: vec![RefCell::new(JarHandler::new(jar_path.to_path_buf().into_boxed_path()))], classpath_base: vec![] }
+        classpath: Classpath { jars: vec![RwLock::new(Box::new(JarHandle::new(jar_path.into()).unwrap()))], classpath_base: vec![] }
     };
     let bootstrap_loader = Arc::new(loader);
     let mut jar_handle = JarHandle::new(jar_path.into()).unwrap();
