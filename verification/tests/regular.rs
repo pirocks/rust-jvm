@@ -110,9 +110,17 @@ pub fn can_verify_console() {
 
 
 #[test]
-//#[timeout(10000)]
+#[timeout(20000)]
 pub fn can_verify_properties() {
     let main_class_name = "java/util/Properties".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
+
+
+#[test]
+//#[timeout(10000)]
+pub fn can_verify_string() {
+    let main_class_name = "java/lang/String".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
 

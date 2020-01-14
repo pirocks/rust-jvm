@@ -11,6 +11,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::verifier::instructions::type_transition;
+use crate::verifier::instructions::stores::is_small_array;
 
 
 pub fn instruction_is_type_safe_aaload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -48,13 +49,14 @@ pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, _offset: 
     }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_baload(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_baload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let array_type = nth1_operand_stack_is(2, stack_frame)?;
+    is_small_array(array_type)?;
+    type_transition(env, stack_frame, vec![VerificationType::IntType, VerificationType::TopType], VerificationType::IntType)
+}
 
-pub fn instruction_is_type_safe_caload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
-    type_transition(env,stack_frame,vec![VerificationType::IntType,VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) })],VerificationType::IntType)
+pub fn instruction_is_type_safe_caload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VerificationType::IntType, VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) })], VerificationType::IntType)
 }
 
 //#[allow(unused)]
@@ -62,10 +64,11 @@ pub fn instruction_is_type_safe_caload(env: &Environment, _offset: usize, stack_
 //    unimplemented!()
 //}
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_dload(index: usize, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_dload(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let next_frame = load_is_type_safe(env, index, &VerificationType::DoubleType, stack_frame)?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+}
 
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_faload(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
@@ -78,10 +81,9 @@ pub fn instruction_is_type_safe_fload(index: usize, env: &Environment, _offset: 
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_iaload(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>{
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_iaload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VerificationType::IntType, VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::IntType) })], VerificationType::IntType)
+}
 
 
 pub fn instruction_is_type_safe_iload(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
