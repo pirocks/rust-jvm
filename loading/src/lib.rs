@@ -11,10 +11,12 @@ use std::path::Path;
 use rust_jvm_common::classnames::class_name;
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
+use std::cell::RefCell;
+use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct Classpath {
-    pub jars: Vec<Box<Path>>,
+    pub jars: Vec<RwLock<Box<JarHandle>>>,
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>
 }
@@ -53,8 +55,9 @@ impl Loader for BootstrapLoader {
         let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());
         match maybe_classfile {
             None => {
-                let jar_class_file: Option<Arc<Classfile>> = self.classpath.jars.iter().find_map(|x|{
-                    let mut handle = JarHandle::new(x.clone()).unwrap();
+                let jar_class_file: Option<Arc<Classfile>> = self.classpath.jars.iter().find_map(|h|{
+                    let mut h2 = h.borrow_mut();
+                    let handle = h2.deref_mut().deref_mut();
                     match handle.lookup(name,self_arc.clone()){
                         Ok(c) => Some(c),
                         Err(_) => None,

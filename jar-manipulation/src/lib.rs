@@ -10,6 +10,7 @@ use std::fmt;
 use classfile_parser::parse_class_file;
 use rust_jvm_common::loading::Loader;
 
+#[derive(Debug)]
 pub struct JarHandle {
     pub path: Box<Path>,
     pub zip_archive: ZipArchive<File>,//todo what if loaded from something other than file?
