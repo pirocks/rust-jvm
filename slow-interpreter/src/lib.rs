@@ -20,6 +20,7 @@ pub struct InterpreterState {
     pub terminate: bool,
     pub throw: bool,
     pub function_return: bool,
+    pub bootstrap_loader: Arc<dyn Loader + Send + Sync>
 }
 
 impl InterpreterState {

@@ -24,6 +24,8 @@ use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
+use rust_jvm_common::loading::Loader;
+use rust_jvm_common::classfile::Classfile;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
@@ -169,8 +171,8 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 }
 
 
-fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, String, FieldDescriptor) {
-    let current_class = get_class(&env.vf, env.method.class);
+pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>,l: Arc<dyn Loader + Sync + Send>) -> (ClassName, String, FieldDescriptor) {
+    let current_class = class;
     let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
     let (class_index, name_and_type_index) = match field_entry {
         ConstantKind::Fieldref(f) => {
@@ -192,12 +194,12 @@ fn extract_field_descriptor(cp: CPIndex, env: &Environment) -> (ClassName, Strin
     };
     let field_name = extract_string_from_utf8(&current_class.constant_pool[field_name_index as usize]);
     let descriptor_string = extract_string_from_utf8(&current_class.constant_pool[descriptor_index as usize]);
-    let field_descriptor = parse_field_descriptor(&env.class_loader, descriptor_string.as_ref()).unwrap();
+    let field_descriptor = parse_field_descriptor(&l, descriptor_string.as_ref()).unwrap();
     (field_class_name, field_name, field_descriptor)
 }
 
 pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf,env.method.class),env.class_loader.clone());
     let field_type = (&field_descriptor.field_type).to_verification_type();
     let next_frame = can_pop(&env.vf, stack_frame, vec![field_type])?;
     let exception_frame = exception_stack_frame(stack_frame);
