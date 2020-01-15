@@ -53,7 +53,7 @@ pub fn init_locals_static_no_args(_class_file:&Classfile, _method: &MethodInfo) 
 }
 
 pub fn run_static_method_no_args(classfile: &Classfile, method: &MethodInfo) {
-    dbg!("{}",extract_string_from_utf8(&classfile.constant_pool[method.name_index as usize]));
+//    dbg!("{}",extract_string_from_utf8(&classfile.constant_pool[method.name_index as usize]));
     let _code = code_attribute(method).expect("Error finding code in method");
     let local_vars = init_locals_static_no_args(classfile,method);
 

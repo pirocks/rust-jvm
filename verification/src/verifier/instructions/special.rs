@@ -84,7 +84,7 @@ fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> Parsed
 }
 
 pub fn instruction_is_type_safe_arraylength(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    dbg!(stack_frame);
+//    dbg!(stack_frame);
     let array_type = nth1_operand_stack_is(1, stack_frame)?;
     array_component_type(array_type)?;
     let next_frame = valid_type_transition(env, vec![VerificationType::TopType], &VerificationType::IntType, stack_frame)?;
@@ -127,7 +127,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, _offs
         }
         _ => panic!()
     };
-    dbg!(&result_type);
+//    dbg!(&result_type);
     let next_frame = valid_type_transition(env, vec![VerificationType::Class(object_class)], &result_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
@@ -275,7 +275,7 @@ fn primitive_array_info(type_code: usize) -> ParsedType {
 
 pub fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if !sorted(&keys) {
-        dbg!(keys);
+//        dbg!(keys);
         return Result::Err(unknown_error_verifying!());
     }
     let branch_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::IntType])?;

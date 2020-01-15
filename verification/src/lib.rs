@@ -148,12 +148,12 @@ impl OperandStack{
     }
 
     pub fn new_prolog_display_order(types: &Vec<VerificationType>) -> OperandStack{
-        dbg!(types);
+//        dbg!(types);
         let mut o = OperandStack::empty();
         for type_ in types{
             o.operand_push(type_.clone())
         }
-        dbg!(&o);
+//        dbg!(&o);
         o
     }
 

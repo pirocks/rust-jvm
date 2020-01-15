@@ -186,7 +186,7 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _off
 fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name: &ClassName, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(ParsedType::to_verification_type).collect();
     stack_arg_list.reverse();
-    dbg!(&stack_arg_list);
+//    dbg!(&stack_arg_list);
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let locals = temp_frame.locals;
     let mut operand_stack = temp_frame.stack_map.clone();
@@ -196,7 +196,7 @@ fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name
 //    match first {
 //        None => unimplemented!(),
 //        Some(u) => {
-    dbg!(&operand_stack);
+//    dbg!(&operand_stack);
     match first {
         VerificationType::Uninitialized(address) => {
             let uninit_address = VerificationType::Uninitialized(UninitializedVariableInfo { offset: address.offset });
@@ -388,11 +388,11 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     let nf = valid_type_transition(env, stack_arg_list.clone(), &return_type, stack_frame)?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
     if class_name.is_some() {
-        dbg!(stack_arg_list);
-        dbg!(&popped_frame);
-        dbg!(&nf);
-        dbg!(&class_name.clone().unwrap());
-        dbg!(Descriptor::Method(&parsed_descriptor));
+//        dbg!(stack_arg_list);
+//        dbg!(&popped_frame);
+//        dbg!(&nf);
+//        dbg!(&class_name.clone().unwrap());
+//        dbg!(Descriptor::Method(&parsed_descriptor));
         passes_protected_check(env, &class_name.unwrap(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     }
     let exception_stack_frame = exception_stack_frame(stack_frame);

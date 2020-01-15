@@ -120,8 +120,8 @@ fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_st
         is_applicable_handler(offset as usize, h)
     });
     let res: Result<Vec<_>, _> = applicable_handler.map(|h| {
-        dbg!(&h);
-        dbg!(offset);
+        //dbg!(&h);
+//        dbg!(offset);
         instruction_satisfies_handler(env, exception_stack_frame, h)
     }).collect();
     res?;

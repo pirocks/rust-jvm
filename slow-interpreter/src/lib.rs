@@ -43,16 +43,16 @@ pub struct CallStackEntry {
 }
 
 
-pub fn run(main_class_name: &ClassName, loader: Arc<dyn Loader + Send + Sync>, args: Vec<String>) -> Result<(), Box<dyn Error>> {
-    let main = loader.load_class(main_class_name)?;
-    let main_class = prepare_class(main.clone(), loader.clone());
+pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args: Vec<String>) -> Result<(), Box<dyn Error>> {
+    let main = bl.clone().load_class(bl.clone(),main_class_name,bl.clone())?;
+    let main_class = prepare_class(main.clone(), bl.clone());
     let (main_i, main_method) = &main.methods.iter().enumerate().find(|(_, method)| {
         let name = method_name(&main, &method);
         if name == "main" {
             let descriptor_string = extract_string_from_utf8(&main.constant_pool[method.descriptor_index as usize]);
-            let descriptor = parse_method_descriptor(&loader, descriptor_string.as_str()).unwrap();
+            let descriptor = parse_method_descriptor(&bl, descriptor_string.as_str()).unwrap();
             let string_name = ClassName::Str("java/lang/String".to_string());
-            let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: loader.clone() });
+            let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
             let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
             descriptor.parameter_types.len() == 1 &&
                 descriptor.return_type == ParsedType::VoidType &&

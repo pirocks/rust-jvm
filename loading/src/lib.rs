@@ -1,3 +1,6 @@
+extern crate log;
+extern crate simple_logger;
+
 use std::sync::Arc;
 use std::fs::File;
 use rust_jvm_common::loading::Loader;
@@ -11,12 +14,16 @@ use std::path::Path;
 use rust_jvm_common::classnames::class_name;
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
+use rust_jvm_common::utils::get_super_class_name;
+use verification::verify;
+use verification::VerifierContext;
+use log::trace;
 
 #[derive(Debug)]
 pub struct Classpath {
     pub jars: Vec<RwLock<Box<JarHandle>>>,
     //base directories to search for a file in.
-    pub classpath_base: Vec<Box<Path>>
+    pub classpath_base: Vec<Box<Path>>,
 }
 
 #[derive(Debug)]
@@ -38,8 +45,23 @@ impl Loader for BootstrapLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, _class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
-        unimplemented!()
+    fn load_class(&self, self_arc: Arc<dyn Loader + Sync + Send>, class: &ClassName, bl: Arc<dyn Loader + Send + Sync>) -> Result<Arc<Classfile>, ClassLoadingError> {
+        if !self.initiating_loader_of(class) {
+            trace!("loading {}",class.get_referred_name());
+            let classfile = self.pre_load(self_arc.clone(), class)?;
+            if classfile.super_class == 0 {
+//                self.load_class(self_arc.clone(), &ClassName::Str("java/lang/Object".to_string()),bl.clone())?;
+            } else {
+                let super_class_name = get_super_class_name(&classfile);
+                self.load_class(self_arc.clone(), &super_class_name,bl.clone())?;
+            }
+            match verify(&VerifierContext { bootstrap_loader: bl.clone() }, classfile.clone(), self_arc){
+                Ok(_) => {},
+                Err(_) => panic!(),
+            };
+            self.loaded.write().unwrap().insert(class.clone(), classfile);
+        }
+        Result::Ok(self.loaded.read().unwrap().get(class).unwrap().clone())
     }
 
     fn name(&self) -> LoaderName {
@@ -47,26 +69,27 @@ impl Loader for BootstrapLoader {
     }
 
     //todo hacky and janky
+    // as a fix for self_arc we could wrap Arc, and have that struct impl loader
     fn pre_load(&self, self_arc: Arc<dyn Loader + Sync + Send>, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         //todo assert self arc is same
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());
         let res = match maybe_classfile {
             None => {
-                let jar_class_file: Option<Arc<Classfile>> = self.classpath.jars.iter().find_map(|h|{
+                let jar_class_file: Option<Arc<Classfile>> = self.classpath.jars.iter().find_map(|h| {
                     let mut h2 = h.write().unwrap();
-                    match h2.lookup(name,self_arc.clone()){
+                    match h2.lookup(name, self_arc.clone()) {
                         Ok(c) => Some(c),
                         Err(_) => None,
                     }
                 });
-                match jar_class_file{
+                match jar_class_file {
                     None => {
                         self.search_class_files(self_arc, name)
-                    },
+                    }
                     Some(c) => {
                         Result::Ok(c)
-                    },
+                    }
                 }
             }
             Some(c) => Result::Ok(c.clone()),
@@ -75,7 +98,7 @@ impl Loader for BootstrapLoader {
             Ok(c) => {
                 self.parsed.write().unwrap().insert(class_name(&c), c.clone());
                 Result::Ok(c)
-            },
+            }
             Err(_) => res,
         }
     }
@@ -92,7 +115,7 @@ impl BootstrapLoader {
         });
         match found_class_file {
             None => {
-                dbg!(name);
+//                dbg!(name);
                 Result::Err(ClassLoadingError::ClassNotFoundException)
             }
             Some(path) => {

@@ -61,7 +61,7 @@ pub trait Loader {
     fn initiating_loader_of(&self, class: &ClassName) -> bool;
     //todo File will have to be a much more general array of bytes
     fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError>;
-    fn load_class(&self, class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError>;
+    fn load_class(&self,  self_arc: Arc<dyn Loader + Sync + Send>,class: &ClassName, bl: Arc<dyn Loader + Sync + Send>) -> Result<Arc<Classfile>, ClassLoadingError>;
     fn name(&self) -> LoaderName;
 
 
@@ -84,7 +84,7 @@ impl Loader for EmptyLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, _class: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn load_class(&self, _self_arc: Arc<dyn Loader + Sync + Send>,_class: &ClassName, _bl: Arc<dyn Loader + Sync + Send>) -> Result<Arc<Classfile>, ClassLoadingError> {
         unimplemented!()
     }
 

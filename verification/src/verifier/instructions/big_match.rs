@@ -61,8 +61,8 @@ use crate::verifier::instructions::loads::instruction_is_type_safe_baload;
 use crate::verifier::instructions::loads::instruction_is_type_safe_dload;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    dbg!(&stack_frame.stack_map);
-    dbg!(instruction);
+//    dbg!(&stack_frame.stack_map);
+//    dbg!(instruction);
     match &instruction.instruction {
         InstructionInfo::aaload => instruction_is_type_safe_aaload(env, offset, stack_frame),
         InstructionInfo::aastore => instruction_is_type_safe_aastore(env, offset, stack_frame),
@@ -299,7 +299,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
                 targets.push((offset as isize + *o as isize) as usize)
             }
             targets.push((offset as isize + s.default as isize) as usize);
-            dbg!(&targets);
+//            dbg!(&targets);
             instruction_is_type_safe_tableswitch(targets, env, offset, stack_frame)
         }
         InstructionInfo::wide(_) => { unimplemented!() }

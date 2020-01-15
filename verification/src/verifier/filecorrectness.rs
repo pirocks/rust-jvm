@@ -152,8 +152,8 @@ pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &Verific
                 if a == a2 {
                     return Result::Ok(());
                 } else {
-                    dbg!(a);
-                    dbg!(a2);
+//                    dbg!(a);
+//                    dbg!(a2);
                     is_java_assignable(vf, from, to)
                 }
             }
@@ -421,9 +421,9 @@ pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: 
 
 //todo ClassName v. Name
 pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor) -> bool {
-    dbg!(super_);
-    dbg!(&member_name);
-    dbg!(&member_descriptor);
+//    dbg!(super_);
+//    dbg!(&member_name);
+//    dbg!(&member_descriptor);
     let class = get_class(vf, super_);
     for method in &class.methods {
         let method_name = extract_string_from_utf8(&class.constant_pool[method.name_index as usize]);

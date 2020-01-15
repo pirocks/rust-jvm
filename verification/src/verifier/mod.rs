@@ -34,10 +34,10 @@ pub struct InternalFrame {
     pub current_offset: u16,
 }
 
-pub fn get_class(_verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<Classfile> {
+pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<Classfile> {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     if class.loader.initiating_loader_of(&class.class_name) {
-        match class.loader.load_class(&class.class_name) {
+        match class.loader.clone().load_class(class.loader.clone(),&class.class_name,verifier_context.bootstrap_loader.clone()) {
             Ok(c) => c,
             Err(_) => panic!(),
         }
@@ -95,8 +95,8 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
     let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
         let res = method_is_type_safe(vf, class, m);
         trace!("method was:");
-        dbg!(&res);
-        //return early:
+//        dbg!(&res);
+//        return early:
         match res {
             Ok(_) => {}
             Err(e) => {

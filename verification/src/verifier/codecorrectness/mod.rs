@@ -29,9 +29,9 @@ pub mod stackmapframes;
 
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VerificationType>, result_type: &VerificationType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
-    dbg!(&expected_types_on_stack);
+//    dbg!(&expected_types_on_stack);
 //    dbg!(&result_type);
-    dbg!(&input_frame.stack_map);
+//    dbg!(&input_frame.stack_map);
     let input_operand_stack = &input_frame.stack_map;
     let interim_operand_stack = pop_matching_list(&env.vf,input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&env.vf,&interim_operand_stack, &result_type);
@@ -48,12 +48,12 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<Ver
 // alternatively results can be reversed at the end.
 pub fn pop_matching_list(vf:&VerifierContext,pop_from: &OperandStack, pop: Vec<VerificationType>) -> Result<OperandStack, TypeSafetyError> {
 //    if pop_from.len() > 1 && pop.len() > 1{
-        dbg!("Attempt to pop matching:");
-        dbg!(&pop_from);
-        dbg!(&pop);
+//        dbg!("Attempt to pop matching:");
+//        dbg!(&pop_from);
+//        dbg!(&pop);
 //    }
     let result = pop_matching_list_impl(vf,&mut pop_from.clone(), pop.as_slice());
-    dbg!(&result);
+//    dbg!(&result);
     return result;
 }
 
@@ -165,8 +165,8 @@ pub fn can_pop(vf:&VerifierContext,input_frame: &Frame, types: Vec<VerificationT
 }
 
 pub fn frame_is_assignable(vf:&VerifierContext,left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
-    dbg!(left);
-    dbg!(right);
+//    dbg!(left);
+//    dbg!(right);
     let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| {
         is_assignable(vf,left_, right_)
     }).collect();
@@ -267,7 +267,7 @@ pub fn method_with_code_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader
     let (frame, return_type) = method_initial_stack_frame(vf,class, method, frame_size);
     trace!("Initial stack frame:");
 //    dbg!(&frame);
-    dbg!(&frame_size);
+//    dbg!(&frame_size);
 //    dbg!(&return_type);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
     handlers_are_legal(&env)?;

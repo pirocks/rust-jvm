@@ -67,7 +67,7 @@ pub fn instruction_is_type_safe_bastore(env: &Environment, _offset: usize, stack
 }
 
 pub fn is_small_array(array_type: VerificationType) -> Result<(),TypeSafetyError> {
-    dbg!(&array_type);
+//    dbg!(&array_type);
     match array_type {
         VerificationType::NullType => Result::Ok(()),
         VerificationType::ArrayReferenceType(a) => match &a.sub_type.deref() {
