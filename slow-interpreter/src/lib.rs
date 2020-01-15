@@ -4,6 +4,8 @@ use crate::runtime_class::RuntimeClass;
 use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::utils::code_attribute;
+use classfile_parser::code::parse_instruction;
+use classfile_parser::code::CodeParserContext;
 
 pub struct InterpreterState {
 //    pub method_area : //todo
@@ -24,15 +26,22 @@ pub struct CallStackEntry {
 
 
 pub fn run(state: &mut InterpreterState) {
-    let current_frame= state.call_stack.last().unwrap();
-    let methods = &current_frame.class_pointer.classfile.methods;
-    let method = &methods[current_frame.method_i as usize];
-    let code = code_attribute(method).unwrap();
+    while !state.terminate {
+        let current_frame= state.call_stack.last_mut().unwrap();
+        let methods = &current_frame.class_pointer.classfile.methods;
+        let method = &methods[current_frame.method_i as usize];
+        let code = code_attribute(method).unwrap();
+        let current = &code.code_raw[current_frame.pc..];
+        let mut context = CodeParserContext { offset: 0, iter: current.iter() };
+        let instr= parse_instruction(&mut context).unwrap();
+        let instruction_size = context.offset;
+        current_frame.pc_offset = instruction_size as isize;
+        do_instruction(instr,state)
+    }
 }
 
 pub fn do_instruction(instruct: InstructionInfo, state: &mut InterpreterState) {
     let current_frame = state.call_stack.last_mut().unwrap();
-    current_frame.pc_offset = 1;//offset the opcode which was just read
     match instruct {
         /*InstructionType::aaload => load_u64(_state),
         InstructionType::aastore => store_i64(_state),

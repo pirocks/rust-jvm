@@ -68,9 +68,9 @@ fn read_wide(_c: &mut CodeParserContext) -> Option<Wide> {
 }
 
 
-struct CodeParserContext<'l> {
-    offset: usize,
-    iter: Iter<'l, u8>,
+pub struct CodeParserContext<'l> {
+    pub offset: usize,
+    pub iter: Iter<'l, u8>,
 }
 
 pub fn parse_code_raw(raw: &[u8]) -> Vec<Instruction> {
@@ -323,7 +323,7 @@ pub enum InstructionTypeNum {
     wide = 196,
 }
 
-fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
+pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
     let opcode = read_opcode(read_u8(c)?);
     Some(match opcode {
         InstructionTypeNum::aaload => { InstructionInfo::aaload }
