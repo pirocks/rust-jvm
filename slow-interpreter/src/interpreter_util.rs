@@ -1,20 +1,13 @@
-use crate::InterpreterState;
+use crate::{InterpreterState, CallStackEntry};
 use rust_jvm_common::utils::code_attribute;
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
 use rust_jvm_common::classfile::InstructionInfo;
-use verification::verifier::codecorrectness::Environment;
-use verification::verifier::ClassWithLoaderMethod;
-use rust_jvm_common::unified_types::VerificationType;
 use verification::verifier::instructions::special::extract_field_descriptor;
-use crate::CallStackEntry;
-use std::sync::Arc;
-use crate::runtime_class::RuntimeClass;
 use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 
-pub fn run_function(state: &mut InterpreterState) {
-    let current_frame = state.call_stack.last_mut().unwrap();
+pub fn run_function(state: &mut InterpreterState, mut current_frame : CallStackEntry) {
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = code_attribute(method).unwrap();
@@ -113,17 +106,19 @@ pub fn run_function(state: &mut InterpreterState) {
             InstructionInfo::getfield(_) => unimplemented!(),
             InstructionInfo::getstatic(cp) => {
                 //todo make sure class pointer is updated correctly
+
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let bl = state.bootstrap_loader.clone();
-                let target_classfile = loader_arc.clone().load_class(loader_arc, &field_class_name, bl).unwrap();
-                let inited_target =  initialize_class(prepare_class(target_classfile,loader_arc),state);//todo need to store initted class in state.
-
-
-
-
-                run_function(state);
+                if !state.initialized_classes.read().unwrap().contains_key(&field_class_name){
+                    let bl = state.bootstrap_loader.clone();
+                    let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &field_class_name, bl).unwrap();
+                    let inited_target =  initialize_class(prepare_class(target_classfile,loader_arc.clone()),state,current_frame.clone());//todo need to store initted class in state.
+                    state.initialized_classes.write().unwrap().insert(field_class_name.clone(),inited_target);
+                }
+                let target_classfile = state.initialized_classes.read().unwrap().get(&field_class_name).unwrap().clone();
+                let field_value = target_classfile.static_vars.get(&field_name).unwrap();
+                current_frame.operand_stack.push(field_value.clone());
             },
             InstructionInfo::goto_(_) => unimplemented!(),
             InstructionInfo::goto_w(_) => unimplemented!(),

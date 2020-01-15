@@ -13,6 +13,7 @@ use rust_jvm_common::classfile::CPIndex;
 use crate::InterpreterState;
 use crate::CallStackEntry;
 use crate::run_function;
+use std::rc::Rc;
 
 pub struct RuntimeClass{
     pub classfile: Arc<Classfile>,
@@ -40,7 +41,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
     }
 }
 
-pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState) -> Arc<RuntimeClass>{
+pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState, stack: CallStackEntry) -> Arc<RuntimeClass>{
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
@@ -59,15 +60,16 @@ pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut Interpreter
     }).unwrap();
     //todo should I really be manipulating the interpreter state like this
     let class_arc = Arc::new(runtime_class);
-    state.call_stack.push(CallStackEntry {
+    let new_stack = CallStackEntry {
+        last_call_stack: Some(Rc::new(stack)),
         class_pointer: class_arc.clone(),
         method_i: clinit_i as u16,
         local_vars: vec![],
         operand_stack: vec![],
         pc: 0,
         pc_offset: 0
-    });
-    run_function(state);
+    };
+    run_function(state,new_stack);
     if state.throw || state.terminate {
         unimplemented!()
         //need to clear status after

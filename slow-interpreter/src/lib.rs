@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use crate::runtime_class::RuntimeClass;
-use crate::java_values::JavaValue;
-use rust_jvm_common::classfile::CPIndex;
+use crate::java_values::{JavaValue, VecPointer};
+use rust_jvm_common::classfile::{CPIndex, Classfile};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::error::Error;
@@ -13,26 +13,29 @@ use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::run_function;
+use std::collections::HashMap;
+use std::rc::Rc;
 
 pub struct InterpreterState {
-    //    pub method_area : //todo
-    pub call_stack: Vec<CallStackEntry>,
+//    pub call_stack: Vec<CallStackEntry>,
     pub terminate: bool,
     pub throw: bool,
     pub function_return: bool,
-    pub bootstrap_loader: Arc<dyn Loader + Send + Sync>
+    pub bootstrap_loader: Arc<dyn Loader + Send + Sync>,
+    pub initialized_classes : RwLock<HashMap<ClassName,Arc<RuntimeClass>>>
 }
 
-impl InterpreterState {
-    fn current_frame_mut(&mut self) -> &mut CallStackEntry {
-        self.call_stack.last_mut().unwrap()
-    }
-    fn current_frame(&self) -> &CallStackEntry {
-        self.call_stack.last().unwrap()
-    }
-}
+//impl InterpreterState {
+//    fn current_frame_mut(&mut self) -> &mut CallStackEntry {
+//        self.call_stack.last_mut().unwrap()
+//    }
+//    fn current_frame(&self) -> &CallStackEntry {
+//        self.call_stack.last().unwrap()
+//    }
+//}
 
 pub struct CallStackEntry {
+    pub last_call_stack : Option<Rc<CallStackEntry>>,
     pub class_pointer: Arc<RuntimeClass>,
     pub method_i: CPIndex,
 
@@ -43,6 +46,19 @@ pub struct CallStackEntry {
     pub pc_offset: isize,
 }
 
+impl Clone for CallStackEntry{
+    fn clone(&self) -> Self {
+        CallStackEntry {
+            last_call_stack: self.last_call_stack.clone(),
+            class_pointer: self.class_pointer.clone(),
+            method_i: self.method_i,
+            local_vars: self.local_vars.clone(),
+            operand_stack: self.operand_stack.clone(),
+            pc: self.pc,
+            pc_offset: self.pc_offset
+        }
+    }
+}
 
 pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let main = bl.clone().load_class(bl.clone(),main_class_name,bl.clone())?;
@@ -63,19 +79,32 @@ pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args:
         }
     }).unwrap();
     let mut state = InterpreterState {
-        call_stack: vec![CallStackEntry {
-            class_pointer: Arc::new(main_class),
-            method_i: *main_i as u16,
-            local_vars: vec![JavaValue::Array(vec![])],//todo handle parameters
-            operand_stack: vec![],
-            pc: 0,
-            pc_offset: 0,
-        }],
+//        call_stack: vec![CallStackEntry {
+//            class_pointer: Arc::new(main_class),
+//            method_i: *main_i as u16,
+//            todo is that vec access safe, or does it not heap allocate?
+//            local_vars: vec![JavaValue::Array(Some(VecPointer { object: unsafe {&vec![]} }))],//todo handle parameters
+//            operand_stack: vec![],
+//            pc: 0,
+//            pc_offset: 0,
+//        }],
         terminate: false,
         throw: false,
         function_return: false,
+        bootstrap_loader: bl.clone(),
+        initialized_classes: RwLock::new(HashMap::new())
     };
-    run_function(&mut state);
+    let stack = CallStackEntry {
+        last_call_stack: None,
+        class_pointer: Arc::new(main_class),
+            method_i: *main_i as u16,
+//            todo is that vec access safe, or does it not heap allocate?
+            local_vars: vec![JavaValue::Array(Some(VecPointer { object: unsafe {&vec![]} }))],//todo handle parameters
+            operand_stack: vec![],
+            pc: 0,
+            pc_offset: 0,
+        };
+    run_function(&mut state,stack);
     Result::Ok(())
 }
 

@@ -18,14 +18,48 @@ pub enum JavaValue {
     Float(f32),
     Double(f64),
 
-    Array(Vec<JavaValue>),
+    Array(Option<VecPointer>),
     Object(Option<ObjectPointer>),
 
     Top,//should never be interacted with by the bytecode
 }
 
+impl Clone for JavaValue{
+    fn clone(&self) -> Self {
+        match self {
+            JavaValue::Long(l) => JavaValue::Long(*l),
+            JavaValue::Int(i) => JavaValue::Int(*i),
+            JavaValue::Short(s) => JavaValue::Short(*s),
+            JavaValue::Byte(b) => JavaValue::Byte(*b),
+            JavaValue::Boolean(b) => JavaValue::Boolean(*b),
+            JavaValue::Char(c) => JavaValue::Char(*c),
+            JavaValue::Float(f) => JavaValue::Float(*f),
+            JavaValue::Double(d) => JavaValue::Double(*d),
+            JavaValue::Array(a) => JavaValue::Array(a.clone()),
+            JavaValue::Object(o) => JavaValue::Object(o.clone()),
+            JavaValue::Top => JavaValue::Top,
+        }
+    }
+}
+
 pub struct ObjectPointer {
     object: *const Object
+}
+
+impl Clone for ObjectPointer{
+    fn clone(&self) -> Self {
+        ObjectPointer { object: self.object }
+    }
+}
+
+pub struct VecPointer {
+    pub object: *const Vec<JavaValue>
+}
+
+impl Clone for VecPointer{
+    fn clone(&self) -> Self {
+        VecPointer { object: self.object }
+    }
 }
 
 pub struct Object {

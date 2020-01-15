@@ -38,7 +38,7 @@ pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, _off
 
 
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf,env.method.class),env.class_loader.clone());
     let field_type = &field_descriptor.field_type.to_verification_type();
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
@@ -48,7 +48,7 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, _offset
 }
 
 pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf,env.method.class),env.class_loader.clone());
     let field_type = &field_descriptor.field_type.to_verification_type();
     let next_frame = valid_type_transition(env, vec![], &field_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -145,7 +145,7 @@ pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, offset:
 
 fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo duplication
-    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, env);
+    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf,env.method.class),env.class_loader.clone());
     let field_type = (&field_descriptor.field_type).to_verification_type();
     if env.method.class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
@@ -160,7 +160,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
 }
 
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, env);
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf,env.method.class),env.class_loader.clone());
     let field_type = (&field_descriptor.field_type).to_verification_type();
     let _popped_frame = can_pop(&env.vf, stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
