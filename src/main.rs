@@ -19,7 +19,6 @@ use slow_interpreter::run;
 use rust_jvm_common::classnames::ClassName;
 use jar_manipulation::JarHandle;
 use std::sync::Arc;
-//use classpath_indexing::index_class_path;
 
 
 extern crate classfile_parser;

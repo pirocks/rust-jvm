@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classfile::{Classfile, ACC_FINAL};
 use rust_jvm_common::loading::Loader;
 use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::ACC_STATIC;
@@ -15,46 +15,51 @@ use crate::CallStackEntry;
 use crate::run_function;
 use std::rc::Rc;
 
-pub struct RuntimeClass{
+pub struct RuntimeClass {
     pub classfile: Arc<Classfile>,
     pub loader: Arc<dyn Loader + Send + Sync>,
-    pub static_vars: HashMap<String,JavaValue>
+    pub static_vars: HashMap<String, JavaValue>,
 }
 
 
-pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> RuntimeClass{
+pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> RuntimeClass {
     let mut res = HashMap::new();
     for field in &classfile.fields {
-        if (field.access_flags & ACC_STATIC) > 0{
+        if (field.access_flags & ACC_STATIC) > 0 {
             let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
             let field_descriptor_string = extract_string_from_utf8(&classfile.constant_pool[field.descriptor_index as usize]);
-            let parsed = parse_field_descriptor(&loader,field_descriptor_string.as_str()).unwrap();//todo we should really have two pass parsing
+            let parsed = parse_field_descriptor(&loader, field_descriptor_string.as_str()).unwrap();//todo we should really have two pass parsing
             let val = default_value(parsed.field_type);
-            res.insert(name,val);
+            res.insert(name, val);
         }
     }
     RuntimeClass {
         classfile,
         loader,
-        static_vars:res,
+        static_vars: res,
 
     }
 }
 
-pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState, stack: CallStackEntry) -> Arc<RuntimeClass>{
+pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState, stack: CallStackEntry) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
     let classfile = &runtime_class.classfile;
     for field in &classfile.fields {
-        let value_i = constant_value_attribute_i(field);
-        let x = &classfile.constant_pool[value_i as usize];
-        let constant_value = JavaValue::from_constant_pool_entry(x);
-        let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
-        runtime_class.static_vars.insert(name,constant_value);
+        if (field.access_flags & ACC_STATIC > 0) && (field.access_flags & ACC_FINAL > 0) {
+            let value_i = match constant_value_attribute_i(field){
+                None => continue,
+                Some(i) => i,
+            };
+            let x = &classfile.constant_pool[value_i as usize];
+            let constant_value = JavaValue::from_constant_pool_entry(x);
+            let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
+            runtime_class.static_vars.insert(name, constant_value);
+        }
     }
     //todo detecting if assertions are enabled?
-    let (clinit_i,_) = runtime_class.classfile.methods.iter().enumerate().find(|(_,m)|{
+    let (clinit_i, _) = runtime_class.classfile.methods.iter().enumerate().find(|(_, m)| {
         let name = extract_string_from_utf8(&classfile.constant_pool[m.name_index as usize]);
         name == "<clinit>"
     }).unwrap();
@@ -67,28 +72,28 @@ pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut Interpreter
         local_vars: vec![],
         operand_stack: vec![],
         pc: 0,
-        pc_offset: 0
+        pc_offset: 0,
     };
-    run_function(state,new_stack);
+    run_function(state, new_stack);
     if state.throw || state.terminate {
         unimplemented!()
         //need to clear status after
     }
     if state.function_return {
         state.function_return = false;
-        return class_arc
+        return class_arc;
     }
     panic!()
 }
 
-fn constant_value_attribute_i(field: &FieldInfo) -> CPIndex {
+fn constant_value_attribute_i(field: &FieldInfo) -> Option<CPIndex> {
     for attr in &field.attributes {
         match &attr.attribute_type {
             AttributeType::ConstantValue(c) => {
-                return c.constant_value_index
-            },
+                return Some(c.constant_value_index);
+            }
             _ => {}
         }
     }
-    panic!()
+    None
 }
