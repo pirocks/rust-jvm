@@ -2,7 +2,6 @@ use std::sync::Arc;
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::CPIndex;
-use classfile_parser::code::parse_instruction;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::error::Error;
