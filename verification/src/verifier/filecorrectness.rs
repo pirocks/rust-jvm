@@ -159,8 +159,8 @@ pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &Verific
             }
             //technically the next case should be partially part of is_java_assignable but is here
             VerificationType::Class(c) => {
-                if is_java_assignable(vf,from,to).is_ok(){
-                    return Result::Ok(())
+                if is_java_assignable(vf, from, to).is_ok() {
+                    return Result::Ok(());
                 }
                 if !is_assignable(vf, &VerificationType::Reference, to).is_ok() {
                     //todo okay to use name like that?
@@ -203,7 +203,10 @@ pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &Verific
                 dbg!(c);
                 panic!()
             }
-            _ => { dbg!(to);Result::Err(unknown_error_verifying!()) }
+            _ => {
+//                dbg!(to);
+                Result::Err(unknown_error_verifying!())
+            }
         },
         VerificationType::TwoWord => match to {
             VerificationType::TwoWord => Result::Ok(()),
@@ -264,8 +267,8 @@ fn is_java_assignable(vf: &VerifierContext, left: &VerificationType, right: &Ver
         VerificationType::ArrayReferenceType(a1) => {
             match right {
                 VerificationType::Class(c) => {
-                    if c.class_name == ClassName::Str("java/lang/Object".to_string()) && &vf.bootstrap_loader.name() == &c.loader.name(){
-                        return Result::Ok(())
+                    if c.class_name == ClassName::Str("java/lang/Object".to_string()) && &vf.bootstrap_loader.name() == &c.loader.name() {
+                        return Result::Ok(());
                     }
                     unimplemented!()
                 }
@@ -358,7 +361,7 @@ pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &
 }
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    dbg!(class);
+//    dbg!(class);
     if class.class_name.get_referred_name() == "java/lang/Object" {
         if is_bootstrap_loader(vf, &class.loader) {
             Result::Ok(())
@@ -440,7 +443,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
             if parsed_member_types.parameter_types == member_types.parameter_types && parsed_member_types.return_type == member_types.return_type {
                 if (method.access_flags & ACC_PROTECTED) > 0 {
                     return true;
-                }else{
+                } else {
                     return false;
                 }
             }
@@ -459,9 +462,9 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
                 _ => panic!()
             };
             if parsed_member_type.field_type == field_type.field_type {
-                if (field.access_flags & ACC_PROTECTED) > 0{
+                if (field.access_flags & ACC_PROTECTED) > 0 {
                     return true;
-                }else {
+                } else {
                     return false;
                 }
             }

@@ -1,4 +1,3 @@
-use log::trace;
 use crate::verifier::{Frame, ClassWithLoaderMethod, get_class};
 use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verifier::codecorrectness::stackmapframes::get_stack_map_frames;
@@ -190,16 +189,16 @@ pub fn frame_is_assignable(vf:&VerifierContext,left: &Frame, right: &Frame) -> R
 
 pub fn method_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let access_flags = get_access_flags(vf,class, method);
-    trace!("got access_flags:{}", access_flags);
+//    trace!("got access_flags:{}", access_flags);
     does_not_override_final_method(vf,class, method)?;
-    trace!("does not override final method");
+//    trace!("does not override final method");
 //    dbg!(&does_not_override_final_method);
 
     if access_flags & ACC_NATIVE != 0 {
-        trace!("method is native");
+//        trace!("method is native");
         Result::Ok(())
     } else if access_flags & ACC_ABSTRACT != 0 {
-        trace!("method is abstract");
+//        trace!("method is abstract");
         Result::Ok(())
     } else {
         //will have a code attribute. or else method_with_code_is_type_safe will crash todo
@@ -259,13 +258,13 @@ pub fn method_with_code_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader
     instructs.push(&end_of_code);
     let handlers = get_handlers(vf,class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf,class, method_info);
-    trace!("stack map frames generated:");
+//    trace!("stack map frames generated:");
 //    dbg!(&stack_map);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x| { x }).collect());
-    trace!("stack map frames merged:");
+//    trace!("stack map frames merged:");
 //    dbg!(&merged);
     let (frame, return_type) = method_initial_stack_frame(vf,class, method, frame_size);
-    trace!("Initial stack frame:");
+//    trace!("Initial stack frame:");
 //    dbg!(&frame);
 //    dbg!(&frame_size);
 //    dbg!(&return_type);
@@ -364,7 +363,7 @@ fn merge_stack_map_and_code_impl<'l>(instructions: &[&'l Instruction], stack_map
 assumes that stackmaps and instructions are ordered
 */
 pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
-    trace!("Starting instruction and stackmap merge");
+//    trace!("Starting instruction and stackmap merge");
     let mut res = vec![];
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
     return res;

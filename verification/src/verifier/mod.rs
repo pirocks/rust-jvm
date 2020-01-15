@@ -91,10 +91,10 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
         }
     }
     let methods = get_class_methods(vf, class);
-    trace!("got class methods:");
+//    trace!("got class methods:");
     let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
         let res = method_is_type_safe(vf, class, m);
-        trace!("method was:");
+//        trace!("method was:");
 //        dbg!(&res);
 //        return early:
         match res {
