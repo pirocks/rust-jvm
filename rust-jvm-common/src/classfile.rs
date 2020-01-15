@@ -418,6 +418,7 @@ pub struct Annotation {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct IInc {
     pub index: u8,
     pub const_: i8,
@@ -621,6 +622,7 @@ pub struct MethodInfo {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct InvokeInterface {
     pub index: u16,
     pub count: u8,
@@ -629,6 +631,7 @@ pub struct InvokeInterface {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct LookupSwitch {
     pub pairs: Vec<(i32, i32)>,
     pub default: i32,
@@ -637,6 +640,7 @@ pub struct LookupSwitch {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct MultiNewArray {}
 
 
@@ -658,6 +662,7 @@ pub enum Atype {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct TableSwitch {
     pub default: i32,
     pub low: i32,
@@ -668,6 +673,7 @@ pub struct TableSwitch {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct Wide {}
 
 
@@ -681,6 +687,7 @@ pub struct Instruction {
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub enum InstructionInfo {
     aaload,
     aastore,

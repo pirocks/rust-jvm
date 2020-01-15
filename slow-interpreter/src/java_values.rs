@@ -2,9 +2,12 @@ use crate::runtime_class::RuntimeClass;
 use std::sync::Arc;
 use std::iter::Map;
 use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::classfile::ConstantInfo;
+use rust_jvm_common::classfile::ConstantKind;
+use std::mem::transmute;
 //use std::alloc::{alloc, dealloc, Layout};
 
-pub enum JavaValue{
+pub enum JavaValue {
     Long(i64),
     Int(i32),
     Short(i16),
@@ -18,21 +21,22 @@ pub enum JavaValue{
     Array(Vec<JavaValue>),
     Object(Option<ObjectPointer>),
 
-    Top//should never be interacted with by the bytecode
+    Top,//should never be interacted with by the bytecode
 }
 
-pub struct ObjectPointer{
+pub struct ObjectPointer {
     object: *const Object
 }
 
 pub struct Object {
     gc_reachable: bool,
-    class_pointer: Arc<RuntimeClass>,//I guess this never changes so uneeded?
-    fields : Map<String,JavaValue>
+    class_pointer: Arc<RuntimeClass>,
+    //I guess this never changes so unneeded?
+    fields: Map<String, JavaValue>,
 }
 
-pub fn default_value(type_ : ParsedType)-> JavaValue{
-    match type_{
+pub fn default_value(type_: ParsedType) -> JavaValue {
+    match type_ {
         ParsedType::ByteType => JavaValue::Byte(0),
         ParsedType::CharType => JavaValue::Char('\u{000000}'),
         ParsedType::DoubleType => JavaValue::Double(0.0),
@@ -49,4 +53,26 @@ pub fn default_value(type_ : ParsedType)-> JavaValue{
         ParsedType::Uninitialized(_) => unimplemented!(),
         ParsedType::UninitializedThis => unimplemented!(),
     }
+}
+
+impl JavaValue{
+    pub fn from_constant_pool_entry(c: &ConstantInfo) -> Self {
+        match &c.kind {
+            ConstantKind::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
+            ConstantKind::Float(f) => JavaValue::Float(unsafe { transmute(f.bytes) }),
+            ConstantKind::Long(l) => JavaValue::Long(unsafe {
+                let high = (l.high_bytes as u64) << 32;
+                let low = l.low_bytes as u64;
+                transmute(high | low)
+            }),
+            ConstantKind::Double(d) => JavaValue::Double(unsafe {
+                let high = (d.high_bytes as u64) << 32;
+                let low = d.low_bytes as u64;
+                transmute(high | low)
+            }),
+            ConstantKind::String(_) => unimplemented!(),
+            _ => panic!()
+        }
+    }
+
 }
