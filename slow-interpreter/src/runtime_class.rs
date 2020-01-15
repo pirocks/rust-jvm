@@ -12,7 +12,7 @@ use rust_jvm_common::classfile::FieldInfo;
 use rust_jvm_common::classfile::CPIndex;
 use crate::InterpreterState;
 use crate::CallStackEntry;
-use crate::run;
+use crate::run_function;
 
 pub struct RuntimeClass{
     pub classfile: Arc<Classfile>,
@@ -67,7 +67,7 @@ pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut Interpreter
         pc: 0,
         pc_offset: 0
     });
-    run(state);
+    run_function(state);
     if state.throw || state.terminate {
         unimplemented!()
         //need to clear status after
