@@ -3,7 +3,7 @@ pub mod code;
 pub mod constant_infos;
 
 use std::sync::Arc;
-use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo, ACC_ABSTRACT, FieldInfo, Classfile, ACC_NATIVE};
+use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo, FieldInfo, Classfile};
 use crate::attribute_infos::parse_attributes;
 use crate::constant_infos::parse_constant_infos;
 use rust_jvm_common::loading::Loader;
@@ -24,27 +24,6 @@ pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
     None
 }
 
-pub fn code_attribute(method_info: &MethodInfo) -> Option<&Code> {
-    /*
-    If the method is either native or abstract , and is not a class or interface
-initialization method, then its method_info structure must not have a Code attribute
-in its attributes table.
-    */
-
-    if (method_info.access_flags & ACC_ABSTRACT) > 0 || (method_info.access_flags & ACC_NATIVE) > 0 {
-        return None;
-    }
-
-    for attr in method_info.attributes.iter() {
-        match &attr.attribute_type {
-            AttributeType::Code(code) => {
-                return Some(code);
-            }
-            _ => {}
-        }
-    }
-    panic!("Method has no code attribute, which is unusual given code is sorta the point of a method.")
-}
 
 const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 

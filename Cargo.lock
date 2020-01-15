@@ -427,6 +427,7 @@ dependencies = [
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
+ "classfile-parser 0.1.0",
  "rust-jvm-common 0.1.0",
 ]
 

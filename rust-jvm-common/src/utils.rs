@@ -6,6 +6,10 @@ use std::sync::Arc;
 use crate::classfile::Class;
 use crate::classfile::MethodInfo;
 use crate::classnames::ClassName;
+use crate::classfile::Code;
+use crate::classfile::ACC_NATIVE;
+use crate::classfile::AttributeType;
+use crate::classfile::ACC_ABSTRACT;
 
 pub fn extract_string_from_utf8(utf8: &ConstantInfo) -> String {
     match &(utf8).kind {
@@ -80,4 +84,27 @@ pub fn method_name(class_file: &Classfile, method_info: &MethodInfo) -> String {
     let method_name_utf8 = &class_file.constant_pool[method_info.name_index as usize];
     let method_name = extract_string_from_utf8(method_name_utf8);
     method_name
+}
+
+
+pub fn code_attribute(method_info: &MethodInfo) -> Option<&Code> {
+    /*
+    If the method is either native or abstract , and is not a class or interface
+initialization method, then its method_info structure must not have a Code attribute
+in its attributes table.
+    */
+
+    if (method_info.access_flags & ACC_ABSTRACT) > 0 || (method_info.access_flags & ACC_NATIVE) > 0 {
+        return None;
+    }
+
+    for attr in method_info.attributes.iter() {
+        match &attr.attribute_type {
+            AttributeType::Code(code) => {
+                return Some(code);
+            }
+            _ => {}
+        }
+    }
+    panic!("Method has no code attribute, which is unusual given code is sorta the point of a method.")
 }

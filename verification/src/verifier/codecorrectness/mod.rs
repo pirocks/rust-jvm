@@ -12,7 +12,6 @@ use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_A
 use rust_jvm_common::classnames::{NameReference, class_name};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;
-use classfile_parser::code_attribute;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::filecorrectness::get_access_flags;
 use rust_jvm_common::utils::method_name;
@@ -24,6 +23,7 @@ use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::classfile::ConstantKind;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::utils::code_attribute;
 
 pub mod stackmapframes;
 

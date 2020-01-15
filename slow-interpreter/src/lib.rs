@@ -1,20 +1,38 @@
-use rust_jvm_common::classfile::ConstantInfo;
-use rust_jvm_common::classfile::Instruction;
 use rust_jvm_common::classfile::InstructionInfo;
 use std::sync::Arc;
+use crate::runtime_class::RuntimeClass;
+use crate::java_values::JavaValue;
+use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::utils::code_attribute;
 
 pub struct InterpreterState {
+//    pub method_area : //todo
+    pub call_stack: Vec<CallStackEntry>,
+    pub terminate: bool,
+}
+
+pub struct CallStackEntry {
     pub class_pointer: Arc<RuntimeClass>,
+    pub method_i: CPIndex,
+
     pub local_vars: Vec<JavaValue>,
     pub operand_stack: Vec<JavaValue>,
     pub pc: usize,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
     pub pc_offset: isize,
-    pub terminate: bool,
+}
+
+
+pub fn run(state: &mut InterpreterState) {
+    let current_frame= state.call_stack.last().unwrap();
+    let methods = &current_frame.class_pointer.classfile.methods;
+    let method = &methods[current_frame.method_i as usize];
+    let code = code_attribute(method).unwrap();
 }
 
 pub fn do_instruction(instruct: InstructionInfo, state: &mut InterpreterState) {
-    state.pc_offset = 1;//offset the opcode which was just read
+    let current_frame = state.call_stack.last_mut().unwrap();
+    current_frame.pc_offset = 1;//offset the opcode which was just read
     match instruct {
         /*InstructionType::aaload => load_u64(_state),
         InstructionType::aastore => store_i64(_state),
@@ -300,7 +318,10 @@ pub fn do_instruction(instruct: InstructionInfo, state: &mut InterpreterState) {
         InstructionType::swap => {}
         InstructionType::tableswitch => {}
         InstructionType::wide => {}*/
-        _ => {dbg!(opcode);unimplemented!()}
+        _ => {
+            dbg!(instruct);
+            unimplemented!()
+        }
     }
 }
 
@@ -315,3 +336,5 @@ pub mod float_instructions;
 pub mod dup_instructions;
 #[macro_use]
 pub mod interpreter_util;
+pub mod runtime_class;
+pub mod java_values;

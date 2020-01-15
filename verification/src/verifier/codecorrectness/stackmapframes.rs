@@ -3,13 +3,14 @@ use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::unified_types::ClassWithLoader;
-use classfile_parser::{code_attribute, stack_map_table_attribute};
+use classfile_parser::stack_map_table_attribute;
 use crate::{init_frame, VerifierContext};
 use crate::StackMap;
 use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::utils::code_attribute;
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
