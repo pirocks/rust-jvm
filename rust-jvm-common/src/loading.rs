@@ -5,9 +5,22 @@ use crate::classnames::ClassName;
 use std::fs::File;
 use std::fmt::Display;
 use std::fmt::Debug;
+use std::error::Error;
+use std::fmt::Formatter;
 
+#[derive(Debug)]
 pub enum ClassLoadingError {
     ClassNotFoundException,
+}
+
+impl Display for ClassLoadingError{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f,"ClassNotFoundException")
+    }
+}
+
+impl Error for ClassLoadingError{
+
 }
 
 

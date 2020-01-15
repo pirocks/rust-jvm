@@ -2,9 +2,7 @@ use std::sync::Arc;
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::utils::code_attribute;
 use classfile_parser::code::parse_instruction;
-use classfile_parser::code::CodeParserContext;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::error::Error;
@@ -46,34 +44,39 @@ pub struct CallStackEntry {
 }
 
 
-pub fn run(main_class_name: &ClassName, loader: Arc<Loader + Send + Sync>) -> Result<(), Box<dyn Error>> {
-    let object = loader.load_class(&ClassName::Str("java/lang/Object".to_string()))?;
-    let main = loader.load_class(main_class_name)?;//should load superclasses so Object load is redundant
-    let main_class = prepare_class(main,loader);
-    let (main_i,main_method) = main.methods.iter().enumerate().find(|(_,method)|{
+pub fn run(main_class_name: &ClassName, loader: Arc<dyn Loader + Send + Sync>, args: Vec<String>) -> Result<(), Box<dyn Error>> {
+    let main = loader.load_class(main_class_name)?;
+    let main_class = prepare_class(main.clone(), loader.clone());
+    let (main_i, main_method) = &main.methods.iter().enumerate().find(|(_, method)| {
         let name = method_name(&main, &method);
         if name == "main" {
             let descriptor_string = extract_string_from_utf8(&main.constant_pool[method.descriptor_index as usize]);
-            let descriptor = parse_method_descriptor(loader, descriptor_string.as_str()).unwrap();
-            descriptor.return_type == ParsedType::VoidType &&
-                descriptor.parameter_types == ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::Class(ClassWithLoader { class_name: main_class_name.clone(), loader: loader.clone(), }))})
+            let descriptor = parse_method_descriptor(&loader, descriptor_string.as_str()).unwrap();
+            let string_name = ClassName::Str("java/lang/String".to_string());
+            let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: loader.clone() });
+            let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
+            descriptor.parameter_types.len() == 1 &&
+                descriptor.return_type == ParsedType::VoidType &&
+                descriptor.parameter_types.iter().zip(vec![string_array]).all(|(a, b)| a == &b)
+        } else {
+            false
         }
-        false
     }).unwrap();
     let mut state = InterpreterState {
         call_stack: vec![CallStackEntry {
-            class_pointer,
-            method_i: main_i as u16,
-            local_vars: vec![JavaValue::Object(None)],//todo handle parameters
+            class_pointer: Arc::new(main_class),
+            method_i: *main_i as u16,
+            local_vars: vec![JavaValue::Array(vec![])],//todo handle parameters
             operand_stack: vec![],
             pc: 0,
-            pc_offset: 0
+            pc_offset: 0,
         }],
         terminate: false,
         throw: false,
-        function_return: false
+        function_return: false,
     };
-    run_function(&mut state)
+    run_function(&mut state);
+    Result::Ok(())
 }
 
 pub mod instructions;

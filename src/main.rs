@@ -1,4 +1,3 @@
-
 extern crate argparse;
 extern crate log;
 extern crate simple_logger;
@@ -9,12 +8,25 @@ pub mod classpath_indexing;
 
 use log::{trace, info};
 
-use argparse::{ArgumentParser, Store, StoreTrue};
+use argparse::{ArgumentParser, Store, StoreTrue, List};
+use loading::Classpath;
+use std::path::Path;
+use loading::BootstrapLoader;
+use std::sync::RwLock;
+use std::collections::HashMap;
+use rust_jvm_common::loading::LoaderName;
+use slow_interpreter::run;
+use rust_jvm_common::classnames::ClassName;
+use jar_manipulation::JarHandle;
+use std::sync::Arc;
 //use classpath_indexing::index_class_path;
 
 
 extern crate classfile_parser;
 extern crate verification;
+extern crate loading;
+extern crate slow_interpreter;
+extern crate jar_manipulation;
 
 
 fn main() {
@@ -22,61 +34,57 @@ fn main() {
     let mut verbose = false;
     let mut debug = false;
     let mut main_class_name = "".to_string();
-//    let mut main_class_path = "".to_string();
-    let mut class_path_file = "".to_string();
-
-    {  // this block limits scope of borrows by ap.refer() method
+    let mut jars: Vec<String> = vec![];
+    let mut class_entries: Vec<String> = vec![];
+    let mut args: Vec<String> = vec![];
+    {
         let mut ap = ArgumentParser::new();
         ap.set_description("A jvm written partially in rust");
         ap.refer(&mut verbose)
             .add_option(&["-v", "--verbose"], StoreTrue,
                         "Be verbose");
         ap.refer(&mut debug).add_option(&["-v", "--verbose"], StoreTrue,
-                    "Log debug info");
+                                        "Log debug info");
         ap.refer(&mut main_class_name)
             .add_option(&["--main"], Store,
                         "Main class");
-//        ap.refer(&mut main_class_path)
-//            .add_option(&["--main-file"], Store,
-//                        "Main class specified as a file path");
-//        ap.refer(&mut print_only_mode)
-//            .add_option(&["--print-only"], Store,
-//                        "only print main class dissasembly.");
-        ap.refer(&mut class_path_file)
-            .add_option(&["--classpath-file"], Store,
-                        "path of file contains class path entries. Separated by :, only include .class files");
-//        ap.refer(&mut main_class_name)
-//            .add_option(&["--class-path-jar"], Store,
-//                        "Include a jar in the classpath");
-//        ap.refer(&mut main_class_name)
-//            .add_option(&["--class-path-class"], Store,
-//                        "Include a class in the classpath");
+        ap.refer(&mut jars)
+            .add_option(&["--jars"], List, "A list of jars from which to load classes");
+        ap.refer(&mut class_entries)
+            .add_option(&["--classpath"], List, "A list of directories from which to load classes");
+        ap.refer(&mut args)
+            .add_option(&["--args"], List, "A list of args to pass to main");
         ap.parse_args_or_exit();
     }
 
-    trace!("{}",main_class_name);
-    trace!("{}",class_path_file);
-
     if verbose {
         info!("in verbose mode, which currently doesn't do anything, b/c I'm always verbose, since I program in java a lot.");
-//        println!("main_class_name is {}", main_class_path);
     }
 
-//    let _indexed_classpath = index_class_path(Path::new(&class_path_file));
-    trace!("{}","Indexing complete");
-//    let initial_jvm_state = JVMState {
-//        using_bootstrap_loader:true,
-//        loaders: HashMap::from_iter(vec![(BOOTSTRAP_LOADER_NAME.to_string(), BOOTSTRAP_LOADER.clone())]),
-//        indexed_classpath,
-//        using_prolog_verifier: false
-//    };
+    let classpath = Classpath {
+        jars: jars.iter().map(|x| {
+            let path = Path::new(x).into();
+            let jar_handle = JarHandle::new(path).unwrap();
+            RwLock::new(Box::new(jar_handle))
+        }).collect(),
+        classpath_base: class_entries.iter().map(|x| Path::new(x).into()).collect(),
+    };
+
+    trace!("Classpath parsed and loaded");
+
+    let bootstrap_loader = BootstrapLoader {
+        loaded: RwLock::new(HashMap::new()),
+        parsed: RwLock::new(HashMap::new()),
+        name: RwLock::new(LoaderName::BootstrapLoader),
+        classpath,
+    };
+
+    trace!("Bootstrap Loader created");
 
 
-
-//    load_class(&mut initial_jvm_state,class_entry_from_string(&main_class_name,true),true);
-//    let main_class_entry = class_entry_from_string(&main_class_name.to_string(), true);
-//    unimplemented!("{}",main_class_entry)
-//    load_class(&mut initial_jvm_state, BOOTSTRAP_LOADER.clone(), main_class_entry, true);
-
+    let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
+    trace!("Loading main class: {:?}", main_class_name);
+    //todo I guess the bootstrap loader doesn't need to be Arc
+    run(&main_class_name, Arc::new(bootstrap_loader), args).unwrap();
 }
 
