@@ -621,6 +621,7 @@ name = "rust-jni"
 version = "0.1.0"
 dependencies = [
  "bindgen 0.52.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "classfile-parser 0.1.0",
  "jni 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",
  "libloading 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
