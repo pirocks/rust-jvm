@@ -5,11 +5,9 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 use rust_jvm_common::utils::code_attribute;
 use rust_jvm_common::classfile::ACC_NATIVE;
 use rust_jvm_common::classfile::ACC_STATIC;
-use crate::java_values::JavaValue;
 use crate::interpreter_util::run_function;
 use classfile_parser::types::MethodDescriptor;
 use std::sync::Arc;
-use crate::runtime_class::RuntimeClass;
 use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classfile::MethodInfo;
 use classfile_parser::types::parse_method_descriptor;
@@ -19,6 +17,8 @@ use rust_jvm_common::classfile::ACC_ABSTRACT;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::interpreter_util::check_inited_class;
 use crate::native::run_native_method;
+use runtime_common::java_values::JavaValue;
+use runtime_common::runtime_class::RuntimeClass;
 
 pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16) {
 //todo handle monitor enter and exit
@@ -62,7 +62,12 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
     }
 }
 
-fn find_target_method<'l>(loader_arc: &'l Arc<dyn Loader + Send + Sync>, expected_method_name: String, parsed_descriptor: & MethodDescriptor, target_class: &'l Arc<RuntimeClass>) -> (usize,&'l MethodInfo) {
+fn find_target_method<'l>(
+    loader_arc: &'l Arc<dyn Loader + Send + Sync>,
+    expected_method_name: String,
+    parsed_descriptor: & MethodDescriptor,
+    target_class: &'l Arc<RuntimeClass>
+) -> (usize,&'l MethodInfo) {
     target_class.classfile.methods.iter().enumerate().find(|(_, m)| {
         if method_name(&target_class.classfile, m) == expected_method_name {
             let target_class_descriptor_str = extract_string_from_utf8(&target_class.classfile.constant_pool[m.descriptor_index as usize]);

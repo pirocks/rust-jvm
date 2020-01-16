@@ -6,25 +6,13 @@ use rust_jvm_common::classfile::InstructionInfo;
 use verification::verifier::instructions::special::extract_field_descriptor;
 use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
-use verification::verifier::instructions::branches::get_method_descriptor;
-use rust_jvm_common::unified_types::ParsedType;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
-use crate::runtime_class::RuntimeClass;
 use rust_jvm_common::loading::Loader;
-use rust_jvm_common::classfile::ACC_STATIC;
-use rust_jvm_common::classfile::ACC_ABSTRACT;
-use rust_jvm_common::utils::method_name;
-use rust_jvm_common::utils::extract_string_from_utf8;
-use classfile_parser::types::parse_method_descriptor;
 use std::rc::Rc;
-use classfile_parser::types::MethodDescriptor;
-use std::iter::repeat;
-use rust_jvm_common::classfile::ACC_NATIVE;
-use core::borrow::BorrowMut;
-use rust_jvm_common::classfile::MethodInfo;
-use crate::java_values::JavaValue;
 use crate::instructions::invoke::run_invoke_static;
+use runtime_common::java_values::JavaValue;
+use runtime_common::runtime_class::RuntimeClass;
 
 pub fn check_inited_class(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<CallStackEntry>, loader_arc: Arc<dyn Loader + Sync + Send>) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization

@@ -1,20 +1,11 @@
 [package]
-name = "rust-jni"
+name = "runtime-common"
 version = "0.1.0"
 authors = ["Francis Nixon <13nixonf@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-
 [lib]
 
 [dependencies]
 rust-jvm-common = {path = "../rust-jvm-common"}
-runtime-common = {path = "../runtime-common"}
-libloading = "0.5"
-jni = "0.14.0"
-libc = "0.2.66"
-
-[build-dependencies]
-bindgen = "0.52.0"

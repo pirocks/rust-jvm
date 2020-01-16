@@ -1,6 +1,4 @@
 use std::sync::{Arc, RwLock};
-use crate::runtime_class::RuntimeClass;
-use crate::java_values::{JavaValue, VecPointer};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
@@ -16,6 +14,8 @@ use crate::interpreter_util::run_function;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
+use runtime_common::runtime_class::RuntimeClass;
+use runtime_common::java_values::{JavaValue, VecPointer};
 
 pub struct InterpreterState {
 //    pub call_stack: Vec<CallStackEntry>,
@@ -112,5 +112,4 @@ pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args:
 pub mod instructions;
 pub mod interpreter_util;
 pub mod runtime_class;
-pub mod java_values;
 pub mod native;

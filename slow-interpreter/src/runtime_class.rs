@@ -1,11 +1,9 @@
 use std::sync::Arc;
 use rust_jvm_common::classfile::{Classfile, ACC_FINAL};
 use rust_jvm_common::loading::Loader;
-use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::ACC_STATIC;
 use rust_jvm_common::utils::extract_string_from_utf8;
 use std::collections::HashMap;
-use crate::java_values::default_value;
 use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::classfile::AttributeType;
 use rust_jvm_common::classfile::FieldInfo;
@@ -15,19 +13,9 @@ use crate::CallStackEntry;
 use crate::run_function;
 use std::rc::Rc;
 use rust_jvm_common::classnames::class_name;
-use std::fmt::{Debug, Formatter, Error};
+use runtime_common::java_values::{JavaValue, default_value};
+use runtime_common::runtime_class::RuntimeClass;
 
-pub struct RuntimeClass {
-    pub classfile: Arc<Classfile>,
-    pub loader: Arc<dyn Loader + Send + Sync>,
-    pub static_vars: HashMap<String, JavaValue>,
-}
-
-impl Debug for RuntimeClass{
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f,"{:?}:{:?}",self.classfile,self.static_vars)
-    }
-}
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> RuntimeClass {
     let mut res = HashMap::new();

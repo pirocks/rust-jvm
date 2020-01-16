@@ -54,7 +54,7 @@ fn main() {
             .add_option(&["--classpath"], List, "A list of directories from which to load classes");
         ap.refer(&mut args)
             .add_option(&["--args"], List, "A list of args to pass to main");
-        ap.refer(&mut libjava).add_option(&["--libjava"],StoreTrue,"");
+        ap.refer(&mut libjava).add_option(&["--libjava"],Store,"");
         ap.parse_args_or_exit();
     }
 
