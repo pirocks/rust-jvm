@@ -7,6 +7,7 @@ use rust_jvm_common::classfile::ConstantKind;
 use std::mem::transmute;
 //use std::alloc::{alloc, dealloc, Layout};
 
+#[derive(Debug)]
 pub enum JavaValue {
     Long(i64),
     Int(i32),
@@ -42,6 +43,7 @@ impl Clone for JavaValue{
     }
 }
 
+#[derive(Debug)]
 pub struct ObjectPointer {
     object: *const Object
 }
@@ -52,6 +54,7 @@ impl Clone for ObjectPointer{
     }
 }
 
+#[derive(Debug)]
 pub struct VecPointer {
     pub object: *const Vec<JavaValue>
 }

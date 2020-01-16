@@ -47,18 +47,7 @@ pub enum ClassName {
 
 impl PartialEq for ClassName {
     fn eq(&self, other: &ClassName) -> bool{
-        match self{
-            ClassName::Ref(r1) => match other {
-                ClassName::Ref(r2) => {
-                    //todo how is equality for classfiles defined here?
-                    r1.class_file.ptr_eq(&r2.class_file) && r1.index == r2.index
-                }
-                ClassName::Str(s) => {
-                    &self.get_referred_name() == s
-                }
-            },
-            ClassName::Str(s1) => &other.get_referred_name() == s1
-        }
+        self.get_referred_name() == other.get_referred_name()
     }
 }
 

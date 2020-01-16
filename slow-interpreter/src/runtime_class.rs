@@ -14,6 +14,8 @@ use crate::InterpreterState;
 use crate::CallStackEntry;
 use crate::run_function;
 use std::rc::Rc;
+use rust_jvm_common::classnames::class_name;
+use std::fmt::{Debug, Formatter, Error};
 
 pub struct RuntimeClass {
     pub classfile: Arc<Classfile>,
@@ -21,6 +23,11 @@ pub struct RuntimeClass {
     pub static_vars: HashMap<String, JavaValue>,
 }
 
+impl Debug for RuntimeClass{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f,"{:?}:{:?}",self.classfile,self.static_vars)
+    }
+}
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> RuntimeClass {
     let mut res = HashMap::new();
@@ -37,7 +44,6 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
         classfile,
         loader,
         static_vars: res,
-
     }
 }
 
@@ -65,6 +71,7 @@ pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut Interpreter
     }).unwrap();
     //todo should I really be manipulating the interpreter state like this
     let class_arc = Arc::new(runtime_class);
+    dbg!(&class_name(&class_arc.classfile));
     let new_stack = CallStackEntry {
         last_call_stack: Some(Rc::new(stack)),
         class_pointer: class_arc.clone(),

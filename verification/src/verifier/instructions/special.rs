@@ -81,7 +81,7 @@ fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> Parsed
         }
         _ => panic!()
     };
-    let subtype = possibly_array_to_type(env, class_name);
+    let subtype = possibly_array_to_type(&env.class_loader, class_name);
     subtype
 }
 
@@ -125,7 +125,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, _offs
     let result_type = match &class.constant_pool[index].kind {
         ConstantKind::Class(c) => {
             let name = extract_string_from_utf8(&class.constant_pool[c.name_index as usize]);
-            possibly_array_to_type(env, name).to_verification_type()
+            possibly_array_to_type(&env.class_loader, name).to_verification_type()
         }
         _ => panic!()
     };
@@ -178,7 +178,7 @@ pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>,l: Arc<dyn Lo
         ConstantKind::Fieldref(f) => {
             (f.class_index, f.name_and_type_index)
         }
-        _ => panic!()
+        _ => {dbg!(&field_entry);panic!()}
     };
     let field_class_name = match &current_class.constant_pool[class_index as usize].kind {
         ConstantKind::Class(c) => {

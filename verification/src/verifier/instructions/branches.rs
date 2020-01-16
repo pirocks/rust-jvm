@@ -2,7 +2,7 @@ use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames, except
 use crate::verifier::codecorrectness::{Environment, can_pop, MergedCodeInstruction};
 use crate::verifier::{Frame, get_class};
 use crate::verifier::TypeSafetyError;
-use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo};
+use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo, Classfile};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::utils::name_and_type_extractor;
 
@@ -20,6 +20,7 @@ use classfile_parser::types::MethodDescriptor;
 use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::loading::Loader;
 
 pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -171,7 +172,7 @@ fn count_is_valid(count: usize, input_frame: &Frame, output_frame: &Frame) -> Re
 }
 
 pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
     let method_class_name = match method_class_type {
         ParsedType::Class(c) => c.class_name,
         _ => panic!()
@@ -345,7 +346,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
 }
 
 pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
@@ -363,7 +364,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
 }
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, env);
+    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
     let (class_name, method_class) = match class_type {
         ParsedType::Class(c) => (Some(c.class_name.clone()), VerificationType::Class(c.clone())),
         ParsedType::ArrayReferenceType(a) => {
@@ -399,8 +400,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
 }
 
-fn get_method_descriptor(cp: usize, env: &Environment) -> (ParsedType, String, MethodDescriptor) {
-    let classfile = &get_class(&env.vf, env.method.class);
+pub fn get_method_descriptor(cp: usize, classfile:&Arc<Classfile>, loader: Arc<dyn Loader + Sync + Send>) -> (ParsedType, String, MethodDescriptor) {
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {
@@ -408,7 +408,7 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (ParsedType, String, M
             let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             //todo ideally for name we would return weak ref.
             let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
-            let parsed_descriptor = match parse_method_descriptor(&env.class_loader, descriptor.as_str()) {
+            let parsed_descriptor = match parse_method_descriptor(&loader, descriptor.as_str()) {
                 None => { unimplemented!() }
                 Some(pd) => { pd }
             };
@@ -419,7 +419,7 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (ParsedType, String, M
             let c = extract_class_from_constant_pool(m.class_index, &classfile);
             let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
             let (method_name, descriptor) = name_and_type_extractor(m.nt_index, classfile);
-            let parsed_descriptor = match parse_method_descriptor(&env.class_loader, descriptor.as_str()) {
+            let parsed_descriptor = match parse_method_descriptor(&loader, descriptor.as_str()) {
                 None => { unimplemented!() }
                 Some(pd) => { pd }
             };
@@ -427,12 +427,12 @@ fn get_method_descriptor(cp: usize, env: &Environment) -> (ParsedType, String, M
         }
         _ => unimplemented!("{:?}",c)
     };
-    (possibly_array_to_type(env, class_name), method_name, parsed_descriptor)
+    (possibly_array_to_type(&loader, class_name), method_name, parsed_descriptor)
 }
 
-pub fn possibly_array_to_type(env: &Environment, class_name: String) -> ParsedType {
+pub fn possibly_array_to_type(loader: &Arc<dyn Loader + Send +Sync>, class_name: String) -> ParsedType {
     if class_name.contains("[") {
-        let class_type = match parse_field_descriptor(&env.class_loader, class_name.as_str()) {
+        let class_type = match parse_field_descriptor(loader, class_name.as_str()) {
             None => panic!(),
             Some(s) => s.field_type,
         };
@@ -440,7 +440,7 @@ pub fn possibly_array_to_type(env: &Environment, class_name: String) -> ParsedTy
     } else {
         ParsedType::Class(ClassWithLoader {
             class_name: ClassName::Str(class_name),
-            loader: env.class_loader.clone(),
+            loader: loader.clone(),
         })
     }
 }

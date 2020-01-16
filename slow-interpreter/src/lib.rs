@@ -99,7 +99,7 @@ pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args:
         class_pointer: Arc::new(main_class),
             method_i: *main_i as u16,
 //            todo is that vec access safe, or does it not heap allocate?
-            local_vars: vec![JavaValue::Array(Some(VecPointer { object: unsafe {&vec![]} }))],//todo handle parameters
+            local_vars: vec![JavaValue::Array(Some(VecPointer { object: &vec![] }))],//todo handle parameters
             operand_stack: vec![],
             pc: 0,
             pc_offset: 0,
