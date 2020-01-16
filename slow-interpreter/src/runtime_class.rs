@@ -47,7 +47,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
     }
 }
 
-pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState, stack: CallStackEntry) -> Arc<RuntimeClass> {
+pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Rc<CallStackEntry>) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
@@ -73,15 +73,15 @@ pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut Interpreter
     let class_arc = Arc::new(runtime_class);
     dbg!(&class_name(&class_arc.classfile));
     let new_stack = CallStackEntry {
-        last_call_stack: Some(Rc::new(stack)),
+        last_call_stack: Some(stack),
         class_pointer: class_arc.clone(),
         method_i: clinit_i as u16,
         local_vars: vec![],
-        operand_stack: vec![],
-        pc: 0,
-        pc_offset: 0,
+        operand_stack: vec![].into(),
+        pc: 0.into(),
+        pc_offset: 0.into(),
     };
-    run_function(state, new_stack);
+    run_function(state, Rc::new(new_stack));
     if state.throw || state.terminate {
         unimplemented!()
         //need to clear status after

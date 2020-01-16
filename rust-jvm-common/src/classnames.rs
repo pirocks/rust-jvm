@@ -5,7 +5,6 @@ use std::fmt::Formatter;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
-use crate::classfile;
 
 #[derive(Debug)]
 pub struct NameReference{
@@ -13,13 +12,13 @@ pub struct NameReference{
     pub index : u16,
 }
 
-impl Hash for NameReference{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u16(self.index);
-        let pointer = std::sync::Arc::<classfile::Classfile>::into_raw(self.class_file.upgrade().unwrap());
-        state.write_usize(pointer as usize )
-    }
-}
+//impl Hash for NameReference{
+//    fn hash<H: Hasher>(&self, state: &mut H) {
+//        state.write_u16(self.index);
+//        let pointer = std::sync::Arc::<classfile::Classfile>::into_raw(self.class_file.upgrade().unwrap());
+//        state.write_usize(pointer as usize )
+//    }
+//}
 
 impl Eq for NameReference {}
 
@@ -39,10 +38,16 @@ impl PartialEq for NameReference{
 
 //#[derive(Debug)]
 #[derive(Eq)]
-#[derive(Hash)]
+//#[derive(Hash)]
 pub enum ClassName {
     Ref(NameReference),
     Str(String)
+}
+
+impl Hash for ClassName{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(self.get_referred_name().into_bytes().as_slice())
+    }
 }
 
 impl PartialEq for ClassName {
