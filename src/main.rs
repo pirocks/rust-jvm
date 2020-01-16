@@ -36,6 +36,7 @@ fn main() {
     let mut jars: Vec<String> = vec![];
     let mut class_entries: Vec<String> = vec![];
     let mut args: Vec<String> = vec![];
+    let mut libjava: String = "".to_string();
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("A jvm written partially in rust");
@@ -53,6 +54,7 @@ fn main() {
             .add_option(&["--classpath"], List, "A list of directories from which to load classes");
         ap.refer(&mut args)
             .add_option(&["--args"], List, "A list of args to pass to main");
+        ap.refer(&mut libjava).add_option(&["--libjava"],StoreTrue,"");
         ap.parse_args_or_exit();
     }
 

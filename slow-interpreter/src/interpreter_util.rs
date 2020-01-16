@@ -39,7 +39,7 @@ pub fn check_inited_class(state: &mut InterpreterState, class_name: &ClassName, 
     state.initialized_classes.read().unwrap().get(class_name).unwrap().clone()
 }
 
-pub fn run_function(state: &mut InterpreterState, mut current_frame: Rc<CallStackEntry>) {
+pub fn run_function(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>) {
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = code_attribute(method).unwrap();

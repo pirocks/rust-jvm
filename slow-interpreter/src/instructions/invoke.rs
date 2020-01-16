@@ -58,7 +58,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
         };
         run_function(state,Rc::new(next_entry))
     }else{
-        run_native_method(state,current_frame.clone(),method_name(&target_class.classfile,target_method))
+        run_native_method(state,current_frame.clone(),target_class,target_method_i);
     }
 }
 
