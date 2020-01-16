@@ -28,7 +28,7 @@ pub struct LibJavaLoading {
 impl JNIContext for LibJavaLoading {
     fn call(&self, classfile: Arc<RuntimeClass>, method_i: usize, args: List<JavaValue>, return_type: ParsedType) -> JavaValue{
         unsafe {
-            let symbol: Symbol<unsafe extern fn(env, *jni::JNIEnv, ...) -> jdouble> = self.lib.get(mangled.as_bytes()).unwrap();
+            let symbol: Symbol<unsafe extern fn(env, *const jni::JNIEnv, ...) -> jdouble> = self.lib.get(mangled.as_bytes()).unwrap();
         }
     }
 }
