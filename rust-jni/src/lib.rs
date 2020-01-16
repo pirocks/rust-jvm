@@ -10,9 +10,11 @@ use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::java_values::JavaValue;
 use jni::sys::*;
 use std::ffi::c_void;
+use std::env::Args;
 
+
+pub mod value_conversion;
 pub mod mangling;
-
 
 pub trait JNIContext {
     fn call(&self, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> JavaValue;
@@ -60,6 +62,10 @@ impl JNIContext for LibJavaLoading {
                 }*/
                 ParsedType::VoidType => {
                     let symbol: Symbol<unsafe extern fn(env: *const jni::JNIEnv, ...) -> c_void > = self.lib.get(mangled.as_bytes()).unwrap();
+                    for x in args {
+
+                    }
+                    symbol.call()
 
                 }
                 _ => {}
