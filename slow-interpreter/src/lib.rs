@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::{JavaValue, VecPointer};
-use rust_jvm_common::classfile::{CPIndex, Classfile};
+use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::error::Error;
@@ -15,6 +15,7 @@ use crate::runtime_class::prepare_class;
 use crate::interpreter_util::run_function;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct InterpreterState {
 //    pub call_stack: Vec<CallStackEntry>,
@@ -40,25 +41,25 @@ pub struct CallStackEntry {
     pub method_i: CPIndex,
 
     pub local_vars: Vec<JavaValue>,
-    pub operand_stack: Vec<JavaValue>,
-    pub pc: usize,
+    pub operand_stack: RefCell<Vec<JavaValue>>,
+    pub pc: RefCell<usize>,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
-    pub pc_offset: isize,
+    pub pc_offset: RefCell<isize>,
 }
 
-impl Clone for CallStackEntry{
-    fn clone(&self) -> Self {
-        CallStackEntry {
-            last_call_stack: self.last_call_stack.clone(),
-            class_pointer: self.class_pointer.clone(),
-            method_i: self.method_i,
-            local_vars: self.local_vars.clone(),
-            operand_stack: self.operand_stack.clone(),
-            pc: self.pc,
-            pc_offset: self.pc_offset
-        }
-    }
-}
+//impl Clone for CallStackEntry{
+//    fn clone(&self) -> Self {
+//        CallStackEntry {
+//            last_call_stack: self.last_call_stack.clone(),
+//            class_pointer: self.class_pointer.clone(),
+//            method_i: self.method_i,
+//            local_vars: self.local_vars.clone(),
+//            operand_stack: self.operand_stack.clone(),
+//            pc: self.pc,
+//            pc_offset: self.pc_offset
+//        }
+//    }
+//}
 
 pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let main = bl.clone().load_class(bl.clone(),main_class_name,bl.clone())?;
@@ -100,11 +101,11 @@ pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args:
             method_i: *main_i as u16,
 //            todo is that vec access safe, or does it not heap allocate?
             local_vars: vec![JavaValue::Array(Some(VecPointer { object: &vec![] }))],//todo handle parameters
-            operand_stack: vec![],
-            pc: 0,
-            pc_offset: 0,
+            operand_stack: vec![].into(),
+            pc: RefCell::new(0),
+            pc_offset: 0.into(),
         };
-    run_function(&mut state,stack);
+    run_function(&mut state,Rc::new(stack));
     Result::Ok(())
 }
 

@@ -9,8 +9,36 @@ use crate::runtime_class::initialize_class;
 use verification::verifier::instructions::branches::get_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
 use std::sync::Arc;
+use rust_jvm_common::classnames::ClassName;
+use crate::runtime_class::RuntimeClass;
+use rust_jvm_common::loading::Loader;
+use rust_jvm_common::classfile::ACC_STATIC;
+use rust_jvm_common::classfile::ACC_ABSTRACT;
+use rust_jvm_common::utils::method_name;
+use rust_jvm_common::utils::extract_string_from_utf8;
+use classfile_parser::types::parse_method_descriptor;
+use std::rc::Rc;
+use classfile_parser::types::MethodDescriptor;
+use std::iter::repeat;
+use rust_jvm_common::classfile::ACC_NATIVE;
+use core::borrow::BorrowMut;
+use rust_jvm_common::classfile::MethodInfo;
+use crate::java_values::JavaValue;
 
-pub fn run_function(state: &mut InterpreterState, mut current_frame: CallStackEntry) {
+fn check_inited_class(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<CallStackEntry>, loader_arc: Arc<dyn Loader + Sync + Send>) -> Arc<RuntimeClass> {
+    //todo racy/needs sychronization
+    if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
+        let bl = state.bootstrap_loader.clone();
+        let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
+        let prepared = prepare_class(target_classfile.clone(), loader_arc.clone());
+        state.initialized_classes.write().unwrap().insert(class_name.clone(), Arc::new(prepared));//must be before, otherwise infinite recurse
+        let inited_target = initialize_class(prepare_class(target_classfile, loader_arc.clone()), state, current_frame);
+        state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
+    }
+    state.initialized_classes.read().unwrap().get(class_name).unwrap().clone()
+}
+
+pub fn run_function(state: &mut InterpreterState, mut current_frame: Rc<CallStackEntry>) {
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = code_attribute(method).unwrap();
@@ -18,11 +46,11 @@ pub fn run_function(state: &mut InterpreterState, mut current_frame: CallStackEn
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw {
         let (instruct, instruction_size) = {
-            let current = &code.code_raw[current_frame.pc..];
+            let current = &code.code_raw[*current_frame.pc.borrow()..];
             let mut context = CodeParserContext { offset: 0, iter: current.iter() };
             (parse_instruction(&mut context).unwrap().clone(), context.offset)
         };
-        current_frame.pc_offset = instruction_size as isize;
+        current_frame.pc_offset.replace((instruction_size as isize));
         match instruct {
             InstructionInfo::aaload => unimplemented!(),
             InstructionInfo::aastore => unimplemented!(),
@@ -113,19 +141,11 @@ pub fn run_function(state: &mut InterpreterState, mut current_frame: CallStackEn
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                if !state.initialized_classes.read().unwrap().contains_key(&field_class_name) {
-                    let bl = state.bootstrap_loader.clone();
-                    let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &field_class_name, bl).unwrap();
-                    //todo dup
-                    let prepared = prepare_class(target_classfile.clone(), loader_arc.clone());
-                    state.initialized_classes.write().unwrap().insert(field_class_name.clone(), Arc::new(prepared));
-                    let inited_target = initialize_class(prepare_class(target_classfile, loader_arc.clone()), state, current_frame.clone());//todo need to store initted class in state.
-                    state.initialized_classes.write().unwrap().insert(field_class_name.clone(), inited_target);
-                }
                 dbg!(&state.initialized_classes.read().unwrap());
-                let target_classfile = state.initialized_classes.read().unwrap().get(&field_class_name).unwrap().clone();
+                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone());
                 let field_value = target_classfile.static_vars.get(&field_name).unwrap();
-                current_frame.operand_stack.push(field_value.clone());
+                let mut stack = current_frame.operand_stack.borrow_mut();
+                stack.push(field_value.clone());
             }
             InstructionInfo::goto_(_) => unimplemented!(),
             InstructionInfo::goto_w(_) => unimplemented!(),
@@ -176,28 +196,7 @@ pub fn run_function(state: &mut InterpreterState, mut current_frame: CallStackEn
             InstructionInfo::invokeinterface(_) => unimplemented!(),
             InstructionInfo::invokespecial(_) => unimplemented!(),
             InstructionInfo::invokestatic(cp) => {
-                //todo handle monitor enter and exit
-                //handle init cases
-                let classfile = &current_frame.class_pointer.classfile;
-                let loader_arc = &current_frame.class_pointer.loader;
-                let (class_name_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
-                let class_name = match class_name_type {
-                    ParsedType::Class(c) => c.class_name,
-                    _ => panic!()
-                };
-                dbg!(&class_name);
-                dbg!(&state.initialized_classes.read().unwrap());
-                dbg!(&state.initialized_classes.read().unwrap().contains_key(&class_name));
-                if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
-                    //todo dup
-                    let bl = state.bootstrap_loader.clone();
-                    let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
-                    let prepared  = prepare_class(target_classfile.clone(), loader_arc.clone());
-                    state.initialized_classes.write().unwrap().insert(class_name.clone(), Arc::new(prepared));//must be before, otherwise infinite recurse
-                    let inited_target = initialize_class(prepare_class(target_classfile, loader_arc.clone()), state, current_frame.clone());//todo need to store initted class in state.
-                    state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
-                }
-                unimplemented!()
+                run_invoke_static(state, current_frame.clone(), cp)
             }
             InstructionInfo::invokevirtual(_) => unimplemented!(),
             InstructionInfo::ior => unimplemented!(),
@@ -270,12 +269,73 @@ pub fn run_function(state: &mut InterpreterState, mut current_frame: CallStackEn
             InstructionInfo::wide(_) => unimplemented!(),
             InstructionInfo::EndOfCode => unimplemented!(),
         }
-        if current_frame.pc_offset > 0 {
-            current_frame.pc += current_frame.pc_offset as usize;
+        //todo need to figure out where return res ends up on next stack
+        let offset = *current_frame.pc_offset.borrow();
+        let mut pc = *current_frame.pc.borrow();
+        if offset > 0 {
+            pc += offset as usize;
         } else {
-            current_frame.pc -= (-current_frame.pc_offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
+            pc -= (-offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
         }
+        current_frame.pc.replace(pc);
     }
+}
+
+fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16) {
+//todo handle monitor enter and exit
+//handle init cases
+    let classfile = &current_frame.class_pointer.classfile;
+    let loader_arc = &current_frame.class_pointer.loader;
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
+    let class_name = match class_name_type {
+        ParsedType::Class(c) => c.class_name,
+        _ => panic!()
+    };
+    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone());
+    let (target_method_i,target_method) = find_target_method(loader_arc, expected_method_name, &expected_descriptor, &target_class);
+    let mut args = vec![];
+
+    if target_method.access_flags & ACC_NATIVE == 0{
+        assert!(target_method.access_flags & ACC_STATIC > 0);
+        assert!(target_method.access_flags & ACC_ABSTRACT == 0);
+        let max_locals = code_attribute(target_method).unwrap().max_locals;
+
+        for _ in 0..max_locals{
+            args.push(JavaValue::Top);
+        }
+
+        for i in 0..expected_descriptor.parameter_types.len(){
+            args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+            //todo does ordering end up correct
+        }
+        let next_entry = CallStackEntry {
+            last_call_stack: Some(current_frame),
+            class_pointer: target_class,
+            method_i: target_method_i as u16,
+            local_vars: args,
+            operand_stack: vec![].into(),
+            pc: 0.into(),
+            pc_offset: 0.into()
+        };
+        run_function(state,Rc::new(next_entry))
+
+    }else{
+        unimplemented!()
+    }
+}
+
+fn find_target_method<'l>(loader_arc: &'l Arc<dyn Loader + Send + Sync>, expected_method_name: String, parsed_descriptor: & MethodDescriptor, target_class: &'l Arc<RuntimeClass>) -> (usize,&'l MethodInfo) {
+    target_class.classfile.methods.iter().enumerate().find(|(_, m)| {
+        if method_name(&target_class.classfile, m) == expected_method_name {
+            let target_class_descriptor_str = extract_string_from_utf8(&target_class.classfile.constant_pool[m.descriptor_index as usize]);
+            let actual = parse_method_descriptor(loader_arc, target_class_descriptor_str.as_str()).unwrap();
+            actual.parameter_types.len() == parsed_descriptor.parameter_types.len() &&
+                actual.parameter_types.iter().zip(parsed_descriptor.parameter_types.iter()).all(|(a, b)| a == b) &&
+                actual.return_type == parsed_descriptor.return_type
+        } else {
+            false
+        }
+    }).unwrap()
 }
 
 
