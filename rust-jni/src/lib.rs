@@ -11,6 +11,7 @@ use runtime_common::java_values::JavaValue;
 use jni::sys::*;
 use std::ffi::c_void;
 use std::env::Args;
+use libffi::middle::Closure;
 
 
 pub mod value_conversion;
@@ -62,6 +63,9 @@ impl JNIContext for LibJavaLoading {
                 }*/
                 ParsedType::VoidType => {
                     let symbol: Symbol<unsafe extern fn(env: *const jni::JNIEnv, ...) -> c_void > = self.lib.get(mangled.as_bytes()).unwrap();
+                    let raw = symbol.deref();
+                    use libffi::high::Closure2;
+                    let closure = Closure2::new(&raw);
                     for x in args {
 
                     }
