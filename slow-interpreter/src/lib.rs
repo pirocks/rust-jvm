@@ -113,3 +113,4 @@ pub mod instructions;
 pub mod interpreter_util;
 pub mod runtime_class;
 pub mod java_values;
+pub mod native;
