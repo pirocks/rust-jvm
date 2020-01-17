@@ -13,6 +13,7 @@ use std::rc::Rc;
 use crate::instructions::invoke::run_invoke_static;
 use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
+use rust_jni::LibJavaLoading;
 
 pub fn check_inited_class(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<CallStackEntry>, loader_arc: Arc<dyn Loader + Sync + Send>) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
@@ -27,7 +28,7 @@ pub fn check_inited_class(state: &mut InterpreterState, class_name: &ClassName, 
     state.initialized_classes.read().unwrap().get(class_name).unwrap().clone()
 }
 
-pub fn run_function(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>) {
+pub fn run_function(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>,jni: LibJavaLoading) {
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = code_attribute(method).unwrap();
@@ -39,7 +40,7 @@ pub fn run_function(state: &mut InterpreterState, current_frame: Rc<CallStackEnt
             let mut context = CodeParserContext { offset: 0, iter: current.iter() };
             (parse_instruction(&mut context).unwrap().clone(), context.offset)
         };
-        current_frame.pc_offset.replace((instruction_size as isize));
+        current_frame.pc_offset.replace(instruction_size as isize);
         match instruct {
             InstructionInfo::aaload => unimplemented!(),
             InstructionInfo::aastore => unimplemented!(),
@@ -186,7 +187,7 @@ pub fn run_function(state: &mut InterpreterState, current_frame: Rc<CallStackEnt
             InstructionInfo::invokeinterface(_) => unimplemented!(),
             InstructionInfo::invokespecial(_) => unimplemented!(),
             InstructionInfo::invokestatic(cp) => {
-                run_invoke_static(state, current_frame.clone(), cp)
+                run_invoke_static(state, current_frame.clone(), cp,jni)
             }
             InstructionInfo::invokevirtual(_) => unimplemented!(),
             InstructionInfo::ior => unimplemented!(),

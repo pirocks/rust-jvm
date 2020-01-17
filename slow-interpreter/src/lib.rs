@@ -16,6 +16,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::java_values::{JavaValue, VecPointer};
+use rust_jni::LibJavaLoading;
 
 pub struct InterpreterState {
 //    pub call_stack: Vec<CallStackEntry>,
@@ -61,7 +62,12 @@ pub struct CallStackEntry {
 //    }
 //}
 
-pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args: Vec<String>) -> Result<(), Box<dyn Error>> {
+pub fn run(
+    main_class_name: &ClassName,
+    bl: Arc<dyn Loader + Send + Sync>,
+    args: Vec<String>,
+    jni: LibJavaLoading
+) -> Result<(), Box<dyn Error>> {
     let main = bl.clone().load_class(bl.clone(),main_class_name,bl.clone())?;
     let main_class = prepare_class(main.clone(), bl.clone());
     let (main_i, main_method) = &main.methods.iter().enumerate().find(|(_, method)| {
@@ -105,7 +111,7 @@ pub fn run(main_class_name: &ClassName, bl: Arc<dyn Loader + Send + Sync>, args:
             pc: RefCell::new(0),
             pc_offset: 0.into(),
         };
-    run_function(&mut state,Rc::new(stack));
+    run_function(&mut state,Rc::new(stack),jni);
     Result::Ok(())
 }
 

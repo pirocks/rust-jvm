@@ -19,8 +19,9 @@ use crate::interpreter_util::check_inited_class;
 use crate::native::run_native_method;
 use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
+use rust_jni::LibJavaLoading;
 
-pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16) {
+pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16,jni: LibJavaLoading) {
 //todo handle monitor enter and exit
 //handle init cases
     let classfile = &current_frame.class_pointer.classfile;
@@ -56,9 +57,10 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
             pc: 0.into(),
             pc_offset: 0.into()
         };
-        run_function(state,Rc::new(next_entry))
+        run_function(state,Rc::new(next_entry),jni)
     }else{
-        run_native_method(state,current_frame.clone(),target_class,target_method_i);
+        //only works for static void
+        run_native_method(state,current_frame.clone(),target_class,target_method_i,jni);
     }
 }
 
