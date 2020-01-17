@@ -15,14 +15,14 @@ pub fn run_native_method(
     frame: Rc<CallStackEntry>,
     class: Arc<RuntimeClass>,
     method_i : usize,
-    jni: LibJavaLoading
+    jni: &LibJavaLoading
 ) {
     //todo only works for static void methods atm
     let classfile = &class.classfile;
     let method = &classfile.methods[method_i];
-    assert!(method.access_flags& ACC_STATIC);
-    let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index]);
-    let parsed = parse_method_descriptor(class.loader,descriptor_str.as_str()).unwrap();
+    assert!(method.access_flags& ACC_STATIC > 0);
+    let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index as usize]);
+    let parsed = parse_method_descriptor(&class.loader,descriptor_str.as_str()).unwrap();
     let mut args = vec![];
     for _ in parsed.parameter_types{
         args.push(frame.operand_stack.borrow_mut().pop().unwrap());

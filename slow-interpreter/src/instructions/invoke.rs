@@ -21,7 +21,7 @@ use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use rust_jni::LibJavaLoading;
 
-pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16,jni: LibJavaLoading) {
+pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16,jni: &LibJavaLoading) {
 //todo handle monitor enter and exit
 //handle init cases
     let classfile = &current_frame.class_pointer.classfile;
@@ -31,7 +31,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
         ParsedType::Class(c) => c.class_name,
         _ => panic!()
     };
-    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone());
+    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone(),jni);
     let (target_method_i,target_method) = find_target_method(loader_arc, expected_method_name, &expected_descriptor, &target_class);
     let mut args = vec![];
 

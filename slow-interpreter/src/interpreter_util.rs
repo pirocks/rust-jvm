@@ -15,20 +15,31 @@ use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use rust_jni::LibJavaLoading;
 
-pub fn check_inited_class(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<CallStackEntry>, loader_arc: Arc<dyn Loader + Sync + Send>) -> Arc<RuntimeClass> {
+//todo jni should really live in interpreter state
+pub fn check_inited_class(
+    state: &mut InterpreterState,
+    class_name: &ClassName,
+    current_frame: Rc<CallStackEntry>,
+    loader_arc: Arc<dyn Loader + Sync + Send>,
+    jni : &LibJavaLoading
+) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
         let bl = state.bootstrap_loader.clone();
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
         let prepared = prepare_class(target_classfile.clone(), loader_arc.clone());
         state.initialized_classes.write().unwrap().insert(class_name.clone(), Arc::new(prepared));//must be before, otherwise infinite recurse
-        let inited_target = initialize_class(prepare_class(target_classfile, loader_arc.clone()), state, current_frame);
+        let inited_target = initialize_class(prepare_class(target_classfile, loader_arc.clone()), state, current_frame,jni);
         state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
     }
     state.initialized_classes.read().unwrap().get(class_name).unwrap().clone()
 }
 
-pub fn run_function(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>,jni: LibJavaLoading) {
+pub fn run_function(
+    state: &mut InterpreterState,
+    current_frame: Rc<CallStackEntry>,
+    jni: &LibJavaLoading
+) {
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = code_attribute(method).unwrap();
@@ -133,7 +144,7 @@ pub fn run_function(state: &mut InterpreterState, current_frame: Rc<CallStackEnt
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone());
+                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone(),jni);
                 let field_value = target_classfile.static_vars.get(&field_name).unwrap();
                 let mut stack = current_frame.operand_stack.borrow_mut();
                 stack.push(field_value.clone());

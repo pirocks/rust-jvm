@@ -111,7 +111,7 @@ pub fn run(
             pc: RefCell::new(0),
             pc_offset: 0.into(),
         };
-    run_function(&mut state,Rc::new(stack),jni);
+    run_function(&mut state,Rc::new(stack),&jni);
     Result::Ok(())
 }
 

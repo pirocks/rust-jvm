@@ -1,7 +1,10 @@
 extern crate libloading;
 extern crate jni;
 extern crate libc;
+extern crate log;
+extern crate simple_logger;
 
+use log::{trace, info};
 use libloading::Library;
 use libloading::Symbol;
 use std::sync::Arc;
@@ -12,12 +15,15 @@ use std::ffi::c_void;
 use libffi::middle::Type;
 use crate::value_conversion::to_native;
 use libffi::middle::Arg;
-use std::mem::transmute;
+use std::mem::{transmute, MaybeUninit};
 use crate::value_conversion::to_native_type;
 use std::ops::Deref;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use jni::sys;
+use jni::sys::jclass;
+use jni::sys::_jobject;
+
 
 
 pub mod value_conversion;
@@ -33,8 +39,10 @@ pub struct LibJavaLoading {
 
 impl LibJavaLoading {
     pub fn new(path: String) -> LibJavaLoading{
+        trace!("Loading libjava.so from:`{}`",path);
+        let lib = Library::new(path).unwrap();
         LibJavaLoading {
-            lib: Library::new(path).unwrap()
+            lib
         }
     }
 }
@@ -45,18 +53,23 @@ impl JNIContext for LibJavaLoading {
 
         match return_type {
             ParsedType::VoidType => {
-                let symbol: Symbol<unsafe extern fn(e: *mut sys::JNIEnv, ...) -> c_void> = unsafe { self.lib.get(mangled.as_bytes()).unwrap() };
+                let symbol: Symbol<unsafe extern fn(/*e: *mut sys::JNIEnv, ...*/) /*-> c_void*/> = unsafe { self.lib.get(mangled.as_bytes()).unwrap() };
                 let raw = symbol.deref();
 
-                let mut args_type = vec![];
-                let mut c_args = vec![Arg::new(&get_native_interface())];
+                let mut args_type = vec![Type::pointer(),Type::pointer()];
+
+                let jclass : jclass = unsafe { MaybeUninit::zeroed().assume_init() };
+                let mut c_args = vec![Arg::new(&get_native_interface()),Arg::new(&jclass)];
                 for x in args {
                     args_type.push(to_native_type(x.clone()));
                     c_args.push(to_native(x));//todo don't forget to free. and/or stack alllocate
                 }
                 let cif = Cif::new(args_type.into_iter(), Type::f64());
                 unsafe {
-                    let fn_ptr = CodePtr(transmute(raw));
+                    let fn_ptr = CodePtr::from_fun(*raw);
+                    dbg!(fn_ptr);
+                    dbg!(raw);
+                    dbg!(symbol);
                     cif.call(fn_ptr, c_args.as_slice())
                 }
                 None

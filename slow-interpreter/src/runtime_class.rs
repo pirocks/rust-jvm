@@ -15,6 +15,7 @@ use std::rc::Rc;
 use rust_jvm_common::classnames::class_name;
 use runtime_common::java_values::{JavaValue, default_value};
 use runtime_common::runtime_class::RuntimeClass;
+use rust_jni::LibJavaLoading;
 
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> RuntimeClass {
@@ -35,7 +36,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
     }
 }
 
-pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Rc<CallStackEntry>) -> Arc<RuntimeClass> {
+pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Rc<CallStackEntry>,jni : &LibJavaLoading) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
@@ -69,7 +70,7 @@ pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut Interpreter
         pc: 0.into(),
         pc_offset: 0.into(),
     };
-    run_function(state, Rc::new(new_stack));
+    run_function(state, Rc::new(new_stack),jni);
     if state.throw || state.terminate {
         unimplemented!()
         //need to clear status after

@@ -1,0 +1,11 @@
+[package]
+#this exists to access libjava dependencies.
+name = "jvm"
+version = "0.1.0"
+authors = ["Francis Nixon <13nixonf@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]

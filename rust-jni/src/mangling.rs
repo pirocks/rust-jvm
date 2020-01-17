@@ -17,7 +17,7 @@ pub fn mangle(classfile: Arc<RuntimeClass>, method_i: usize) -> String {
 
 
 pub fn escape(s:String)-> String{
-    let initial_replace = s.replace("/","_").replace("_","_1").replace(";","_2").replace("[","_3");
+    let initial_replace = s.replace("_","_1").replace("/","_").replace(";","_2").replace("[","_3");
     //todo need to handle non-unicode but shouldn't be an issue for now.
     initial_replace
 }
