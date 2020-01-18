@@ -5,11 +5,12 @@ use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::loading::Loader;
 use std::hash::{Hash, Hasher};
+use std::cell::RefCell;
 
 pub struct RuntimeClass {
     pub classfile: Arc<Classfile>,
     pub loader: Arc<dyn Loader + Send + Sync>,
-    pub static_vars: HashMap<String, JavaValue>,
+    pub static_vars: RefCell<HashMap<String, JavaValue>>,
 }
 
 impl Debug for RuntimeClass{

@@ -16,6 +16,7 @@ use rust_jvm_common::classnames::class_name;
 use runtime_common::java_values::{JavaValue, default_value};
 use runtime_common::runtime_class::RuntimeClass;
 use rust_jni::LibJavaLoading;
+use std::cell::RefCell;
 
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> RuntimeClass {
@@ -32,7 +33,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
     RuntimeClass {
         classfile,
         loader,
-        static_vars: res,
+        static_vars: RefCell::new(res),
     }
 }
 
@@ -50,7 +51,7 @@ pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut Interpreter
             let x = &classfile.constant_pool[value_i as usize];
             let constant_value = JavaValue::from_constant_pool_entry(x);
             let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
-            runtime_class.static_vars.insert(name, constant_value);
+            runtime_class.static_vars.borrow_mut().insert(name, constant_value);
         }
     }
     //todo detecting if assertions are enabled?

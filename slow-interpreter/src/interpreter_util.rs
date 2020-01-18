@@ -145,9 +145,9 @@ pub fn run_function(
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
                 let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone(),jni);
-                let field_value = target_classfile.static_vars.get(&field_name).unwrap();
+                let field_value = target_classfile.static_vars.borrow().get(&field_name).unwrap().clone();
                 let mut stack = current_frame.operand_stack.borrow_mut();
-                stack.push(field_value.clone());
+                stack.push(field_value);
             }
             InstructionInfo::goto_(_) => unimplemented!(),
             InstructionInfo::goto_w(_) => unimplemented!(),
@@ -260,7 +260,15 @@ pub fn run_function(
             InstructionInfo::pop => unimplemented!(),
             InstructionInfo::pop2 => unimplemented!(),
             InstructionInfo::putfield(_) => unimplemented!(),
-            InstructionInfo::putstatic(_) => unimplemented!(),
+            InstructionInfo::putstatic(cp) => {
+                let classfile = &current_frame.class_pointer.classfile;
+                let loader_arc = &current_frame.class_pointer.loader;
+                let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
+                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone(),jni);
+                let mut stack = current_frame.operand_stack.borrow_mut();
+                let field_value = stack.pop().unwrap();
+                target_classfile.static_vars.borrow_mut().insert(field_name,field_value);
+            },
             InstructionInfo::ret(_) => unimplemented!(),
             InstructionInfo::return_ => unimplemented!(),
             InstructionInfo::saload => unimplemented!(),
