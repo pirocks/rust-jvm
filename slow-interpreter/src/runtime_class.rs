@@ -60,7 +60,6 @@ pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut Interpreter
     }).unwrap();
     //todo should I really be manipulating the interpreter state like this
     let class_arc = Arc::new(runtime_class);
-    dbg!(&class_name(&class_arc.classfile));
     let new_stack = CallStackEntry {
         last_call_stack: Some(stack),
         class_pointer: class_arc.clone(),

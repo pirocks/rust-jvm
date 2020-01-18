@@ -43,9 +43,88 @@ impl Clone for JavaValue{
     }
 }
 
+impl PartialEq for JavaValue{
+    fn eq(&self, other: &Self) -> bool {
+        match self{
+            JavaValue::Long(x) => {
+                match other {
+                    JavaValue::Long(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Int(x) => {
+                match other {
+                    JavaValue::Int(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Short(x) => {
+                match other {
+                    JavaValue::Short(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Byte(x) => {
+                match other {
+                    JavaValue::Byte(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Boolean(x) => {
+                match other {
+                    JavaValue::Boolean(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Char(x) => {
+                match other {
+                    JavaValue::Char(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Float(x) => {
+                match other {
+                    JavaValue::Float(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Double(x) => {
+                match other {
+                    JavaValue::Double(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Array(x) => {
+                match other {
+                    JavaValue::Array(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Object(x) => {
+                match other {
+                    JavaValue::Object(x1) => x == x1,
+                    _ => false
+                }
+            },
+            JavaValue::Top => {
+                match other {
+                    JavaValue::Top => true,
+                    _ => false
+                }
+            },
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ObjectPointer {
     object: *const Object
+}
+
+impl PartialEq for ObjectPointer{
+    fn eq(&self, other: &Self) -> bool {
+        self.object == other.object
+    }
 }
 
 impl Clone for ObjectPointer{
@@ -57,6 +136,12 @@ impl Clone for ObjectPointer{
 #[derive(Debug)]
 pub struct VecPointer {
     pub object: *const Vec<JavaValue>
+}
+
+impl PartialEq for VecPointer{
+    fn eq(&self, other: &Self) -> bool {
+        self.object == other.object
+    }
 }
 
 impl Clone for VecPointer{

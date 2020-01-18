@@ -70,7 +70,7 @@ pub fn run(
 ) -> Result<(), Box<dyn Error>> {
     let main = bl.clone().load_class(bl.clone(),main_class_name,bl.clone())?;
     let main_class = prepare_class(main.clone(), bl.clone());
-    let (main_i, main_method) = &main.methods.iter().enumerate().find(|(_, method)| {
+    let (main_i, _main_method) = &main.methods.iter().enumerate().find(|(_, method)| {
         let name = method_name(&main, &method);
         if name == "main" {
             let descriptor_string = extract_string_from_utf8(&main.constant_pool[method.descriptor_index as usize]);

@@ -1,5 +1,6 @@
 use std::hash::Hasher;
 use crate::unified_types::ParsedType;
+use std::cell::RefCell;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]

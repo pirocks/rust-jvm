@@ -143,7 +143,7 @@ pub fn run_function(
 
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
-                let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
+                let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
                 let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone(),jni);
                 let field_value = target_classfile.static_vars.get(&field_name).unwrap();
                 let mut stack = current_frame.operand_stack.borrow_mut();
