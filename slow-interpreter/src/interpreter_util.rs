@@ -1,17 +1,17 @@
 use crate::{InterpreterState, CallStackEntry};
-use rust_jvm_common::utils::code_attribute;
+use rust_jvm_common::utils::{code_attribute, extract_string_from_utf8};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
-use rust_jvm_common::classfile::InstructionInfo;
+use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
 use verification::verifier::instructions::special::extract_field_descriptor;
 use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::classnames::{ClassName, class_name};
 use rust_jvm_common::loading::Loader;
 use std::rc::Rc;
 use crate::instructions::invoke::run_invoke_static;
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, VecPointer};
 use runtime_common::runtime_class::RuntimeClass;
 use rust_jni::LibJavaLoading;
 
@@ -63,7 +63,17 @@ pub fn run_function(
             InstructionInfo::aload_1 => unimplemented!(),
             InstructionInfo::aload_2 => unimplemented!(),
             InstructionInfo::aload_3 => unimplemented!(),
-            InstructionInfo::anewarray(_) => unimplemented!(),
+            InstructionInfo::anewarray(cp) => {
+                let len = match current_frame.operand_stack.borrow_mut().pop().unwrap(){
+                    JavaValue::Int(i) => i,
+                    _ => panic!()
+                };
+                if len == 0 {
+                    current_frame.operand_stack.borrow_mut().push(JavaValue::Array(Some(VecPointer::new(len as usize))))
+                }else {
+                    unimplemented!()
+                }
+            },
             InstructionInfo::areturn => unimplemented!(),
             InstructionInfo::arraylength => unimplemented!(),
             InstructionInfo::astore(_) => unimplemented!(),
@@ -162,7 +172,9 @@ pub fn run_function(
             InstructionInfo::iand => unimplemented!(),
             InstructionInfo::iastore => unimplemented!(),
             InstructionInfo::iconst_m1 => unimplemented!(),
-            InstructionInfo::iconst_0 => unimplemented!(),
+            InstructionInfo::iconst_0 => {
+                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(0))
+            },
             InstructionInfo::iconst_1 => unimplemented!(),
             InstructionInfo::iconst_2 => unimplemented!(),
             InstructionInfo::iconst_3 => unimplemented!(),
@@ -226,7 +238,20 @@ pub fn run_function(
             InstructionInfo::lcmp => unimplemented!(),
             InstructionInfo::lconst_0 => unimplemented!(),
             InstructionInfo::lconst_1 => unimplemented!(),
-            InstructionInfo::ldc(_) => unimplemented!(),
+            InstructionInfo::ldc(cp) => {
+                let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
+                let pool_entry = &constant_pool[cp as usize];
+                match &pool_entry.kind {
+                    ConstantKind::String(s) => {
+                        let res_string = extract_string_from_utf8(&constant_pool[s.string_index as usize]);
+                        let java_lang_string = ClassName::Str("java/lang/String".to_string());
+                        let current_loader = current_frame.class_pointer.loader.clone();
+                        check_inited_class(state, &java_lang_string, current_frame, current_loader,jni);
+                        unimplemented!()
+                    },
+                    _ => {}
+                }
+            },
             InstructionInfo::ldc_w(_) => unimplemented!(),
             InstructionInfo::ldc2_w(_) => unimplemented!(),
             InstructionInfo::ldiv => unimplemented!(),
@@ -254,7 +279,19 @@ pub fn run_function(
             InstructionInfo::monitorenter => unimplemented!(),
             InstructionInfo::monitorexit => unimplemented!(),
             InstructionInfo::multianewarray(_) => unimplemented!(),
-            InstructionInfo::new(_) => unimplemented!(),
+            InstructionInfo::new(cp) => {
+                let classfile = &current_frame.class_pointer.classfile;
+                let loader_arc = &current_frame.class_pointer.loader;
+                let constant_pool = &classfile.constant_pool;
+                let class_name_index = match &constant_pool[cp as usize].kind{
+                    ConstantKind::Class(c) => c.name_index,
+                    _ => panic!()
+                };
+                let target_class_name = ClassName::Str(extract_string_from_utf8(&constant_pool[class_name_index as usize]));
+                let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone(), loader_arc.clone(),jni);
+                unimplemented!()
+
+            },
             InstructionInfo::newarray(_) => unimplemented!(),
             InstructionInfo::nop => unimplemented!(),
             InstructionInfo::pop => unimplemented!(),
@@ -270,7 +307,9 @@ pub fn run_function(
                 target_classfile.static_vars.borrow_mut().insert(field_name,field_value);
             },
             InstructionInfo::ret(_) => unimplemented!(),
-            InstructionInfo::return_ => unimplemented!(),
+            InstructionInfo::return_ => {
+                state.function_return  = true;
+            },
             InstructionInfo::saload => unimplemented!(),
             InstructionInfo::sastore => unimplemented!(),
             InstructionInfo::sipush(_) => unimplemented!(),

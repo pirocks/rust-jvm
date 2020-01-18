@@ -37,30 +37,37 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
     }
 }
 
-pub fn initialize_class(mut runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Rc<CallStackEntry>,jni : &LibJavaLoading) -> Arc<RuntimeClass> {
+pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Rc<CallStackEntry>,jni : &LibJavaLoading) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
-    let classfile = &runtime_class.classfile;
-    for field in &classfile.fields {
-        if (field.access_flags & ACC_STATIC > 0) && (field.access_flags & ACC_FINAL > 0) {
-            let value_i = match constant_value_attribute_i(field){
-                None => continue,
-                Some(i) => i,
-            };
-            let x = &classfile.constant_pool[value_i as usize];
-            let constant_value = JavaValue::from_constant_pool_entry(x);
-            let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
-            runtime_class.static_vars.borrow_mut().insert(name, constant_value);
+    {
+        let classfile = &runtime_class.classfile;
+        for field in &classfile.fields {
+            if (field.access_flags & ACC_STATIC > 0) && (field.access_flags & ACC_FINAL > 0) {
+                let value_i = match constant_value_attribute_i(field) {
+                    None => continue,
+                    Some(i) => i,
+                };
+                let x = &classfile.constant_pool[value_i as usize];
+                let constant_value = JavaValue::from_constant_pool_entry(x);
+                let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
+                runtime_class.static_vars.borrow_mut().insert(name, constant_value);
+            }
         }
     }
     //todo detecting if assertions are enabled?
-    let (clinit_i, _) = runtime_class.classfile.methods.iter().enumerate().find(|(_, m)| {
+    let class_arc = Arc::new(runtime_class);
+    let classfile = &class_arc.classfile;
+    let (clinit_i, _) = match classfile.methods.iter().enumerate().find(|(_, m)| {
         let name = extract_string_from_utf8(&classfile.constant_pool[m.name_index as usize]);
         name == "<clinit>"
-    }).unwrap();
+    }) {
+        None => return class_arc,
+        Some(x) => x,
+    };
     //todo should I really be manipulating the interpreter state like this
-    let class_arc = Arc::new(runtime_class);
+
     let new_stack = CallStackEntry {
         last_call_stack: Some(stack),
         class_pointer: class_arc.clone(),

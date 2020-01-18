@@ -11,3 +11,4 @@ verification = {path = "../verification"}
 runtime-common = {path = "../runtime-common"}
 rust-jni = {path = "../rust-jni"}
 libloading = "0.5"
+memalloc = "0.1"

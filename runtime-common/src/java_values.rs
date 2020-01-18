@@ -5,6 +5,7 @@ use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::classfile::ConstantInfo;
 use rust_jvm_common::classfile::ConstantKind;
 use std::mem::transmute;
+use std::mem;
 //use std::alloc::{alloc, dealloc, Layout};
 
 #[derive(Debug)]
@@ -136,6 +137,14 @@ impl Clone for ObjectPointer{
 #[derive(Debug)]
 pub struct VecPointer {
     pub object: *const Vec<JavaValue>
+}
+
+impl VecPointer{
+    pub fn new(len : usize) -> VecPointer{
+        let mut buf:Vec<JavaValue> = Vec::with_capacity(len);
+        mem::forget(&buf);
+        unsafe {VecPointer {object: transmute(&buf)}}
+    }
 }
 
 impl PartialEq for VecPointer{

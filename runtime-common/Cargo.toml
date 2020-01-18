@@ -8,4 +8,5 @@ edition = "2018"
 [lib]
 
 [dependencies]
+memalloc = "0.1"
 rust-jvm-common = {path = "../rust-jvm-common"}
