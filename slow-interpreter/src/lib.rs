@@ -107,12 +107,15 @@ pub fn run(
         class_pointer: Arc::new(main_class),
             method_i: *main_i as u16,
 //            todo is that vec access safe, or does it not heap allocate?
-            local_vars: vec![JavaValue::Array(Some(VecPointer { object: &vec![] }))],//todo handle parameters
+            local_vars: vec![JavaValue::Array(Some(VecPointer { object: Arc::new(vec![]) }))],//todo handle parameters
             operand_stack: vec![].into(),
             pc: RefCell::new(0),
             pc_offset: 0.into(),
         };
     run_function(&mut state,Rc::new(stack),&jni);
+    if state.throw || state.terminate {
+        unimplemented!()
+    }
     Result::Ok(())
 }
 

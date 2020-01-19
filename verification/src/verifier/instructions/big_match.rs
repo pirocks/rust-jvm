@@ -171,7 +171,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::iconst_3 => instruction_is_type_safe_iconst_m1(env, offset, stack_frame),
         InstructionInfo::iconst_4 => instruction_is_type_safe_iconst_m1(env, offset, stack_frame),
         InstructionInfo::iconst_5 => instruction_is_type_safe_iconst_m1(env, offset, stack_frame),
-        InstructionInfo::idiv => { unimplemented!() }
+        InstructionInfo::idiv => instruction_is_type_safe_iadd(env,offset,stack_frame),
         InstructionInfo::if_acmpeq(target) => {
             let final_target = (*target as isize) + (instruction.offset as isize);
             assert!(final_target >= 0);
@@ -211,7 +211,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::iload_2 => instruction_is_type_safe_iload(2, env, offset, stack_frame),
         InstructionInfo::iload_3 => instruction_is_type_safe_iload(3, env, offset, stack_frame),
         InstructionInfo::imul => instruction_is_type_safe_iadd(env, offset, stack_frame),
-        InstructionInfo::ineg => { unimplemented!() }
+        InstructionInfo::ineg => instruction_is_type_safe_ineg(env,offset,stack_frame),
         InstructionInfo::instanceof(cp) => instruction_is_type_safe_instanceof(*cp, env, offset, stack_frame),
         InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, offset, stack_frame),
         InstructionInfo::invokeinterface(ii) => instruction_is_type_safe_invokeinterface(ii.index as usize, ii.count as usize, env, offset, stack_frame),

@@ -150,7 +150,7 @@ impl Clone for ObjectPointer{
 
 #[derive(Debug)]
 pub struct VecPointer {
-    pub object: *const Vec<JavaValue>
+    pub object: Arc<Vec<JavaValue>>
 }
 
 impl VecPointer{
@@ -169,7 +169,7 @@ impl PartialEq for VecPointer{
 
 impl Clone for VecPointer{
     fn clone(&self) -> Self {
-        VecPointer { object: self.object }
+        VecPointer { object: self.object.clone() }
     }
 }
 

@@ -7,20 +7,15 @@ use verification::verifier::instructions::special::extract_field_descriptor;
 use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
-use rust_jvm_common::classnames::{ClassName, class_name};
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::rc::Rc;
-use crate::instructions::invoke::run_invoke_static;
+use crate::instructions::invoke::{run_invoke_static, invoke_special, find_target_method};
 use runtime_common::java_values::{JavaValue, VecPointer, ObjectPointer, default_value};
 use runtime_common::runtime_class::RuntimeClass;
 use rust_jni::LibJavaLoading;
-use runtime_common::java_values::JavaValue::Object;
-use classfile_parser::types::{parse_field_type, parse_field_descriptor};
-use std::borrow::BorrowMut;
-use rust_jvm_common::unified_types::ParsedType;
-use verification::verifier::instructions::branches::get_method_descriptor;
-use verification::verifier::get_class;
-use crate::instructions::invoke::find_target_method;
+use classfile_parser::types::{parse_field_descriptor, MethodDescriptor};
+use rust_jvm_common::unified_types::{ArrayType, ParsedType};
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -70,10 +65,14 @@ pub fn run_function(
                 let ref_ = current_frame.local_vars[0].clone();
                 current_frame.operand_stack.borrow_mut().push(ref_);
             },
-            InstructionInfo::aload_1 => unimplemented!(),
+            InstructionInfo::aload_1 => {
+                //todo dup.
+                let ref_ = current_frame.local_vars[1].clone();
+                current_frame.operand_stack.borrow_mut().push(ref_);
+            },
             InstructionInfo::aload_2 => unimplemented!(),
             InstructionInfo::aload_3 => unimplemented!(),
-            InstructionInfo::anewarray(cp) => {
+            InstructionInfo::anewarray(_cp) => {
                 let len = match current_frame.operand_stack.borrow_mut().pop().unwrap(){
                     JavaValue::Int(i) => i,
                     _ => panic!()
@@ -85,7 +84,15 @@ pub fn run_function(
                 }
             },
             InstructionInfo::areturn => unimplemented!(),
-            InstructionInfo::arraylength => unimplemented!(),
+            InstructionInfo::arraylength => {
+                let array = current_frame.operand_stack.borrow_mut().pop().unwrap();
+                match array{
+                    JavaValue::Array(a) => {
+                        current_frame.operand_stack.borrow_mut().push(JavaValue::Int(a.unwrap().object.len() as i32));
+                    },
+                    _ => panic!()
+                }
+            },
             InstructionInfo::astore(_) => unimplemented!(),
             InstructionInfo::astore_0 => unimplemented!(),
             InstructionInfo::astore_1 => unimplemented!(),
@@ -222,36 +229,7 @@ pub fn run_function(
             InstructionInfo::instanceof(_) => unimplemented!(),
             InstructionInfo::invokedynamic(_) => unimplemented!(),
             InstructionInfo::invokeinterface(_) => unimplemented!(),
-            InstructionInfo::invokespecial(cp) => {
-                let loader_arc = current_frame.class_pointer.loader.clone();
-                let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &current_frame.class_pointer.classfile, loader_arc.clone());
-                let method_class_name = match method_class_type {
-                    ParsedType::Class(c) => c.class_name,
-                    _ => panic!()
-                };
-                let target_class = check_inited_class(state, &method_class_name, current_frame.clone(), loader_arc.clone(), jni);
-                let (target_m_i,target_m) = find_target_method(&loader_arc,method_name,&parsed_descriptor,&target_class);
-                let mut args = vec![];
-                let max_locals = code_attribute(target_m).unwrap().max_locals;
-                for _ in 0..max_locals{
-                    args.push(JavaValue::Top);
-                }
-                args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                for i in 1..(parsed_descriptor.parameter_types.len() + 1){
-                    args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                    //todo does ordering end up correct
-                }
-                let next_entry = CallStackEntry {
-                    last_call_stack: Some(current_frame.clone()),
-                    class_pointer: target_class,
-                    method_i: target_m_i as u16,
-                    local_vars: args,
-                    operand_stack: vec![].into(),
-                    pc: 0.into(),
-                    pc_offset: 0.into()
-                };
-                run_function(state,Rc::new(next_entry),jni);
-            },
+            InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, jni, cp),
             InstructionInfo::invokestatic(cp) => {
                 run_invoke_static(state, current_frame.clone(), cp,jni)
             }
@@ -289,7 +267,33 @@ pub fn run_function(
                         let res_string = extract_string_from_utf8(&constant_pool[s.string_index as usize]);
                         let java_lang_string = ClassName::Str("java/lang/String".to_string());
                         let current_loader = current_frame.class_pointer.loader.clone();
-                        check_inited_class(state, &java_lang_string, current_frame, current_loader,jni);
+                        let string_class = check_inited_class(state, &java_lang_string, current_frame.clone(), current_loader.clone(),jni);
+                        let str_as_vec = res_string.into_bytes().clone();
+                        let chars : Vec<JavaValue>= str_as_vec.iter().map(|x|{JavaValue::Char(*x as char)}).collect();
+                        push_new_object(current_frame.clone(),&string_class);
+                        let mut args = vec![current_frame.operand_stack.borrow_mut().pop().unwrap()];
+                        args.push(JavaValue::Array(Some(VecPointer { object: Arc::new(chars) })));
+                        let char_array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) });
+                        let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
+                        let (constructor_i,constructor) = find_target_method(current_loader.clone(),"<init>".to_string(),&expected_descriptor,&string_class);
+                        dbg!(constructor_i);
+                        dbg!(&constructor);
+                        let next_entry = CallStackEntry {
+                            last_call_stack: Some(current_frame.clone()),
+                            class_pointer: string_class,
+                            method_i: constructor_i as u16,
+                            local_vars: args,
+                            operand_stack: vec![].into(),
+                            pc: 0.into(),
+                            pc_offset: 0.into()
+                        };
+                        run_function(state, Rc::new(next_entry), jni);
+                        if state.terminate || state.throw {
+                            unimplemented!()
+                        }
+                        if(state.function_return){
+                            state.function_return = false;
+                        }
                         unimplemented!()
                     },
                     _ => {}
@@ -322,31 +326,7 @@ pub fn run_function(
             InstructionInfo::monitorenter => unimplemented!(),
             InstructionInfo::monitorexit => unimplemented!(),
             InstructionInfo::multianewarray(_) => unimplemented!(),
-            InstructionInfo::new(cp) => {
-                let loader_arc = &current_frame.class_pointer.loader;
-                let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-                let class_name_index = match &constant_pool[cp as usize].kind{
-                    ConstantKind::Class(c) => c.name_index,
-                    _ => panic!()
-                };
-                let target_class_name = ClassName::Str(extract_string_from_utf8(&constant_pool[class_name_index as usize]));
-                let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone(), loader_arc.clone(),jni);
-                let object_pointer = ObjectPointer::new(target_classfile.clone());
-                let new_obj = JavaValue::Object(Some(object_pointer.clone()));
-                let classfile = &target_classfile.classfile;
-                for field in &classfile.fields {
-                    if field.access_flags & ACC_STATIC == 0 {
-                        let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
-                        let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[field.descriptor_index as usize]);
-                        let descriptor = parse_field_descriptor(loader_arc,descriptor_str.as_str()).unwrap();
-                        let type_ = descriptor.field_type;
-                        let val = default_value(type_);
-                        object_pointer.object.fields.borrow_mut().insert(name,val);
-                    }
-                }
-                current_frame.operand_stack.borrow_mut().push(new_obj);
-
-            },
+            InstructionInfo::new(cp) => new(state, jni, &current_frame, cp as usize),
             InstructionInfo::newarray(_) => unimplemented!(),
             InstructionInfo::nop => unimplemented!(),
             InstructionInfo::pop => unimplemented!(),
@@ -383,6 +363,36 @@ pub fn run_function(
         }
         current_frame.pc.replace(pc);
     }
+}
+
+pub fn new(state: &mut InterpreterState, jni: &LibJavaLoading,current_frame: &Rc<CallStackEntry>, cp : usize) -> () {
+    let loader_arc = &current_frame.class_pointer.loader;
+    let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
+    let class_name_index = match &constant_pool[cp as usize].kind {
+        ConstantKind::Class(c) => c.name_index,
+        _ => panic!()
+    };
+    let target_class_name = ClassName::Str(extract_string_from_utf8(&constant_pool[class_name_index as usize]));
+    let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone(), loader_arc.clone(), jni);
+    push_new_object(current_frame.clone(), &target_classfile);
+}
+
+fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<RuntimeClass>) {
+    let loader_arc = &current_frame.class_pointer.loader;
+    let object_pointer = ObjectPointer::new(target_classfile.clone());
+    let new_obj = JavaValue::Object(Some(object_pointer.clone()));
+    let classfile = &target_classfile.classfile;
+    for field in &classfile.fields {
+        if field.access_flags & ACC_STATIC == 0 {
+            let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
+            let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[field.descriptor_index as usize]);
+            let descriptor = parse_field_descriptor(loader_arc, descriptor_str.as_str()).unwrap();
+            let type_ = descriptor.field_type;
+            let val = default_value(type_);
+            object_pointer.object.fields.borrow_mut().insert(name, val);
+        }
+    }
+    current_frame.operand_stack.borrow_mut().push(new_obj);
 }
 
 

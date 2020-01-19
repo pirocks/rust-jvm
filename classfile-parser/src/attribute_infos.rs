@@ -1,4 +1,4 @@
-use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers};
+use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers, UninitializedVariableInfo};
 use crate::constant_infos::is_utf8;
 use crate::code::parse_code_raw;
 use rust_jvm_common::utils::extract_string_from_utf8;
@@ -262,6 +262,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> ParsedType {
         2 => ParsedType::FloatType,
         3 => ParsedType::DoubleType,
         4 => ParsedType::LongType,
+        5 => ParsedType::NullType,
         6 => ParsedType::UninitializedThis,
         7 => {
             let original_index = p.read16();
@@ -279,6 +280,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> ParsedType {
                 ParsedType::Class(ClassWithLoader { class_name: ClassName::Str(type_descriptor), loader: p.loader() })
             }
         }
+        8 => {ParsedType::Uninitialized(UninitializedVariableInfo{ offset: p.read16() })}
         _ => { unimplemented!("{}", type_) }
     }
 }

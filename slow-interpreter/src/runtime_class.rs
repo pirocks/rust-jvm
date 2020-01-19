@@ -12,7 +12,6 @@ use crate::InterpreterState;
 use crate::CallStackEntry;
 use crate::run_function;
 use std::rc::Rc;
-use rust_jvm_common::classnames::class_name;
 use runtime_common::java_values::{JavaValue, default_value};
 use runtime_common::runtime_class::RuntimeClass;
 use rust_jni::LibJavaLoading;

@@ -164,8 +164,8 @@ pub fn can_pop(vf:&VerifierContext,input_frame: &Frame, types: Vec<VerificationT
 }
 
 pub fn frame_is_assignable(vf:&VerifierContext,left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
-//    dbg!(left);
-//    dbg!(right);
+    dbg!(left);
+    dbg!(right);
     let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| {
         is_assignable(vf,left_, right_)
     }).collect();

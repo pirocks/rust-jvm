@@ -181,8 +181,13 @@ pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &Verific
             VerificationType::UninitializedEmpty => Result::Ok(()),
             _ => is_assignable(vf, &VerificationType::Reference, to)
         },
-        VerificationType::Uninitialized(_) => match to {
-            VerificationType::Uninitialized(_) => unimplemented!(),
+        VerificationType::Uninitialized(u1) => match to {
+            VerificationType::Uninitialized(u2) => {
+                if u1.offset == u2.offset{
+                    return Result::Ok(())
+                }
+                is_assignable(vf, &VerificationType::UninitializedEmpty, to)
+            },
             _ => is_assignable(vf, &VerificationType::UninitializedEmpty, to)
         },
         VerificationType::UninitializedThis => match to {
