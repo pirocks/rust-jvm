@@ -36,6 +36,7 @@ pub struct InterpreterState {
 //    }
 //}
 
+#[derive(Debug)]
 pub struct CallStackEntry {
     pub last_call_stack : Option<Rc<CallStackEntry>>,
     pub class_pointer: Arc<RuntimeClass>,

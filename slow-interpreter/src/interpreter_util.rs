@@ -17,6 +17,10 @@ use rust_jni::LibJavaLoading;
 use runtime_common::java_values::JavaValue::Object;
 use classfile_parser::types::{parse_field_type, parse_field_descriptor};
 use std::borrow::BorrowMut;
+use rust_jvm_common::unified_types::ParsedType;
+use verification::verifier::instructions::branches::get_method_descriptor;
+use verification::verifier::get_class;
+use crate::instructions::invoke::find_target_method;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -62,7 +66,10 @@ pub fn run_function(
                 current_frame.operand_stack.borrow_mut().push(JavaValue::Object(None))
             },
             InstructionInfo::aload(_) => unimplemented!(),
-            InstructionInfo::aload_0 => unimplemented!(),
+            InstructionInfo::aload_0 => {
+                let ref_ = current_frame.local_vars[0].clone();
+                current_frame.operand_stack.borrow_mut().push(ref_);
+            },
             InstructionInfo::aload_1 => unimplemented!(),
             InstructionInfo::aload_2 => unimplemented!(),
             InstructionInfo::aload_3 => unimplemented!(),
@@ -216,7 +223,34 @@ pub fn run_function(
             InstructionInfo::invokedynamic(_) => unimplemented!(),
             InstructionInfo::invokeinterface(_) => unimplemented!(),
             InstructionInfo::invokespecial(cp) => {
-                unimplemented!()
+                let loader_arc = current_frame.class_pointer.loader.clone();
+                let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &current_frame.class_pointer.classfile, loader_arc.clone());
+                let method_class_name = match method_class_type {
+                    ParsedType::Class(c) => c.class_name,
+                    _ => panic!()
+                };
+                let target_class = check_inited_class(state, &method_class_name, current_frame.clone(), loader_arc.clone(), jni);
+                let (target_m_i,target_m) = find_target_method(&loader_arc,method_name,&parsed_descriptor,&target_class);
+                let mut args = vec![];
+                let max_locals = code_attribute(target_m).unwrap().max_locals;
+                for _ in 0..max_locals{
+                    args.push(JavaValue::Top);
+                }
+                args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+                for i in 1..(parsed_descriptor.parameter_types.len() + 1){
+                    args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+                    //todo does ordering end up correct
+                }
+                let next_entry = CallStackEntry {
+                    last_call_stack: Some(current_frame.clone()),
+                    class_pointer: target_class,
+                    method_i: target_m_i as u16,
+                    local_vars: args,
+                    operand_stack: vec![].into(),
+                    pc: 0.into(),
+                    pc_offset: 0.into()
+                };
+                run_function(state,Rc::new(next_entry),jni);
             },
             InstructionInfo::invokestatic(cp) => {
                 run_invoke_static(state, current_frame.clone(), cp,jni)

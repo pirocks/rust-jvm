@@ -37,7 +37,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
 
     if target_method.access_flags & ACC_NATIVE == 0{
         assert!(target_method.access_flags & ACC_STATIC > 0);
-        assert!(target_method.access_flags & ACC_ABSTRACT == 0);
+        assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
         let max_locals = code_attribute(target_method).unwrap().max_locals;
 
         for _ in 0..max_locals{
@@ -64,7 +64,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
     }
 }
 
-fn find_target_method<'l>(
+pub fn find_target_method<'l>(
     loader_arc: &'l Arc<dyn Loader + Send + Sync>,
     expected_method_name: String,
     parsed_descriptor: & MethodDescriptor,
