@@ -3,7 +3,7 @@ use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instr
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc, instruction_is_type_safe_dup, instruction_is_type_safe_i2f, instruction_is_type_safe_lshl};
+use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc, instruction_is_type_safe_dup, instruction_is_type_safe_i2f, instruction_is_type_safe_lshl, instruction_is_type_safe_ldc_w};
 use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic, instruction_is_type_safe_areturn, instruction_is_type_safe_ifeq};
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
@@ -244,7 +244,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env, offset, stack_frame),
         InstructionInfo::lconst_1 => instruction_is_type_safe_lconst_0(env, offset, stack_frame),
         InstructionInfo::ldc(i) => instruction_is_type_safe_ldc(*i, env, offset, stack_frame),
-        InstructionInfo::ldc_w(_) => { unimplemented!() }
+        InstructionInfo::ldc_w(cp) => instruction_is_type_safe_ldc_w(*cp,env,offset,stack_frame),
         InstructionInfo::ldc2_w(cp) => instruction_is_type_safe_ldc2_w(*cp, env, offset, stack_frame),
         InstructionInfo::ldiv => { unimplemented!() }
         InstructionInfo::lload(i) => instruction_is_type_safe_lload(*i as usize,env,offset,stack_frame),

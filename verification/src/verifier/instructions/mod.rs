@@ -188,7 +188,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 //todo why do I take the class name when I already know it
                 let class_name = class_name(&get_class(&env.vf, &exception_class));
                 is_assignable(&env.vf, &VerificationType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
-                                               &VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() }))
+                              &VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() }))
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
             }
@@ -296,9 +296,9 @@ pub fn instruction_is_type_safe_dup_x2(env: &Environment, _offset: usize, stack_
 }
 
 fn dup_x2_form_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
-    match dup_x2_form1_is_type_safe(env,input_stack) {
+    match dup_x2_form1_is_type_safe(env, input_stack) {
         Ok(o) => Result::Ok(o),
-        Err(_) => match dup_x2_form2_is_type_safe(env, input_stack){
+        Err(_) => match dup_x2_form2_is_type_safe(env, input_stack) {
             Ok(o) => Result::Ok(o),
             Err(e) => Result::Err(e),
         },
@@ -308,20 +308,20 @@ fn dup_x2_form_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Re
 
 fn dup_x2_form1_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
     let mut stack1 = input_stack.clone();
-    let type1 = pop_category1(&env.vf,& mut stack1)?;
+    let type1 = pop_category1(&env.vf, &mut stack1)?;
     let mut stack2 = stack1.clone();
     let type2 = pop_category1(&env.vf, &mut stack2)?;
     let mut rest = stack2.clone();
     let type3 = pop_category1(&env.vf, &mut rest)?;
-    can_safely_push_list(env,&rest,vec![type1.clone(),type3,type2,type1])
+    can_safely_push_list(env, &rest, vec![type1.clone(), type3, type2, type1])
 }
 
 fn dup_x2_form2_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
     let mut stack1 = input_stack.clone();
-    let type1 = pop_category1(&env.vf,&mut stack1)?;
+    let type1 = pop_category1(&env.vf, &mut stack1)?;
     let mut rest = stack1.clone();
-    let type2 = pop_category1(&env.vf,&mut rest)?;
-    can_safely_push_list(env,input_stack,vec![type1.clone(),type2,type1])
+    let type2 = pop_category1(&env.vf, &mut rest)?;
+    can_safely_push_list(env, input_stack, vec![type1.clone(), type2, type1])
 }
 
 
@@ -386,8 +386,8 @@ pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, _offset: 
     }
 }
 
-pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env,stack_frame,vec![VerificationType::IntType],VerificationType::IntType)
+pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VerificationType::IntType], VerificationType::IntType)
 }
 
 //
@@ -403,8 +403,8 @@ pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_fr
 //}
 //
 
-pub fn instruction_is_type_safe_l2i(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env,stack_frame,vec![VerificationType::LongType],VerificationType::IntType)
+pub fn instruction_is_type_safe_l2i(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VerificationType::LongType], VerificationType::IntType)
 }
 
 pub fn instruction_is_type_safe_ladd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -455,6 +455,19 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, s
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
+pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
+    let type_ = match const_ {
+        ConstantKind::Integer(_) => VerificationType::IntType,
+        ConstantKind::Float(_) => VerificationType::FloatType,
+        ConstantKind::Class(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Class".to_string()), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantKind::String(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/String".to_string()), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantKind::MethodType(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/invoke/MethodType".to_string()), loader: env.vf.bootstrap_loader.clone() }),
+        _ => panic!()
+    };
+    type_transition(env, stack_frame, vec![], type_)
+}
+
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
     let type_: VerificationType = loadable_constant(&env.vf, const_);//todo dup
@@ -474,8 +487,8 @@ pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: 
 //    unimplemented!()
 //}
 
-pub fn instruction_is_type_safe_lshl(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env,stack_frame,vec![VerificationType::IntType,VerificationType::LongType],VerificationType::LongType)
+pub fn instruction_is_type_safe_lshl(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VerificationType::IntType, VerificationType::LongType], VerificationType::LongType)
 }
 
 

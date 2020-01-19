@@ -183,7 +183,7 @@ pub fn frame_is_assignable(vf:&VerifierContext,left: &Frame, right: &Frame) -> R
         Result::Ok(())
     } else {
         panic!();
-        Result::Err(unknown_error_verifying!())
+//        Result::Err(unknown_error_verifying!())
     }
 }
 

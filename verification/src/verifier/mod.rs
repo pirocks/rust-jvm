@@ -162,7 +162,7 @@ fn classes_in_other_pkg_with_protected_member_impl(
             dbg!(&chain);
             dbg!(&member_class_name);
             panic!();
-            return Result::Err(unknown_error_verifying!())
+//            return Result::Err(unknown_error_verifying!())
         }
         let l = first.loader.clone();
         if different_runtime_package(vf, class,first){

@@ -12,7 +12,6 @@ use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::stores::is_small_array;
-use std::path::Prefix::Verbatim;
 
 
 pub fn instruction_is_type_safe_aaload(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {

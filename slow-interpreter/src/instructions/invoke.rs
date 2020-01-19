@@ -60,6 +60,53 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStack
     }
 }
 
+pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16,jni: &LibJavaLoading){
+    let classfile = &current_frame.class_pointer.classfile;
+    let loader_arc = &current_frame.class_pointer.loader;
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
+    let class_name = match class_name_type {
+        ParsedType::Class(c) => c.class_name,
+        ParsedType::ArrayReferenceType(_) => unimplemented!(),
+        _ => panic!()
+    };
+//    dbg!(class_name_);
+//    dbg!(expected_method_name);
+//    dbg!(class_name(&current_frame.class_pointer.classfile).get_referred_name());
+    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone(),jni);
+    let (target_method_i,target_method) = find_target_method(loader_arc.clone(), expected_method_name, &expected_descriptor, &target_class);
+    if target_method.access_flags & ACC_ABSTRACT == 0 {
+        let mut args = vec![];
+        let max_locals = code_attribute(target_method).unwrap().max_locals;
+
+        for _ in 0..max_locals{
+            args.push(JavaValue::Top);
+        }
+        args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+        for i in 0..expected_descriptor.parameter_types.len(){
+            args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+            //todo does ordering end up correct
+        }
+        let next_entry = CallStackEntry {
+            last_call_stack: Some(current_frame),
+            class_pointer: target_class,
+            method_i: target_method_i as u16,
+            local_vars: args,
+            operand_stack: vec![].into(),
+            pc: 0.into(),
+            pc_offset: 0.into()
+        };
+        run_function(state,Rc::new(next_entry),jni);
+        if state.throw || state.terminate {
+            unimplemented!();
+        }
+        if state.function_return {
+            state.function_return = false;
+            return;
+        }
+    }else {
+        unimplemented!()
+    }
+}
 
 pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16,jni: &LibJavaLoading) {
 //todo handle monitor enter and exit

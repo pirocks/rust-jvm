@@ -36,8 +36,10 @@ fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
 }
 
 
-fn read_multi_new_array(_c: &mut CodeParserContext) -> Option<MultiNewArray> {
-    unimplemented!();
+fn read_multi_new_array(c: &mut CodeParserContext) -> Option<MultiNewArray> {
+    let index = read_u16(c)?;
+    let dims = read_u8(c)?;
+    Some(MultiNewArray { index, dims })
 }
 
 

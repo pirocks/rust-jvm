@@ -1,12 +1,11 @@
 use crate::runtime_class::RuntimeClass;
 use std::sync::Arc;
-use std::iter::Map;
 use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::classfile::ConstantInfo;
 use rust_jvm_common::classfile::ConstantKind;
 use std::mem::transmute;
 use std::mem;
-use std::alloc::{alloc, dealloc, Layout};
+//use std::alloc::{alloc, dealloc, Layout};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -155,7 +154,7 @@ pub struct VecPointer {
 
 impl VecPointer{
     pub fn new(len : usize) -> VecPointer{
-        let mut buf:Vec<JavaValue> = Vec::with_capacity(len);
+        let buf:Vec<JavaValue> = Vec::with_capacity(len);
         mem::forget(&buf);
         unsafe {VecPointer {object: transmute(&buf)}}
     }
@@ -175,10 +174,10 @@ impl Clone for VecPointer{
 
 #[derive(Debug)]
 pub struct Object {
-    gc_reachable: bool,
+    pub gc_reachable: bool,
     //I guess this never changes so unneeded?
     pub fields: RefCell<HashMap<String, JavaValue>>,
-    class_pointer: Arc<RuntimeClass>,
+    pub class_pointer: Arc<RuntimeClass>,
 }
 
 pub fn default_value(type_: ParsedType) -> JavaValue {

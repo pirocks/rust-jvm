@@ -106,7 +106,7 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
             dbg!(&to.class_name);
             dbg!(&chain);
             panic!();
-            Result::Err(unknown_error_verifying!())
+//            Result::Err(unknown_error_verifying!())
         }
         Some(c) => {
             loaded_class(vf, c.class_name.clone(), to.loader.clone())?;

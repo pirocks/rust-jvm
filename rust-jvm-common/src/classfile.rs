@@ -1,6 +1,5 @@
 use std::hash::Hasher;
 use crate::unified_types::ParsedType;
-use std::cell::RefCell;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -642,7 +641,10 @@ pub struct LookupSwitch {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct MultiNewArray {}
+pub struct MultiNewArray {
+    pub index : CPIndex,
+    pub dims : u8
+}
 
 
 #[derive(Debug)]
