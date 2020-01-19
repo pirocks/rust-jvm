@@ -71,7 +71,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
         last_call_stack: Some(stack),
         class_pointer: class_arc.clone(),
         method_i: clinit_i as u16,
-        local_vars: vec![],
+        local_vars: vec![].into(),
         operand_stack: vec![].into(),
         pc: 0.into(),
         pc_offset: 0.into(),

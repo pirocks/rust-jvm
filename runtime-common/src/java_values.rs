@@ -8,6 +8,7 @@ use std::mem;
 //use std::alloc::{alloc, dealloc, Layout};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter, Error};
 
 #[derive(Debug)]
 pub enum JavaValue {
@@ -129,7 +130,8 @@ impl ObjectPointer{
             object: Arc::new(Object {
                 gc_reachable: true,
                 class_pointer: runtime_class,
-                fields: RefCell::new(HashMap::new())
+                fields: RefCell::new(HashMap::new()),
+                bootstrap_loader: false
             })
         }
     }
@@ -172,12 +174,22 @@ impl Clone for VecPointer{
     }
 }
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct Object {
     pub gc_reachable: bool,
     //I guess this never changes so unneeded?
     pub fields: RefCell<HashMap<String, JavaValue>>,
     pub class_pointer: Arc<RuntimeClass>,
+    pub bootstrap_loader: bool
+}
+
+impl Debug for Object{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f,"{:?}",self.class_pointer)?;
+        write!(f,"-")?;
+        write!(f,"{:?}",self.bootstrap_loader)?;
+        Result::Ok(())
+    }
 }
 
 pub fn default_value(type_: ParsedType) -> JavaValue {
