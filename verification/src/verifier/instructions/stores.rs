@@ -85,10 +85,12 @@ pub fn instruction_is_type_safe_castore(env: &Environment, _offset: usize, stack
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_dastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_dastore(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
+    let array_type = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::DoubleType) });
+    let next_frame = can_pop(&env.vf,stack_frame,vec![VerificationType::DoubleType,VerificationType::IntType,array_type])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
+}
 
 pub fn instruction_is_type_safe_dstore(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
     let next_frame= store_is_type_safe(env,index,&VerificationType::DoubleType,stack_frame)?;
@@ -96,21 +98,25 @@ pub fn instruction_is_type_safe_dstore(index: usize, env: &Environment, _offset:
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_fastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_fastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
+    let array_type = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::FloatType) });
+    let next_frame = can_pop(&env.vf,stack_frame,vec![VerificationType::FloatType,VerificationType::IntType,array_type])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
+}
 
 pub fn instruction_is_type_safe_fstore(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
     let next_frame = store_is_type_safe(env,index,&VerificationType::FloatType,stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
 }
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_iastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
-//    unimplemented!()
-//}
+
+pub fn instruction_is_type_safe_iastore(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
+    let array_type = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::IntType) });
+    let next_frame = can_pop(&env.vf,stack_frame,vec![VerificationType::IntType,VerificationType::IntType,array_type])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
+}
 
 pub fn instruction_is_type_safe_istore(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
     let next_frame = store_is_type_safe(env,index,&VerificationType::IntType,stack_frame)?;
@@ -119,10 +125,12 @@ pub fn instruction_is_type_safe_istore(index: usize, env: &Environment, _offset:
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_lastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_lastore(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
+    let array_type = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::LongType) });
+    let next_frame = can_pop(&env.vf,stack_frame,vec![VerificationType::LongType,VerificationType::IntType,array_type])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
+}
 
 
 pub fn instruction_is_type_safe_lstore(index: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
@@ -131,7 +139,9 @@ pub fn instruction_is_type_safe_lstore(index: usize, env: &Environment, _offset:
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_sastore(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_sastore(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError> {
+    let array_type = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::ShortType) });
+    let next_frame = can_pop(&env.vf,stack_frame,vec![VerificationType::IntType,VerificationType::IntType,array_type])?;
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame, exception_frame }))
+}

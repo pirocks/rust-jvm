@@ -276,8 +276,8 @@ pub fn run_function(
                         let char_array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) });
                         let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
                         let (constructor_i,constructor) = find_target_method(current_loader.clone(),"<init>".to_string(),&expected_descriptor,&string_class);
-                        dbg!(constructor_i);
-                        dbg!(&constructor);
+//                        dbg!(constructor_i);
+//                        dbg!(&constructor);
                         let next_entry = CallStackEntry {
                             last_call_stack: Some(current_frame.clone()),
                             class_pointer: string_class,
@@ -291,7 +291,7 @@ pub fn run_function(
                         if state.terminate || state.throw {
                             unimplemented!()
                         }
-                        if(state.function_return){
+                        if state.function_return {
                             state.function_return = false;
                         }
                         unimplemented!()
