@@ -12,3 +12,5 @@ runtime-common = {path = "../runtime-common"}
 rust-jni = {path = "../rust-jni"}
 libloading = "0.5"
 memalloc = "0.1"
+log = "0.4"
+simple_logger = "1.3.0"

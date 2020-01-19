@@ -1,3 +1,6 @@
+extern crate log;
+extern crate simple_logger;
+
 use std::sync::{Arc, RwLock};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
