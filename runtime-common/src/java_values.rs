@@ -6,7 +6,9 @@ use rust_jvm_common::classfile::ConstantInfo;
 use rust_jvm_common::classfile::ConstantKind;
 use std::mem::transmute;
 use std::mem;
-//use std::alloc::{alloc, dealloc, Layout};
+use std::alloc::{alloc, dealloc, Layout};
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum JavaValue {
@@ -119,18 +121,30 @@ impl PartialEq for JavaValue{
 
 #[derive(Debug)]
 pub struct ObjectPointer {
-    object: *const Object
+    pub object: Arc<Object>
+}
+
+impl ObjectPointer{
+    pub fn new(runtime_class: Arc<RuntimeClass>) -> ObjectPointer{
+        ObjectPointer {
+            object: Arc::new(Object {
+                gc_reachable: true,
+                class_pointer: runtime_class,
+                fields: RefCell::new(HashMap::new())
+            })
+        }
+    }
 }
 
 impl PartialEq for ObjectPointer{
     fn eq(&self, other: &Self) -> bool {
-        self.object == other.object
+        Arc::ptr_eq(&self.object.class_pointer , &other.object.class_pointer) && self.object.fields == self.object.fields
     }
 }
 
 impl Clone for ObjectPointer{
     fn clone(&self) -> Self {
-        ObjectPointer { object: self.object }
+        ObjectPointer { object: self.object.clone() }
     }
 }
 
@@ -159,11 +173,12 @@ impl Clone for VecPointer{
     }
 }
 
+#[derive(Debug)]
 pub struct Object {
     gc_reachable: bool,
-    class_pointer: Arc<RuntimeClass>,
     //I guess this never changes so unneeded?
-    fields: Map<String, JavaValue>,
+    pub fields: RefCell<HashMap<String, JavaValue>>,
+    class_pointer: Arc<RuntimeClass>,
 }
 
 pub fn default_value(type_: ParsedType) -> JavaValue {

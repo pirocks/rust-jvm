@@ -2,7 +2,7 @@ use crate::{InterpreterState, CallStackEntry};
 use rust_jvm_common::utils::{code_attribute, extract_string_from_utf8};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
-use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
+use rust_jvm_common::classfile::{InstructionInfo, ConstantKind, ACC_STATIC};
 use verification::verifier::instructions::special::extract_field_descriptor;
 use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
@@ -11,9 +11,12 @@ use rust_jvm_common::classnames::{ClassName, class_name};
 use rust_jvm_common::loading::Loader;
 use std::rc::Rc;
 use crate::instructions::invoke::run_invoke_static;
-use runtime_common::java_values::{JavaValue, VecPointer};
+use runtime_common::java_values::{JavaValue, VecPointer, ObjectPointer, default_value};
 use runtime_common::runtime_class::RuntimeClass;
 use rust_jni::LibJavaLoading;
+use runtime_common::java_values::JavaValue::Object;
+use classfile_parser::types::{parse_field_type, parse_field_descriptor};
+use std::borrow::BorrowMut;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -114,7 +117,11 @@ pub fn run_function(
             InstructionInfo::dstore_2 => unimplemented!(),
             InstructionInfo::dstore_3 => unimplemented!(),
             InstructionInfo::dsub => unimplemented!(),
-            InstructionInfo::dup => unimplemented!(),
+            InstructionInfo::dup => {
+                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
+                current_frame.operand_stack.borrow_mut().push(val.clone());
+                current_frame.operand_stack.borrow_mut().push(val.clone());
+            },
             InstructionInfo::dup_x1 => unimplemented!(),
             InstructionInfo::dup_x2 => unimplemented!(),
             InstructionInfo::dup2 => unimplemented!(),
@@ -208,7 +215,9 @@ pub fn run_function(
             InstructionInfo::instanceof(_) => unimplemented!(),
             InstructionInfo::invokedynamic(_) => unimplemented!(),
             InstructionInfo::invokeinterface(_) => unimplemented!(),
-            InstructionInfo::invokespecial(_) => unimplemented!(),
+            InstructionInfo::invokespecial(cp) => {
+                unimplemented!()
+            },
             InstructionInfo::invokestatic(cp) => {
                 run_invoke_static(state, current_frame.clone(), cp,jni)
             }
@@ -280,16 +289,28 @@ pub fn run_function(
             InstructionInfo::monitorexit => unimplemented!(),
             InstructionInfo::multianewarray(_) => unimplemented!(),
             InstructionInfo::new(cp) => {
-                let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
-                let constant_pool = &classfile.constant_pool;
+                let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
                 let class_name_index = match &constant_pool[cp as usize].kind{
                     ConstantKind::Class(c) => c.name_index,
                     _ => panic!()
                 };
                 let target_class_name = ClassName::Str(extract_string_from_utf8(&constant_pool[class_name_index as usize]));
                 let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone(), loader_arc.clone(),jni);
-                unimplemented!()
+                let object_pointer = ObjectPointer::new(target_classfile.clone());
+                let new_obj = JavaValue::Object(Some(object_pointer.clone()));
+                let classfile = &target_classfile.classfile;
+                for field in &classfile.fields {
+                    if field.access_flags & ACC_STATIC == 0 {
+                        let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
+                        let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[field.descriptor_index as usize]);
+                        let descriptor = parse_field_descriptor(loader_arc,descriptor_str.as_str()).unwrap();
+                        let type_ = descriptor.field_type;
+                        let val = default_value(type_);
+                        object_pointer.object.fields.borrow_mut().insert(name,val);
+                    }
+                }
+                current_frame.operand_stack.borrow_mut().push(new_obj);
 
             },
             InstructionInfo::newarray(_) => unimplemented!(),
