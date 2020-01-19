@@ -76,7 +76,17 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {
-        frame.locals.remove(frame.locals.len() - 1);
+        let removed = frame.locals.remove(frame.locals.len() - 1);
+        match removed {
+            ParsedType::DoubleType | ParsedType::LongType => panic!(),
+            ParsedType::TopType => {
+                match frame.locals.remove(frame.locals.len() - 1){
+                    ParsedType::DoubleType | ParsedType::LongType => {},
+                    _ => panic!()
+                }
+            }
+            _ => {}
+        }
     }
 }
 
