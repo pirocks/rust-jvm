@@ -51,27 +51,42 @@ impl LibJavaLoading {
 impl JNIContext for LibJavaLoading {
     fn call(&self, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Option<JavaValue> {
         let mangled = mangling::mangle(classfile.clone(), method_i);
-
+        let symbol: Symbol<unsafe extern fn()> = unsafe { self.lib.get(mangled.as_bytes()).unwrap() };
+        let raw = symbol.deref();
+        let mut args_type = vec![Type::pointer(), Type::pointer()];
+        let jclass: jclass = unsafe { transmute(&classfile) };
+        let env = &get_interface(self);
+        let mut c_args = vec![Arg::new(&&env), Arg::new(&jclass)];
+        for x in args {
+            args_type.push(to_native_type(x.clone()));
+            c_args.push(to_native(x));//todo don't forget to free. and/or stack allocate
+        }
+        let cif = Cif::new(args_type.into_iter(), Type::f64());
+        let fn_ptr = CodePtr::from_fun(*raw);
+        let cif_res = unsafe {
+            cif.call(fn_ptr, c_args.as_slice())
+        };
         match return_type {
             ParsedType::VoidType => {
-                let symbol: Symbol<unsafe extern fn()> = unsafe { self.lib.get(mangled.as_bytes()).unwrap() };
-                let raw = symbol.deref();
-                let mut args_type = vec![Type::pointer(), Type::pointer()];
-                let jclass: jclass = unsafe { transmute(&classfile) };
-                let env = &get_interface(self);
-                let mut c_args = vec![Arg::new(&&env), Arg::new(&jclass)];
-                for x in args {
-                    args_type.push(to_native_type(x.clone()));
-                    c_args.push(to_native(x));//todo don't forget to free. and/or stack allocate
-                }
-                let cif = Cif::new(args_type.into_iter(), Type::f64());
-                let fn_ptr = CodePtr::from_fun(*raw);
-                unsafe {
-                    cif.call(fn_ptr, c_args.as_slice())
-                }
                 None
             }
-            _ => unimplemented!()
+//            ParsedType::ByteType => {}
+//            ParsedType::CharType => {}
+//            ParsedType::DoubleType => {}
+//            ParsedType::FloatType => {}
+            ParsedType::IntType => {
+                Some(JavaValue::Int(cif_res))
+            }
+//            ParsedType::LongType => {}
+//            ParsedType::Class(_) => {}
+//            ParsedType::ShortType => {}
+//            ParsedType::BooleanType => {}
+//            ParsedType::ArrayReferenceType(_) => {}
+//            ParsedType::TopType => {}
+//            ParsedType::NullType => {}
+//            ParsedType::Uninitialized(_) => {}
+//            ParsedType::UninitializedThis => {}
+            _ => panic!()
         }
     }
 }

@@ -265,8 +265,8 @@ fn primitive_array_info(type_code: usize) -> ParsedType {
 
 //impl Vec<usize> {
     //todo replace with is_sorted when that becomes stable
-    fn sorted(nums: &Vec<usize>) -> bool {
-        let mut old_x: usize = 0;
+    fn sorted(nums: &Vec<i32>) -> bool {
+        let mut old_x: i32 = std::i32::MIN;
         nums.iter().all(|x| {
             let res = old_x <= *x;
             old_x = *x;
@@ -275,7 +275,7 @@ fn primitive_array_info(type_code: usize) -> ParsedType {
     }
 //}
 
-pub fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<usize>, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<i32>, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if !sorted(&keys) {
 //        dbg!(keys);
         return Result::Err(unknown_error_verifying!());

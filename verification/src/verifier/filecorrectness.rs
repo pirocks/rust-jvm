@@ -208,6 +208,9 @@ pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &Verific
                 dbg!(c);
                 panic!()
             }
+            VerificationType::IntType => {
+                panic!()
+            }
             _ => {
 //                dbg!(to);
                 Result::Err(unknown_error_verifying!())

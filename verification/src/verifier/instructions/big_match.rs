@@ -3,8 +3,8 @@ use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instr
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc, instruction_is_type_safe_dup, instruction_is_type_safe_i2f, instruction_is_type_safe_lshl, instruction_is_type_safe_ldc_w};
-use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic, instruction_is_type_safe_areturn, instruction_is_type_safe_ifeq};
+use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc, instruction_is_type_safe_dup, instruction_is_type_safe_i2f, instruction_is_type_safe_lshl, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg};
+use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic, instruction_is_type_safe_areturn, instruction_is_type_safe_ifeq, instruction_is_type_safe_dreturn};
 use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
 use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
 use crate::verifier::instructions::branches::instruction_is_type_safe_ireturn;
@@ -25,7 +25,7 @@ use crate::verifier::instructions::consts::instruction_is_type_safe_aconst_null;
 use crate::verifier::instructions::stores::{instruction_is_type_safe_lstore, instruction_is_type_safe_fstore, instruction_is_type_safe_lastore, instruction_is_type_safe_iastore, instruction_is_type_safe_sastore, instruction_is_type_safe_dastore, instruction_is_type_safe_fastore};
 use crate::verifier::instructions::stores::instruction_is_type_safe_istore;
 use crate::verifier::instructions::consts::instruction_is_type_safe_dconst_0;
-use crate::verifier::instructions::float::{instruction_is_type_safe_dcmpg, instruction_is_type_safe_fcmpg, instruction_is_type_safe_fadd, instruction_is_type_safe_f2i};
+use crate::verifier::instructions::float::{instruction_is_type_safe_dcmpg, instruction_is_type_safe_fcmpg, instruction_is_type_safe_fadd, instruction_is_type_safe_f2i, instruction_is_type_safe_d2l, instruction_is_type_safe_f2l};
 use crate::verifier::instructions::float::instruction_is_type_safe_dadd;
 use crate::verifier::instructions::float::instruction_is_type_safe_d2f;
 use crate::verifier::instructions::float::instruction_is_type_safe_f2d;
@@ -89,15 +89,15 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::checkcast(cp) => instruction_is_type_safe_checkcast(*cp as usize, env, offset, stack_frame),
         InstructionInfo::d2f => instruction_is_type_safe_d2f(env, offset, stack_frame),
         InstructionInfo::d2i => { unimplemented!() }
-        InstructionInfo::d2l => { unimplemented!() }
-        InstructionInfo::dadd => { unimplemented!() }
+        InstructionInfo::d2l => instruction_is_type_safe_d2l(env,offset,stack_frame),
+        InstructionInfo::dadd => instruction_is_type_safe_dadd(env,offset,stack_frame),
         InstructionInfo::daload => instruction_is_type_safe_daload(env,offset,stack_frame),
         InstructionInfo::dastore => instruction_is_type_safe_dastore(env,offset,stack_frame),
         InstructionInfo::dcmpg => instruction_is_type_safe_dcmpg(env, offset, stack_frame),
         InstructionInfo::dcmpl => instruction_is_type_safe_dcmpg(env, offset, stack_frame),
         InstructionInfo::dconst_0 => instruction_is_type_safe_dconst_0(env, offset, stack_frame),
         InstructionInfo::dconst_1 => instruction_is_type_safe_dconst_0(env, offset, stack_frame),
-        InstructionInfo::ddiv => { unimplemented!() }
+        InstructionInfo::ddiv => instruction_is_type_safe_dadd(env,offset,stack_frame),
         InstructionInfo::dload(i) => instruction_is_type_safe_dload(*i as usize, env, offset, stack_frame),
         InstructionInfo::dload_0 => instruction_is_type_safe_dload(0, env, offset, stack_frame),
         InstructionInfo::dload_1 => instruction_is_type_safe_dload(1, env, offset, stack_frame),
@@ -106,13 +106,13 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dmul => instruction_is_type_safe_dadd(env, offset, stack_frame),
         InstructionInfo::dneg => { unimplemented!() }
         InstructionInfo::drem => { unimplemented!() }
-        InstructionInfo::dreturn => { unimplemented!() }
+        InstructionInfo::dreturn => instruction_is_type_safe_dreturn(env, offset, stack_frame),
         InstructionInfo::dstore(i) => instruction_is_type_safe_dstore(*i as usize, env, offset, stack_frame),
         InstructionInfo::dstore_0 => instruction_is_type_safe_dstore(0, env, offset, stack_frame),
         InstructionInfo::dstore_1 => instruction_is_type_safe_dstore(1, env, offset, stack_frame),
         InstructionInfo::dstore_2 => instruction_is_type_safe_dstore(2, env, offset, stack_frame),
         InstructionInfo::dstore_3 => instruction_is_type_safe_dstore(3, env, offset, stack_frame),
-        InstructionInfo::dsub => { unimplemented!() }
+        InstructionInfo::dsub => instruction_is_type_safe_dadd(env,offset,stack_frame),
         InstructionInfo::dup => instruction_is_type_safe_dup(env, offset, stack_frame),
         InstructionInfo::dup_x1 => instruction_is_type_safe_dup_x1(env, offset, stack_frame),
         InstructionInfo::dup_x2 => instruction_is_type_safe_dup_x2(env, offset, stack_frame),
@@ -121,7 +121,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dup2_x2 => { unimplemented!() }
         InstructionInfo::f2d => instruction_is_type_safe_f2d(env, offset, stack_frame),
         InstructionInfo::f2i => instruction_is_type_safe_f2i(env, offset, stack_frame),
-        InstructionInfo::f2l => { unimplemented!() }
+        InstructionInfo::f2l => instruction_is_type_safe_f2l(env,offset,stack_frame),
         InstructionInfo::fadd => instruction_is_type_safe_fadd(env, offset, stack_frame),
         InstructionInfo::faload => instruction_is_type_safe_faload(env,offset,stack_frame),
         InstructionInfo::fastore => instruction_is_type_safe_fastore(env,offset,stack_frame),
@@ -145,7 +145,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fstore_1 => instruction_is_type_safe_fstore(1, env, offset, stack_frame),
         InstructionInfo::fstore_2 => instruction_is_type_safe_fstore(2, env, offset, stack_frame),
         InstructionInfo::fstore_3 => instruction_is_type_safe_fstore(3, env, offset, stack_frame),
-        InstructionInfo::fsub => { unimplemented!() }
+        InstructionInfo::fsub => instruction_is_type_safe_fadd(env,offset,stack_frame),
         InstructionInfo::getfield(cp) => instruction_is_type_safe_getfield(*cp, env, offset, stack_frame),
         InstructionInfo::getstatic(cp) => instruction_is_type_safe_getstatic(*cp, env, offset, stack_frame),
         InstructionInfo::goto_(target) => {
@@ -159,7 +159,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::i2d => instruction_is_type_safe_i2d(env, offset, stack_frame),
         InstructionInfo::i2f => instruction_is_type_safe_i2f(env, offset, stack_frame),
         InstructionInfo::i2l => instruction_is_type_safe_i2l(env, offset, stack_frame),
-        InstructionInfo::i2s => instruction_is_type_safe_i2f(env, offset, stack_frame),
+        InstructionInfo::i2s => instruction_is_type_safe_ineg(env, offset, stack_frame),
         InstructionInfo::iadd => instruction_is_type_safe_iadd(env, offset, stack_frame),
         InstructionInfo::iaload => instruction_is_type_safe_iaload(env, offset, stack_frame),
         InstructionInfo::iand => instruction_is_type_safe_iadd(env, offset, stack_frame),
@@ -238,7 +238,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::l2i => instruction_is_type_safe_l2i(env, offset, stack_frame),
         InstructionInfo::ladd => instruction_is_type_safe_ladd(env, offset, stack_frame),
         InstructionInfo::laload => instruction_is_type_safe_laload(env,offset,stack_frame),
-        InstructionInfo::land => { unimplemented!() }
+        InstructionInfo::land => instruction_is_type_safe_ladd(env,offset,stack_frame),
         InstructionInfo::lastore => instruction_is_type_safe_lastore(env,offset,stack_frame),
         InstructionInfo::lcmp => instruction_is_type_safe_lcmp(env, offset, stack_frame),
         InstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env, offset, stack_frame),
@@ -246,24 +246,24 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::ldc(i) => instruction_is_type_safe_ldc(*i, env, offset, stack_frame),
         InstructionInfo::ldc_w(cp) => instruction_is_type_safe_ldc_w(*cp,env,offset,stack_frame),
         InstructionInfo::ldc2_w(cp) => instruction_is_type_safe_ldc2_w(*cp, env, offset, stack_frame),
-        InstructionInfo::ldiv => { unimplemented!() }
+        InstructionInfo::ldiv => instruction_is_type_safe_ladd(env,offset,stack_frame),
         InstructionInfo::lload(i) => instruction_is_type_safe_lload(*i as usize,env,offset,stack_frame),
         InstructionInfo::lload_0 => instruction_is_type_safe_lload(0, env, offset, stack_frame),
         InstructionInfo::lload_1 => instruction_is_type_safe_lload(1, env, offset, stack_frame),
         InstructionInfo::lload_2 => instruction_is_type_safe_lload(2, env, offset, stack_frame),
         InstructionInfo::lload_3 => instruction_is_type_safe_lload(3, env, offset, stack_frame),
         InstructionInfo::lmul => instruction_is_type_safe_ladd(env, offset, stack_frame),
-        InstructionInfo::lneg => { unimplemented!() }
+        InstructionInfo::lneg => instruction_is_type_safe_lneg(env,offset,stack_frame),
         InstructionInfo::lookupswitch(s) => {
             let targets: Vec<usize> = s.pairs.iter().map(|(_, x)| {
                 (offset as isize + *x as isize) as usize//todo create correct typedefs for usize etc.
             }).collect();
             let keys = s.pairs.iter().map(|(x, _)| {
-                *x as usize
+                *x
             }).collect();
             instruction_is_type_safe_lookupswitch(targets, keys, env, offset, stack_frame)
         }
-        InstructionInfo::lor => { unimplemented!() }
+        InstructionInfo::lor => instruction_is_type_safe_ladd(env,offset,stack_frame),
         InstructionInfo::lrem => { unimplemented!() }
         InstructionInfo::lreturn => instruction_is_type_safe_lreturn(env, offset, stack_frame),
         InstructionInfo::lshl => instruction_is_type_safe_lshl(env,offset,stack_frame),

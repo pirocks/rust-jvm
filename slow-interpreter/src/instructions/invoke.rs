@@ -124,11 +124,11 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
         ParsedType::Class(c) => c.class_name,
         _ => panic!()
     };
-    trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
     let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone(), jni);
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
     let mut args = vec![];
 
+    trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
     if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
@@ -138,10 +138,12 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
             args.push(JavaValue::Top);
         }
 
+//        dbg!(&current_frame.operand_stack);
         for i in 0..expected_descriptor.parameter_types.len() {
             args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
             //todo does ordering end up correct
         }
+        args[0..expected_descriptor.parameter_types.len()].reverse();
         let next_entry = CallStackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class,

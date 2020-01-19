@@ -481,11 +481,9 @@ pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: 
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_lneg(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_lneg(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env,stack_frame,vec![VerificationType::LongType],VerificationType::LongType)
+}
 
 pub fn instruction_is_type_safe_lshl(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VerificationType::IntType, VerificationType::LongType], VerificationType::LongType)

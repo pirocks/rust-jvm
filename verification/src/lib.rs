@@ -21,15 +21,18 @@ pub mod verifier;
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
 */
-pub fn verify(vf:&VerifierContext,to_verify: Arc<Classfile>,loader: Arc<dyn Loader + Send + Sync>) -> Result<(), TypeSafetyError> {
-    match class_is_type_safe(vf,&ClassWithLoader {
+pub fn verify(vf: &VerifierContext, to_verify: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> Result<(), TypeSafetyError> {
+    match class_is_type_safe(vf, &ClassWithLoader {
         class_name: class_name(&to_verify),
         loader,
     }) {
         Ok(_) => Result::Ok(()),
         Err(err) => {
             match err {
-                TypeSafetyError::NotSafe(_) => unimplemented!(),
+                TypeSafetyError::NotSafe(s) => {
+                    dbg!(s);
+                    unimplemented!()
+                }
                 TypeSafetyError::NeedToLoad(_) => unimplemented!(),
             }
         }
@@ -99,22 +102,22 @@ fn locals_push_convert_type(res: &mut Vec<ParsedType>, type_: ParsedType) -> () 
 }
 
 
-pub struct VerifierContext{
-    pub bootstrap_loader : Arc<dyn Loader + Send + Sync>
+pub struct VerifierContext {
+    pub bootstrap_loader: Arc<dyn Loader + Send + Sync>
 }
 
-impl Clone for VerifierContext{
+impl Clone for VerifierContext {
     fn clone(&self) -> Self {
         VerifierContext { bootstrap_loader: self.bootstrap_loader.clone() }
     }
 }
 
-#[derive(Eq,Debug)]
-pub struct OperandStack{
+#[derive(Eq, Debug)]
+pub struct OperandStack {
     data: VecDeque<VerificationType>
 }
 
-impl Clone for OperandStack{
+impl Clone for OperandStack {
     fn clone(&self) -> Self {
         OperandStack {
             data: self.data.clone()
@@ -122,56 +125,55 @@ impl Clone for OperandStack{
     }
 }
 
-impl PartialEq for OperandStack{
+impl PartialEq for OperandStack {
     fn eq(&self, _other: &OperandStack) -> bool {
         unimplemented!()
     }
 }
 
 
-impl OperandStack{
-
-    pub fn operand_push(&mut self, type_: VerificationType){
+impl OperandStack {
+    pub fn operand_push(&mut self, type_: VerificationType) {
         self.data.push_front(type_);
     }
 
-    pub fn operand_pop(&mut self) -> VerificationType{
+    pub fn operand_pop(&mut self) -> VerificationType {
         self.data.pop_front().unwrap()
     }
 
-    pub fn len(&self) -> usize{
+    pub fn len(&self) -> usize {
         self.data.len()
     }
 
-    pub fn peek(&self) -> VerificationType{
+    pub fn peek(&self) -> VerificationType {
         self.data.front().unwrap().clone()
     }
 
-    pub fn new_prolog_display_order(types: &Vec<VerificationType>) -> OperandStack{
+    pub fn new_prolog_display_order(types: &Vec<VerificationType>) -> OperandStack {
 //        dbg!(types);
         let mut o = OperandStack::empty();
-        for type_ in types{
+        for type_ in types {
             o.operand_push(type_.clone())
         }
 //        dbg!(&o);
         o
     }
 
-    pub fn new_reverse_display_order(_types: &Vec<VerificationType>) -> OperandStack{
+    pub fn new_reverse_display_order(_types: &Vec<VerificationType>) -> OperandStack {
         unimplemented!()
     }
 
-    pub fn empty() -> OperandStack{
+    pub fn empty() -> OperandStack {
         OperandStack { data: VecDeque::new() }
     }
 
-    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, VerificationType>{
+    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, VerificationType> {
         self.data.iter()
     }
 
-    pub(crate) fn substitute(&mut self, old: & VerificationType, new: &VerificationType){
-        for entry in &mut self.data{
-            if entry == old{
+    pub(crate) fn substitute(&mut self, old: &VerificationType, new: &VerificationType) {
+        for entry in &mut self.data {
+            if entry == old {
                 *entry = new.clone();
             }
         }
