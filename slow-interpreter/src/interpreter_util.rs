@@ -346,10 +346,10 @@ pub fn run_function(
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, jni: &LibJavaLoading, constant_pool: &Vec<ConstantInfo>, c: &Class)  {
     let res_class_name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
     let java_lang_class = ClassName::Str("java/lang/Class".to_string());
-//    let java_lang_class_loader = ClassName::Str("java/lang/ClassLoader".to_string());
+    let java_lang_class_loader = ClassName::Str("java/lang/ClassLoader".to_string());
     let current_loader = current_frame.class_pointer.loader.clone();
     let class_class = check_inited_class(state, &java_lang_class, current_frame.clone(), current_loader.clone(), jni);
-//    let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone(), current_loader.clone(), jni);
+    let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone(), current_loader.clone(), jni);
     //the above would only be required for higher jdks where a class loader obect is part of Class.
     //as it stands we can just push to operand stack
     current_frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: Arc::new(Object {

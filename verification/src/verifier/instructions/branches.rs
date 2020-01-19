@@ -373,7 +373,8 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
         _ => panic!()
     };
 
-    if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
+    if /*method_name.contains("arrayOf") ||*/ method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
+        dbg!(method_name);
         unimplemented!();
     }
     // the operand_arg list is in the order displayed by the spec, e.g first elem a 0.
@@ -389,11 +390,6 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _off
     let nf = valid_type_transition(env, stack_arg_list.clone(), &return_type, stack_frame)?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
     if class_name.is_some() {
-//        dbg!(stack_arg_list);
-//        dbg!(&popped_frame);
-//        dbg!(&nf);
-//        dbg!(&class_name.clone().unwrap());
-//        dbg!(Descriptor::Method(&parsed_descriptor));
         passes_protected_check(env, &class_name.unwrap(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     }
     let exception_stack_frame = exception_stack_frame(stack_frame);
