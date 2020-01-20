@@ -42,7 +42,7 @@ pub fn instruction_is_type_safe_f2i(env: &Environment, _offset: usize, stack_fra
     type_transition(env,stack_frame,vec![VerificationType::FloatType],VerificationType::IntType)
 }
 
-pub fn instruction_is_type_safe_f2l(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+pub fn instruction_is_type_safe_f2l(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::FloatType],VerificationType::LongType)
 }
 

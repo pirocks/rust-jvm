@@ -90,7 +90,7 @@ pub fn run_function(
                 let array = current_frame.operand_stack.borrow_mut().pop().unwrap();
                 match array {
                     JavaValue::Array(a) => {
-                        current_frame.operand_stack.borrow_mut().push(JavaValue::Int(a.unwrap().object.len() as i32));
+                        current_frame.operand_stack.borrow_mut().push(JavaValue::Int(a.unwrap().object.borrow().len() as i32));
                     }
                     _ => panic!()
                 }
@@ -411,7 +411,7 @@ pub fn run_function(
                 match a_type {
                     Atype::TChar => {
                         current_frame.operand_stack.borrow_mut().push(JavaValue::Array(Some(VecPointer {
-                            object: Arc::new(vec![default_value(ParsedType::CharType); count as usize])
+                            object: Arc::new(vec![default_value(ParsedType::CharType); count as usize].into())
                         })));
                     }
                     _ => unimplemented!()
@@ -551,8 +551,9 @@ fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallSta
     let str_as_vec = res_string.into_bytes().clone();
     let chars: Vec<JavaValue> = str_as_vec.iter().map(|x| { JavaValue::Char(*x as char) }).collect();
     push_new_object(current_frame.clone(), &string_class);
-    let mut args = vec![current_frame.operand_stack.borrow_mut().pop().unwrap()];
-    args.push(JavaValue::Array(Some(VecPointer { object: Arc::new(chars) })));
+    let string_object = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let mut args = vec![string_object.clone()];
+    args.push(JavaValue::Array(Some(VecPointer { object: Arc::new(chars.into()) })));
     let char_array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) });
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
     let (constructor_i, _constructor) = find_target_method(current_loader.clone(), "<init>".to_string(), &expected_descriptor, &string_class);
@@ -572,7 +573,7 @@ fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallSta
     if state.function_return {
         state.function_return = false;
     }
-    unimplemented!()
+    current_frame.operand_stack.borrow_mut().push(string_object);
 }
 
 pub fn new(state: &mut InterpreterState, jni: &LibJavaLoading, current_frame: &Rc<CallStackEntry>, cp: usize) -> () {

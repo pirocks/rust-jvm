@@ -151,14 +151,14 @@ impl Clone for ObjectPointer{
 
 #[derive(Debug)]
 pub struct VecPointer {
-    pub object: Arc<Vec<JavaValue>>
+    pub object: Arc<RefCell<Vec<JavaValue>>>
 }
 
 impl VecPointer{
     pub fn new(len : usize) -> VecPointer{
         let buf:Vec<JavaValue> = Vec::with_capacity(len);
         mem::forget(&buf);
-        unsafe {VecPointer {object: transmute(&buf)}}
+        unsafe {VecPointer {object: Arc::new(RefCell::new(buf))}}
     }
 }
 
