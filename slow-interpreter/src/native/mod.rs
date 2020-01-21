@@ -14,7 +14,7 @@ use std::borrow::Borrow;
 
 
 pub fn run_native_method(
-    state: &InterpreterState,
+    _state: &InterpreterState,
     frame: Rc<CallStackEntry>,
     class: Arc<RuntimeClass>,
     method_i: usize,

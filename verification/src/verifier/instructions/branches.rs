@@ -3,7 +3,7 @@ use crate::verifier::codecorrectness::{Environment, can_pop, MergedCodeInstructi
 use crate::verifier::{Frame, get_class};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo, Classfile};
-use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
+use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::utils::name_and_type_extractor;
 
 use rust_jvm_common::unified_types::ClassWithLoader;
@@ -60,7 +60,7 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
         _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string()))
     }
 //    dbg!(stack_frame);
-    let classfile = get_class(&env.vf, env.method.class);
+//    let classfile = get_class(&env.vf, env.method.class);
 //    dbg!(method_name(&classfile, &classfile.methods[env.method.method_index as usize]));
     can_pop(&env.vf, stack_frame, vec![VerificationType::IntType])?;
     let exception_frame = exception_stack_frame(stack_frame);

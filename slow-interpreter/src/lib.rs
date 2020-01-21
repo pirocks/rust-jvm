@@ -69,7 +69,7 @@ pub struct CallStackEntry {
 pub fn run(
     main_class_name: &ClassName,
     bl: Arc<dyn Loader + Send + Sync>,
-    args: Vec<String>,
+    _args: Vec<String>,
     jni: LibJavaLoading
 ) -> Result<(), Box<dyn Error>> {
     let main = bl.clone().load_class(bl.clone(),main_class_name,bl.clone())?;

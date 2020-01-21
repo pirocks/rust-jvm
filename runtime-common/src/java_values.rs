@@ -158,7 +158,7 @@ impl VecPointer{
     pub fn new(len : usize) -> VecPointer{
         let buf:Vec<JavaValue> = Vec::with_capacity(len);
         mem::forget(&buf);
-        unsafe {VecPointer {object: Arc::new(RefCell::new(buf))}}
+        VecPointer {object: Arc::new(RefCell::new(buf))}
     }
 }
 
