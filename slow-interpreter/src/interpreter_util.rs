@@ -430,7 +430,9 @@ pub fn run_function(
                 let object_ref = stack.pop().unwrap();
                 match object_ref {
                     JavaValue::Object(o) => {
-                        o.unwrap().object.fields.borrow_mut().insert(field_name, val);
+                        {
+                            o.unwrap().object.fields.borrow_mut().insert(field_name, val);
+                        }
                     }
                     _ => {
                         dbg!(object_ref);
@@ -533,10 +535,12 @@ fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStac
             let bootstrap_arc = Arc::new(boostrap_loader_object);
             let bootstrap_loader_ptr = ObjectPointer { object: bootstrap_arc.clone() }.into();
             let bootstrap_class_loader = JavaValue::Object(bootstrap_loader_ptr);
-            bootstrap_arc.fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
-            bootstrap_arc.fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
+            {
+                bootstrap_arc.fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
+                bootstrap_arc.fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
 //            fields.insert("assertionLock".to_string(),bootstrap_class_loader.clone());
-            o.unwrap().object.fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
+                o.unwrap().object.fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
+            }
         }
         _ => panic!(),
     }
@@ -600,7 +604,9 @@ fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<Run
             let descriptor = parse_field_descriptor(loader_arc, descriptor_str.as_str()).unwrap();
             let type_ = descriptor.field_type;
             let val = default_value(type_);
-            object_pointer.object.fields.borrow_mut().insert(name, val);
+            {
+                object_pointer.object.fields.borrow_mut().insert(name, val);
+            }
         }
     }
     current_frame.operand_stack.borrow_mut().push(new_obj);

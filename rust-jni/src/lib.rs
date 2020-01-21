@@ -10,7 +10,7 @@ use libloading::Symbol;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::runtime_class::RuntimeClass;
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, Object};
 use std::ffi::CStr;
 use libffi::middle::Type;
 use crate::value_conversion::to_native;
@@ -63,6 +63,8 @@ impl JNIContext for LibJavaLoading {
         }
         let cif = Cif::new(args_type.into_iter(), Type::f64());
         let fn_ptr = CodePtr::from_fun(*raw);
+        dbg!(&c_args);
+        dbg!(&fn_ptr);
         let cif_res = unsafe {
             cif.call(fn_ptr, c_args.as_slice())
         };
@@ -118,6 +120,20 @@ unsafe extern "system" fn register_natives(env: *mut sys::JNIEnv,
     0
 }
 
+unsafe extern "system" fn get_string_utfchars(env: *mut sys::JNIEnv,
+                                              name: sys::jstring,
+                                              is_copy: *mut sys::jboolean ) -> *const c_char{
+    dbg!(env);
+    dbg!(name);
+    dbg!(is_copy);
+    let str_obj = &*(name as * const Object);
+    dbg!(&str_obj);
+    str_obj.fields.borrow().get("value");
+
+    unimplemented!()
+
+}
+
 fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass>, i: usize) -> () {
     if jni_context.registered_natives.borrow().contains_key(runtime_class) {
 
@@ -140,6 +156,7 @@ use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
 use std::collections::HashMap;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::class_name;
+use std::os::raw::c_char;
 
 fn get_interface(l: &LibJavaLoading) -> sys::JNINativeInterface_ {
     sys::JNINativeInterface_ {
@@ -312,7 +329,7 @@ fn get_interface(l: &LibJavaLoading) -> sys::JNINativeInterface_ {
         ReleaseStringChars: None,
         NewStringUTF: None,
         GetStringUTFLength: None,
-        GetStringUTFChars: None,
+        GetStringUTFChars: Some(get_string_utfchars),
         ReleaseStringUTFChars: None,
         GetArrayLength: None,
         NewObjectArray: None,

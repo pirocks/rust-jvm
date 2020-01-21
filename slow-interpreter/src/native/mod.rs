@@ -8,7 +8,7 @@ use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::classfile::ACC_STATIC;
 use rust_jni::JNIContext;
-use runtime_common::java_values::{JavaValue, Object};
+use runtime_common::java_values::JavaValue;
 use std::cell::RefCell;
 use std::borrow::Borrow;
 
@@ -50,7 +50,7 @@ pub fn run_native_method(
             let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
             dest.borrow_mut()[dest_pos + i] = temp;
         }
-    }else if method_name(classfile, method) == "getPrimitiveClass".to_string() {
+    }/*else if method_name(classfile, method) == "getPrimitiveClass".to_string() {
         let string_value = unwrap_array(unwrap_object(args[0].clone()).fields.borrow().get("value").unwrap().clone());
 //        dbg!(string_value);
         let borrowed: &RefCell<Vec<JavaValue>> = string_value.borrow();
@@ -58,7 +58,7 @@ pub fn run_native_method(
             unimplemented!()
         }//todo need to spell out float
         unimplemented!()
-    } else {
+    }*/ else {
         dbg!(method_name(classfile, method));
         match jni.call(class.clone(), method_i, args, parsed.return_type) {
             None => {}
@@ -89,14 +89,14 @@ fn unwrap_array(j: JavaValue) -> Arc<RefCell<Vec<JavaValue>>> {
     }
 }
 
-fn unwrap_object(j: JavaValue) -> Arc<Object> {
-    match j {
-        JavaValue::Object(o) => {
-            o.unwrap().object
-        }
-        _ => {
-            dbg!(j);
-            panic!()
-        }
-    }
-}
+//fn unwrap_object(j: JavaValue) -> Arc<Object> {
+//    match j {
+//        JavaValue::Object(o) => {
+//            o.unwrap().object
+//        }
+//        _ => {
+//            dbg!(j);
+//            panic!()
+//        }
+//    }
+//}

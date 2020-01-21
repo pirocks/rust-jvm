@@ -1,6 +1,7 @@
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, Object};
 use libffi::middle::Arg;
 use libffi::middle::Type;
+use std::sync::Arc;
 
 pub fn to_native(j: JavaValue) -> Arg {
     match j {
@@ -13,13 +14,20 @@ pub fn to_native(j: JavaValue) -> Arg {
         JavaValue::Float(f) => Arg::new(&f),
         JavaValue::Double(d) => Arg::new(&d),
         JavaValue::Array(_) => unimplemented!(),
-        JavaValue::Object(_) => unimplemented!(),
+        JavaValue::Object(o) => match o {
+            None => Arg::new(&(std::ptr::null() as *const Object)),
+            Some(op) => {
+                let x = Arc::into_raw(op.object) as * const Object;
+                dbg!(x);
+                Arg::new(&x)
+            }
+        },
         JavaValue::Top => panic!()
     }
 }
 
 
-pub fn to_native_type(j: JavaValue) -> Type{
+pub fn to_native_type(j: JavaValue) -> Type {
 
 //    pub type jint = i32;
 //    pub type jlong = i64;
@@ -58,7 +66,7 @@ pub fn to_native_type(j: JavaValue) -> Type{
         JavaValue::Float(_) => Type::f32(),
         JavaValue::Double(_) => Type::f64(),
         JavaValue::Array(_) => unimplemented!(),
-        JavaValue::Object(_) => unimplemented!(),
+        JavaValue::Object(_) => Type::pointer(),
         JavaValue::Top => panic!()
     }
 }
