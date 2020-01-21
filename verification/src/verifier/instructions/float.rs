@@ -6,7 +6,7 @@ use crate::verifier::instructions::type_transition;
 use rust_jvm_common::unified_types::VerificationType;
 
 
-pub fn instruction_is_type_safe_d2f(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+pub fn instruction_is_type_safe_d2f(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::DoubleType],VerificationType::FloatType)
 }
 
@@ -15,17 +15,17 @@ pub fn instruction_is_type_safe_d2f(env: &Environment, _offset: usize, stack_fra
 //    unimplemented!()
 //}
 //
-pub fn instruction_is_type_safe_d2l(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+pub fn instruction_is_type_safe_d2l(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::DoubleType],VerificationType::LongType)
 }
 
 
-pub fn instruction_is_type_safe_dadd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_dadd(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env,stack_frame,vec![VerificationType::DoubleType, VerificationType::DoubleType],VerificationType::DoubleType)
 }
 
 
-pub fn instruction_is_type_safe_dcmpg(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_dcmpg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env,stack_frame,vec![VerificationType::DoubleType, VerificationType::DoubleType],VerificationType::IntType)
 }
 
@@ -34,23 +34,23 @@ pub fn instruction_is_type_safe_dcmpg(env: &Environment, _offset: usize, stack_f
 //    unimplemented!()
 //}
 
-pub fn instruction_is_type_safe_f2d(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+pub fn instruction_is_type_safe_f2d(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::FloatType],VerificationType::DoubleType)
 }
 
-pub fn instruction_is_type_safe_f2i(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+pub fn instruction_is_type_safe_f2i(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::FloatType],VerificationType::IntType)
 }
 
-pub fn instruction_is_type_safe_f2l(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+pub fn instruction_is_type_safe_f2l(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::FloatType],VerificationType::LongType)
 }
 
-pub fn instruction_is_type_safe_fadd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+pub fn instruction_is_type_safe_fadd(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::FloatType,VerificationType::FloatType],VerificationType::FloatType)
 }
 
-pub fn instruction_is_type_safe_fcmpg(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+pub fn instruction_is_type_safe_fcmpg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::FloatType,VerificationType::FloatType],VerificationType::IntType)
 }
 

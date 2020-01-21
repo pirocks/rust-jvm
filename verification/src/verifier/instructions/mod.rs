@@ -212,7 +212,7 @@ pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usi
     })
 }
 
-pub fn instruction_is_type_safe_dup(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_dup(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let input_operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
@@ -245,7 +245,7 @@ pub fn pop_category1(vf: &VerifierContext, input: &mut OperandStack) -> Result<V
     }
 }
 
-pub fn instruction_is_type_safe_dup_x1(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_dup_x1(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let input_operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
@@ -281,7 +281,7 @@ pub fn can_push_list(vf: &VerifierContext, input_stack: &OperandStack, types: &[
     can_push_list(vf, &interim_stack, rest)
 }
 
-pub fn instruction_is_type_safe_dup_x2(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_dup_x2(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let input_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
@@ -342,15 +342,15 @@ fn dup_x2_form2_is_type_safe(env: &Environment, input_stack: &OperandStack) -> R
 //
 //
 
-pub fn instruction_is_type_safe_i2d(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_i2d(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VerificationType::IntType], VerificationType::DoubleType)
 }
 
-pub fn instruction_is_type_safe_i2f(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_i2f(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VerificationType::IntType], VerificationType::FloatType)
 }
 
-pub fn instruction_is_type_safe_i2l(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_i2l(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VerificationType::IntType], VerificationType::LongType)
 }
 
@@ -361,12 +361,12 @@ pub fn type_transition(env: &Environment, stack_frame: &Frame, expected_types: V
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_iadd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_iadd(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VerificationType::IntType, VerificationType::IntType], VerificationType::IntType)
 }
 
 
-pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let should_be_int = nth0(index, locals);
     match should_be_int {
@@ -386,7 +386,7 @@ pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, _offset: 
     }
 }
 
-pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ineg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VerificationType::IntType], VerificationType::IntType)
 }
 
@@ -403,17 +403,17 @@ pub fn instruction_is_type_safe_ineg(env: &Environment, _offset: usize, stack_fr
 //}
 //
 
-pub fn instruction_is_type_safe_l2i(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_l2i(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VerificationType::LongType], VerificationType::IntType)
 }
 
-pub fn instruction_is_type_safe_ladd(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ladd(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = valid_type_transition(env, vec![VerificationType::LongType, VerificationType::LongType], &VerificationType::LongType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-fn instruction_is_type_safe_lcmp(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn instruction_is_type_safe_lcmp(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo dup with other arithmetic
     let next_frame = valid_type_transition(env, vec![VerificationType::LongType, VerificationType::LongType], &VerificationType::IntType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -442,7 +442,7 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> Verification
     }
 }
 
-pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
     let type_: VerificationType = loadable_constant(&env.vf, const_);
     match type_ {
@@ -455,7 +455,7 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, _offset: usize, s
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
     let type_ = match const_ {
         ConstantKind::Integer(_) => VerificationType::IntType,
@@ -468,7 +468,7 @@ pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, _offset: u
     type_transition(env, stack_frame, vec![], type_)
 }
 
-pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
     let type_: VerificationType = loadable_constant(&env.vf, const_);//todo dup
     match type_ {
@@ -481,11 +481,11 @@ pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, _offset: 
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_lneg(env: &Environment, _offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env,stack_frame,vec![VerificationType::LongType],VerificationType::LongType)
+pub fn instruction_is_type_safe_lneg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VerificationType::LongType], VerificationType::LongType)
 }
 
-pub fn instruction_is_type_safe_lshl(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_lshl(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VerificationType::IntType, VerificationType::LongType], VerificationType::LongType)
 }
 
@@ -497,7 +497,7 @@ pub fn instruction_is_type_safe_lshl(env: &Environment, _offset: usize, stack_fr
 //}
 //
 
-pub fn instruction_is_type_safe_pop(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_pop(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let flags = stack_frame.flag_this_uninit;
     let mut rest = stack_frame.stack_map.clone();
@@ -517,7 +517,7 @@ pub fn instruction_is_type_safe_pop(env: &Environment, _offset: usize, stack_fra
 //}
 //
 
-pub fn instruction_is_type_safe_sipush(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_sipush(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![], VerificationType::IntType)
 }
 

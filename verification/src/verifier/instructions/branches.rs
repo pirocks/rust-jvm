@@ -22,7 +22,7 @@ use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::loading::Loader;
 
-pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
         VerificationType::VoidType => {}
         _ => { return Result::Err(TypeSafetyError::NotSafe("todo messsage".to_string())); }
@@ -37,7 +37,7 @@ pub fn instruction_is_type_safe_return(env: &Environment, _offset: usize, stack_
 }
 
 
-pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::Reference, VerificationType::Reference])?;
     target_is_type_safe(env, &next_frame, target as usize)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -45,14 +45,14 @@ pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, _off
 }
 
 
-pub fn instruction_is_type_safe_goto(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_goto(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     target_is_type_safe(env, stack_frame, target as usize)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
 
-pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo is ireturn used for shorts etc?
     //what should a method return type be?
     match env.return_type {
@@ -68,7 +68,7 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, _offset: usize, stack
 }
 
 
-pub fn instruction_is_type_safe_areturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let return_type = &env.return_type;
     is_assignable(&env.vf, return_type, &VerificationType::Reference)?;
     can_pop(&env.vf, stack_frame, vec![return_type.clone()])?;
@@ -77,21 +77,21 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, _offset: usize, stack
 }
 
 
-pub fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::IntType, VerificationType::IntType])?;
     target_is_type_safe(env, &next_frame, target)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::IntType])?;
     target_is_type_safe(env, &next_frame, target)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::Reference])?;
     target_is_type_safe(env, &next_frame, target)?;
     //todo dup with above
@@ -99,7 +99,7 @@ pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, _off
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.class);
     let constant_pool = &method_class.constant_pool;
     let (name_index, descriptor_index) = match &constant_pool[cp].kind {
@@ -126,7 +126,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, _off
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.class);
     let constant_pool = &method_class.constant_pool;
     let ((name_index, descriptor_index), class_index) = match &constant_pool[cp].kind {
@@ -174,7 +174,7 @@ fn count_is_valid(count: usize, input_frame: &Frame, output_frame: &Frame) -> Re
     }
 }
 
-pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
     let method_class_name = match method_class_type {
         ParsedType::Class(c) => c.class_name,
@@ -348,7 +348,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
     return Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }));
 }
 
-pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
@@ -366,7 +366,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, _offs
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
 }
 
-pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
     let (class_name, method_class) = match class_type {
         ParsedType::Class(c) => (Some(c.class_name.clone()), VerificationType::Class(c.clone())),
@@ -444,7 +444,7 @@ pub fn possibly_array_to_type(loader: &Arc<dyn Loader + Send +Sync>, class_name:
     }
 }
 
-pub fn instruction_is_type_safe_lreturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+pub fn instruction_is_type_safe_lreturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
     match env.return_type {
         VerificationType::LongType => {
             can_pop(&env.vf,stack_frame,vec![VerificationType::LongType])?;
@@ -455,7 +455,7 @@ pub fn instruction_is_type_safe_lreturn(env: &Environment, _offset: usize, stack
     }
 }
 
-pub fn instruction_is_type_safe_dreturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+pub fn instruction_is_type_safe_dreturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
     if env.return_type != VerificationType::DoubleType{
         return Result::Err(unknown_error_verifying!());
     }
@@ -464,7 +464,7 @@ pub fn instruction_is_type_safe_dreturn(env: &Environment, _offset: usize, stack
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
-pub fn instruction_is_type_safe_freturn(env: &Environment, _offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+pub fn instruction_is_type_safe_freturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
     if env.return_type != VerificationType::FloatType{
         return Result::Err(unknown_error_verifying!());
     }
