@@ -1,64 +1,16 @@
-use rust_jvm_common::classfile::{InstructionInfo, Instruction};
-use crate::verifier::instructions::loads::{instruction_is_type_safe_aload, instruction_is_type_safe_lload, instruction_is_type_safe_fload, instruction_is_type_safe_laload, instruction_is_type_safe_saload, instruction_is_type_safe_daload, instruction_is_type_safe_faload};
+use rust_jvm_common::classfile::{Instruction, InstructionInfo};
+
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
+use crate::verifier::instructions::{instruction_is_type_safe_dup, instruction_is_type_safe_dup_x1, instruction_is_type_safe_dup_x2, instruction_is_type_safe_i2d, instruction_is_type_safe_i2f, instruction_is_type_safe_i2l, instruction_is_type_safe_iadd, instruction_is_type_safe_iinc, instruction_is_type_safe_ineg, instruction_is_type_safe_l2i, instruction_is_type_safe_ladd, instruction_is_type_safe_lcmp, instruction_is_type_safe_ldc, instruction_is_type_safe_ldc2_w, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg, instruction_is_type_safe_lshl, instruction_is_type_safe_pop, instruction_is_type_safe_sipush, InstructionTypeSafe,
+};
+use crate::verifier::instructions::branches::*;
+use crate::verifier::instructions::consts::*;
+use crate::verifier::instructions::float::*;
+use crate::verifier::instructions::loads::*;
+use crate::verifier::instructions::special::*;
+use crate::verifier::instructions::stores::*;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::instructions::{InstructionTypeSafe, instruction_is_type_safe_ldc, instruction_is_type_safe_dup, instruction_is_type_safe_i2f, instruction_is_type_safe_lshl, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg};
-use crate::verifier::instructions::branches::{instruction_is_type_safe_goto, instruction_is_type_safe_invokespecial, instruction_is_type_safe_invokedynamic, instruction_is_type_safe_areturn, instruction_is_type_safe_ifeq, instruction_is_type_safe_dreturn};
-use crate::verifier::instructions::branches::instruction_is_type_safe_if_acmpeq;
-use crate::verifier::instructions::branches::instruction_is_type_safe_invokestatic;
-use crate::verifier::instructions::branches::instruction_is_type_safe_ireturn;
-use crate::verifier::instructions::instruction_is_type_safe_lcmp;
-use crate::verifier::instructions::consts::{instruction_is_type_safe_lconst_0, instruction_is_type_safe_fconst_0};
-use crate::verifier::instructions::branches::instruction_is_type_safe_return;
-use crate::verifier::instructions::consts::instruction_is_type_safe_iconst_m1;
-use crate::verifier::instructions::branches::instruction_is_type_safe_invokevirtual;
-use crate::verifier::instructions::special::{instruction_is_type_safe_putfield, instruction_is_type_safe_getfield, instruction_is_type_safe_new, instruction_is_type_safe_athrow, instruction_is_type_safe_checkcast};
-use crate::verifier::instructions::special::instruction_is_type_safe_getstatic;
-use crate::verifier::instructions::loads::instruction_is_type_safe_iload;
-use crate::verifier::instructions::branches::instruction_is_type_safe_if_icmpeq;
-use crate::verifier::instructions::instruction_is_type_safe_ldc2_w;
-use crate::verifier::instructions::instruction_is_type_safe_pop;
-use crate::verifier::instructions::instruction_is_type_safe_ladd;
-use crate::verifier::instructions::branches::instruction_is_type_safe_ifnonnull;
-use crate::verifier::instructions::consts::instruction_is_type_safe_aconst_null;
-use crate::verifier::instructions::stores::{instruction_is_type_safe_lstore, instruction_is_type_safe_fstore, instruction_is_type_safe_lastore, instruction_is_type_safe_iastore, instruction_is_type_safe_sastore, instruction_is_type_safe_dastore, instruction_is_type_safe_fastore};
-use crate::verifier::instructions::stores::instruction_is_type_safe_istore;
-use crate::verifier::instructions::consts::instruction_is_type_safe_dconst_0;
-use crate::verifier::instructions::float::{instruction_is_type_safe_dcmpg, instruction_is_type_safe_fcmpg, instruction_is_type_safe_fadd, instruction_is_type_safe_f2i, instruction_is_type_safe_d2l, instruction_is_type_safe_f2l};
-use crate::verifier::instructions::float::instruction_is_type_safe_dadd;
-use crate::verifier::instructions::float::instruction_is_type_safe_d2f;
-use crate::verifier::instructions::float::instruction_is_type_safe_f2d;
-use crate::verifier::instructions::stores::instruction_is_type_safe_astore;
-use crate::verifier::instructions::instruction_is_type_safe_iadd;
-use crate::verifier::instructions::instruction_is_type_safe_sipush;
-use crate::verifier::instructions::instruction_is_type_safe_i2d;
-use crate::verifier::instructions::stores::instruction_is_type_safe_dstore;
-use crate::verifier::instructions::instruction_is_type_safe_iinc;
-use crate::verifier::instructions::branches::instruction_is_type_safe_invokeinterface;
-use crate::verifier::instructions::special::instruction_is_type_safe_monitorenter;
-use crate::verifier::instructions::special::instruction_is_type_safe_arraylength;
-use crate::verifier::instructions::loads::instruction_is_type_safe_aaload;
-use crate::verifier::instructions::special::instruction_is_type_safe_putstatic;
-use crate::verifier::instructions::special::instruction_is_type_safe_anewarray;
-use crate::verifier::instructions::stores::instruction_is_type_safe_aastore;
-use crate::verifier::instructions::special::instruction_is_type_safe_instanceof;
-use crate::verifier::instructions::instruction_is_type_safe_dup_x1;
-use crate::verifier::instructions::instruction_is_type_safe_dup_x2;
-use crate::verifier::instructions::branches::instruction_is_type_safe_freturn;
-use crate::verifier::instructions::instruction_is_type_safe_ineg;
-use crate::verifier::instructions::stores::instruction_is_type_safe_bastore;
-use crate::verifier::instructions::branches::instruction_is_type_safe_lreturn;
-use crate::verifier::instructions::instruction_is_type_safe_l2i;
-use crate::verifier::instructions::special::instruction_is_type_safe_newarray;
-use crate::verifier::instructions::instruction_is_type_safe_i2l;
-use crate::verifier::instructions::loads::instruction_is_type_safe_caload;
-use crate::verifier::instructions::special::instruction_is_type_safe_tableswitch;
-use crate::verifier::instructions::stores::instruction_is_type_safe_castore;
-use crate::verifier::instructions::special::instruction_is_type_safe_lookupswitch;
-use crate::verifier::instructions::loads::instruction_is_type_safe_iaload;
-use crate::verifier::instructions::loads::instruction_is_type_safe_baload;
-use crate::verifier::instructions::loads::instruction_is_type_safe_dload;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    dbg!(&stack_frame.stack_map);
@@ -280,7 +232,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::monitorenter => instruction_is_type_safe_monitorenter(env, stack_frame),
         InstructionInfo::monitorexit => instruction_is_type_safe_monitorenter(env, stack_frame),
         InstructionInfo::multianewarray(_) => { unimplemented!() }
-        InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize,offset, env, stack_frame),
+        InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize, offset, env, stack_frame),
         InstructionInfo::newarray(type_code) => instruction_is_type_safe_newarray(*type_code as usize, env, stack_frame),
         InstructionInfo::nop => { unimplemented!() }
         InstructionInfo::pop => instruction_is_type_safe_pop(env, stack_frame),
