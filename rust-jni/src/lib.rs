@@ -39,6 +39,7 @@ pub struct LibJavaLoading {
 impl LibJavaLoading {
     pub fn new(path: String) -> LibJavaLoading {
         trace!("Loading libjava.so from:`{}`", path);
+        crate::libloading::os::unix::Library::open("libjvm.so".into(),dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
         let loaded = crate::libloading::os::unix::Library::open(path.clone().into(),dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
         let lib = Library::from(loaded);
         LibJavaLoading {
