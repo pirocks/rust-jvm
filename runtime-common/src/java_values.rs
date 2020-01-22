@@ -233,3 +233,28 @@ impl JavaValue{
     }
 
 }
+
+
+pub fn unwrap_array(j: JavaValue) -> Arc<RefCell<Vec<JavaValue>>> {
+    match j {
+        JavaValue::Array(a) => {
+            a.unwrap().object
+        }
+        _ => {
+            dbg!(j);
+            panic!()
+        }
+    }
+}
+
+pub fn unwrap_char(j: &JavaValue) -> char {
+    match j {
+        JavaValue::Char(c) => {
+            c.clone()
+        }
+        _ => {
+            dbg!(j);
+            panic!()
+        }
+    }
+}

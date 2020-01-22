@@ -10,10 +10,9 @@ use libloading::Symbol;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::runtime_class::RuntimeClass;
-use runtime_common::java_values::{JavaValue, Object};
+use runtime_common::java_values::{JavaValue, Object, unwrap_array, unwrap_char};
 use std::ffi::CStr;
 use libffi::middle::Type;
-use crate::value_conversion::to_native;
 use libffi::middle::Arg;
 use std::mem::transmute;
 use crate::value_conversion::to_native_type;
@@ -57,9 +56,28 @@ impl JNIContext for LibJavaLoading {
         let jclass: jclass = unsafe { transmute(&classfile) };
         let env = &get_interface(self);
         let mut c_args = vec![Arg::new(&&env), Arg::new(&jclass)];
-        for x in args {
-            args_type.push(to_native_type(x.clone()));
-            c_args.push(to_native(x));//todo don't forget to free. and/or stack allocate
+        for j in args {
+            args_type.push(to_native_type(j.clone()));
+            c_args.push(match j {
+                JavaValue::Long(l) => Arg::new(&l),
+                JavaValue::Int(i) => Arg::new(&i),
+                JavaValue::Short(s) => Arg::new(&s),
+                JavaValue::Byte(b) => Arg::new(&b),
+                JavaValue::Boolean(b) => Arg::new(&b),
+                JavaValue::Char(c) => Arg::new(&c),
+                JavaValue::Float(f) => Arg::new(&f),
+                JavaValue::Double(d) => Arg::new(&d),
+                JavaValue::Array(_) => unimplemented!(),
+                JavaValue::Object(o) => match o {
+                    None => Arg::new(&(std::ptr::null() as *const Object)),
+                    Some(op) => {
+                        let x = Arc::into_raw(op.object.clone());
+                        dbg!(&x);
+                        Arg::new(x.borrow())
+                    }
+                },
+                JavaValue::Top => panic!()
+            });
         }
         let cif = Cif::new(args_type.into_iter(), Type::f64());
         let fn_ptr = CodePtr::from_fun(*raw);
@@ -120,17 +138,23 @@ unsafe extern "system" fn register_natives(env: *mut sys::JNIEnv,
     0
 }
 
-unsafe extern "system" fn get_string_utfchars(env: *mut sys::JNIEnv,
+unsafe extern "system" fn get_string_utfchars(_env: *mut sys::JNIEnv,
                                               name: sys::jstring,
                                               is_copy: *mut sys::jboolean ) -> *const c_char{
-    dbg!(env);
-    dbg!(name);
-    dbg!(is_copy);
-    let str_obj = &*(name as * const Object);
-    dbg!(&str_obj);
-    str_obj.fields.borrow().get("value");
-
-    unimplemented!()
+    let str_obj:Arc<Object> = Arc::from_raw(transmute(name));
+    let unwrapped = unwrap_array(str_obj.fields.borrow().get("value").unwrap().clone());
+    let refcell: &RefCell<Vec<JavaValue>> = &unwrapped;
+    let char_array: &Ref<Vec<JavaValue>> = &refcell.borrow();
+    let chars_layout = Layout::from_size_align(char_array.len() * size_of::<c_char>(), size_of::<c_char>()).unwrap();
+    let res = std::alloc::alloc(chars_layout) as *mut c_char;
+    char_array.iter().enumerate().for_each(|(i,j)|{
+        let cur = unwrap_char(j) as u8;
+        res.offset(i as isize).write(transmute(cur))
+    });
+    if is_copy != std::ptr::null_mut(){
+        unimplemented!()
+    }
+    return  res;
 
 }
 
@@ -151,12 +175,15 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
     }
 }
 
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref};
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
 use std::collections::HashMap;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::class_name;
 use std::os::raw::c_char;
+use std::borrow::Borrow;
+use std::alloc::Layout;
+use std::mem::size_of;
 
 fn get_interface(l: &LibJavaLoading) -> sys::JNINativeInterface_ {
     sys::JNINativeInterface_ {

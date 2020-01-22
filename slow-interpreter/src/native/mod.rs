@@ -8,7 +8,7 @@ use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::classfile::ACC_STATIC;
 use rust_jni::JNIContext;
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, unwrap_array};
 use std::cell::RefCell;
 use std::borrow::Borrow;
 
@@ -77,17 +77,6 @@ fn unwrap_int(j: JavaValue) -> i32 {
     }
 }
 
-fn unwrap_array(j: JavaValue) -> Arc<RefCell<Vec<JavaValue>>> {
-    match j {
-        JavaValue::Array(a) => {
-            a.unwrap().object
-        }
-        _ => {
-            dbg!(j);
-            panic!()
-        }
-    }
-}
 
 //fn unwrap_object(j: JavaValue) -> Arc<Object> {
 //    match j {

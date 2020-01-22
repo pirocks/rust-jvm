@@ -16,7 +16,7 @@ slow-interpreter = {path = "./slow-interpreter"}
 jar-manipulation = {path = "./jar-manipulation"}
 rust-jni = {path = "./rust-jni"}
 runtime-common = {path = "./runtime-common"}
-#jvm = {path = "./libjvm"}
+jvm = {path = "./libjvm"}
 argparse = "0.2.2"
 log = "0.4"
 simple_logger = "1.3.0"
@@ -26,4 +26,4 @@ pathdiff = "0.1.0"
 
 
 [workspace]
-members = ["rust-jvm-common","classfile-parser", "verification", "slow-interpreter","loading","jar-manipulation","rust-jni", "runtime-common"]
+members = ["rust-jvm-common","classfile-parser", "verification", "slow-interpreter","loading","jar-manipulation","rust-jni", "runtime-common", "libjvm"]

@@ -2,6 +2,7 @@ use runtime_common::java_values::{JavaValue, Object};
 use libffi::middle::Arg;
 use libffi::middle::Type;
 use std::sync::Arc;
+use std::borrow::Borrow;
 
 pub fn to_native(j: JavaValue) -> Arg {
     match j {
@@ -17,9 +18,8 @@ pub fn to_native(j: JavaValue) -> Arg {
         JavaValue::Object(o) => match o {
             None => Arg::new(&(std::ptr::null() as *const Object)),
             Some(op) => {
-                let x = Arc::into_raw(op.object) as * const Object;
-                dbg!(x);
-                Arg::new(&x)
+                let x = Arc::into_raw(op.object.clone());
+                Arg::new(x.borrow())
             }
         },
         JavaValue::Top => panic!()
