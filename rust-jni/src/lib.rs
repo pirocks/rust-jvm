@@ -39,7 +39,8 @@ pub struct LibJavaLoading {
 impl LibJavaLoading {
     pub fn new(path: String) -> LibJavaLoading {
         trace!("Loading libjava.so from:`{}`", path);
-        let lib = Library::new(path).unwrap();
+        let loaded = crate::libloading::os::unix::Library::open(path.clone().into(),dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
+        let lib = Library::from(loaded);
         LibJavaLoading {
             lib,
             registered_natives: RefCell::new(HashMap::new()),
@@ -184,6 +185,7 @@ use std::os::raw::c_char;
 use std::borrow::Borrow;
 use std::alloc::Layout;
 use std::mem::size_of;
+use std::convert::TryInto;
 
 fn get_interface(l: &LibJavaLoading) -> sys::JNINativeInterface_ {
     sys::JNINativeInterface_ {
@@ -421,4 +423,11 @@ fn get_interface(l: &LibJavaLoading) -> sys::JNINativeInterface_ {
         GetDirectBufferCapacity: None,
         GetObjectRefType: None,
     }
+}
+
+pub mod dlopen {
+    #![allow(non_upper_case_globals)]
+    #![allow(non_camel_case_types)]
+    #![allow(non_snake_case)]
+    include!(concat!("../gen", "/dlopen.rs"));
 }
