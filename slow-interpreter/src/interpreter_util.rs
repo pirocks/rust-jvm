@@ -199,7 +199,10 @@ pub fn run_function(
             InstructionInfo::i2c => unimplemented!(),
             InstructionInfo::i2d => unimplemented!(),
             InstructionInfo::i2f => unimplemented!(),
-            InstructionInfo::i2l => unimplemented!(),
+            InstructionInfo::i2l => {
+                let int = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
+                current_frame.operand_stack.borrow_mut().push(JavaValue::Long(int as i64));
+            },
             InstructionInfo::i2s => unimplemented!(),
             InstructionInfo::iadd => unimplemented!(),
             InstructionInfo::iaload => unimplemented!(),

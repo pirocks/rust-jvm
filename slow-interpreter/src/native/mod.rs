@@ -33,11 +33,6 @@ pub fn run_native_method(
     if method_name(classfile, method) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         frame.operand_stack.borrow_mut().push(JavaValue::Boolean(false))
     } else if method_name(classfile, method) == "arraycopy".to_string() {
-//        public static void arraycopy​(Object src,
-//        int srcPos,
-//        Object dest,
-//        int destPos,
-//        int length)
         let src = args[0].clone().unwrap_array();
         let src_pos = args[1].clone().unwrap_int() as usize;
         let dest = args[2].clone().unwrap_array();
@@ -48,19 +43,11 @@ pub fn run_native_method(
             let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
             dest.borrow_mut()[dest_pos + i] = temp;
         }
-    }/*else if method_name(classfile, method) == "getPrimitiveClass".to_string() {
-        let string_value = unwrap_array(unwrap_object(args[0].clone()).fields.borrow().get("value").unwrap().clone());
-//        dbg!(string_value);
-        let borrowed: &RefCell<Vec<JavaValue>> = string_value.borrow();
-        if borrowed.borrow()[0] == JavaValue::Char('f') {
-            unimplemented!()
-        }//todo need to spell out float
-        unimplemented!()
-    }*/ else {
+    } else {
         dbg!(method_name(classfile, method));
         match call(state, frame.clone(),class.clone(), method_i, args, parsed.return_type) {
             None => {}
-            Some(_) => unimplemented!(),
+            Some(res) => frame.operand_stack.borrow_mut().push(res),
         }
     }
 }

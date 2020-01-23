@@ -10,7 +10,7 @@ use libloading::Symbol;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::runtime_class::RuntimeClass;
-use runtime_common::java_values::{JavaValue, Object};
+use runtime_common::java_values::{JavaValue, Object, ObjectPointer};
 use std::ffi::CStr;
 use libffi::middle::Type;
 use libffi::middle::Arg;
@@ -21,7 +21,18 @@ use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use jni::sys;
 use jni::sys::jclass;
-
+use std::cell::{RefCell, Ref};
+use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
+use std::collections::HashMap;
+use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::classnames::class_name;
+use std::os::raw::c_char;
+use std::borrow::Borrow;
+use std::alloc::Layout;
+use std::mem::size_of;
+use std::convert::TryInto;
+use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
+use std::rc::Rc;
 
 pub mod value_conversion;
 pub mod mangling;
@@ -38,7 +49,7 @@ pub fn new_java_loading(path: String) -> LibJavaLoading {
 }
 
 
-pub fn call(state: &mut InterpreterState, current_frame:Rc<CallStackEntry>,classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Option<JavaValue> {
+pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Option<JavaValue> {
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let symbol: Symbol<unsafe extern fn()> = unsafe { state.jni.lib.get(mangled.as_bytes()).unwrap() };
     let raw = symbol.deref();
@@ -73,7 +84,7 @@ pub fn call(state: &mut InterpreterState, current_frame:Rc<CallStackEntry>,class
     let fn_ptr = CodePtr::from_fun(*raw);
     dbg!(&c_args);
     dbg!(&fn_ptr);
-    let cif_res = unsafe {
+    let cif_res: usize = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
     match return_type {
@@ -85,10 +96,14 @@ pub fn call(state: &mut InterpreterState, current_frame:Rc<CallStackEntry>,class
 //            ParsedType::DoubleType => {}
 //            ParsedType::FloatType => {}
         ParsedType::IntType => {
-            Some(JavaValue::Int(cif_res))
+            Some(JavaValue::Int(cif_res as i32))
         }
 //            ParsedType::LongType => {}
-//            ParsedType::Class(_) => {}
+        ParsedType::Class(_) => {
+            unsafe {
+                Some(JavaValue::Object(ObjectPointer { object: (Arc::from_raw(transmute(cif_res))) }.into()))
+            }
+        }
 //            ParsedType::ShortType => {}
 //            ParsedType::BooleanType => {}
 //            ParsedType::ArrayReferenceType(_) => {}
@@ -96,7 +111,10 @@ pub fn call(state: &mut InterpreterState, current_frame:Rc<CallStackEntry>,class
 //            ParsedType::NullType => {}
 //            ParsedType::Uninitialized(_) => {}
 //            ParsedType::UninitializedThis => {}
-        _ => panic!()
+        _ => {
+            dbg!(return_type);
+            panic!()
+        }
     }
 }
 
@@ -136,12 +154,13 @@ unsafe extern "system" fn get_string_utfchars(_env: *mut sys::JNIEnv,
     let unwrapped = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_array();
     let refcell: &RefCell<Vec<JavaValue>> = &unwrapped;
     let char_array: &Ref<Vec<JavaValue>> = &refcell.borrow();
-    let chars_layout = Layout::from_size_align(char_array.len() * size_of::<c_char>(), size_of::<c_char>()).unwrap();
+    let chars_layout = Layout::from_size_align((char_array.len() + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
     let res = std::alloc::alloc(chars_layout) as *mut c_char;
     char_array.iter().enumerate().for_each(|(i, j)| {
         let cur = j.unwrap_char() as u8;
         res.offset(i as isize).write(transmute(cur))
     });
+    res.offset(char_array.len() as isize).write(0);//null terminate
     if is_copy != std::ptr::null_mut() {
         unimplemented!()
     }
@@ -165,20 +184,18 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
     }
 }
 
-use std::cell::{RefCell, Ref};
-use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
-use std::collections::HashMap;
-use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::classnames::class_name;
-use std::os::raw::c_char;
-use std::borrow::Borrow;
-use std::alloc::Layout;
-use std::mem::size_of;
-use std::convert::TryInto;
-use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
-use std::rc::Rc;
+unsafe extern "system" fn release_string_chars(env: *mut sys::JNIEnv, str: sys::jstring, chars: *const sys::jchar) {
+    unimplemented!()
+}
 
-fn get_interface(state: &InterpreterState, frame : Rc<CallStackEntry>) -> sys::JNINativeInterface_ {
+unsafe extern "system" fn release_string_utfchars(_env: *mut sys::JNIEnv, str: sys::jstring, chars: *const c_char) {
+    let len = libc::strlen(chars);
+    let chars_layout = Layout::from_size_align((len + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
+    std::alloc::dealloc(chars as *mut u8, chars_layout);
+}
+
+
+fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> sys::JNINativeInterface_ {
     sys::JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: unsafe { transmute(Rc::into_raw(frame)) },
@@ -346,11 +363,11 @@ fn get_interface(state: &InterpreterState, frame : Rc<CallStackEntry>) -> sys::J
         NewString: None,
         GetStringLength: None,
         GetStringChars: None,
-        ReleaseStringChars: None,
+        ReleaseStringChars: Some(release_string_chars),
         NewStringUTF: None,
         GetStringUTFLength: None,
         GetStringUTFChars: Some(get_string_utfchars),
-        ReleaseStringUTFChars: None,
+        ReleaseStringUTFChars: Some(release_string_utfchars),
         GetArrayLength: None,
         NewObjectArray: None,
         GetObjectArrayElement: None,
