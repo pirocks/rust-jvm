@@ -10,11 +10,10 @@ pub fn instruction_is_type_safe_d2f(env: &Environment, stack_frame: &Frame) -> R
     type_transition(env,stack_frame,vec![VerificationType::DoubleType],VerificationType::FloatType)
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_d2i(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_d2i(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+    type_transition(env,stack_frame,vec![VerificationType::DoubleType],VerificationType::IntType)
+}
+
 pub fn instruction_is_type_safe_d2l(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
     type_transition(env,stack_frame,vec![VerificationType::DoubleType],VerificationType::LongType)
 }

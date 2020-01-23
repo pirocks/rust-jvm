@@ -93,12 +93,16 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
         }
 //            ParsedType::ByteType => {}
 //            ParsedType::CharType => {}
-//            ParsedType::DoubleType => {}
+            ParsedType::DoubleType => {
+                Some(JavaValue::Double(unsafe { transmute(cif_res) }))
+            }
 //            ParsedType::FloatType => {}
         ParsedType::IntType => {
             Some(JavaValue::Int(cif_res as i32))
         }
-//            ParsedType::LongType => {}
+        ParsedType::LongType =>{
+            Some(JavaValue::Long(cif_res as i64))
+        }
         ParsedType::Class(_) => {
             unsafe {
                 Some(JavaValue::Object(ObjectPointer { object: (Arc::from_raw(transmute(cif_res))) }.into()))
@@ -188,7 +192,7 @@ unsafe extern "system" fn release_string_chars(env: *mut sys::JNIEnv, str: sys::
     unimplemented!()
 }
 
-unsafe extern "system" fn release_string_utfchars(_env: *mut sys::JNIEnv, str: sys::jstring, chars: *const c_char) {
+unsafe extern "system" fn release_string_utfchars(_env: *mut sys::JNIEnv, _str: sys::jstring, chars: *const c_char) {
     let len = libc::strlen(chars);
     let chars_layout = Layout::from_size_align((len + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
     std::alloc::dealloc(chars as *mut u8, chars_layout);

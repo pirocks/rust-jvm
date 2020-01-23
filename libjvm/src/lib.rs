@@ -405,6 +405,19 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         let res = get_or_create_class_object(state,&ClassName::Str("java/lang/Float".to_string()),frame,state.bootstrap_loader.clone());//todo what if not using bootstap loader
         return  transmute(res)
     }
+    if *utf.offset(0) == 'd' as i8 &&
+        *utf.offset(1) == 'o' as i8 &&
+        *utf.offset(2) == 'u' as i8 &&
+        *utf.offset(3) == 'b' as i8 &&
+        *utf.offset(4) == 'l' as i8 &&
+        *utf.offset(5) == 'e' as i8 /*&&
+        *utf.offset(6) == 0*/ {
+        let state = &mut (*((**env).reserved0 as *mut InterpreterState));
+        let frame = Rc::from_raw((**env).reserved1 as *const CallStackEntry);
+        let res = get_or_create_class_object(state,&ClassName::Str("java/lang/Double".to_string()),frame,state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return  transmute(res)
+    }
+
     dbg!((*utf) as u8 as char);
     unimplemented!()
 }

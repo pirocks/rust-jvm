@@ -39,6 +39,15 @@ impl JavaValue{
         }
     }
 
+    pub fn unwrap_long(&self) -> i64 {
+        match self {
+            JavaValue::Long(l) => {
+                *l
+            }
+            _ => panic!()
+        }
+    }
+
 
     pub fn unwrap_object(&self) -> Arc<Object> {
         match self {

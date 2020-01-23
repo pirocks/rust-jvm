@@ -123,7 +123,15 @@ pub fn run_function(
             InstructionInfo::dmul => unimplemented!(),
             InstructionInfo::dneg => unimplemented!(),
             InstructionInfo::drem => unimplemented!(),
-            InstructionInfo::dreturn => unimplemented!(),
+            InstructionInfo::dreturn => {
+                let res = current_frame.operand_stack.borrow_mut().pop().unwrap();
+                state.function_return = true;
+                match res {
+                    JavaValue::Double(_) => {}
+                    _ => panic!()
+                }
+                current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow_mut().push(res);
+            },
             InstructionInfo::dstore(_) => unimplemented!(),
             InstructionInfo::dstore_0 => unimplemented!(),
             InstructionInfo::dstore_1 => unimplemented!(),
@@ -202,7 +210,7 @@ pub fn run_function(
             InstructionInfo::i2l => {
                 let int = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
                 current_frame.operand_stack.borrow_mut().push(JavaValue::Long(int as i64));
-            },
+            }
             InstructionInfo::i2s => unimplemented!(),
             InstructionInfo::iadd => unimplemented!(),
             InstructionInfo::iaload => unimplemented!(),
@@ -339,9 +347,17 @@ pub fn run_function(
             InstructionInfo::l2d => unimplemented!(),
             InstructionInfo::l2f => unimplemented!(),
             InstructionInfo::l2i => unimplemented!(),
-            InstructionInfo::ladd => unimplemented!(),
+            InstructionInfo::ladd => {
+                let first = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
+                let second = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
+                current_frame.operand_stack.borrow_mut().push(JavaValue::Long(first + second));
+            },
             InstructionInfo::laload => unimplemented!(),
-            InstructionInfo::land => unimplemented!(),
+            InstructionInfo::land => {
+                let first = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
+                let second = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
+                current_frame.operand_stack.borrow_mut().push(JavaValue::Long(first & second))
+            },
             InstructionInfo::lastore => unimplemented!(),
             InstructionInfo::lcmp => unimplemented!(),
             InstructionInfo::lconst_0 => unimplemented!(),
@@ -364,7 +380,23 @@ pub fn run_function(
                 }
             }
             InstructionInfo::ldc_w(_) => unimplemented!(),
-            InstructionInfo::ldc2_w(_) => unimplemented!(),
+            InstructionInfo::ldc2_w(cp) => {
+                let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
+                let pool_entry = &constant_pool[cp as usize];
+                match &pool_entry.kind {
+                    ConstantKind::Long(l) => {
+                        let high = l.high_bytes as u64;
+                        let low = l.low_bytes as u64;
+                        current_frame.operand_stack.borrow_mut().push(JavaValue::Long((high << 32 | low) as i64));
+                    },
+                    ConstantKind::Double(d) => {
+                        let high = d.high_bytes as u64;
+                        let low = d.low_bytes as u64;
+                        current_frame.operand_stack.borrow_mut().push(JavaValue::Double(unsafe{ transmute(high << 32 | low) }));
+                    },
+                    _ => {},
+                }
+            }
             InstructionInfo::ldiv => unimplemented!(),
             InstructionInfo::lload(_) => unimplemented!(),
             InstructionInfo::lload_0 => unimplemented!(),
@@ -377,7 +409,11 @@ pub fn run_function(
             InstructionInfo::lor => unimplemented!(),
             InstructionInfo::lrem => unimplemented!(),
             InstructionInfo::lreturn => unimplemented!(),
-            InstructionInfo::lshl => unimplemented!(),
+            InstructionInfo::lshl => {
+                let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
+                let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
+                current_frame.operand_stack.borrow_mut().push(JavaValue::Long(value1 << ((value2 & 0x7F) as i64)));
+            },
             InstructionInfo::lshr => unimplemented!(),
             InstructionInfo::lstore(_) => unimplemented!(),
             InstructionInfo::lstore_0 => unimplemented!(),
@@ -443,7 +479,9 @@ pub fn run_function(
             }
             InstructionInfo::saload => unimplemented!(),
             InstructionInfo::sastore => unimplemented!(),
-            InstructionInfo::sipush(_) => unimplemented!(),
+            InstructionInfo::sipush(val) => {
+                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(val as i32));
+            },
             InstructionInfo::swap => unimplemented!(),
             InstructionInfo::tableswitch(_) => unimplemented!(),
             InstructionInfo::wide(_) => unimplemented!(),
