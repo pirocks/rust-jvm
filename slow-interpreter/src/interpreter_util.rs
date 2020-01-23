@@ -21,7 +21,7 @@ use std::mem::transmute;
 pub fn check_inited_class(
     state: &mut InterpreterState,
     class_name: &ClassName,
-    current_frame: Rc<CallStackEntry>,
+    current_frame: Option<Rc<CallStackEntry>>,
     loader_arc: Arc<dyn Loader + Sync + Send>,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
@@ -194,7 +194,7 @@ pub fn run_function(
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone());
+                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
                 let field_value = target_classfile.static_vars.borrow().get(&field_name).unwrap().clone();
                 let mut stack = current_frame.operand_stack.borrow_mut();
                 stack.push(field_value);
@@ -448,7 +448,7 @@ pub fn run_function(
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let _target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone());
+                let _target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
                 let mut stack = current_frame.operand_stack.borrow_mut();
                 let val = stack.pop().unwrap();
                 let object_ref = stack.pop().unwrap();
@@ -468,7 +468,7 @@ pub fn run_function(
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone());
+                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
                 let mut stack = current_frame.operand_stack.borrow_mut();
                 let field_value = stack.pop().unwrap();
                 target_classfile.static_vars.borrow_mut().insert(field_name, field_value);
@@ -537,7 +537,7 @@ fn iload(current_frame: &Rc<CallStackEntry>, n: usize) {
 
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
     let res_class_name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
-    let object = get_or_create_class_object(state, &ClassName::Str(res_class_name), current_frame.clone(), current_frame.class_pointer.loader.clone());
+    let object = get_or_create_class_object(state, &ClassName::Str(res_class_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
     current_frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer {
         object
     }.into()));
@@ -547,10 +547,10 @@ fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallSta
     let res_string = extract_string_from_utf8(&constant_pool[s.string_index as usize]);
     let java_lang_string = ClassName::Str("java/lang/String".to_string());
     let current_loader = current_frame.class_pointer.loader.clone();
-    let string_class = check_inited_class(state, &java_lang_string, current_frame.clone(), current_loader.clone());
+    let string_class = check_inited_class(state, &java_lang_string, current_frame.clone().into(), current_loader.clone());
     let str_as_vec = res_string.into_bytes().clone();
     let chars: Vec<JavaValue> = str_as_vec.iter().map(|x| { JavaValue::Char(*x as char) }).collect();
-    push_new_object(current_frame.clone(), &string_class);
+    push_new_object(current_frame.clone().into(), &string_class);
     let string_object = current_frame.operand_stack.borrow_mut().pop().unwrap();
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Array(Some(VecPointer { object: Arc::new(chars.into()) })));
@@ -558,7 +558,7 @@ fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallSta
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
     let (constructor_i, _constructor) = find_target_method(current_loader.clone(), "<init>".to_string(), &expected_descriptor, &string_class);
     let next_entry = CallStackEntry {
-        last_call_stack: Some(current_frame.clone()),
+        last_call_stack: Some(current_frame.clone().into()),
         class_pointer: string_class,
         method_i: constructor_i as u16,
         local_vars: args.into(),
@@ -584,8 +584,8 @@ pub fn new(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp:
         _ => panic!()
     };
     let target_class_name = ClassName::Str(extract_string_from_utf8(&constant_pool[class_name_index as usize]));
-    let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone(), loader_arc.clone());
-    push_new_object(current_frame.clone(), &target_classfile);
+    let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone().into(), loader_arc.clone());
+    push_new_object(current_frame.clone().into(), &target_classfile);
 }
 
 pub fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<RuntimeClass>) {

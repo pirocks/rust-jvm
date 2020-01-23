@@ -35,7 +35,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
     }
 }
 
-pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Rc<CallStackEntry>) -> Arc<RuntimeClass> {
+pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Option<Rc<CallStackEntry>>) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
@@ -67,7 +67,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
     //todo should I really be manipulating the interpreter state like this
 
     let new_stack = CallStackEntry {
-        last_call_stack: Some(stack),
+        last_call_stack: stack,
         class_pointer: class_arc.clone(),
         method_i: clinit_i as u16,
         local_vars: vec![].into(),

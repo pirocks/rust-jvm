@@ -73,7 +73,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
                 None => Arg::new(&(std::ptr::null() as *const Object)),
                 Some(op) => {
                     let x = Arc::into_raw(op.object.clone());
-                    dbg!(&x);
+//                    dbg!(&x);
                     Arg::new(x.borrow())
                 }
             },
@@ -82,8 +82,8 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
     }
     let cif = Cif::new(args_type.into_iter(), Type::f64());
     let fn_ptr = CodePtr::from_fun(*raw);
-    dbg!(&c_args);
-    dbg!(&fn_ptr);
+//    dbg!(&c_args);
+//    dbg!(&fn_ptr);
     let cif_res: usize = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
@@ -188,7 +188,7 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
     }
 }
 
-unsafe extern "system" fn release_string_chars(env: *mut sys::JNIEnv, str: sys::jstring, chars: *const sys::jchar) {
+unsafe extern "system" fn release_string_chars(_env: *mut sys::JNIEnv, str: sys::jstring, _chars: *const sys::jchar) {
     unimplemented!()
 }
 

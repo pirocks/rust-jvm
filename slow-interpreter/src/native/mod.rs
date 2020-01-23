@@ -44,7 +44,7 @@ pub fn run_native_method(
             dest.borrow_mut()[dest_pos + i] = temp;
         }
     } else {
-        dbg!(method_name(classfile, method));
+//        dbg!(method_name(classfile, method));
         match call(state, frame.clone(),class.clone(), method_i, args, parsed.return_type) {
             None => {}
             Some(res) => frame.operand_stack.borrow_mut().push(res),

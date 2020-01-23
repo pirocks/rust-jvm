@@ -19,7 +19,8 @@ use std::cell::RefCell;
 use runtime_common::java_values::{JavaValue, VecPointer, Object, ObjectPointer};
 use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
-
+use rust_jvm_common::classfile::Classfile;
+use crate::instructions::invoke::run_invoke_static;
 
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
@@ -29,15 +30,15 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
 ) -> Arc<Object>{
     //todo in future this may introduce new and exciting concurrency bugs
 
-    let class_for_object = check_inited_class(state, class_name, current_frame.clone(),loader_arc);
+    let class_for_object = check_inited_class(state, class_name, current_frame.clone().into(),loader_arc);
     let res = state.class_object_pool.borrow().get(&class_for_object).cloned();
     match res{
         None => {
             let java_lang_class = ClassName::Str("java/lang/Class".to_string());
             let java_lang_class_loader = ClassName::Str("java/lang/ClassLoader".to_string());
             let current_loader = current_frame.class_pointer.loader.clone();
-            let class_class = check_inited_class(state, &java_lang_class, current_frame.clone(), current_loader.clone());
-            let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone(), current_loader.clone());
+            let class_class = check_inited_class(state, &java_lang_class, current_frame.clone().into(), current_loader.clone());
+            let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone().into(), current_loader.clone());
             //the above would only be required for higher jdks where a class loader obect is part of Class.
             //as it stands we can just push to operand stack
             push_new_object(current_frame.clone(), &class_class);
@@ -77,9 +78,59 @@ pub fn run(
 ) -> Result<(), Box<dyn Error>> {
     let main = bl.clone().load_class(bl.clone(),main_class_name,bl.clone())?;
     let main_class = prepare_class(main.clone(), bl.clone());
-    let (main_i, _main_method) = &main.methods.iter().enumerate().find(|(_, method)| {
-        let name = method_name(&main, &method);
-        if name == "main" {
+    let main_i = locate_main_method(&bl, &main);
+    let mut state = InterpreterState {
+        terminate: false,
+        throw: false,
+        function_return: false,
+        bootstrap_loader: bl.clone(),
+        initialized_classes: RwLock::new(HashMap::new()),
+        string_internment: RefCell::new(HashMap::new()),
+        class_object_pool: RefCell::new(HashMap::new()),
+        jni
+    };
+    let system_class = check_inited_class(&mut state, &ClassName::Str("java/lang/System".to_string()), None, bl.clone());
+    let init_system_class_i = locate_init_system_class(&system_class.classfile);
+
+    let initialize_system_frame = CallStackEntry{
+        last_call_stack: None,
+        class_pointer: system_class.clone(),
+        method_i: 0,
+        local_vars: RefCell::new(vec![]),
+        operand_stack: RefCell::new(vec![]),
+        pc: RefCell::new(0),
+        pc_offset: RefCell::new(-1)
+    };
+
+    run_invoke_static(&mut state, initialize_system_frame.into(), init_system_class_i as u16);
+    let main_stack = CallStackEntry {
+        last_call_stack: None,
+        class_pointer: Arc::new(main_class),
+            method_i: main_i as u16,
+//            todo is that vec access safe, or does it not heap allocate?
+            local_vars: vec![JavaValue::Array(Some(VecPointer { object: Arc::new(vec![].into()) }))].into(),//todo handle parameters
+            operand_stack: vec![].into(),
+            pc: RefCell::new(0),
+            pc_offset: 0.into(),
+        };
+    run_function(&mut state,Rc::new(main_stack));
+    if state.throw || state.terminate {
+        unimplemented!()
+    }
+    Result::Ok(())
+}
+
+fn locate_init_system_class( system: &Arc<Classfile>) -> usize {
+    system.methods.iter().enumerate().find(|(_,method)|{
+        let name = method_name(system, &method);
+        name == "initializeSystemClass".to_string()
+    }).unwrap().0
+}
+
+fn locate_main_method(bl: &Arc<dyn Loader + Send + Sync>, main: &Arc<Classfile>) -> usize {
+    main.methods.iter().enumerate().find(|(_, method)| {
+        let name = method_name(main, method);
+        if name == "main".to_string() {
             let descriptor_string = extract_string_from_utf8(&main.constant_pool[method.descriptor_index as usize]);
             let descriptor = parse_method_descriptor(&bl, descriptor_string.as_str()).unwrap();
             let string_name = ClassName::Str("java/lang/String".to_string());
@@ -91,32 +142,7 @@ pub fn run(
         } else {
             false
         }
-    }).unwrap();
-    let mut state = InterpreterState {
-        terminate: false,
-        throw: false,
-        function_return: false,
-        bootstrap_loader: bl.clone(),
-        initialized_classes: RwLock::new(HashMap::new()),
-        string_internment: RefCell::new(HashMap::new()),
-        class_object_pool: RefCell::new(HashMap::new()),
-        jni
-    };
-    let stack = CallStackEntry {
-        last_call_stack: None,
-        class_pointer: Arc::new(main_class),
-            method_i: *main_i as u16,
-//            todo is that vec access safe, or does it not heap allocate?
-            local_vars: vec![JavaValue::Array(Some(VecPointer { object: Arc::new(vec![].into()) }))].into(),//todo handle parameters
-            operand_stack: vec![].into(),
-            pc: RefCell::new(0),
-            pc_offset: 0.into(),
-        };
-    run_function(&mut state,Rc::new(stack));
-    if state.throw || state.terminate {
-        unimplemented!()
-    }
-    Result::Ok(())
+    }).unwrap().0
 }
 
 pub mod instructions;

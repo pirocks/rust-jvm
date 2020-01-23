@@ -30,7 +30,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStack
         _ => panic!()
     };
     trace!("Call:{} {}", method_class_name.get_referred_name(), method_name.clone());
-    let target_class = check_inited_class(state, &method_class_name, current_frame.clone(), loader_arc.clone());
+    let target_class = check_inited_class(state, &method_class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_m_i, target_m) = find_target_method(loader_arc.clone(), method_name.clone(), &parsed_descriptor, &target_class);
     let mut args = vec![];
     let max_locals = code_attribute(target_m).unwrap().max_locals;
@@ -76,7 +76,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
 //    dbg!(class_name_);
 //    dbg!(expected_method_name);
 //    dbg!(class_name(&current_frame.class_pointer.classfile).get_referred_name());
-    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone());
+    let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
     if target_method.access_flags & ACC_ABSTRACT == 0 {
         let mut args = vec![];
@@ -123,7 +123,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
         ParsedType::Class(c) => c.class_name,
         _ => panic!()
     };
-    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone());
+    let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
     let mut args = vec![];
 
