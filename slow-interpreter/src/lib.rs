@@ -147,3 +147,4 @@ pub mod instructions;
 pub mod interpreter_util;
 pub mod runtime_class;
 pub mod native;
+pub mod rust_jni;

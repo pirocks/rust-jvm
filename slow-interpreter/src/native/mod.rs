@@ -9,8 +9,7 @@ use rust_jvm_common::classfile::ACC_STATIC;
 use runtime_common::java_values::JavaValue;
 use std::cell::RefCell;
 use std::borrow::Borrow;
-use rust_jni::call;
-
+use crate::rust_jni::call;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -44,7 +43,6 @@ pub fn run_native_method(
             dest.borrow_mut()[dest_pos + i] = temp;
         }
     } else {
-//        dbg!(method_name(classfile, method));
         match call(state, frame.clone(),class.clone(), method_i, args, parsed.return_type) {
             None => {}
             Some(res) => frame.operand_stack.borrow_mut().push(res),

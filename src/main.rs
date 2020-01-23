@@ -19,7 +19,7 @@ use slow_interpreter::run;
 use rust_jvm_common::classnames::ClassName;
 use jar_manipulation::JarHandle;
 use std::sync::Arc;
-use rust_jni::new_java_loading;
+use slow_interpreter::rust_jni::new_java_loading;
 
 
 extern crate classfile_parser;
@@ -27,7 +27,7 @@ extern crate verification;
 extern crate loading;
 extern crate slow_interpreter;
 extern crate jar_manipulation;
-extern crate rust_jni;
+//extern crate rust_jni;
 
 
 fn main() {

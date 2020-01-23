@@ -15,11 +15,9 @@ use std::ffi::CStr;
 use libffi::middle::Type;
 use libffi::middle::Arg;
 use std::mem::transmute;
-use crate::value_conversion::to_native_type;
 use std::ops::Deref;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
-use jni::sys;
 use jni::sys::jclass;
 use std::cell::{RefCell, Ref};
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
@@ -33,9 +31,9 @@ use std::mem::size_of;
 use std::convert::TryInto;
 use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
 use std::rc::Rc;
-use jni::sys::JNINativeMethod;
-use jni::sys::jint;
-use jni::sys::jboolean;
+use jni::sys::*;
+use crate::get_or_create_class_object;
+use crate::rust_jni::value_conversion::to_native_type;
 
 
 pub mod value_conversion;
@@ -43,8 +41,8 @@ pub mod mangling;
 
 pub fn new_java_loading(path: String) -> LibJavaLoading {
     trace!("Loading libjava.so from:`{}`", path);
-    crate::libloading::os::unix::Library::open("libjvm.so".into(), dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
-    let loaded = crate::libloading::os::unix::Library::open(path.clone().into(), dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
+    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
+    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
     let lib = Library::from(loaded);
     LibJavaLoading {
         lib,
@@ -97,14 +95,14 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
         }
 //            ParsedType::ByteType => {}
 //            ParsedType::CharType => {}
-            ParsedType::DoubleType => {
-                Some(JavaValue::Double(unsafe { transmute(cif_res) }))
-            }
+        ParsedType::DoubleType => {
+            Some(JavaValue::Double(unsafe { transmute(cif_res) }))
+        }
 //            ParsedType::FloatType => {}
         ParsedType::IntType => {
             Some(JavaValue::Int(cif_res as i32))
         }
-        ParsedType::LongType =>{
+        ParsedType::LongType => {
             Some(JavaValue::Long(cif_res as i64))
         }
         ParsedType::Class(_) => {
@@ -127,8 +125,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
 }
 
 
-
-unsafe extern "system" fn register_natives(env: *mut sys::JNIEnv,
+unsafe extern "system" fn register_natives(env: *mut JNIEnv,
                                            clazz: jclass,
                                            methods: *const JNINativeMethod,
                                            n_methods: jint) -> jint {
@@ -153,9 +150,9 @@ unsafe extern "system" fn register_natives(env: *mut sys::JNIEnv,
 }
 
 //todo shouldn't this be handled by a registered native
-unsafe extern "system" fn get_string_utfchars(_env: *mut sys::JNIEnv,
-                                              name: sys::jstring,
-                                              is_copy: *mut sys::jboolean) -> *const c_char {
+unsafe extern "system" fn get_string_utfchars(_env: *mut JNIEnv,
+                                              name: jstring,
+                                              is_copy: *mut jboolean) -> *const c_char {
     let str_obj: Arc<Object> = Arc::from_raw(transmute(name));
     let unwrapped = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_array();
     let refcell: &RefCell<Vec<JavaValue>> = &unwrapped;
@@ -190,23 +187,40 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
     }
 }
 
-unsafe extern "system" fn release_string_chars(_env: *mut sys::JNIEnv, _str: sys::jstring, _chars: *const sys::jchar) {
+unsafe extern "system" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, _chars: *const jchar) {
     unimplemented!()
 }
 
-unsafe extern "system" fn release_string_utfchars(_env: *mut sys::JNIEnv, _str: sys::jstring, chars: *const c_char) {
+unsafe extern "system" fn release_string_utfchars(_env: *mut JNIEnv, _str: jstring, chars: *const c_char) {
     let len = libc::strlen(chars);
     let chars_layout = Layout::from_size_align((len + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
     std::alloc::dealloc(chars as *mut u8, chars_layout);
 }
 
-unsafe extern "system" fn exception_check(env: *mut sys::JNIEnv) -> jboolean{
+unsafe extern "system" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
+unsafe extern "system" fn get_method_id(env: *mut JNIEnv,
+                                        clazz: jclass,
+                                        name: *const c_char,
+                                        sig: *const c_char)
+                                        -> jmethodID{
+    unimplemented!()
+}
 
-fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> sys::JNINativeInterface_ {
-    sys::JNINativeInterface_ {
+unsafe extern "system" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass{
+    assert_ne!(obj, std::ptr::null_mut());
+    let obj: Arc<Object> = Arc::from_raw(transmute(obj));
+    let state = &mut (*((**env).reserved0 as *mut InterpreterState));
+    let frame = Rc::from_raw((**env).reserved1 as *const CallStackEntry);
+//    let mut class_name = String::from_raw_parts(name as *mut u8,libc::strlen(name),libc::strlen(name));
+    let class_object = get_or_create_class_object(state,&class_name(&obj.class_pointer.classfile),frame,obj.class_pointer.loader.clone());
+    Arc::into_raw(class_object) as jclass
+}
+
+fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNINativeInterface_ {
+    JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: unsafe { transmute(Rc::into_raw(frame)) },
         reserved2: std::ptr::null_mut(),
@@ -238,9 +252,9 @@ fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> sys::JN
         NewObject: None,
         NewObjectV: None,
         NewObjectA: None,
-        GetObjectClass: None,
+        GetObjectClass: Some(get_object_class),
         IsInstanceOf: None,
-        GetMethodID: None,
+        GetMethodID: Some(get_method_id),
         CallObjectMethod: None,
         CallObjectMethodV: None,
         CallObjectMethodA: None,
@@ -447,5 +461,5 @@ pub mod dlopen {
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
     #![allow(non_snake_case)]
-    include!(concat!("../gen", "/dlopen.rs"));
+    include!(concat!("../../gen", "/dlopen.rs"));
 }

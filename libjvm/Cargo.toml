@@ -10,7 +10,7 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-rust-jni = {path = "../rust-jni"}
+#rust-jni = {path = "../slow-interpreter/src/rust-jni"}
 runtime-common = {path = "../runtime-common"}
 rust-jvm-common = {path = "../rust-jvm-common"}
 slow-interpreter = {path = "../slow-interpreter"}
