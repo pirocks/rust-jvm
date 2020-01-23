@@ -188,7 +188,7 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
     }
 }
 
-unsafe extern "system" fn release_string_chars(_env: *mut sys::JNIEnv, str: sys::jstring, _chars: *const sys::jchar) {
+unsafe extern "system" fn release_string_chars(_env: *mut sys::JNIEnv, _str: sys::jstring, _chars: *const sys::jchar) {
     unimplemented!()
 }
 

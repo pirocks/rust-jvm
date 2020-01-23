@@ -4,7 +4,6 @@ use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::classfile::ConstantInfo;
 use rust_jvm_common::classfile::ConstantKind;
 use std::mem::transmute;
-use std::mem;
 //use std::alloc::{alloc, dealloc, Layout};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -34,6 +33,15 @@ impl JavaValue{
         match self {
             JavaValue::Int(i) => {
                 *i
+            }
+            _ => panic!()
+        }
+    }
+
+    pub fn unwrap_float(&self) -> f32 {
+        match self {
+            JavaValue::Float(f) => {
+                *f
             }
             _ => panic!()
         }
@@ -189,9 +197,11 @@ pub struct VecPointer {
 }
 
 impl VecPointer{
-    pub fn new(len : usize) -> VecPointer{
-        let buf:Vec<JavaValue> = Vec::with_capacity(len);
-        mem::forget(&buf);
+    pub fn new(len : usize, val : JavaValue) -> VecPointer{
+        let mut buf:Vec<JavaValue> = Vec::with_capacity(len);
+        for _ in 0..len {
+            buf.push(val.clone());
+        }
         VecPointer {object: Arc::new(RefCell::new(buf))}
     }
 }

@@ -29,7 +29,7 @@ pub fn instruction_is_type_safe_dcmpg(env: &Environment, stack_frame: &Frame) ->
 }
 
 //#[allow(unused)]
-//pub fn instruction_is_type_safe_dneg(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+//pub fn instruction_is_type_safe_dneg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
 //    unimplemented!()
 //}
 
@@ -53,9 +53,7 @@ pub fn instruction_is_type_safe_fcmpg(env: &Environment, stack_frame: &Frame) ->
     type_transition(env,stack_frame,vec![VerificationType::FloatType,VerificationType::FloatType],VerificationType::IntType)
 }
 
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_fneg(env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_fneg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
+    type_transition(env,stack_frame,vec![VerificationType::FloatType],VerificationType::FloatType)
+}
+

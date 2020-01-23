@@ -19,8 +19,7 @@ use std::cell::RefCell;
 use runtime_common::java_values::{JavaValue, VecPointer, Object, ObjectPointer};
 use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
-use rust_jvm_common::classfile::Classfile;
-use crate::instructions::invoke::run_invoke_static;
+use rust_jvm_common::classfile::{Classfile, MethodInfo};
 
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
@@ -90,19 +89,18 @@ pub fn run(
         jni
     };
     let system_class = check_inited_class(&mut state, &ClassName::Str("java/lang/System".to_string()), None, bl.clone());
-    let init_system_class_i = locate_init_system_class(&system_class.classfile);
-
+    let (init_system_class_i,_method_info) = locate_init_system_class(&system_class.classfile);
     let initialize_system_frame = CallStackEntry{
         last_call_stack: None,
         class_pointer: system_class.clone(),
-        method_i: 0,
+        method_i: init_system_class_i as u16,
         local_vars: RefCell::new(vec![]),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
         pc_offset: RefCell::new(-1)
     };
 
-    run_invoke_static(&mut state, initialize_system_frame.into(), init_system_class_i as u16);
+    run_function(&mut state,initialize_system_frame.into());
     let main_stack = CallStackEntry {
         last_call_stack: None,
         class_pointer: Arc::new(main_class),
@@ -120,11 +118,11 @@ pub fn run(
     Result::Ok(())
 }
 
-fn locate_init_system_class( system: &Arc<Classfile>) -> usize {
+fn locate_init_system_class( system: &Arc<Classfile>) -> (usize,&MethodInfo) {
     system.methods.iter().enumerate().find(|(_,method)|{
-        let name = method_name(system, &method);
+        let name = method_name(system, method);
         name == "initializeSystemClass".to_string()
-    }).unwrap().0
+    }).unwrap()
 }
 
 fn locate_main_method(bl: &Arc<dyn Loader + Send + Sync>, main: &Arc<Classfile>) -> usize {

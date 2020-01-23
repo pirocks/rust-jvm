@@ -89,7 +89,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fload_2 => instruction_is_type_safe_fload(2, env, stack_frame),
         InstructionInfo::fload_3 => instruction_is_type_safe_fload(3, env, stack_frame),
         InstructionInfo::fmul => instruction_is_type_safe_fadd(env, stack_frame),
-        InstructionInfo::fneg => { unimplemented!() }
+        InstructionInfo::fneg => instruction_is_type_safe_fneg(env, stack_frame),
         InstructionInfo::frem => { unimplemented!() }
         InstructionInfo::freturn => instruction_is_type_safe_freturn(env, stack_frame),
         InstructionInfo::fstore(i) => instruction_is_type_safe_fstore(*i as usize, env, stack_frame),
@@ -171,7 +171,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(*cp as usize, env, stack_frame),
         InstructionInfo::invokevirtual(v) => instruction_is_type_safe_invokevirtual(*v as usize, env, stack_frame),
         InstructionInfo::ior => instruction_is_type_safe_iadd(env, stack_frame),
-        InstructionInfo::irem => { unimplemented!() }
+        InstructionInfo::irem => instruction_is_type_safe_iadd(env, stack_frame),
         InstructionInfo::ireturn => instruction_is_type_safe_ireturn(env, stack_frame),
         InstructionInfo::ishl => instruction_is_type_safe_iadd(env, stack_frame),
         InstructionInfo::ishr => instruction_is_type_safe_iadd(env, stack_frame),

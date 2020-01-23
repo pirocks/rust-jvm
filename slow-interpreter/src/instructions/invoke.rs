@@ -2,8 +2,7 @@ use crate::InterpreterState;
 use std::rc::Rc;
 use verification::verifier::instructions::branches::get_method_descriptor;
 use rust_jvm_common::utils::code_attribute;
-use rust_jvm_common::classfile::ACC_NATIVE;
-use rust_jvm_common::classfile::ACC_STATIC;
+use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC};
 use crate::interpreter_util::run_function;
 use classfile_parser::types::MethodDescriptor;
 use std::sync::Arc;
@@ -41,6 +40,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStack
         args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
         //todo does ordering end up correct
     }
+    args[1..(parsed_descriptor.parameter_types.len() + 1)].reverse();
     args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
 //    dbg!(&args);
     let next_entry = CallStackEntry {
@@ -89,6 +89,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
             args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
             //todo does ordering end up correct
         }
+        args[1..(expected_descriptor.parameter_types.len() + 1)].reverse();
         args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
         let next_entry = CallStackEntry {
             last_call_stack: Some(current_frame),
