@@ -10,7 +10,7 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-
+rust-jni = {path = "../rust-jni"}
 
 [build-dependencies]
 bindgen = "0.52.0"

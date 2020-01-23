@@ -34,6 +34,8 @@ pub trait JNIContext {
 pub struct LibJavaLoading {
     pub lib: Library,
     pub registered_natives: RefCell<HashMap<Arc<RuntimeClass>, RefCell<HashMap<CPIndex, unsafe extern fn()>>>>,
+    pub string_internment : RefCell<HashMap<String,Arc<Object>>>,
+    pub class_object_pool : RefCell<HashMap<Arc<RuntimeClass>,Arc<Object>>>//todo needs to be used for all instances of getClass
 }
 
 impl LibJavaLoading {
@@ -45,6 +47,8 @@ impl LibJavaLoading {
         LibJavaLoading {
             lib,
             registered_natives: RefCell::new(HashMap::new()),
+            string_internment: RefCell::new(HashMap::new()),
+            class_object_pool: RefCell::new(HashMap::new())
         }
     }
 }
@@ -140,6 +144,7 @@ unsafe extern "system" fn register_natives(env: *mut sys::JNIEnv,
     0
 }
 
+//todo shouldn't this be handled by a registered native
 unsafe extern "system" fn get_string_utfchars(_env: *mut sys::JNIEnv,
                                               name: sys::jstring,
                                               is_copy: *mut sys::jboolean ) -> *const c_char{

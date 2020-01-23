@@ -1,9 +1,13 @@
-#![feature(asm)]
+//#![feature(asm)]
 
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(unused)]
+
+use std::str::from_utf8;
+use rust_jni::LibJavaLoading;
+use std::borrow::Borrow;
 include!(concat!("../gen", "/bindings.rs"));
 
 
@@ -385,7 +389,17 @@ unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os:
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char) -> jclass {
-
+    // need to perform not equal to 0 check
+    if *utf.offset(0) == 'f' as i8 &&
+        *utf.offset(1) == 'l' as i8 &&
+        *utf.offset(2) == 'o' as i8 &&
+        *utf.offset(3) == 'a' as i8 &&
+        *utf.offset(4) == 't' as i8 &&
+        *utf.offset(5) == 0 {
+        let jni_context = &*((**env).reserved0 as *mut LibJavaLoading);
+        jni_context.class_object_pool.borrow().get()
+    }
+    unimplemented!()
 }
 
 #[no_mangle]
@@ -665,274 +679,337 @@ unsafe extern "system" fn JVM_SupportsCX8() -> jboolean {
 
 
 #[no_mangle]
-unsafe extern "system" fn JVM_DTraceGetVersion(env: *mut JNIEnv) -> jint{
+unsafe extern "system" fn JVM_DTraceGetVersion(env: *mut JNIEnv) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_DTraceIsProbeEnabled(env: *mut JNIEnv, method: jmethodID) -> jboolean{
+unsafe extern "system" fn JVM_DTraceIsProbeEnabled(env: *mut JNIEnv, method: jmethodID) -> jboolean {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_DTraceDispose(env: *mut JNIEnv, activation_handle: jlong){
+unsafe extern "system" fn JVM_DTraceDispose(env: *mut JNIEnv, activation_handle: jlong) {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_DTraceIsSupported(env: *mut JNIEnv) -> jboolean{
+unsafe extern "system" fn JVM_DTraceIsSupported(env: *mut JNIEnv) -> jboolean {
     unimplemented!()
 }
+
 #[doc = "PART 2: Support for the Verifier and Class File Format Checker"]
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, types: *mut ::std::os::raw::c_uchar){
-    unimplemented!()
-}
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassCPEntriesCount(env: *mut JNIEnv, cb: jclass) -> jint{
-    unimplemented!()
-}
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint{
-    unimplemented!()
-}
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass) -> jint{
+unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, types: *mut ::std::os::raw::c_uchar) {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint{
-    unimplemented!()
-}
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxByteCode(env: *mut JNIEnv, cb: jclass, method_index: jint, code: *mut ::std::os::raw::c_uchar){
-    unimplemented!()
-}
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint{
+unsafe extern "system" fn JVM_GetClassCPEntriesCount(env: *mut JNIEnv, cb: jclass) -> jint {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint{
+unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetFieldIxModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint{
+unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint{
+unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint{
+unsafe extern "system" fn JVM_GetMethodIxByteCode(env: *mut JNIEnv, cb: jclass, method_index: jint, code: *mut ::std::os::raw::c_uchar) {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint{
+unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint{
+unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jboolean{
+unsafe extern "system" fn JVM_GetFieldIxModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jboolean{
+unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jboolean {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jboolean {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetMethodIxNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetMethodIxSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int, calledClass: jclass) -> jint{
+unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int, calledClass: jclass) -> jint{
+unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_ReleaseUTF(utf: *const ::std::os::raw::c_char){
+unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclass, class2: jclass) -> jboolean{
+unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetLastErrorString(buf: *mut ::std::os::raw::c_char, len: ::std::os::raw::c_int) -> jint{
+unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_NativePath(arg1: *mut ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char{
+unsafe extern "system" fn JVM_GetCPFieldModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int, calledClass: jclass) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Open(fname: *const ::std::os::raw::c_char, flags: jint, mode: jint) -> jint{
+unsafe extern "system" fn JVM_GetCPMethodModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int, calledClass: jclass) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Close(fd: jint) -> jint{
+unsafe extern "system" fn JVM_ReleaseUTF(utf: *const ::std::os::raw::c_char) {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Read(fd: jint, buf: *mut ::std::os::raw::c_char, nbytes: jint) -> jint{
+unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclass, class2: jclass) -> jboolean {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Write(fd: jint, buf: *mut ::std::os::raw::c_char, nbytes: jint) -> jint{
+unsafe extern "system" fn JVM_GetLastErrorString(buf: *mut ::std::os::raw::c_char, len: ::std::os::raw::c_int) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Available(fd: jint, pbytes: *mut jlong) -> jint{
+unsafe extern "system" fn JVM_NativePath(arg1: *mut ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Lseek(fd: jint, offset: jlong, whence: jint) -> jlong{
+unsafe extern "system" fn JVM_Open(fname: *const ::std::os::raw::c_char, flags: jint, mode: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_SetLength(fd: jint, length: jlong) -> jint{
+unsafe extern "system" fn JVM_Close(fd: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Sync(fd: jint) -> jint{
+unsafe extern "system" fn JVM_Read(fd: jint, buf: *mut ::std::os::raw::c_char, nbytes: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_InitializeSocketLibrary() -> jint{
+unsafe extern "system" fn JVM_Write(fd: jint, buf: *mut ::std::os::raw::c_char, nbytes: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Socket(domain: jint, type_: jint, protocol: jint) -> jint{
+unsafe extern "system" fn JVM_Available(fd: jint, pbytes: *mut jlong) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_SocketClose(fd: jint) -> jint{
+unsafe extern "system" fn JVM_Lseek(fd: jint, offset: jlong, whence: jint) -> jlong {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_SocketShutdown(fd: jint, howto: jint) -> jint{
+unsafe extern "system" fn JVM_SetLength(fd: jint, length: jlong) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Recv(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint{
+unsafe extern "system" fn JVM_Sync(fd: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Send(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint{
+unsafe extern "system" fn JVM_InitializeSocketLibrary() -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std::os::raw::c_long) -> jint{
+unsafe extern "system" fn JVM_Socket(domain: jint, type_: jint, protocol: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Listen(fd: jint, count: jint) -> jint{
+unsafe extern "system" fn JVM_SocketClose(fd: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Connect(fd: jint, him: *mut sockaddr, len: jint) -> jint{
+unsafe extern "system" fn JVM_SocketShutdown(fd: jint, howto: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Bind(fd: jint, him: *mut sockaddr, len: jint) -> jint{
+unsafe extern "system" fn JVM_Recv(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_Accept(fd: jint, him: *mut sockaddr, len: *mut jint) -> jint{
+unsafe extern "system" fn JVM_Send(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_SocketAvailable(fd: jint, result: *mut jint) -> jint{
+unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std::os::raw::c_long) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetSockName(fd: jint, him: *mut sockaddr, len: *mut ::std::os::raw::c_int) -> jint{
+unsafe extern "system" fn JVM_Listen(fd: jint, count: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetHostName(name: *mut ::std::os::raw::c_char, namelen: ::std::os::raw::c_int) -> ::std::os::raw::c_int{
+unsafe extern "system" fn JVM_Connect(fd: jint, him: *mut sockaddr, len: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_RawMonitorCreate() -> *mut ::std::os::raw::c_void{
+unsafe extern "system" fn JVM_Bind(fd: jint, him: *mut sockaddr, len: jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_RawMonitorDestroy(mon: *mut ::std::os::raw::c_void){
+unsafe extern "system" fn JVM_Accept(fd: jint, him: *mut sockaddr, len: *mut jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_RawMonitorEnter(mon: *mut ::std::os::raw::c_void) -> jint{
+unsafe extern "system" fn JVM_SocketAvailable(fd: jint, result: *mut jint) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_RawMonitorExit(mon: *mut ::std::os::raw::c_void){
+unsafe extern "system" fn JVM_GetSockName(fd: jint, him: *mut sockaddr, len: *mut ::std::os::raw::c_int) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::raw::c_void{
+unsafe extern "system" fn JVM_GetHostName(name: *mut ::std::os::raw::c_char, namelen: ::std::os::raw::c_int) -> ::std::os::raw::c_int {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> jobject{
+unsafe extern "system" fn JVM_RawMonitorCreate() -> *mut ::std::os::raw::c_void {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray{
+unsafe extern "system" fn JVM_RawMonitorDestroy(mon: *mut ::std::os::raw::c_void) {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetThreadStateValues(env: *mut JNIEnv, javaThreadState: jint) -> jintArray{
+unsafe extern "system" fn JVM_RawMonitorEnter(mon: *mut ::std::os::raw::c_void) -> jint {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetThreadStateNames(env: *mut JNIEnv, javaThreadState: jint, values: jintArray) -> jobjectArray{
+unsafe extern "system" fn JVM_RawMonitorExit(mon: *mut ::std::os::raw::c_void) {
     unimplemented!()
 }
+
 #[no_mangle]
-unsafe extern "system" fn JVM_GetVersionInfo(env: *mut JNIEnv, info: *mut jvm_version_info, info_size: usize){
+unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::raw::c_void {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> jobject {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetThreadStateValues(env: *mut JNIEnv, javaThreadState: jint) -> jintArray {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetThreadStateNames(env: *mut JNIEnv, javaThreadState: jint, values: jintArray) -> jobjectArray {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetVersionInfo(env: *mut JNIEnv, info: *mut jvm_version_info, info_size: usize) {
     unimplemented!()
 }
