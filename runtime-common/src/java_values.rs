@@ -173,7 +173,8 @@ impl ObjectPointer{
                 gc_reachable: true,
                 class_pointer: runtime_class,
                 fields: RefCell::new(HashMap::new()),
-                bootstrap_loader: false
+                bootstrap_loader: false,
+                object_class_object_pointer: RefCell::new(None)
             })
         }
     }
@@ -224,7 +225,9 @@ pub struct Object {
     //I guess this never changes so unneeded?
     pub fields: RefCell<HashMap<String, JavaValue>>,
     pub class_pointer: Arc<RuntimeClass>,
-    pub bootstrap_loader: bool
+    pub bootstrap_loader: bool,
+    //points to the object represented by this class object of relevant
+    pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>
 }
 
 impl Debug for Object{

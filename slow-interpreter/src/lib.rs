@@ -49,6 +49,7 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
                         fields: RefCell::new(HashMap::new()),
                         class_pointer: class_loader_class.clone(),
                         bootstrap_loader: true,
+                        object_class_object_pointer: RefCell::new(None)
                     };
                     let bootstrap_arc = Arc::new(boostrap_loader_object);
                     let bootstrap_loader_ptr = ObjectPointer { object: bootstrap_arc.clone() }.into();
@@ -62,6 +63,7 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
                 _ => panic!(),
             }
             let r = object.unwrap_object();
+            r.object_class_object_pointer.replace(Some(class_for_object.clone()));
             state.class_object_pool.borrow_mut().insert(class_for_object,r.clone());
             r
         },

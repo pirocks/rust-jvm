@@ -206,11 +206,35 @@ unsafe extern "system" fn get_method_id(env: *mut JNIEnv,
                                         name: *const c_char,
                                         sig: *const c_char)
                                         -> jmethodID{
-    let mut method_name = String::from_raw_parts(name as *mut u8,libc::strlen(name),libc::strlen(name));
-    let mut method_descriptor_str = String::from_raw_parts(sig as *mut u8, libc::strlen(sig), libc::strlen(sig));
-    dbg!(method_name);
-    dbg!(method_descriptor_str);
-    unimplemented!();
+    let mut method_name = String::new();
+    let name_len = libc::strlen(name);
+    for i in 0..name_len{
+        method_name.push(name.offset(i as isize).read() as u8 as char);
+    }
+
+    let mut method_descriptor_str = String::new();
+    //todo dup
+    let desc_len = libc::strlen(sig);
+    for i in 0..desc_len{
+        method_descriptor_str.push(sig.offset(i as isize).read() as u8 as char);
+    }
+    let class_obj: Arc<Object> = Arc::from_raw(transmute(clazz));
+    let object_option = class_obj.object_class_object_pointer.borrow();
+    dbg!(&object_option);
+    let classfile = &object_option.as_ref().unwrap().classfile;
+    let (method_i, method) = classfile.methods.iter().enumerate().find(|(i,m)|{
+        let cur_desc = extract_string_from_utf8(&classfile.constant_pool[m.descriptor_index as usize]);
+        dbg!(&rust_jvm_common::utils::method_name(classfile,m));
+        dbg!(&method_name);
+        dbg!(&method_descriptor_str);
+        dbg!(&cur_desc);
+        rust_jvm_common::utils::method_name(classfile,m) == method_name &&
+            method_descriptor_str == cur_desc
+    }).unwrap();
+    transmute(&method)
+//    dbg!(method_name);
+//    dbg!(method_descriptor_str);
+
 }
 
 unsafe extern "system" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass{

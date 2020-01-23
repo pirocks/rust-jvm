@@ -474,7 +474,7 @@ pub fn run_function(
                     ConstantKind::Class(c) => load_class_constant(state, &current_frame, constant_pool, &c),
                     ConstantKind::Float(f) => {
                         let float: f32 = unsafe { transmute(f.bytes) };
-                        dbg!(float);
+//                        dbg!(float);
                         current_frame.operand_stack.borrow_mut().push(JavaValue::Float(float));
                     }
                     _ => {
