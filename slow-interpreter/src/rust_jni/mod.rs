@@ -206,7 +206,11 @@ unsafe extern "system" fn get_method_id(env: *mut JNIEnv,
                                         name: *const c_char,
                                         sig: *const c_char)
                                         -> jmethodID{
-    unimplemented!()
+    let mut method_name = String::from_raw_parts(name as *mut u8,libc::strlen(name),libc::strlen(name));
+    let mut method_descriptor_str = String::from_raw_parts(sig as *mut u8, libc::strlen(sig), libc::strlen(sig));
+    dbg!(method_name);
+    dbg!(method_descriptor_str);
+    unimplemented!();
 }
 
 unsafe extern "system" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass{
@@ -214,7 +218,6 @@ unsafe extern "system" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jc
     let obj: Arc<Object> = Arc::from_raw(transmute(obj));
     let state = &mut (*((**env).reserved0 as *mut InterpreterState));
     let frame = Rc::from_raw((**env).reserved1 as *const CallStackEntry);
-//    let mut class_name = String::from_raw_parts(name as *mut u8,libc::strlen(name),libc::strlen(name));
     let class_object = get_or_create_class_object(state,&class_name(&obj.class_pointer.classfile),frame,obj.class_pointer.loader.clone());
     Arc::into_raw(class_object) as jclass
 }
