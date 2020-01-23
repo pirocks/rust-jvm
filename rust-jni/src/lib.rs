@@ -33,6 +33,10 @@ use std::mem::size_of;
 use std::convert::TryInto;
 use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
 use std::rc::Rc;
+use jni::sys::JNINativeMethod;
+use jni::sys::jint;
+use jni::sys::jboolean;
+
 
 pub mod value_conversion;
 pub mod mangling;
@@ -123,8 +127,6 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
 }
 
 
-use jni::sys::JNINativeMethod;
-use jni::sys::jint;
 
 unsafe extern "system" fn register_natives(env: *mut sys::JNIEnv,
                                            clazz: jclass,
@@ -196,6 +198,10 @@ unsafe extern "system" fn release_string_utfchars(_env: *mut sys::JNIEnv, _str: 
     let len = libc::strlen(chars);
     let chars_layout = Layout::from_size_align((len + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
     std::alloc::dealloc(chars as *mut u8, chars_layout);
+}
+
+unsafe extern "system" fn exception_check(env: *mut sys::JNIEnv) -> jboolean{
+    false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
 
@@ -429,7 +435,7 @@ fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> sys::JN
         ReleaseStringCritical: None,
         NewWeakGlobalRef: None,
         DeleteWeakGlobalRef: None,
-        ExceptionCheck: None,
+        ExceptionCheck: Some(exception_check),
         NewDirectByteBuffer: None,
         GetDirectBufferAddress: None,
         GetDirectBufferCapacity: None,
