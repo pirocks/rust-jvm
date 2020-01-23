@@ -6,8 +6,12 @@
 #![allow(unused)]
 
 use std::str::from_utf8;
-use rust_jni::LibJavaLoading;
 use std::borrow::Borrow;
+use runtime_common::{InterpreterState, CallStackEntry};
+use rust_jvm_common::classnames::ClassName;
+use slow_interpreter::get_or_create_class_object;
+use std::rc::Rc;
+use std::intrinsics::transmute;
 include!(concat!("../gen", "/bindings.rs"));
 
 
@@ -394,11 +398,14 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         *utf.offset(1) == 'l' as i8 &&
         *utf.offset(2) == 'o' as i8 &&
         *utf.offset(3) == 'a' as i8 &&
-        *utf.offset(4) == 't' as i8 &&
-        *utf.offset(5) == 0 {
-        let jni_context = &*((**env).reserved0 as *mut LibJavaLoading);
-        jni_context.class_object_pool.borrow().get()
+        *utf.offset(4) == 't' as i8 /*&&
+        *utf.offset(5) == 0*/ {
+        let state = &mut (*((**env).reserved0 as *mut InterpreterState));
+        let frame = Rc::from_raw((**env).reserved1 as *const CallStackEntry);
+        let res = get_or_create_class_object(state,&ClassName::Str("java/lang/Float".to_string()),frame,state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return  transmute(res)
     }
+    dbg!((*utf) as u8 as char);
     unimplemented!()
 }
 

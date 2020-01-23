@@ -19,7 +19,7 @@ use slow_interpreter::run;
 use rust_jvm_common::classnames::ClassName;
 use jar_manipulation::JarHandle;
 use std::sync::Arc;
-use rust_jni::LibJavaLoading;
+use rust_jni::new_java_loading;
 
 
 extern crate classfile_parser;
@@ -88,7 +88,7 @@ fn main() {
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
     trace!("Loading main class: {:?}", main_class_name);
     //todo I guess the bootstrap loader doesn't need to be Arc
-    let jni = LibJavaLoading::new(libjava);
+    let jni = new_java_loading(libjava);
     run(&main_class_name, Arc::new(bootstrap_loader), args,jni).unwrap();
 }
 

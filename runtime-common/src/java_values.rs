@@ -28,6 +28,31 @@ pub enum JavaValue {
     Top,//should never be interacted with by the bytecode
 }
 
+impl JavaValue{
+
+    pub fn unwrap_int(&self) -> i32 {
+        match self {
+            JavaValue::Int(i) => {
+                *i
+            }
+            _ => panic!()
+        }
+    }
+
+
+    pub fn unwrap_object(&self) -> Arc<Object> {
+        match self {
+            JavaValue::Object(o) => {
+                o.as_ref().unwrap().object.clone()
+            }
+            _ => {
+                dbg!(self);
+                panic!()
+            }
+        }
+    }
+}
+
 impl Clone for JavaValue{
     fn clone(&self) -> Self {
         match self {
@@ -232,29 +257,29 @@ impl JavaValue{
         }
     }
 
-}
-
-
-pub fn unwrap_array(j: JavaValue) -> Arc<RefCell<Vec<JavaValue>>> {
-    match j {
-        JavaValue::Array(a) => {
-            a.unwrap().object
-        }
-        _ => {
-            dbg!(j);
-            panic!()
+    pub fn unwrap_array(&self) -> Arc<RefCell<Vec<JavaValue>>> {
+        match self {
+            JavaValue::Array(a) => {
+                a.as_ref().unwrap().object.clone()
+            }
+            _ => {
+                dbg!(self);
+                panic!()
+            }
         }
     }
-}
 
-pub fn unwrap_char(j: &JavaValue) -> char {
-    match j {
-        JavaValue::Char(c) => {
-            c.clone()
-        }
-        _ => {
-            dbg!(j);
-            panic!()
+    pub fn unwrap_char(&self) -> char {
+        match self {
+            JavaValue::Char(c) => {
+                c.clone()
+            }
+            _ => {
+                dbg!(self);
+                panic!()
+            }
         }
     }
+
+
 }

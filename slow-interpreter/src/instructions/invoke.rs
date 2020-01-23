@@ -1,6 +1,5 @@
 use crate::InterpreterState;
 use std::rc::Rc;
-use crate::CallStackEntry;
 use verification::verifier::instructions::branches::get_method_descriptor;
 use rust_jvm_common::utils::code_attribute;
 use rust_jvm_common::classfile::ACC_NATIVE;
@@ -19,11 +18,11 @@ use crate::interpreter_util::check_inited_class;
 use crate::native::run_native_method;
 use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
-use rust_jni::LibJavaLoading;
 use log::trace;
+use runtime_common::CallStackEntry;
 
 
-pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, jni: &LibJavaLoading, cp: u16) -> () {
+pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &current_frame.class_pointer.classfile, loader_arc.clone());
     let method_class_name = match method_class_type {
@@ -31,7 +30,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStack
         _ => panic!()
     };
     trace!("Call:{} {}", method_class_name.get_referred_name(), method_name.clone());
-    let target_class = check_inited_class(state, &method_class_name, current_frame.clone(), loader_arc.clone(), jni);
+    let target_class = check_inited_class(state, &method_class_name, current_frame.clone(), loader_arc.clone());
     let (target_m_i, target_m) = find_target_method(loader_arc.clone(), method_name.clone(), &parsed_descriptor, &target_class);
     let mut args = vec![];
     let max_locals = code_attribute(target_m).unwrap().max_locals;
@@ -53,7 +52,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStack
         pc: 0.into(),
         pc_offset: 0.into(),
     };
-    run_function(state, Rc::new(next_entry), jni);
+    run_function(state, Rc::new(next_entry));
     if state.terminate || state.throw {
         unimplemented!()
     }
@@ -64,7 +63,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStack
     }
 }
 
-pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16, jni: &LibJavaLoading) {
+pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16) {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
@@ -77,7 +76,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
 //    dbg!(class_name_);
 //    dbg!(expected_method_name);
 //    dbg!(class_name(&current_frame.class_pointer.classfile).get_referred_name());
-    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone(), jni);
+    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone());
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
     if target_method.access_flags & ACC_ABSTRACT == 0 {
         let mut args = vec![];
@@ -100,7 +99,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
             pc: 0.into(),
             pc_offset: 0.into(),
         };
-        run_function(state, Rc::new(next_entry), jni);
+        run_function(state, Rc::new(next_entry));
         if state.throw || state.terminate {
             unimplemented!();
         }
@@ -114,7 +113,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
     }
 }
 
-pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16, jni: &LibJavaLoading) {
+pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let classfile = &current_frame.class_pointer.classfile;
@@ -124,7 +123,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
         ParsedType::Class(c) => c.class_name,
         _ => panic!()
     };
-    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone(), jni);
+    let target_class = check_inited_class(state, &class_name, current_frame.clone(), loader_arc.clone());
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
     let mut args = vec![];
 
@@ -153,7 +152,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
             pc: 0.into(),
             pc_offset: 0.into(),
         };
-        run_function(state, Rc::new(next_entry), jni);
+        run_function(state, Rc::new(next_entry));
         if state.throw || state.terminate {
             unimplemented!();
         }
@@ -164,7 +163,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
         }
     } else {
         //only works for static void
-        run_native_method(state, current_frame.clone(), target_class, target_method_i, jni);
+        run_native_method(state, current_frame.clone(), target_class, target_method_i);
     }
 }
 

@@ -363,7 +363,10 @@ name = "jvm"
 version = "0.1.0"
 dependencies = [
  "bindgen 0.52.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "runtime-common 0.1.0",
  "rust-jni 0.1.0",
+ "rust-jvm-common 0.1.0",
+ "slow-interpreter 0.1.0",
 ]
 
 [[package]]
@@ -662,8 +665,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "runtime-common"
 version = "0.1.0"
 dependencies = [
+ "libloading 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "memalloc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-jvm-common 0.1.0",
+ "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

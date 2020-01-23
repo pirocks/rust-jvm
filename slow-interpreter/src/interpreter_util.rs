@@ -1,4 +1,4 @@
-use crate::{InterpreterState, CallStackEntry};
+use crate::{InterpreterState, CallStackEntry, get_or_create_class_object};
 use rust_jvm_common::utils::{code_attribute, extract_string_from_utf8};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
@@ -11,13 +11,10 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::rc::Rc;
 use crate::instructions::invoke::{run_invoke_static, invoke_special, find_target_method, invoke_virtual};
-use runtime_common::java_values::{JavaValue, VecPointer, ObjectPointer, default_value, Object};
+use runtime_common::java_values::{JavaValue, VecPointer, ObjectPointer, default_value};
 use runtime_common::runtime_class::RuntimeClass;
-use rust_jni::LibJavaLoading;
 use classfile_parser::types::{parse_field_descriptor, MethodDescriptor};
 use rust_jvm_common::unified_types::{ArrayType, ParsedType};
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::mem::transmute;
 
 //todo jni should really live in interpreter state
@@ -26,7 +23,6 @@ pub fn check_inited_class(
     class_name: &ClassName,
     current_frame: Rc<CallStackEntry>,
     loader_arc: Arc<dyn Loader + Sync + Send>,
-    jni: &LibJavaLoading,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
@@ -34,7 +30,7 @@ pub fn check_inited_class(
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
         let prepared = prepare_class(target_classfile.clone(), loader_arc.clone());
         state.initialized_classes.write().unwrap().insert(class_name.clone(), Arc::new(prepared));//must be before, otherwise infinite recurse
-        let inited_target = initialize_class(prepare_class(target_classfile, loader_arc.clone()), state, current_frame, jni);
+        let inited_target = initialize_class(prepare_class(target_classfile, loader_arc.clone()), state, current_frame);
         state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
     }
     state.initialized_classes.read().unwrap().get(class_name).unwrap().clone()
@@ -43,7 +39,6 @@ pub fn check_inited_class(
 pub fn run_function(
     state: &mut InterpreterState,
     current_frame: Rc<CallStackEntry>,
-    jni: &LibJavaLoading,
 ) {
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
@@ -176,16 +171,9 @@ pub fn run_function(
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-//                dbg!(&field_name);
-//                dbg!(method_name(classfile, &classfile.methods[current_frame.method_i as usize]));
                 let object_ref = current_frame.operand_stack.borrow_mut().pop().unwrap();
                 match object_ref {
                     JavaValue::Object(o) => {
-//                        dbg!(&o);
-//                        dbg!(&field_name);
-//                        if(class_name(&o.clone().unwrap().object.class_pointer.classfile).get_referred_name()){
-//
-//                        }
                         let res = o.unwrap().object.fields.borrow().get(field_name.as_str()).unwrap().clone();
                         current_frame.operand_stack.borrow_mut().push(res);
                     }
@@ -198,7 +186,7 @@ pub fn run_function(
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone(), jni);
+                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone());
                 let field_value = target_classfile.static_vars.borrow().get(&field_name).unwrap().clone();
                 let mut stack = current_frame.operand_stack.borrow_mut();
                 stack.push(field_value);
@@ -239,7 +227,7 @@ pub fn run_function(
                 let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap();
                 let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap();
                 let succeeds = match value1 {
-                    JavaValue::Int(i1) => match value2{
+                    JavaValue::Int(i1) => match value2 {
                         JavaValue::Int(i2) => i1 > i2,
                         _ => panic!()
                     },
@@ -248,7 +236,7 @@ pub fn run_function(
                 if succeeds {
                     current_frame.pc_offset.replace(offset as isize);
                 }
-            },
+            }
             InstructionInfo::if_icmple(_) => unimplemented!(),
             InstructionInfo::ifeq(_) => unimplemented!(),
             InstructionInfo::ifne(offset) => {
@@ -281,9 +269,6 @@ pub fn run_function(
                 if succeeds {
                     current_frame.pc_offset.replace(offset as isize);
                 }
-//                dbg!(&current_frame.pc);
-//                dbg!(&current_frame.pc_offset);
-//                dbg!(&offset);
             }
             InstructionInfo::ifgt(_) => unimplemented!(),
             InstructionInfo::ifle(_) => unimplemented!(),
@@ -318,9 +303,9 @@ pub fn run_function(
             InstructionInfo::instanceof(_) => unimplemented!(),
             InstructionInfo::invokedynamic(_) => unimplemented!(),
             InstructionInfo::invokeinterface(_) => unimplemented!(),
-            InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, jni, cp),
-            InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp, jni),
-            InstructionInfo::invokevirtual(cp) => invoke_virtual(state, current_frame.clone(), cp, jni),
+            InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
+            InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp),
+            InstructionInfo::invokevirtual(cp) => invoke_virtual(state, current_frame.clone(), cp),
             InstructionInfo::ior => unimplemented!(),
             InstructionInfo::irem => unimplemented!(),
             InstructionInfo::ireturn => {
@@ -362,13 +347,13 @@ pub fn run_function(
                 let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
                 let pool_entry = &constant_pool[cp as usize];
                 match &pool_entry.kind {
-                    ConstantKind::String(s) => load_string_constant(state, &current_frame, jni, &constant_pool, &s),
-                    ConstantKind::Class(c) => load_class_constant(state, &current_frame, jni, constant_pool, &c),
+                    ConstantKind::String(s) => load_string_constant(state, &current_frame, &constant_pool, &s),
+                    ConstantKind::Class(c) => load_class_constant(state, &current_frame, constant_pool, &c),
                     ConstantKind::Float(f) => {
-                        let float: f32 = unsafe {transmute(f.bytes)};
+                        let float: f32 = unsafe { transmute(f.bytes) };
                         dbg!(float);
                         current_frame.operand_stack.borrow_mut().push(JavaValue::Float(float));
-                    },
+                    }
                     _ => {
                         dbg!(&pool_entry.kind);
                         unimplemented!()
@@ -402,7 +387,7 @@ pub fn run_function(
             InstructionInfo::monitorenter => { /*unimplemented for now todo*/ }
             InstructionInfo::monitorexit => { /*unimplemented for now todo*/ }
             InstructionInfo::multianewarray(_) => unimplemented!(),
-            InstructionInfo::new(cp) => new(state, jni, &current_frame, cp as usize),
+            InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
             InstructionInfo::newarray(a_type) => {
                 let count = match current_frame.operand_stack.borrow_mut().pop().unwrap() {
                     JavaValue::Int(i) => { i }
@@ -424,7 +409,7 @@ pub fn run_function(
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let _target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone(), jni);
+                let _target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone());
                 let mut stack = current_frame.operand_stack.borrow_mut();
                 let val = stack.pop().unwrap();
                 let object_ref = stack.pop().unwrap();
@@ -444,7 +429,7 @@ pub fn run_function(
                 let classfile = &current_frame.class_pointer.classfile;
                 let loader_arc = &current_frame.class_pointer.loader;
                 let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone(), jni);
+                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone(), loader_arc.clone());
                 let mut stack = current_frame.operand_stack.borrow_mut();
                 let field_value = stack.pop().unwrap();
                 target_classfile.static_vars.borrow_mut().insert(field_name, field_value);
@@ -509,49 +494,19 @@ fn iload(current_frame: &Rc<CallStackEntry>, n: usize) {
     current_frame.operand_stack.borrow_mut().push(java_val.clone())
 }
 
-thread_local! {
-
+fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
+    let res_class_name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
+    let object = get_or_create_class_object(state, &ClassName::Str(res_class_name), current_frame.clone(), current_frame.class_pointer.loader.clone());
+    current_frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer {
+        object
+    }.into()));
 }
 
-fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, jni: &LibJavaLoading, constant_pool: &Vec<ConstantInfo>, c: &Class) {
-    let _res_class_name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
-    let java_lang_class = ClassName::Str("java/lang/Class".to_string());
-    let java_lang_class_loader = ClassName::Str("java/lang/ClassLoader".to_string());
-    let current_loader = current_frame.class_pointer.loader.clone();
-    let class_class = check_inited_class(state, &java_lang_class, current_frame.clone(), current_loader.clone(), jni);
-    let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone(), current_loader.clone(), jni);
-    //the above would only be required for higher jdks where a class loader obect is part of Class.
-    //as it stands we can just push to operand stack
-    push_new_object(current_frame.clone(), &class_class);
-    let object = current_frame.operand_stack.borrow_mut().pop().unwrap();
-    match object.clone() {
-        JavaValue::Object(o) => {
-            let boostrap_loader_object = Object {
-                gc_reachable: true,
-                fields: RefCell::new(HashMap::new()),
-                class_pointer: class_loader_class.clone(),
-                bootstrap_loader: true,
-            };
-            let bootstrap_arc = Arc::new(boostrap_loader_object);
-            let bootstrap_loader_ptr = ObjectPointer { object: bootstrap_arc.clone() }.into();
-            let bootstrap_class_loader = JavaValue::Object(bootstrap_loader_ptr);
-            {
-                bootstrap_arc.fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
-                bootstrap_arc.fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
-//            fields.insert("assertionLock".to_string(),bootstrap_class_loader.clone());
-                o.unwrap().object.fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
-            }
-        }
-        _ => panic!(),
-    }
-    current_frame.operand_stack.borrow_mut().push(object);
-}
-
-fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, jni: &LibJavaLoading, constant_pool: &Vec<ConstantInfo>, s: &String_) {
+fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, constant_pool: &Vec<ConstantInfo>, s: &String_) {
     let res_string = extract_string_from_utf8(&constant_pool[s.string_index as usize]);
     let java_lang_string = ClassName::Str("java/lang/String".to_string());
     let current_loader = current_frame.class_pointer.loader.clone();
-    let string_class = check_inited_class(state, &java_lang_string, current_frame.clone(), current_loader.clone(), jni);
+    let string_class = check_inited_class(state, &java_lang_string, current_frame.clone(), current_loader.clone());
     let str_as_vec = res_string.into_bytes().clone();
     let chars: Vec<JavaValue> = str_as_vec.iter().map(|x| { JavaValue::Char(*x as char) }).collect();
     push_new_object(current_frame.clone(), &string_class);
@@ -570,7 +525,7 @@ fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallSta
         pc: 0.into(),
         pc_offset: 0.into(),
     };
-    run_function(state, Rc::new(next_entry), jni);
+    run_function(state, Rc::new(next_entry));
     if state.terminate || state.throw {
         unimplemented!()
     }
@@ -580,7 +535,7 @@ fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallSta
     current_frame.operand_stack.borrow_mut().push(string_object);
 }
 
-pub fn new(state: &mut InterpreterState, jni: &LibJavaLoading, current_frame: &Rc<CallStackEntry>, cp: usize) -> () {
+pub fn new(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
     let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
     let class_name_index = match &constant_pool[cp as usize].kind {
@@ -588,11 +543,11 @@ pub fn new(state: &mut InterpreterState, jni: &LibJavaLoading, current_frame: &R
         _ => panic!()
     };
     let target_class_name = ClassName::Str(extract_string_from_utf8(&constant_pool[class_name_index as usize]));
-    let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone(), loader_arc.clone(), jni);
+    let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone(), loader_arc.clone());
     push_new_object(current_frame.clone(), &target_classfile);
 }
 
-fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<RuntimeClass>) {
+pub fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader;
     let object_pointer = ObjectPointer::new(target_classfile.clone());
     let new_obj = JavaValue::Object(Some(object_pointer.clone()));
@@ -612,296 +567,3 @@ fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<Run
     current_frame.operand_stack.borrow_mut().push(new_obj);
 }
 
-
-//use ::std::mem::transmute;
-//
-//use crate::InterpreterState;
-//
-//pub const EXECUTION_ERROR: &str = "Fatal Error, when executing, this is a bug.";
-//
-//#[macro_export]
-//macro_rules! null_pointer_check {
-//($var_name:ident) => {
-//    if $var_name == 0 {
-//            unimplemented!("handle null pointers exceptions")
-//        }
-//};
-//}
-//#[macro_export]
-//macro_rules! array_out_of_bounds_check {
-//($index:expr,$array_length:ident) => {if ($index as u32) >= ($array_length as u32) {
-//        unimplemented!("handle array out of bounds exceptions")
-//    }};
-//}
-//#[macro_export]
-//macro_rules! load {
-//($type_:ident,$state:ident) => {
-//    use ::interpreter::interpreter_util::{EXECUTION_ERROR, pop_long};
-//    let index = $state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    let array_ref = pop_long($state);
-//    use ::null_pointer_check;
-//    null_pointer_check!(array_ref);
-//    let array_elem:$type_ = unsafe {
-//        let array_64: *mut u64 = ::std::mem::transmute(array_ref);
-//        let array_length: u64 = *array_64.offset(-1);
-//        let array_type:* mut $type_ = array_ref as * mut $type_;
-//        use ::array_out_of_bounds_check;
-//        array_out_of_bounds_check!(index as u64,array_length);
-//        *(array_type.offset(index as isize)) as $type_
-//    };
-//    //todo this is more complicated in the u64 case
-//    $state.operand_stack.push(array_elem as u32);
-//};
-//}
-//
-//#[macro_export]
-//macro_rules! store {
-//($type_:ident,$state:ident) => {
-//    use ::interpreter::interpreter_util::{EXECUTION_ERROR, pop_long};
-//    let value : $type_= $state.operand_stack.pop().expect(EXECUTION_ERROR) as $type_;
-//    let index = $state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    let array_ref = pop_long($state);
-//    use ::null_pointer_check;
-//    null_pointer_check!(array_ref);
-//    unsafe {
-//        let array: *mut u64 = ::std::mem::transmute(array_ref);
-//        let array_length: u64 = *array.offset(-1);
-//        use ::array_out_of_bounds_check;
-//        array_out_of_bounds_check!(index as u64,array_length);
-//        let array_type : *mut $type_ = array_ref as *mut $type_;
-//        *(array_type.offset(index as isize)) = value;
-//    }
-//};
-//}
-//
-//pub fn store_i64(state: &mut InterpreterState){
-//    let value  = pop_long(state);
-//    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    let array_ref = pop_long(state);
-//    null_pointer_check!(array_ref);
-//    unsafe {
-//        let array: *mut i64 = transmute(array_ref);
-//        let array_length: i64 = *array.offset(-1);
-//        array_out_of_bounds_check!(index as u64,array_length);
-//        let array_type : *mut i64 = array_ref as *mut i64;
-//        *(array_type.offset(index as isize)) = value;
-//    }
-//}
-//
-//pub fn load_u64(state: &mut InterpreterState){
-//    let index = state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    let array_ref = pop_long(state);
-//    null_pointer_check!(array_ref);
-//    let array_elem: i64 = unsafe {
-//        let array_64: *mut i64 = transmute(array_ref);
-//        let array_length: i64 = *array_64.offset(-1);
-//        let array_type:* mut i64 = array_ref as *mut i64;
-//        array_out_of_bounds_check!(index as u64,array_length);
-//        *(array_type.offset(index as isize))
-//    };
-//    push_long(array_elem,state);
-//}
-//
-//pub fn pop_long(state: &mut InterpreterState) -> i64 {
-//    let lower = state.operand_stack.pop().expect(EXECUTION_ERROR) as u64;
-//    let upper = state.operand_stack.pop().expect(EXECUTION_ERROR) as u64;
-//    return unsafe { transmute((upper << 32) | lower) }
-//
-//}
-//
-//pub fn push_long(to_push: i64, state: &mut InterpreterState) {
-//    state.operand_stack.push( (to_push >> 32) as u32);
-//    state.operand_stack.push( ((to_push << 32) >> 32) as u32);
-//}
-//
-//pub fn push_byte(to_push: i8, state: &mut InterpreterState) {
-//    state.operand_stack.push(to_push as u32)
-//}
-//
-//pub fn pop_byte(state: &mut InterpreterState) -> i8 {
-//    return state.operand_stack.pop().expect(EXECUTION_ERROR) as i8;
-//}
-//
-//pub fn push_char(to_push: u16, state: &mut InterpreterState) {
-//    state.operand_stack.push(to_push as u32)
-//}
-//
-//pub fn pop_char(state: &mut InterpreterState) -> u16 {
-//    return state.operand_stack.pop().expect(EXECUTION_ERROR) as u16;
-//}
-//
-//pub fn push_short(to_push: i16, state: &mut InterpreterState) {
-//    state.operand_stack.push(to_push as u32)
-//}
-//
-//pub fn pop_short(state: &mut InterpreterState) -> i16 {
-//    return state.operand_stack.pop().expect(EXECUTION_ERROR) as i16;
-//}
-//
-//
-//pub fn push_int(to_push: i32, state: &mut InterpreterState) {
-//    state.operand_stack.push(unsafe { transmute(to_push) })
-//}
-//
-//pub fn pop_int(state: &mut InterpreterState) -> i32 {
-//    return unsafe { transmute(state.operand_stack.pop().expect(EXECUTION_ERROR)) };
-//}
-//
-//
-//pub fn push_float(to_push: f32, state: &mut InterpreterState) {
-//    state.operand_stack.push(unsafe { ::std::mem::transmute(to_push) })
-//}
-//
-//pub fn pop_float(state: &mut InterpreterState) -> f32 {
-//    let value = state.operand_stack.pop().expect(EXECUTION_ERROR) as u32;
-//    return unsafe { transmute(value) }
-//}
-//
-//
-//pub fn push_double(to_push: f64, state: &mut InterpreterState) {
-//    push_long(unsafe { transmute(to_push) }, state)
-//}
-//
-//pub fn pop_double(state: &mut InterpreterState) -> f64 {
-//    let value = pop_long(state);
-//    return unsafe {
-//        ::std::mem::transmute(value)
-//    }
-//}
-//
-//pub fn store_n_32(state: &mut InterpreterState, n: u64) {
-//    let reference = state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    state.local_vars[n as usize] = reference as u32;
-//}
-//
-//
-//pub fn store_n_64(state: &mut InterpreterState, n: u64) {
-//    let reference = pop_long(state);
-//    state.local_vars[n as usize] = reference as u32;
-//    state.local_vars[(n + 1) as usize] = (reference >> 32) as u32;//todo is this really the correct order
-//}
-//
-//pub fn load_n_32(state: &mut InterpreterState, n: u64) {
-//    let reference = state.local_vars[n as usize];
-//    state.operand_stack.push(reference as u32)
-//}
-//
-//pub fn load_n_64(state: &mut InterpreterState, n: u64) {
-//    let least_significant = state.local_vars[n as usize];
-//    let most_significant = state.local_vars[(n + 1) as usize];
-//    state.operand_stack.push(most_significant );
-//    state.operand_stack.push(least_significant );
-//}
-//
-//
-/*
-//pub(crate) fn do_bipush(state: &mut InterpreterState) -> () {
-//    let byte = pop_int(state) as i8;
-//    push_int(byte as i32, state);
-//}
-//
-//pub(crate) fn do_astore(code: &[u8], state: &mut InterpreterState) -> ! {
-//    let index = code[1];
-//    store_n_32(state, index as u64);
-//    unimplemented!("Need to increase pc by 2");
-//}
-//
-//pub(crate) fn do_anewarray(code: &[u8], state: &mut InterpreterState) -> ! {
-//    let indexbyte1 = code[1] as u16;
-//    let indexbyte2 = code[2] as u16;
-//    let _index = (indexbyte1 << 8) | indexbyte2;
-//    let _count = state.operand_stack.pop().expect(EXECUTION_ERROR);
-//    unimplemented!("Need to figure out how to get the constant pool in here.");
-////    unimplemented!("Need to increase pc by 3");
-//}
-//
-//pub(crate) fn do_aload(code: &[u8], state: &mut InterpreterState) -> ! {
-//    let var_index = code[1];
-//    load_n_64(state, var_index as u64);
-//    unimplemented!("Need to increase pc by 2")
-//}
-//
-//
-//pub(crate) fn do_arraylength(state: &mut InterpreterState) -> () {
-//    let array_ref = pop_long(state);
-//    let length = unsafe {
-//        let array: *mut i64 = transmute(array_ref);
-//        *(array.offset(-1 as isize)) as i64
-//    };
-//    push_long(length,state)
-//}
-*/
-//
-//
-//#[cfg(test)]
-//pub mod tests{
-//    use super::*;
-//
-//    #[test]
-//    fn test_int_pop_push() {
-//        let int_ = -654545864;
-//        let state: &mut InterpreterState = &mut InterpreterState {
-//            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
-//            terminate: false
-//        };
-//        push_int(int_,state);
-//        assert_eq!(int_,pop_int(state));
-//    }
-//
-//    #[test]
-//    fn test_long_pop_push() {
-//        let long_ = -654545864*435657687;
-//        let state: &mut InterpreterState = &mut InterpreterState {
-//            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
-//            terminate: false
-//        };
-//        push_long(long_,state);
-//        assert_eq!(long_,pop_long(state));
-//    }
-//
-//    #[test]
-//    fn test_char_pop_push() {
-//        let char_ = 'g';
-//        let state: &mut InterpreterState = &mut InterpreterState {
-//            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
-//            terminate: false
-//        };
-//        push_char(char_ as u16, state);
-//        assert_eq!(char_ as u16, pop_char(state));
-//    }
-//
-//    #[test]
-//    fn test_double_pop_push() {
-//        let double_ = 0.4546545613512652;
-//        let state: &mut InterpreterState = &mut InterpreterState {
-//            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
-//            terminate: false
-//        };
-//        push_double(double_,state);
-//        assert_eq!(double_,pop_double(state));
-//    }
-//
-//
-//    #[test]
-//    fn test_float_pop_push() {
-//        let float_ = -56.045f32;
-//        let state: &mut InterpreterState = &mut InterpreterState {
-//            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
-//            terminate: false
-//        };
-//        push_float(float_,state);
-//        assert_eq!(float_,pop_float(state));
-//    }
-//
-//    #[test]
-//    fn test_byte_pop_push() {
-//        let byte_  = -120i8;
-//        let state: &mut InterpreterState = &mut InterpreterState {
-//            pc_offset: 0,pc:0,local_vars:Vec::new(),operand_stack:Vec::new(),
-//            terminate: false
-//        };
-//        push_byte(byte_, state);//todo need to pop push i8
-//        assert_eq!(byte_, pop_byte(state));
-//    }
-//
-//}

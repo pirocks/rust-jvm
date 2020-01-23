@@ -9,4 +9,7 @@ edition = "2018"
 
 [dependencies]
 memalloc = "0.1"
+log = "0.4"
+simple_logger = "1.3.0"
 rust-jvm-common = {path = "../rust-jvm-common"}
+libloading = "0.5"

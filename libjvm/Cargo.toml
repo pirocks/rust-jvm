@@ -11,6 +11,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rust-jni = {path = "../rust-jni"}
-
+runtime-common = {path = "../runtime-common"}
+rust-jvm-common = {path = "../rust-jvm-common"}
+slow-interpreter = {path = "../slow-interpreter"}
 [build-dependencies]
 bindgen = "0.52.0"

@@ -3,22 +3,20 @@ use crate::CallStackEntry;
 use std::rc::Rc;
 use std::sync::Arc;
 use runtime_common::runtime_class::RuntimeClass;
-use rust_jni::LibJavaLoading;
 use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::classfile::ACC_STATIC;
-use rust_jni::JNIContext;
-use runtime_common::java_values::{JavaValue, unwrap_array};
+use runtime_common::java_values::JavaValue;
 use std::cell::RefCell;
 use std::borrow::Borrow;
+use rust_jni::call;
 
 
 pub fn run_native_method(
-    _state: &InterpreterState,
+    state: &mut InterpreterState,
     frame: Rc<CallStackEntry>,
     class: Arc<RuntimeClass>,
-    method_i: usize,
-    jni: &LibJavaLoading,
+    method_i: usize
 ) {
     //todo only works for static void methods atm
     let classfile = &class.classfile;
@@ -40,11 +38,11 @@ pub fn run_native_method(
 //        Object dest,
 //        int destPos,
 //        int length)
-        let src = unwrap_array(args[0].clone());
-        let src_pos = unwrap_int(args[1].clone()) as usize;
-        let dest = unwrap_array(args[2].clone());
-        let dest_pos = unwrap_int(args[3].clone()) as usize;
-        let length = unwrap_int(args[4].clone()) as usize;
+        let src = args[0].clone().unwrap_array();
+        let src_pos = args[1].clone().unwrap_int() as usize;
+        let dest = args[2].clone().unwrap_array();
+        let dest_pos = args[3].clone().unwrap_int() as usize;
+        let length = args[4].clone().unwrap_int() as usize;
         for i in 0..length {
             let borrowed: &RefCell<Vec<JavaValue>> = src.borrow();
             let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
@@ -60,32 +58,9 @@ pub fn run_native_method(
         unimplemented!()
     }*/ else {
         dbg!(method_name(classfile, method));
-        match jni.call(class.clone(), method_i, args, parsed.return_type) {
+        match call(state, frame.clone(),class.clone(), method_i, args, parsed.return_type) {
             None => {}
             Some(_) => unimplemented!(),
         }
     }
 }
-
-
-fn unwrap_int(j: JavaValue) -> i32 {
-    match j {
-        JavaValue::Int(i) => {
-            i
-        }
-        _ => panic!()
-    }
-}
-
-
-//fn unwrap_object(j: JavaValue) -> Arc<Object> {
-//    match j {
-//        JavaValue::Object(o) => {
-//            o.unwrap().object
-//        }
-//        _ => {
-//            dbg!(j);
-//            panic!()
-//        }
-//    }
-//}

@@ -9,13 +9,12 @@ use rust_jvm_common::classfile::AttributeType;
 use rust_jvm_common::classfile::FieldInfo;
 use rust_jvm_common::classfile::CPIndex;
 use crate::InterpreterState;
-use crate::CallStackEntry;
 use crate::run_function;
 use std::rc::Rc;
 use runtime_common::java_values::{JavaValue, default_value};
 use runtime_common::runtime_class::RuntimeClass;
-use rust_jni::LibJavaLoading;
 use std::cell::RefCell;
+use runtime_common::CallStackEntry;
 
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> RuntimeClass {
@@ -36,7 +35,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
     }
 }
 
-pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Rc<CallStackEntry>,jni : &LibJavaLoading) -> Arc<RuntimeClass> {
+pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Rc<CallStackEntry>) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
@@ -76,7 +75,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
         pc: 0.into(),
         pc_offset: 0.into(),
     };
-    run_function(state, Rc::new(new_stack),jni);
+    run_function(state, Rc::new(new_stack));
     if state.throw || state.terminate {
         unimplemented!()
         //need to clear status after

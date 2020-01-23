@@ -2,7 +2,6 @@ extern crate log;
 extern crate simple_logger;
 
 use std::sync::{Arc, RwLock};
-use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::error::Error;
@@ -13,58 +12,62 @@ use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::runtime_class::prepare_class;
-use crate::interpreter_util::run_function;
+use crate::interpreter_util::{run_function, check_inited_class};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
-use runtime_common::runtime_class::RuntimeClass;
-use runtime_common::java_values::{JavaValue, VecPointer};
-use rust_jni::LibJavaLoading;
+use runtime_common::java_values::{JavaValue, VecPointer, Object, ObjectPointer};
+use crate::interpreter_util::push_new_object;
+use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
 
-pub struct InterpreterState {
-//    pub call_stack: Vec<CallStackEntry>,
-    pub terminate: bool,
-    pub throw: bool,
-    pub function_return: bool,
-    pub bootstrap_loader: Arc<dyn Loader + Send + Sync>,
-    pub initialized_classes : RwLock<HashMap<ClassName,Arc<RuntimeClass>>>
+
+
+pub fn get_or_create_class_object(state: &mut InterpreterState,
+                              class_name: & ClassName,
+                              current_frame: Rc<CallStackEntry>,
+                              loader_arc: Arc<dyn Loader + Sync + Send>
+) -> Arc<Object>{
+    //todo in future this may introduce new and exciting concurrency bugs
+
+    let class_for_object = check_inited_class(state, class_name, current_frame.clone(),loader_arc);
+    let res = state.class_object_pool.borrow().get(&class_for_object).cloned();
+    match res{
+        None => {
+            let java_lang_class = ClassName::Str("java/lang/Class".to_string());
+            let java_lang_class_loader = ClassName::Str("java/lang/ClassLoader".to_string());
+            let current_loader = current_frame.class_pointer.loader.clone();
+            let class_class = check_inited_class(state, &java_lang_class, current_frame.clone(), current_loader.clone());
+            let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone(), current_loader.clone());
+            //the above would only be required for higher jdks where a class loader obect is part of Class.
+            //as it stands we can just push to operand stack
+            push_new_object(current_frame.clone(), &class_class);
+            let object = current_frame.operand_stack.borrow_mut().pop().unwrap();
+            match object.clone() {
+                JavaValue::Object(o) => {
+                    let boostrap_loader_object = Object {
+                        gc_reachable: true,
+                        fields: RefCell::new(HashMap::new()),
+                        class_pointer: class_loader_class.clone(),
+                        bootstrap_loader: true,
+                    };
+                    let bootstrap_arc = Arc::new(boostrap_loader_object);
+                    let bootstrap_loader_ptr = ObjectPointer { object: bootstrap_arc.clone() }.into();
+                    let bootstrap_class_loader = JavaValue::Object(bootstrap_loader_ptr);
+                    {
+                        bootstrap_arc.fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
+                        bootstrap_arc.fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
+                        o.unwrap().object.fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
+                    }
+                }
+                _ => panic!(),
+            }
+            let r = object.unwrap_object();
+            state.class_object_pool.borrow_mut().insert(class_for_object,r.clone());
+            r
+        },
+        Some(r) => r.clone(),
+    }
 }
-
-//impl InterpreterState {
-//    fn current_frame_mut(&mut self) -> &mut CallStackEntry {
-//        self.call_stack.last_mut().unwrap()
-//    }
-//    fn current_frame(&self) -> &CallStackEntry {
-//        self.call_stack.last().unwrap()
-//    }
-//}
-
-#[derive(Debug)]
-pub struct CallStackEntry {
-    pub last_call_stack : Option<Rc<CallStackEntry>>,
-    pub class_pointer: Arc<RuntimeClass>,
-    pub method_i: CPIndex,
-
-    pub local_vars: RefCell<Vec<JavaValue>>,
-    pub operand_stack: RefCell<Vec<JavaValue>>,
-    pub pc: RefCell<usize>,
-    //the pc_offset is set by every instruction. branch instructions and others may us it to jump
-    pub pc_offset: RefCell<isize>,
-}
-
-//impl Clone for CallStackEntry{
-//    fn clone(&self) -> Self {
-//        CallStackEntry {
-//            last_call_stack: self.last_call_stack.clone(),
-//            class_pointer: self.class_pointer.clone(),
-//            method_i: self.method_i,
-//            local_vars: self.local_vars.clone(),
-//            operand_stack: self.operand_stack.clone(),
-//            pc: self.pc,
-//            pc_offset: self.pc_offset
-//        }
-//    }
-//}
 
 pub fn run(
     main_class_name: &ClassName,
@@ -94,7 +97,10 @@ pub fn run(
         throw: false,
         function_return: false,
         bootstrap_loader: bl.clone(),
-        initialized_classes: RwLock::new(HashMap::new())
+        initialized_classes: RwLock::new(HashMap::new()),
+        string_internment: RefCell::new(HashMap::new()),
+        class_object_pool: RefCell::new(HashMap::new()),
+        jni
     };
     let stack = CallStackEntry {
         last_call_stack: None,
@@ -106,7 +112,7 @@ pub fn run(
             pc: RefCell::new(0),
             pc_offset: 0.into(),
         };
-    run_function(&mut state,Rc::new(stack),&jni);
+    run_function(&mut state,Rc::new(stack));
     if state.throw || state.terminate {
         unimplemented!()
     }
