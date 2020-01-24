@@ -54,7 +54,7 @@ pub fn name_and_type_extractor(i: u16, class_file: &Arc<Classfile>) -> (String, 
     return (method_name, descriptor);
 }
 
-pub fn extract_class_from_constant_pool(i: u16, classfile: &Arc<Classfile>) -> &Class {
+pub fn extract_class_from_constant_pool(i: u16, classfile: &Classfile) -> &Class {
     match &classfile.constant_pool[i as usize].kind {
         ConstantKind::Class(c) => {
             return c;
