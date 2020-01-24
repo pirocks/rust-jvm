@@ -20,9 +20,9 @@ use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use jni::sys::jclass;
 use std::cell::{RefCell, Ref};
-use rust_jvm_common::utils::{method_name, extract_string_from_utf8, extract_class_from_constant_pool};
+use rust_jvm_common::utils::{method_name, extract_string_from_utf8, get_super_class_name};
 use std::collections::HashMap;
-use rust_jvm_common::classfile::{CPIndex, Classfile};
+use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::{class_name, ClassName};
 use std::os::raw::c_char;
 use std::borrow::Borrow;
@@ -34,7 +34,7 @@ use std::rc::Rc;
 use jni::sys::*;
 use crate::get_or_create_class_object;
 use crate::rust_jni::value_conversion::to_native_type;
-use rust_jvm_common::loading::Loader;
+use crate::interpreter_util::check_inited_class;
 
 
 pub mod value_conversion;
@@ -202,21 +202,21 @@ unsafe extern "system" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
-pub fn get_all_methods(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>, bl: Arc<dyn Loader + Send + Sync>) -> Vec<(Arc<Classfile>,usize)> {
+pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<CallStackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>,usize)> {
     let mut res = vec![];
-    classfile.methods.iter().enumerate().for_each( |(i,_)|{
-        res.push((classfile.clone(),i));
+    dbg!(class_name(&class.classfile).get_referred_name());
+    class.classfile.methods.iter().enumerate().for_each( |(i,_)|{
+        res.push((class.clone(),i));
     });
-    if classfile.super_class == 0 {
-        let object = loader.clone().load_class(loader.clone(), &ClassName::Str("java/lang/Object".to_string()), bl).unwrap();
-        object.methods.iter().enumerate().for_each( |(i,_)|{
+    if class.classfile.super_class == 0 {
+        let object = check_inited_class(state,&ClassName::Str("java/lang/Object".to_string()),frame.clone().into(),class.loader.clone());
+        object.classfile.methods.iter().enumerate().for_each( |(i,_)|{
             res.push((object.clone(),i));
         });
     } else {
-        let class_entry = extract_class_from_constant_pool(classfile.super_class,&classfile);
-        let name = extract_string_from_utf8(&classfile.constant_pool[class_entry.name_index as usize]);
-        let super_classfile = loader.load_class(loader.clone(), &ClassName::Str(name), bl.clone()).unwrap();
-        for (c, i) in get_all_methods(super_classfile, loader.clone(), bl.clone()) {
+        let name = get_super_class_name(&class.classfile);
+        let super_ = check_inited_class(state,&name,frame.clone().into(),class.loader.clone());
+        for (c, i) in get_all_methods(state,frame,super_) {
             res.push((c, i));//todo accidental O(n^2)
         }
     }
@@ -244,14 +244,16 @@ unsafe extern "system" fn get_method_id(env: *mut JNIEnv,
     }
 
     let state = &mut (*((**env).reserved0 as *mut InterpreterState));
-    let class_obj: Arc<Object> = Arc::from_raw(transmute(clazz));
-    let object_option = class_obj.object_class_object_pointer.borrow();
-    let classfile = &object_option.as_ref().unwrap().classfile;
-    let all_methods = get_all_methods(classfile.clone(), class_obj.class_pointer.loader.clone(), state.bootstrap_loader.clone());
+    let frame = Rc::from_raw((**env).reserved1 as *const CallStackEntry);//todo major double free hazard
+    let class_obj: Arc<Object> = Arc::from_raw(transmute(clazz));//todo major double free hazard
+    let all_methods = get_all_methods(state,frame,class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c,i))| {
-        let method_info = &c.methods[*i];
-        let cur_desc = extract_string_from_utf8(&c.constant_pool[method_info.descriptor_index as usize]);
-        rust_jvm_common::utils::method_name(c, method_info) == method_name &&
+        let method_info = &c.classfile.methods[*i];
+        let cur_desc = extract_string_from_utf8(&c.classfile.constant_pool[method_info.descriptor_index as usize]);
+        let cur_method_name = rust_jvm_common::utils::method_name(&c.classfile, method_info);
+        dbg!(&method_name);
+        dbg!(&cur_method_name);
+        cur_method_name == method_name &&
             method_descriptor_str == cur_desc
     }).unwrap();
     let res = MethodId { class: c.clone(), method_i: *m };
@@ -263,7 +265,7 @@ unsafe extern "system" fn get_method_id(env: *mut JNIEnv,
 }
 
 pub struct MethodId{
-    pub class : Arc<Classfile>,
+    pub class : Arc<RuntimeClass>,
     pub method_i: usize,
 }
 
