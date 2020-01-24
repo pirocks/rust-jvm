@@ -22,7 +22,7 @@ use jni::sys::jclass;
 use std::cell::{RefCell, Ref};
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8, extract_class_from_constant_pool};
 use std::collections::HashMap;
-use rust_jvm_common::classfile::{CPIndex, MethodInfo, Classfile};
+use rust_jvm_common::classfile::{CPIndex, Classfile};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use std::os::raw::c_char;
 use std::borrow::Borrow;
@@ -35,7 +35,6 @@ use jni::sys::*;
 use crate::get_or_create_class_object;
 use crate::rust_jni::value_conversion::to_native_type;
 use rust_jvm_common::loading::Loader;
-use rust_jvm_common::classfile::InstructionInfo::ret;
 
 
 pub mod value_conversion;
@@ -205,7 +204,7 @@ unsafe extern "system" fn exception_check(_env: *mut JNIEnv) -> jboolean {
 
 pub fn get_all_methods(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>, bl: Arc<dyn Loader + Send + Sync>) -> Vec<(Arc<Classfile>,usize)> {
     let mut res = vec![];
-    classfile.methods.iter().enumerate().for_each( |(i,m)|{
+    classfile.methods.iter().enumerate().for_each( |(i,_)|{
         res.push((classfile.clone(),i));
     });
     if classfile.super_class == 0 {
@@ -248,18 +247,26 @@ unsafe extern "system" fn get_method_id(env: *mut JNIEnv,
     let class_obj: Arc<Object> = Arc::from_raw(transmute(clazz));
     let object_option = class_obj.object_class_object_pointer.borrow();
     let classfile = &object_option.as_ref().unwrap().classfile;
-    dbg!(class_name(classfile).get_referred_name());
-    let (method_i, (c, m)) = get_all_methods(classfile.clone(),class_obj.class_pointer.loader.clone(),state.bootstrap_loader.clone()).iter().enumerate().find(|(_, (c,i))| {
-//        let cur_desc = extract_string_from_utf8(&c.constant_pool[(*m).descriptor_index as usize]);
-        dbg!(&rust_jvm_common::utils::method_name(c, m));
-        dbg!(&method_name);
-        dbg!(&method_descriptor_str);
-        dbg!(&cur_desc);
-        rust_jvm_common::utils::method_name(c, m) == method_name &&
+    let all_methods = get_all_methods(classfile.clone(), class_obj.class_pointer.loader.clone(), state.bootstrap_loader.clone());
+    let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c,i))| {
+        let method_info = &c.methods[*i];
+        let cur_desc = extract_string_from_utf8(&c.constant_pool[method_info.descriptor_index as usize]);
+        rust_jvm_common::utils::method_name(c, method_info) == method_name &&
             method_descriptor_str == cur_desc
     }).unwrap();
-    transmute(&m)
+    let res = MethodId { class: c.clone(), method_i: *m };
+    let res_ptr_raw = std::alloc::alloc(Layout::for_value(&res));//todo could just use an int. Arguably this is a leak too.
+    let res_ptr = res_ptr_raw as *mut MethodId;
+    (&mut *res_ptr).class = res.class;
+    (&mut *res_ptr).method_i = res.method_i;
+    transmute(res_ptr)
 }
+
+pub struct MethodId{
+    pub class : Arc<Classfile>,
+    pub method_i: usize,
+}
+
 
 unsafe extern "system" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     assert_ne!(obj, std::ptr::null_mut());
