@@ -59,8 +59,6 @@ pub fn run_function(
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
             let mut context = CodeParserContext { offset: 0, iter: current.iter() };
-//            dbg!(context.offset);
-//            dbg!(&current);
             (parse_instruction(&mut context).unwrap().clone(), context.offset)
         };
         current_frame.pc_offset.replace(instruction_size as isize);

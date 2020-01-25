@@ -258,7 +258,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
 }
 
 
-pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: VaList) -> jobject {
+pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
     let method_id = (method_id as *mut MethodId).as_ref().unwrap();
     let classfile = method_id.class.classfile.clone();
     let method = &classfile.methods[method_id.method_i];
@@ -275,34 +275,30 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
 
     frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: from_object(obj) }.into()));
     for type_ in &parsed.parameter_types {
-        add_to_frame(&frame, type_, &mut l);
+        match type_ {
+            ParsedType::ByteType => unimplemented!(),
+            ParsedType::CharType => unimplemented!(),
+            ParsedType::DoubleType => unimplemented!(),
+            ParsedType::FloatType => unimplemented!(),
+            ParsedType::IntType => unimplemented!(),
+            ParsedType::LongType => unimplemented!(),
+            ParsedType::Class(_) => {
+                let native_object: jobject = l.arg();
+                let o = from_object(native_object);
+                frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: o.clone() }.into()));
+            }
+            ParsedType::ShortType => unimplemented!(),
+            ParsedType::BooleanType => unimplemented!(),
+            ParsedType::ArrayReferenceType(_) => unimplemented!(),
+            ParsedType::VoidType => unimplemented!(),
+            ParsedType::TopType => unimplemented!(),
+            ParsedType::NullType => unimplemented!(),
+            ParsedType::Uninitialized(_) => unimplemented!(),
+            ParsedType::UninitializedThis => unimplemented!(),
+        }
     }
     //todo add params into operand stack;
     invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
     let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
     to_object(res)
-}
-
-pub fn add_to_frame(frame: &Rc<CallStackEntry>, type_: &ParsedType, l: &mut VaList) {
-    match type_ {
-        ParsedType::ByteType => unimplemented!(),
-        ParsedType::CharType => unimplemented!(),
-        ParsedType::DoubleType => unimplemented!(),
-        ParsedType::FloatType => unimplemented!(),
-        ParsedType::IntType => unimplemented!(),
-        ParsedType::LongType => unimplemented!(),
-        ParsedType::Class(_) => {
-            let native_object: jobject = unsafe { l.arg() };
-            let o = unsafe { from_object(native_object) };
-            frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: o.clone() }.into()));
-        }
-        ParsedType::ShortType => unimplemented!(),
-        ParsedType::BooleanType => unimplemented!(),
-        ParsedType::ArrayReferenceType(_) => unimplemented!(),
-        ParsedType::VoidType => unimplemented!(),
-        ParsedType::TopType => unimplemented!(),
-        ParsedType::NullType => unimplemented!(),
-        ParsedType::Uninitialized(_) => unimplemented!(),
-        ParsedType::UninitializedThis => unimplemented!(),
-    }
 }
