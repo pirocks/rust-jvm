@@ -38,6 +38,12 @@ pub struct BootstrapLoader {
 
 impl Loader for BootstrapLoader {
     fn initiating_loader_of(&self, class: &ClassName) -> bool {
+        /*{
+            self.loaded.read().unwrap().iter().for_each(|x| {
+//                dbg!(x.0);
+            });
+
+        }*/
         self.loaded.read().unwrap().contains_key(class)
     }
 
@@ -46,14 +52,19 @@ impl Loader for BootstrapLoader {
     }
 
     fn load_class(&self, self_arc: Arc<dyn Loader + Sync + Send>, class: &ClassName, bl: Arc<dyn Loader + Send + Sync>) -> Result<Arc<Classfile>, ClassLoadingError> {
+//        if class == ClassName::Str("java/lang/Object".to_string()) {
+//            panic!()
+//        }
         if !self.initiating_loader_of(class) {
             trace!("loading {}",class.get_referred_name());
             let classfile = self.pre_load(self_arc.clone(), class)?;
-            if classfile.super_class == 0 {
-//                self.load_class(self_arc.clone(), &ClassName::Str("java/lang/Object".to_string()),bl.clone())?;
-            } else {
-                let super_class_name = get_super_class_name(&classfile);
-                self.load_class(self_arc.clone(), &super_class_name,bl.clone())?;
+            if class != &ClassName::Str("java/lang/Object".to_string()){
+                if classfile.super_class == 0 {
+                    self.load_class(self_arc.clone(), &ClassName::Str("java/lang/Object".to_string()),bl.clone())?;
+                } else {
+                    let super_class_name = get_super_class_name(&classfile);
+                    self.load_class(self_arc.clone(), &super_class_name,bl.clone())?;
+                }
             }
             match verify(&VerifierContext { bootstrap_loader: bl.clone() }, classfile.clone(), self_arc){
                 Ok(_) => {},

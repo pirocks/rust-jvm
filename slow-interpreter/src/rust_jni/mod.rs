@@ -63,6 +63,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
     for j in args {
         args_type.push(to_native_type(j.clone()));
         c_args.push(match j {
+            //todo suspect primitive types don't work
             JavaValue::Long(l) => Arg::new(&l),
             JavaValue::Int(i) => Arg::new(&i),
             JavaValue::Short(s) => Arg::new(&s),
@@ -75,9 +76,13 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
             JavaValue::Object(o) => match o {
                 None => Arg::new(&(std::ptr::null() as *const Object)),
                 Some(op) => {
-                    let x = Arc::into_raw(op.object.clone());
-//                    dbg!(&x);
-                    Arg::new(x.borrow())
+                    unsafe {
+                        let alloced = std::alloc::alloc(Layout::for_value(&op)) as *mut ObjectPointer;
+                        (&mut *alloced).object = op.object;
+
+                        let res = Arg::new(transmute::<&*mut ObjectPointer,&*mut ObjectPointer>(&alloced));
+                        res
+                    }
                 }
             },
             JavaValue::Top => panic!()
@@ -85,8 +90,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
     }
     let cif = Cif::new(args_type.into_iter(), Type::f64());
     let fn_ptr = CodePtr::from_fun(*raw);
-//    dbg!(&c_args);
-//    dbg!(&fn_ptr);
+    dbg!(&c_args);
     let cif_res: usize = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
@@ -134,8 +138,8 @@ unsafe extern "system" fn register_natives(env: *mut JNIEnv,
     for to_register_i in 0..n_methods {
         let jni_context = &(*((**env).reserved0 as *mut InterpreterState)).jni;
         let method = *methods.offset(to_register_i as isize);
-        let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string();
-        let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string();
+        let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
+        let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
         let runtime_class: &Arc<RuntimeClass> = transmute(clazz);
         let classfile = &runtime_class.classfile;
         &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
@@ -154,7 +158,7 @@ unsafe extern "system" fn register_natives(env: *mut JNIEnv,
 unsafe extern "system" fn get_string_utfchars(_env: *mut JNIEnv,
                                               name: jstring,
                                               is_copy: *mut jboolean) -> *const c_char {
-    let str_obj: Arc<Object> = Arc::from_raw(transmute(name));
+    let str_obj: Arc<Object> = (&*(name as *mut ObjectPointer)).object.clone();
     let unwrapped = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_array();
     let refcell: &RefCell<Vec<JavaValue>> = &unwrapped;
     let char_array: &Ref<Vec<JavaValue>> = &refcell.borrow();
@@ -204,7 +208,6 @@ unsafe extern "system" fn exception_check(_env: *mut JNIEnv) -> jboolean {
 
 pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<CallStackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>,usize)> {
     let mut res = vec![];
-    dbg!(class_name(&class.classfile).get_referred_name());
     class.classfile.methods.iter().enumerate().for_each( |(i,_)|{
         res.push((class.clone(),i));
     });
@@ -244,15 +247,15 @@ unsafe extern "system" fn get_method_id(env: *mut JNIEnv,
     }
 
     let state = &mut (*((**env).reserved0 as *mut InterpreterState));
-    let frame = Rc::from_raw((**env).reserved1 as *const CallStackEntry);//todo major double free hazard
+    let frame = (&*((**env).reserved1 as *const FrameWrapper)).frame.clone();//todo leak hazard
     let class_obj: Arc<Object> = Arc::from_raw(transmute(clazz));//todo major double free hazard
     let all_methods = get_all_methods(state,frame,class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c,i))| {
         let method_info = &c.classfile.methods[*i];
         let cur_desc = extract_string_from_utf8(&c.classfile.constant_pool[method_info.descriptor_index as usize]);
         let cur_method_name = rust_jvm_common::utils::method_name(&c.classfile, method_info);
-        dbg!(&method_name);
-        dbg!(&cur_method_name);
+//        dbg!(&method_name);
+//        dbg!(&cur_method_name);
         cur_method_name == method_name &&
             method_descriptor_str == cur_desc
     }).unwrap();
@@ -270,19 +273,32 @@ pub struct MethodId{
 }
 
 
+unsafe extern "system" fn jobject_to_real(obj: jobject) -> Arc<Object>{
+    unimplemented!()
+}
+
 unsafe extern "system" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
-    assert_ne!(obj, std::ptr::null_mut());
-    let obj: Arc<Object> = Arc::from_raw(transmute(obj));
+    let obj: Arc<Object> = Arc::from_raw(transmute(obj));//todo double free hazard
     let state = &mut (*((**env).reserved0 as *mut InterpreterState));
-    let frame = Rc::from_raw((**env).reserved1 as *const CallStackEntry);
+    let frame = (&*((**env).reserved1 as *const FrameWrapper)).frame.clone();
+    Rc::into_raw(frame.clone());
     let class_object = get_or_create_class_object(state, &class_name(&obj.class_pointer.classfile), frame, obj.class_pointer.loader.clone());
     Arc::into_raw(class_object) as jclass
+}
+
+struct FrameWrapper{
+    pub frame: Rc<CallStackEntry>
 }
 
 fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
-        reserved1: unsafe { transmute(Rc::into_raw(frame)) },
+        reserved1: unsafe {
+            let wrapped = FrameWrapper { frame: frame.clone() };
+            let alloced = std::alloc::alloc(std::alloc::Layout::for_value(&frame)) as *mut FrameWrapper;
+            (&mut *alloced).frame = frame.clone();
+            transmute(alloced)
+        },
         reserved2: std::ptr::null_mut(),
         reserved3: std::ptr::null_mut(),
         GetVersion: None,

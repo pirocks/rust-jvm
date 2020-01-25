@@ -75,6 +75,14 @@ impl std::clone::Clone for ClassName {
 
 impl std::fmt::Debug for ClassName{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self{
+            ClassName::Ref(r) => {
+//                dbg!(self.get_referred_name());
+            },
+            ClassName::Str(s) => {
+//                dbg!(self.get_referred_name());
+            },
+        }
         write!(f,"{}",self.get_referred_name())
     }
 }
