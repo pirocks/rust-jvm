@@ -10,8 +10,8 @@ use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::get_or_create_class_object;
 use std::rc::Rc;
 use std::intrinsics::transmute;
-use slow_interpreter::rust_jni::{get_state, get_frame};
-use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc};
+use slow_interpreter::rust_jni::{get_state, get_frame, to_object};
+use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType};
 
 
 //so in theoru I need something like this:
@@ -401,8 +401,8 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         *utf.offset(5) == 0 {
         let state = get_state(env);
         let frame = get_frame(env);
-        let res = get_or_create_class_object(state,&ClassName::Str("java/lang/Float".to_string()),frame,state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return  transmute(res)
+        let res = get_or_create_class_object(state, &ClassName::Str("java/lang/Float".to_string()), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return to_object(res);
     }
     if *utf.offset(0) == 'd' as i8 &&
         *utf.offset(1) == 'o' as i8 &&
@@ -413,8 +413,10 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         *utf.offset(6) == 0 {
         let state = get_state(env);
         let frame = get_frame(env);
-        let res = get_or_create_class_object(state,&ClassName::Str("java/lang/Double".to_string()),frame,state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return  transmute(res)
+        let res = get_or_create_class_object(state, &ClassName::Str("java/lang/Double".to_string()), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        let res_ptr = to_object(res);
+        dbg!(res_ptr);
+        return res_ptr;
     }
 
     dbg!((*utf) as u8 as char);
@@ -1032,3 +1034,123 @@ unsafe extern "system" fn JVM_GetThreadStateNames(env: *mut JNIEnv, javaThreadSt
 unsafe extern "system" fn JVM_GetVersionInfo(env: *mut JNIEnv, info: *mut jvm_version_info, info_size: usize) {
     unimplemented!()
 }
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetTemporaryDirectory(env: *mut JNIEnv) -> jstring {
+    unimplemented!()
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetMethodIxExceptionTableEntry(
+    env: *mut JNIEnv,
+    cb: jclass,
+    method_index: jint,
+    entry_index: jint,
+    entry: *mut JVM_ExceptionTableEntryType,
+) {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetMethodIxExceptionIndexes(
+    env: *mut JNIEnv,
+    cb: jclass,
+    method_index: jint,
+    exceptions: *mut ::std::os::raw::c_ushort,
+) {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn jio_vsnprintf(
+    str: *mut ::std::os::raw::c_char,
+    count: usize,
+    fmt: *const ::std::os::raw::c_char,
+    args: *mut __va_list_tag,
+) -> ::std::os::raw::c_int {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_CopySwapMemory(
+    env: *mut JNIEnv,
+    srcObj: jobject,
+    srcOffset: jlong,
+    dstObj: jobject,
+    dstOffset: jlong,
+    size: jlong,
+    elemSize: jlong,
+) {
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_FindClassFromCaller(
+    env: *mut JNIEnv,
+    name: *const ::std::os::raw::c_char,
+    init: jboolean,
+    loader: jobject,
+    caller: jclass,
+) -> jclass {
+    unimplemented!()
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn JVM_KnownToNotExist(
+    env: *mut JNIEnv,
+    loader: jobject,
+    classname: *const ::std::os::raw::c_char,
+) -> jboolean {
+    unimplemented!()
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetResourceLookupCacheURLs(env: *mut JNIEnv, loader: jobject) -> jobjectArray {
+    unimplemented!()
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetResourceLookupCache(
+    env: *mut JNIEnv,
+    loader: jobject,
+    resource_name: *const ::std::os::raw::c_char,
+) -> jintArray {
+    unimplemented!()
+}
+
+
+#[no_mangle]
+unsafe extern "C" fn jio_snprintf(
+    str: *mut ::std::os::raw::c_char,
+    count: usize,
+    fmt: *const ::std::os::raw::c_char,
+//    ...
+) -> ::std::os::raw::c_int {
+    unimplemented!()
+}
+
+
+#[no_mangle]
+unsafe extern "C" fn jio_fprintf(
+    arg1: *mut FILE,
+    fmt: *const ::std::os::raw::c_char,
+//    ...
+) -> ::std::os::raw::c_int {
+    unimplemented!()
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn jio_vfprintf(
+    arg1: *mut FILE,
+    fmt: *const ::std::os::raw::c_char,
+    args: *mut __va_list_tag,
+) -> ::std::os::raw::c_int {
+    unimplemented!()
+}
+
+

@@ -39,8 +39,8 @@ pub mod mangling;
 
 pub fn new_java_loading(path: String) -> LibJavaLoading {
     trace!("Loading libjava.so from:`{}`", path);
-    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
-    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), dlopen::RTLD_LAZY.try_into().unwrap()).unwrap();
+    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), dlopen::RTLD_NOW.try_into().unwrap()).unwrap();
+    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), dlopen::RTLD_NOW.try_into().unwrap()).unwrap();
     let lib = Library::from(loaded);
     LibJavaLoading {
         lib,
@@ -86,7 +86,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
     let cif = Cif::new(args_type.into_iter(), Type::f64());
     let fn_ptr = CodePtr::from_fun(*raw);
     dbg!(&c_args);
-    let cif_res: usize = unsafe {
+    let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
     match return_type {
@@ -126,9 +126,9 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
 
 
 unsafe extern "C" fn register_natives(env: *mut JNIEnv,
-                                           clazz: jclass,
-                                           methods: *const JNINativeMethod,
-                                           n_methods: jint) -> jint {
+                                      clazz: jclass,
+                                      methods: *const JNINativeMethod,
+                                      n_methods: jint) -> jint {
     trace!("Call to register_natives, n_methods: {}", n_methods);
     for to_register_i in 0..n_methods {
         let jni_context = &get_state(env).jni;
@@ -151,8 +151,8 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
 
 //todo shouldn't this be handled by a registered native
 unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
-                                              name: jstring,
-                                              is_copy: *mut jboolean) -> *const c_char {
+                                         name: jstring,
+                                         is_copy: *mut jboolean) -> *const c_char {
     let str_obj: Arc<Object> = get_object(name);
     let unwrapped = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_array();
     let refcell: &RefCell<Vec<JavaValue>> = &unwrapped;
@@ -201,20 +201,20 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
-pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<CallStackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>,usize)> {
+pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<CallStackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
-    class.classfile.methods.iter().enumerate().for_each( |(i,_)|{
-        res.push((class.clone(),i));
+    class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
+        res.push((class.clone(), i));
     });
     if class.classfile.super_class == 0 {
-        let object = check_inited_class(state,&ClassName::Str("java/lang/Object".to_string()),frame.clone().into(),class.loader.clone());
-        object.classfile.methods.iter().enumerate().for_each( |(i,_)|{
-            res.push((object.clone(),i));
+        let object = check_inited_class(state, &ClassName::Str("java/lang/Object".to_string()), frame.clone().into(), class.loader.clone());
+        object.classfile.methods.iter().enumerate().for_each(|(i, _)| {
+            res.push((object.clone(), i));
         });
     } else {
         let name = get_super_class_name(&class.classfile);
-        let super_ = check_inited_class(state,&name,frame.clone().into(),class.loader.clone());
-        for (c, i) in get_all_methods(state,frame,super_) {
+        let super_ = check_inited_class(state, &name, frame.clone().into(), class.loader.clone());
+        for (c, i) in get_all_methods(state, frame, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }
     }
@@ -224,10 +224,10 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<CallStackEntry>, 
 
 //for now a method id is a pair of class pointers and i.
 unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
-                                        clazz: jclass,
-                                        name: *const c_char,
-                                        sig: *const c_char)
-                                        -> jmethodID {
+                                   clazz: jclass,
+                                   name: *const c_char,
+                                   sig: *const c_char)
+                                   -> jmethodID {
     let mut method_name = String::new();
     let name_len = libc::strlen(name);
     for i in 0..name_len {
@@ -244,8 +244,8 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let state = get_state(env);
     let frame = get_frame(env);//todo leak hazard
     let class_obj: Arc<Object> = get_object(clazz);//todo major double free hazard
-    let all_methods = get_all_methods(state,frame,class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
-    let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c,i))| {
+    let all_methods = get_all_methods(state, frame, class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
+    let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];
         let cur_desc = extract_string_from_utf8(&c.classfile.constant_pool[method_info.descriptor_index as usize]);
         let cur_method_name = rust_jvm_common::utils::method_name(&c.classfile, method_info);
@@ -262,8 +262,8 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     transmute(res_ptr)
 }
 
-pub struct MethodId{
-    pub class : Arc<RuntimeClass>,
+pub struct MethodId {
+    pub class: Arc<RuntimeClass>,
     pub method_i: usize,
 }
 
@@ -276,20 +276,20 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     to_object(class_object) as jclass
 }
 
-pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<CallStackEntry>{
+pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<CallStackEntry> {
     let res = ((**env).reserved1 as *mut Rc<CallStackEntry>).as_ref().unwrap();// ptr::as_ref
     res.clone()
 }
 
-pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterState{
+pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterState {
     &mut (*((**env).reserved0 as *mut InterpreterState))
 }
 
-pub unsafe extern "C" fn to_object(obj : Arc<Object>) -> jobject{
+pub unsafe extern "C" fn to_object(obj: Arc<Object>) -> jobject {
     Box::into_raw(Box::new(obj)) as *mut _jobject
 }
 
-pub unsafe extern "C" fn get_object( obj: jobject) -> Arc<Object> {
+pub unsafe extern "C" fn get_object(obj: jobject) -> Arc<Object> {
     (obj as *mut Arc<Object>).as_ref().unwrap().clone()
 }
 
