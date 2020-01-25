@@ -1,3 +1,5 @@
+#![feature(c_variadic)]
+
 extern crate log;
 extern crate simple_logger;
 

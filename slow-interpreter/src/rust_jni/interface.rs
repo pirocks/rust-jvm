@@ -1,13 +1,17 @@
 use runtime_common::{InterpreterState, CallStackEntry};
 use std::rc::Rc;
-use jni_bindings::JNINativeInterface_;
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID};
 use std::mem::transmute;
-use std::ffi::c_void;
-use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id};
-use crate::rust_jni::native_util::get_object_class;
+use std::ffi::{c_void, VaList};
+use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
+use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars};
+use crate::instructions::invoke::invoke_virtual_method_i;
+use rust_jvm_common::classfile::ACC_STATIC;
+use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
+use classfile_parser::types::parse_method_descriptor;
+use rust_jvm_common::unified_types::ParsedType;
 
-//NewStringUTF
 //CallObjectMethod
 //ExceptionOccurred
 //DeleteLocalRef
@@ -50,7 +54,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
         GetObjectClass: Some(get_object_class),
         IsInstanceOf: None,
         GetMethodID: Some(get_method_id),
-        CallObjectMethod: None,
+        CallObjectMethod: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject>(call_object_method as *mut c_void) }),
         CallObjectMethodV: None,
         CallObjectMethodA: None,
         CallBooleanMethod: None,
@@ -252,3 +256,43 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
     }
 }
 
+
+pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: VaList) -> jobject {
+    let method_id = (method_id as *mut MethodId).as_ref().unwrap();
+    let classfile = method_id.class.classfile.clone();
+    let method = &classfile.methods[method_id.method_i];
+    dbg!(method.access_flags & ACC_STATIC);
+    if method.access_flags & ACC_STATIC > 0 {
+        unimplemented!()
+    }
+    let state = get_state(env);
+    let frame = get_frame(env);
+    //todo simplify use of this.
+    let exp_method_name = method_name(&classfile,method);
+    let exp_descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index as usize]);
+    let parsed = parse_method_descriptor(&method_id.class.loader,exp_descriptor_str.as_str()).unwrap();
+
+    for type_ in &parsed.parameter_types{
+        match type_{
+            ParsedType::ByteType => unimplemented!(),
+            ParsedType::CharType => unimplemented!(),
+            ParsedType::DoubleType => unimplemented!(),
+            ParsedType::FloatType => unimplemented!(),
+            ParsedType::IntType => unimplemented!(),
+            ParsedType::LongType => unimplemented!(),
+            ParsedType::Class(_) => unimplemented!(),
+            ParsedType::ShortType => unimplemented!(),
+            ParsedType::BooleanType => unimplemented!(),
+            ParsedType::ArrayReferenceType(_) => unimplemented!(),
+            ParsedType::VoidType => unimplemented!(),
+            ParsedType::TopType => unimplemented!(),
+            ParsedType::NullType => unimplemented!(),
+            ParsedType::Uninitialized(_) => unimplemented!(),
+            ParsedType::UninitializedThis => unimplemented!(),
+        }
+    }
+    //todo add params into operand stack;
+    invoke_virtual_method_i(state,frame.clone(),exp_method_name,parsed,method_id.class.clone(),method_id.method_i,method);
+    let res= frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    to_object(res)
+}

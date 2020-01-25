@@ -1,11 +1,12 @@
 use runtime_common::java_values::{JavaValue, Object};
 use libffi::middle::Arg;
 use libffi::middle::Type;
-use std::sync::Arc;
-use std::borrow::Borrow;
+use crate::rust_jni::native_util::to_object;
+use std::ffi::c_void;
 
 pub fn to_native(j: JavaValue) -> Arg {
     match j {
+        //todo suspect primitive types don't work
         JavaValue::Long(l) => Arg::new(&l),
         JavaValue::Int(i) => Arg::new(&i),
         JavaValue::Short(s) => Arg::new(&s),
@@ -18,8 +19,11 @@ pub fn to_native(j: JavaValue) -> Arg {
         JavaValue::Object(o) => match o {
             None => Arg::new(&(std::ptr::null() as *const Object)),
             Some(op) => {
-                let x = Arc::into_raw(op.object.clone());
-                Arg::new(x.borrow())
+                unsafe {
+                    let object_ptr = to_object(op.object) as *mut c_void;
+                    dbg!(object_ptr);
+                    Arg::new::<*mut c_void>(&object_ptr)
+                }
             }
         },
         JavaValue::Top => panic!()

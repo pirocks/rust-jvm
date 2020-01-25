@@ -19,6 +19,7 @@ use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use log::trace;
 use runtime_common::CallStackEntry;
+use rust_jvm_common::classnames::class_name;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
@@ -78,6 +79,10 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
 //    dbg!(class_name(&current_frame.class_pointer.classfile).get_referred_name());
     let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
+    invoke_virtual_method_i(state, current_frame, expected_method_name, expected_descriptor, target_class.clone(), target_method_i, target_method)
+}
+
+pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, expected_method_name: String, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
     if target_method.access_flags & ACC_ABSTRACT == 0 {
         let mut args = vec![];
         let max_locals = code_attribute(target_method).unwrap().max_locals;
@@ -93,7 +98,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
         args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
         let next_entry = CallStackEntry {
             last_call_stack: Some(current_frame),
-            class_pointer: target_class,
+            class_pointer: target_class.clone(),
             method_i: target_method_i as u16,
             local_vars: args.into(),
             operand_stack: vec![].into(),
@@ -106,7 +111,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
         }
         if state.function_return {
             state.function_return = false;
-            trace!("Exit:{} {}", class_name.get_referred_name(), expected_method_name);
+            trace!("Exit:{} {}", class_name(&target_class.classfile).get_referred_name(), expected_method_name);
             return;
         }
     } else {

@@ -28,10 +28,10 @@ use std::mem::size_of;
 use std::convert::TryInto;
 use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
 use std::rc::Rc;
-use crate::rust_jni::value_conversion::to_native_type;
+use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
 use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
-use crate::rust_jni::native_util::{get_state, get_frame, get_object, to_object};
+use crate::rust_jni::native_util::{get_state, get_frame, get_object};
 use crate::rust_jni::interface::get_interface;
 
 
@@ -60,29 +60,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
     let mut c_args = vec![Arg::new(&&env), Arg::new(&jclass)];//todo inconsistent
     for j in args {
         args_type.push(to_native_type(j.clone()));
-        c_args.push(match j {
-            //todo suspect primitive types don't work
-            JavaValue::Long(l) => Arg::new(&l),
-            JavaValue::Int(i) => Arg::new(&i),
-            JavaValue::Short(s) => Arg::new(&s),
-            JavaValue::Byte(b) => Arg::new(&b),
-            JavaValue::Boolean(b) => Arg::new(&b),
-            JavaValue::Char(c) => Arg::new(&c),
-            JavaValue::Float(f) => Arg::new(&f),
-            JavaValue::Double(d) => Arg::new(&d),
-            JavaValue::Array(_) => unimplemented!(),
-            JavaValue::Object(o) => match o {
-                None => Arg::new(&(std::ptr::null() as *const Object)),
-                Some(op) => {
-                    unsafe {
-                        let object_ptr = to_object(op.object) as *mut c_void;
-                        dbg!(object_ptr);
-                        Arg::new(&(object_ptr))
-                    }
-                }
-            },
-            JavaValue::Top => panic!()
-        });
+        c_args.push(to_native(j));
     }
     let cif = Cif::new(args_type.into_iter(), Type::usize());//todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
