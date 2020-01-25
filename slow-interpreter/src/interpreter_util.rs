@@ -1,21 +1,31 @@
-use crate::{InterpreterState, CallStackEntry, get_or_create_class_object};
+use crate::{InterpreterState, CallStackEntry};
 use rust_jvm_common::utils::{code_attribute, extract_string_from_utf8};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
-use rust_jvm_common::classfile::{InstructionInfo, ConstantKind, ACC_STATIC, ConstantInfo, String_, Class, Atype};
-use verification::verifier::instructions::special::extract_field_descriptor;
+use rust_jvm_common::classfile::{InstructionInfo,  ACC_STATIC};
 use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::rc::Rc;
-use crate::instructions::invoke::{run_invoke_static, invoke_special, find_target_method, invoke_virtual};
-use runtime_common::java_values::{JavaValue, VecPointer, ObjectPointer, default_value};
+use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual};
+use runtime_common::java_values::{JavaValue, ObjectPointer, default_value};
 use runtime_common::runtime_class::RuntimeClass;
-use classfile_parser::types::{parse_field_descriptor, MethodDescriptor};
-use rust_jvm_common::unified_types::{ArrayType, ParsedType};
-use std::mem::transmute;
+use classfile_parser::types::parse_field_descriptor;
+use crate::instructions::load::{aload, fload, iload};
+use crate::instructions::store::{astore, castore};
+use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
+use crate::instructions::cmp::{fcmpg, fcmpl};
+use crate::instructions::conversion::{i2l, i2f, f2i};
+use crate::instructions::new::{new, anewarray, newarray};
+use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
+use crate::instructions::arithmetic::{ladd, land, lshl, fmul};
+use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
+use crate::instructions::ldc::{ldc, ldc2_w};
+use crate::instructions::dup::dup;
+use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_cmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull};
+use crate::instructions::special::arraylength;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -57,53 +67,15 @@ pub fn run_function(
         match instruct {
             InstructionInfo::aaload => unimplemented!(),
             InstructionInfo::aastore => unimplemented!(),
-            InstructionInfo::aconst_null => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Object(None))
-            }
+            InstructionInfo::aconst_null => aconst_null(&current_frame),
             InstructionInfo::aload(_) => unimplemented!(),
             InstructionInfo::aload_0 => aload(&current_frame, 0),
             InstructionInfo::aload_1 => aload(&current_frame, 1),
             InstructionInfo::aload_2 => aload(&current_frame, 2),
             InstructionInfo::aload_3 => aload(&current_frame, 3),
-            InstructionInfo::anewarray(cp) => {
-                let len = match current_frame.operand_stack.borrow_mut().pop().unwrap() {
-                    JavaValue::Int(i) => i,
-                    _ => panic!()
-                };
-                let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-                let cp_entry = &constant_pool[cp as usize].kind;
-                match cp_entry {
-                    ConstantKind::Class(c) => {
-                        let name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
-                        check_inited_class(state,&ClassName::Str(name),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
-                        current_frame.operand_stack.borrow_mut().push(JavaValue::Array(Some(VecPointer::new(len as usize,JavaValue::Object(None)))))
-                    }
-                    _ => {
-                        dbg!(cp_entry);
-                        panic!()
-                    }
-                }
-//                current_frame.operand_stack.borrow_mut().push(JavaValue::Array(Some(VecPointer::new(len as usize,))))
-//                if len == 0 {
-//
-//                } else {
-//                    unimplemented!()
-//                }
-            }
-            InstructionInfo::areturn => {
-                let res = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                state.function_return = true;
-                current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow_mut().push(res);
-            }
-            InstructionInfo::arraylength => {
-                let array = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                match array {
-                    JavaValue::Array(a) => {
-                        current_frame.operand_stack.borrow_mut().push(JavaValue::Int(a.unwrap().object.borrow().len() as i32));
-                    }
-                    _ => panic!()
-                }
-            }
+            InstructionInfo::anewarray(cp) => anewarray(state, current_frame.clone(), cp),
+            InstructionInfo::areturn => areturn(state, &current_frame),
+            InstructionInfo::arraylength => arraylength(&current_frame),
             InstructionInfo::astore(_) => unimplemented!(),
             InstructionInfo::astore_0 => unimplemented!(),
             InstructionInfo::astore_1 => astore(&current_frame, 1),
@@ -112,17 +84,9 @@ pub fn run_function(
             InstructionInfo::athrow => unimplemented!(),
             InstructionInfo::baload => unimplemented!(),
             InstructionInfo::bastore => unimplemented!(),
-            InstructionInfo::bipush(b) => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(b as i32))
-            }
+            InstructionInfo::bipush(b) => bipush(&current_frame, b),
             InstructionInfo::caload => unimplemented!(),
-            InstructionInfo::castore => {
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
-                let index = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
-                let array_ref = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_array();
-                let char_ = val as u8 as char;
-                array_ref.borrow_mut()[index as usize] = JavaValue::Char(char_);
-            }
+            InstructionInfo::castore => castore(&current_frame),
             InstructionInfo::checkcast(_) => unimplemented!(),
             InstructionInfo::d2f => unimplemented!(),
             InstructionInfo::d2i => unimplemented!(),
@@ -143,163 +107,67 @@ pub fn run_function(
             InstructionInfo::dmul => unimplemented!(),
             InstructionInfo::dneg => unimplemented!(),
             InstructionInfo::drem => unimplemented!(),
-            InstructionInfo::dreturn => {
-                let res = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                state.function_return = true;
-                match res {
-                    JavaValue::Double(_) => {}
-                    _ => panic!()
-                }
-                current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow_mut().push(res);
-            }
+            InstructionInfo::dreturn => dreturn(state, &current_frame),
             InstructionInfo::dstore(_) => unimplemented!(),
             InstructionInfo::dstore_0 => unimplemented!(),
             InstructionInfo::dstore_1 => unimplemented!(),
             InstructionInfo::dstore_2 => unimplemented!(),
             InstructionInfo::dstore_3 => unimplemented!(),
             InstructionInfo::dsub => unimplemented!(),
-            InstructionInfo::dup => {
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                current_frame.operand_stack.borrow_mut().push(val.clone());
-                current_frame.operand_stack.borrow_mut().push(val.clone());
-            }
+            InstructionInfo::dup => dup(&current_frame),
             InstructionInfo::dup_x1 => unimplemented!(),
             InstructionInfo::dup_x2 => unimplemented!(),
             InstructionInfo::dup2 => unimplemented!(),
             InstructionInfo::dup2_x1 => unimplemented!(),
             InstructionInfo::dup2_x2 => unimplemented!(),
             InstructionInfo::f2d => unimplemented!(),
-            InstructionInfo::f2i => {
-                let f = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_float();
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(f as i32))
-            },
+            InstructionInfo::f2i => f2i(&current_frame),
             InstructionInfo::f2l => unimplemented!(),
             InstructionInfo::fadd => unimplemented!(),
             InstructionInfo::faload => unimplemented!(),
             InstructionInfo::fastore => unimplemented!(),
-            InstructionInfo::fcmpg => {
-                let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_float();
-                let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_float();
-                if value1 == value2 {
-                    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(0))
-                } else if value1 > value2 {
-                    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(1))
-                } else if value1 < value2{
-                    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(-1))
-                }else{
-                    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(1))
-                }
-            }
-            InstructionInfo::fcmpl => {
-                //todo dup
-                let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_float();
-                let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_float();
-                if value1 == value2 {
-                    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(0))
-                } else if value1 > value2 {
-                    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(1))
-                } else if value1 < value2{
-                    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(-1))
-                }else{
-                    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(-1))
-                }
-            },
-            InstructionInfo::fconst_0 => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Float(0.0));
-            }
+            InstructionInfo::fcmpg => fcmpg(&current_frame),
+            InstructionInfo::fcmpl => fcmpl(&current_frame),
+            InstructionInfo::fconst_0 => fconst_0(&current_frame),
             InstructionInfo::fconst_1 => unimplemented!(),
             InstructionInfo::fconst_2 => unimplemented!(),
             InstructionInfo::fdiv => unimplemented!(),
             InstructionInfo::fload(_) => unimplemented!(),
-            InstructionInfo::fload_0 => fload(&current_frame,0),
-            InstructionInfo::fload_1 => fload(&current_frame,1),
+            InstructionInfo::fload_0 => fload(&current_frame, 0),
+            InstructionInfo::fload_1 => fload(&current_frame, 1),
             InstructionInfo::fload_2 => fload(&current_frame, 2),
             InstructionInfo::fload_3 => unimplemented!(),
-            InstructionInfo::fmul => {
-                let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_float();
-                let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_float();
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Float(value2*value1));
-            },
+            InstructionInfo::fmul => fmul(current_frame.clone()),
             InstructionInfo::fneg => unimplemented!(),
             InstructionInfo::frem => unimplemented!(),
-            InstructionInfo::freturn => {
-                let res = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                state.function_return = true;
-                match res {
-                    JavaValue::Float(_) => {}
-                    _ => panic!()
-                }
-                current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow_mut().push(res);
-            },
+            InstructionInfo::freturn => freturn(state, &current_frame),
             InstructionInfo::fstore(_) => unimplemented!(),
             InstructionInfo::fstore_0 => unimplemented!(),
             InstructionInfo::fstore_1 => unimplemented!(),
             InstructionInfo::fstore_2 => unimplemented!(),
             InstructionInfo::fstore_3 => unimplemented!(),
             InstructionInfo::fsub => unimplemented!(),
-            InstructionInfo::getfield(cp) => {
-                let classfile = &current_frame.class_pointer.classfile;
-                let loader_arc = &current_frame.class_pointer.loader;
-                let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let object_ref = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                match object_ref {
-                    JavaValue::Object(o) => {
-                        let res = o.unwrap().object.fields.borrow().get(field_name.as_str()).unwrap().clone();
-                        current_frame.operand_stack.borrow_mut().push(res);
-                    }
-                    _ => panic!(),
-                }
-            }
-            InstructionInfo::getstatic(cp) => {
-                //todo make sure class pointer is updated correctly
-
-                let classfile = &current_frame.class_pointer.classfile;
-                let loader_arc = &current_frame.class_pointer.loader;
-                let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
-                let field_value = target_classfile.static_vars.borrow().get(&field_name).unwrap().clone();
-                let mut stack = current_frame.operand_stack.borrow_mut();
-                stack.push(field_value);
-            }
-            InstructionInfo::goto_(target) => {
-                current_frame.pc_offset.replace(target as isize);
-            }
+            InstructionInfo::getfield(cp) => get_field(&current_frame, cp),
+            InstructionInfo::getstatic(cp) => get_static(state, &current_frame, cp),
+            InstructionInfo::goto_(target) => goto_(&current_frame, target),
             InstructionInfo::goto_w(_) => unimplemented!(),
             InstructionInfo::i2b => unimplemented!(),
             InstructionInfo::i2c => unimplemented!(),
             InstructionInfo::i2d => unimplemented!(),
-            InstructionInfo::i2f => {
-                let int = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Float(int as f32));
-            },
-            InstructionInfo::i2l => {
-                let int = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Long(int as i64));
-            }
+            InstructionInfo::i2f => i2f(&current_frame),
+            InstructionInfo::i2l => i2l(&current_frame),
             InstructionInfo::i2s => unimplemented!(),
             InstructionInfo::iadd => unimplemented!(),
             InstructionInfo::iaload => unimplemented!(),
             InstructionInfo::iand => unimplemented!(),
             InstructionInfo::iastore => unimplemented!(),
             InstructionInfo::iconst_m1 => unimplemented!(),
-            InstructionInfo::iconst_0 => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(0))
-            }
-            InstructionInfo::iconst_1 => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(1))
-            }
-            InstructionInfo::iconst_2 => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(2))
-            }
-            InstructionInfo::iconst_3 => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(3))
-            }
-            InstructionInfo::iconst_4 => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(4))
-            }
-            InstructionInfo::iconst_5 => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(5))
-            }
+            InstructionInfo::iconst_0 => iconst_0(&current_frame),
+            InstructionInfo::iconst_1 => iconst_1(&current_frame),
+            InstructionInfo::iconst_2 => iconst_2(&current_frame),
+            InstructionInfo::iconst_3 => iconst_3(&current_frame),
+            InstructionInfo::iconst_4 => iconst_4(&current_frame),
+            InstructionInfo::iconst_5 => iconst_5(&current_frame),
             InstructionInfo::idiv => unimplemented!(),
             InstructionInfo::if_acmpeq(_) => unimplemented!(),
             InstructionInfo::if_acmpne(_) => unimplemented!(),
@@ -307,106 +175,16 @@ pub fn run_function(
             InstructionInfo::if_icmpne(_) => unimplemented!(),
             InstructionInfo::if_icmplt(_) => unimplemented!(),
             InstructionInfo::if_icmpge(_) => unimplemented!(),
-            InstructionInfo::if_icmpgt(offset) => {
-                let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match value1 {
-                    JavaValue::Int(i1) => match value2 {
-                        JavaValue::Int(i2) => i1 > i2,
-                        _ => panic!()
-                    },
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            }
+            InstructionInfo::if_icmpgt(offset) => if_cmpgt(&current_frame, offset),
             InstructionInfo::if_icmple(_) => unimplemented!(),
-            InstructionInfo::ifeq(offset) => {
-                //todo dup
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match val {
-                    JavaValue::Int(i) => i == 0,
-                    JavaValue::Boolean(b) => b != false,
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            },
-            InstructionInfo::ifne(offset) => {
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match val {
-                    JavaValue::Int(i) => i != 0,
-                    JavaValue::Boolean(b) => b != false,
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            }
-            InstructionInfo::iflt(offset) => {
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match val {
-                    JavaValue::Int(i) => i < 0,
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            }
-            InstructionInfo::ifge(offset) => {
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match val {
-                    JavaValue::Int(i) => i >= 0,
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            }
-            InstructionInfo::ifgt(offset) => {
-                //todo dup
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match val {
-                    JavaValue::Int(i) => i > 0,
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            },
-            InstructionInfo::ifle(offset) => {
-                //todo dup
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match val {
-                    JavaValue::Int(i) => i <= 0,
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            }
-            InstructionInfo::ifnonnull(offset) => {
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match val {
-                    JavaValue::Object(o) => o.is_some(),
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            }
-            InstructionInfo::ifnull(offset) => {
-                let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                let succeeds = match val {
-                    JavaValue::Object(o) => o.is_none(),
-                    _ => panic!()
-                };
-                if succeeds {
-                    current_frame.pc_offset.replace(offset as isize);
-                }
-            }
+            InstructionInfo::ifeq(offset) => ifeq(&current_frame, offset),
+            InstructionInfo::ifne(offset) => ifne(&current_frame, offset),
+            InstructionInfo::iflt(offset) => iflt(&current_frame, offset),
+            InstructionInfo::ifge(offset) => ifge(&current_frame, offset),
+            InstructionInfo::ifgt(offset) => ifgt(&current_frame, offset),
+            InstructionInfo::ifle(offset) => ifle(&current_frame, offset),
+            InstructionInfo::ifnonnull(offset) => ifnonnull(&current_frame, offset),
+            InstructionInfo::ifnull(offset) => ifnull(&current_frame, offset),
             InstructionInfo::iinc(_) => unimplemented!(),
             InstructionInfo::iload(_) => unimplemented!(),
             InstructionInfo::iload_0 => iload(&current_frame, 0),
@@ -423,19 +201,7 @@ pub fn run_function(
             InstructionInfo::invokevirtual(cp) => invoke_virtual(state, current_frame.clone(), cp),
             InstructionInfo::ior => unimplemented!(),
             InstructionInfo::irem => unimplemented!(),
-            InstructionInfo::ireturn => {
-                let res = current_frame.operand_stack.borrow_mut().pop().unwrap();
-                state.function_return = true;
-                match res {
-                    JavaValue::Int(_) => {}
-                    JavaValue::Short(_) => {}
-                    JavaValue::Byte(_) => {}
-                    JavaValue::Boolean(_) => {}
-                    JavaValue::Char(_) => {}
-                    _ => panic!()
-                }
-                current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow_mut().push(res);
-            }
+            InstructionInfo::ireturn => ireturn(state, &current_frame),
             InstructionInfo::ishl => unimplemented!(),
             InstructionInfo::ishr => unimplemented!(),
             InstructionInfo::istore(_) => unimplemented!(),
@@ -451,56 +217,16 @@ pub fn run_function(
             InstructionInfo::l2d => unimplemented!(),
             InstructionInfo::l2f => unimplemented!(),
             InstructionInfo::l2i => unimplemented!(),
-            InstructionInfo::ladd => {
-                let first = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
-                let second = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Long(first + second));
-            }
+            InstructionInfo::ladd => ladd(current_frame.clone()),
             InstructionInfo::laload => unimplemented!(),
-            InstructionInfo::land => {
-                let first = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
-                let second = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Long(first & second))
-            }
+            InstructionInfo::land => land(current_frame.clone()),
             InstructionInfo::lastore => unimplemented!(),
             InstructionInfo::lcmp => unimplemented!(),
             InstructionInfo::lconst_0 => unimplemented!(),
             InstructionInfo::lconst_1 => unimplemented!(),
-            InstructionInfo::ldc(cp) => {
-                let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-                let pool_entry = &constant_pool[cp as usize];
-                match &pool_entry.kind {
-                    ConstantKind::String(s) => load_string_constant(state, &current_frame, &constant_pool, &s),
-                    ConstantKind::Class(c) => load_class_constant(state, &current_frame, constant_pool, &c),
-                    ConstantKind::Float(f) => {
-                        let float: f32 = unsafe { transmute(f.bytes) };
-//                        dbg!(float);
-                        current_frame.operand_stack.borrow_mut().push(JavaValue::Float(float));
-                    }
-                    _ => {
-                        dbg!(&pool_entry.kind);
-                        unimplemented!()
-                    }
-                }
-            }
+            InstructionInfo::ldc(cp) => ldc(state, current_frame.clone(), cp),
             InstructionInfo::ldc_w(_) => unimplemented!(),
-            InstructionInfo::ldc2_w(cp) => {
-                let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-                let pool_entry = &constant_pool[cp as usize];
-                match &pool_entry.kind {
-                    ConstantKind::Long(l) => {
-                        let high = l.high_bytes as u64;
-                        let low = l.low_bytes as u64;
-                        current_frame.operand_stack.borrow_mut().push(JavaValue::Long((high << 32 | low) as i64));
-                    }
-                    ConstantKind::Double(d) => {
-                        let high = d.high_bytes as u64;
-                        let low = d.low_bytes as u64;
-                        current_frame.operand_stack.borrow_mut().push(JavaValue::Double(unsafe { transmute(high << 32 | low) }));
-                    }
-                    _ => {}
-                }
-            }
+            InstructionInfo::ldc2_w(cp) => ldc2_w(current_frame.clone(), cp),
             InstructionInfo::ldiv => unimplemented!(),
             InstructionInfo::lload(_) => unimplemented!(),
             InstructionInfo::lload_0 => unimplemented!(),
@@ -513,11 +239,7 @@ pub fn run_function(
             InstructionInfo::lor => unimplemented!(),
             InstructionInfo::lrem => unimplemented!(),
             InstructionInfo::lreturn => unimplemented!(),
-            InstructionInfo::lshl => {
-                let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
-                let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Long(value1 << ((value2 & 0x7F) as i64)));
-            }
+            InstructionInfo::lshl => lshl(current_frame.clone()),
             InstructionInfo::lshr => unimplemented!(),
             InstructionInfo::lstore(_) => unimplemented!(),
             InstructionInfo::lstore_0 => unimplemented!(),
@@ -531,61 +253,17 @@ pub fn run_function(
             InstructionInfo::monitorexit => { /*unimplemented for now todo*/ }
             InstructionInfo::multianewarray(_) => unimplemented!(),
             InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
-            InstructionInfo::newarray(a_type) => {
-                let count = match current_frame.operand_stack.borrow_mut().pop().unwrap() {
-                    JavaValue::Int(i) => { i }
-                    _ => panic!()
-                };
-                match a_type {
-                    Atype::TChar => {
-                        current_frame.operand_stack.borrow_mut().push(JavaValue::Array(Some(VecPointer {
-                            object: Arc::new(vec![default_value(ParsedType::CharType); count as usize].into())
-                        })));
-                    }
-                    _ => unimplemented!()
-                }
-            }
+            InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
             InstructionInfo::nop => unimplemented!(),
             InstructionInfo::pop => unimplemented!(),
             InstructionInfo::pop2 => unimplemented!(),
-            InstructionInfo::putfield(cp) => {
-                let classfile = &current_frame.class_pointer.classfile;
-                let loader_arc = &current_frame.class_pointer.loader;
-                let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let _target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
-                let mut stack = current_frame.operand_stack.borrow_mut();
-                let val = stack.pop().unwrap();
-                let object_ref = stack.pop().unwrap();
-                match object_ref {
-                    JavaValue::Object(o) => {
-                        {
-                            o.unwrap().object.fields.borrow_mut().insert(field_name, val);
-                        }
-                    }
-                    _ => {
-                        dbg!(object_ref);
-                        panic!()
-                    }
-                }
-            }
-            InstructionInfo::putstatic(cp) => {
-                let classfile = &current_frame.class_pointer.classfile;
-                let loader_arc = &current_frame.class_pointer.loader;
-                let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-                let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
-                let mut stack = current_frame.operand_stack.borrow_mut();
-                let field_value = stack.pop().unwrap();
-                target_classfile.static_vars.borrow_mut().insert(field_name, field_value);
-            }
+            InstructionInfo::putfield(cp) => putfield(state, &current_frame, cp),
+            InstructionInfo::putstatic(cp) => putstatic(state, &current_frame, cp),
             InstructionInfo::ret(_) => unimplemented!(),
-            InstructionInfo::return_ => {
-                state.function_return = true;
-            }
+            InstructionInfo::return_ => return_(state),
             InstructionInfo::saload => unimplemented!(),
             InstructionInfo::sastore => unimplemented!(),
-            InstructionInfo::sipush(val) => {
-                current_frame.operand_stack.borrow_mut().push(JavaValue::Int(val as i32));
-            }
+            InstructionInfo::sipush(val) => sipush(&current_frame, val),
             InstructionInfo::swap => unimplemented!(),
             InstructionInfo::tableswitch(_) => unimplemented!(),
             InstructionInfo::wide(_) => unimplemented!(),
@@ -603,108 +281,6 @@ pub fn run_function(
     }
 }
 
-fn aload(current_frame: &Rc<CallStackEntry>, n: usize) -> () {
-    let ref_ = current_frame.local_vars.borrow()[n].clone();
-    match ref_.clone() {
-        JavaValue::Object(_) | JavaValue::Array(_) => {}
-        _ => {
-            dbg!(ref_);
-            panic!()
-        }
-    }
-    current_frame.operand_stack.borrow_mut().push(ref_);
-}
-
-fn astore(current_frame: &Rc<CallStackEntry>, n: usize) -> () {
-    let object_ref = current_frame.operand_stack.borrow_mut().pop().unwrap();
-    match object_ref.clone() {
-        JavaValue::Object(_) | JavaValue::Array(_) => {}
-        _ => {
-            dbg!(&object_ref);
-            panic!()
-        }
-    }
-    current_frame.local_vars.borrow_mut()[n] = object_ref;
-}
-
-fn iload(current_frame: &Rc<CallStackEntry>, n: usize) {
-//    dbg!(&current_frame.local_vars);
-    let java_val = &current_frame.local_vars.borrow()[n];
-    match java_val {
-        JavaValue::Int(_) | JavaValue::Boolean(_) => {}
-        _ => {
-            dbg!(java_val);
-            panic!()
-        }
-    }
-    current_frame.operand_stack.borrow_mut().push(java_val.clone())
-}
-
-fn fload(current_frame: &Rc<CallStackEntry>, n: usize) {
-//    dbg!(&current_frame.local_vars);
-    let java_val = &current_frame.local_vars.borrow()[n];
-    match java_val {
-        JavaValue::Float(_) => {}
-        _ => {
-            dbg!(java_val);
-            panic!()
-        }
-    }
-    current_frame.operand_stack.borrow_mut().push(java_val.clone())
-}
-
-fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
-    let res_class_name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
-    let object = get_or_create_class_object(state, &ClassName::Str(res_class_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-    current_frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer {
-        object
-    }.into()));
-}
-
-fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, constant_pool: &Vec<ConstantInfo>, s: &String_) {
-    let res_string = extract_string_from_utf8(&constant_pool[s.string_index as usize]);
-    let java_lang_string = ClassName::Str("java/lang/String".to_string());
-    let current_loader = current_frame.class_pointer.loader.clone();
-    let string_class = check_inited_class(state, &java_lang_string, current_frame.clone().into(), current_loader.clone());
-    let str_as_vec = res_string.into_bytes().clone();
-    let chars: Vec<JavaValue> = str_as_vec.iter().map(|x| { JavaValue::Char(*x as char) }).collect();
-    push_new_object(current_frame.clone().into(), &string_class);
-    let string_object = current_frame.operand_stack.borrow_mut().pop().unwrap();
-    let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Array(Some(VecPointer { object: Arc::new(chars.into()) })));
-    let char_array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) });
-    let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
-    let (constructor_i, _constructor) = find_target_method(current_loader.clone(), "<init>".to_string(), &expected_descriptor, &string_class);
-    let next_entry = CallStackEntry {
-        last_call_stack: Some(current_frame.clone().into()),
-        class_pointer: string_class,
-        method_i: constructor_i as u16,
-        local_vars: args.into(),
-        operand_stack: vec![].into(),
-        pc: 0.into(),
-        pc_offset: 0.into(),
-    };
-    run_function(state, Rc::new(next_entry));
-    if state.terminate || state.throw {
-        unimplemented!()
-    }
-    if state.function_return {
-        state.function_return = false;
-    }
-    current_frame.operand_stack.borrow_mut().push(string_object);
-}
-
-pub fn new(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: usize) -> () {
-    let loader_arc = &current_frame.class_pointer.loader;
-    let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-    let class_name_index = match &constant_pool[cp as usize].kind {
-        ConstantKind::Class(c) => c.name_index,
-        _ => panic!()
-    };
-    let target_class_name = ClassName::Str(extract_string_from_utf8(&constant_pool[class_name_index as usize]));
-    let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone().into(), loader_arc.clone());
-    push_new_object(current_frame.clone().into(), &target_classfile);
-}
 
 pub fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader;

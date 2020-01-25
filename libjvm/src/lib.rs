@@ -10,7 +10,7 @@ use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::get_or_create_class_object;
 use std::rc::Rc;
 use std::intrinsics::transmute;
-use slow_interpreter::rust_jni::{get_state, get_frame, to_object};
+use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object};
 use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType};
 
 

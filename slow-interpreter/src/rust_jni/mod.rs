@@ -17,7 +17,7 @@ use std::mem::transmute;
 use std::ops::Deref;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
-use std::cell::{RefCell, Ref};
+use std::cell::RefCell;
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8, get_super_class_name};
 use std::collections::HashMap;
 use rust_jvm_common::classfile::CPIndex;
@@ -28,10 +28,11 @@ use std::mem::size_of;
 use std::convert::TryInto;
 use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
 use std::rc::Rc;
-use crate::get_or_create_class_object;
 use crate::rust_jni::value_conversion::to_native_type;
 use crate::interpreter_util::check_inited_class;
-use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jchar, _jobject, jobject, JNINativeInterface_, jmethodID};
+use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
+use crate::rust_jni::native_util::{get_state, get_frame, get_object, to_object};
+use crate::rust_jni::interface::get_interface;
 
 
 pub mod value_conversion;
@@ -149,26 +150,6 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
     0
 }
 
-//todo shouldn't this be handled by a registered native
-unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
-                                         name: jstring,
-                                         is_copy: *mut jboolean) -> *const c_char {
-    let str_obj: Arc<Object> = get_object(name);
-    let unwrapped = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_array();
-    let refcell: &RefCell<Vec<JavaValue>> = &unwrapped;
-    let char_array: &Ref<Vec<JavaValue>> = &refcell.borrow();
-    let chars_layout = Layout::from_size_align((char_array.len() + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
-    let res = std::alloc::alloc(chars_layout) as *mut c_char;
-    char_array.iter().enumerate().for_each(|(i, j)| {
-        let cur = j.unwrap_char() as u8;
-        res.offset(i as isize).write(transmute(cur))
-    });
-    res.offset(char_array.len() as isize).write(0);//null terminate
-    if is_copy != std::ptr::null_mut() {
-        unimplemented!()
-    }
-    return res;
-}
 
 fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass>, i: usize) -> () {
     if jni_context.registered_natives.borrow().contains_key(runtime_class) {
@@ -187,9 +168,7 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
     }
 }
 
-unsafe extern "C" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, _chars: *const jchar) {
-    unimplemented!()
-}
+
 
 unsafe extern "C" fn release_string_utfchars(_env: *mut JNIEnv, _str: jstring, chars: *const c_char) {
     let len = libc::strlen(chars);
@@ -263,282 +242,7 @@ pub struct MethodId {
     pub method_i: usize,
 }
 
-
-pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
-    let obj: Arc<Object> = get_object(obj);//todo double free hazard
-    let state = get_state(env);
-    let frame = get_frame(env);
-    let class_object = get_or_create_class_object(state, &class_name(&obj.class_pointer.classfile), frame, obj.class_pointer.loader.clone());
-    to_object(class_object) as jclass
-}
-
-pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<CallStackEntry> {
-    let res = ((**env).reserved1 as *mut Rc<CallStackEntry>).as_ref().unwrap();// ptr::as_ref
-    res.clone()
-}
-
-pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterState {
-    &mut (*((**env).reserved0 as *mut InterpreterState))
-}
-
-pub unsafe extern "C" fn to_object(obj: Arc<Object>) -> jobject {
-    Box::into_raw(Box::new(obj)) as *mut _jobject
-}
-
-pub unsafe extern "C" fn get_object(obj: jobject) -> Arc<Object> {
-    (obj as *mut Arc<Object>).as_ref().unwrap().clone()
-}
-
-
-//NewStringUTF
-//CallObjectMethod
-//ExceptionOccurred
-//DeleteLocalRef
-
-fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNINativeInterface_ {
-    JNINativeInterface_ {
-        reserved0: unsafe { transmute(state) },
-        reserved1: {
-            let boxed = Box::new(frame);
-            Box::into_raw(boxed) as *mut c_void
-        },
-        reserved2: std::ptr::null_mut(),
-        reserved3: std::ptr::null_mut(),
-        GetVersion: None,
-        DefineClass: None,
-        FindClass: None,
-        FromReflectedMethod: None,
-        FromReflectedField: None,
-        ToReflectedMethod: None,
-        GetSuperclass: None,
-        IsAssignableFrom: None,
-        ToReflectedField: None,
-        Throw: None,
-        ThrowNew: None,
-        ExceptionOccurred: None,
-        ExceptionDescribe: None,
-        ExceptionClear: None,
-        FatalError: None,
-        PushLocalFrame: None,
-        PopLocalFrame: None,
-        NewGlobalRef: None,
-        DeleteGlobalRef: None,
-        DeleteLocalRef: None,
-        IsSameObject: None,
-        NewLocalRef: None,
-        EnsureLocalCapacity: None,
-        AllocObject: None,
-        NewObject: None,
-        NewObjectV: None,
-        NewObjectA: None,
-        GetObjectClass: Some(get_object_class),
-        IsInstanceOf: None,
-        GetMethodID: Some(get_method_id),
-        CallObjectMethod: None,
-        CallObjectMethodV: None,
-        CallObjectMethodA: None,
-        CallBooleanMethod: None,
-        CallBooleanMethodV: None,
-        CallBooleanMethodA: None,
-        CallByteMethod: None,
-        CallByteMethodV: None,
-        CallByteMethodA: None,
-        CallCharMethod: None,
-        CallCharMethodV: None,
-        CallCharMethodA: None,
-        CallShortMethod: None,
-        CallShortMethodV: None,
-        CallShortMethodA: None,
-        CallIntMethod: None,
-        CallIntMethodV: None,
-        CallIntMethodA: None,
-        CallLongMethod: None,
-        CallLongMethodV: None,
-        CallLongMethodA: None,
-        CallFloatMethod: None,
-        CallFloatMethodV: None,
-        CallFloatMethodA: None,
-        CallDoubleMethod: None,
-        CallDoubleMethodV: None,
-        CallDoubleMethodA: None,
-        CallVoidMethod: None,
-        CallVoidMethodV: None,
-        CallVoidMethodA: None,
-        CallNonvirtualObjectMethod: None,
-        CallNonvirtualObjectMethodV: None,
-        CallNonvirtualObjectMethodA: None,
-        CallNonvirtualBooleanMethod: None,
-        CallNonvirtualBooleanMethodV: None,
-        CallNonvirtualBooleanMethodA: None,
-        CallNonvirtualByteMethod: None,
-        CallNonvirtualByteMethodV: None,
-        CallNonvirtualByteMethodA: None,
-        CallNonvirtualCharMethod: None,
-        CallNonvirtualCharMethodV: None,
-        CallNonvirtualCharMethodA: None,
-        CallNonvirtualShortMethod: None,
-        CallNonvirtualShortMethodV: None,
-        CallNonvirtualShortMethodA: None,
-        CallNonvirtualIntMethod: None,
-        CallNonvirtualIntMethodV: None,
-        CallNonvirtualIntMethodA: None,
-        CallNonvirtualLongMethod: None,
-        CallNonvirtualLongMethodV: None,
-        CallNonvirtualLongMethodA: None,
-        CallNonvirtualFloatMethod: None,
-        CallNonvirtualFloatMethodV: None,
-        CallNonvirtualFloatMethodA: None,
-        CallNonvirtualDoubleMethod: None,
-        CallNonvirtualDoubleMethodV: None,
-        CallNonvirtualDoubleMethodA: None,
-        CallNonvirtualVoidMethod: None,
-        CallNonvirtualVoidMethodV: None,
-        CallNonvirtualVoidMethodA: None,
-        GetFieldID: None,
-        GetObjectField: None,
-        GetBooleanField: None,
-        GetByteField: None,
-        GetCharField: None,
-        GetShortField: None,
-        GetIntField: None,
-        GetLongField: None,
-        GetFloatField: None,
-        GetDoubleField: None,
-        SetObjectField: None,
-        SetBooleanField: None,
-        SetByteField: None,
-        SetCharField: None,
-        SetShortField: None,
-        SetIntField: None,
-        SetLongField: None,
-        SetFloatField: None,
-        SetDoubleField: None,
-        GetStaticMethodID: None,
-        CallStaticObjectMethod: None,
-        CallStaticObjectMethodV: None,
-        CallStaticObjectMethodA: None,
-        CallStaticBooleanMethod: None,
-        CallStaticBooleanMethodV: None,
-        CallStaticBooleanMethodA: None,
-        CallStaticByteMethod: None,
-        CallStaticByteMethodV: None,
-        CallStaticByteMethodA: None,
-        CallStaticCharMethod: None,
-        CallStaticCharMethodV: None,
-        CallStaticCharMethodA: None,
-        CallStaticShortMethod: None,
-        CallStaticShortMethodV: None,
-        CallStaticShortMethodA: None,
-        CallStaticIntMethod: None,
-        CallStaticIntMethodV: None,
-        CallStaticIntMethodA: None,
-        CallStaticLongMethod: None,
-        CallStaticLongMethodV: None,
-        CallStaticLongMethodA: None,
-        CallStaticFloatMethod: None,
-        CallStaticFloatMethodV: None,
-        CallStaticFloatMethodA: None,
-        CallStaticDoubleMethod: None,
-        CallStaticDoubleMethodV: None,
-        CallStaticDoubleMethodA: None,
-        CallStaticVoidMethod: None,
-        CallStaticVoidMethodV: None,
-        CallStaticVoidMethodA: None,
-        GetStaticFieldID: None,
-        GetStaticObjectField: None,
-        GetStaticBooleanField: None,
-        GetStaticByteField: None,
-        GetStaticCharField: None,
-        GetStaticShortField: None,
-        GetStaticIntField: None,
-        GetStaticLongField: None,
-        GetStaticFloatField: None,
-        GetStaticDoubleField: None,
-        SetStaticObjectField: None,
-        SetStaticBooleanField: None,
-        SetStaticByteField: None,
-        SetStaticCharField: None,
-        SetStaticShortField: None,
-        SetStaticIntField: None,
-        SetStaticLongField: None,
-        SetStaticFloatField: None,
-        SetStaticDoubleField: None,
-        NewString: None,
-        GetStringLength: None,
-        GetStringChars: None,
-        ReleaseStringChars: Some(release_string_chars),
-        NewStringUTF: None,
-        GetStringUTFLength: None,
-        GetStringUTFChars: Some(get_string_utfchars),
-        ReleaseStringUTFChars: Some(release_string_utfchars),
-        GetArrayLength: None,
-        NewObjectArray: None,
-        GetObjectArrayElement: None,
-        SetObjectArrayElement: None,
-        NewBooleanArray: None,
-        NewByteArray: None,
-        NewCharArray: None,
-        NewShortArray: None,
-        NewIntArray: None,
-        NewLongArray: None,
-        NewFloatArray: None,
-        NewDoubleArray: None,
-        GetBooleanArrayElements: None,
-        GetByteArrayElements: None,
-        GetCharArrayElements: None,
-        GetShortArrayElements: None,
-        GetIntArrayElements: None,
-        GetLongArrayElements: None,
-        GetFloatArrayElements: None,
-        GetDoubleArrayElements: None,
-        ReleaseBooleanArrayElements: None,
-        ReleaseByteArrayElements: None,
-        ReleaseCharArrayElements: None,
-        ReleaseShortArrayElements: None,
-        ReleaseIntArrayElements: None,
-        ReleaseLongArrayElements: None,
-        ReleaseFloatArrayElements: None,
-        ReleaseDoubleArrayElements: None,
-        GetBooleanArrayRegion: None,
-        GetByteArrayRegion: None,
-        GetCharArrayRegion: None,
-        GetShortArrayRegion: None,
-        GetIntArrayRegion: None,
-        GetLongArrayRegion: None,
-        GetFloatArrayRegion: None,
-        GetDoubleArrayRegion: None,
-        SetBooleanArrayRegion: None,
-        SetByteArrayRegion: None,
-        SetCharArrayRegion: None,
-        SetShortArrayRegion: None,
-        SetIntArrayRegion: None,
-        SetLongArrayRegion: None,
-        SetFloatArrayRegion: None,
-        SetDoubleArrayRegion: None,
-        RegisterNatives: Some(register_natives),
-        UnregisterNatives: None,
-        MonitorEnter: None,
-        MonitorExit: None,
-        GetJavaVM: None,
-        GetStringRegion: None,
-        GetStringUTFRegion: None,
-        GetPrimitiveArrayCritical: None,
-        ReleasePrimitiveArrayCritical: None,
-        GetStringCritical: None,
-        ReleaseStringCritical: None,
-        NewWeakGlobalRef: None,
-        DeleteWeakGlobalRef: None,
-        ExceptionCheck: Some(exception_check),
-        NewDirectByteBuffer: None,
-        GetDirectBufferAddress: None,
-        GetDirectBufferCapacity: None,
-        GetObjectRefType: None,
-    }
-}
-
-pub mod dlopen {
-    #![allow(non_upper_case_globals)]
-    #![allow(non_camel_case_types)]
-    #![allow(non_snake_case)]
-    include!(concat!("../../gen", "/dlopen.rs"));
-}
+pub mod native_util;
+pub mod interface;
+pub mod string;
+pub mod dlopen;
