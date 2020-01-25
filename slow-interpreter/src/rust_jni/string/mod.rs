@@ -5,7 +5,8 @@ use std::cell::{Ref, RefCell};
 use std::sync::Arc;
 use std::alloc::Layout;
 use std::mem::{size_of, transmute};
-use crate::rust_jni::native_util::get_object;
+use crate::rust_jni::native_util::{get_object, get_state, get_frame, to_object};
+use crate::instructions::ldc::create_string_on_stack;
 
 //todo shouldn't this be handled by a registered native
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
@@ -35,10 +36,13 @@ pub unsafe extern "C" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, 
 
 pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char) -> jstring {
     let len = libc::strlen(utf);
-    let mut owned_chars = Vec::with_capacity(len);
+    let mut owned_str = String::with_capacity(len);
     for i in 0..len {
-        owned_chars.push(utf.offset(i as isize).read() as u8 as char);
+        owned_str.push(utf.offset(i as isize).read() as u8 as char);
     }
-
-    unimplemented!()
+    let state = get_state(env);
+    let frame = get_frame(env);
+    create_string_on_stack(state,&frame,owned_str);
+    let string = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    to_object(string)
 }

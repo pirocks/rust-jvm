@@ -25,7 +25,7 @@ fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallSta
     create_string_on_stack(state, current_frame, res_string);
 }
 
-fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, res_string: String) {
+pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, res_string: String) {
     let java_lang_string = ClassName::Str("java/lang/String".to_string());
     let current_loader = current_frame.class_pointer.loader.clone();
     let string_class = check_inited_class(state, &java_lang_string, current_frame.clone().into(), current_loader.clone());
