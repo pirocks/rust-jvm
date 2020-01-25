@@ -33,6 +33,7 @@ use crate::interpreter_util::check_inited_class;
 use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
 use crate::rust_jni::native_util::{get_state, get_frame, from_object};
 use crate::rust_jni::interface::get_interface;
+use std::io::Error;
 
 
 pub mod value_conversion;
@@ -50,9 +51,12 @@ pub fn new_java_loading(path: String) -> LibJavaLoading {
 }
 
 
-pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Option<JavaValue> {
+pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Result<Option<JavaValue>,Error> {
     let mangled = mangling::mangle(classfile.clone(), method_i);
-    let symbol: Symbol<unsafe extern fn()> = unsafe { state.jni.lib.get(mangled.as_bytes()).unwrap() };
+    let symbol: Symbol<unsafe extern fn()> = unsafe { match state.jni.lib.get(mangled.as_bytes()){
+        Ok(o) => o,
+        Err(e) => return Result::Err(e),
+    } };
     let raw = symbol.deref();
     let mut args_type = vec![Type::pointer(), Type::pointer()];
     let jclass: jclass = unsafe { transmute(&classfile) };
@@ -64,11 +68,10 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
     }
     let cif = Cif::new(args_type.into_iter(), Type::usize());//todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
-    dbg!(&c_args);
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
-    match return_type {
+    Result::Ok(match return_type {
         ParsedType::VoidType => {
             None
         }
@@ -100,7 +103,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
             dbg!(return_type);
             panic!()
         }
-    }
+    })
 }
 
 
@@ -129,7 +132,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
 }
 
 
-fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass>, i: usize) -> () {
+fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass>, method_i: usize) -> () {
     if jni_context.registered_natives.borrow().contains_key(runtime_class) {
         unsafe {
             jni_context.registered_natives
@@ -137,11 +140,11 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
                 .get(runtime_class)
                 .unwrap()
                 .borrow_mut()
-                .insert(i as CPIndex, transmute(method.fnPtr));
+                .insert(method_i as CPIndex, transmute(method.fnPtr));
         }
     } else {
         let mut map = HashMap::new();
-        map.insert(i as CPIndex, unsafe { transmute(method.fnPtr) });
+        map.insert(method_i as CPIndex, unsafe { transmute(method.fnPtr) });
         jni_context.registered_natives.borrow_mut().insert(runtime_class.clone(), RefCell::new(map));
     }
 }

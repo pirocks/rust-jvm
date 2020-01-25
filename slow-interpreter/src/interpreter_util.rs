@@ -78,7 +78,7 @@ pub fn run_function(
             InstructionInfo::astore_0 => unimplemented!(),
             InstructionInfo::astore_1 => astore(&current_frame, 1),
             InstructionInfo::astore_2 => astore(&current_frame, 2),
-            InstructionInfo::astore_3 => unimplemented!(),
+            InstructionInfo::astore_3 => astore(&current_frame, 3),
             InstructionInfo::athrow => unimplemented!(),
             InstructionInfo::baload => unimplemented!(),
             InstructionInfo::bastore => unimplemented!(),

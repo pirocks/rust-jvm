@@ -83,19 +83,13 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
 }
 
 pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, expected_method_name: String, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
-    if target_method.access_flags & ACC_ABSTRACT == 0 {
+    if target_method.access_flags & ACC_NATIVE > 0 {
+        run_native_method(state,current_frame.clone(),target_class,target_method_i)
+    } else if target_method.access_flags & ACC_ABSTRACT == 0  {
         let mut args = vec![];
         let max_locals = code_attribute(target_method).unwrap().max_locals;
 
-        for _ in 0..max_locals {
-            args.push(JavaValue::Top);
-        }
-        for i in 1..(expected_descriptor.parameter_types.len() + 1) {
-            args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
-            //todo does ordering end up correct
-        }
-        args[1..(expected_descriptor.parameter_types.len() + 1)].reverse();
-        args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+        setup_virtual_args(&current_frame, &expected_descriptor, &mut args, max_locals);
         let next_entry = CallStackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class.clone(),
@@ -117,6 +111,18 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<C
     } else {
         unimplemented!()
     }
+}
+
+pub fn setup_virtual_args(current_frame: &Rc<CallStackEntry>, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
+    for _ in 0..max_locals {
+        args.push(JavaValue::Top);
+    }
+    for i in 1..(expected_descriptor.parameter_types.len() + 1) {
+        args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+        //todo does ordering end up correct
+    }
+    args[1..(expected_descriptor.parameter_types.len() + 1)].reverse();
+    args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
 }
 
 pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16) {

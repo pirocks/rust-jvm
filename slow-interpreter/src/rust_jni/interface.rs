@@ -2,7 +2,7 @@ use runtime_common::{InterpreterState, CallStackEntry};
 use std::rc::Rc;
 use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID};
 use std::mem::transmute;
-use std::ffi::{c_void, VaList};
+use std::ffi::c_void;
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars};

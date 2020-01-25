@@ -21,7 +21,6 @@ pub fn to_native(j: JavaValue) -> Arg {
             Some(op) => {
                 unsafe {
                     let object_ptr = to_object(op.object) as *mut c_void;
-                    dbg!(object_ptr);
                     let ref_box = Box::new(object_ptr);
                     //todo don;t forget to free later, and/or do this with lifetimes
                     Arg::new/*::<*mut c_void>*/(Box::leak(ref_box))

@@ -43,6 +43,6 @@ pub struct CallStackEntry {
 #[derive(Debug)]
 pub struct LibJavaLoading {
     pub lib: Library,
-    pub registered_natives: RefCell<HashMap<Arc<RuntimeClass>, RefCell<HashMap<CPIndex, unsafe extern fn()>>>>
+    pub registered_natives: RefCell<HashMap<Arc<RuntimeClass>, RefCell<HashMap<u16, unsafe extern fn()>>>>
 }
 
