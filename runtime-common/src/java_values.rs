@@ -60,7 +60,12 @@ impl JavaValue{
     pub fn unwrap_object(&self) -> Arc<Object> {
         match self {
             JavaValue::Object(o) => {
-                o.as_ref().unwrap().object.clone()
+                let option = o.as_ref();
+                match option {
+                    None => {log::trace!("NPE occurred")},
+                    Some(_) => {},
+                }
+                option.unwrap().object.clone()
             }
             _ => {
                 dbg!(self);
