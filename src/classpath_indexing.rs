@@ -1,6 +1,6 @@
 
-extern crate walkdir;
-extern crate pathdiff;
+//extern crate walkdir;
+//extern crate pathdiff;
 
 
 //fn parse_classpath_file(path : &Path) -> Vec<Box<String>>{

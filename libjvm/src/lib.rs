@@ -1,7 +1,5 @@
 //#![feature(asm)]
 
-#![allow(non_upper_case_globals)]
-#![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(unused)]
 
@@ -12,7 +10,8 @@ use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::get_or_create_class_object;
 use std::rc::Rc;
 use std::intrinsics::transmute;
-include!(concat!("../gen", "/bindings.rs"));
+use slow_interpreter::rust_jni::{get_state, get_frame};
+use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info};
 
 
 //so in theoru I need something like this:
@@ -398,10 +397,10 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         *utf.offset(1) == 'l' as i8 &&
         *utf.offset(2) == 'o' as i8 &&
         *utf.offset(3) == 'a' as i8 &&
-        *utf.offset(4) == 't' as i8 /*&&
-        *utf.offset(5) == 0*/ {
-        let state = &mut (*((**env).reserved0 as *mut InterpreterState));
-        let frame = Rc::from_raw((**env).reserved1 as *const CallStackEntry);
+        *utf.offset(4) == 't' as i8 &&
+        *utf.offset(5) == 0 {
+        let state = get_state(env);
+        let frame = get_frame(env);
         let res = get_or_create_class_object(state,&ClassName::Str("java/lang/Float".to_string()),frame,state.bootstrap_loader.clone());//todo what if not using bootstap loader
         return  transmute(res)
     }

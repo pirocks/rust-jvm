@@ -1,5 +1,4 @@
 extern crate libloading;
-extern crate jni;
 extern crate libc;
 extern crate log;
 extern crate simple_logger;
@@ -18,23 +17,21 @@ use std::mem::transmute;
 use std::ops::Deref;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
-use jni::sys::jclass;
 use std::cell::{RefCell, Ref};
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8, get_super_class_name};
 use std::collections::HashMap;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::{class_name, ClassName};
 use std::os::raw::{c_char, c_void};
-use std::borrow::Borrow;
 use std::alloc::Layout;
 use std::mem::size_of;
 use std::convert::TryInto;
 use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
 use std::rc::Rc;
-use jni::sys::*;
 use crate::get_or_create_class_object;
 use crate::rust_jni::value_conversion::to_native_type;
 use crate::interpreter_util::check_inited_class;
+use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jchar, _jobject, jobject, JNINativeInterface_, jmethodID};
 
 
 pub mod value_conversion;
@@ -128,7 +125,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
 }
 
 
-unsafe extern "system" fn register_natives(env: *mut JNIEnv,
+unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                            clazz: jclass,
                                            methods: *const JNINativeMethod,
                                            n_methods: jint) -> jint {
@@ -153,7 +150,7 @@ unsafe extern "system" fn register_natives(env: *mut JNIEnv,
 }
 
 //todo shouldn't this be handled by a registered native
-unsafe extern "system" fn get_string_utfchars(_env: *mut JNIEnv,
+unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
                                               name: jstring,
                                               is_copy: *mut jboolean) -> *const c_char {
     let str_obj: Arc<Object> = get_object(name);
@@ -190,17 +187,17 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
     }
 }
 
-unsafe extern "system" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, _chars: *const jchar) {
+unsafe extern "C" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, _chars: *const jchar) {
     unimplemented!()
 }
 
-unsafe extern "system" fn release_string_utfchars(_env: *mut JNIEnv, _str: jstring, chars: *const c_char) {
+unsafe extern "C" fn release_string_utfchars(_env: *mut JNIEnv, _str: jstring, chars: *const c_char) {
     let len = libc::strlen(chars);
     let chars_layout = Layout::from_size_align((len + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
     std::alloc::dealloc(chars as *mut u8, chars_layout);
 }
 
-unsafe extern "system" fn exception_check(_env: *mut JNIEnv) -> jboolean {
+unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
@@ -226,7 +223,7 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<CallStackEntry>, 
 }
 
 //for now a method id is a pair of class pointers and i.
-unsafe extern "system" fn get_method_id(env: *mut JNIEnv,
+unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
                                         clazz: jclass,
                                         name: *const c_char,
                                         sig: *const c_char)
@@ -271,7 +268,7 @@ pub struct MethodId{
 }
 
 
-unsafe extern "system" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
+pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let obj: Arc<Object> = Arc::from_raw(transmute(obj));//todo double free hazard
     let state = get_state(env);
     let frame = get_frame(env);
@@ -279,20 +276,20 @@ unsafe extern "system" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jc
     to_object(class_object) as jclass
 }
 
-unsafe extern "system" fn get_frame(env: *mut JNIEnv) -> Rc<CallStackEntry>{
+pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<CallStackEntry>{
     let res = ((**env).reserved1 as *mut Rc<CallStackEntry>).as_ref().unwrap();// ptr::as_ref
     res.clone()
 }
 
-unsafe extern "system" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterState{
+pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterState{
     &mut (*((**env).reserved0 as *mut InterpreterState))
 }
 
-unsafe extern "system" fn to_object(obj : Arc<Object>) -> jobject{
+pub unsafe extern "C" fn to_object(obj : Arc<Object>) -> jobject{
     Box::into_raw(Box::new(obj)) as *mut _jobject
 }
 
-unsafe extern "system" fn get_object( obj: jobject) -> Arc<Object> {
+pub unsafe extern "C" fn get_object( obj: jobject) -> Arc<Object> {
     (obj as *mut Arc<Object>).as_ref().unwrap().clone()
 }
 
