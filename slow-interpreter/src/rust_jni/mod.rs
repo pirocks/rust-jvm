@@ -51,22 +51,32 @@ pub fn new_java_loading(path: String) -> LibJavaLoading {
 }
 
 
-pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Result<Option<JavaValue>,Error> {
+pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Result<Option<JavaValue>, Error> {
     let mangled = mangling::mangle(classfile.clone(), method_i);
-    let symbol: Symbol<unsafe extern fn()> = unsafe { match state.jni.lib.get(mangled.as_bytes()){
-        Ok(o) => o,
-        Err(e) => return Result::Err(e),
-    } };
-    let raw = symbol.deref();
+    let raw = {
+        let symbol: Symbol<unsafe extern fn()> = unsafe {
+            match state.jni.lib.get(mangled.as_bytes()) {
+                Ok(o) => o,
+                Err(e) => return Result::Err(e),
+            }
+        };
+        symbol.deref().clone()
+    };
+    call_impl(state, current_frame, classfile, args, return_type, &raw)
+}
+
+pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn()) -> Result<Option<JavaValue>, Error> {
     let mut args_type = vec![Type::pointer(), Type::pointer()];
     let jclass: jclass = unsafe { transmute(&classfile) };
     let env = &get_interface(state, current_frame);
-    let mut c_args = vec![Arg::new(&&env), Arg::new(&jclass)];//todo inconsistent
+    let mut c_args = vec![Arg::new(&&env), Arg::new(&jclass)];
+//todo inconsistent
     for j in args {
         args_type.push(to_native_type(j.clone()));
         c_args.push(to_native(j));
     }
-    let cif = Cif::new(args_type.into_iter(), Type::usize());//todo what if float
+    let cif = Cif::new(args_type.into_iter(), Type::usize());
+//todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
@@ -148,7 +158,6 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
         jni_context.registered_natives.borrow_mut().insert(runtime_class.clone(), RefCell::new(map));
     }
 }
-
 
 
 unsafe extern "C" fn release_string_utfchars(_env: *mut JNIEnv, _str: jstring, chars: *const c_char) {

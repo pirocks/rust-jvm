@@ -262,7 +262,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let method_id = (method_id as *mut MethodId).as_ref().unwrap();
     let classfile = method_id.class.classfile.clone();
     let method = &classfile.methods[method_id.method_i];
-    dbg!(method.access_flags & ACC_STATIC);
+//    dbg!(method.access_flags & ACC_STATIC);
     if method.access_flags & ACC_STATIC > 0 {
         unimplemented!()
     }

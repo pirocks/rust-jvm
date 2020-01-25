@@ -9,7 +9,7 @@ use rust_jvm_common::classfile::{ACC_STATIC, ACC_NATIVE};
 use runtime_common::java_values::JavaValue;
 use std::cell::RefCell;
 use std::borrow::Borrow;
-use crate::rust_jni::call;
+use crate::rust_jni::{call, call_impl};
 use crate::instructions::invoke::setup_virtual_args;
 
 pub fn run_native_method(
@@ -47,14 +47,20 @@ pub fn run_native_method(
             let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
             dest.borrow_mut()[dest_pos + i] = temp;
         }
-    } else if state.jni.registered_natives.borrow().contains_key(&class) &&
-        state.jni.registered_natives.borrow().get(&class).unwrap().borrow().contains_key(&(method_i as u16))
+    } else {
+        let result = if state.jni.registered_natives.borrow().contains_key(&class) &&
+            state.jni.registered_natives.borrow().get(&class).unwrap().borrow().contains_key(&(method_i as u16))
         {
             //todo dup
-            let res_fn = state.jni.registered_natives.borrow().get(&class).unwrap().borrow().get(&(method_i as u16)).unwrap();
-
-    } else {
-        let result = call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type).unwrap();
+            let res_fn = {
+                let reg_natives = state.jni.registered_natives.borrow();
+                let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
+                reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
+            };
+            call_impl(state, frame.clone(), class, args, parsed.return_type, &res_fn).unwrap()
+        } else {
+            call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type).unwrap()
+        };
         match result {
             None => {}
             Some(res) => frame.operand_stack.borrow_mut().push(res),

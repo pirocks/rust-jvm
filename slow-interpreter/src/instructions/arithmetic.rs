@@ -15,6 +15,12 @@ pub fn land(current_frame: Rc<CallStackEntry>) -> () {
     current_frame.operand_stack.borrow_mut().push(JavaValue::Long(first & second))
 }
 
+pub fn iand(current_frame: &Rc<CallStackEntry>) -> () {
+    let first = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
+    let second = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
+    current_frame.operand_stack.borrow_mut().push(JavaValue::Int(first & second))
+}
+
 pub fn ladd(current_frame: Rc<CallStackEntry>) -> () {
     let first = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
     let second = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();

@@ -20,7 +20,7 @@ use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i};
 use crate::instructions::new::{new, anewarray, newarray};
 use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
-use crate::instructions::arithmetic::{ladd, land, lshl, fmul};
+use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand};
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::dup;
@@ -157,7 +157,7 @@ pub fn run_function(
             InstructionInfo::i2s => unimplemented!(),
             InstructionInfo::iadd => unimplemented!(),
             InstructionInfo::iaload => unimplemented!(),
-            InstructionInfo::iand => unimplemented!(),
+            InstructionInfo::iand => iand(&current_frame),
             InstructionInfo::iastore => unimplemented!(),
             InstructionInfo::iconst_m1 => unimplemented!(),
             InstructionInfo::iconst_0 => iconst_0(&current_frame),
@@ -184,7 +184,7 @@ pub fn run_function(
             InstructionInfo::ifnonnull(offset) => ifnonnull(&current_frame, offset),
             InstructionInfo::ifnull(offset) => ifnull(&current_frame, offset),
             InstructionInfo::iinc(_) => unimplemented!(),
-            InstructionInfo::iload(_) => unimplemented!(),
+            InstructionInfo::iload(n) => iload(&current_frame, n as usize),
             InstructionInfo::iload_0 => iload(&current_frame, 0),
             InstructionInfo::iload_1 => iload(&current_frame, 1),
             InstructionInfo::iload_2 => iload(&current_frame, 2),
@@ -202,11 +202,11 @@ pub fn run_function(
             InstructionInfo::ireturn => ireturn(state, &current_frame),
             InstructionInfo::ishl => unimplemented!(),
             InstructionInfo::ishr => unimplemented!(),
-            InstructionInfo::istore(_) => unimplemented!(),
-            InstructionInfo::istore_0 => unimplemented!(),
-            InstructionInfo::istore_1 => unimplemented!(),
-            InstructionInfo::istore_2 => unimplemented!(),
-            InstructionInfo::istore_3 => unimplemented!(),
+            InstructionInfo::istore(n) => istore(&current_frame, n),
+            InstructionInfo::istore_0 => istore(&current_frame, 0),
+            InstructionInfo::istore_1 => istore(&current_frame, 1),
+            InstructionInfo::istore_2 => istore(&current_frame, 2),
+            InstructionInfo::istore_3 => istore(&current_frame, 3),
             InstructionInfo::isub => unimplemented!(),
             InstructionInfo::iushr => unimplemented!(),
             InstructionInfo::ixor => unimplemented!(),
@@ -277,6 +277,18 @@ pub fn run_function(
         }
         current_frame.pc.replace(pc);
     }
+}
+
+fn istore(current_frame: &Rc<CallStackEntry>, n: u8) -> () {
+    let object_ref = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    match object_ref.clone() {
+        JavaValue::Int(_) => {}
+        _ => {
+            dbg!(&object_ref);
+            panic!()
+        }
+    }
+    current_frame.local_vars.borrow_mut()[n as usize] = object_ref;
 }
 
 
