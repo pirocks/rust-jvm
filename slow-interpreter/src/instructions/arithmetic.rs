@@ -21,6 +21,13 @@ pub fn iand(current_frame: &Rc<CallStackEntry>) -> () {
     current_frame.operand_stack.borrow_mut().push(JavaValue::Int(first & second))
 }
 
+
+pub fn irem(current_frame: &Rc<CallStackEntry>) -> () {
+    let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
+    let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
+    current_frame.operand_stack.borrow_mut().push(JavaValue::Int( value1 % value2));
+}
+
 pub fn ladd(current_frame: Rc<CallStackEntry>) -> () {
     let first = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();
     let second = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_long();

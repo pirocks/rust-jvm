@@ -20,7 +20,7 @@ use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i};
 use crate::instructions::new::{new, anewarray, newarray};
 use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
-use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand};
+use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem};
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::dup;
@@ -198,7 +198,7 @@ pub fn run_function(
             InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp),
             InstructionInfo::invokevirtual(cp) => invoke_virtual(state, current_frame.clone(), cp),
             InstructionInfo::ior => unimplemented!(),
-            InstructionInfo::irem => unimplemented!(),
+            InstructionInfo::irem => irem(&current_frame),
             InstructionInfo::ireturn => ireturn(state, &current_frame),
             InstructionInfo::ishl => unimplemented!(),
             InstructionInfo::ishr => unimplemented!(),
