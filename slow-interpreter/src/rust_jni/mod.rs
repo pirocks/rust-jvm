@@ -31,7 +31,7 @@ use std::rc::Rc;
 use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
 use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
-use crate::rust_jni::native_util::{get_state, get_frame, get_object};
+use crate::rust_jni::native_util::{get_state, get_frame, from_object};
 use crate::rust_jni::interface::get_interface;
 
 
@@ -86,7 +86,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
         }
         ParsedType::Class(_) => {
             unsafe {
-                Some(JavaValue::Object(ObjectPointer { object: get_object(transmute(cif_res)) }.into()))
+                Some(JavaValue::Object(ObjectPointer { object: from_object(transmute(cif_res)) }.into()))
             }
         }
 //            ParsedType::ShortType => {}
@@ -200,7 +200,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
 
     let state = get_state(env);
     let frame = get_frame(env);//todo leak hazard
-    let class_obj: Arc<Object> = get_object(clazz);//todo major double free hazard
+    let class_obj: Arc<Object> = from_object(clazz);//todo major double free hazard
     let all_methods = get_all_methods(state, frame, class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];

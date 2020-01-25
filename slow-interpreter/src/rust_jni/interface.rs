@@ -4,13 +4,14 @@ use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID};
 use std::mem::transmute;
 use std::ffi::{c_void, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
-use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object};
+use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars};
 use crate::instructions::invoke::invoke_virtual_method_i;
 use rust_jvm_common::classfile::ACC_STATIC;
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
+use runtime_common::java_values::{JavaValue, ObjectPointer};
 
 //CallObjectMethod
 //ExceptionOccurred
@@ -268,31 +269,40 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let state = get_state(env);
     let frame = get_frame(env);
     //todo simplify use of this.
-    let exp_method_name = method_name(&classfile,method);
+    let exp_method_name = method_name(&classfile, method);
     let exp_descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index as usize]);
-    let parsed = parse_method_descriptor(&method_id.class.loader,exp_descriptor_str.as_str()).unwrap();
+    let parsed = parse_method_descriptor(&method_id.class.loader, exp_descriptor_str.as_str()).unwrap();
 
-    for type_ in &parsed.parameter_types{
-        match type_{
-            ParsedType::ByteType => unimplemented!(),
-            ParsedType::CharType => unimplemented!(),
-            ParsedType::DoubleType => unimplemented!(),
-            ParsedType::FloatType => unimplemented!(),
-            ParsedType::IntType => unimplemented!(),
-            ParsedType::LongType => unimplemented!(),
-            ParsedType::Class(_) => unimplemented!(),
-            ParsedType::ShortType => unimplemented!(),
-            ParsedType::BooleanType => unimplemented!(),
-            ParsedType::ArrayReferenceType(_) => unimplemented!(),
-            ParsedType::VoidType => unimplemented!(),
-            ParsedType::TopType => unimplemented!(),
-            ParsedType::NullType => unimplemented!(),
-            ParsedType::Uninitialized(_) => unimplemented!(),
-            ParsedType::UninitializedThis => unimplemented!(),
-        }
+    frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: from_object(obj) }.into()));
+    for type_ in &parsed.parameter_types {
+        add_to_frame(&frame, type_, &mut l);
     }
     //todo add params into operand stack;
-    invoke_virtual_method_i(state,frame.clone(),exp_method_name,parsed,method_id.class.clone(),method_id.method_i,method);
-    let res= frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
+    let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
     to_object(res)
+}
+
+pub fn add_to_frame(frame: &Rc<CallStackEntry>, type_: &ParsedType, l: &mut VaList) {
+    match type_ {
+        ParsedType::ByteType => unimplemented!(),
+        ParsedType::CharType => unimplemented!(),
+        ParsedType::DoubleType => unimplemented!(),
+        ParsedType::FloatType => unimplemented!(),
+        ParsedType::IntType => unimplemented!(),
+        ParsedType::LongType => unimplemented!(),
+        ParsedType::Class(_) => {
+            let native_object: jobject = unsafe { l.arg() };
+            let o = unsafe { from_object(native_object) };
+            frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: o.clone() }.into()));
+        }
+        ParsedType::ShortType => unimplemented!(),
+        ParsedType::BooleanType => unimplemented!(),
+        ParsedType::ArrayReferenceType(_) => unimplemented!(),
+        ParsedType::VoidType => unimplemented!(),
+        ParsedType::TopType => unimplemented!(),
+        ParsedType::NullType => unimplemented!(),
+        ParsedType::Uninitialized(_) => unimplemented!(),
+        ParsedType::UninitializedThis => unimplemented!(),
+    }
 }
