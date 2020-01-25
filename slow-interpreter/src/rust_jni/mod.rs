@@ -228,15 +228,15 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
                                    name: *const c_char,
                                    sig: *const c_char)
                                    -> jmethodID {
-    let mut method_name = String::new();
     let name_len = libc::strlen(name);
+    let mut method_name = String::with_capacity(name_len);
     for i in 0..name_len {
         method_name.push(name.offset(i as isize).read() as u8 as char);
     }
 
-    let mut method_descriptor_str = String::new();
-    //todo dup
     let desc_len = libc::strlen(sig);
+    //todo dup
+    let mut method_descriptor_str = String::with_capacity(desc_len);
     for i in 0..desc_len {
         method_descriptor_str.push(sig.offset(i as isize).read() as u8 as char);
     }
@@ -254,12 +254,8 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
         cur_method_name == method_name &&
             method_descriptor_str == cur_desc
     }).unwrap();
-    let res = MethodId { class: c.clone(), method_i: *m };
-    let res_ptr_raw = std::alloc::alloc(Layout::for_value(&res));//todo could just use an int. Arguably this is a leak too.
-    let res_ptr = res_ptr_raw as *mut MethodId;
-    (&mut *res_ptr).class = res.class;
-    (&mut *res_ptr).method_i = res.method_i;
-    transmute(res_ptr)
+    let res = Box::into_raw(Box::new(MethodId { class: c.clone(), method_i: *m }));
+    transmute(res)
 }
 
 pub struct MethodId {
@@ -293,6 +289,11 @@ pub unsafe extern "C" fn get_object(obj: jobject) -> Arc<Object> {
     (obj as *mut Arc<Object>).as_ref().unwrap().clone()
 }
 
+
+//NewStringUTF
+//CallObjectMethod
+//ExceptionOccurred
+//DeleteLocalRef
 
 fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNINativeInterface_ {
     JNINativeInterface_ {
