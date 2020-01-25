@@ -39,8 +39,8 @@ pub mod mangling;
 
 pub fn new_java_loading(path: String) -> LibJavaLoading {
     trace!("Loading libjava.so from:`{}`", path);
-    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), dlopen::RTLD_NOW.try_into().unwrap()).unwrap();
-    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), dlopen::RTLD_NOW.try_into().unwrap()).unwrap();
+//    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), (dlopen::RTLD_NOW | dlopen::RTLD_GLOBAL).try_into().unwrap()).unwrap();
+    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), (dlopen::RTLD_NOW | dlopen::RTLD_GLOBAL).try_into().unwrap()).unwrap();
     let lib = Library::from(loaded);
     LibJavaLoading {
         lib,
@@ -83,7 +83,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
             JavaValue::Top => panic!()
         });
     }
-    let cif = Cif::new(args_type.into_iter(), Type::f64());
+    let cif = Cif::new(args_type.into_iter(), Type::usize());//todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
     dbg!(&c_args);
     let cif_res: *mut c_void = unsafe {
