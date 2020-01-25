@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::fs::create_dir;
 
 fn main() {
-    println!("cargo:rustc-cdylib-link-arg=-Wl,-soname,SUNWprivate_1.1");
     let jvm_include_path = env!("JVM_H");
     let jvm_md_include_path = env!("JVM_MD_H");
     let jni_md_include_path = env!("JNI_MD_H");
