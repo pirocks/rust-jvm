@@ -107,7 +107,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
         }
         ParsedType::Class(_) => {
             unsafe {
-                Some(JavaValue::Object(ObjectPointer { object: (Arc::from_raw(transmute(cif_res))) }.into()))
+                Some(JavaValue::Object(ObjectPointer { object: get_object(transmute(cif_res)) }.into()))
             }
         }
 //            ParsedType::ShortType => {}
@@ -269,7 +269,7 @@ pub struct MethodId{
 
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
-    let obj: Arc<Object> = Arc::from_raw(transmute(obj));//todo double free hazard
+    let obj: Arc<Object> = get_object(obj);//todo double free hazard
     let state = get_state(env);
     let frame = get_frame(env);
     let class_object = get_or_create_class_object(state, &class_name(&obj.class_pointer.classfile), frame, obj.class_pointer.loader.clone());
