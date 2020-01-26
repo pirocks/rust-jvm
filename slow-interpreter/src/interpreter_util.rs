@@ -24,7 +24,7 @@ use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd};
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::dup;
-use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_cmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_cmplt};
+use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne};
 use crate::instructions::special::arraylength;
 
 //todo jni should really live in interpreter state
@@ -168,12 +168,12 @@ pub fn run_function(
             InstructionInfo::iconst_5 => iconst_5(&current_frame),
             InstructionInfo::idiv => unimplemented!(),
             InstructionInfo::if_acmpeq(_) => unimplemented!(),
-            InstructionInfo::if_acmpne(_) => unimplemented!(),
+            InstructionInfo::if_acmpne(offset) => if_acmpne(&current_frame, offset),
             InstructionInfo::if_icmpeq(_) => unimplemented!(),
-            InstructionInfo::if_icmpne(_) => unimplemented!(),
-            InstructionInfo::if_icmplt(offset) => if_cmplt(&current_frame, offset),
+            InstructionInfo::if_icmpne(offset) => if_icmpne(&current_frame, offset),
+            InstructionInfo::if_icmplt(offset) => if_icmplt(&current_frame, offset),
             InstructionInfo::if_icmpge(_) => unimplemented!(),
-            InstructionInfo::if_icmpgt(offset) => if_cmpgt(&current_frame, offset),
+            InstructionInfo::if_icmpgt(offset) => if_icmpgt(&current_frame, offset),
             InstructionInfo::if_icmple(_) => unimplemented!(),
             InstructionInfo::ifeq(offset) => ifeq(&current_frame, offset),
             InstructionInfo::ifne(offset) => ifne(&current_frame, offset),

@@ -9,7 +9,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
 use rust_jvm_common::classnames::class_name;
-use log::trace;
 
 #[derive(Debug)]
 pub enum JavaValue {

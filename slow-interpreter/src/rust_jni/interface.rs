@@ -1,6 +1,6 @@
 use runtime_common::{InterpreterState, CallStackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable};
 use std::mem::transmute;
 use std::ffi::c_void;
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
@@ -38,7 +38,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
         ToReflectedField: None,
         Throw: None,
         ThrowNew: None,
-        ExceptionOccurred: None,
+        ExceptionOccurred: Some(exception_occured),
         ExceptionDescribe: None,
         ExceptionClear: None,
         FatalError: None,
@@ -46,7 +46,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
         PopLocalFrame: None,
         NewGlobalRef: None,
         DeleteGlobalRef: None,
-        DeleteLocalRef: None,
+        DeleteLocalRef: Some(delete_local_ref),
         IsSameObject: None,
         NewLocalRef: None,
         EnsureLocalCapacity: None,
@@ -304,4 +304,14 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
     let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
     to_object(res)
+}
+
+unsafe extern "C" fn exception_occured(_env: *mut JNIEnv) -> jthrowable{
+    //exceptions don't happen yet todo
+    std::ptr::null_mut()
+}
+
+
+unsafe extern "C" fn delete_local_ref(_env: *mut JNIEnv, _obj: jobject){
+    //todo no gc, just leak
 }

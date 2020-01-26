@@ -2,6 +2,7 @@
 
 extern crate log;
 extern crate simple_logger;
+extern crate libc;
 
 use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;

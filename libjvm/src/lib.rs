@@ -3,6 +3,9 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 
+extern crate log;
+extern crate simple_logger;
+
 use std::str::from_utf8;
 use std::borrow::Borrow;
 use runtime_common::{InterpreterState, CallStackEntry};
@@ -11,9 +14,8 @@ use slow_interpreter::get_or_create_class_object;
 use std::rc::Rc;
 use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object};
-use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType};
-
-
+use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf};
+use log::trace;
 //so in theoru I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -1070,7 +1072,8 @@ unsafe extern "system" fn jio_vsnprintf(
     fmt: *const ::std::os::raw::c_char,
     args: *mut __va_list_tag,
 ) -> ::std::os::raw::c_int {
-    unimplemented!()
+    trace!("{}","JIO Output");
+    vsnprintf(str, count as u64, fmt, args)
 }
 
 #[no_mangle]

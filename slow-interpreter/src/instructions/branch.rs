@@ -125,7 +125,7 @@ pub fn ifeq(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn if_cmpgt(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
+pub fn if_icmpgt(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
     let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap();
     let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap();
     let succeeds = match value1 {
@@ -141,12 +141,46 @@ pub fn if_cmpgt(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
 }
 
 
-pub fn if_cmplt(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
+pub fn if_icmplt(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
     let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap();
     let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap();
     let succeeds = match value1 {
         JavaValue::Int(i1) => match value2 {
             JavaValue::Int(i2) => i1 < i2,
+            _ => panic!()
+        },
+        _ => panic!()
+    };
+    if succeeds {
+        current_frame.pc_offset.replace(offset as isize);
+    }
+}
+
+
+
+pub fn if_icmpne(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
+    let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let succeeds = match value1 {
+        JavaValue::Int(i1) => match value2 {
+            JavaValue::Int(i2) => i1 != i2,
+            _ => panic!()
+        },
+        _ => panic!()
+    };
+    if succeeds {
+        current_frame.pc_offset.replace(offset as isize);
+    }
+}
+
+
+
+pub fn if_acmpne(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
+    let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let succeeds = match value1 {
+        JavaValue::Object(o1) => match value2 {
+            JavaValue::Object(o2) => o1 != o2,
             _ => panic!()
         },
         _ => panic!()
