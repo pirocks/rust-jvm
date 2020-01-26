@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
 use rust_jvm_common::classnames::class_name;
+use log::trace;
 
 #[derive(Debug)]
 pub enum JavaValue {
@@ -58,15 +59,14 @@ impl JavaValue{
     }
 
 
-    pub fn unwrap_object(&self) -> Arc<Object> {
+    pub fn unwrap_object(&self) -> Option<Arc<Object>> {
         match self {
             JavaValue::Object(o) => {
                 let option = o.as_ref();
                 match option {
-                    None => {log::trace!("NPE occurred")},
-                    Some(_) => {},
+                    None => None,
+                    Some(o) => o.object.clone().into(),
                 }
-                option.unwrap().object.clone()
             }
             _ => {
                 dbg!(self);

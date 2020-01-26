@@ -275,7 +275,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let exp_descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index as usize]);
     let parsed = parse_method_descriptor(&method_id.class.loader, exp_descriptor_str.as_str()).unwrap();
 
-    frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: from_object(obj) }.into()));
+    frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: from_object(obj).unwrap() }.into()));
     for type_ in &parsed.parameter_types {
         match type_ {
             ParsedType::ByteType => unimplemented!(),
@@ -287,7 +287,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
             ParsedType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
-                frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: o.clone() }.into()));
+                frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: o.unwrap().clone() }.into()));
             }
             ParsedType::ShortType => unimplemented!(),
             ParsedType::BooleanType => unimplemented!(),
@@ -300,7 +300,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
         }
     }
     //todo add params into operand stack;
-    trace!("Call:{} {}",class_name(&from_object(obj).class_pointer.classfile).get_referred_name(),exp_method_name);
+    trace!("Call:{} {}",class_name(&from_object(obj).unwrap().class_pointer.classfile).get_referred_name(),exp_method_name);
     invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
     let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
     to_object(res)

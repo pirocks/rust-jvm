@@ -23,3 +23,15 @@ pub fn castore(current_frame: &Rc<CallStackEntry>) -> () {
     let char_ = val as u8 as char;
     array_ref.borrow_mut()[index as usize] = JavaValue::Char(char_);
 }
+
+
+pub fn aastore(current_frame: &Rc<CallStackEntry>) -> () {
+    let val = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let index = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_int();
+    let array_ref = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_array();
+    match val {
+        JavaValue::Object(_) => {},
+        _ => panic!(),
+    }
+    array_ref.borrow_mut()[index as usize] = val.clone();
+}

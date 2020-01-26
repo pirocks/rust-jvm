@@ -64,7 +64,7 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
                 }
                 _ => panic!(),
             }
-            let r = object.unwrap_object();
+            let r = object.unwrap_object().unwrap();
             r.object_class_object_pointer.replace(Some(class_for_object.clone()));
             state.class_object_pool.borrow_mut().insert(class_for_object,r.clone());
             r

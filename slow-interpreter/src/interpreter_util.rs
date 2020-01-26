@@ -14,7 +14,7 @@ use runtime_common::java_values::{JavaValue, ObjectPointer, default_value};
 use runtime_common::runtime_class::RuntimeClass;
 use classfile_parser::types::parse_field_descriptor;
 use crate::instructions::load::{aload, fload, iload, aaload};
-use crate::instructions::store::{astore, castore};
+use crate::instructions::store::{astore, castore, aastore};
 use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
 use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i};
@@ -64,7 +64,7 @@ pub fn run_function(
         current_frame.pc_offset.replace(instruction_size as isize);
         match instruct {
             InstructionInfo::aaload => aaload(&current_frame),
-            InstructionInfo::aastore => unimplemented!(),
+            InstructionInfo::aastore => aastore(&current_frame),
             InstructionInfo::aconst_null => aconst_null(&current_frame),
             InstructionInfo::aload(n) => aload(&current_frame, n as usize),
             InstructionInfo::aload_0 => aload(&current_frame, 0),

@@ -403,7 +403,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         let state = get_state(env);
         let frame = get_frame(env);
         let res = get_or_create_class_object(state, &ClassName::Str("java/lang/Float".to_string()), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res);
+        return to_object(res.into());
     }
     if *utf.offset(0) == 'd' as i8 &&
         *utf.offset(1) == 'o' as i8 &&
@@ -415,7 +415,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         let state = get_state(env);
         let frame = get_frame(env);
         let res = get_or_create_class_object(state, &ClassName::Str("java/lang/Double".to_string()), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        let res_ptr = to_object(res);
+        let res_ptr = to_object(res.into());
 //        dbg!(res_ptr);
         return res_ptr;
     }

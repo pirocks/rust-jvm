@@ -100,7 +100,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>
         }
         ParsedType::Class(_) => {
             unsafe {
-                Some(JavaValue::Object(ObjectPointer { object: from_object(transmute(cif_res)) }.into()))
+                Some(JavaValue::Object(ObjectPointer { object: from_object(transmute(cif_res)).unwrap() }.into()))
             }
         }
 //            ParsedType::ShortType => {}
@@ -213,7 +213,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
 
     let state = get_state(env);
     let frame = get_frame(env);//todo leak hazard
-    let class_obj: Arc<Object> = from_object(clazz);//todo major double free hazard
+    let class_obj: Arc<Object> = from_object(clazz).unwrap();//todo major double free hazard
     let all_methods = get_all_methods(state, frame, class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];
