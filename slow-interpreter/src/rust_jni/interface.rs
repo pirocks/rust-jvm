@@ -12,6 +12,8 @@ use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::java_values::{JavaValue, ObjectPointer};
+use log::trace;
+use rust_jvm_common::classnames::class_name;
 
 //CallObjectMethod
 //ExceptionOccurred
@@ -257,8 +259,8 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
     }
 }
 
-
-pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
+#[no_mangle]
+pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l:...) -> jobject {
     let method_id = (method_id as *mut MethodId).as_ref().unwrap();
     let classfile = method_id.class.classfile.clone();
     let method = &classfile.methods[method_id.method_i];
@@ -298,6 +300,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
         }
     }
     //todo add params into operand stack;
+    trace!("Call:{} {}",class_name(&from_object(obj).class_pointer.classfile).get_referred_name(),exp_method_name);
     invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
     let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
     to_object(res)

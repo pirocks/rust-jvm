@@ -49,6 +49,12 @@ pub fn aaload(current_frame: &Rc<CallStackEntry>) -> () {
     let unborrowed = current_frame.operand_stack.borrow_mut().pop().unwrap().unwrap_array();
     let array_refcell: &RefCell<Vec<JavaValue>> = unborrowed.borrow();
     let second_borrow = array_refcell.borrow();
-    second_borrow[index as usize].unwrap_object();
+//    dbg!(&current_frame.operand_stack);
+//    dbg!(&current_frame.local_vars);
+    match second_borrow[index as usize]{
+        JavaValue::Array(_) => {},
+        JavaValue::Object(_) => {},
+        _ => panic!(),
+    }//.unwrap_object();
     current_frame.operand_stack.borrow_mut().push(second_borrow[index as usize].clone())
 }

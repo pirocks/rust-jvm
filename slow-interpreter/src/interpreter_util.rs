@@ -1,8 +1,8 @@
 use crate::{InterpreterState, CallStackEntry};
-use rust_jvm_common::utils::{code_attribute, extract_string_from_utf8};
+use rust_jvm_common::utils::{code_attribute, extract_string_from_utf8, extract_class_from_constant_pool};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
-use rust_jvm_common::classfile::{InstructionInfo,  ACC_STATIC};
+use rust_jvm_common::classfile::{InstructionInfo, ACC_STATIC, Classfile};
 use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
@@ -20,11 +20,11 @@ use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i};
 use crate::instructions::new::{new, anewarray, newarray};
 use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
-use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem};
+use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd};
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::dup;
-use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_cmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull};
+use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_cmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_cmplt};
 use crate::instructions::special::arraylength;
 
 //todo jni should really live in interpreter state
@@ -66,7 +66,7 @@ pub fn run_function(
             InstructionInfo::aaload => aaload(&current_frame),
             InstructionInfo::aastore => unimplemented!(),
             InstructionInfo::aconst_null => aconst_null(&current_frame),
-            InstructionInfo::aload(_) => unimplemented!(),
+            InstructionInfo::aload(n) => aload(&current_frame, n as usize),
             InstructionInfo::aload_0 => aload(&current_frame, 0),
             InstructionInfo::aload_1 => aload(&current_frame, 1),
             InstructionInfo::aload_2 => aload(&current_frame, 2),
@@ -74,8 +74,8 @@ pub fn run_function(
             InstructionInfo::anewarray(cp) => anewarray(state, current_frame.clone(), cp),
             InstructionInfo::areturn => areturn(state, &current_frame),
             InstructionInfo::arraylength => arraylength(&current_frame),
-            InstructionInfo::astore(_) => unimplemented!(),
-            InstructionInfo::astore_0 => unimplemented!(),
+            InstructionInfo::astore(n) => astore(&current_frame, n as usize),
+            InstructionInfo::astore_0 => astore(&current_frame, 0),
             InstructionInfo::astore_1 => astore(&current_frame, 1),
             InstructionInfo::astore_2 => astore(&current_frame, 2),
             InstructionInfo::astore_3 => astore(&current_frame, 3),
@@ -155,7 +155,7 @@ pub fn run_function(
             InstructionInfo::i2f => i2f(&current_frame),
             InstructionInfo::i2l => i2l(&current_frame),
             InstructionInfo::i2s => unimplemented!(),
-            InstructionInfo::iadd => unimplemented!(),
+            InstructionInfo::iadd => iadd(&current_frame),
             InstructionInfo::iaload => unimplemented!(),
             InstructionInfo::iand => iand(&current_frame),
             InstructionInfo::iastore => unimplemented!(),
@@ -171,7 +171,7 @@ pub fn run_function(
             InstructionInfo::if_acmpne(_) => unimplemented!(),
             InstructionInfo::if_icmpeq(_) => unimplemented!(),
             InstructionInfo::if_icmpne(_) => unimplemented!(),
-            InstructionInfo::if_icmplt(_) => unimplemented!(),
+            InstructionInfo::if_icmplt(offset) => if_cmplt(&current_frame, offset),
             InstructionInfo::if_icmpge(_) => unimplemented!(),
             InstructionInfo::if_icmpgt(offset) => if_cmpgt(&current_frame, offset),
             InstructionInfo::if_icmple(_) => unimplemented!(),
@@ -293,15 +293,25 @@ fn istore(current_frame: &Rc<CallStackEntry>, n: u8) -> () {
 
 
 pub fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<RuntimeClass>) {
-    let loader_arc = &current_frame.class_pointer.loader;
+    let loader_arc = &current_frame.class_pointer.loader.clone();
     let object_pointer = ObjectPointer::new(target_classfile.clone());
     let new_obj = JavaValue::Object(Some(object_pointer.clone()));
-    let classfile = &target_classfile.classfile;
+    default_init_fields(loader_arc.clone(), object_pointer, &target_classfile.classfile,loader_arc.clone());
+    current_frame.operand_stack.borrow_mut().push(new_obj);
+}
+
+fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer: ObjectPointer, classfile: &Arc<Classfile>, bl: Arc<dyn Loader + Send + Sync>) {
+    if classfile.super_class != 0 {
+        let class_  = extract_class_from_constant_pool(classfile.super_class,classfile);
+        let super_name = extract_string_from_utf8(&classfile.constant_pool[class_.name_index as usize]);
+        let loaded_super = loader_arc.load_class(loader_arc.clone(), &ClassName::Str(super_name),bl.clone()).unwrap();
+        default_init_fields(loader_arc.clone(),object_pointer.clone(),&loaded_super,bl);
+    }
     for field in &classfile.fields {
         if field.access_flags & ACC_STATIC == 0 {
             let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
             let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[field.descriptor_index as usize]);
-            let descriptor = parse_field_descriptor(loader_arc, descriptor_str.as_str()).unwrap();
+            let descriptor = parse_field_descriptor(&loader_arc, descriptor_str.as_str()).unwrap();
             let type_ = descriptor.field_type;
             let val = default_value(type_);
             {
@@ -309,6 +319,5 @@ pub fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc
             }
         }
     }
-    current_frame.operand_stack.borrow_mut().push(new_obj);
 }
 

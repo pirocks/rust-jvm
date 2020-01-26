@@ -416,7 +416,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         let frame = get_frame(env);
         let res = get_or_create_class_object(state, &ClassName::Str("java/lang/Double".to_string()), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
         let res_ptr = to_object(res);
-        dbg!(res_ptr);
+//        dbg!(res_ptr);
         return res_ptr;
     }
 

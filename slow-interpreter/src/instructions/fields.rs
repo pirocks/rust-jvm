@@ -55,7 +55,8 @@ pub fn get_field(current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
     let object_ref = current_frame.operand_stack.borrow_mut().pop().unwrap();
     match object_ref {
         JavaValue::Object(o) => {
-            let res = o.unwrap().object.fields.borrow().get(field_name.as_str()).unwrap().clone();
+            let fields = o.as_ref().unwrap().object.fields.borrow();
+            let res = fields.get(field_name.as_str()).unwrap().clone();
             current_frame.operand_stack.borrow_mut().push(res);
         }
         _ => panic!(),

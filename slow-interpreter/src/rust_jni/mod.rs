@@ -71,6 +71,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>
     let env = &get_interface(state, current_frame);
     let mut c_args = vec![Arg::new(&&env), Arg::new(&jclass)];
 //todo inconsistent
+//    dbg!(&args);
     for j in args {
         args_type.push(to_native_type(j.clone()));
         c_args.push(to_native(j));

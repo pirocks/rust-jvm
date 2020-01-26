@@ -139,3 +139,19 @@ pub fn if_cmpgt(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
         current_frame.pc_offset.replace(offset as isize);
     }
 }
+
+
+pub fn if_cmplt(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
+    let value2 = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let succeeds = match value1 {
+        JavaValue::Int(i1) => match value2 {
+            JavaValue::Int(i2) => i1 < i2,
+            _ => panic!()
+        },
+        _ => panic!()
+    };
+    if succeeds {
+        current_frame.pc_offset.replace(offset as isize);
+    }
+}

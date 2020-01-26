@@ -8,6 +8,7 @@ use std::mem::transmute;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
+use rust_jvm_common::classnames::class_name;
 
 #[derive(Debug)]
 pub enum JavaValue {
@@ -237,7 +238,11 @@ pub struct Object {
 
 impl Debug for Object{
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f,"{:?}",self.class_pointer)?;
+        write!(f,"{:?}",class_name(&self.class_pointer.classfile).get_referred_name())?;
+        write!(f,"-")?;
+        write!(f,"{:?}",self.class_pointer.static_vars)?;
+        write!(f,"-")?;
+        write!(f,"{:?}",self.fields)?;
         write!(f,"-")?;
         write!(f,"{:?}",self.bootstrap_loader)?;
         Result::Ok(())
