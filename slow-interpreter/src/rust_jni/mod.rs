@@ -193,6 +193,8 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<CallStackEntry>, 
 }
 
 //for now a method id is a pair of class pointers and i.
+//turns out this is for member functions only
+//see also get_static_method_id
 unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
                                    clazz: jclass,
                                    name: *const c_char,
@@ -213,7 +215,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
 
     let state = get_state(env);
     let frame = get_frame(env);//todo leak hazard
-    let class_obj: Arc<Object> = from_object(clazz).unwrap();//todo major double free hazard
+    let class_obj: Arc<Object> = from_object(clazz).unwrap();
     let all_methods = get_all_methods(state, frame, class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];

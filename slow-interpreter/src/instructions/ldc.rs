@@ -14,6 +14,10 @@ use std::mem::transmute;
 
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
     let res_class_name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
+    load_class_constant_by_name(state, current_frame, res_class_name);
+}
+
+pub fn load_class_constant_by_name(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, res_class_name: String) {
     let object = get_or_create_class_object(state, &ClassName::Str(res_class_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
     current_frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer {
         object

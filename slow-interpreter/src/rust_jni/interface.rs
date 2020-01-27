@@ -1,8 +1,8 @@
 use runtime_common::{InterpreterState, CallStackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass};
 use std::mem::transmute;
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars};
@@ -11,9 +11,11 @@ use rust_jvm_common::classfile::ACC_STATIC;
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
-use runtime_common::java_values::{JavaValue, ObjectPointer};
+use runtime_common::java_values::{JavaValue, ObjectPointer, Object};
 use log::trace;
 use rust_jvm_common::classnames::class_name;
+use crate::instructions::ldc::load_class_constant_by_name;
+use std::sync::Arc;
 
 //CallObjectMethod
 //ExceptionOccurred
@@ -29,7 +31,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
         reserved3: std::ptr::null_mut(),
         GetVersion: None,
         DefineClass: None,
-        FindClass: None,
+        FindClass: Some(find_class),
         FromReflectedMethod: None,
         FromReflectedField: None,
         ToReflectedMethod: None,
@@ -44,12 +46,12 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
         FatalError: None,
         PushLocalFrame: None,
         PopLocalFrame: None,
-        NewGlobalRef: None,
+        NewGlobalRef: Some(new_global_ref),
         DeleteGlobalRef: None,
         DeleteLocalRef: Some(delete_local_ref),
         IsSameObject: None,
         NewLocalRef: None,
-        EnsureLocalCapacity: None,
+        EnsureLocalCapacity: Some(ensure_local_capacity),
         AllocObject: None,
         NewObject: None,
         NewObjectV: None,
@@ -136,7 +138,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
         SetLongField: None,
         SetFloatField: None,
         SetDoubleField: None,
-        GetStaticMethodID: None,
+        GetStaticMethodID: Some(get_static_method_id),
         CallStaticObjectMethod: None,
         CallStaticObjectMethodV: None,
         CallStaticObjectMethodA: None,
@@ -260,7 +262,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l:...) -> jobject {
+pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
     let method_id = (method_id as *mut MethodId).as_ref().unwrap();
     let classfile = method_id.class.classfile.clone();
     let method = &classfile.methods[method_id.method_i];
@@ -300,18 +302,67 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
         }
     }
     //todo add params into operand stack;
-    trace!("Call:{} {}",class_name(&from_object(obj).unwrap().class_pointer.classfile).get_referred_name(),exp_method_name);
+    trace!("Call:{} {}", class_name(&from_object(obj).unwrap().class_pointer.classfile).get_referred_name(), exp_method_name);
     invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
     let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
     to_object(res)
 }
 
-unsafe extern "C" fn exception_occured(_env: *mut JNIEnv) -> jthrowable{
+unsafe extern "C" fn exception_occured(_env: *mut JNIEnv) -> jthrowable {
     //exceptions don't happen yet todo
     std::ptr::null_mut()
 }
 
 
-unsafe extern "C" fn delete_local_ref(_env: *mut JNIEnv, _obj: jobject){
+unsafe extern "C" fn delete_local_ref(_env: *mut JNIEnv, _obj: jobject) {
     //todo no gc, just leak
+}
+
+unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
+    //we always have ram. todo
+    return 0;
+}
+
+unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::raw::c_char) -> jclass {
+    let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
+    let state = get_state(env);
+    let frame = get_frame(env);
+    load_class_constant_by_name(state, &frame, name);
+    let obj = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    to_object(obj)
+}
+
+unsafe extern "C" fn new_global_ref(_env: *mut JNIEnv, lobj: jobject) -> jobject {
+    let obj = from_object(lobj);
+    match &obj {
+        None => {}
+        Some(o) => {
+            Box::leak(Box::new(o.clone()));
+        }
+    }
+    to_object(obj)
+}
+
+unsafe extern "C" fn get_static_method_id(
+    _env: *mut JNIEnv,
+    clazz: jclass,
+    name: *const ::std::os::raw::c_char,
+    sig: *const ::std::os::raw::c_char,
+) -> jmethodID {
+    let method_name = CStr::from_ptr(name).to_str().unwrap().to_string();
+    let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
+    let class_obj: Arc<Object> = from_object(clazz).unwrap();
+    //todo dup
+    let runtime_class = class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone();
+    let classfile = &runtime_class.classfile;
+    let all_methods = &classfile.methods;
+    let (method_i, _) = all_methods.iter().enumerate().find(|(_,m)| {
+        let cur_desc = extract_string_from_utf8(&classfile.constant_pool[m.descriptor_index as usize]);
+        let cur_method_name = rust_jvm_common::utils::method_name(classfile, m);
+        cur_method_name == method_name &&
+            method_descriptor_str == cur_desc &&
+            m.access_flags & ACC_STATIC > 0
+    }).unwrap();
+    let res = Box::into_raw(Box::new(MethodId { class: runtime_class.clone(), method_i }));
+    transmute(res)
 }
