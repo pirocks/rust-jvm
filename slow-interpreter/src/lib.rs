@@ -7,7 +7,7 @@ extern crate libc;
 
 use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::{Loader, LoaderArc};
+use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
@@ -74,7 +74,7 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
 
 pub fn run(
     main_class_name: &ClassName,
-    bl: Arc<dyn Loader + Send + Sync>,
+    bl: LoaderArc,
     _args: Vec<String>,
     jni: LibJavaLoading,
 ) -> Result<(), Box<dyn Error>> {
@@ -128,7 +128,7 @@ fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
     }).unwrap()
 }
 
-fn locate_main_method(bl: &Arc<dyn Loader + Send + Sync>, main: &Arc<Classfile>) -> usize {
+fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     main.methods.iter().enumerate().find(|(_, method)| {
         let name = method.method_name(main);
         if name == "main".to_string() {

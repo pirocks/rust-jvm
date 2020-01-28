@@ -9,7 +9,7 @@ use std::option::Option::Some;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
 use rust_jvm_common::classnames::{NameReference, class_name};
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::LoaderArc;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::filecorrectness::get_access_flags;
 use crate::{StackMap, VerifierContext};
@@ -279,7 +279,7 @@ pub struct Handler {
     pub class_name: Option<ClassName>,
 }
 
-pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: Arc<dyn Loader + Send + Sync>) -> ClassWithLoader {
+pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: LoaderArc) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
         None => { ClassWithLoader { class_name: ClassName::throwable(), loader: vf.bootstrap_loader.clone() } }
@@ -326,7 +326,7 @@ pub struct Environment<'l> {
     pub frame_size: u16,
     pub max_stack: u16,
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
-    pub class_loader: Arc<dyn Loader + Send + Sync>,
+    pub class_loader: LoaderArc,
     pub handlers: Vec<Handler>,
     pub vf: VerifierContext,
 }

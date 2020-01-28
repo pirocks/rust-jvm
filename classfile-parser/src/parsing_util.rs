@@ -1,7 +1,6 @@
 use std::io::prelude::*;
 use rust_jvm_common::classfile::ConstantInfo;
-use rust_jvm_common::loading::{Loader, LoaderArc};
-use std::sync::Arc;
+use rust_jvm_common::loading::LoaderArc;
 
 pub trait ParsingContext {
     fn read8(&mut self) -> u8;
@@ -16,7 +15,7 @@ pub trait ParsingContext {
 pub(crate) struct FileParsingContext<'l> {
     pub(crate) read: &'l mut dyn Read,
     pub(crate) constant_pool: Option<Vec<ConstantInfo>>,
-    pub(crate) loader: Arc<dyn Loader + Send + Sync>,
+    pub(crate) loader: LoaderArc,
 }
 
 const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";

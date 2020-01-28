@@ -4,7 +4,7 @@ extern crate libloading;
 
 use std::sync::{RwLock, Arc};
 use std::cell::RefCell;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::LoaderArc;
 use std::collections::HashMap;
 use rust_jvm_common::classnames::ClassName;
 use crate::runtime_class::RuntimeClass;
@@ -20,7 +20,7 @@ pub struct InterpreterState {
     pub terminate: bool,
     pub throw: bool,
     pub function_return: bool,
-    pub bootstrap_loader: Arc<dyn Loader + Send + Sync>,
+    pub bootstrap_loader: LoaderArc,
     pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
     pub string_internment: RefCell<HashMap<String, Arc<Object>>>,
     pub class_object_pool: RefCell<HashMap<Arc<RuntimeClass>, Arc<Object>>>,

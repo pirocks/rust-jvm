@@ -3,7 +3,7 @@ extern crate simple_logger;
 
 use std::sync::Arc;
 use crate::verifier::class_is_type_safe;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::InternalFrame;
@@ -21,7 +21,7 @@ pub mod verifier;
 /**
 We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
 */
-pub fn verify(vf: &VerifierContext, to_verify: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> Result<(), TypeSafetyError> {
+pub fn verify(vf: &VerifierContext, to_verify: Arc<Classfile>, loader: LoaderArc) -> Result<(), TypeSafetyError> {
     match class_is_type_safe(vf, &ClassWithLoader {
         class_name: class_name(&to_verify),
         loader,
@@ -103,7 +103,7 @@ fn locals_push_convert_type(res: &mut Vec<ParsedType>, type_: ParsedType) -> () 
 
 
 pub struct VerifierContext {
-    pub bootstrap_loader: Arc<dyn Loader + Send + Sync>
+    pub bootstrap_loader: LoaderArc
 }
 
 impl Clone for VerifierContext {

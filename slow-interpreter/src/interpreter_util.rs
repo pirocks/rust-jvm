@@ -6,7 +6,7 @@ use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::{Loader, LoaderArc};
+use rust_jvm_common::loading::LoaderArc;
 use std::rc::Rc;
 use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual};
 use runtime_common::java_values::{JavaValue, default_value, Object};
@@ -300,7 +300,7 @@ pub fn push_new_object(current_frame: Rc<StackEntry>, target_classfile: &Arc<Run
     current_frame.push(new_obj);
 }
 
-fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: Arc<dyn Loader + Send + Sync>) {
+fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
     if classfile.super_class != 0 {
         let super_name = classfile.super_class_name();
         let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name, bl.clone()).unwrap();

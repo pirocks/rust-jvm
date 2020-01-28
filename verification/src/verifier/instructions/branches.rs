@@ -17,7 +17,7 @@ use classfile_parser::types::MethodDescriptor;
 use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::ParsedType;
-use rust_jvm_common::loading::{Loader, LoaderArc};
+use rust_jvm_common::loading::LoaderArc;
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -417,7 +417,7 @@ pub fn get_method_descriptor(cp: usize, classfile: &Arc<Classfile>, loader: Load
     (possibly_array_to_type(&loader, class_name), method_name, parsed_descriptor)
 }
 
-pub fn possibly_array_to_type(loader: &Arc<dyn Loader + Send + Sync>, class_name: String) -> ParsedType {
+pub fn possibly_array_to_type(loader: &LoaderArc, class_name: String) -> ParsedType {
     if class_name.contains("[") {
         let class_type = match parse_field_descriptor(loader, class_name.as_str()) {
             None => panic!(),

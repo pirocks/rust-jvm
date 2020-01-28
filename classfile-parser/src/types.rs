@@ -1,8 +1,7 @@
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::ClassWithLoader;
-use rust_jvm_common::loading::Loader;
-use std::sync::Arc;
+use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::unified_types::ParsedType;
 
 #[derive(Debug)]
@@ -36,7 +35,7 @@ pub fn parse_base_type(str_: &str) -> Option<(&str, ParsedType)> {
     }))
 }
 
-pub fn parse_object_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_object_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     match str_.chars().nth(0)? {
         'L' => {
             let str_without_l = eat_one(str_);
@@ -53,7 +52,7 @@ pub fn parse_object_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_
     }
 }
 
-pub fn parse_array_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_array_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     match str_.chars().nth(0)? {
         '[' => {
             let (remaining_to_parse, sub_type) = parse_component_type(loader, &str_[1..str_.len()])?;
@@ -64,7 +63,7 @@ pub fn parse_array_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_:
     }
 }
 
-pub fn parse_field_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_field_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     parse_array_type(loader, str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
             parse_object_type(loader, str_).or_else(|| {
@@ -75,7 +74,7 @@ pub fn parse_field_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_:
 }
 
 
-pub fn parse_field_descriptor(loader: &Arc<dyn Loader + Send + Sync>, str_: &str) -> Option<FieldDescriptor> {
+pub fn parse_field_descriptor(loader: &LoaderArc, str_: &str) -> Option<FieldDescriptor> {
     if let Some((should_be_empty, field_type)) = parse_field_type(loader, str_) {
         if should_be_empty.is_empty() {
             Some(FieldDescriptor { field_type })
@@ -87,11 +86,11 @@ pub fn parse_field_descriptor(loader: &Arc<dyn Loader + Send + Sync>, str_: &str
     }
 }
 
-pub fn parse_component_type<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_component_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     parse_field_type(loader, str_)
 }
 
-pub fn parse_method_descriptor(loader: &Arc<dyn Loader + Send + Sync>, str_: &str) -> Option<MethodDescriptor> {
+pub fn parse_method_descriptor(loader: &LoaderArc, str_: &str) -> Option<MethodDescriptor> {
     if str_.chars().nth(0)? != '(' {
         return None;
     }
@@ -117,7 +116,7 @@ pub fn parse_method_descriptor(loader: &Arc<dyn Loader + Send + Sync>, str_: &st
     }
 }
 
-pub fn parse_parameter_descriptor<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_parameter_descriptor<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     parse_field_type(loader, str_)
 }
 
@@ -128,7 +127,7 @@ pub fn parse_void_descriptor(str_: &str) -> Option<(&str, ParsedType)> {
     }
 }
 
-pub fn parse_return_descriptor<'a, 'b>(loader: &'a Arc<dyn Loader + Send + Sync>, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_return_descriptor<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
     parse_void_descriptor(str_).or_else(|| {
         parse_field_type(loader, str_)
     })

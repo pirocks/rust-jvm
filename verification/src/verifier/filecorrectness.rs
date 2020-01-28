@@ -1,7 +1,6 @@
-use std::sync::Arc;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::{ClassWithLoaderMethod, get_class};
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL, ACC_PROTECTED};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
@@ -57,7 +56,7 @@ fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class
 }
 
 
-pub fn is_bootstrap_loader(vf: &VerifierContext, loader: &Arc<dyn Loader + Send + Sync>) -> bool {
+pub fn is_bootstrap_loader(vf: &VerifierContext, loader: &LoaderArc) -> bool {
     return std::sync::Arc::ptr_eq(loader, &vf.bootstrap_loader);
 }
 
@@ -74,7 +73,7 @@ pub fn class_is_final(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
 }
 
 
-pub fn loaded_class(_vf: &VerifierContext, class_name: ClassName, loader: Arc<dyn Loader + Send + Sync>) -> Result<ClassWithLoader, TypeSafetyError> {
+pub fn loaded_class(_vf: &VerifierContext, class_name: ClassName, loader: LoaderArc) -> Result<ClassWithLoader, TypeSafetyError> {
     if loader.initiating_loader_of(&class_name) {
         Result::Ok(ClassWithLoader { class_name, loader })
     } else {
@@ -331,7 +330,7 @@ pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> 
     ClassName::Str(utf8.extract_string_from_utf8())//todo use weak ref + index instead
 }
 
-pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: Arc<dyn Loader + Send + Sync>, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
+pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: LoaderArc, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
     if chain_start.class_name == ClassName::object() {
         //todo magic constant
         if /*res.is_empty() &&*/ is_bootstrap_loader(vf, &loader) {

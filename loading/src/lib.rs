@@ -3,7 +3,7 @@ extern crate simple_logger;
 
 use std::sync::Arc;
 use std::fs::File;
-use rust_jvm_common::loading::{Loader, LoaderArc};
+use rust_jvm_common::loading::{LoaderArc, Loader};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::ClassLoadingError;
 use rust_jvm_common::classfile::Classfile;
@@ -50,7 +50,7 @@ impl Loader for BootstrapLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: Arc<dyn Loader + Send + Sync>) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc) -> Result<Arc<Classfile>, ClassLoadingError> {
 //        if class == ClassName::object() {
 //            panic!()
 //        }
@@ -115,7 +115,7 @@ impl Loader for BootstrapLoader {
 }
 
 impl BootstrapLoader {
-    fn search_class_files(&self, self_arc: Arc<dyn Loader + Send + Sync>, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn search_class_files(&self, self_arc: LoaderArc, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         let found_class_file = self.classpath.classpath_base.iter().map(|x| {
             let mut path_buf = x.to_path_buf();
             path_buf.push(format!("{}.class", name.get_referred_name()));

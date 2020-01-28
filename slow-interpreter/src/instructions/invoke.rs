@@ -5,7 +5,7 @@ use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC};
 use crate::interpreter_util::run_function;
 use classfile_parser::types::MethodDescriptor;
 use std::sync::Arc;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::MethodInfo;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
@@ -188,12 +188,7 @@ pub fn invoke_static_impl(
     }
 }
 
-pub fn find_target_method<'l>(
-    loader_arc: Arc<dyn Loader + Send + Sync>,
-    expected_method_name: String,
-    parsed_descriptor: &MethodDescriptor,
-    target_class: &'l Arc<RuntimeClass>,
-) -> (usize, &'l MethodInfo) {
+pub fn find_target_method<'l>(loader_arc: LoaderArc, expected_method_name: String, parsed_descriptor: &MethodDescriptor, target_class: &'l Arc<RuntimeClass>,) -> (usize, &'l MethodInfo) {
     target_class.classfile.methods.iter().enumerate().find(|(_, m)| {
         if m.method_name(&target_class.classfile) == expected_method_name {
             let target_class_descriptor_str = target_class.classfile.constant_pool[m.descriptor_index as usize].extract_string_from_utf8();

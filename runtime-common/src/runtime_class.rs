@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use std::fmt::{Formatter, Debug, Error};
 use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::LoaderArc;
 use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
 
 pub struct RuntimeClass {
     pub classfile: Arc<Classfile>,
-    pub loader: Arc<dyn Loader + Send + Sync>,
+    pub loader: LoaderArc,
     pub static_vars: RefCell<HashMap<String, JavaValue>>,
 }
 
