@@ -56,18 +56,18 @@ impl Loader for BootstrapLoader {
 //            panic!()
 //        }
         if !self.initiating_loader_of(class) {
-            trace!("loading {}",class.get_referred_name());
+            trace!("loading {}", class.get_referred_name());
             let classfile = self.pre_load(self_arc.clone(), class)?;
-            if class != &ClassName::object(){
+            if class != &ClassName::object() {
                 if classfile.super_class == 0 {
-                    self.load_class(self_arc.clone(), &ClassName::object(),bl.clone())?;
+                    self.load_class(self_arc.clone(), &ClassName::object(), bl.clone())?;
                 } else {
                     let super_class_name = get_super_class_name(&classfile);
-                    self.load_class(self_arc.clone(), &super_class_name,bl.clone())?;
+                    self.load_class(self_arc.clone(), &super_class_name, bl.clone())?;
                 }
             }
-            match verify(&VerifierContext { bootstrap_loader: bl.clone() }, classfile.clone(), self_arc){
-                Ok(_) => {},
+            match verify(&VerifierContext { bootstrap_loader: bl.clone() }, classfile.clone(), self_arc) {
+                Ok(_) => {}
                 Err(_) => panic!(),
             };
             self.loaded.write().unwrap().insert(class.clone(), classfile);

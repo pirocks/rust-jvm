@@ -16,7 +16,7 @@ pub fn run_native_method(
     state: &mut InterpreterState,
     frame: Rc<StackEntry>,
     class: Arc<RuntimeClass>,
-    method_i: usize
+    method_i: usize,
 ) {
     //todo only works for static void methods atm
     let classfile = &class.classfile;
@@ -31,7 +31,7 @@ pub fn run_native_method(
             args.push(frame.pop());
         }
         args.reverse();
-    }else {
+    } else {
         setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
     }
     if method_name(classfile, method) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches

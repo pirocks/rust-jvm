@@ -15,7 +15,6 @@ pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
 }
 
 
-
 pub fn castore(current_frame: &Rc<StackEntry>) -> () {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
@@ -30,7 +29,7 @@ pub fn aastore(current_frame: &Rc<StackEntry>) -> () {
     let index = current_frame.pop().unwrap_int();
     let array_ref = current_frame.pop().unwrap_array();
     match val {
-        JavaValue::Object(_) => {},
+        JavaValue::Object(_) => {}
         _ => panic!(),
     }
     array_ref.borrow_mut()[index as usize] = val.clone();

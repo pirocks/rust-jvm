@@ -9,10 +9,10 @@ pub fn fconst_0(current_frame: &Rc<StackEntry>) {
 pub fn bipush(current_frame: &Rc<StackEntry>, b: u8) -> () {
     current_frame.push(JavaValue::Int(b as i32))
 }
+
 pub fn sipush(current_frame: &Rc<StackEntry>, val: u16) {
     current_frame.push(JavaValue::Int(val as i32));
 }
-
 
 
 pub fn aconst_null(current_frame: &Rc<StackEntry>) -> () {

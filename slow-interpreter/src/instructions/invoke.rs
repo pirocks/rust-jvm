@@ -19,7 +19,7 @@ use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use log::trace;
 use runtime_common::StackEntry;
-use rust_jvm_common::classnames::{class_name};
+use rust_jvm_common::classnames::class_name;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -84,8 +84,8 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
 
 pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_method_name: String, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
     if target_method.access_flags & ACC_NATIVE > 0 {
-        run_native_method(state,current_frame.clone(),target_class,target_method_i)
-    } else if target_method.access_flags & ACC_ABSTRACT == 0  {
+        run_native_method(state, current_frame.clone(), target_class, target_method_i)
+    } else if target_method.access_flags & ACC_ABSTRACT == 0 {
         let mut args = vec![];
         let max_locals = code_attribute(target_method).unwrap().max_locals;
 
@@ -149,7 +149,7 @@ pub fn invoke_static_impl(
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
-    target_method: &MethodInfo
+    target_method: &MethodInfo,
 ) -> () {
     let mut args = vec![];
     if target_method.access_flags & ACC_NATIVE == 0 {

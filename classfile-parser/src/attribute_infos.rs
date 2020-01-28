@@ -280,7 +280,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> ParsedType {
                 ParsedType::Class(ClassWithLoader { class_name: ClassName::Str(type_descriptor), loader: p.loader() })
             }
         }
-        8 => {ParsedType::Uninitialized(UninitializedVariableInfo{ offset: p.read16() })}
+        8 => { ParsedType::Uninitialized(UninitializedVariableInfo { offset: p.read16() }) }
         _ => { unimplemented!("{}", type_) }
     }
 }

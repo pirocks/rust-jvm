@@ -27,15 +27,15 @@ use rust_jvm_common::classfile::{Classfile, MethodInfo};
 
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
-                                  class_name: & ClassName,
+                                  class_name: &ClassName,
                                   current_frame: Rc<StackEntry>,
-                                  loader_arc: Arc<dyn Loader + Sync + Send>
-) -> Arc<Object>{
+                                  loader_arc: Arc<dyn Loader + Sync + Send>,
+) -> Arc<Object> {
     //todo in future this may introduce new and exciting concurrency bugs
 
-    let class_for_object = check_inited_class(state, class_name, current_frame.clone().into(),loader_arc);
+    let class_for_object = check_inited_class(state, class_name, current_frame.clone().into(), loader_arc);
     let res = state.class_object_pool.borrow().get(&class_for_object).cloned();
-    match res{
+    match res {
         None => {
             let java_lang_class = ClassName::class();
             let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
@@ -53,7 +53,7 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
                         fields: RefCell::new(HashMap::new()),
                         class_pointer: class_loader_class.clone(),
                         bootstrap_loader: true,
-                        object_class_object_pointer: RefCell::new(None)
+                        object_class_object_pointer: RefCell::new(None),
                     };
                     let bootstrap_arc = Arc::new(boostrap_loader_object);
                     let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
@@ -67,9 +67,9 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
             }
             let r = object.unwrap_object().unwrap();
             r.object_class_object_pointer.replace(Some(class_for_object.clone()));
-            state.class_object_pool.borrow_mut().insert(class_for_object,r.clone());
+            state.class_object_pool.borrow_mut().insert(class_for_object, r.clone());
             r
-        },
+        }
         Some(r) => r.clone(),
     }
 }
@@ -78,9 +78,9 @@ pub fn run(
     main_class_name: &ClassName,
     bl: Arc<dyn Loader + Send + Sync>,
     _args: Vec<String>,
-    jni: LibJavaLoading
+    jni: LibJavaLoading,
 ) -> Result<(), Box<dyn Error>> {
-    let main = bl.clone().load_class(bl.clone(),main_class_name,bl.clone())?;
+    let main = bl.clone().load_class(bl.clone(), main_class_name, bl.clone())?;
     let main_class = prepare_class(main.clone(), bl.clone());
     let main_i = locate_main_method(&bl, &main);
     let mut state = InterpreterState {
@@ -91,10 +91,10 @@ pub fn run(
         initialized_classes: RwLock::new(HashMap::new()),
         string_internment: RefCell::new(HashMap::new()),
         class_object_pool: RefCell::new(HashMap::new()),
-        jni
+        jni,
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
-    let (init_system_class_i,_method_info) = locate_init_system_class(&system_class.classfile);
+    let (init_system_class_i, _method_info) = locate_init_system_class(&system_class.classfile);
     let initialize_system_frame = StackEntry {
         last_call_stack: None,
         class_pointer: system_class.clone(),
@@ -102,29 +102,29 @@ pub fn run(
         local_vars: RefCell::new(vec![]),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
-        pc_offset: RefCell::new(-1)
+        pc_offset: RefCell::new(-1),
     };
 
-    run_function(&mut state,initialize_system_frame.into());
+    run_function(&mut state, initialize_system_frame.into());
     let main_stack = StackEntry {
         last_call_stack: None,
         class_pointer: Arc::new(main_class),
-            method_i: main_i as u16,
+        method_i: main_i as u16,
 //            todo is that vec access safe, or does it not heap allocate?
-            local_vars: vec![JavaValue::Array(Some(Arc::new(vec![].into())))].into(),//todo handle parameters
-            operand_stack: vec![].into(),
-            pc: RefCell::new(0),
-            pc_offset: 0.into(),
-        };
-    run_function(&mut state,Rc::new(main_stack));
+        local_vars: vec![JavaValue::Array(Some(Arc::new(vec![].into())))].into(),//todo handle parameters
+        operand_stack: vec![].into(),
+        pc: RefCell::new(0),
+        pc_offset: 0.into(),
+    };
+    run_function(&mut state, Rc::new(main_stack));
     if state.throw || state.terminate {
         unimplemented!()
     }
     Result::Ok(())
 }
 
-fn locate_init_system_class( system: &Arc<Classfile>) -> (usize,&MethodInfo) {
-    system.methods.iter().enumerate().find(|(_,method)|{
+fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
+    system.methods.iter().enumerate().find(|(_, method)| {
         let name = method_name(system, method);
         name == "initializeSystemClass".to_string()
     }).unwrap()

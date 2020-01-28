@@ -40,7 +40,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::castore => instruction_is_type_safe_castore(env, stack_frame),
         InstructionInfo::checkcast(cp) => instruction_is_type_safe_checkcast(*cp as usize, env, stack_frame),
         InstructionInfo::d2f => instruction_is_type_safe_d2f(env, stack_frame),
-        InstructionInfo::d2i => instruction_is_type_safe_d2i(env,stack_frame),
+        InstructionInfo::d2i => instruction_is_type_safe_d2i(env, stack_frame),
         InstructionInfo::d2l => instruction_is_type_safe_d2l(env, stack_frame),
         InstructionInfo::dadd => instruction_is_type_safe_dadd(env, stack_frame),
         InstructionInfo::daload => instruction_is_type_safe_daload(env, stack_frame),

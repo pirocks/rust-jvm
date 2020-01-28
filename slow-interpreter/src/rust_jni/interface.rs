@@ -6,10 +6,10 @@ use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars};
-use crate::instructions::invoke::{invoke_virtual_method_i,  invoke_static_impl};
+use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
-use classfile_parser::types::{parse_method_descriptor};
+use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::java_values::{JavaValue, Object};
 use log::trace;
@@ -140,7 +140,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         SetDoubleField: None,
         GetStaticMethodID: Some(get_static_method_id),
         CallStaticObjectMethod: None,
-        CallStaticObjectMethodV: Some(unsafe {transmute::<_,unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, args: *mut __va_list_tag) -> jobject>(call_static_object_method_v as *mut c_void)}),
+        CallStaticObjectMethodV: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, args: *mut __va_list_tag) -> jobject>(call_static_object_method_v as *mut c_void) }),
         CallStaticObjectMethodA: None,
         CallStaticBooleanMethod: None,
         CallStaticBooleanMethodV: None,

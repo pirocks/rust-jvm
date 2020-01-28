@@ -20,7 +20,6 @@ pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usi
 }
 
 
-
 pub fn anewarray(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> () {
     let len = match current_frame.pop() {
         JavaValue::Int(i) => i,
@@ -40,7 +39,6 @@ pub fn anewarray(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp
         }
     }
 }
-
 
 
 pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {

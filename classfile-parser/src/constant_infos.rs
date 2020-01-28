@@ -2,11 +2,11 @@ use crate::parsing_util::ParsingContext;
 use rust_jvm_common::classfile::{ConstantKind, Utf8, Integer, Float, Long, Fieldref, Methodref, MethodType, NameAndType, InterfaceMethodref, MethodHandle, InvokeDynamic, ConstantInfo, InvalidConstant, Class, String_};
 use rust_jvm_common::classfile::Double;
 
-pub(crate) fn is_utf8(utf8 : &ConstantKind) -> Option<&Utf8>{
+pub(crate) fn is_utf8(utf8: &ConstantKind) -> Option<&Utf8> {
     return match utf8 {
-        ConstantKind::Utf8(s) => { Some(s) },
+        ConstantKind::Utf8(s) => { Some(s) }
         _ => { None }
-    }
+    };
 }
 
 const UTF8_CONST_NUM: u8 = 1;
@@ -28,80 +28,82 @@ const MODULE_CONST_NUM: u8 = 19;
 const PACKAGE_CONST_NUM: u8 = 20;
 const INVALID_CONSTANT_CONST_NUM: u8 = 21;
 
-pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo{
+pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo {
     let kind = p.read8();
     let result_kind: ConstantKind = match kind {
         UTF8_CONST_NUM => {
             let length = p.read16();
             let mut buffer = Vec::new();
-            for _ in 0..length{
+            for _ in 0..length {
                 buffer.push(p.read8())
             }
             let str_ = String::from_utf8(buffer).expect("Invalid utf8 in constant pool");
-            ConstantKind::Utf8( Utf8 { length, string: str_ } )
-        },
+            ConstantKind::Utf8(Utf8 { length, string: str_ })
+        }
         INTEGER_CONST_NUM => {
             let bytes = p.read32();
-            ConstantKind::Integer(Integer {bytes})
-        },
+            ConstantKind::Integer(Integer { bytes })
+        }
         FLOAT_CONST_NUM => {
             let bytes = p.read32();
-            ConstantKind::Float(Float {bytes})
-        },
+            ConstantKind::Float(Float { bytes })
+        }
         LONG_CONST_NUM => {
             let high_bytes = p.read32();
             let low_bytes = p.read32();
-            ConstantKind::Long(Long {high_bytes, low_bytes })
-        },
+            ConstantKind::Long(Long { high_bytes, low_bytes })
+        }
         DOUBLE_CONST_NUM => {
             let high_bytes = p.read32();
             let low_bytes = p.read32();
             ConstantKind::Double(Double {
-                high_bytes, low_bytes
+                high_bytes,
+                low_bytes,
             })
-        },
+        }
         CLASS_CONST_NUM => {
             let name_index = p.read16();
-            ConstantKind::Class( Class { name_index } )
-        },
+            ConstantKind::Class(Class { name_index })
+        }
         STRING_CONST_NUM => {
             let string_index = p.read16();
-            ConstantKind::String( String_ { string_index } )
-        },
+            ConstantKind::String(String_ { string_index })
+        }
         FIELDREF_CONST_NUM => {
             let class_index = p.read16();
             let name_and_type_index = p.read16();
-            ConstantKind::Fieldref( Fieldref {class_index,name_and_type_index})
-        },
+            ConstantKind::Fieldref(Fieldref { class_index, name_and_type_index })
+        }
         METHODREF_CONST_NUM => {
             let class_index = p.read16();
             let name_and_type_index = p.read16();
-            ConstantKind::Methodref( Methodref {class_index,name_and_type_index})
-        },
+            ConstantKind::Methodref(Methodref { class_index, name_and_type_index })
+        }
         INTERFACE_METHODREF_CONST_NUM => {
             let class_index = p.read16();
             let nt_index = p.read16();
             ConstantKind::InterfaceMethodref(InterfaceMethodref { class_index, nt_index })
-        },
+        }
         NAME_AND_TYPE_CONST_NUM => {
             let name_index = p.read16();
             let descriptor_index = p.read16();
-            ConstantKind::NameAndType( NameAndType { name_index,descriptor_index } )
-        },
+            ConstantKind::NameAndType(NameAndType { name_index, descriptor_index })
+        }
         METHOD_HANDLE_CONST_NUM => {
             let reference_kind = p.read8();
             let reference_index = p.read16();
             ConstantKind::MethodHandle(MethodHandle {
-                reference_kind, reference_index
+                reference_kind,
+                reference_index,
             })
-        },
+        }
         METHOD_TYPE_CONST_NUM => {
             let descriptor_index = p.read16();
             ConstantKind::MethodType(MethodType {
                 descriptor_index
             })
-        },
-        DYNAMIC_CONST_NUM => { unimplemented!() },
+        }
+        DYNAMIC_CONST_NUM => { unimplemented!() }
         INVOKE_DYNAMIC_CONST_NUM => {
             let bootstrap_method_attr_index = p.read16();
             let name_and_type_index = p.read16();
@@ -109,13 +111,13 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo{
                 bootstrap_method_attr_index,
                 name_and_type_index,
             })
-        },
-        MODULE_CONST_NUM => { unimplemented!() },
-        PACKAGE_CONST_NUM => { unimplemented!() },
+        }
+        MODULE_CONST_NUM => { unimplemented!() }
+        PACKAGE_CONST_NUM => { unimplemented!() }
         INVALID_CONSTANT_CONST_NUM => {
             assert!(false);
             unimplemented!();
-        },
+        }
         _ => {
             dbg!(kind);
             assert!(false);
@@ -134,15 +136,15 @@ pub fn parse_constant_infos(p: &mut dyn ParsingContext, constant_pool_count: u16
         if skip_next_iter {
             constants.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
             skip_next_iter = false;
-            continue
+            continue;
         }
         let constant_info = parse_constant_info(p);
 //        dbg!(&constant_info);
 //        dbg!(i);
-        match constant_info.kind{
-            ConstantKind::Long(_) | ConstantKind::Double(_)  => {
+        match constant_info.kind {
+            ConstantKind::Long(_) | ConstantKind::Double(_) => {
                 skip_next_iter = true;
-            },
+            }
             _ => {}
         }
         constants.push(constant_info);

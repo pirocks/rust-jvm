@@ -26,13 +26,14 @@ fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
     let npairs = read_i32(c)?;
     assert!(npairs > 0);
     let mut pairs = vec![];
-    for _ in 0..npairs{
+    for _ in 0..npairs {
         //key target
-        pairs.push((read_i32(c)?,read_i32(c)?));
+        pairs.push((read_i32(c)?, read_i32(c)?));
     }
     return Some(LookupSwitch {
-        default,pairs
-    })
+        default,
+        pairs,
+    });
 }
 
 
@@ -46,7 +47,6 @@ fn read_multi_new_array(c: &mut CodeParserContext) -> Option<MultiNewArray> {
 fn read_atype(c: &mut CodeParserContext) -> Option<Atype> {
     return Some(unsafe { ::std::mem::transmute(read_u8(c)?) });
 }
-
 
 
 fn read_table_switch(c: &mut CodeParserContext) -> Option<TableSwitch> {
@@ -114,7 +114,6 @@ fn read_i32(c: &mut CodeParserContext) -> Option<i32> {
 pub fn read_opcode(b: u8) -> InstructionTypeNum {
     return unsafe { ::std::mem::transmute(b) };
 }
-
 
 
 #[allow(non_camel_case_types)]

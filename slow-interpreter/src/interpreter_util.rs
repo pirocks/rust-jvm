@@ -297,22 +297,22 @@ pub fn push_new_object(current_frame: Rc<StackEntry>, target_classfile: &Arc<Run
     let loader_arc = &current_frame.class_pointer.loader.clone();
     let object_pointer = JavaValue::new_object(target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
-    default_init_fields(loader_arc.clone(), object_pointer, &target_classfile.classfile,loader_arc.clone());
+    default_init_fields(loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
     current_frame.push(new_obj);
 }
 
 fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: Arc<dyn Loader + Send + Sync>) {
     if classfile.super_class != 0 {
-        let class_  = extract_class_from_constant_pool(classfile.super_class,classfile);
+        let class_ = extract_class_from_constant_pool(classfile.super_class, classfile);
         let super_name = extract_string_from_utf8(&classfile.constant_pool[class_.name_index as usize]);
-        let loaded_super = loader_arc.load_class(loader_arc.clone(), &ClassName::Str(super_name),bl.clone()).unwrap();
-        default_init_fields(loader_arc.clone(),object_pointer.clone(),&loaded_super,bl);
+        let loaded_super = loader_arc.load_class(loader_arc.clone(), &ClassName::Str(super_name), bl.clone()).unwrap();
+        default_init_fields(loader_arc.clone(), object_pointer.clone(), &loaded_super, bl);
     }
     for field in &classfile.fields {
         if field.access_flags & ACC_STATIC == 0 {
             //todo should I look for constant val attributes?
             let _value_i = match constant_value_attribute_i(field) {
-                None => {},
+                None => {}
                 Some(_i) => unimplemented!(),
             };
             let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);

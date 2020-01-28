@@ -13,13 +13,13 @@ pub struct RuntimeClass {
     pub static_vars: RefCell<HashMap<String, JavaValue>>,
 }
 
-impl Debug for RuntimeClass{
+impl Debug for RuntimeClass {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f,"{:?}:{:?}",self.classfile,self.static_vars)
+        write!(f, "{:?}:{:?}", self.classfile, self.static_vars)
     }
 }
 
-impl Hash for RuntimeClass{
+impl Hash for RuntimeClass {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.classfile.hash(state);
         //todo add loader to hash
@@ -27,10 +27,10 @@ impl Hash for RuntimeClass{
 }
 
 
-impl PartialEq for RuntimeClass{
+impl PartialEq for RuntimeClass {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.loader,&other.loader) && self.classfile == other.classfile && self.static_vars == other.static_vars
+        Arc::ptr_eq(&self.loader, &other.loader) && self.classfile == other.classfile && self.static_vars == other.static_vars
     }
 }
 
-impl Eq for RuntimeClass{}
+impl Eq for RuntimeClass {}

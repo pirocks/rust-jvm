@@ -37,7 +37,7 @@ pub struct InternalFrame {
 pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<Classfile> {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     if class.loader.initiating_loader_of(&class.class_name) {
-        match class.loader.clone().load_class(class.loader.clone(),&class.class_name,verifier_context.bootstrap_loader.clone()) {
+        match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.bootstrap_loader.clone()) {
             Ok(c) => c,
             Err(_) => panic!(),
         }
@@ -140,9 +140,9 @@ pub fn passes_protected_check(_env: &Environment, _member_class_name: &ClassName
 }
 
 
-pub fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, class: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor, member_class_name: ClassName, chain: Vec<ClassWithLoader>) -> Result<Vec<ClassWithLoader>,TypeSafetyError> {
+pub fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, class: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor, member_class_name: ClassName, chain: Vec<ClassWithLoader>) -> Result<Vec<ClassWithLoader>, TypeSafetyError> {
     let mut res = vec![];
-    classes_in_other_pkg_with_protected_member_impl(vf,class,member_name,member_descriptor,member_class_name,chain.as_slice(),&mut res)?;
+    classes_in_other_pkg_with_protected_member_impl(vf, class, member_name, member_descriptor, member_class_name, chain.as_slice(), &mut res)?;
     Result::Ok(res)
 }
 
@@ -154,20 +154,20 @@ fn classes_in_other_pkg_with_protected_member_impl(
     member_descriptor: &Descriptor,
     member_class_name: ClassName,
     chain: &[ClassWithLoader],
-    res: &mut Vec<ClassWithLoader>) -> Result<(),TypeSafetyError> {
+    res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
     if !chain.is_empty() {
         let first = &chain[0];
         let rest = &chain[1..];
-        if first.class_name != member_class_name{
+        if first.class_name != member_class_name {
             dbg!(&chain);
             dbg!(&member_class_name);
             panic!();
 //            return Result::Err(unknown_error_verifying!())
         }
         let l = first.loader.clone();
-        if different_runtime_package(vf, class,first){
-            let super_ = loaded_class(vf,member_class_name.clone(),l)?;
-            if is_protected(vf,&super_,member_name.clone(),member_descriptor){
+        if different_runtime_package(vf, class, first) {
+            let super_ = loaded_class(vf, member_class_name.clone(), l)?;
+            if is_protected(vf, &super_, member_name.clone(), member_descriptor) {
                 dbg!(&res);
                 res.push(first.clone())
             }
@@ -183,7 +183,6 @@ fn classes_in_other_pkg_with_protected_member_impl(
     }
     Result::Ok(())
 }
-
 
 
 pub fn standard_exception_frame(stack_frame: &Frame, next_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {

@@ -8,7 +8,6 @@ pub fn goto_(current_frame: &Rc<StackEntry>, target: i16) {
 }
 
 
-
 pub fn iconst_5(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int(5))
 }
@@ -158,7 +157,6 @@ pub fn if_icmplt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
-
 pub fn if_icmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
@@ -175,7 +173,6 @@ pub fn if_icmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
-
 pub fn if_acmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
@@ -188,7 +185,7 @@ pub fn if_acmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
                 },
                 Some(o1_arc) => match o2 {
                     None => true,
-                    Some(o2_arc) => Arc::ptr_eq(&o1_arc,&o2_arc),
+                    Some(o2_arc) => Arc::ptr_eq(&o1_arc, &o2_arc),
                 },
             },
             _ => panic!()

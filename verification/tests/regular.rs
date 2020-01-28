@@ -124,7 +124,7 @@ pub fn can_verify_string() {
     verify_class_with_name(&main_class_name).unwrap();
 }
 
-fn verify_class_with_name(main_class_name: &String) -> Result<(),TypeSafetyError>{
+fn verify_class_with_name(main_class_name: &String) -> Result<(), TypeSafetyError> {
     let mut base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     base.push("../");
     base.push("verification/resources/test");
@@ -133,30 +133,34 @@ fn verify_class_with_name(main_class_name: &String) -> Result<(),TypeSafetyError
     verify_impl(&ClassName::Str(main_class_name.clone()), base.as_path())
 }
 
-fn verify_impl(classname: &ClassName, jar_path : &Path) -> Result<(), TypeSafetyError> {
+fn verify_impl(classname: &ClassName, jar_path: &Path) -> Result<(), TypeSafetyError> {
     let loader = BootstrapLoader {
         loaded: RwLock::new(HashMap::new()),
         parsed: RwLock::new(HashMap::new()),
         name: RwLock::new(LoaderName::BootstrapLoader),
-        classpath: Classpath { jars: vec![RwLock::new(Box::new(JarHandle::new(jar_path.into()).unwrap()))], classpath_base: vec![] }
+        classpath: Classpath { jars: vec![RwLock::new(Box::new(JarHandle::new(jar_path.into()).unwrap()))], classpath_base: vec![] },
     };
     let bootstrap_loader = Arc::new(loader);
     let mut jar_handle = JarHandle::new(jar_path.into()).unwrap();
-    let classfile = jar_handle.lookup(classname,bootstrap_loader.clone()).unwrap();
-    bootstrap_loader.parsed.write().unwrap().insert(class_name(&classfile),classfile.clone());
+    let classfile = jar_handle.lookup(classname, bootstrap_loader.clone()).unwrap();
+    bootstrap_loader.parsed.write().unwrap().insert(class_name(&classfile), classfile.clone());
 
 
-    match verify(&VerifierContext{ bootstrap_loader:bootstrap_loader.clone() }, classfile.clone(),bootstrap_loader.clone()){
+    match verify(&VerifierContext { bootstrap_loader: bootstrap_loader.clone() }, classfile.clone(), bootstrap_loader.clone()) {
         Ok(_) => Result::Ok(()),
         Err(err) => {
             match err {
-                TypeSafetyError::NotSafe(s) => {dbg!(s);assert!(false);panic!()},
+                TypeSafetyError::NotSafe(s) => {
+                    dbg!(s);
+                    assert!(false);
+                    panic!()
+                }
                 TypeSafetyError::NeedToLoad(ntl) => {
                     dbg!(ntl);
                     assert!(false);
                     panic!();
                 }
             }
-        },
+        }
     }
 }

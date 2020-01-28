@@ -13,7 +13,7 @@ pub struct ArrayType {
     pub sub_type: Box<ParsedType>
 }
 
-impl Clone for ArrayType{
+impl Clone for ArrayType {
     fn clone(&self) -> Self {
         ArrayType { sub_type: Box::new(self.sub_type.deref().clone()) }
     }
@@ -90,7 +90,8 @@ impl ParsedType {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum VerificationType {// todo perhaps this should reside in the verifier
+pub enum VerificationType {
+    // todo perhaps this should reside in the verifier
     DoubleType,
     FloatType,
     IntType,

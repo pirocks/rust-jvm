@@ -80,8 +80,8 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
         match removed {
             ParsedType::DoubleType | ParsedType::LongType => panic!(),
             ParsedType::TopType => {
-                match frame.locals.remove(frame.locals.len() - 1){
-                    ParsedType::DoubleType | ParsedType::LongType => {},
+                match frame.locals.remove(frame.locals.len() - 1) {
+                    ParsedType::DoubleType | ParsedType::LongType => {}
                     _ => panic!()
                 }
             }

@@ -168,7 +168,7 @@ fn count_is_valid(count: usize, input_frame: &Frame, output_frame: &Frame) -> Re
 }
 
 pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf, env.method.class), env.class_loader.clone());
     let method_class_name = match method_class_type {
         ParsedType::Class(c) => c.class_name,
         _ => panic!()
@@ -342,7 +342,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
 }
 
 pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
+    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf, env.method.class), env.class_loader.clone());
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
@@ -359,7 +359,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
 }
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf,env.method.class),env.class_loader.clone());
+    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf, env.method.class), env.class_loader.clone());
     let (class_name, method_class) = match class_type {
         ParsedType::Class(c) => (Some(c.class_name.clone()), VerificationType::Class(c.clone())),
         ParsedType::ArrayReferenceType(a) => {
@@ -390,7 +390,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     standard_exception_frame(stack_frame, nf)
 }
 
-pub fn get_method_descriptor(cp: usize, classfile:&Arc<Classfile>, loader: Arc<dyn Loader + Sync + Send>) -> (ParsedType, String, MethodDescriptor) {
+pub fn get_method_descriptor(cp: usize, classfile: &Arc<Classfile>, loader: Arc<dyn Loader + Sync + Send>) -> (ParsedType, String, MethodDescriptor) {
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {
@@ -415,12 +415,12 @@ pub fn get_method_descriptor(cp: usize, classfile:&Arc<Classfile>, loader: Arc<d
             };
             (class_name, method_name, parsed_descriptor)
         }
-        _ => unimplemented!("{:?}",c)
+        _ => unimplemented!("{:?}", c)
     };
     (possibly_array_to_type(&loader, class_name), method_name, parsed_descriptor)
 }
 
-pub fn possibly_array_to_type(loader: &Arc<dyn Loader + Send +Sync>, class_name: String) -> ParsedType {
+pub fn possibly_array_to_type(loader: &Arc<dyn Loader + Send + Sync>, class_name: String) -> ParsedType {
     if class_name.contains("[") {
         let class_type = match parse_field_descriptor(loader, class_name.as_str()) {
             None => panic!(),
@@ -435,31 +435,31 @@ pub fn possibly_array_to_type(loader: &Arc<dyn Loader + Send +Sync>, class_name:
     }
 }
 
-pub fn instruction_is_type_safe_lreturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
+pub fn instruction_is_type_safe_lreturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
         VerificationType::LongType => {
-            can_pop(&env.vf,stack_frame,vec![VerificationType::LongType])?;
+            can_pop(&env.vf, stack_frame, vec![VerificationType::LongType])?;
             let exception_frame = exception_stack_frame(stack_frame);
             Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
-        },
+        }
         _ => Result::Err(unknown_error_verifying!())
     }
 }
 
-pub fn instruction_is_type_safe_dreturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-    if env.return_type != VerificationType::DoubleType{
+pub fn instruction_is_type_safe_dreturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    if env.return_type != VerificationType::DoubleType {
         return Result::Err(unknown_error_verifying!());
     }
-    can_pop(&env.vf,stack_frame,vec![VerificationType::DoubleType])?;
+    can_pop(&env.vf, stack_frame, vec![VerificationType::DoubleType])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
-pub fn instruction_is_type_safe_freturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError>  {
-    if env.return_type != VerificationType::FloatType{
+pub fn instruction_is_type_safe_freturn(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    if env.return_type != VerificationType::FloatType {
         return Result::Err(unknown_error_verifying!());
     }
-    can_pop(&env.vf,stack_frame,vec![VerificationType::FloatType])?;
+    can_pop(&env.vf, stack_frame, vec![VerificationType::FloatType])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }

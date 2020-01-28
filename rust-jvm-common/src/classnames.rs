@@ -7,15 +7,15 @@ use std::hash::Hash;
 use std::hash::Hasher;
 
 #[derive(Debug)]
-pub struct NameReference{
+pub struct NameReference {
     pub class_file: Weak<Classfile>,
-    pub index : u16,
+    pub index: u16,
 }
 
 impl Eq for NameReference {}
 
-impl PartialEq for NameReference{
-    fn eq(&self, other: &NameReference) -> bool{
+impl PartialEq for NameReference {
+    fn eq(&self, other: &NameReference) -> bool {
         self.class_file.ptr_eq(&other.class_file) && self.index == other.index
     }
 }
@@ -25,77 +25,77 @@ impl PartialEq for NameReference{
 //#[derive(Hash)]
 pub enum ClassName {
     Ref(NameReference),
-    Str(String)
+    Str(String),
 }
 
-impl ClassName{
-    pub fn new(str_ : &str) -> Self{
+impl ClassName {
+    pub fn new(str_: &str) -> Self {
         ClassName::Str(str_.to_string())
     }
 
-    pub fn object() -> Self{
+    pub fn object() -> Self {
         ClassName::new("java/lang/Object")
     }
 
-    pub fn class() -> Self{
+    pub fn class() -> Self {
         ClassName::new("java/lang/Class")
     }
 
-    pub fn string() -> Self{
+    pub fn string() -> Self {
         ClassName::new("java/lang/String")
     }
 
-    pub fn throwable() -> Self{
+    pub fn throwable() -> Self {
         ClassName::new("java/lang/Throwable")
     }
 }
 
-impl Hash for ClassName{
+impl Hash for ClassName {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write(self.get_referred_name().into_bytes().as_slice())
     }
 }
 
 impl PartialEq for ClassName {
-    fn eq(&self, other: &ClassName) -> bool{
+    fn eq(&self, other: &ClassName) -> bool {
         self.get_referred_name() == other.get_referred_name()
     }
 }
 
 impl std::clone::Clone for ClassName {
     fn clone(&self) -> Self {
-        match self{
+        match self {
             ClassName::Ref(r) => {
                 ClassName::Ref(NameReference {
-                    index:  r.index,
-                    class_file: r.class_file.clone()
+                    index: r.index,
+                    class_file: r.class_file.clone(),
                 })
-            },
+            }
             ClassName::Str(s) => {
                 ClassName::Str(s.clone())//todo fix
-            },
+            }
         }
     }
 }
 
 
-impl std::fmt::Debug for ClassName{
+impl std::fmt::Debug for ClassName {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f,"{}",self.get_referred_name())
+        write!(f, "{}", self.get_referred_name())
     }
 }
 
-impl ClassName{
-    pub fn get_referred_name(&self) -> String{
-        match self{
+impl ClassName {
+    pub fn get_referred_name(&self) -> String {
+        match self {
             ClassName::Ref(r) => {
                 let upgraded_class_ref = match r.class_file.upgrade() {
                     None => panic!(),
                     Some(c) => c
                 };
-                return extract_string_from_utf8(&upgraded_class_ref.constant_pool[r.index as usize])
-            },
-            ClassName::Str(s) => {s.clone()},//todo this clone may be expensive, ditch?
+                return extract_string_from_utf8(&upgraded_class_ref.constant_pool[r.index as usize]);
+            }
+            ClassName::Str(s) => { s.clone() }//todo this clone may be expensive, ditch?
         }
     }
 }
@@ -108,7 +108,7 @@ pub fn class_name(class: &Arc<Classfile>) -> ClassName {
     };
 
     return ClassName::Ref(NameReference {
-        class_file:Arc::downgrade(&class),
-        index: class_info_entry.name_index
+        class_file: Arc::downgrade(&class),
+        index: class_info_entry.name_index,
     });
 }

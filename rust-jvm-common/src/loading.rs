@@ -13,16 +13,13 @@ pub enum ClassLoadingError {
     ClassNotFoundException,
 }
 
-impl Display for ClassLoadingError{
+impl Display for ClassLoadingError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f,"ClassNotFoundException")
+        write!(f, "ClassNotFoundException")
     }
 }
 
-impl Error for ClassLoadingError{
-
-}
-
+impl Error for ClassLoadingError {}
 
 
 #[derive(Debug)]
@@ -61,12 +58,12 @@ pub trait Loader {
     fn initiating_loader_of(&self, class: &ClassName) -> bool;
     //todo File will have to be a much more general array of bytes
     fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError>;
-    fn load_class(&self,  self_arc: Arc<dyn Loader + Sync + Send>,class: &ClassName, bl: Arc<dyn Loader + Sync + Send>) -> Result<Arc<Classfile>, ClassLoadingError>;
+    fn load_class(&self, self_arc: Arc<dyn Loader + Sync + Send>, class: &ClassName, bl: Arc<dyn Loader + Sync + Send>) -> Result<Arc<Classfile>, ClassLoadingError>;
     fn name(&self) -> LoaderName;
 
 
     //pre loading parses the class file but does not verify
-    fn pre_load(&self, self_arc: Arc<dyn Loader + Send + Sync>, name: &ClassName) -> Result<Arc<Classfile>,ClassLoadingError>;
+    fn pre_load(&self, self_arc: Arc<dyn Loader + Send + Sync>, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError>;
 }
 
 //todo Loading Constraints
@@ -84,7 +81,7 @@ impl Loader for EmptyLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, _self_arc: Arc<dyn Loader + Sync + Send>,_class: &ClassName, _bl: Arc<dyn Loader + Sync + Send>) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn load_class(&self, _self_arc: Arc<dyn Loader + Sync + Send>, _class: &ClassName, _bl: Arc<dyn Loader + Sync + Send>) -> Result<Arc<Classfile>, ClassLoadingError> {
         unimplemented!()
     }
 

@@ -100,7 +100,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         }
         ParsedType::Class(_) => {
             unsafe {
-                Some(JavaValue::Object( from_object(transmute(cif_res))))
+                Some(JavaValue::Object(from_object(transmute(cif_res))))
             }
         }
 //            ParsedType::ShortType => {}

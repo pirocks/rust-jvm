@@ -5,7 +5,7 @@ use crate::unified_types::ParsedType;
 #[derive(Eq, PartialEq)]
 pub struct SourceFile {
     //todo
-    pub sourcefile_index:CPIndex
+    pub sourcefile_index: CPIndex
 }
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct InnerClasses {
 #[derive(Eq, PartialEq)]
 pub struct EnclosingMethod {
     pub class_index: CPIndex,
-    pub method_index: CPIndex
+    pub method_index: CPIndex,
 }
 
 #[derive(Debug)]
@@ -194,7 +194,7 @@ pub struct UninitializedVariableInfo {
     pub offset: u16
 }
 
-impl Clone for UninitializedVariableInfo{
+impl Clone for UninitializedVariableInfo {
     fn clone(&self) -> Self {
         UninitializedVariableInfo { offset: self.offset }
     }
@@ -541,7 +541,6 @@ pub struct InvokeDynamic {
 #[derive(Eq, PartialEq)]
 pub struct Module {
     //todo
-
 }
 
 #[derive(Debug)]
@@ -642,8 +641,8 @@ pub struct LookupSwitch {
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
 pub struct MultiNewArray {
-    pub index : CPIndex,
-    pub dims : u8
+    pub index: CPIndex,
+    pub dims: u8,
 }
 
 
@@ -926,8 +925,6 @@ pub const ACC_ANNOTATION: u16 = 0x2000;
 pub const ACC_ENUM: u16 = 0x4000;
 pub const ACC_MODULE: u16 = 0x8000;
 //}
-
-
 
 
 #[derive(Debug)]

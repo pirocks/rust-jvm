@@ -23,7 +23,6 @@ pub fn dreturn(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> 
 }
 
 
-
 pub fn areturn(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
     state.function_return = true;
@@ -34,8 +33,6 @@ pub fn areturn(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> 
 pub fn return_(state: &mut InterpreterState) {
     state.function_return = true;
 }
-
-
 
 
 pub fn ireturn(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> () {

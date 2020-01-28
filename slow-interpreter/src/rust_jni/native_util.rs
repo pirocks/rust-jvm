@@ -24,16 +24,16 @@ pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterS
 }
 
 pub unsafe extern "C" fn to_object(obj: Option<Arc<Object>>) -> jobject {
-    match obj{
+    match obj {
         None => std::ptr::null_mut(),
         Some(o) => Box::into_raw(Box::new(o)) as *mut _jobject,
     }
 }
 
 pub unsafe extern "C" fn from_object(obj: jobject) -> Option<Arc<Object>> {
-    if obj == std::ptr::null_mut(){
+    if obj == std::ptr::null_mut() {
         None
-    }else {
+    } else {
         (obj as *mut Arc<Object>).as_ref().unwrap().clone().into()
     }
 }

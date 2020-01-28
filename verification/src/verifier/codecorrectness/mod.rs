@@ -32,8 +32,8 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<Ver
 //    dbg!(&result_type);
 //    dbg!(&input_frame.stack_map);
     let input_operand_stack = &input_frame.stack_map;
-    let interim_operand_stack = pop_matching_list(&env.vf,input_operand_stack, expected_types_on_stack)?;
-    let next_operand_stack = push_operand_stack(&env.vf,&interim_operand_stack, &result_type);
+    let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
+    let next_operand_stack = push_operand_stack(&env.vf, &interim_operand_stack, &result_type);
     if operand_stack_has_legal_length(env, &next_operand_stack) {
         Result::Ok(Frame { locals: input_frame.locals.iter().map(|x| x.clone()).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit })
     } else {
@@ -45,34 +45,34 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<Ver
 // lists are stored in same order as prolog, e.g. 0 is first elem, n-1 is last.
 // This is problematic for adding to the beginning of a Vec. as a result linked lists may be used in impl.
 // alternatively results can be reversed at the end.
-pub fn pop_matching_list(vf:&VerifierContext,pop_from: &OperandStack, pop: Vec<VerificationType>) -> Result<OperandStack, TypeSafetyError> {
+pub fn pop_matching_list(vf: &VerifierContext, pop_from: &OperandStack, pop: Vec<VerificationType>) -> Result<OperandStack, TypeSafetyError> {
 //    if pop_from.len() > 1 && pop.len() > 1{
 //        dbg!("Attempt to pop matching:");
 //        dbg!(&pop_from);
 //        dbg!(&pop);
 //    }
-    let result = pop_matching_list_impl(vf,&mut pop_from.clone(), pop.as_slice());
+    let result = pop_matching_list_impl(vf, &mut pop_from.clone(), pop.as_slice());
 //    dbg!(&result);
     return result;
 }
 
-pub fn pop_matching_list_impl(vf:&VerifierContext,pop_from: &mut OperandStack, pop: &[VerificationType]) -> Result<OperandStack, TypeSafetyError> {
+pub fn pop_matching_list_impl(vf: &VerifierContext, pop_from: &mut OperandStack, pop: &[VerificationType]) -> Result<OperandStack, TypeSafetyError> {
     if pop.is_empty() {
         Result::Ok(pop_from.clone())//todo inefficent copying
     } else {
         let to_pop = pop.first().unwrap();
-        pop_matching_type(vf,pop_from, to_pop)?;
-        return pop_matching_list_impl(vf,pop_from, &pop[1..]);
+        pop_matching_type(vf, pop_from, to_pop)?;
+        return pop_matching_list_impl(vf, pop_from, &pop[1..]);
     }
 }
 
-pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l mut  OperandStack, type_: &VerificationType) -> Result<VerificationType, TypeSafetyError> {
-    if size_of(vf,type_) == 1 {
+pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut OperandStack, type_: &VerificationType) -> Result<VerificationType, TypeSafetyError> {
+    if size_of(vf, type_) == 1 {
         let actual_type = operand_stack.peek();
-        is_assignable(vf,&actual_type, type_)?;
+        is_assignable(vf, &actual_type, type_)?;
         operand_stack.operand_pop();
         return Result::Ok(actual_type.clone());
-    } else if size_of(vf,type_) == 2 {
+    } else if size_of(vf, type_) == 2 {
         assert!(match &operand_stack.peek() {
             VerificationType::TopType => true,
             _ => false
@@ -80,7 +80,7 @@ pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l mut  Operand
         operand_stack.operand_pop();
         let actual_type = &operand_stack.peek();
         //todo if not assignable we need to roll back top pop
-        is_assignable(vf,actual_type, type_).unwrap();
+        is_assignable(vf, actual_type, type_).unwrap();
         operand_stack.operand_pop();
         return Result::Ok(actual_type.clone());
     } else {
@@ -89,13 +89,13 @@ pub fn pop_matching_type<'l>(vf:&VerifierContext,operand_stack: &'l mut  Operand
 }
 
 
-pub fn size_of(vf:&VerifierContext,unified_type: &VerificationType) -> u64 {
+pub fn size_of(vf: &VerifierContext, unified_type: &VerificationType) -> u64 {
     match unified_type {
         VerificationType::TopType => { 1 }
         _ => {
-            if is_assignable(vf,unified_type, &VerificationType::TwoWord).is_ok() {
+            if is_assignable(vf, unified_type, &VerificationType::TwoWord).is_ok() {
                 2
-            } else if is_assignable(vf,unified_type, &VerificationType::OneWord).is_ok() {
+            } else if is_assignable(vf, unified_type, &VerificationType::OneWord).is_ok() {
                 1
             } else {
                 panic!("This is a bug")
@@ -104,17 +104,17 @@ pub fn size_of(vf:&VerifierContext,unified_type: &VerificationType) -> u64 {
     }
 }
 
-pub fn push_operand_stack(vf:&VerifierContext,operand_stack: &OperandStack, type_: &VerificationType) -> OperandStack {
+pub fn push_operand_stack(vf: &VerifierContext, operand_stack: &OperandStack, type_: &VerificationType) -> OperandStack {
     let mut operand_stack_copy = operand_stack.clone();
     match type_ {
         VerificationType::VoidType => {
             operand_stack_copy
         }
         _ => {
-            if size_of(vf,type_) == 2 {
+            if size_of(vf, type_) == 2 {
                 operand_stack_copy.operand_push(type_.clone());
                 operand_stack_copy.operand_push(VerificationType::TopType);
-            } else if size_of(vf,type_) == 1 {
+            } else if size_of(vf, type_) == 1 {
                 operand_stack_copy.operand_push(type_.clone());
             } else {
                 unimplemented!()
@@ -150,8 +150,8 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
 //}
 //
 
-pub fn can_pop(vf:&VerifierContext,input_frame: &Frame, types: Vec<VerificationType>) -> Result<Frame, TypeSafetyError> {
-    let poped_stack = pop_matching_list(vf,&input_frame.stack_map, types)?;
+pub fn can_pop(vf: &VerifierContext, input_frame: &Frame, types: Vec<VerificationType>) -> Result<Frame, TypeSafetyError> {
+    let poped_stack = pop_matching_list(vf, &input_frame.stack_map, types)?;
     Result::Ok(Frame {
         locals: input_frame
             .locals
@@ -163,15 +163,15 @@ pub fn can_pop(vf:&VerifierContext,input_frame: &Frame, types: Vec<VerificationT
     })
 }
 
-pub fn frame_is_assignable(vf:&VerifierContext,left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
+pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
 //    dbg!(left);
 //    dbg!(right);
     let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| {
-        is_assignable(vf,left_, right_)
+        is_assignable(vf, left_, right_)
     }).collect();
     let locals_assignable = locals_assignable_res.is_ok();
     let stack_assignable_res: Result<Vec<_>, _> = left.stack_map.iter().zip(right.stack_map.iter()).map(|(left_, right_)| {
-        is_assignable(vf,left_, right_)
+        is_assignable(vf, left_, right_)
     }).collect();
     let stack_assignable = stack_assignable_res.is_ok();
     if left.stack_map.len() == right.stack_map.len() && locals_assignable && stack_assignable &&
@@ -187,10 +187,10 @@ pub fn frame_is_assignable(vf:&VerifierContext,left: &Frame, right: &Frame) -> R
     }
 }
 
-pub fn method_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let access_flags = get_access_flags(vf,class, method);
+pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
+    let access_flags = get_access_flags(vf, class, method);
 //    trace!("got access_flags:{}", access_flags);
-    does_not_override_final_method(vf,class, method)?;
+    does_not_override_final_method(vf, class, method)?;
 //    trace!("does not override final method");
 //    dbg!(&does_not_override_final_method);
 
@@ -205,7 +205,7 @@ pub fn method_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader, method: 
         /*let attributes = get_attributes(class, method);
         attributes.iter().any(|_| {
             unimplemented!()
-        }) && */method_with_code_is_type_safe(vf,class, method)
+        }) && */method_with_code_is_type_safe(vf, class, method)
     }
 }
 
@@ -220,7 +220,7 @@ pub struct ParsedCodeAttribute<'l> {
     pub method: &'l ClassWithLoaderMethod<'l>
 }
 
-pub fn get_handlers(vf:&VerifierContext,class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
+pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
     code.exception_table.iter().map(|f| Handler {
         start: f.start_pc as usize,
         end: f.end_pc as usize,
@@ -241,8 +241,8 @@ pub fn get_handlers(vf:&VerifierContext,class: &ClassWithLoader, code: &Code) ->
     }).collect()
 }
 
-pub fn method_with_code_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let method_info = &get_class(vf,class).methods[method.method_index];
+pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
+    let method_info = &get_class(vf, class).methods[method.method_index];
     let code = code_attribute(method_info).unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
@@ -256,14 +256,14 @@ pub fn method_with_code_is_type_safe(vf:&VerifierContext,class: &ClassWithLoader
         .collect();
     let end_of_code = Instruction { offset: final_offset, instruction: InstructionInfo::EndOfCode };
     instructs.push(&end_of_code);
-    let handlers = get_handlers(vf,class, code);
-    let stack_map: Vec<StackMap> = get_stack_map_frames(vf,class, method_info);
+    let handlers = get_handlers(vf, class, code);
+    let stack_map: Vec<StackMap> = get_stack_map_frames(vf, class, method_info);
 //    trace!("stack map frames generated:");
 //    dbg!(&stack_map);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x| { x }).collect());
 //    trace!("stack map frames merged:");
 //    dbg!(&merged);
-    let (frame, return_type) = method_initial_stack_frame(vf,class, method, frame_size);
+    let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size);
 //    trace!("Initial stack frame:");
 //    dbg!(&frame);
 //    dbg!(&frame_size);
@@ -279,13 +279,13 @@ pub struct Handler {
     pub start: usize,
     pub end: usize,
     pub target: usize,
-    pub class_name: Option<ClassName>
+    pub class_name: Option<ClassName>,
 }
 
-pub fn handler_exception_class(vf: &VerifierContext,handler: &Handler, loader: Arc<dyn Loader + Send + Sync>) -> ClassWithLoader {
+pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: Arc<dyn Loader + Send + Sync>) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
-        None => { ClassWithLoader{ class_name: ClassName::throwable(), loader: vf.bootstrap_loader.clone() } }
+        None => { ClassWithLoader { class_name: ClassName::throwable(), loader: vf.bootstrap_loader.clone() } }
         Some(s) => {
 //            let _classfile = loader.pre_load(loader.clone(),s).unwrap();
             // then class in question exists
@@ -331,7 +331,7 @@ pub struct Environment<'l> {
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
     pub class_loader: Arc<dyn Loader + Send + Sync>,
     pub handlers: Vec<Handler>,
-    pub vf : VerifierContext
+    pub vf: VerifierContext,
 }
 
 #[derive(Debug)]
@@ -406,19 +406,19 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     //    flags(ThisList, Flags),
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
-    let method_descriptor = extract_string_from_utf8(&get_class(vf,class).constant_pool[get_class(vf,method.class).methods[method.method_index as usize].descriptor_index as usize]);
+    let method_descriptor = extract_string_from_utf8(&get_class(vf, class).constant_pool[get_class(vf, method.class).methods[method.method_index as usize].descriptor_index as usize]);
     let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types.clone()
 //            .iter()
 //            .map(ParsedType::to_verification_type)
-            /*.collect()*/,
+        /*.collect()*/,
         return_type: initial_parsed_descriptor.return_type.clone(),
     };
-    let this_list = method_initial_this_type(vf,class, method);
+    let this_list = method_initial_this_type(vf, class, method);
     let flag_this_uninit = flags(&this_list);
     //todo this long and frequently duped
-    let args = expand_type_list(vf,parsed_descriptor.parameter_types.iter().map(ParsedType::to_verification_type).collect());
+    let args = expand_type_list(vf, parsed_descriptor.parameter_types.iter().map(ParsedType::to_verification_type).collect());
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
         this_args.push(x.clone());
@@ -433,10 +433,10 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
 
 fn expand_type_list(vf: &VerifierContext, list: Vec<VerificationType>) -> Vec<VerificationType> {
     return list.iter().flat_map(|x| {
-        if size_of(vf,x) == 1 {
+        if size_of(vf, x) == 1 {
             vec![x.clone()]
         } else {
-            assert!(size_of(vf,x) == 2);
+            assert!(size_of(vf, x) == 2);
             vec![x.clone(), VerificationType::TopType]
         }
     }).collect();
@@ -480,10 +480,10 @@ fn expand_to_length_verification(list: Vec<VerificationType>, size: usize, fille
 
 
 fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Option<VerificationType> {
-    let method_access_flags = get_class(vf,method.class).methods[method.method_index].access_flags;
+    let method_access_flags = get_class(vf, method.class).methods[method.method_index].access_flags;
     if method_access_flags & ACC_STATIC > 0 {
         //todo dup
-        let classfile = &get_class(vf,method.class);
+        let classfile = &get_class(vf, method.class);
         let method_name_info = &classfile.constant_pool[classfile.methods[method.method_index].name_index as usize];
         let method_name = extract_string_from_utf8(method_name_info);
         if method_name != "<init>" {
@@ -492,19 +492,19 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
             unimplemented!()
         }
     } else {
-        Some(instance_method_initial_this_type(vf,class, method).unwrap())
+        Some(instance_method_initial_this_type(vf, class, method).unwrap())
     }
 //    return Some(UnifiedType::UninitializedThis);
 }
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VerificationType, TypeSafetyError> {
-    let method_name = method_name(&get_class(vf,method.class), &get_class(vf, method.class).methods[method.method_index]);
+    let method_name = method_name(&get_class(vf, method.class), &get_class(vf, method.class).methods[method.method_index]);
     if method_name == "<init>" {
         if class.class_name == ClassName::object() {
-            Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))
+            Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf, class)), loader: class.loader.clone() }))
         } else {
             let mut chain = vec![];
-            super_class_chain(vf,class, class.loader.clone(), &mut chain)?;
+            super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
             if !chain.is_empty() {
                 Result::Ok(VerificationType::UninitializedThis)
             } else {
@@ -512,6 +512,6 @@ fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoad
             }
         }
     } else {
-        Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))
+        Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf, class)), loader: class.loader.clone() }))
     }
 }

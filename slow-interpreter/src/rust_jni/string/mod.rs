@@ -10,8 +10,8 @@ use crate::instructions::ldc::create_string_on_stack;
 
 //todo shouldn't this be handled by a registered native
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
-                                         name: jstring,
-                                         is_copy: *mut jboolean) -> *const c_char {
+                                             name: jstring,
+                                             is_copy: *mut jboolean) -> *const c_char {
     let str_obj: Arc<Object> = from_object(name).unwrap();
     let unwrapped = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_array();
     let refcell: &RefCell<Vec<JavaValue>> = &unwrapped;
@@ -42,7 +42,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     }
     let state = get_state(env);
     let frame = get_frame(env);
-    create_string_on_stack(state,&frame,owned_str);
+    create_string_on_stack(state, &frame, owned_str);
     let string = frame.pop().unwrap_object();
     to_object(string.into())
 }

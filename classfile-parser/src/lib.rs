@@ -73,7 +73,7 @@ pub fn parse_methods(p: &mut dyn ParsingContext, methods_count: u16) -> Vec<Meth
     return res;
 }
 
-pub fn parse_class_file(read:&mut dyn Read, loader: Arc<dyn Loader + Send + Sync>) -> Arc<Classfile> {
+pub fn parse_class_file(read: &mut dyn Read, loader: Arc<dyn Loader + Send + Sync>) -> Arc<Classfile> {
     let mut p = FileParsingContext { constant_pool: None, read, loader };
     let mut class_file = parse_from_context(&mut p);
     class_file.constant_pool = p.constant_pool();//todo to avoid this yuckiness two pass parsing could be used
@@ -103,7 +103,7 @@ fn parse_from_context(p: &mut dyn ParsingContext) -> Classfile {
         magic,
         minor_version,
         major_version,
-        constant_pool:vec![],
+        constant_pool: vec![],
         access_flags,
         this_class,
         super_class,

@@ -22,7 +22,6 @@ pub fn iand(current_frame: &Rc<StackEntry>) -> () {
 }
 
 
-
 pub fn iadd(current_frame: &Rc<StackEntry>) -> () {
     let first = current_frame.pop().unwrap_int();
     let second = current_frame.pop().unwrap_int();
@@ -33,7 +32,7 @@ pub fn iadd(current_frame: &Rc<StackEntry>) -> () {
 pub fn irem(current_frame: &Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
-    current_frame.push(JavaValue::Int( value1 % value2));
+    current_frame.push(JavaValue::Int(value1 % value2));
 }
 
 pub fn ladd(current_frame: Rc<StackEntry>) -> () {

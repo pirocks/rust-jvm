@@ -56,7 +56,7 @@ fn main() {
             .add_option(&["--classpath"], List, "A list of directories from which to load classes");
         ap.refer(&mut args)
             .add_option(&["--args"], List, "A list of args to pass to main");
-        ap.refer(&mut libjava).add_option(&["--libjava"],Store,"");
+        ap.refer(&mut libjava).add_option(&["--libjava"], Store, "");
         ap.parse_args_or_exit();
     }
 
@@ -89,6 +89,6 @@ fn main() {
     trace!("Loading main class: {:?}", main_class_name);
     //todo I guess the bootstrap loader doesn't need to be Arc
     let jni = new_java_loading(libjava);
-    run(&main_class_name, Arc::new(bootstrap_loader), args,jni).unwrap();
+    run(&main_class_name, Arc::new(bootstrap_loader), args, jni).unwrap();
 }
 

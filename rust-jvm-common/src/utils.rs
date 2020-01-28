@@ -37,10 +37,6 @@ pub fn is_final(class: &Classfile) -> bool {
 }
 
 
-
-
-
-
 pub fn name_and_type_extractor(i: u16, class_file: &Arc<Classfile>) -> (String, String) {
     let nt;
     match &class_file.constant_pool[i as usize].kind {
