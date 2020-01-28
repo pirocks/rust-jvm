@@ -333,7 +333,7 @@ pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> 
 }
 
 pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: Arc<dyn Loader + Send + Sync>, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
-    if chain_start.class_name.get_referred_name() == "java/lang/Object" {
+    if chain_start.class_name == ClassName::object() {
         //todo magic constant
         if /*res.is_empty() &&*/ is_bootstrap_loader(vf, &loader) {
             return Result::Ok(());
@@ -369,8 +369,7 @@ pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &
 }
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-//    dbg!(class);
-    if class.class_name.get_referred_name() == "java/lang/Object" {
+    if class.class_name == ClassName::object() {
         if is_bootstrap_loader(vf, &class.loader) {
             Result::Ok(())
         } else {

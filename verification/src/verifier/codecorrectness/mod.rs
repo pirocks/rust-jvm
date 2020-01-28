@@ -500,7 +500,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VerificationType, TypeSafetyError> {
     let method_name = method_name(&get_class(vf,method.class), &get_class(vf, method.class).methods[method.method_index]);
     if method_name == "<init>" {
-        if class.class_name.get_referred_name() == "java/lang/Object" {
+        if class.class_name == ClassName::object() {
             Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf,class)), loader: class.loader.clone() }))
         } else {
             let mut chain = vec![];

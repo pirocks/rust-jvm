@@ -71,7 +71,7 @@ pub enum TypeSafetyError {
 }
 
 pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
-    if class.class_name.get_referred_name() == "java/lang/Object" {
+    if class.class_name == ClassName::object() {
         if !is_bootstrap_loader(vf, &class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
         }
