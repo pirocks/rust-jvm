@@ -164,7 +164,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &Verific
                 }
                 if !is_assignable(vf, &VerificationType::Reference, to).is_ok() {
                     //todo okay to use name like that?
-                    if c.class_name == ClassName::Str("java/lang/Object".to_string()) &&
+                    if c.class_name == ClassName::object() &&
                         c.loader.name() == LoaderName::BootstrapLoader {
                         return Result::Ok(());
                     }
@@ -199,7 +199,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VerificationType, to: &Verific
             VerificationType::Class(_) => Result::Ok(()),
             VerificationType::ArrayReferenceType(_) => Result::Ok(()),
             //todo really need to do something about these magic strings
-            _ => is_assignable(vf, &VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: vf.bootstrap_loader.clone() }), to),
+            _ => is_assignable(vf, &VerificationType::Class(ClassWithLoader { class_name: ClassName::object(), loader: vf.bootstrap_loader.clone() }), to),
         },
         VerificationType::OneWord => match to {
             VerificationType::OneWord => Result::Ok(()),
@@ -275,7 +275,7 @@ fn is_java_assignable(vf: &VerifierContext, left: &VerificationType, right: &Ver
         VerificationType::ArrayReferenceType(a1) => {
             match right {
                 VerificationType::Class(c) => {
-                    if c.class_name == ClassName::Str("java/lang/Object".to_string()) && &vf.bootstrap_loader.name() == &c.loader.name() {
+                    if c.class_name == ClassName::object() && &vf.bootstrap_loader.name() == &c.loader.name() {
                         return Result::Ok(());
                     }
                     unimplemented!()

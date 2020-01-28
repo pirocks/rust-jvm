@@ -188,7 +188,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 //todo why do I take the class name when I already know it
                 let class_name = class_name(&get_class(&env.vf, &exception_class));
                 is_assignable(&env.vf, &VerificationType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
-                              &VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() }))
+                              &VerificationType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/Throwable"), loader: env.vf.bootstrap_loader.clone() }))
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
             }
@@ -427,11 +427,11 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> Verification
         ConstantKind::Long(_) => VerificationType::LongType,
         ConstantKind::Double(_) => VerificationType::DoubleType,
         ConstantKind::Class(_c) => {
-            let class_name = ClassName::Str("java/lang/Class".to_string());
+            let class_name = ClassName::class();
             VerificationType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         }
         ConstantKind::String(_) => {
-            let class_name = ClassName::Str("java/lang/String".to_string());
+            let class_name = ClassName::string();
             VerificationType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         }
         ConstantKind::MethodHandle(_) => unimplemented!(),
@@ -460,9 +460,9 @@ pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_fram
     let type_ = match const_ {
         ConstantKind::Integer(_) => VerificationType::IntType,
         ConstantKind::Float(_) => VerificationType::FloatType,
-        ConstantKind::Class(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Class".to_string()), loader: env.vf.bootstrap_loader.clone() }),
-        ConstantKind::String(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/String".to_string()), loader: env.vf.bootstrap_loader.clone() }),
-        ConstantKind::MethodType(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/invoke/MethodType".to_string()), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantKind::Class(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::class(), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantKind::String(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::string(), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantKind::MethodType(_) => VerificationType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/invoke/MethodType"), loader: env.vf.bootstrap_loader.clone() }),
         _ => panic!()
     };
     type_transition(env, stack_frame, vec![], type_)

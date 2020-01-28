@@ -42,7 +42,7 @@ pub fn modify_local_variable(vf: &VerifierContext, index: usize, type_: Verifica
 }
 
 pub fn instruction_is_type_safe_aastore(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let object = ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: env.vf.bootstrap_loader.clone() };
+    let object = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.bootstrap_loader.clone() };
     let object_type = VerificationType::Class(object.clone());
     let object_array = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::Class(object)) });
     let next_frame = can_pop(&env.vf, stack_frame, vec![object_type, VerificationType::IntType, object_array])?;

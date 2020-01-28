@@ -52,15 +52,15 @@ impl Loader for BootstrapLoader {
     }
 
     fn load_class(&self, self_arc: Arc<dyn Loader + Sync + Send>, class: &ClassName, bl: Arc<dyn Loader + Send + Sync>) -> Result<Arc<Classfile>, ClassLoadingError> {
-//        if class == ClassName::Str("java/lang/Object".to_string()) {
+//        if class == ClassName::object() {
 //            panic!()
 //        }
         if !self.initiating_loader_of(class) {
             trace!("loading {}",class.get_referred_name());
             let classfile = self.pre_load(self_arc.clone(), class)?;
-            if class != &ClassName::Str("java/lang/Object".to_string()){
+            if class != &ClassName::object(){
                 if classfile.super_class == 0 {
-                    self.load_class(self_arc.clone(), &ClassName::Str("java/lang/Object".to_string()),bl.clone())?;
+                    self.load_class(self_arc.clone(), &ClassName::object(),bl.clone())?;
                 } else {
                     let super_class_name = get_super_class_name(&classfile);
                     self.load_class(self_arc.clone(), &super_class_name,bl.clone())?;

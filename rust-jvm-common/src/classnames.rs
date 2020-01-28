@@ -12,23 +12,7 @@ pub struct NameReference{
     pub index : u16,
 }
 
-//impl Hash for NameReference{
-//    fn hash<H: Hasher>(&self, state: &mut H) {
-//        state.write_u16(self.index);
-//        let pointer = std::sync::Arc::<classfile::Classfile>::into_raw(self.class_file.upgrade().unwrap());
-//        state.write_usize(pointer as usize )
-//    }
-//}
-
 impl Eq for NameReference {}
-
-//pub fn rc_ptr_eq<T: ?Sized>(this: &Rc<T>, other: &Rc<T>) -> bool {
-//    unsafe  {
-//        let this_ptr: *const T = &*this;
-//        let other_ptr: *const T = &*other;
-//        this_ptr == other_ptr
-//    }
-//}
 
 impl PartialEq for NameReference{
     fn eq(&self, other: &NameReference) -> bool{
@@ -42,6 +26,24 @@ impl PartialEq for NameReference{
 pub enum ClassName {
     Ref(NameReference),
     Str(String)
+}
+
+impl ClassName{
+    pub fn new(str_ : &str) -> Self{
+        ClassName::Str(str_.to_string())
+    }
+
+    pub fn object() -> Self{
+        ClassName::new("java/lang/Object")
+    }
+
+    pub fn class() -> Self{
+        ClassName::new("java/lang/Class")
+    }
+
+    pub fn string() -> Self{
+        ClassName::new("java/lang/String")
+    }
 }
 
 impl Hash for ClassName{
@@ -94,16 +96,6 @@ impl ClassName{
     }
 }
 
-
-
-
-//pub fn class_name_legacy(class: &Classfile) -> String {
-//    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
-//        ConstantKind::Class(c) => { c }
-//        _ => { panic!() }
-//    };
-//    return extract_string_from_utf8(&class.constant_pool[class_info_entry.name_index as usize]);
-//}
 
 pub fn class_name(class: &Arc<Classfile>) -> ClassName {
     let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {

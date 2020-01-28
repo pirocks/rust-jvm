@@ -37,8 +37,8 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
     let res = state.class_object_pool.borrow().get(&class_for_object).cloned();
     match res{
         None => {
-            let java_lang_class = ClassName::Str("java/lang/Class".to_string());
-            let java_lang_class_loader = ClassName::Str("java/lang/ClassLoader".to_string());
+            let java_lang_class = ClassName::class();
+            let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
             let current_loader = current_frame.class_pointer.loader.clone();
             let class_class = check_inited_class(state, &java_lang_class, current_frame.clone().into(), current_loader.clone());
             let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone().into(), current_loader.clone());
@@ -94,7 +94,7 @@ pub fn run(
         class_object_pool: RefCell::new(HashMap::new()),
         jni
     };
-    let system_class = check_inited_class(&mut state, &ClassName::Str("java/lang/System".to_string()), None, bl.clone());
+    let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i,_method_info) = locate_init_system_class(&system_class.classfile);
     let initialize_system_frame = CallStackEntry{
         last_call_stack: None,
@@ -137,7 +137,7 @@ fn locate_main_method(bl: &Arc<dyn Loader + Send + Sync>, main: &Arc<Classfile>)
         if name == "main".to_string() {
             let descriptor_string = extract_string_from_utf8(&main.constant_pool[method.descriptor_index as usize]);
             let descriptor = parse_method_descriptor(&bl, descriptor_string.as_str()).unwrap();
-            let string_name = ClassName::Str("java/lang/String".to_string());
+            let string_name = ClassName::string();
             let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
             let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
             descriptor.parameter_types.len() == 1 &&

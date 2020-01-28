@@ -30,7 +30,7 @@ use rust_jvm_common::classfile::Classfile;
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
     let bl = &env.vf.bootstrap_loader.clone();
-    let object = VerificationType::Class(ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: bl.clone() });
+    let object = VerificationType::Class(ClassWithLoader { class_name: ClassName::object(), loader: bl.clone() });
     let next_frame = valid_type_transition(env, vec![object], &VerificationType::IntType, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
@@ -112,7 +112,7 @@ fn nth1(i: usize, o: &OperandStack) -> VerificationType {
 }
 
 pub fn instruction_is_type_safe_athrow(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let to_pop = ClassWithLoader { class_name: ClassName::Str("java/lang/Throwable".to_string()), loader: env.vf.bootstrap_loader.clone() };
+    let to_pop = ClassWithLoader { class_name: ClassName::new("java/lang/Throwable"), loader: env.vf.bootstrap_loader.clone() };
     can_pop(&env.vf, stack_frame, vec![VerificationType::Class(to_pop)])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
@@ -120,7 +120,7 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, stack_frame: &Frame) -
 
 //todo duplication with class name parsing and array logic
 pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let object_class = ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: env.vf.bootstrap_loader.clone() };
+    let object_class = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.bootstrap_loader.clone() };
     let class = get_class(&env.vf, env.method.class);
     let result_type = match &class.constant_pool[index].kind {
         ConstantKind::Class(c) => {

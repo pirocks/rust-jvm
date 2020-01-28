@@ -18,7 +18,7 @@ pub fn instruction_is_type_safe_aaload(env: &Environment, stack_frame: &Frame) -
     let array_type = nth1_operand_stack_is(2, stack_frame)?;
     let component_type = array_component_type(array_type)?;
     let bl = env.vf.bootstrap_loader.clone();
-    let object = ClassWithLoader { class_name: ClassName::Str("java/lang/Object".to_string()), loader: bl };
+    let object = ClassWithLoader { class_name: ClassName::object(), loader: bl };
     let object_array = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::from(ParsedType::Class(object)) });
     let next_frame = valid_type_transition(env, vec![VerificationType::IntType, object_array], &component_type.to_verification_type(), stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
