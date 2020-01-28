@@ -1,11 +1,11 @@
-use runtime_common::{InterpreterState, CallStackEntry};
+use runtime_common::{InterpreterState, StackEntry};
 use crate::interpreter_util::check_inited_class;
 use std::rc::Rc;
 use verification::verifier::instructions::special::extract_field_descriptor;
 use runtime_common::java_values::JavaValue;
 
 
-pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
+pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
@@ -15,7 +15,7 @@ pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry
     target_classfile.static_vars.borrow_mut().insert(field_name, field_value);
 }
 
-pub fn putfield(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
+pub fn putfield(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
@@ -36,7 +36,7 @@ pub fn putfield(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>
     }
 }
 
-pub fn get_static(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
+pub fn get_static(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     //todo make sure class pointer is updated correctly
 
     let classfile = &current_frame.class_pointer.classfile;
@@ -48,16 +48,16 @@ pub fn get_static(state: &mut InterpreterState, current_frame: &Rc<CallStackEntr
     stack.push(field_value);
 }
 
-pub fn get_field(current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
+pub fn get_field(current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
-    let object_ref = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    let object_ref = current_frame.pop();
     match object_ref {
         JavaValue::Object(o) => {
             let fields = o.as_ref().unwrap().fields.borrow();
             let res = fields.get(field_name.as_str()).unwrap().clone();
-            current_frame.operand_stack.borrow_mut().push(res);
+            current_frame.push(res);
         }
         _ => panic!(),
     }

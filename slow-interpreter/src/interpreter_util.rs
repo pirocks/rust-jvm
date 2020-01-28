@@ -1,4 +1,4 @@
-use crate::{InterpreterState, CallStackEntry};
+use crate::{InterpreterState, StackEntry};
 use rust_jvm_common::utils::{code_attribute, extract_string_from_utf8, extract_class_from_constant_pool};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
@@ -32,7 +32,7 @@ use crate::runtime_class::constant_value_attribute_i;
 pub fn check_inited_class(
     state: &mut InterpreterState,
     class_name: &ClassName,
-    current_frame: Option<Rc<CallStackEntry>>,
+    current_frame: Option<Rc<StackEntry>>,
     loader_arc: Arc<dyn Loader + Sync + Send>,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
@@ -49,7 +49,7 @@ pub fn check_inited_class(
 
 pub fn run_function(
     state: &mut InterpreterState,
-    current_frame: Rc<CallStackEntry>,
+    current_frame: Rc<StackEntry>,
 ) {
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
@@ -280,8 +280,8 @@ pub fn run_function(
     }
 }
 
-fn istore(current_frame: &Rc<CallStackEntry>, n: u8) -> () {
-    let object_ref = current_frame.operand_stack.borrow_mut().pop().unwrap();
+fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
+    let object_ref = current_frame.pop();
     match object_ref.clone() {
         JavaValue::Int(_) => {}
         _ => {
@@ -293,12 +293,12 @@ fn istore(current_frame: &Rc<CallStackEntry>, n: u8) -> () {
 }
 
 
-pub fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<RuntimeClass>) {
+pub fn push_new_object(current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader.clone();
     let object_pointer = JavaValue::new_object(target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
     default_init_fields(loader_arc.clone(), object_pointer, &target_classfile.classfile,loader_arc.clone());
-    current_frame.operand_stack.borrow_mut().push(new_obj);
+    current_frame.push(new_obj);
 }
 
 fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: Arc<dyn Loader + Send + Sync>) {

@@ -1,5 +1,5 @@
 use crate::InterpreterState;
-use crate::CallStackEntry;
+use crate::StackEntry;
 use std::rc::Rc;
 use std::sync::Arc;
 use runtime_common::runtime_class::RuntimeClass;
@@ -14,7 +14,7 @@ use crate::instructions::invoke::setup_virtual_args;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
-    frame: Rc<CallStackEntry>,
+    frame: Rc<StackEntry>,
     class: Arc<RuntimeClass>,
     method_i: usize
 ) {
@@ -28,14 +28,14 @@ pub fn run_native_method(
     //todo should have some setup args functions
     if method.access_flags & ACC_STATIC > 0 {
         for _ in parsed.parameter_types {
-            args.push(frame.operand_stack.borrow_mut().pop().unwrap());
+            args.push(frame.pop());
         }
         args.reverse();
     }else {
         setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
     }
     if method_name(classfile, method) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
-        frame.operand_stack.borrow_mut().push(JavaValue::Boolean(false))
+        frame.push(JavaValue::Boolean(false))
     } else if method_name(classfile, method) == "arraycopy".to_string() {
         let src = args[0].clone().unwrap_array();
         let src_pos = args[1].clone().unwrap_int() as usize;
@@ -63,7 +63,7 @@ pub fn run_native_method(
         };
         match result {
             None => {}
-            Some(res) => frame.operand_stack.borrow_mut().push(res),
+            Some(res) => frame.push(res),
         }
     }
 }

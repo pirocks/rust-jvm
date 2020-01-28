@@ -3,7 +3,7 @@ use runtime_common::java_values::Object;
 use crate::get_or_create_class_object;
 use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
 use rust_jvm_common::classnames::class_name;
-use runtime_common::{CallStackEntry, InterpreterState};
+use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
@@ -14,8 +14,8 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     to_object(class_object.into()) as jclass
 }
 
-pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<CallStackEntry> {
-    let res = ((**env).reserved1 as *mut Rc<CallStackEntry>).as_ref().unwrap();// ptr::as_ref
+pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<StackEntry> {
+    let res = ((**env).reserved1 as *mut Rc<StackEntry>).as_ref().unwrap();// ptr::as_ref
     res.clone()
 }
 

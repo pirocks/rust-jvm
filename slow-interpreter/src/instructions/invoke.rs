@@ -18,11 +18,11 @@ use crate::native::run_native_method;
 use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use log::trace;
-use runtime_common::CallStackEntry;
+use runtime_common::StackEntry;
 use rust_jvm_common::classnames::{class_name};
 
 
-pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
+pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &current_frame.class_pointer.classfile, loader_arc.clone());
     let method_class_name = match method_class_type {
@@ -38,13 +38,13 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStack
         args.push(JavaValue::Top);
     }
     for i in 1..(parsed_descriptor.parameter_types.len() + 1) {
-        args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+        args[i] = current_frame.pop();
         //todo does ordering end up correct
     }
     args[1..(parsed_descriptor.parameter_types.len() + 1)].reverse();
-    args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    args[0] = current_frame.pop();
 //    dbg!(&args);
-    let next_entry = CallStackEntry {
+    let next_entry = StackEntry {
         last_call_stack: Some(current_frame.clone()),
         class_pointer: target_class,
         method_i: target_m_i as u16,
@@ -64,7 +64,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStack
     }
 }
 
-pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16) {
+pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
@@ -82,7 +82,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<CallStackE
     invoke_virtual_method_i(state, current_frame, expected_method_name, expected_descriptor, target_class.clone(), target_method_i, target_method)
 }
 
-pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, expected_method_name: String, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
+pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_method_name: String, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
     if target_method.access_flags & ACC_NATIVE > 0 {
         run_native_method(state,current_frame.clone(),target_class,target_method_i)
     } else if target_method.access_flags & ACC_ABSTRACT == 0  {
@@ -90,7 +90,7 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<C
         let max_locals = code_attribute(target_method).unwrap().max_locals;
 
         setup_virtual_args(&current_frame, &expected_descriptor, &mut args, max_locals);
-        let next_entry = CallStackEntry {
+        let next_entry = StackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class.clone(),
             method_i: target_method_i as u16,
@@ -113,19 +113,19 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<C
     }
 }
 
-pub fn setup_virtual_args(current_frame: &Rc<CallStackEntry>, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
+pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
     }
     for i in 1..(expected_descriptor.parameter_types.len() + 1) {
-        args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+        args[i] = current_frame.pop();
         //todo does ordering end up correct
     }
     args[1..(expected_descriptor.parameter_types.len() + 1)].reverse();
-    args[0] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+    args[0] = current_frame.pop();
 }
 
-pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cp: u16) {
+pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let classfile = &current_frame.class_pointer.classfile;
@@ -145,7 +145,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
 
 pub fn invoke_static_impl(
     state: &mut InterpreterState,
-    current_frame: Rc<CallStackEntry>,
+    current_frame: Rc<StackEntry>,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
@@ -162,11 +162,11 @@ pub fn invoke_static_impl(
         }
 
         for i in 0..expected_descriptor.parameter_types.len() {
-            args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
+            args[i] = current_frame.pop();
             //todo does ordering end up correct
         }
         args[0..expected_descriptor.parameter_types.len()].reverse();
-        let next_entry = CallStackEntry {
+        let next_entry = StackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class,
             method_i: target_method_i as u16,

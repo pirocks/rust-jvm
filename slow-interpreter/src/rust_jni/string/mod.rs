@@ -43,6 +43,6 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let state = get_state(env);
     let frame = get_frame(env);
     create_string_on_stack(state,&frame,owned_str);
-    let string = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    let string = frame.pop().unwrap_object();
     to_object(string.into())
 }

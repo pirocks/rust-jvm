@@ -8,7 +8,7 @@ extern crate simple_logger;
 
 use std::str::from_utf8;
 use std::borrow::Borrow;
-use runtime_common::{InterpreterState, CallStackEntry};
+use runtime_common::{InterpreterState, StackEntry};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::get_or_create_class_object;
 use std::rc::Rc;

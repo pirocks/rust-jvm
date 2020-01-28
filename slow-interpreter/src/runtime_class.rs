@@ -14,7 +14,7 @@ use std::rc::Rc;
 use runtime_common::java_values::{JavaValue, default_value};
 use runtime_common::runtime_class::RuntimeClass;
 use std::cell::RefCell;
-use runtime_common::CallStackEntry;
+use runtime_common::StackEntry;
 
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + Sync>) -> RuntimeClass {
@@ -35,7 +35,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: Arc<dyn Loader + Send + 
     }
 }
 
-pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Option<Rc<CallStackEntry>>) -> Arc<RuntimeClass> {
+pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Option<Rc<StackEntry>>) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
@@ -67,7 +67,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
     };
     //todo should I really be manipulating the interpreter state like this
 
-    let new_stack = CallStackEntry {
+    let new_stack = StackEntry {
         last_call_stack: stack,
         class_pointer: class_arc.clone(),
         method_i: clinit_i as u16,

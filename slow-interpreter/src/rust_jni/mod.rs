@@ -26,7 +26,7 @@ use std::os::raw::{c_char, c_void};
 use std::alloc::Layout;
 use std::mem::size_of;
 use std::convert::TryInto;
-use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
+use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use std::rc::Rc;
 use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
@@ -51,7 +51,7 @@ pub fn new_java_loading(path: String) -> LibJavaLoading {
 }
 
 
-pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Result<Option<JavaValue>, Error> {
+pub fn call(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Result<Option<JavaValue>, Error> {
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
@@ -65,7 +65,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, cla
     call_impl(state, current_frame, classfile, args, return_type, &raw)
 }
 
-pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn()) -> Result<Option<JavaValue>, Error> {
+pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn()) -> Result<Option<JavaValue>, Error> {
     let mut args_type = vec![Type::pointer(), Type::pointer()];
     let jclass: jclass = unsafe { transmute(&classfile) };
     let env = &get_interface(state, current_frame);
@@ -171,7 +171,7 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
-pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<CallStackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));

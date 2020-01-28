@@ -22,14 +22,14 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use runtime_common::java_values::{JavaValue, Object};
 use crate::interpreter_util::push_new_object;
-use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
+use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
 
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
-                              class_name: & ClassName,
-                              current_frame: Rc<CallStackEntry>,
-                              loader_arc: Arc<dyn Loader + Sync + Send>
+                                  class_name: & ClassName,
+                                  current_frame: Rc<StackEntry>,
+                                  loader_arc: Arc<dyn Loader + Sync + Send>
 ) -> Arc<Object>{
     //todo in future this may introduce new and exciting concurrency bugs
 
@@ -45,7 +45,7 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
             //the above would only be required for higher jdks where a class loader obect is part of Class.
             //as it stands we can just push to operand stack
             push_new_object(current_frame.clone(), &class_class);
-            let object = current_frame.operand_stack.borrow_mut().pop().unwrap();
+            let object = current_frame.pop();
             match object.clone() {
                 JavaValue::Object(o) => {
                     let boostrap_loader_object = Object {
@@ -95,7 +95,7 @@ pub fn run(
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i,_method_info) = locate_init_system_class(&system_class.classfile);
-    let initialize_system_frame = CallStackEntry{
+    let initialize_system_frame = StackEntry {
         last_call_stack: None,
         class_pointer: system_class.clone(),
         method_i: init_system_class_i as u16,
@@ -106,7 +106,7 @@ pub fn run(
     };
 
     run_function(&mut state,initialize_system_frame.into());
-    let main_stack = CallStackEntry {
+    let main_stack = StackEntry {
         last_call_stack: None,
         class_pointer: Arc::new(main_class),
             method_i: main_i as u16,

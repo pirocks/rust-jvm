@@ -1,4 +1,4 @@
-use runtime_common::{InterpreterState, CallStackEntry};
+use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag};
 use std::mem::transmute;
@@ -20,7 +20,7 @@ use std::sync::Arc;
 //CallObjectMethod
 //ExceptionOccurred
 //DeleteLocalRef
-pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNINativeInterface_ {
+pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: {
@@ -277,7 +277,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let exp_descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index as usize]);
     let parsed = parse_method_descriptor(&method_id.class.loader, exp_descriptor_str.as_str()).unwrap();
 
-    frame.operand_stack.borrow_mut().push(JavaValue::Object(from_object(obj)));
+    frame.push(JavaValue::Object(from_object(obj)));
     for type_ in &parsed.parameter_types {
         match type_ {
             ParsedType::ByteType => unimplemented!(),
@@ -289,7 +289,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
             ParsedType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
-                frame.operand_stack.borrow_mut().push(JavaValue::Object(o));
+                frame.push(JavaValue::Object(o));
             }
             ParsedType::ShortType => unimplemented!(),
             ParsedType::BooleanType => unimplemented!(),
@@ -304,7 +304,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     //todo add params into operand stack;
     trace!("Call:{} {}", class_name(&from_object(obj).unwrap().class_pointer.classfile).get_referred_name(), exp_method_name);
     invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
-    let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    let res = frame.pop().unwrap_object();
     to_object(res)
 }
 
@@ -328,7 +328,7 @@ unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::raw:
     let state = get_state(env);
     let frame = get_frame(env);
     load_class_constant_by_name(state, &frame, name);
-    let obj = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    let obj = frame.pop().unwrap_object();
     to_object(obj)
 }
 
@@ -389,7 +389,7 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
             ParsedType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
-                frame.operand_stack.borrow_mut().push(JavaValue::Object(o));
+                frame.push(JavaValue::Object(o));
             }
             ParsedType::ShortType => unimplemented!(),
             ParsedType::BooleanType => unimplemented!(),
@@ -402,6 +402,6 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
         }
     }
     invoke_static_impl(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
-    let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    let res = frame.pop().unwrap_object();
     to_object(res)
 }
