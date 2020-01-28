@@ -43,6 +43,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
         let classfile = &runtime_class.classfile;
         for field in &classfile.fields {
             if (field.access_flags & ACC_STATIC > 0) && (field.access_flags & ACC_FINAL > 0) {
+                //todo do I do this for non-static? Should I?
                 let value_i = match constant_value_attribute_i(field) {
                     None => continue,
                     Some(i) => i,
@@ -87,7 +88,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
     panic!()
 }
 
-fn constant_value_attribute_i(field: &FieldInfo) -> Option<CPIndex> {
+pub fn constant_value_attribute_i(field: &FieldInfo) -> Option<CPIndex> {
     for attr in &field.attributes {
         match &attr.attribute_type {
             AttributeType::ConstantValue(c) => {

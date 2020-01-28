@@ -26,6 +26,7 @@ use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::dup;
 use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne};
 use crate::instructions::special::arraylength;
+use crate::runtime_class::constant_value_attribute_i;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -309,6 +310,11 @@ fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer
     }
     for field in &classfile.fields {
         if field.access_flags & ACC_STATIC == 0 {
+            //todo should I look for constant val attributes?
+            let value_i = match constant_value_attribute_i(field) {
+                None => {},
+                Some(i) => unimplemented!(),
+            };
             let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
             let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[field.descriptor_index as usize]);
             let descriptor = parse_field_descriptor(&loader_arc, descriptor_str.as_str()).unwrap();

@@ -1,15 +1,15 @@
 use runtime_common::{InterpreterState, CallStackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag};
 use std::mem::transmute;
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars};
-use crate::instructions::invoke::invoke_virtual_method_i;
+use crate::instructions::invoke::{invoke_virtual_method_i,  invoke_static_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
-use classfile_parser::types::parse_method_descriptor;
+use classfile_parser::types::{parse_method_descriptor};
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::java_values::{JavaValue, ObjectPointer, Object};
 use log::trace;
@@ -140,7 +140,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<CallStackEntry>) -> JNI
         SetDoubleField: None,
         GetStaticMethodID: Some(get_static_method_id),
         CallStaticObjectMethod: None,
-        CallStaticObjectMethodV: None,
+        CallStaticObjectMethodV: Some(unsafe {transmute::<_,unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, args: *mut __va_list_tag) -> jobject>(call_static_object_method_v as *mut c_void)}),
         CallStaticObjectMethodA: None,
         CallStaticBooleanMethod: None,
         CallStaticBooleanMethodV: None,
@@ -356,7 +356,7 @@ unsafe extern "C" fn get_static_method_id(
     let runtime_class = class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone();
     let classfile = &runtime_class.classfile;
     let all_methods = &classfile.methods;
-    let (method_i, _) = all_methods.iter().enumerate().find(|(_,m)| {
+    let (method_i, _) = all_methods.iter().enumerate().find(|(_, m)| {
         let cur_desc = extract_string_from_utf8(&classfile.constant_pool[m.descriptor_index as usize]);
         let cur_method_name = rust_jvm_common::utils::method_name(classfile, m);
         cur_method_name == method_name &&
@@ -365,4 +365,43 @@ unsafe extern "C" fn get_static_method_id(
     }).unwrap();
     let res = Box::into_raw(Box::new(MethodId { class: runtime_class.clone(), method_i }));
     transmute(res)
+}
+
+unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, mut l: VaList) -> jobject {
+    let method_id = (methodID as *mut MethodId).as_ref().unwrap();
+    let state = get_state(env);
+    let frame = get_frame(env);
+    let classfile = &method_id.class.classfile;
+    let constant_pool = &classfile.constant_pool;
+    let method = &classfile.methods[method_id.method_i];
+    let method_descriptor_str = extract_string_from_utf8(&constant_pool[method.descriptor_index as usize]);
+    let name = method_name(classfile, method);
+    let parsed = parse_method_descriptor(&method_id.class.loader, method_descriptor_str.as_str()).unwrap();
+    //todo dup
+    for type_ in &parsed.parameter_types {
+        match type_ {
+            ParsedType::ByteType => unimplemented!(),
+            ParsedType::CharType => unimplemented!(),
+            ParsedType::DoubleType => unimplemented!(),
+            ParsedType::FloatType => unimplemented!(),
+            ParsedType::IntType => unimplemented!(),
+            ParsedType::LongType => unimplemented!(),
+            ParsedType::Class(_) => {
+                let native_object: jobject = l.arg();
+                let o = from_object(native_object);
+                frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: o.unwrap().clone() }.into()));
+            }
+            ParsedType::ShortType => unimplemented!(),
+            ParsedType::BooleanType => unimplemented!(),
+            ParsedType::ArrayReferenceType(_) => unimplemented!(),
+            ParsedType::VoidType => unimplemented!(),
+            ParsedType::TopType => unimplemented!(),
+            ParsedType::NullType => unimplemented!(),
+            ParsedType::Uninitialized(_) => unimplemented!(),
+            ParsedType::UninitializedThis => unimplemented!(),
+        }
+    }
+    invoke_static_impl(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
+    let res = frame.operand_stack.borrow_mut().pop().unwrap().unwrap_object();
+    to_object(res)
 }

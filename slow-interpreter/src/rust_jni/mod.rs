@@ -239,3 +239,4 @@ pub mod native_util;
 pub mod interface;
 pub mod string;
 pub mod dlopen;
+pub mod stdarg;

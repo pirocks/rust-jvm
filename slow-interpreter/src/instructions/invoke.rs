@@ -19,7 +19,7 @@ use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use log::trace;
 use runtime_common::CallStackEntry;
-use rust_jvm_common::classnames::class_name;
+use rust_jvm_common::classnames::{class_name};
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: u16) -> () {
@@ -137,9 +137,21 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
     };
     let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
-    let mut args = vec![];
 
     trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
+    invoke_static_impl(state, current_frame, expected_descriptor, target_class.clone(), target_method_i, target_method.clone());
+    trace!("Exit:{} {}", class_name.get_referred_name(), expected_method_name);
+}
+
+pub fn invoke_static_impl(
+    state: &mut InterpreterState,
+    current_frame: Rc<CallStackEntry>,
+    expected_descriptor: MethodDescriptor,
+    target_class: Arc<RuntimeClass>,
+    target_method_i: usize,
+    target_method: &MethodInfo
+) -> () {
+    let mut args = vec![];
     if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
@@ -149,7 +161,6 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
             args.push(JavaValue::Top);
         }
 
-//        dbg!(&current_frame.operand_stack);
         for i in 0..expected_descriptor.parameter_types.len() {
             args[i] = current_frame.operand_stack.borrow_mut().pop().unwrap();
             //todo does ordering end up correct
@@ -170,7 +181,6 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<CallSta
         }
         if state.function_return {
             state.function_return = false;
-            trace!("Exit:{} {}", class_name.get_referred_name(), expected_method_name);
             return;
         }
     } else {

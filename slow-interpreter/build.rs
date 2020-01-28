@@ -25,6 +25,13 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
 
+    let std_arg = bindgen::Builder::default()
+        .header("stdarg-wrapper.h")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .derive_debug(true)
+        .rustfmt_bindings(true)
+        .generate().unwrap();
+
     let out_path = PathBuf::from("gen/");
     if !out_path.clone().into_boxed_path().exists() {
         create_dir(out_path.clone().into_boxed_path()).unwrap();
@@ -36,5 +43,9 @@ fn main() {
 
     jni_bindings
         .write_to_file(PathBuf::from("gen/jni.rs"))
+        .expect("Couldn't write bindings!");
+
+    std_arg
+        .write_to_file(PathBuf::from("gen/stdarg.rs"))
         .expect("Couldn't write bindings!");
 }
