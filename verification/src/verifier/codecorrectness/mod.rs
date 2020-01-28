@@ -483,8 +483,8 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
     if method_access_flags & ACC_STATIC > 0 {
         //todo dup
         let classfile = &get_class(vf, method.class);
-        let method_name_info = &classfile.constant_pool[classfile.methods[method.method_index].name_index as usize];
-        let method_name = method_name_info.extract_string_from_utf8();
+        let method_info = &classfile.methods[method.method_index];
+        let method_name = method_info.method_name(classfile);
         if method_name != "<init>" {
             return None;
         } else {

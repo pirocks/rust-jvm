@@ -7,7 +7,7 @@ use crate::{init_frame, VerifierContext};
 use crate::StackMap;
 use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
-use classfile_parser::types::{parse_method_descriptor, MethodDescriptor};
+use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::unified_types::ParsedType;
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {

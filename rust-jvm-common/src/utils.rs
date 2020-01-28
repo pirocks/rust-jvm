@@ -1,4 +1,4 @@
-use crate::classfile::{ConstantInfo, ConstantKind, MethodInfo, FieldInfo, CPIndex};
+use crate::classfile::{ConstantInfo, ConstantKind, MethodInfo, FieldInfo, CPIndex, ACC_STATIC};
 use crate::classfile::Classfile;
 use crate::classfile::ACC_FINAL;
 use crate::classfile::ACC_INTERFACE;
@@ -75,6 +75,23 @@ impl Classfile {
             _ => { panic!() }
         }
     }
+
+    pub fn lookup_method(&self, name : String, descriptor : String) -> Option<(usize,&MethodInfo)>{
+        for (i,m) in self.methods.iter().enumerate() {
+            if m.method_name(self) == name && m.descriptor_str(self)  == descriptor {
+                return Some((i,m))
+            }
+        }
+        None
+    }
+
+
+
+    pub fn lookup_method_name(&self, name : String) -> Vec<(usize, &MethodInfo)> {
+        self.methods.iter().enumerate().filter(|(_i,m)| {
+            m.method_name(self) == name
+        }).collect()
+    }
 }
 
 impl MethodInfo {
@@ -110,6 +127,9 @@ impl MethodInfo {
         class_file.constant_pool[self.descriptor_index as usize].extract_string_from_utf8()
     }
 
+    pub fn is_static(&self) -> bool{
+        self.access_flags & ACC_STATIC > 0
+    }
     //todo need a find method function
 }
 

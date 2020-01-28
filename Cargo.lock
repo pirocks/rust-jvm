@@ -608,6 +608,7 @@ dependencies = [
  "rust-jvm-common 0.1.0",
  "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slow-interpreter 0.1.0",
+ "utils 0.1.0",
  "verification 0.1.0",
 ]
 
@@ -652,6 +653,7 @@ dependencies = [
  "runtime-common 0.1.0",
  "rust-jvm-common 0.1.0",
  "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "utils 0.1.0",
  "verification 0.1.0",
 ]
 
@@ -735,6 +737,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "unicode-xid"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "utils"
+version = "0.1.0"
+dependencies = [
+ "classfile-parser 0.1.0",
+ "rust-jvm-common 0.1.0",
+]
 
 [[package]]
 name = "vec_map"

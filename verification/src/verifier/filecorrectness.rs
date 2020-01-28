@@ -9,7 +9,6 @@ use rust_jvm_common::loading::LoaderName;
 use crate::VerifierContext;
 use classfile_parser::types::{Descriptor, MethodDescriptor};
 use classfile_parser::types::parse_field_descriptor;
-use classfile_parser::types::parse_method_descriptor;
 use std::ops::Deref;
 use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::ParsedType;
@@ -429,12 +428,9 @@ pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: 
 
 //todo ClassName v. Name
 pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor) -> bool {
-//    dbg!(super_);
-//    dbg!(&member_name);
-//    dbg!(&member_descriptor);
     let class = get_class(vf, super_);
     for method in &class.methods {
-        let method_name = class.constant_pool[method.name_index as usize].extract_string_from_utf8();
+        let method_name = method.method_name(&class);
         if member_name == method_name {
             let parsed_member_types = MethodDescriptor::from(method,&class,&super_.loader);
             let member_types = match member_descriptor {

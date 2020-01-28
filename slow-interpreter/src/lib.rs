@@ -9,7 +9,7 @@ use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
-use classfile_parser::types::{parse_method_descriptor, MethodDescriptor};
+use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::ClassWithLoader;
@@ -22,6 +22,7 @@ use runtime_common::java_values::{JavaValue, Object};
 use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
+use utils::lookup_method_parsed;
 
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
@@ -122,27 +123,19 @@ pub fn run(
 }
 
 fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
-    system.methods.iter().enumerate().find(|(_, method)| {
-        let name = method.method_name(system);
-        name == "initializeSystemClass".to_string()
-    }).unwrap()
+    system.lookup_method_name("initializeSystemClass".to_string()).iter().nth(0).unwrap().clone()
 }
 
 fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
-    main.methods.iter().enumerate().find(|(_, method)| {
-        let name = method.method_name(main);
-        if name == "main".to_string() {
-            let descriptor = MethodDescriptor::from(method,main,&bl);
-            let string_name = ClassName::string();
-            let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
-            let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
-            descriptor.parameter_types.len() == 1 &&
-                descriptor.return_type == ParsedType::VoidType &&
-                descriptor.parameter_types.iter().zip(vec![string_array]).all(|(a, b)| a == &b)
-        } else {
-            false
-        }
-    }).unwrap().0
+    let string_name = ClassName::string();
+    let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
+    let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
+    lookup_method_parsed(
+        &main,
+        "main".to_string(),
+        &MethodDescriptor { parameter_types: vec![string_array], return_type: ParsedType::VoidType },
+        bl
+    ).unwrap().0
 }
 
 pub mod instructions;

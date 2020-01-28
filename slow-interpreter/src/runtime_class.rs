@@ -54,10 +54,9 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
     //todo detecting if assertions are enabled?
     let class_arc = Arc::new(runtime_class);
     let classfile = &class_arc.classfile;
-    let (clinit_i, _) = match classfile.methods.iter().enumerate().find(|(_, m)| {
-        let name = classfile.constant_pool[m.name_index as usize].extract_string_from_utf8();
-        name == "<clinit>"
-    }) {
+    let lookup_res = classfile.lookup_method_name("<clinit>".to_string());
+    assert!(lookup_res.len() <= 1);
+    let (clinit_i, _) = match lookup_res.iter().nth(0){
         None => return class_arc,
         Some(x) => x,
     };
@@ -66,7 +65,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
     let new_stack = StackEntry {
         last_call_stack: stack,
         class_pointer: class_arc.clone(),
-        method_i: clinit_i as u16,
+        method_i: *clinit_i as u16,
         local_vars: vec![].into(),
         operand_stack: vec![].into(),
         pc: 0.into(),

@@ -934,11 +934,12 @@ pub struct Classfile {
     pub magic: u32,
     pub minor_version: u16,
     pub major_version: u16,
+    //todo look at this for code size reduction/simplification opturnities
     pub constant_pool: Vec<ConstantInfo>,
     pub access_flags: u16,
     pub this_class: CPIndex,
     pub super_class: CPIndex,
-    pub interfaces: Vec<u16>,
+    pub interfaces: Vec<u16>,//todo why is this only used 3 times?
     pub fields: Vec<FieldInfo>,
     pub methods: Vec<MethodInfo>,
     pub attributes: Vec<AttributeInfo>,
@@ -969,7 +970,9 @@ impl std::hash::Hash for Classfile {
         state.write_u16(self.access_flags);
         state.write_u16(self.this_class);
         state.write_u16(self.super_class);
-        //todo interfaces
+        for interface in &self.interfaces {
+            state.write_u16(*interface)
+        }
         //todo fields
         //todo methods
         //todo attributes

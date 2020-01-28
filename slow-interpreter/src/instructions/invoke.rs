@@ -7,7 +7,6 @@ use classfile_parser::types::MethodDescriptor;
 use std::sync::Arc;
 use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::MethodInfo;
-use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::interpreter_util::check_inited_class;
@@ -19,6 +18,7 @@ use rust_jvm_common::classnames::class_name;
 use std::cell::RefCell;
 use crate::rust_jni::{call_impl, call};
 use std::borrow::Borrow;
+use utils::lookup_method_parsed;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -188,17 +188,13 @@ pub fn invoke_static_impl(
     }
 }
 
-pub fn find_target_method<'l>(loader_arc: LoaderArc, expected_method_name: String, parsed_descriptor: &MethodDescriptor, target_class: &'l Arc<RuntimeClass>) -> (usize, &'l MethodInfo) {
-    target_class.classfile.methods.iter().enumerate().find(|(_, m)| {
-        if m.method_name(&target_class.classfile) == expected_method_name {
-            let actual = MethodDescriptor::from(m, &target_class.classfile, &loader_arc);
-            actual.parameter_types.len() == parsed_descriptor.parameter_types.len() &&
-                actual.parameter_types.iter().zip(parsed_descriptor.parameter_types.iter()).all(|(a, b)| a == b) &&
-                actual.return_type == parsed_descriptor.return_type
-        } else {
-            false
-        }
-    }).unwrap()
+pub fn find_target_method<'l>(
+    loader_arc: LoaderArc,
+    expected_method_name: String,
+    parsed_descriptor: &MethodDescriptor,
+    target_class: &'l Arc<RuntimeClass>
+) -> (usize, &'l MethodInfo) {
+    lookup_method_parsed(&target_class.classfile,expected_method_name,parsed_descriptor,&loader_arc).unwrap()
 }
 
 

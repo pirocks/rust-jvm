@@ -10,6 +10,7 @@ classfile-parser = {path = "../classfile-parser"}
 verification = {path = "../verification"}
 runtime-common = {path = "../runtime-common"}
 jni-bindings = {path = "../jni-bindings"}
+utils = {path = "../utils"}
 #rust-jni = {path = "src/rust-jni"}
 libloading = "0.5"
 log = "0.4"

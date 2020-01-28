@@ -265,7 +265,6 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let method_id = (method_id as *mut MethodId).as_ref().unwrap();
     let classfile = method_id.class.classfile.clone();
     let method = &classfile.methods[method_id.method_i];
-//    dbg!(method.access_flags & ACC_STATIC);
     if method.access_flags & ACC_STATIC > 0 {
         unimplemented!()
     }
@@ -354,14 +353,8 @@ unsafe extern "C" fn get_static_method_id(
     //todo dup
     let runtime_class = class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone();
     let classfile = &runtime_class.classfile;
-    let all_methods = &classfile.methods;
-    let (method_i, _) = all_methods.iter().enumerate().find(|(_, m)| {
-        let cur_desc = m.descriptor_str(classfile);
-        let cur_method_name = m.method_name(classfile);
-        cur_method_name == method_name &&
-            method_descriptor_str == cur_desc &&
-            m.access_flags & ACC_STATIC > 0
-    }).unwrap();
+    let (method_i , method) = classfile.lookup_method(method_name,method_descriptor_str).unwrap();
+    assert!(method.is_static());
     let res = Box::into_raw(Box::new(MethodId { class: runtime_class.clone(), method_i }));
     transmute(res)
 }
