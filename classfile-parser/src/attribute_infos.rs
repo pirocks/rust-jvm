@@ -1,7 +1,6 @@
 use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers, UninitializedVariableInfo};
 use crate::constant_infos::is_utf8;
 use crate::code::parse_code_raw;
-use rust_jvm_common::utils::extract_string_from_utf8;
 use crate::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
@@ -272,7 +271,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> ParsedType {
                 ConstantKind::String(_c) => panic!(),
                 _ => { panic!() }
             };
-            let type_descriptor = extract_string_from_utf8(&p.constant_pool_borrow()[index as usize]);
+            let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8();
             if type_descriptor.starts_with("[") {
                 let res_descriptor = parse_field_descriptor(&p.loader(), type_descriptor.as_str()).unwrap();
                 res_descriptor.field_type

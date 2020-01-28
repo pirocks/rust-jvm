@@ -4,7 +4,6 @@ use rust_jvm_common::classfile::{ConstantInfo, Class, String_, ConstantKind};
 use runtime_common::java_values::JavaValue;
 use rust_jvm_common::classnames::ClassName;
 use crate::get_or_create_class_object;
-use rust_jvm_common::utils::extract_string_from_utf8;
 use crate::interpreter_util::{check_inited_class, push_new_object, run_function};
 use rust_jvm_common::unified_types::{ParsedType, ArrayType};
 use std::sync::Arc;
@@ -14,7 +13,7 @@ use std::mem::transmute;
 use std::cell::RefCell;
 
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
-    let res_class_name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
+    let res_class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();
     load_class_constant_by_name(state, current_frame, res_class_name);
 }
 
@@ -24,7 +23,7 @@ pub fn load_class_constant_by_name(state: &mut InterpreterState, current_frame: 
 }
 
 fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, constant_pool: &Vec<ConstantInfo>, s: &String_) {
-    let res_string = extract_string_from_utf8(&constant_pool[s.string_index as usize]);
+    let res_string = constant_pool[s.string_index as usize].extract_string_from_utf8();
     create_string_on_stack(state, current_frame, res_string);
 }
 

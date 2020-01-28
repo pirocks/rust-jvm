@@ -18,7 +18,6 @@ use std::ops::Deref;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use std::cell::RefCell;
-use rust_jvm_common::utils::{method_name, extract_string_from_utf8, get_super_class_name};
 use std::collections::HashMap;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::{class_name, ClassName};
@@ -131,8 +130,8 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let runtime_class: &Arc<RuntimeClass> = transmute(clazz);
         let classfile = &runtime_class.classfile;
         &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
-            let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method_info.descriptor_index as usize]);
-            let current_name = method_name(classfile, method_info);
+            let descriptor_str = classfile.constant_pool[method_info.descriptor_index as usize].extract_string_from_utf8();
+            let current_name = method_info.method_name(classfile);
             if current_name == expected_name && descriptor == descriptor_str {
                 trace!("Registering method:{},{},{}", class_name(classfile).get_referred_name(), expected_name, descriptor_str);
                 register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
@@ -182,7 +181,7 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, clas
             res.push((object.clone(), i));
         });
     } else {
-        let name = get_super_class_name(&class.classfile);
+        let name = class.classfile.super_class_name();
         let super_ = check_inited_class(state, &name, frame.clone().into(), class.loader.clone());
         for (c, i) in get_all_methods(state, frame, super_) {
             res.push((c, i));//todo accidental O(n^2)
@@ -219,8 +218,8 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let all_methods = get_all_methods(state, frame, class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];
-        let cur_desc = extract_string_from_utf8(&c.classfile.constant_pool[method_info.descriptor_index as usize]);
-        let cur_method_name = rust_jvm_common::utils::method_name(&c.classfile, method_info);
+        let cur_desc = c.classfile.constant_pool[method_info.descriptor_index as usize].extract_string_from_utf8();
+        let cur_method_name = method_info.method_name(&c.classfile);
 //        dbg!(&method_name);
 //        dbg!(&cur_method_name);
         cur_method_name == method_name &&

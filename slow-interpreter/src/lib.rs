@@ -9,8 +9,6 @@ use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::error::Error;
-use rust_jvm_common::utils::method_name;
-use rust_jvm_common::utils::extract_string_from_utf8;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::unified_types::ArrayType;
@@ -125,16 +123,16 @@ pub fn run(
 
 fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
     system.methods.iter().enumerate().find(|(_, method)| {
-        let name = method_name(system, method);
+        let name = method.method_name(system);
         name == "initializeSystemClass".to_string()
     }).unwrap()
 }
 
 fn locate_main_method(bl: &Arc<dyn Loader + Send + Sync>, main: &Arc<Classfile>) -> usize {
     main.methods.iter().enumerate().find(|(_, method)| {
-        let name = method_name(main, method);
+        let name = method.method_name(main);
         if name == "main".to_string() {
-            let descriptor_string = extract_string_from_utf8(&main.constant_pool[method.descriptor_index as usize]);
+            let descriptor_string = main.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
             let descriptor = parse_method_descriptor(&bl, descriptor_string.as_str()).unwrap();
             let string_name = ClassName::string();
             let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
@@ -151,5 +149,4 @@ fn locate_main_method(bl: &Arc<dyn Loader + Send + Sync>, main: &Arc<Classfile>)
 pub mod instructions;
 pub mod interpreter_util;
 pub mod runtime_class;
-pub mod native;
 pub mod rust_jni;

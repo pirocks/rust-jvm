@@ -14,7 +14,6 @@ use std::path::Path;
 use rust_jvm_common::classnames::class_name;
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
-use rust_jvm_common::utils::get_super_class_name;
 use verification::verify;
 use verification::VerifierContext;
 use log::trace;
@@ -62,7 +61,7 @@ impl Loader for BootstrapLoader {
                 if classfile.super_class == 0 {
                     self.load_class(self_arc.clone(), &ClassName::object(), bl.clone())?;
                 } else {
-                    let super_class_name = get_super_class_name(&classfile);
+                    let super_class_name = classfile.super_class_name();
                     self.load_class(self_arc.clone(), &super_class_name, bl.clone())?;
                 }
             }

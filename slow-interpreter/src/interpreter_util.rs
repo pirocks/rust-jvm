@@ -1,5 +1,4 @@
 use crate::{InterpreterState, StackEntry};
-use rust_jvm_common::utils::{code_attribute, extract_string_from_utf8, extract_class_from_constant_pool};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
 use rust_jvm_common::classfile::{InstructionInfo, ACC_STATIC, Classfile};
@@ -53,7 +52,7 @@ pub fn run_function(
 ) {
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
-    let code = code_attribute(method).unwrap();
+    let code = method.code_attribute().unwrap();
 
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw {
@@ -303,9 +302,8 @@ pub fn push_new_object(current_frame: Rc<StackEntry>, target_classfile: &Arc<Run
 
 fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: Arc<dyn Loader + Send + Sync>) {
     if classfile.super_class != 0 {
-        let class_ = extract_class_from_constant_pool(classfile.super_class, classfile);
-        let super_name = extract_string_from_utf8(&classfile.constant_pool[class_.name_index as usize]);
-        let loaded_super = loader_arc.load_class(loader_arc.clone(), &ClassName::Str(super_name), bl.clone()).unwrap();
+        let super_name = classfile.super_class_name();
+        let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name, bl.clone()).unwrap();
         default_init_fields(loader_arc.clone(), object_pointer.clone(), &loaded_super, bl);
     }
     for field in &classfile.fields {
@@ -315,8 +313,8 @@ fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer
                 None => {}
                 Some(_i) => unimplemented!(),
             };
-            let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
-            let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[field.descriptor_index as usize]);
+            let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
+            let descriptor_str = classfile.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
             let descriptor = parse_field_descriptor(&loader_arc, descriptor_str.as_str()).unwrap();
             let type_ = descriptor.field_type;
             let val = default_value(type_);

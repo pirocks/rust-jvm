@@ -1,10 +1,9 @@
 use crate::verifier::codecorrectness::{Environment, valid_type_transition};
 use crate::verifier::{Frame, standard_exception_frame};
-use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames};
+use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames, exception_stack_frame};
 use crate::verifier::TypeSafetyError;
 use crate::verifier::get_class;
 use rust_jvm_common::classfile::{ConstantKind, UninitializedVariableInfo};
-use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classnames::NameReference;
 use std::sync::Arc;
@@ -71,7 +70,7 @@ fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> Parsed
     let class = get_class(&env.vf, &env.method.class);
     let class_name = match &class.constant_pool[cp as usize].kind {
         ConstantKind::Class(c) => {
-            extract_string_from_utf8(&class.constant_pool[c.name_index as usize])
+            class.constant_pool[c.name_index as usize].extract_string_from_utf8()
         }
         _ => panic!()
     };
@@ -117,7 +116,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
     let class = get_class(&env.vf, env.method.class);
     let result_type = match &class.constant_pool[index].kind {
         ConstantKind::Class(c) => {
-            let name = extract_string_from_utf8(&class.constant_pool[c.name_index as usize]);
+            let name = class.constant_pool[c.name_index as usize].extract_string_from_utf8();
             possibly_array_to_type(&env.class_loader, name).to_verification_type()
         }
         _ => panic!()
@@ -184,8 +183,8 @@ pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>, l: Arc<dyn L
         }
         _ => panic!()
     };
-    let field_name = extract_string_from_utf8(&current_class.constant_pool[field_name_index as usize]);
-    let descriptor_string = extract_string_from_utf8(&current_class.constant_pool[descriptor_index as usize]);
+    let field_name = current_class.constant_pool[field_name_index as usize].extract_string_from_utf8();
+    let descriptor_string = current_class.constant_pool[descriptor_index as usize].extract_string_from_utf8();
     let field_descriptor = parse_field_descriptor(&l, descriptor_string.as_ref()).unwrap();
     (field_class_name, field_name, field_descriptor)
 }

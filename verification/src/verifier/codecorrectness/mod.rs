@@ -9,11 +9,9 @@ use std::option::Option::Some;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
 use rust_jvm_common::classnames::{NameReference, class_name};
-use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::loading::Loader;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::filecorrectness::get_access_flags;
-use rust_jvm_common::utils::method_name;
 use crate::{StackMap, VerifierContext};
 use rust_jvm_common::classnames::ClassName;
 use crate::OperandStack;
@@ -22,7 +20,6 @@ use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::classfile::ConstantKind;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
-use rust_jvm_common::utils::code_attribute;
 
 pub mod stackmapframes;
 
@@ -243,7 +240,7 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
 
 pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_info = &get_class(vf, class).methods[method.method_index];
-    let code = code_attribute(method_info).unwrap();
+    let code = method_info.code_attribute().unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
     let mut final_offset = 0;
@@ -406,7 +403,9 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     //    flags(ThisList, Flags),
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
-    let method_descriptor = extract_string_from_utf8(&get_class(vf, class).constant_pool[get_class(vf, method.class).methods[method.method_index as usize].descriptor_index as usize]);
+    let method_descriptor = get_class(vf, class)
+        .constant_pool[get_class(vf, method.class).methods[method.method_index as usize].descriptor_index as usize]
+        .extract_string_from_utf8();
     let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types.clone()
@@ -485,7 +484,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
         //todo dup
         let classfile = &get_class(vf, method.class);
         let method_name_info = &classfile.constant_pool[classfile.methods[method.method_index].name_index as usize];
-        let method_name = extract_string_from_utf8(method_name_info);
+        let method_name = method_name_info.extract_string_from_utf8();
         if method_name != "<init>" {
             return None;
         } else {
@@ -498,7 +497,8 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 }
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VerificationType, TypeSafetyError> {
-    let method_name = method_name(&get_class(vf, method.class), &get_class(vf, method.class).methods[method.method_index]);
+    let classfile = get_class(vf, method.class);
+    let method_name = classfile.methods[method.method_index].method_name(&classfile);
     if method_name == "<init>" {
         if class.class_name == ClassName::object() {
             Result::Ok(VerificationType::Class(ClassWithLoader { class_name: class_name(&get_class(vf, class)), loader: class.loader.clone() }))

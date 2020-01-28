@@ -8,7 +8,6 @@ use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_ob
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars};
 use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
-use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::java_values::{JavaValue, Object};
@@ -273,8 +272,8 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let state = get_state(env);
     let frame = get_frame(env);
     //todo simplify use of this.
-    let exp_method_name = method_name(&classfile, method);
-    let exp_descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index as usize]);
+    let exp_method_name = method.method_name(&classfile);
+    let exp_descriptor_str = classfile.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
     let parsed = parse_method_descriptor(&method_id.class.loader, exp_descriptor_str.as_str()).unwrap();
 
     frame.push(JavaValue::Object(from_object(obj)));
@@ -357,8 +356,8 @@ unsafe extern "C" fn get_static_method_id(
     let classfile = &runtime_class.classfile;
     let all_methods = &classfile.methods;
     let (method_i, _) = all_methods.iter().enumerate().find(|(_, m)| {
-        let cur_desc = extract_string_from_utf8(&classfile.constant_pool[m.descriptor_index as usize]);
-        let cur_method_name = rust_jvm_common::utils::method_name(classfile, m);
+        let cur_desc = classfile.constant_pool[m.descriptor_index as usize].extract_string_from_utf8();
+        let cur_method_name = m.method_name(classfile);
         cur_method_name == method_name &&
             method_descriptor_str == cur_desc &&
             m.access_flags & ACC_STATIC > 0
@@ -374,8 +373,8 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
     let classfile = &method_id.class.classfile;
     let constant_pool = &classfile.constant_pool;
     let method = &classfile.methods[method_id.method_i];
-    let method_descriptor_str = extract_string_from_utf8(&constant_pool[method.descriptor_index as usize]);
-    let _name = method_name(classfile, method);
+    let method_descriptor_str = constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
+    let _name = method.method_name(classfile);
     let parsed = parse_method_descriptor(&method_id.class.loader, method_descriptor_str.as_str()).unwrap();
     //todo dup
     for type_ in &parsed.parameter_types {

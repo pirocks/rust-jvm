@@ -1,7 +1,6 @@
 use crate::verifier::{InternalFrame, get_class};
 use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
-use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use classfile_parser::stack_map_table_attribute;
 use crate::{init_frame, VerifierContext};
@@ -10,12 +9,13 @@ use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
-use rust_jvm_common::utils::code_attribute;
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
-    let code = code_attribute(method_info).expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
-    let descriptor_str = extract_string_from_utf8(&get_class(vf, class).constant_pool[method_info.descriptor_index as usize]);
+    let code = method_info
+        .code_attribute()
+        .expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
+    let descriptor_str = get_class(vf, class).constant_pool[method_info.descriptor_index as usize].extract_string_from_utf8();
     let parsed_descriptor = parse_method_descriptor(&class.loader, descriptor_str.as_str()).expect("Error parsing method descriptor");
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);

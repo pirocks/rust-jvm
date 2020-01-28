@@ -1,6 +1,5 @@
 use std::sync::{Weak, Arc};
 use crate::classfile::{Classfile, ConstantKind};
-use crate::utils::extract_string_from_utf8;
 use std::fmt::Formatter;
 use std::fmt;
 use std::hash::Hash;
@@ -93,7 +92,7 @@ impl ClassName {
                     None => panic!(),
                     Some(c) => c
                 };
-                return extract_string_from_utf8(&upgraded_class_ref.constant_pool[r.index as usize]);
+                return upgraded_class_ref.constant_pool[r.index as usize].extract_string_from_utf8();
             }
             ClassName::Str(s) => { s.clone() }//todo this clone may be expensive, ditch?
         }

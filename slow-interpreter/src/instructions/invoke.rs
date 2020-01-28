@@ -1,7 +1,6 @@
 use crate::InterpreterState;
 use std::rc::Rc;
 use verification::verifier::instructions::branches::get_method_descriptor;
-use rust_jvm_common::utils::code_attribute;
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC};
 use crate::interpreter_util::run_function;
 use classfile_parser::types::MethodDescriptor;
@@ -9,18 +8,15 @@ use std::sync::Arc;
 use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classfile::MethodInfo;
 use classfile_parser::types::parse_method_descriptor;
-use rust_jvm_common::utils::method_name;
-use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::interpreter_util::check_inited_class;
-use crate::native::run_native_method;
 use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use log::trace;
 use runtime_common::StackEntry;
 use rust_jvm_common::classnames::class_name;
-use std::cell::{RefCell, Ref};
+use std::cell::RefCell;
 use crate::rust_jni::{call_impl, call};
 use std::borrow::Borrow;
 
@@ -36,7 +32,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
     let target_class = check_inited_class(state, &method_class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_m_i, target_m) = find_target_method(loader_arc.clone(), method_name.clone(), &parsed_descriptor, &target_class);
     let mut args = vec![];
-    let max_locals = code_attribute(target_m).unwrap().max_locals;
+    let max_locals = target_m.code_attribute().unwrap().max_locals;
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
     }
@@ -90,7 +86,7 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
         run_native_method(state, current_frame.clone(), target_class, target_method_i)
     } else if target_method.access_flags & ACC_ABSTRACT == 0 {
         let mut args = vec![];
-        let max_locals = code_attribute(target_method).unwrap().max_locals;
+        let max_locals = target_method.code_attribute().unwrap().max_locals;
 
         setup_virtual_args(&current_frame, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry {
@@ -158,7 +154,7 @@ pub fn invoke_static_impl(
     if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
-        let max_locals = code_attribute(target_method).unwrap().max_locals;
+        let max_locals = target_method.code_attribute().unwrap().max_locals;
 
         for _ in 0..max_locals {
             args.push(JavaValue::Top);
@@ -199,8 +195,8 @@ pub fn find_target_method<'l>(
     target_class: &'l Arc<RuntimeClass>,
 ) -> (usize, &'l MethodInfo) {
     target_class.classfile.methods.iter().enumerate().find(|(_, m)| {
-        if method_name(&target_class.classfile, m) == expected_method_name {
-            let target_class_descriptor_str = extract_string_from_utf8(&target_class.classfile.constant_pool[m.descriptor_index as usize]);
+        if m.method_name(&target_class.classfile) == expected_method_name {
+            let target_class_descriptor_str = target_class.classfile.constant_pool[m.descriptor_index as usize].extract_string_from_utf8();
             let actual = parse_method_descriptor(&loader_arc, target_class_descriptor_str.as_str()).unwrap();
             actual.parameter_types.len() == parsed_descriptor.parameter_types.len() &&
                 actual.parameter_types.iter().zip(parsed_descriptor.parameter_types.iter()).all(|(a, b)| a == b) &&
@@ -223,7 +219,7 @@ pub fn run_native_method(
     let classfile = &class.classfile;
     let method = &classfile.methods[method_i];
     assert!(method.access_flags & ACC_NATIVE > 0);
-    let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index as usize]);
+    let descriptor_str = classfile.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
     let parsed = parse_method_descriptor(&class.loader, descriptor_str.as_str()).unwrap();
     let mut args = vec![];
     //todo should have some setup args functions
@@ -235,9 +231,9 @@ pub fn run_native_method(
     } else {
         setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
     }
-    if method_name(classfile, method) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
+    if method.method_name(classfile) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         frame.push(JavaValue::Boolean(false))
-    } else if method_name(classfile, method) == "arraycopy".to_string() {
+    } else if method.method_name(classfile) == "arraycopy".to_string() {
         system_array_copy(&mut args)
     } else {
         let result = if state.jni.registered_natives.borrow().contains_key(&class) &&
@@ -267,7 +263,7 @@ fn system_array_copy(args: &mut Vec<JavaValue>) -> () {
     let dest_pos = args[3].clone().unwrap_int() as usize;
     let length = args[4].clone().unwrap_int() as usize;
     for i in 0..length {
-        let borrowed: &Ref<Vec<JavaValue>> = src.borrow();
+        let borrowed: &RefCell<Vec<JavaValue>> = src.borrow();
         let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
         dest.borrow_mut()[dest_pos + i] = temp;
     }

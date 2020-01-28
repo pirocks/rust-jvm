@@ -2,7 +2,6 @@ use crate::verifier::codecorrectness::Environment;
 use crate::verifier::{Frame, standard_exception_frame};
 use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::InstructionTypeSafe;
-use crate::verifier::instructions::exception_stack_frame;
 use crate::verifier::codecorrectness::pop_matching_type;
 use crate::verifier::codecorrectness::size_of;
 use crate::VerifierContext;

@@ -5,7 +5,6 @@ use rust_jvm_common::loading::Loader;
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL, ACC_PROTECTED};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::utils::{extract_string_from_utf8, method_name};
 use rust_jvm_common::classfile::ConstantKind;
 use rust_jvm_common::loading::LoaderName;
 use crate::VerifierContext;
@@ -329,7 +328,7 @@ pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> 
         }
         _ => panic!()
     };
-    ClassName::Str(extract_string_from_utf8(utf8))//todo use weak ref + index instead
+    ClassName::Str(utf8.extract_string_from_utf8())//todo use weak ref + index instead
 }
 
 pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: Arc<dyn Loader + Send + Sync>, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
@@ -387,13 +386,13 @@ pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoa
 pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, super_method_list: &Vec<ClassWithLoaderMethod>) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, method.class);
     let method_info = &method_class.methods[method.method_index];
-    let method_name_ = method_name(&method_class, method_info);
-    let descriptor_string = extract_string_from_utf8(&method_class.constant_pool[method_info.descriptor_index as usize]);
+    let method_name_ = method_info.method_name(&method_class);
+    let descriptor_string = method_class.constant_pool[method_info.descriptor_index as usize].extract_string_from_utf8();
     let matching_method = super_method_list.iter().find(|x| {
         let x_method_class = get_class(vf, x.class);
         let x_method_info = &x_method_class.methods[x.method_index];
-        let x_method_name = method_name(&x_method_class, x_method_info);
-        let x_descriptor_string = extract_string_from_utf8(&x_method_class.constant_pool[x_method_info.descriptor_index as usize]);
+        let x_method_name = x_method_info.method_name(&x_method_class);
+        let x_descriptor_string = x_method_class.constant_pool[x_method_info.descriptor_index as usize].extract_string_from_utf8();
         x_descriptor_string == descriptor_string && x_method_name == method_name_
     });
     match matching_method {
@@ -436,9 +435,9 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
 //    dbg!(&member_descriptor);
     let class = get_class(vf, super_);
     for method in &class.methods {
-        let method_name = extract_string_from_utf8(&class.constant_pool[method.name_index as usize]);
+        let method_name = class.constant_pool[method.name_index as usize].extract_string_from_utf8();
         if member_name == method_name {
-            let method_descriptor_string = extract_string_from_utf8(&class.constant_pool[method.descriptor_index as usize]);
+            let method_descriptor_string = class.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
             let parsed_member_types = match parse_method_descriptor(&super_.loader, method_descriptor_string.as_str()) {
                 None => panic!(),
                 Some(str_) => str_,
@@ -457,9 +456,9 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
         }
     }
     for field in &class.fields {
-        let field_name = extract_string_from_utf8(&class.constant_pool[field.name_index as usize]);
+        let field_name = class.constant_pool[field.name_index as usize].extract_string_from_utf8();
         if member_name == field_name {
-            let field_descriptor_string = extract_string_from_utf8(&class.constant_pool[field.descriptor_index as usize]);
+            let field_descriptor_string = class.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
             let parsed_member_type = match parse_field_descriptor(&super_.loader, field_descriptor_string.as_str()) {
                 None => panic!(),
                 Some(str_) => str_,

@@ -3,12 +3,9 @@ use crate::verifier::codecorrectness::{Environment, can_pop, MergedCodeInstructi
 use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo, Classfile};
-use rust_jvm_common::utils::extract_string_from_utf8;
-use rust_jvm_common::utils::name_and_type_extractor;
 
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::passes_protected_check;
-use rust_jvm_common::utils::extract_class_from_constant_pool;
 use crate::verifier::codecorrectness::valid_type_transition;
 use rust_jvm_common::classnames::{ClassName, NameReference};
 use crate::verifier::filecorrectness::is_assignable;
@@ -106,8 +103,8 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
         }
         _ => panic!()
     };
-    let call_site_name = extract_string_from_utf8(&constant_pool[name_index]);
-    let descriptor_string = extract_string_from_utf8(&constant_pool[descriptor_index]);
+    let call_site_name = constant_pool[name_index].extract_string_from_utf8();
+    let descriptor_string = constant_pool[descriptor_index].extract_string_from_utf8();
     let descriptor = parse_method_descriptor(&env.class_loader, descriptor_string.as_str()).unwrap();
     if call_site_name == "<init>" || call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
@@ -134,12 +131,12 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
         }
         _ => panic!()
     };
-    let method_intf_name = extract_string_from_utf8(match &constant_pool[class_index].kind {
+    let method_intf_name = match &constant_pool[class_index].kind {
         ConstantKind::Class(c) => { &constant_pool[c.name_index as usize] }
         _ => panic!()
-    });
-    let method_name = extract_string_from_utf8(&constant_pool[name_index]);
-    let descriptor_string = extract_string_from_utf8(&constant_pool[descriptor_index]);
+    }.extract_string_from_utf8();
+    let method_name = constant_pool[name_index].extract_string_from_utf8();
+    let descriptor_string = constant_pool[descriptor_index].extract_string_from_utf8();
     let descriptor = parse_method_descriptor(&env.class_loader, descriptor_string.as_str()).unwrap();
     if method_name == "<init>" || method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
@@ -394,10 +391,10 @@ pub fn get_method_descriptor(cp: usize, classfile: &Arc<Classfile>, loader: Arc<
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {
-            let c = extract_class_from_constant_pool(m.class_index, &classfile);
-            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
+            let c = classfile.extract_class_from_constant_pool(m.class_index);
+            let class_name = classfile.constant_pool[c.name_index as usize].extract_string_from_utf8();
             //todo ideally for name we would return weak ref.
-            let (method_name, descriptor) = name_and_type_extractor(m.name_and_type_index, classfile);
+            let (method_name, descriptor) = classfile.name_and_type_extractor(m.name_and_type_index);
             let parsed_descriptor = match parse_method_descriptor(&loader, descriptor.as_str()) {
                 None => { unimplemented!() }
                 Some(pd) => { pd }
@@ -406,9 +403,9 @@ pub fn get_method_descriptor(cp: usize, classfile: &Arc<Classfile>, loader: Arc<
         }
         ConstantKind::InterfaceMethodref(m) => {
             //todo dup?
-            let c = extract_class_from_constant_pool(m.class_index, &classfile);
-            let class_name = extract_string_from_utf8(&classfile.constant_pool[c.name_index as usize]);
-            let (method_name, descriptor) = name_and_type_extractor(m.nt_index, classfile);
+            let c = classfile.extract_class_from_constant_pool(m.class_index);
+            let class_name = classfile.constant_pool[c.name_index as usize].extract_string_from_utf8();
+            let (method_name, descriptor) = classfile.name_and_type_extractor(m.nt_index);
             let parsed_descriptor = match parse_method_descriptor(&loader, descriptor.as_str()) {
                 None => { unimplemented!() }
                 Some(pd) => { pd }
