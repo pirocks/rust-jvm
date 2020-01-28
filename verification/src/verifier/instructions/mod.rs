@@ -1,6 +1,6 @@
 use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition, handler_exception_class, Handler, size_of, push_operand_stack};
 use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
-use crate::verifier::{Frame, get_class};
+use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
 use rust_jvm_common::unified_types::ClassWithLoader;
@@ -188,7 +188,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 //todo why do I take the class name when I already know it
                 let class_name = class_name(&get_class(&env.vf, &exception_class));
                 is_assignable(&env.vf, &VerificationType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
-                              &VerificationType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/Throwable"), loader: env.vf.bootstrap_loader.clone() }))
+                              &VerificationType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.bootstrap_loader.clone() }))
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
             }
@@ -223,8 +223,7 @@ pub fn instruction_is_type_safe_dup(env: &Environment, stack_frame: &Frame) -> R
         stack_map: output_operand_stack,
         flag_this_uninit: flags,
     };
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn can_safely_push(env: &Environment, input_operand_stack: &OperandStack, type_: &VerificationType) -> Result<OperandStack, TypeSafetyError> {
@@ -259,8 +258,7 @@ pub fn instruction_is_type_safe_dup_x1(env: &Environment, stack_frame: &Frame) -
         stack_map: output_stack,
         flag_this_uninit: flags,
     };
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn can_safely_push_list(env: &Environment, input_stack: &OperandStack, types: Vec<VerificationType>) -> Result<OperandStack, TypeSafetyError> {
@@ -291,8 +289,7 @@ pub fn instruction_is_type_safe_dup_x2(env: &Environment, stack_frame: &Frame) -
         stack_map: output_stack,
         flag_this_uninit: flags,
     };
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 fn dup_x2_form_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
@@ -357,8 +354,7 @@ pub fn instruction_is_type_safe_i2l(env: &Environment, stack_frame: &Frame) -> R
 
 pub fn type_transition(env: &Environment, stack_frame: &Frame, expected_types: Vec<VerificationType>, res_type: VerificationType) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = valid_type_transition(env, expected_types, &res_type, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_iadd(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -409,15 +405,13 @@ pub fn instruction_is_type_safe_l2i(env: &Environment, stack_frame: &Frame) -> R
 
 pub fn instruction_is_type_safe_ladd(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = valid_type_transition(env, vec![VerificationType::LongType, VerificationType::LongType], &VerificationType::LongType, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 fn instruction_is_type_safe_lcmp(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo dup with other arithmetic
     let next_frame = valid_type_transition(env, vec![VerificationType::LongType, VerificationType::LongType], &VerificationType::IntType, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> VerificationType {
@@ -451,8 +445,7 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Fra
         _ => {}
     };
     let next_frame = valid_type_transition(env, vec![], &type_, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -477,8 +470,7 @@ pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_fra
         _ => { return Result::Err(unknown_error_verifying!()); }
     };
     let next_frame = valid_type_transition(env, vec![], &type_, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_lneg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {

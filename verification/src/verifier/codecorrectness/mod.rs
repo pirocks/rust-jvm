@@ -285,7 +285,7 @@ pub struct Handler {
 pub fn handler_exception_class(vf: &VerifierContext,handler: &Handler, loader: Arc<dyn Loader + Send + Sync>) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
-        None => { ClassWithLoader{ class_name: ClassName::new("java/lang/Throwable"), loader: vf.bootstrap_loader.clone() } }
+        None => { ClassWithLoader{ class_name: ClassName::throwable(), loader: vf.bootstrap_loader.clone() } }
         Some(s) => {
 //            let _classfile = loader.pre_load(loader.clone(),s).unwrap();
             // then class in question exists

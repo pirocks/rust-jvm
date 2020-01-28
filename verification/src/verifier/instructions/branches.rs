@@ -1,6 +1,6 @@
 use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames, exception_stack_frame, target_is_type_safe, ResultFrames};
 use crate::verifier::codecorrectness::{Environment, can_pop, MergedCodeInstruction};
-use crate::verifier::{Frame, get_class};
+use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo, Classfile};
 use rust_jvm_common::utils::extract_string_from_utf8;
@@ -40,8 +40,7 @@ pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -
 pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::Reference, VerificationType::Reference])?;
     target_is_type_safe(env, &next_frame, target as usize)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 
@@ -80,23 +79,19 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: &Frame) 
 pub fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::IntType, VerificationType::IntType])?;
     target_is_type_safe(env, &next_frame, target)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::IntType])?;
     target_is_type_safe(env, &next_frame, target)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = can_pop(&env.vf, stack_frame, vec![VerificationType::Reference])?;
     target_is_type_safe(env, &next_frame, target)?;
-    //todo dup with above
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -122,8 +117,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
 //    operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -160,8 +154,7 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let next_frame = valid_type_transition(env, vec![], &return_type, &temp_frame)?;
     count_is_valid(count, stack_frame, &temp_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 fn count_is_valid(count: usize, input_frame: &Frame, output_frame: &Frame) -> Result<(), TypeSafetyError> {
@@ -362,8 +355,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
         .collect();
     let return_type = &parsed_descriptor.return_type.to_verification_type();
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -395,8 +387,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     if class_name.is_some() {
         passes_protected_check(env, &class_name.unwrap(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     }
-    let exception_stack_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame: exception_stack_frame, next_frame: nf }))
+    standard_exception_frame(stack_frame, nf)
 }
 
 pub fn get_method_descriptor(cp: usize, classfile:&Arc<Classfile>, loader: Arc<dyn Loader + Sync + Send>) -> (ParsedType, String, MethodDescriptor) {

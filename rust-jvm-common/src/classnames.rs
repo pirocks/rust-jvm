@@ -44,6 +44,10 @@ impl ClassName{
     pub fn string() -> Self{
         ClassName::new("java/lang/String")
     }
+
+    pub fn throwable() -> Self{
+        ClassName::new("java/lang/Throwable")
+    }
 }
 
 impl Hash for ClassName{

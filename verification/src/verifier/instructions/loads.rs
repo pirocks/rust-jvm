@@ -1,6 +1,6 @@
 use crate::verifier::codecorrectness::{Environment, valid_type_transition};
 use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames, nth0};
-use crate::verifier::Frame;
+use crate::verifier::{Frame, standard_exception_frame};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::special::nth1_operand_stack_is;
@@ -21,8 +21,7 @@ pub fn instruction_is_type_safe_aaload(env: &Environment, stack_frame: &Frame) -
     let object = ClassWithLoader { class_name: ClassName::object(), loader: bl };
     let object_array = VerificationType::ArrayReferenceType(ArrayType { sub_type: Box::from(ParsedType::Class(object)) });
     let next_frame = valid_type_transition(env, vec![VerificationType::IntType, object_array], &component_type.to_verification_type(), stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 fn load_is_type_safe(env: &Environment, index: usize, type_: &VerificationType, frame: &Frame) -> Result<Frame, TypeSafetyError> {
@@ -35,18 +34,13 @@ fn load_is_type_safe(env: &Environment, index: usize, type_: &VerificationType, 
 
 pub fn instruction_is_type_safe_lload(index: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = load_is_type_safe(env, index, &VerificationType::LongType, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 
 pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = load_is_type_safe(env, index, &VerificationType::Reference, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames {
-        exception_frame,
-        next_frame,
-    }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_baload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -66,8 +60,7 @@ pub fn instruction_is_type_safe_daload(env: &Environment, stack_frame: &Frame) -
 
 pub fn instruction_is_type_safe_dload(index: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = load_is_type_safe(env, index, &VerificationType::DoubleType, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_faload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -77,8 +70,7 @@ pub fn instruction_is_type_safe_faload(env: &Environment, stack_frame: &Frame) -
 
 pub fn instruction_is_type_safe_fload(index: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = load_is_type_safe(env, index, &VerificationType::FloatType, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 pub fn instruction_is_type_safe_iaload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -88,8 +80,7 @@ pub fn instruction_is_type_safe_iaload(env: &Environment, stack_frame: &Frame) -
 
 pub fn instruction_is_type_safe_iload(index: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let next_frame = load_is_type_safe(env, index, &VerificationType::IntType, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame, next_frame)
 }
 
 //#[allow(unused)]
