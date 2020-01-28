@@ -1,5 +1,5 @@
 use crate::verifier::codecorrectness::{Environment, valid_type_transition};
-use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames, nth0};
+use crate::verifier::instructions::{InstructionTypeSafe, nth0};
 use crate::verifier::{Frame, standard_exception_frame};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;

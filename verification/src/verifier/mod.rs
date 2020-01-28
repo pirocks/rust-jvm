@@ -14,6 +14,7 @@ use crate::verifier::filecorrectness::is_protected;
 use classfile_parser::types::Descriptor;
 use rust_jvm_common::unified_types::VerificationType;
 use rust_jvm_common::unified_types::ParsedType;
+use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames};
 
 
 macro_rules! unknown_error_verifying {

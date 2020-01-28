@@ -1,10 +1,8 @@
 use crate::verifier::instructions::InstructionTypeSafe;
 use crate::verifier::codecorrectness::valid_type_transition;
 use crate::verifier::codecorrectness::Environment;
-use crate::verifier::instructions::ResultFrames;
 use crate::verifier::{TypeSafetyError, standard_exception_frame};
 use crate::verifier::Frame;
-use crate::verifier::instructions::exception_stack_frame;
 use rust_jvm_common::unified_types::VerificationType;
 
 pub fn instruction_is_type_safe_iconst_m1(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {

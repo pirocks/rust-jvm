@@ -11,8 +11,6 @@ use std::sync::Arc;
 use crate::verifier::codecorrectness::can_pop;
 use crate::verifier::passes_protected_check;
 use rust_jvm_common::unified_types::ClassWithLoader;
-use crate::verifier::instructions::exception_stack_frame;
-use crate::verifier::instructions::ResultFrames;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::{substitute, possibly_array_to_type};
 use crate::OperandStack;
