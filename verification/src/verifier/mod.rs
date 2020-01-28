@@ -11,7 +11,7 @@ use crate::OperandStack;
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
 use classfile_parser::types::Descriptor;
-use rust_jvm_common::unified_types::VerificationType;
+use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames};
 
@@ -58,7 +58,7 @@ pub struct ClassWithLoaderMethod<'l> {
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
 pub struct Frame {
-    pub locals: Vec<VerificationType>,
+    pub locals: Vec<VType>,
     pub stack_map: OperandStack,
     pub flag_this_uninit: bool,
 }

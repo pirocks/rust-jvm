@@ -67,30 +67,31 @@ pub enum ParsedType {
 }
 
 impl ParsedType {
-    pub fn to_verification_type(&self) -> VerificationType {
+    pub fn to_verification_type(&self) -> VType {
         match self {
-            ParsedType::ByteType => VerificationType::IntType,
-            ParsedType::CharType => VerificationType::IntType,
-            ParsedType::DoubleType => VerificationType::DoubleType,
-            ParsedType::FloatType => VerificationType::FloatType,
-            ParsedType::IntType => VerificationType::IntType,
-            ParsedType::LongType => VerificationType::LongType,
-            ParsedType::Class(cl) => VerificationType::Class(cl.clone()),
-            ParsedType::ShortType => VerificationType::IntType,
-            ParsedType::BooleanType => VerificationType::IntType,
-            ParsedType::ArrayReferenceType(at) => VerificationType::ArrayReferenceType(at.clone()),
-            ParsedType::VoidType => VerificationType::VoidType,
-            ParsedType::TopType => VerificationType::TopType,
-            ParsedType::NullType => VerificationType::NullType,
-            ParsedType::Uninitialized(uvi) => VerificationType::Uninitialized(uvi.clone()),
-            ParsedType::UninitializedThis => VerificationType::UninitializedThis
+            ParsedType::ByteType => VType::IntType,
+            ParsedType::CharType => VType::IntType,
+            ParsedType::DoubleType => VType::DoubleType,
+            ParsedType::FloatType => VType::FloatType,
+            ParsedType::IntType => VType::IntType,
+            ParsedType::LongType => VType::LongType,
+            ParsedType::Class(cl) => VType::Class(cl.clone()),
+            ParsedType::ShortType => VType::IntType,
+            ParsedType::BooleanType => VType::IntType,
+            ParsedType::ArrayReferenceType(at) => VType::ArrayReferenceType(at.clone()),
+            ParsedType::VoidType => VType::VoidType,
+            ParsedType::TopType => VType::TopType,
+            ParsedType::NullType => VType::NullType,
+            ParsedType::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
+            ParsedType::UninitializedThis => VType::UninitializedThis
         }
     }
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum VerificationType {
+pub enum VType {
+    //VType for VerificationType
     // todo perhaps this should reside in the verifier
     DoubleType,
     FloatType,
@@ -134,24 +135,24 @@ impl Clone for ParsedType {
 }
 
 
-impl Clone for VerificationType {
+impl Clone for VType {
     fn clone(&self) -> Self {
         match self {
-            VerificationType::DoubleType => VerificationType::DoubleType,
-            VerificationType::FloatType => VerificationType::FloatType,
-            VerificationType::IntType => VerificationType::IntType,
-            VerificationType::LongType => VerificationType::LongType,
-            VerificationType::Class(cl) => VerificationType::Class(cl.clone()),
-            VerificationType::ArrayReferenceType(at) => VerificationType::ArrayReferenceType(at.clone()),
-            VerificationType::VoidType => VerificationType::VoidType,
-            VerificationType::TopType => VerificationType::TopType,
-            VerificationType::NullType => VerificationType::NullType,
-            VerificationType::Uninitialized(uvi) => VerificationType::Uninitialized(uvi.clone()),
-            VerificationType::UninitializedThis => VerificationType::UninitializedThis,
-            VerificationType::TwoWord => VerificationType::TwoWord,
-            VerificationType::OneWord => VerificationType::OneWord,
-            VerificationType::Reference => VerificationType::TwoWord,
-            VerificationType::UninitializedEmpty => VerificationType::OneWord,
+            VType::DoubleType => VType::DoubleType,
+            VType::FloatType => VType::FloatType,
+            VType::IntType => VType::IntType,
+            VType::LongType => VType::LongType,
+            VType::Class(cl) => VType::Class(cl.clone()),
+            VType::ArrayReferenceType(at) => VType::ArrayReferenceType(at.clone()),
+            VType::VoidType => VType::VoidType,
+            VType::TopType => VType::TopType,
+            VType::NullType => VType::NullType,
+            VType::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
+            VType::UninitializedThis => VType::UninitializedThis,
+            VType::TwoWord => VType::TwoWord,
+            VType::OneWord => VType::OneWord,
+            VType::Reference => VType::TwoWord,
+            VType::UninitializedEmpty => VType::OneWord,
         }
     }
 }

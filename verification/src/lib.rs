@@ -11,7 +11,7 @@ use rust_jvm_common::classnames::class_name;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
-use rust_jvm_common::unified_types::VerificationType;
+use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::ParsedType;
 
 
@@ -114,7 +114,7 @@ impl Clone for VerifierContext {
 
 #[derive(Eq, Debug)]
 pub struct OperandStack {
-    data: VecDeque<VerificationType>
+    data: VecDeque<VType>
 }
 
 impl Clone for OperandStack {
@@ -133,11 +133,11 @@ impl PartialEq for OperandStack {
 
 
 impl OperandStack {
-    pub fn operand_push(&mut self, type_: VerificationType) {
+    pub fn operand_push(&mut self, type_: VType) {
         self.data.push_front(type_);
     }
 
-    pub fn operand_pop(&mut self) -> VerificationType {
+    pub fn operand_pop(&mut self) -> VType {
         self.data.pop_front().unwrap()
     }
 
@@ -145,11 +145,11 @@ impl OperandStack {
         self.data.len()
     }
 
-    pub fn peek(&self) -> VerificationType {
+    pub fn peek(&self) -> VType {
         self.data.front().unwrap().clone()
     }
 
-    pub fn new_prolog_display_order(types: &Vec<VerificationType>) -> OperandStack {
+    pub fn new_prolog_display_order(types: &Vec<VType>) -> OperandStack {
         let mut o = OperandStack::empty();
         for type_ in types {
             o.operand_push(type_.clone())
@@ -157,7 +157,7 @@ impl OperandStack {
         o
     }
 
-    pub fn new_reverse_display_order(_types: &Vec<VerificationType>) -> OperandStack {
+    pub fn new_reverse_display_order(_types: &Vec<VType>) -> OperandStack {
         unimplemented!()
     }
 
@@ -165,11 +165,11 @@ impl OperandStack {
         OperandStack { data: VecDeque::new() }
     }
 
-    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, VerificationType> {
+    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, VType> {
         self.data.iter()
     }
 
-    pub(crate) fn substitute(&mut self, old: &VerificationType, new: &VerificationType) {
+    pub(crate) fn substitute(&mut self, old: &VType, new: &VType) {
         for entry in &mut self.data {
             if entry == old {
                 *entry = new.clone();
