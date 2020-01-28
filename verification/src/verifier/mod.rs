@@ -34,6 +34,7 @@ pub struct InternalFrame {
     pub current_offset: u16,
 }
 
+//todo impl on VerifierContext
 pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<Classfile> {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     if class.loader.initiating_loader_of(&class.class_name) {

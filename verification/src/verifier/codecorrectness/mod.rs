@@ -403,9 +403,9 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     //    flags(ThisList, Flags),
     //    append(ThisList, Args, ThisArgs),
     //    expandToLength(ThisArgs, FrameSize, top, Locals).
-    let method_descriptor = get_class(vf, class)
-        .constant_pool[get_class(vf, method.class).methods[method.method_index as usize].descriptor_index as usize]
-        .extract_string_from_utf8();
+    let classfile = get_class(vf, class);
+    let method_info = &classfile.methods[method.method_index as usize];
+    let method_descriptor = method_info.descriptor_str(&classfile);
     let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types.clone()

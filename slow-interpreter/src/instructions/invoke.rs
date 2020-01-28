@@ -188,11 +188,10 @@ pub fn invoke_static_impl(
     }
 }
 
-pub fn find_target_method<'l>(loader_arc: LoaderArc, expected_method_name: String, parsed_descriptor: &MethodDescriptor, target_class: &'l Arc<RuntimeClass>,) -> (usize, &'l MethodInfo) {
+pub fn find_target_method<'l>(loader_arc: LoaderArc, expected_method_name: String, parsed_descriptor: &MethodDescriptor, target_class: &'l Arc<RuntimeClass>) -> (usize, &'l MethodInfo) {
     target_class.classfile.methods.iter().enumerate().find(|(_, m)| {
         if m.method_name(&target_class.classfile) == expected_method_name {
-            let target_class_descriptor_str = target_class.classfile.constant_pool[m.descriptor_index as usize].extract_string_from_utf8();
-            let actual = parse_method_descriptor(&loader_arc, target_class_descriptor_str.as_str()).unwrap();
+            let actual = MethodDescriptor::from(m, &target_class.classfile, &loader_arc);
             actual.parameter_types.len() == parsed_descriptor.parameter_types.len() &&
                 actual.parameter_types.iter().zip(parsed_descriptor.parameter_types.iter()).all(|(a, b)| a == b) &&
                 actual.return_type == parsed_descriptor.return_type
@@ -201,7 +200,6 @@ pub fn find_target_method<'l>(loader_arc: LoaderArc, expected_method_name: Strin
         }
     }).unwrap()
 }
-
 
 
 pub fn run_native_method(
@@ -214,8 +212,7 @@ pub fn run_native_method(
     let classfile = &class.classfile;
     let method = &classfile.methods[method_i];
     assert!(method.access_flags & ACC_NATIVE > 0);
-    let descriptor_str = classfile.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
-    let parsed = parse_method_descriptor(&class.loader, descriptor_str.as_str()).unwrap();
+    let parsed = MethodDescriptor::from(method, classfile, &class.loader);
     let mut args = vec![];
     //todo should have some setup args functions
     if method.access_flags & ACC_STATIC > 0 {

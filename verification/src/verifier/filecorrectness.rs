@@ -7,7 +7,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classfile::ConstantKind;
 use rust_jvm_common::loading::LoaderName;
 use crate::VerifierContext;
-use classfile_parser::types::Descriptor;
+use classfile_parser::types::{Descriptor, MethodDescriptor};
 use classfile_parser::types::parse_field_descriptor;
 use classfile_parser::types::parse_method_descriptor;
 use std::ops::Deref;
@@ -386,12 +386,12 @@ pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoade
     let method_class = get_class(vf, method.class);
     let method_info = &method_class.methods[method.method_index];
     let method_name_ = method_info.method_name(&method_class);
-    let descriptor_string = method_class.constant_pool[method_info.descriptor_index as usize].extract_string_from_utf8();
+    let descriptor_string = method_info.descriptor_str(&method_class);
     let matching_method = super_method_list.iter().find(|x| {
         let x_method_class = get_class(vf, x.class);
         let x_method_info = &x_method_class.methods[x.method_index];
         let x_method_name = x_method_info.method_name(&x_method_class);
-        let x_descriptor_string = x_method_class.constant_pool[x_method_info.descriptor_index as usize].extract_string_from_utf8();
+        let x_descriptor_string = x_method_info.descriptor_str(&x_method_class);
         x_descriptor_string == descriptor_string && x_method_name == method_name_
     });
     match matching_method {
@@ -436,11 +436,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
     for method in &class.methods {
         let method_name = class.constant_pool[method.name_index as usize].extract_string_from_utf8();
         if member_name == method_name {
-            let method_descriptor_string = class.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
-            let parsed_member_types = match parse_method_descriptor(&super_.loader, method_descriptor_string.as_str()) {
-                None => panic!(),
-                Some(str_) => str_,
-            };
+            let parsed_member_types = MethodDescriptor::from(method,&class,&super_.loader);
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }

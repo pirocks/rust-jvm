@@ -7,7 +7,7 @@ use crate::{init_frame, VerifierContext};
 use crate::StackMap;
 use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
-use classfile_parser::types::parse_method_descriptor;
+use classfile_parser::types::{parse_method_descriptor, MethodDescriptor};
 use rust_jvm_common::unified_types::ParsedType;
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
@@ -15,8 +15,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
     let code = method_info
         .code_attribute()
         .expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
-    let descriptor_str = get_class(vf, class).constant_pool[method_info.descriptor_index as usize].extract_string_from_utf8();
-    let parsed_descriptor = parse_method_descriptor(&class.loader, descriptor_str.as_str()).expect("Error parsing method descriptor");
+    let parsed_descriptor = MethodDescriptor::from(method_info,&get_class(vf, class),&class.loader);
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {

@@ -273,7 +273,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let frame = get_frame(env);
     //todo simplify use of this.
     let exp_method_name = method.method_name(&classfile);
-    let exp_descriptor_str = classfile.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
+    let exp_descriptor_str = method.descriptor_str(&classfile);
     let parsed = parse_method_descriptor(&method_id.class.loader, exp_descriptor_str.as_str()).unwrap();
 
     frame.push(JavaValue::Object(from_object(obj)));
@@ -356,7 +356,7 @@ unsafe extern "C" fn get_static_method_id(
     let classfile = &runtime_class.classfile;
     let all_methods = &classfile.methods;
     let (method_i, _) = all_methods.iter().enumerate().find(|(_, m)| {
-        let cur_desc = classfile.constant_pool[m.descriptor_index as usize].extract_string_from_utf8();
+        let cur_desc = m.descriptor_str(classfile);
         let cur_method_name = m.method_name(classfile);
         cur_method_name == method_name &&
             method_descriptor_str == cur_desc &&
@@ -371,9 +371,8 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
     let state = get_state(env);
     let frame = get_frame(env);
     let classfile = &method_id.class.classfile;
-    let constant_pool = &classfile.constant_pool;
     let method = &classfile.methods[method_id.method_i];
-    let method_descriptor_str = constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
+    let method_descriptor_str = method.descriptor_str(classfile);
     let _name = method.method_name(classfile);
     let parsed = parse_method_descriptor(&method_id.class.loader, method_descriptor_str.as_str()).unwrap();
     //todo dup

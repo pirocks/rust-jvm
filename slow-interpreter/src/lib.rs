@@ -9,7 +9,7 @@ use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
-use classfile_parser::types::parse_method_descriptor;
+use classfile_parser::types::{parse_method_descriptor, MethodDescriptor};
 use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::ClassWithLoader;
@@ -132,8 +132,7 @@ fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     main.methods.iter().enumerate().find(|(_, method)| {
         let name = method.method_name(main);
         if name == "main".to_string() {
-            let descriptor_string = main.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
-            let descriptor = parse_method_descriptor(&bl, descriptor_string.as_str()).unwrap();
+            let descriptor = MethodDescriptor::from(method,main,&bl);
             let string_name = ClassName::string();
             let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
             let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });

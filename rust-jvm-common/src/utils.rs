@@ -9,7 +9,7 @@ use crate::classfile::ACC_NATIVE;
 use crate::classfile::AttributeType;
 use crate::classfile::ACC_ABSTRACT;
 
-impl ConstantInfo{
+impl ConstantInfo {
     pub fn extract_string_from_utf8(&self) -> String {
         match &(self).kind {
             ConstantKind::Utf8(s) => {
@@ -21,7 +21,6 @@ impl ConstantInfo{
             }
         }
     }
-
 }
 
 impl Classfile {
@@ -106,10 +105,16 @@ impl MethodInfo {
         }
         panic!("Method has no code attribute, which is unusual given code is sorta the point of a method.")
     }
+
+    pub fn descriptor_str(&self, class_file: &Classfile) -> String {
+        class_file.constant_pool[self.descriptor_index as usize].extract_string_from_utf8()
+    }
+
+    //todo need a find method function
 }
 
 
-impl FieldInfo{
+impl FieldInfo {
     pub fn constant_value_attribute_i(&self) -> Option<CPIndex> {
         for attr in &self.attributes {
             match &attr.attribute_type {
@@ -121,5 +126,4 @@ impl FieldInfo{
         }
         None
     }
-
 }

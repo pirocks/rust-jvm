@@ -3,9 +3,16 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::classfile::{MethodInfo, Classfile};
 
 #[derive(Debug)]
 pub struct MethodDescriptor { pub parameter_types: Vec<ParsedType>, pub return_type: ParsedType }
+
+impl MethodDescriptor {
+    pub fn from(method_info: &MethodInfo, classfile: &Classfile, loader: &LoaderArc) -> Self {
+        parse_method_descriptor(loader, method_info.descriptor_str(classfile).as_str()).unwrap()
+    }
+}
 
 #[derive(Debug)]
 pub struct FieldDescriptor { pub field_type: ParsedType }

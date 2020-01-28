@@ -22,7 +22,7 @@ impl Debug for RuntimeClass {
 impl Hash for RuntimeClass {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.classfile.hash(state);
-        //todo add loader to hash
+        self.loader.name().to_string().hash(state)
     }
 }
 

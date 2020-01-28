@@ -130,7 +130,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let runtime_class: &Arc<RuntimeClass> = transmute(clazz);
         let classfile = &runtime_class.classfile;
         &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
-            let descriptor_str = classfile.constant_pool[method_info.descriptor_index as usize].extract_string_from_utf8();
+            let descriptor_str = method_info.descriptor_str(classfile);
             let current_name = method_info.method_name(classfile);
             if current_name == expected_name && descriptor == descriptor_str {
                 trace!("Registering method:{},{},{}", class_name(classfile).get_referred_name(), expected_name, descriptor_str);
@@ -218,7 +218,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let all_methods = get_all_methods(state, frame, class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone());
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];
-        let cur_desc = c.classfile.constant_pool[method_info.descriptor_index as usize].extract_string_from_utf8();
+        let cur_desc = method_info.descriptor_str(&c.classfile);
         let cur_method_name = method_info.method_name(&c.classfile);
 //        dbg!(&method_name);
 //        dbg!(&cur_method_name);
