@@ -7,10 +7,11 @@ use classfile_parser::types::parse_field_descriptor;
 use crate::InterpreterState;
 use crate::run_function;
 use std::rc::Rc;
-use runtime_common::java_values::{JavaValue, default_value};
+use runtime_common::java_values::default_value;
 use runtime_common::runtime_class::RuntimeClass;
 use std::cell::RefCell;
 use runtime_common::StackEntry;
+use crate::instructions::ldc::from_constant_pool_entry;
 
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
@@ -44,9 +45,10 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
                     None => continue,
                     Some(i) => i,
                 };
-                let x = &classfile.constant_pool[value_i as usize];
-                let constant_value = JavaValue::from_constant_pool_entry(x);
-                let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
+                let constant_pool = &classfile.constant_pool;
+                let x = &constant_pool[value_i as usize];
+                let constant_value = from_constant_pool_entry(constant_pool,x,state,stack.clone());
+                let name = constant_pool[field.name_index as usize].extract_string_from_utf8();
                 runtime_class.static_vars.borrow_mut().insert(name, constant_value);
             }
         }

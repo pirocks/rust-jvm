@@ -98,3 +98,25 @@ pub fn ldc(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u8) 
         }
     }
 }
+
+pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>,c: &ConstantInfo, state: &mut InterpreterState, stack: Option<Rc<StackEntry>>) -> JavaValue {
+    match &c.kind {
+        ConstantKind::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
+        ConstantKind::Float(f) => JavaValue::Float(unsafe { transmute(f.bytes) }),
+        ConstantKind::Long(l) => JavaValue::Long(unsafe {
+            let high = (l.high_bytes as u64) << 32;
+            let low = l.low_bytes as u64;
+            transmute(high | low)
+        }),
+        ConstantKind::Double(d) => JavaValue::Double(unsafe {
+            let high = (d.high_bytes as u64) << 32;
+            let low = d.low_bytes as u64;
+            transmute(high | low)
+        }),
+        ConstantKind::String(s) =>{
+            load_string_constant(state,&stack.clone().unwrap(),constant_pool,s);
+            stack.unwrap().pop()
+        },
+        _ => panic!()
+    }
+}

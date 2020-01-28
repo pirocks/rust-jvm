@@ -1,10 +1,6 @@
 use crate::runtime_class::RuntimeClass;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::ParsedType;
-use rust_jvm_common::classfile::ConstantInfo;
-use rust_jvm_common::classfile::ConstantKind;
-use std::mem::transmute;
-//use std::alloc::{alloc, dealloc, Layout};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
@@ -277,25 +273,6 @@ pub fn default_value(type_: ParsedType) -> JavaValue {
 }
 
 impl JavaValue {
-    pub fn from_constant_pool_entry(c: &ConstantInfo) -> Self {
-        match &c.kind {
-            ConstantKind::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
-            ConstantKind::Float(f) => JavaValue::Float(unsafe { transmute(f.bytes) }),
-            ConstantKind::Long(l) => JavaValue::Long(unsafe {
-                let high = (l.high_bytes as u64) << 32;
-                let low = l.low_bytes as u64;
-                transmute(high | low)
-            }),
-            ConstantKind::Double(d) => JavaValue::Double(unsafe {
-                let high = (d.high_bytes as u64) << 32;
-                let low = d.low_bytes as u64;
-                transmute(high | low)
-            }),
-            ConstantKind::String(_) => unimplemented!(),
-            _ => panic!()
-        }
-    }
-
     pub fn unwrap_array(&self) -> Arc<RefCell<Vec<JavaValue>>> {
         match self {
             JavaValue::Array(a) => {
