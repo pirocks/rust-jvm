@@ -22,14 +22,13 @@ pub enum JavaValue {
     Float(f32),
     Double(f64),
 
-    Array(Option<VecPointer>),
-    Object(Option<ObjectPointer>),
+    Array(Option<Arc<RefCell<Vec<JavaValue>>>>),
+    Object(Option<Arc<Object>>),
 
     Top,//should never be interacted with by the bytecode
 }
 
-impl JavaValue{
-
+impl JavaValue {
     pub fn unwrap_int(&self) -> i32 {
         match self {
             JavaValue::Int(i) => {
@@ -64,7 +63,7 @@ impl JavaValue{
                 let option = o.as_ref();
                 match option {
                     None => None,
-                    Some(o) => o.object.clone().into(),
+                    Some(o) => o.clone().into(),
                 }
             }
             _ => {
@@ -75,7 +74,7 @@ impl JavaValue{
     }
 }
 
-impl Clone for JavaValue{
+impl Clone for JavaValue {
     fn clone(&self) -> Self {
         match self {
             JavaValue::Long(l) => JavaValue::Long(*l),
@@ -93,136 +92,145 @@ impl Clone for JavaValue{
     }
 }
 
-impl PartialEq for JavaValue{
+impl PartialEq for JavaValue {
     fn eq(&self, other: &Self) -> bool {
-        match self{
+        match self {
             JavaValue::Long(x) => {
                 match other {
                     JavaValue::Long(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Int(x) => {
                 match other {
                     JavaValue::Int(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Short(x) => {
                 match other {
                     JavaValue::Short(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Byte(x) => {
                 match other {
                     JavaValue::Byte(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Boolean(x) => {
                 match other {
                     JavaValue::Boolean(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Char(x) => {
                 match other {
                     JavaValue::Char(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Float(x) => {
                 match other {
                     JavaValue::Float(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Double(x) => {
                 match other {
                     JavaValue::Double(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Array(x) => {
                 match other {
                     JavaValue::Array(x1) => x == x1,
                     _ => false
                 }
-            },
+            }
             JavaValue::Object(x) => {
                 match other {
-                    JavaValue::Object(x1) => x == x1,
+                    JavaValue::Object(x1) => {
+                        match x {
+                            None => match x1 {
+                                None => true,
+                                Some(_) => false
+                            },
+                            Some(o) => match x1 {
+                                None => false,
+                                Some(o1) => Arc::ptr_eq(o, o1),
+                            },
+                        }
+                    }
                     _ => false
                 }
-            },
+            }
             JavaValue::Top => {
                 match other {
                     JavaValue::Top => true,
                     _ => false
                 }
-            },
+            }
         }
     }
 }
 
-#[derive(Debug)]
-pub struct ObjectPointer {
-    pub object: Arc<Object>
-}
+//#[derive(Debug)]
+//pub struct ObjectPointer {
+//    pub object: Arc<Object>
+//}
 
-impl ObjectPointer{
-    pub fn new(runtime_class: Arc<RuntimeClass>) -> ObjectPointer{
-        ObjectPointer {
-            object: Arc::new(Object {
-                gc_reachable: true,
-                class_pointer: runtime_class,
-                fields: RefCell::new(HashMap::new()),
-                bootstrap_loader: false,
-                object_class_object_pointer: RefCell::new(None)
-            })
-        }
+impl JavaValue {
+    pub fn new_object(runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
+        Arc::new(Object {
+            gc_reachable: true,
+            class_pointer: runtime_class,
+            fields: RefCell::new(HashMap::new()),
+            bootstrap_loader: false,
+            object_class_object_pointer: RefCell::new(None),
+        }).into()
     }
 }
 
-impl PartialEq for ObjectPointer{
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.object.class_pointer , &other.object.class_pointer) && self.object.fields == self.object.fields
-    }
-}
+//impl PartialEq for ObjectPointer {
+//    fn eq(&self, other: &Self) -> bool {
+//        Arc::ptr_eq(&self.object.class_pointer, &other.object.class_pointer) && self.object.fields == self.object.fields
+//    }
+//}
 
-impl Clone for ObjectPointer{
-    fn clone(&self) -> Self {
-        ObjectPointer { object: self.object.clone() }
-    }
-}
+//impl Clone for ObjectPointer {
+//    fn clone(&self) -> Self {
+//        ObjectPointer { object: self.object.clone() }
+//    }
+//}
 
-#[derive(Debug)]
-pub struct VecPointer {
-    pub object: Arc<RefCell<Vec<JavaValue>>>
-}
+//#[derive(Debug)]
+//pub struct VecPointer {
+//    pub object: Arc<RefCell<Vec<JavaValue>>>
+//}
 
-impl VecPointer{
-    pub fn new(len : usize, val : JavaValue) -> VecPointer{
-        let mut buf:Vec<JavaValue> = Vec::with_capacity(len);
+impl JavaValue {
+    pub fn new_vec(len: usize, val: JavaValue) -> Option<Arc<RefCell<Vec<JavaValue>>>> {
+        let mut buf: Vec<JavaValue> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        VecPointer {object: Arc::new(RefCell::new(buf))}
+        Arc::new(RefCell::new(buf)).into()
     }
 }
 
-impl PartialEq for VecPointer{
-    fn eq(&self, other: &Self) -> bool {
-        self.object == other.object
-    }
-}
-
-impl Clone for VecPointer{
-    fn clone(&self) -> Self {
-        VecPointer { object: self.object.clone() }
-    }
-}
+//impl PartialEq for VecPointer {
+//    fn eq(&self, other: &Self) -> bool {
+//        self.object == other.object
+//    }
+//}
+//
+//impl Clone for VecPointer {
+//    fn clone(&self) -> Self {
+//        VecPointer { object: self.object.clone() }
+//    }
+//}
 
 //#[derive(Debug)]
 pub struct Object {
@@ -232,18 +240,18 @@ pub struct Object {
     pub class_pointer: Arc<RuntimeClass>,
     pub bootstrap_loader: bool,
     //points to the object represented by this class object of relevant
-    pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>
+    pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
 }
 
-impl Debug for Object{
+impl Debug for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f,"{:?}",class_name(&self.class_pointer.classfile).get_referred_name())?;
-        write!(f,"-")?;
-        write!(f,"{:?}",self.class_pointer.static_vars)?;
-        write!(f,"-")?;
-        write!(f,"{:?}",self.fields)?;
-        write!(f,"-")?;
-        write!(f,"{:?}",self.bootstrap_loader)?;
+        write!(f, "{:?}", class_name(&self.class_pointer.classfile).get_referred_name())?;
+        write!(f, "-")?;
+        write!(f, "{:?}", self.class_pointer.static_vars)?;
+        write!(f, "-")?;
+        write!(f, "{:?}", self.fields)?;
+        write!(f, "-")?;
+        write!(f, "{:?}", self.bootstrap_loader)?;
         Result::Ok(())
     }
 }
@@ -268,7 +276,7 @@ pub fn default_value(type_: ParsedType) -> JavaValue {
     }
 }
 
-impl JavaValue{
+impl JavaValue {
     pub fn from_constant_pool_entry(c: &ConstantInfo) -> Self {
         match &c.kind {
             ConstantKind::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
@@ -291,7 +299,7 @@ impl JavaValue{
     pub fn unwrap_array(&self) -> Arc<RefCell<Vec<JavaValue>>> {
         match self {
             JavaValue::Array(a) => {
-                a.as_ref().unwrap().object.clone()
+                a.as_ref().unwrap().clone()
             }
             _ => {
                 dbg!(self);
@@ -311,6 +319,4 @@ impl JavaValue{
             }
         }
     }
-
-
 }

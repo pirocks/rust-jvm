@@ -4,9 +4,8 @@ use rust_jvm_common::classfile::{ConstantKind, Atype};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::utils::extract_string_from_utf8;
 use rust_jvm_common::classnames::ClassName;
-use runtime_common::java_values::{JavaValue, VecPointer, default_value};
+use runtime_common::java_values::{JavaValue, default_value};
 use rust_jvm_common::unified_types::ParsedType;
-use std::sync::Arc;
 
 pub fn new(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
@@ -33,7 +32,7 @@ pub fn anewarray(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>
         ConstantKind::Class(c) => {
             let name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
             check_inited_class(state, &ClassName::Str(name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-            current_frame.operand_stack.borrow_mut().push(JavaValue::Array(Some(VecPointer::new(len as usize, JavaValue::Object(None)))))
+            current_frame.operand_stack.borrow_mut().push(JavaValue::Array(JavaValue::new_vec(len as usize, JavaValue::Object(None))))
         }
         _ => {
             dbg!(cp_entry);
@@ -51,9 +50,7 @@ pub fn newarray(current_frame: &Rc<CallStackEntry>, a_type: Atype) -> () {
     };
     match a_type {
         Atype::TChar => {
-            current_frame.operand_stack.borrow_mut().push(JavaValue::Array(Some(VecPointer {
-                object: Arc::new(vec![default_value(ParsedType::CharType); count as usize].into())
-            })));
+            current_frame.operand_stack.borrow_mut().push(JavaValue::Array(JavaValue::new_vec(count as usize, default_value(ParsedType::CharType))));
         }
         _ => unimplemented!()
     }

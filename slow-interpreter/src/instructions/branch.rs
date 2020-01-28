@@ -1,6 +1,7 @@
 use runtime_common::CallStackEntry;
 use std::rc::Rc;
 use runtime_common::java_values::JavaValue;
+use std::sync::Arc;
 
 pub fn goto_(current_frame: &Rc<CallStackEntry>, target: i16) {
     current_frame.pc_offset.replace(target as isize);
@@ -180,7 +181,16 @@ pub fn if_acmpne(current_frame: &Rc<CallStackEntry>, offset: i16) -> () {
     let value1 = current_frame.operand_stack.borrow_mut().pop().unwrap();
     let succeeds = match value1 {
         JavaValue::Object(o1) => match value2 {
-            JavaValue::Object(o2) => o1 != o2,
+            JavaValue::Object(o2) => match o1 {
+                None => match o2 {
+                    None => true,
+                    Some(_) => false,
+                },
+                Some(o1_arc) => match o2 {
+                    None => true,
+                    Some(o2_arc) => Arc::ptr_eq(&o1_arc,&o2_arc),
+                },
+            },
             _ => panic!()
         },
         _ => panic!()

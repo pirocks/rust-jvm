@@ -9,7 +9,7 @@ use libloading::Symbol;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::runtime_class::RuntimeClass;
-use runtime_common::java_values::{JavaValue, Object, ObjectPointer};
+use runtime_common::java_values::{JavaValue, Object};
 use std::ffi::CStr;
 use libffi::middle::Type;
 use libffi::middle::Arg;
@@ -100,7 +100,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<CallStackEntry>
         }
         ParsedType::Class(_) => {
             unsafe {
-                Some(JavaValue::Object(ObjectPointer { object: from_object(transmute(cif_res)).unwrap() }.into()))
+                Some(JavaValue::Object( from_object(transmute(cif_res))))
             }
         }
 //            ParsedType::ShortType => {}

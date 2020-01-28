@@ -10,7 +10,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::Loader;
 use std::rc::Rc;
 use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual};
-use runtime_common::java_values::{JavaValue, ObjectPointer, default_value};
+use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
 use classfile_parser::types::parse_field_descriptor;
 use crate::instructions::load::{aload, fload, iload, aaload};
@@ -295,13 +295,13 @@ fn istore(current_frame: &Rc<CallStackEntry>, n: u8) -> () {
 
 pub fn push_new_object(current_frame: Rc<CallStackEntry>, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader.clone();
-    let object_pointer = ObjectPointer::new(target_classfile.clone());
-    let new_obj = JavaValue::Object(Some(object_pointer.clone()));
+    let object_pointer = JavaValue::new_object(target_classfile.clone());
+    let new_obj = JavaValue::Object(object_pointer.clone());
     default_init_fields(loader_arc.clone(), object_pointer, &target_classfile.classfile,loader_arc.clone());
     current_frame.operand_stack.borrow_mut().push(new_obj);
 }
 
-fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer: ObjectPointer, classfile: &Arc<Classfile>, bl: Arc<dyn Loader + Send + Sync>) {
+fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: Arc<dyn Loader + Send + Sync>) {
     if classfile.super_class != 0 {
         let class_  = extract_class_from_constant_pool(classfile.super_class,classfile);
         let super_name = extract_string_from_utf8(&classfile.constant_pool[class_.name_index as usize]);
@@ -311,9 +311,9 @@ fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer
     for field in &classfile.fields {
         if field.access_flags & ACC_STATIC == 0 {
             //todo should I look for constant val attributes?
-            let value_i = match constant_value_attribute_i(field) {
+            let _value_i = match constant_value_attribute_i(field) {
                 None => {},
-                Some(i) => unimplemented!(),
+                Some(_i) => unimplemented!(),
             };
             let name = extract_string_from_utf8(&classfile.constant_pool[field.name_index as usize]);
             let descriptor_str = extract_string_from_utf8(&classfile.constant_pool[field.descriptor_index as usize]);
@@ -321,7 +321,7 @@ fn default_init_fields(loader_arc: Arc<dyn Loader + Send + Sync>, object_pointer
             let type_ = descriptor.field_type;
             let val = default_value(type_);
             {
-                object_pointer.object.fields.borrow_mut().insert(name, val);
+                object_pointer.clone().unwrap().fields.borrow_mut().insert(name, val);
             }
         }
     }

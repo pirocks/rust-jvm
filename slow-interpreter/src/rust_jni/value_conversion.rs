@@ -20,7 +20,7 @@ pub fn to_native(j: JavaValue) -> Arg {
             None => Arg::new(&(std::ptr::null() as *const Object)),
             Some(op) => {
                 unsafe {
-                    let object_ptr = to_object(op.object.into()) as *mut c_void;
+                    let object_ptr = to_object(op.into()) as *mut c_void;
                     let ref_box = Box::new(object_ptr);
                     //todo don;t forget to free later, and/or do this with lifetimes
                     Arg::new/*::<*mut c_void>*/(Box::leak(ref_box))

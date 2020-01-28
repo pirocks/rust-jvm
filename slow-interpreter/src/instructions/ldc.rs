@@ -1,7 +1,7 @@
 use runtime_common::{InterpreterState, CallStackEntry};
 use std::rc::Rc;
 use rust_jvm_common::classfile::{ConstantInfo, Class, String_, ConstantKind};
-use runtime_common::java_values::{JavaValue, ObjectPointer, VecPointer};
+use runtime_common::java_values::JavaValue;
 use rust_jvm_common::classnames::ClassName;
 use crate::get_or_create_class_object;
 use rust_jvm_common::utils::extract_string_from_utf8;
@@ -11,6 +11,7 @@ use std::sync::Arc;
 use crate::instructions::invoke::find_target_method;
 use classfile_parser::types::MethodDescriptor;
 use std::mem::transmute;
+use std::cell::RefCell;
 
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
     let res_class_name = extract_string_from_utf8(&constant_pool[c.name_index as usize]);
@@ -19,9 +20,7 @@ fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<CallStac
 
 pub fn load_class_constant_by_name(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, res_class_name: String) {
     let object = get_or_create_class_object(state, &ClassName::Str(res_class_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-    current_frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer {
-        object
-    }.into()));
+    current_frame.operand_stack.borrow_mut().push(JavaValue::Object(object.into()));
 }
 
 fn load_string_constant(state: &mut InterpreterState, current_frame: &Rc<CallStackEntry>, constant_pool: &Vec<ConstantInfo>, s: &String_) {
@@ -38,7 +37,7 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<C
     push_new_object(current_frame.clone().into(), &string_class);
     let string_object = current_frame.operand_stack.borrow_mut().pop().unwrap();
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Array(Some(VecPointer { object: Arc::new(chars.into()) })));
+    args.push(JavaValue::Array(Arc::new(RefCell::new(chars)).into()));
     let char_array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) });
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
     let (constructor_i, _constructor) = find_target_method(current_loader.clone(), "<init>".to_string(), &expected_descriptor, &string_class);

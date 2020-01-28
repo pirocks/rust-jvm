@@ -20,7 +20,7 @@ use crate::interpreter_util::{run_function, check_inited_class};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
-use runtime_common::java_values::{JavaValue, VecPointer, Object, ObjectPointer};
+use runtime_common::java_values::{JavaValue, Object};
 use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, CallStackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
@@ -56,12 +56,11 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
                         object_class_object_pointer: RefCell::new(None)
                     };
                     let bootstrap_arc = Arc::new(boostrap_loader_object);
-                    let bootstrap_loader_ptr = ObjectPointer { object: bootstrap_arc.clone() }.into();
-                    let bootstrap_class_loader = JavaValue::Object(bootstrap_loader_ptr);
+                    let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
                     {
                         bootstrap_arc.fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
                         bootstrap_arc.fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
-                        o.unwrap().object.fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
+                        o.unwrap().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
                     }
                 }
                 _ => panic!(),
@@ -112,7 +111,7 @@ pub fn run(
         class_pointer: Arc::new(main_class),
             method_i: main_i as u16,
 //            todo is that vec access safe, or does it not heap allocate?
-            local_vars: vec![JavaValue::Array(Some(VecPointer { object: Arc::new(vec![].into()) }))].into(),//todo handle parameters
+            local_vars: vec![JavaValue::Array(Some(Arc::new(vec![].into())))].into(),//todo handle parameters
             operand_stack: vec![].into(),
             pc: RefCell::new(0),
             pc_offset: 0.into(),

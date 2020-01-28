@@ -11,7 +11,7 @@ use rust_jvm_common::classfile::ACC_STATIC;
 use rust_jvm_common::utils::{method_name, extract_string_from_utf8};
 use classfile_parser::types::{parse_method_descriptor};
 use rust_jvm_common::unified_types::ParsedType;
-use runtime_common::java_values::{JavaValue, ObjectPointer, Object};
+use runtime_common::java_values::{JavaValue, Object};
 use log::trace;
 use rust_jvm_common::classnames::class_name;
 use crate::instructions::ldc::load_class_constant_by_name;
@@ -277,7 +277,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let exp_descriptor_str = extract_string_from_utf8(&classfile.constant_pool[method.descriptor_index as usize]);
     let parsed = parse_method_descriptor(&method_id.class.loader, exp_descriptor_str.as_str()).unwrap();
 
-    frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: from_object(obj).unwrap() }.into()));
+    frame.operand_stack.borrow_mut().push(JavaValue::Object(from_object(obj)));
     for type_ in &parsed.parameter_types {
         match type_ {
             ParsedType::ByteType => unimplemented!(),
@@ -289,7 +289,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
             ParsedType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
-                frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: o.unwrap().clone() }.into()));
+                frame.operand_stack.borrow_mut().push(JavaValue::Object(o));
             }
             ParsedType::ShortType => unimplemented!(),
             ParsedType::BooleanType => unimplemented!(),
@@ -367,15 +367,15 @@ unsafe extern "C" fn get_static_method_id(
     transmute(res)
 }
 
-unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, mut l: VaList) -> jobject {
-    let method_id = (methodID as *mut MethodId).as_ref().unwrap();
+unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: VaList) -> jobject {
+    let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
     let state = get_state(env);
     let frame = get_frame(env);
     let classfile = &method_id.class.classfile;
     let constant_pool = &classfile.constant_pool;
     let method = &classfile.methods[method_id.method_i];
     let method_descriptor_str = extract_string_from_utf8(&constant_pool[method.descriptor_index as usize]);
-    let name = method_name(classfile, method);
+    let _name = method_name(classfile, method);
     let parsed = parse_method_descriptor(&method_id.class.loader, method_descriptor_str.as_str()).unwrap();
     //todo dup
     for type_ in &parsed.parameter_types {
@@ -389,7 +389,7 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, clazz: jclass
             ParsedType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
-                frame.operand_stack.borrow_mut().push(JavaValue::Object(ObjectPointer { object: o.unwrap().clone() }.into()));
+                frame.operand_stack.borrow_mut().push(JavaValue::Object(o));
             }
             ParsedType::ShortType => unimplemented!(),
             ParsedType::BooleanType => unimplemented!(),
