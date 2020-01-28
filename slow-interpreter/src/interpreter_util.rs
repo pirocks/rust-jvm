@@ -6,7 +6,7 @@ use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::{Loader, LoaderArc};
 use std::rc::Rc;
 use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual};
 use runtime_common::java_values::{JavaValue, default_value, Object};
@@ -32,7 +32,7 @@ pub fn check_inited_class(
     state: &mut InterpreterState,
     class_name: &ClassName,
     current_frame: Option<Rc<StackEntry>>,
-    loader_arc: Arc<dyn Loader + Sync + Send>,
+    loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {

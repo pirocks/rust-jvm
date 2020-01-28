@@ -1,6 +1,6 @@
 use std::io::prelude::*;
 use rust_jvm_common::classfile::ConstantInfo;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::{Loader, LoaderArc};
 use std::sync::Arc;
 
 pub trait ParsingContext {
@@ -9,7 +9,7 @@ pub trait ParsingContext {
     fn read32(&mut self) -> u32;
     fn set_constant_pool(&mut self, constant_pool: Vec<ConstantInfo>);
     fn constant_pool(self) -> Vec<ConstantInfo>;
-    fn loader(&self) -> Arc<dyn Loader + Sync + Send>;
+    fn loader(&self) -> LoaderArc;
     fn constant_pool_borrow(&self) -> &Vec<ConstantInfo>;
 }
 
@@ -54,7 +54,7 @@ impl ParsingContext for FileParsingContext<'_> {
         self.constant_pool.unwrap()
     }
 
-    fn loader(&self) -> Arc<dyn Loader + Sync + Send> {
+    fn loader(&self) -> LoaderArc {
         self.loader.clone()
     }
 

@@ -3,7 +3,7 @@ extern crate simple_logger;
 
 use std::sync::Arc;
 use std::fs::File;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::{Loader, LoaderArc};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::ClassLoadingError;
 use rust_jvm_common::classfile::Classfile;
@@ -50,7 +50,7 @@ impl Loader for BootstrapLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, self_arc: Arc<dyn Loader + Sync + Send>, class: &ClassName, bl: Arc<dyn Loader + Send + Sync>) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: Arc<dyn Loader + Send + Sync>) -> Result<Arc<Classfile>, ClassLoadingError> {
 //        if class == ClassName::object() {
 //            panic!()
 //        }
@@ -80,7 +80,7 @@ impl Loader for BootstrapLoader {
 
     //todo hacky and janky
     // as a fix for self_arc we could wrap Arc, and have that struct impl loader
-    fn pre_load(&self, self_arc: Arc<dyn Loader + Sync + Send>, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn pre_load(&self, self_arc: LoaderArc, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         //todo assert self arc is same
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());

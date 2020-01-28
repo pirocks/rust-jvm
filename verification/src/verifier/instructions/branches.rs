@@ -17,7 +17,7 @@ use classfile_parser::types::MethodDescriptor;
 use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::ParsedType;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::{Loader, LoaderArc};
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -387,7 +387,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     standard_exception_frame(stack_frame, nf)
 }
 
-pub fn get_method_descriptor(cp: usize, classfile: &Arc<Classfile>, loader: Arc<dyn Loader + Sync + Send>) -> (ParsedType, String, MethodDescriptor) {
+pub fn get_method_descriptor(cp: usize, classfile: &Arc<Classfile>, loader: LoaderArc) -> (ParsedType, String, MethodDescriptor) {
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {

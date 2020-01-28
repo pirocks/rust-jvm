@@ -1,6 +1,6 @@
 use crate::classnames::ClassName;
 use crate::classfile::UninitializedVariableInfo;
-use crate::loading::Loader;
+use crate::loading::LoaderArc;
 use std::sync::Arc;
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -21,7 +21,7 @@ impl Clone for ArrayType {
 
 pub struct ClassWithLoader {
     pub class_name: ClassName,
-    pub loader: Arc<dyn Loader + Sync + Send>,
+    pub loader: LoaderArc,
 }
 
 impl PartialEq for ClassWithLoader {

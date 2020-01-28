@@ -21,7 +21,7 @@ use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -159,7 +159,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 }
 
 //todo maybe move to impl
-pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>, l: Arc<dyn Loader + Sync + Send>) -> (ClassName, String, FieldDescriptor) {
+pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>, l: LoaderArc) -> (ClassName, String, FieldDescriptor) {
     let current_class = class;
     let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
     let (class_index, name_and_type_index) = match field_entry {

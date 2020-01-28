@@ -7,7 +7,7 @@ extern crate libc;
 
 use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::Loader;
+use rust_jvm_common::loading::{Loader, LoaderArc};
 use std::error::Error;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
@@ -27,7 +27,7 @@ use rust_jvm_common::classfile::{Classfile, MethodInfo};
 pub fn get_or_create_class_object(state: &mut InterpreterState,
                                   class_name: &ClassName,
                                   current_frame: Rc<StackEntry>,
-                                  loader_arc: Arc<dyn Loader + Sync + Send>,
+                                  loader_arc: LoaderArc,
 ) -> Arc<Object> {
     //todo in future this may introduce new and exciting concurrency bugs
 
