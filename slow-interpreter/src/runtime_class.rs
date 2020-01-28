@@ -4,9 +4,6 @@ use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::ACC_STATIC;
 use std::collections::HashMap;
 use classfile_parser::types::parse_field_descriptor;
-use rust_jvm_common::classfile::AttributeType;
-use rust_jvm_common::classfile::FieldInfo;
-use rust_jvm_common::classfile::CPIndex;
 use crate::InterpreterState;
 use crate::run_function;
 use std::rc::Rc;
@@ -43,7 +40,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
         for field in &classfile.fields {
             if (field.access_flags & ACC_STATIC > 0) && (field.access_flags & ACC_FINAL > 0) {
                 //todo do I do this for non-static? Should I?
-                let value_i = match constant_value_attribute_i(field) {
+                let value_i = match field.constant_value_attribute_i() {
                     None => continue,
                     Some(i) => i,
                 };
@@ -87,14 +84,3 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
     panic!()
 }
 
-pub fn constant_value_attribute_i(field: &FieldInfo) -> Option<CPIndex> {
-    for attr in &field.attributes {
-        match &attr.attribute_type {
-            AttributeType::ConstantValue(c) => {
-                return Some(c.constant_value_index);
-            }
-            _ => {}
-        }
-    }
-    None
-}

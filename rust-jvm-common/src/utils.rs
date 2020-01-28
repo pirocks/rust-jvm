@@ -1,4 +1,4 @@
-use crate::classfile::{ConstantInfo, ConstantKind, MethodInfo};
+use crate::classfile::{ConstantInfo, ConstantKind, MethodInfo, FieldInfo, CPIndex};
 use crate::classfile::Classfile;
 use crate::classfile::ACC_FINAL;
 use crate::classfile::ACC_INTERFACE;
@@ -109,3 +109,17 @@ impl MethodInfo {
 }
 
 
+impl FieldInfo{
+    pub fn constant_value_attribute_i(&self) -> Option<CPIndex> {
+        for attr in &self.attributes {
+            match &attr.attribute_type {
+                AttributeType::ConstantValue(c) => {
+                    return Some(c.constant_value_index);
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+}

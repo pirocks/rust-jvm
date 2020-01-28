@@ -9,10 +9,10 @@ fn main() {
     let jvm_md_include_path = env!("JVM_MD_H");
     let jni_md_include_path = env!("JNI_MD_H");
     let jni_include_path = env!("JNI_H");
-    println!("cargo:rerun-if-changed={}/jvm.h", jvm_include_path);//todo use concat macro.
-    println!("cargo:rerun-if-changed={}/jvm_md.h", jvm_md_include_path);
-    println!("cargo:rerun-if-changed={}/jni.h", jni_include_path);
-    println!("cargo:rerun-if-changed={}/jni_md.h", jni_md_include_path);
+    println!("cargo:rerun-if-changed={}", concat!(jvm_include_path,"/jvm.h"));
+    println!("cargo:rerun-if-changed={}", concat!(jvm_md_include_path,"/jvm_md.h"));
+    println!("cargo:rerun-if-changed={}", concat!(jni_include_path,"/jni.h"));
+    println!("cargo:rerun-if-changed={}", concat!(jni_md_include_path,"/jni_md.h"));
     println!("cargo:rerun-if-changed=wrapper.h");
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
