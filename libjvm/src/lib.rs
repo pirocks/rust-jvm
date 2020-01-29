@@ -79,7 +79,8 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p: jobject) -> jobject {
-    unimplemented!()
+    //todo so in theory I should do stuff here, but not needed for hello world so....
+    p
 }
 
 
@@ -1033,7 +1034,7 @@ unsafe extern "system" fn JVM_GetThreadStateNames(env: *mut JNIEnv, javaThreadSt
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetVersionInfo(env: *mut JNIEnv, info: *mut jvm_version_info, info_size: usize) {
-    unimplemented!()
+    (*info).jvm_version = 8;//todo what should I put here?
 }
 
 #[no_mangle]

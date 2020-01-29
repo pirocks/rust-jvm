@@ -1,11 +1,11 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring};
 use std::mem::transmute;
 use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
-use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars};
+use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars, new_string_with_len, new_string_with_string};
 use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
 use classfile_parser::types::parse_method_descriptor;
@@ -186,7 +186,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         SetStaticLongField: None,
         SetStaticFloatField: None,
         SetStaticDoubleField: None,
-        NewString: None,
+        NewString: Some(new_string),
         GetStringLength: None,
         GetStringChars: None,
         ReleaseStringChars: Some(release_string_chars),
@@ -398,4 +398,12 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
     trace!("----NATIVE ENTER----");
     let res = frame.pop().unwrap_object();
     to_object(res)
+}
+
+unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring{
+    let mut str = String::with_capacity(len as usize);
+    for i in 0..len{
+        str.push(unicode.offset(i as isize).read() as u8 as char)
+    }
+    new_string_with_string(env,str)
 }

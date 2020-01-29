@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jstring, jboolean, jchar};
+use jni_bindings::{JNIEnv, jstring, jboolean, jchar, JNINativeInterface_, _jobject};
 use std::os::raw::c_char;
 use runtime_common::java_values::{JavaValue, Object};
 use std::cell::{Ref, RefCell};
@@ -36,10 +36,18 @@ pub unsafe extern "C" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, 
 
 pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char) -> jstring {
     let len = libc::strlen(utf);
+    new_string_with_len(env, utf, len)
+}
+
+pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char, len: usize) -> jstring {
     let mut owned_str = String::with_capacity(len);
     for i in 0..len {
         owned_str.push(utf.offset(i as isize).read() as u8 as char);
     }
+    new_string_with_string(env, owned_str)
+}
+
+pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jstring {
     let state = get_state(env);
     let frame = get_frame(env);
     create_string_on_stack(state, &frame, owned_str);

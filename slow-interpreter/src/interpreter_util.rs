@@ -57,7 +57,7 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-    /*if meth_name == "equals" && class_name(&current_frame.class_pointer.classfile) == ClassName::string(){
+    /*if meth_name == "saveAndRemoveProperties" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("sun/misc/VM".to_string()){
         dbg!(&current_frame.local_vars);
         dbg!("here");
     }*/

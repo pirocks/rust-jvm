@@ -117,7 +117,7 @@ pub fn ifeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     let val = current_frame.pop();
     let succeeds = match val {
         JavaValue::Int(i) => i == 0,
-        JavaValue::Boolean(b) => b != false,
+        JavaValue::Boolean(b) => b == false,//todo cover shorts etc. in every place where relevant
         _ => panic!()
     };
     if succeeds {
