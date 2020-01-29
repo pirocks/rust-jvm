@@ -31,7 +31,7 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     let java_lang_string = ClassName::string();
     let current_loader = current_frame.class_pointer.loader.clone();
     let string_class = check_inited_class(state, &java_lang_string, current_frame.clone().into(), current_loader.clone());
-    let str_as_vec = res_string.into_bytes().clone();
+    let str_as_vec = res_string.clone().into_bytes().clone();
     let chars: Vec<JavaValue> = str_as_vec.iter().map(|x| { JavaValue::Char(*x as char) }).collect();
     push_new_object(current_frame.clone().into(), &string_class);
     let string_object = current_frame.pop();
@@ -56,6 +56,7 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     if state.function_return {
         state.function_return = false;
     }
+    dbg!(res_string);
     current_frame.push(string_object);
 }
 

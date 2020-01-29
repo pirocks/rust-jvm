@@ -27,8 +27,8 @@ pub fn invoke_instanceof(state: &mut InterpreterState, current_frame: &Rc<StackE
     let instance_of_class_name = classfile.extract_class_from_constant_pool_name(cp);
     let instanceof_class = check_inited_class(state, &ClassName::Str(instance_of_class_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
     let object_class = object.unwrap().class_pointer.clone();
-//    dbg!(class_name(&object_class.classfile));
-//    dbg!(class_name(&instanceof_class.classfile));
+    dbg!(class_name(&object_class.classfile));
+    dbg!(class_name(&instanceof_class.classfile));
     if inherits_from(state, &object_class, &instanceof_class) {
         current_frame.push(JavaValue::Int(1))
     }else {

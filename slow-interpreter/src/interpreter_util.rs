@@ -55,7 +55,12 @@ pub fn run_function(
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
-    trace!("CALL BEGIN:{} {} {}",class_name(&current_frame.class_pointer.classfile).get_referred_name(),method.method_name(&current_frame.class_pointer.classfile), current_frame.depth());
+    let meth_name = method.method_name(&current_frame.class_pointer.classfile);
+    if meth_name == "equals" && class_name(&current_frame.class_pointer.classfile) == ClassName::string(){
+        dbg!(&current_frame.local_vars);
+        dbg!("here");
+    }
+    trace!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth());
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw {
         let (instruct, instruction_size) = {
@@ -279,7 +284,7 @@ pub fn run_function(
         }
         current_frame.pc.replace(pc);
     }
-    trace!("CALL END:{} {} {}",class_name(&current_frame.class_pointer.classfile).get_referred_name(),method.method_name(&current_frame.class_pointer.classfile), current_frame.depth());
+    trace!("CALL END:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth());
 }
 
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {

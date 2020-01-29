@@ -380,6 +380,7 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
             ParsedType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
+                dbg!(&o);
                 frame.push(JavaValue::Object(o));
             }
             ParsedType::ShortType => unimplemented!(),

@@ -14,7 +14,6 @@ use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use log::trace;
 use runtime_common::StackEntry;
-use rust_jvm_common::classnames::class_name;
 use std::cell::RefCell;
 use crate::rust_jni::{call_impl, call};
 use std::borrow::Borrow;
@@ -165,6 +164,7 @@ pub fn invoke_static_impl(
             //todo does ordering end up correct
         }
         args[0..expected_descriptor.parameter_types.len()].reverse();
+        dbg!(&args);
         let next_entry = StackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class,

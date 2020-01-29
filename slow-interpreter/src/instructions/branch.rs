@@ -176,7 +176,7 @@ pub fn if_icmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 pub fn if_acmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
-    let succeeds = match value1 {
+    let succeeds = !match value1 {
         JavaValue::Object(o1) => match value2 {
             JavaValue::Object(o2) => match o1 {
                 None => match o2 {
