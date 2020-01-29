@@ -8,6 +8,7 @@ use crate::classfile::Code;
 use crate::classfile::ACC_NATIVE;
 use crate::classfile::AttributeType;
 use crate::classfile::ACC_ABSTRACT;
+use std::sync::Arc;
 
 impl ConstantInfo {
     pub fn extract_string_from_utf8(&self) -> String {
@@ -60,7 +61,7 @@ impl Classfile {
                 panic!();
             }
         };
-        let name_entry = &self.constant_pool[name_index  as usize];
+        let name_entry = &self.constant_pool[name_index as usize];
         name_entry.extract_string_from_utf8()
     }
 
@@ -90,21 +91,32 @@ impl Classfile {
         }
     }
 
-    pub fn lookup_method(&self, name : String, descriptor : String) -> Option<(usize,&MethodInfo)>{
-        for (i,m) in self.methods.iter().enumerate() {
-            if m.method_name(self) == name && m.descriptor_str(self)  == descriptor {
-                return Some((i,m))
+    pub fn lookup_method(&self, name: String, descriptor: String) -> Option<(usize, &MethodInfo)> {
+        for (i, m) in self.methods.iter().enumerate() {
+            if m.method_name(self) == name && m.descriptor_str(self) == descriptor {
+                return Some((i, m));
             }
         }
         None
     }
 
 
-
-    pub fn lookup_method_name(&self, name : String) -> Vec<(usize, &MethodInfo)> {
-        self.methods.iter().enumerate().filter(|(_i,m)| {
+    pub fn lookup_method_name(&self, name: String) -> Vec<(usize, &MethodInfo)> {
+        self.methods.iter().enumerate().filter(|(_i, m)| {
             m.method_name(self) == name
         }).collect()
+    }
+
+    pub fn lookup_method_name_owned(self,self_ref: &Self, name: String) -> Vec<(usize, MethodInfo)> {
+        let mut res = vec![];
+        let mut i = 0;
+        for m in self.methods {
+            if m.method_name(self_ref) == name {
+                res.push((i, m));
+            }
+            i += 1;//todo there must be a better way
+        }
+        res
     }
 }
 
@@ -141,7 +153,7 @@ impl MethodInfo {
         class_file.constant_pool[self.descriptor_index as usize].extract_string_from_utf8()
     }
 
-    pub fn is_static(&self) -> bool{
+    pub fn is_static(&self) -> bool {
         self.access_flags & ACC_STATIC > 0
     }
     //todo need a find method function

@@ -65,16 +65,15 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
-    let class_name = match class_name_type {
+//    dbg!(&class_name_type);
+    let class_name_ = match class_name_type {
         ParsedType::Class(c) => c.class_name,
         ParsedType::ArrayReferenceType(_) => unimplemented!(),
         _ => panic!()
     };
-//    trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
-//    dbg!(class_name_);
-//    dbg!(expected_method_name);
-//    dbg!(class_name(&current_frame.class_pointer.classfile).get_referred_name());
-    let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
+//    dbg!(&class_name_);
+    let target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
+//    dbg!(class_name(&target_class.classfile));
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
     invoke_virtual_method_i(state, current_frame, expected_descriptor, target_class.clone(), target_method_i, target_method)
 }
@@ -192,6 +191,7 @@ pub fn find_target_method<'l>(
     parsed_descriptor: &MethodDescriptor,
     target_class: &'l Arc<RuntimeClass>
 ) -> (usize, &'l MethodInfo) {
+    //todo bug need to handle super class, issue with that is need frame/state.
     lookup_method_parsed(&target_class.classfile,expected_method_name,parsed_descriptor,&loader_arc).unwrap()
 }
 
