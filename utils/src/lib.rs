@@ -10,3 +10,4 @@ pub fn lookup_method_parsed<'l>(class : &'l Classfile, name : String, descriptor
             current.return_type ==descriptor.return_type && current.parameter_types.len() == descriptor.parameter_types.len()
     }).nth(0).map(|x|x.clone())
 }
+

@@ -50,6 +50,20 @@ impl Classfile {
         return (method_name, descriptor);
     }
 
+    //todo this could be better used to reduce duplication
+    pub fn extract_class_from_constant_pool_name(&self, i: u16) -> String {
+        let name_index = match &self.constant_pool[i as usize].kind {
+            ConstantKind::Class(c) => {
+                c.name_index
+            }
+            _ => {
+                panic!();
+            }
+        };
+        let name_entry = &self.constant_pool[name_index  as usize];
+        name_entry.extract_string_from_utf8()
+    }
+
     pub fn extract_class_from_constant_pool(&self, i: u16) -> &Class {
         match &self.constant_pool[i as usize].kind {
             ConstantKind::Class(c) => {

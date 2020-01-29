@@ -65,6 +65,10 @@ impl Loader for BootstrapLoader {
                     self.load_class(self_arc.clone(), &super_class_name, bl.clone())?;
                 }
             }
+            for i in &classfile.interfaces {
+                let interface_name= classfile.extract_class_from_constant_pool_name(*i);
+                self.load_class(self_arc.clone(),&ClassName::Str(interface_name),bl.clone())?;
+            }
             match verify(&VerifierContext { bootstrap_loader: bl.clone() }, classfile.clone(), self_arc) {
                 Ok(_) => {}
                 Err(_) => panic!(),

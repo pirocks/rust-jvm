@@ -24,7 +24,7 @@ use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::dup;
 use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne};
-use crate::instructions::special::arraylength;
+use crate::instructions::special::{arraylength, invoke_instanceof};
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(

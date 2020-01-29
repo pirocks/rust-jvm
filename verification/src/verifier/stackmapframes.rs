@@ -125,10 +125,6 @@ pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
 }
 
 
-fn add_verification_type_to_array(locals: &mut Vec<ParsedType>, new_local: &ParsedType) -> () {
-    locals.push(new_local.clone());
-}
-
 fn add_verification_type_to_array_convert(locals: &mut Vec<ParsedType>, new_local: &ParsedType) -> () {
     match new_local.clone() {
         ParsedType::DoubleType => {
