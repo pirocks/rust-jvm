@@ -78,9 +78,11 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     let cif = Cif::new(args_type.into_iter(), Type::usize());
 //todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
+    trace!("----NATIVE ENTER----");
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
+    trace!("----NATIVE EXIT ----");
     Result::Ok(match return_type {
         ParsedType::VoidType => {
             None

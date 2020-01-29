@@ -28,7 +28,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
         ParsedType::Class(c) => c.class_name,
         _ => panic!()
     };
-    trace!("Call:{} {}", method_class_name.get_referred_name(), method_name.clone());
+//    trace!("Call:{} {}", method_class_name.get_referred_name(), method_name.clone());
     let target_class = check_inited_class(state, &method_class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_m_i, target_m) = find_target_method(loader_arc.clone(), method_name.clone(), &parsed_descriptor, &target_class);
     let mut args = vec![];
@@ -58,7 +58,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
     }
     if state.function_return {
         state.function_return = false;
-        trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
+//        trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
         return;
     }
 }
@@ -72,7 +72,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
         ParsedType::ArrayReferenceType(_) => unimplemented!(),
         _ => panic!()
     };
-    trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
+//    trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
 //    dbg!(class_name_);
 //    dbg!(expected_method_name);
 //    dbg!(class_name(&current_frame.class_pointer.classfile).get_referred_name());
@@ -104,7 +104,7 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
         }
         if state.function_return {
             state.function_return = false;
-            trace!("Exit:{} {}", class_name(&target_class.classfile).get_referred_name(), expected_method_name);
+//            trace!("Exit:{} {}", class_name(&target_class.classfile).get_referred_name(), expected_method_name);
             return;
         }
     } else {
@@ -137,9 +137,9 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEn
     let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
 
-    trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
+//    trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
     invoke_static_impl(state, current_frame, expected_descriptor, target_class.clone(), target_method_i, target_method.clone());
-    trace!("Exit:{} {}", class_name.get_referred_name(), expected_method_name);
+//    trace!("Exit:{} {}", class_name.get_referred_name(), expected_method_name);
 }
 
 pub fn invoke_static_impl(

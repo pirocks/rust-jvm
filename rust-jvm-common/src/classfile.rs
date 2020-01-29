@@ -939,11 +939,13 @@ pub struct Classfile {
     pub access_flags: u16,
     pub this_class: CPIndex,
     pub super_class: CPIndex,
-    pub interfaces: Vec<u16>,//todo why is this only used 3 times?
+    pub interfaces: Vec<Interface>,//todo why is this only used 3 times?
     pub fields: Vec<FieldInfo>,
     pub methods: Vec<MethodInfo>,
     pub attributes: Vec<AttributeInfo>,
 }
+
+pub type Interface = u16;
 
 impl std::cmp::PartialEq for Classfile {
     fn eq(&self, other: &Self) -> bool {

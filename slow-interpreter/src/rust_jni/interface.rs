@@ -12,7 +12,6 @@ use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
 use runtime_common::java_values::{JavaValue, Object};
 use log::trace;
-use rust_jvm_common::classnames::class_name;
 use crate::instructions::ldc::load_class_constant_by_name;
 use std::sync::Arc;
 
@@ -300,8 +299,9 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
         }
     }
     //todo add params into operand stack;
-    trace!("Call:{} {}", class_name(&from_object(obj).unwrap().class_pointer.classfile).get_referred_name(), exp_method_name);
+    trace!("----NATIVE EXIT ----");
     invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
+    trace!("----NATIVE ENTER ----");
     let res = frame.pop().unwrap_object();
     to_object(res)
 }
@@ -392,7 +392,9 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
             ParsedType::UninitializedThis => unimplemented!(),
         }
     }
+    trace!("----NATIVE EXIT ----");
     invoke_static_impl(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
+    trace!("----NATIVE ENTER----");
     let res = frame.pop().unwrap_object();
     to_object(res)
 }

@@ -55,6 +55,13 @@ impl StackEntry {
     pub fn push(&self, j: JavaValue) {
         self.operand_stack.borrow_mut().push(j)
     }
+
+    pub fn depth(&self) ->  usize{
+        match &self.last_call_stack{
+            None => 0,
+            Some(last) => last.depth() + 1,
+        }
+    }
 }
 
 

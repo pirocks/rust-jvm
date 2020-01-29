@@ -5,7 +5,7 @@ use rust_jvm_common::classfile::{InstructionInfo, ACC_STATIC, Classfile};
 use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::classnames::{ClassName, class_name};
 use rust_jvm_common::loading::LoaderArc;
 use std::rc::Rc;
 use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual};
@@ -25,6 +25,7 @@ use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::dup;
 use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne};
 use crate::instructions::special::{arraylength, invoke_instanceof};
+use log::trace;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -45,6 +46,8 @@ pub fn check_inited_class(
     state.initialized_classes.read().unwrap().get(class_name).unwrap().clone()
 }
 
+
+
 pub fn run_function(
     state: &mut InterpreterState,
     current_frame: Rc<StackEntry>,
@@ -52,7 +55,7 @@ pub fn run_function(
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
-
+    trace!("CALL BEGIN:{} {} {}",class_name(&current_frame.class_pointer.classfile).get_referred_name(),method.method_name(&current_frame.class_pointer.classfile), current_frame.depth());
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw {
         let (instruct, instruction_size) = {
@@ -252,7 +255,7 @@ pub fn run_function(
             InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
             InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
             InstructionInfo::nop => unimplemented!(),
-            InstructionInfo::pop => unimplemented!(),
+            InstructionInfo::pop => {current_frame.pop();},
             InstructionInfo::pop2 => unimplemented!(),
             InstructionInfo::putfield(cp) => putfield(state, &current_frame, cp),
             InstructionInfo::putstatic(cp) => putstatic(state, &current_frame, cp),
@@ -276,6 +279,7 @@ pub fn run_function(
         }
         current_frame.pc.replace(pc);
     }
+    trace!("CALL END:{} {} {}",class_name(&current_frame.class_pointer.classfile).get_referred_name(),method.method_name(&current_frame.class_pointer.classfile), current_frame.depth());
 }
 
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
