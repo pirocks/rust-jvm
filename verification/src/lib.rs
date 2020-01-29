@@ -6,13 +6,11 @@ use crate::verifier::class_is_type_safe;
 use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::unified_types::ClassWithLoader;
-use crate::verifier::InternalFrame;
 use rust_jvm_common::classnames::class_name;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
 use rust_jvm_common::unified_types::VType;
-use rust_jvm_common::unified_types::ParsedType;
 
 
 pub mod verifier;
@@ -47,59 +45,6 @@ pub struct StackMap {
 }
 
 
-pub fn init_frame(parameter_types: Vec<ParsedType>, this_pointer: Option<ParsedType>, max_locals: u16) -> InternalFrame {
-    let mut locals = Vec::with_capacity(max_locals as usize);
-    match this_pointer {
-        None => {}//class is static etc.
-        Some(t) => {
-            locals_push_convert_type(&mut locals, t)
-        }
-    }
-    for parameter_type in parameter_types {
-        locals_push_convert_type(&mut locals, parameter_type)
-    }
-    InternalFrame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
-}
-
-fn locals_push_convert_type(res: &mut Vec<ParsedType>, type_: ParsedType) -> () {
-    match type_ {
-        ParsedType::ByteType => {
-            res.push(ParsedType::ByteType);
-        }
-        ParsedType::CharType => {
-            res.push(ParsedType::CharType);
-        }
-        ParsedType::DoubleType => {
-            res.push(ParsedType::DoubleType);
-            res.push(ParsedType::TopType);
-        }
-        ParsedType::FloatType => {
-            res.push(ParsedType::FloatType);
-        }
-        ParsedType::IntType => {
-            res.push(ParsedType::IntType);
-        }
-        ParsedType::LongType => {
-            res.push(ParsedType::LongType);
-            res.push(ParsedType::TopType);
-        }
-        ParsedType::Class(r) => {
-            assert_ne!(r.class_name.get_referred_name().chars().nth(0).unwrap(), '[');
-            res.push(ParsedType::Class(r));
-        }
-        ParsedType::ShortType => {
-            res.push(ParsedType::ShortType);
-        }
-        ParsedType::BooleanType => {
-            res.push(ParsedType::BooleanType);
-        }
-        ParsedType::ArrayReferenceType(art) => {
-            res.push(ParsedType::ArrayReferenceType(art.clone()));
-        }
-        ParsedType::VoidType => { panic!() }
-        _ => { panic!("Case wasn't coverred with non-unified types") }
-    }
-}
 
 
 pub struct VerifierContext {

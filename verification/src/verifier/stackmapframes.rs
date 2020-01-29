@@ -3,8 +3,7 @@ use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
 use rust_jvm_common::unified_types::ClassWithLoader;
 use classfile_parser::stack_map_table_attribute;
-use crate::{init_frame, VerifierContext};
-use crate::StackMap;
+use crate::{StackMap, VerifierContext};
 use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
 use classfile_parser::types::MethodDescriptor;
@@ -63,7 +62,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
 pub fn handle_same_locals_1_stack_frame_extended(mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) -> () {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
-    push_to_stack(frame, &f.stack);
+    add_verification_type_to_array_convert(&mut frame.stack, &f.stack);
 }
 
 pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &SameFrameExtended) -> () {
@@ -75,19 +74,21 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {
-        let _removed = frame.locals.remove(frame.locals.len() - 1);
-        //todo confusion about long/doubles in chop frame and frames more generally.
-        /*match removed {
+        //so basically what's going on here is we want to remove [Double|Long, top],[any type including top]
+        let removed = frame.locals.pop().unwrap();
+        match removed {
             ParsedType::DoubleType | ParsedType::LongType => panic!(),
             ParsedType::TopType => {
-                //todo is this correct?
-               *//* match frame.locals.remove(frame.locals.len() - 1) {
+                let second_removed = frame.locals.pop().unwrap();
+                match second_removed {
                     ParsedType::DoubleType | ParsedType::LongType => {}
-                    _ => panic!()
-                }*//*
+                    _ => {
+                        frame.locals.push(second_removed);
+                    }
+                }
             }
             _ => {}
-        }*/
+        }
     }
 }
 
@@ -95,25 +96,25 @@ pub fn handle_full_frame(frame: &mut InternalFrame, f: &FullFrame) -> () {
     frame.current_offset += f.offset_delta;
     frame.locals.clear();
     for new_local in f.locals.iter() {
-        add_new_local(frame, new_local);
+        add_verification_type_to_array_convert(&mut frame.locals, new_local);
     }
 
     frame.stack.clear();
     for new_stack_member in f.stack.iter() {
-        push_to_stack(frame, new_stack_member);
+        add_verification_type_to_array_convert(&mut frame.stack, new_stack_member);
     }
 }
 
 pub fn handle_same_locals_1_stack(frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) -> () {
     frame.current_offset += s.offset_delta;
     frame.stack.clear();
-    push_to_stack(frame, &s.stack);
+    add_verification_type_to_array_convert(&mut frame.stack, &s.stack);
 }
 
 pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &AppendFrame) -> () {
     frame.current_offset += append_frame.offset_delta;
     for new_local in append_frame.locals.iter() {
-        add_new_local(frame, new_local)
+        add_verification_type_to_array_convert(&mut frame.locals, new_local)
     }
     frame.stack.clear();
 }
@@ -124,15 +125,11 @@ pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
 }
 
 
-fn push_to_stack(frame: &mut InternalFrame, new_local: &ParsedType) {
-    add_verification_type_to_array(&mut frame.stack, new_local)
-}
-
-fn add_new_local(frame: &mut InternalFrame, new_local: &ParsedType) {
-    add_verification_type_to_array(&mut frame.locals, new_local)
-}
-
 fn add_verification_type_to_array(locals: &mut Vec<ParsedType>, new_local: &ParsedType) -> () {
+    locals.push(new_local.clone());
+}
+
+fn add_verification_type_to_array_convert(locals: &mut Vec<ParsedType>, new_local: &ParsedType) -> () {
     match new_local.clone() {
         ParsedType::DoubleType => {
             locals.push(ParsedType::DoubleType);
@@ -146,3 +143,17 @@ fn add_verification_type_to_array(locals: &mut Vec<ParsedType>, new_local: &Pars
     }
 }
 
+pub fn init_frame(parameter_types: Vec<ParsedType>, this_pointer: Option<ParsedType>, max_locals: u16) -> InternalFrame {
+    let mut locals = Vec::with_capacity(max_locals as usize);
+    match this_pointer {
+        None => {}//class is static etc.
+        Some(t) => {
+            add_verification_type_to_array_convert(&mut locals, &t)
+        }
+    }
+    //so these parameter types come unconverted and therefore need conversion
+    for parameter_type in parameter_types {
+        add_verification_type_to_array_convert(&mut locals, &parameter_type)
+    }
+    InternalFrame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
+}

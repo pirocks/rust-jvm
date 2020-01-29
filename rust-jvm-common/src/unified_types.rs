@@ -86,6 +86,26 @@ impl ParsedType {
             ParsedType::UninitializedThis => VType::UninitializedThis
         }
     }
+
+    pub fn to_verification_type_with_top(&self) -> Vec<VType> {
+        match self {
+            ParsedType::ByteType => vec![VType::IntType],
+            ParsedType::CharType => vec![VType::IntType],
+            ParsedType::DoubleType => vec![VType::TopType,VType::DoubleType],
+            ParsedType::FloatType => vec![VType::FloatType],
+            ParsedType::IntType => vec![VType::IntType],
+            ParsedType::LongType => vec![VType::TopType,VType::LongType],
+            ParsedType::Class(cl) => vec![VType::Class(cl.clone())],
+            ParsedType::ShortType => vec![VType::IntType],
+            ParsedType::BooleanType => vec![VType::IntType],
+            ParsedType::ArrayReferenceType(at) => vec![VType::ArrayReferenceType(at.clone())],
+            ParsedType::VoidType => vec![VType::VoidType],
+            ParsedType::TopType => vec![VType::TopType],
+            ParsedType::NullType => vec![VType::NullType],
+            ParsedType::Uninitialized(uvi) => vec![VType::Uninitialized(uvi.clone())],
+            ParsedType::UninitializedThis => vec![VType::UninitializedThis]
+        }
+    }
 }
 
 #[derive(Debug)]

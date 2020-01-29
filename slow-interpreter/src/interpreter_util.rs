@@ -190,7 +190,7 @@ pub fn run_function(
             InstructionInfo::iload_3 => unimplemented!(),
             InstructionInfo::imul => unimplemented!(),
             InstructionInfo::ineg => unimplemented!(),
-            InstructionInfo::instanceof(_) => unimplemented!(),
+            InstructionInfo::instanceof(cp) => invoke_instanceof(state,&current_frame,cp),
             InstructionInfo::invokedynamic(_) => unimplemented!(),
             InstructionInfo::invokeinterface(_) => unimplemented!(),
             InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
