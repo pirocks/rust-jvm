@@ -75,17 +75,19 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {
-        let removed = frame.locals.remove(frame.locals.len() - 1);
-        match removed {
+        let _removed = frame.locals.remove(frame.locals.len() - 1);
+        //todo confusion about long/doubles in chop frame and frames more generally.
+        /*match removed {
             ParsedType::DoubleType | ParsedType::LongType => panic!(),
             ParsedType::TopType => {
-                match frame.locals.remove(frame.locals.len() - 1) {
+                //todo is this correct?
+               *//* match frame.locals.remove(frame.locals.len() - 1) {
                     ParsedType::DoubleType | ParsedType::LongType => {}
                     _ => panic!()
-                }
+                }*//*
             }
             _ => {}
-        }
+        }*/
     }
 }
 
