@@ -8,7 +8,6 @@ use crate::classfile::Code;
 use crate::classfile::ACC_NATIVE;
 use crate::classfile::AttributeType;
 use crate::classfile::ACC_ABSTRACT;
-use std::sync::Arc;
 
 impl ConstantInfo {
     pub fn extract_string_from_utf8(&self) -> String {

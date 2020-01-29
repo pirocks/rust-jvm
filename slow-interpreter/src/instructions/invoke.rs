@@ -134,9 +134,9 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEn
     let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
 
-//    trace!("Call:{} {}", class_name.get_referred_name(), expected_method_name);
+    dbg!(&target_class.static_vars.borrow().get("savedProps"));
     invoke_static_impl(state, current_frame, expected_descriptor, target_class.clone(), target_method_i, target_method.clone());
-//    trace!("Exit:{} {}", class_name.get_referred_name(), expected_method_name);
+    dbg!(&target_class.static_vars.borrow().get("savedProps"));
 }
 
 pub fn invoke_static_impl(
@@ -149,19 +149,21 @@ pub fn invoke_static_impl(
 ) -> () {
     let mut args = vec![];
     if target_method.access_flags & ACC_NATIVE == 0 {
+        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-
+        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         for _ in 0..max_locals {
             args.push(JavaValue::Top);
         }
-
+        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         for i in 0..expected_descriptor.parameter_types.len() {
             args[i] = current_frame.pop();
             //todo does ordering end up correct
         }
         args[0..expected_descriptor.parameter_types.len()].reverse();
+        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         let next_entry = StackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class,
@@ -180,8 +182,10 @@ pub fn invoke_static_impl(
             return;
         }
     } else {
+        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         //only works for static void
-        run_native_method(state, current_frame.clone(), target_class, target_method_i);
+        run_native_method(state, current_frame.clone(), target_class.clone(), target_method_i);
+        dbg!(&target_class.static_vars.borrow().get("savedProps"));
     }
 }
 
@@ -231,9 +235,15 @@ pub fn run_native_method(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            call_impl(state, frame.clone(), class, args, parsed.return_type, &res_fn).unwrap()
+            dbg!(&class.static_vars.borrow().get("savedProps"));
+            let res = call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn).unwrap();
+            dbg!(&class.static_vars.borrow().get("savedProps"));
+            res
         } else {
-            call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type).unwrap()
+            dbg!(&class.static_vars.borrow().get("savedProps"));
+            let res = call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type).unwrap();
+            dbg!(&class.static_vars.borrow().get("savedProps"));
+            res
         };
         match result {
             None => {}

@@ -38,12 +38,14 @@ pub fn check_inited_class(
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
         let bl = state.bootstrap_loader.clone();
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
-        let prepared = prepare_class(target_classfile.clone(), loader_arc.clone());
-        state.initialized_classes.write().unwrap().insert(class_name.clone(), Arc::new(prepared));//must be before, otherwise infinite recurse
-        let inited_target = initialize_class(prepare_class(target_classfile, loader_arc.clone()), state, current_frame);
+        let prepared = Arc::new(prepare_class(target_classfile.clone(), loader_arc.clone()));
+        state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
+        let inited_target = initialize_class(prepared, state, current_frame);
         state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
     }
-    state.initialized_classes.read().unwrap().get(class_name).unwrap().clone()
+    let res = state.initialized_classes.read().unwrap().get(class_name).unwrap().clone();
+    dbg!(&res.static_vars.borrow().get("savedProps"));
+    res
 }
 
 
@@ -56,10 +58,11 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-    /*if meth_name == "saveAndRemoveProperties" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("sun/misc/VM".to_string()){
+    if meth_name == "<clinit>" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("sun/misc/VM".to_string()){
         dbg!(&current_frame.local_vars);
+        dbg!(&current_frame.class_pointer.static_vars.borrow().get("savedProps"));
         dbg!("here");
-    }*/
+    }
     trace!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth());
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw {
@@ -69,6 +72,7 @@ pub fn run_function(
             (parse_instruction(&mut context).unwrap().clone(), context.offset)
         };
         current_frame.pc_offset.replace(instruction_size as isize);
+        dbg!(instruct.clone());
         match instruct {
             InstructionInfo::aaload => aaload(&current_frame),
             InstructionInfo::aastore => aastore(&current_frame),
@@ -287,7 +291,9 @@ pub fn run_function(
             pc -= (-offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
         }
         current_frame.pc.replace(pc);
+        dbg!(&current_frame.class_pointer.static_vars.borrow().get("savedProps"));
     }
+    dbg!(&current_frame.class_pointer.static_vars.borrow().get("savedProps"));
     trace!("CALL END:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth());
 }
 

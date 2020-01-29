@@ -32,7 +32,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
     }
 }
 
-pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterState, stack: Option<Rc<StackEntry>>) -> Arc<RuntimeClass> {
+pub fn initialize_class(runtime_class: Arc<RuntimeClass>, state: &mut InterpreterState, stack: Option<Rc<StackEntry>>) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
@@ -54,7 +54,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
         }
     }
     //todo detecting if assertions are enabled?
-    let class_arc = Arc::new(runtime_class);
+    let class_arc = runtime_class;
     let classfile = &class_arc.classfile;
     let lookup_res = classfile.lookup_method_name("<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
@@ -79,6 +79,7 @@ pub fn initialize_class(runtime_class: RuntimeClass, state: &mut InterpreterStat
         //need to clear status after
     }
     if state.function_return {
+        dbg!(&class_arc.static_vars.borrow().get("savedProps"));
         state.function_return = false;
         return class_arc;
     }

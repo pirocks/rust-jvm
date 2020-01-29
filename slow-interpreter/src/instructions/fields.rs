@@ -2,7 +2,8 @@ use runtime_common::{InterpreterState, StackEntry};
 use crate::interpreter_util::check_inited_class;
 use std::rc::Rc;
 use verification::verifier::instructions::special::extract_field_descriptor;
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, Object};
+use std::sync::Arc;
 
 
 pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -12,6 +13,16 @@ pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, c
     let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
     let field_value = stack.pop().unwrap();
+    dbg!(&field_name);
+    match field_value.clone() {
+        JavaValue::Object(o) => {
+            match o {
+                None => {dbg!("fghjk");},
+                Some(_) => {},
+            };
+        },
+        _ => {},
+    };
     target_classfile.static_vars.borrow_mut().insert(field_name, field_value);
 }
 
@@ -45,6 +56,16 @@ pub fn get_static(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, 
     let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
     let field_value = target_classfile.static_vars.borrow().get(&field_name).unwrap().clone();
     let mut stack = current_frame.operand_stack.borrow_mut();
+    dbg!(&field_name);
+    match field_value.clone() {
+        JavaValue::Object(o) => {
+            match o{
+                None => {dbg!("ghj");},
+                Some(_) => {},
+            }
+        },
+        _ => {},
+    }
     stack.push(field_value);
 }
 
@@ -55,6 +76,9 @@ pub fn get_field(current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let object_ref = current_frame.pop();
     match object_ref {
         JavaValue::Object(o) => {
+            dbg!(_field_class_name);
+            dbg!(_field_descriptor);
+            dbg!(&field_name);
             let fields = o.as_ref().unwrap().fields.borrow();
             let res = fields.get(field_name.as_str()).unwrap().clone();
             current_frame.push(res);
