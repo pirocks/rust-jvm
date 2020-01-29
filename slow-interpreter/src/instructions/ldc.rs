@@ -56,7 +56,6 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     if state.function_return {
         state.function_return = false;
     }
-    dbg!(res_string);
     current_frame.push(string_object);
 }
 

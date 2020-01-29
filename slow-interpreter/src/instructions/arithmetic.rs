@@ -35,6 +35,20 @@ pub fn irem(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int(value1 % value2));
 }
 
+
+pub fn ishl(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Int(value1 << (value2 & 63)));
+}
+
+pub fn isub(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Int(value1 - value2));
+}
+
+
 pub fn ladd(current_frame: Rc<StackEntry>) -> () {
     let first = current_frame.pop().unwrap_long();
     let second = current_frame.pop().unwrap_long();

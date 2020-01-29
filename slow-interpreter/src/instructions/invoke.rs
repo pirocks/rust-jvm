@@ -164,7 +164,6 @@ pub fn invoke_static_impl(
             //todo does ordering end up correct
         }
         args[0..expected_descriptor.parameter_types.len()].reverse();
-        dbg!(&args);
         let next_entry = StackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class,

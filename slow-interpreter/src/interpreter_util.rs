@@ -19,13 +19,14 @@ use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i};
 use crate::instructions::new::{new, anewarray, newarray};
 use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
-use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd};
+use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd, ishl, isub};
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::dup;
 use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne};
 use crate::instructions::special::{arraylength, invoke_instanceof};
 use log::trace;
+use std::borrow::{BorrowMut, Borrow};
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -56,10 +57,10 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-    if meth_name == "equals" && class_name(&current_frame.class_pointer.classfile) == ClassName::string(){
+    /*if meth_name == "equals" && class_name(&current_frame.class_pointer.classfile) == ClassName::string(){
         dbg!(&current_frame.local_vars);
         dbg!("here");
-    }
+    }*/
     trace!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth());
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw {
@@ -190,12 +191,16 @@ pub fn run_function(
             InstructionInfo::ifle(offset) => ifle(&current_frame, offset),
             InstructionInfo::ifnonnull(offset) => ifnonnull(&current_frame, offset),
             InstructionInfo::ifnull(offset) => ifnull(&current_frame, offset),
-            InstructionInfo::iinc(_) => unimplemented!(),
+            InstructionInfo::iinc(iinc) => {
+                let val = current_frame.local_vars.borrow()[iinc.index as usize].unwrap_int();
+                let res = val + iinc.const_ as i32;
+                current_frame.local_vars.borrow_mut()[iinc.index as usize] = JavaValue::Int(res);
+            },
             InstructionInfo::iload(n) => iload(&current_frame, n as usize),
             InstructionInfo::iload_0 => iload(&current_frame, 0),
             InstructionInfo::iload_1 => iload(&current_frame, 1),
             InstructionInfo::iload_2 => iload(&current_frame, 2),
-            InstructionInfo::iload_3 => unimplemented!(),
+            InstructionInfo::iload_3 => iload(&current_frame, 3),
             InstructionInfo::imul => unimplemented!(),
             InstructionInfo::ineg => unimplemented!(),
             InstructionInfo::instanceof(cp) => invoke_instanceof(state,&current_frame,cp),
@@ -207,14 +212,14 @@ pub fn run_function(
             InstructionInfo::ior => unimplemented!(),
             InstructionInfo::irem => irem(&current_frame),
             InstructionInfo::ireturn => ireturn(state, &current_frame),
-            InstructionInfo::ishl => unimplemented!(),
+            InstructionInfo::ishl => ishl(&current_frame),
             InstructionInfo::ishr => unimplemented!(),
             InstructionInfo::istore(n) => istore(&current_frame, n),
             InstructionInfo::istore_0 => istore(&current_frame, 0),
             InstructionInfo::istore_1 => istore(&current_frame, 1),
             InstructionInfo::istore_2 => istore(&current_frame, 2),
             InstructionInfo::istore_3 => istore(&current_frame, 3),
-            InstructionInfo::isub => unimplemented!(),
+            InstructionInfo::isub => isub(&current_frame),
             InstructionInfo::iushr => unimplemented!(),
             InstructionInfo::ixor => unimplemented!(),
             InstructionInfo::jsr(_) => unimplemented!(),
