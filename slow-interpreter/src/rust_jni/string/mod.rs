@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jstring, jboolean, jchar, JNINativeInterface_, _jobject};
+use jni_bindings::{JNIEnv, jstring, jboolean, jchar};
 use std::os::raw::c_char;
 use runtime_common::java_values::{JavaValue, Object};
 use std::cell::{Ref, RefCell};

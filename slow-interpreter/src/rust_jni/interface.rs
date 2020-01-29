@@ -5,7 +5,7 @@ use std::mem::transmute;
 use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
-use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars, new_string_with_len, new_string_with_string};
+use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars, new_string_with_string};
 use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
 use classfile_parser::types::parse_method_descriptor;
@@ -269,8 +269,6 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     }
     let state = get_state(env);
     let frame = get_frame(env);
-    //todo simplify use of this.
-    let exp_method_name = method.method_name(&classfile);
     let exp_descriptor_str = method.descriptor_str(&classfile);
     let parsed = parse_method_descriptor(&method_id.class.loader, exp_descriptor_str.as_str()).unwrap();
 
@@ -300,7 +298,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     }
     //todo add params into operand stack;
     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i(state, frame.clone(), exp_method_name, parsed, method_id.class.clone(), method_id.method_i, method);
+    invoke_virtual_method_i(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
     trace!("----NATIVE ENTER ----");
     let res = frame.pop().unwrap_object();
     to_object(res)
@@ -380,7 +378,6 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
             ParsedType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
-                dbg!(&o);
                 frame.push(JavaValue::Object(o));
             }
             ParsedType::ShortType => unimplemented!(),
