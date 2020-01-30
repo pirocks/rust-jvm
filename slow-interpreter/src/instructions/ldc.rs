@@ -39,10 +39,10 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     args.push(JavaValue::Array(Arc::new(RefCell::new(chars)).into()));
     let char_array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) });
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
-    let (constructor_i, _constructor) = find_target_method(current_loader.clone(), "<init>".to_string(), &expected_descriptor, &string_class);
+    let (constructor_i, final_target_class) = find_target_method(state,current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry {
         last_call_stack: Some(current_frame.clone().into()),
-        class_pointer: string_class,
+        class_pointer: final_target_class,
         method_i: constructor_i as u16,
         local_vars: args.into(),
         operand_stack: vec![].into(),

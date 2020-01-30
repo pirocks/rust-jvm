@@ -28,7 +28,8 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
     };
 //    trace!("Call:{} {}", method_class_name.get_referred_name(), method_name.clone());
     let target_class = check_inited_class(state, &method_class_name, current_frame.clone().into(), loader_arc.clone());
-    let (target_m_i, target_m) = find_target_method(loader_arc.clone(), method_name.clone(), &parsed_descriptor, &target_class);
+    let (target_m_i, final_target_class) = find_target_method(state,loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
+    let target_m = &final_target_class.classfile.methods[target_m_i];
     let mut args = vec![];
     let max_locals = target_m.code_attribute().unwrap().max_locals;
     for _ in 0..max_locals {
@@ -43,7 +44,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
 //    dbg!(&args);
     let next_entry = StackEntry {
         last_call_stack: Some(current_frame.clone()),
-        class_pointer: target_class,
+        class_pointer: final_target_class.clone(),
         method_i: target_m_i as u16,
         local_vars: args.into(),
         operand_stack: vec![].into(),
@@ -71,11 +72,9 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
         ParsedType::ArrayReferenceType(_) => unimplemented!(),
         _ => panic!()
     };
-//    dbg!(&class_name_);
     let target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
-//    dbg!(class_name(&target_class.classfile));
-    let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
-    invoke_virtual_method_i(state, current_frame, expected_descriptor, target_class.clone(), target_method_i, target_method)
+    let (target_method_i, final_target_class) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
+    invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i])
 }
 
 pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
@@ -132,11 +131,9 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEn
         _ => panic!()
     };
     let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
-    let (target_method_i, target_method) = find_target_method(loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, &target_class);
+    let (target_method_i, final_target_method) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
-//    dbg!(&target_class.static_vars.borrow().get("savedProps"));
-    invoke_static_impl(state, current_frame, expected_descriptor, target_class.clone(), target_method_i, target_method.clone());
-//    dbg!(&target_class.static_vars.borrow().get("savedProps"));
+    invoke_static_impl(state, current_frame, expected_descriptor, final_target_method.clone(), target_method_i, &final_target_method.classfile.methods[target_method_i]);
 }
 
 pub fn invoke_static_impl(
@@ -189,14 +186,15 @@ pub fn invoke_static_impl(
     }
 }
 
-pub fn find_target_method<'l>(
+pub fn find_target_method(
+    state: &mut InterpreterState,
     loader_arc: LoaderArc,
     expected_method_name: String,
     parsed_descriptor: &MethodDescriptor,
-    target_class: &'l Arc<RuntimeClass>
-) -> (usize, &'l MethodInfo) {
+    target_class: Arc<RuntimeClass>
+) -> (usize, Arc<RuntimeClass>) {
     //todo bug need to handle super class, issue with that is need frame/state.
-    lookup_method_parsed(&target_class.classfile,expected_method_name,parsed_descriptor,&loader_arc).unwrap()
+    lookup_method_parsed(state,target_class,expected_method_name,parsed_descriptor,&loader_arc).unwrap()
 }
 
 

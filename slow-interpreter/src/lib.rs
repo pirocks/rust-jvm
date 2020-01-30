@@ -22,7 +22,6 @@ use runtime_common::java_values::{JavaValue, Object};
 use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
-use utils::lookup_method_parsed;
 
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
@@ -130,12 +129,14 @@ fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     let string_name = ClassName::string();
     let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
     let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
-    lookup_method_parsed(
-        &main,
-        "main".to_string(),
-        &MethodDescriptor { parameter_types: vec![string_array], return_type: ParsedType::VoidType },
-        bl
-    ).unwrap().0
+    let psvms = main.lookup_method_name("main".to_string());
+    for (i,m) in psvms{
+        let desc = MethodDescriptor::from(m,main,bl);
+        if m.is_static() && desc.parameter_types == vec![string_array.clone()] && desc.return_type == ParsedType::VoidType {
+            return i;
+        }
+    }
+    panic!();
 }
 
 pub mod instructions;

@@ -58,11 +58,10 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-    /*if meth_name == "<clinit>" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("sun/misc/VM".to_string()){
+    if meth_name == "storeToXML" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Properties".to_string()){
         dbg!(&current_frame.local_vars);
-        dbg!(&current_frame.class_pointer.static_vars.borrow().get("savedProps"));
         dbg!("here");
-    }*/
+    }
     trace!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth());
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw {

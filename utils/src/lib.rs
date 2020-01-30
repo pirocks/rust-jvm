@@ -1,25 +1,28 @@
-use rust_jvm_common::classfile::{MethodInfo, Classfile};
+
 use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::loading::LoaderArc;
+use std::sync::Arc;
+use runtime_common::InterpreterState;
+use runtime_common::runtime_class::RuntimeClass;
 
 //todo the fact that I need a loader for this is dumb
-pub fn lookup_method_parsed<'l>(class: &'l Classfile, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, &'l MethodInfo)> {
-    let res = lookup_method_parsed_impl(class,name,descriptor,loader);
+pub fn lookup_method_parsed(state: &mut InterpreterState,class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>) > {
+    let res = lookup_method_parsed_impl(state,class,name,descriptor,loader);
     match res {
         None => None,
-        Some(i) => Some((i,&class.methods[i])),
+        Some((i,c)) => Some((i,c)),
     }
 }
 
-pub fn lookup_method_parsed_impl(class: &Classfile, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<usize> {
-    for (i, m) in &class.lookup_method_name(name.clone()) {
-        let current: MethodDescriptor = MethodDescriptor::from(&m, &class, loader);
+pub fn lookup_method_parsed_impl(state: &mut InterpreterState,class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize,Arc<RuntimeClass>)> {
+    for (i, m) in &class.classfile.lookup_method_name(name.clone()) {
+        let current: MethodDescriptor = MethodDescriptor::from(&m, &class.classfile, loader);
         if current.parameter_types.iter().zip(descriptor.parameter_types.iter()).all(|(l, r)| l == r) &&
             current.return_type == descriptor.return_type && current.parameter_types.len() == descriptor.parameter_types.len() {
-            return Some(*i);
+            return Some((*i,class.clone()));
         }
     }
-    let super_class = loader.load_class(loader.clone(), &class.super_class_name(), loader.clone()).unwrap();//todo what am I going to do about bl
-    lookup_method_parsed_impl(&super_class, name, descriptor, loader)
+    let super_class = state.initialized_classes.read().unwrap().get(&class.classfile.super_class_name()).unwrap().clone();
+    lookup_method_parsed_impl(state,super_class, name, descriptor, loader)
 }
 

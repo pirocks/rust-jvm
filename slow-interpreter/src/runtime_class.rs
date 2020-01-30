@@ -79,7 +79,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass>, state: &mut Interprete
         //need to clear status after
     }
     if state.function_return {
-        dbg!(&class_arc.static_vars.borrow().get("savedProps"));
+//        dbg!(&class_arc.static_vars.borrow().get("savedProps"));
         state.function_return = false;
         return class_arc;
     }
