@@ -1,7 +1,7 @@
 use crate::InterpreterState;
 use std::rc::Rc;
 use verification::verifier::instructions::branches::get_method_descriptor;
-use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC};
+use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, InvokeInterface};
 use crate::interpreter_util::run_function;
 use classfile_parser::types::MethodDescriptor;
 use std::sync::Arc;
@@ -17,6 +17,7 @@ use std::cell::RefCell;
 use crate::rust_jni::{call_impl, call};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
+use rust_jvm_common::classnames::class_name;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -66,12 +67,12 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
-//    dbg!(&class_name_type);
     let class_name_ = match class_name_type {
         ParsedType::Class(c) => c.class_name,
         ParsedType::ArrayReferenceType(_) => unimplemented!(),
         _ => panic!()
     };
+    //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
     let (target_method_i, final_target_class) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
     invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i])
@@ -109,14 +110,17 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
 }
 
 pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
-    for _ in 0..max_locals {
+    for _ in 0..(max_locals) {// todo +1
         args.push(JavaValue::Top);
     }
     for i in 1..(expected_descriptor.parameter_types.len() + 1) {
         args[i] = current_frame.pop();
         //todo does ordering end up correct
     }
-    args[1..(expected_descriptor.parameter_types.len() + 1)].reverse();
+//    dbg!(&args[1..(expected_descriptor.parameter_types.len() + 1)]);
+    if expected_descriptor.parameter_types.len() != 0 {
+        args[1..(expected_descriptor.parameter_types.len() + 1)].reverse();
+    }
     args[0] = current_frame.pop();
 }
 
@@ -233,14 +237,10 @@ pub fn run_native_method(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-//            dbg!(&class.static_vars.borrow().get("savedProps"));
             let res = call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn).unwrap();
-//            dbg!(&class.static_vars.borrow().get("savedProps"));
             res
         } else {
-//            dbg!(&class.static_vars.borrow().get("savedProps"));
             let res = call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type).unwrap();
-//            dbg!(&class.static_vars.borrow().get("savedProps"));
             res
         };
         match result {
@@ -261,4 +261,32 @@ fn system_array_copy(args: &mut Vec<JavaValue>) -> () {
         let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
         dest.borrow_mut()[dest_pos + i] = temp;
     }
+}
+
+
+
+pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEntry>, invoke_interface: InvokeInterface) {
+    invoke_interface.count;
+    let classfile = &current_frame.class_pointer.classfile;
+    let loader_arc = &current_frame.class_pointer.loader;
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &classfile.clone(), loader_arc.clone());
+    let class_name_ = match class_name_type {
+        ParsedType::Class(c) => c.class_name,
+        ParsedType::ArrayReferenceType(_) => unimplemented!(),
+        _ => panic!()
+    };
+    //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
+    let target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
+    let mut args = vec![];
+    let checkpoint = current_frame.operand_stack.borrow().clone();
+    setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16  + 1);
+    let this_pointer = args[0].unwrap_object().unwrap();
+    current_frame.operand_stack.replace(checkpoint);
+    let target_class = this_pointer.class_pointer.clone();
+    dbg!(invoke_interface.count);
+    dbg!(class_name(&target_class.classfile));
+    let (target_method_i, final_target_class) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
+
+    invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i]);
+    unimplemented!()
 }

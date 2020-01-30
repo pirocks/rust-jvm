@@ -126,7 +126,16 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
 }
 
 
+
+
 pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let method_classfile = get_class(&env.vf, env.method.class);
+    if method_classfile.methods[env.method.method_index].method_name(&method_classfile) == "<init>"{
+        match instruction_is_type_safe_putfield_second_case(cp, env, stack_frame){
+            Ok(res) => return Result::Ok(res),
+            Err(_) => {},
+        };
+    }
     match instruction_is_type_safe_putfield_first_case(cp, env, stack_frame) {
         Ok(res) => Result::Ok(res),
         Err(_) => instruction_is_type_safe_putfield_second_case(cp, env, stack_frame),
@@ -141,7 +150,8 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
         return Result::Err(unknown_error_verifying!());
     }
     //todo is this equivalent to isInit
-    if env.method.class.class_name.get_referred_name() != "<init>" {
+    let method_classfile = get_class(&env.vf, env.method.class);
+    if method_classfile.methods[env.method.method_index].method_name(&method_classfile) != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
     let next_frame = can_pop(&env.vf, stack_frame, vec![field_type, VType::UninitializedThis])?;
@@ -154,6 +164,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
     let _popped_frame = can_pop(&env.vf, stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
+    dbg!(&stack_frame);
     let next_frame = can_pop(&env.vf, stack_frame, vec![field_type, VType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     standard_exception_frame(stack_frame, next_frame)
 }

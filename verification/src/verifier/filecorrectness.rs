@@ -204,6 +204,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             VType::Class(c) => {
                 dbg!(c);
                 panic!()
+//                Result::Err(unknown_error_verifying!())
             }
             VType::IntType => {
                 panic!()

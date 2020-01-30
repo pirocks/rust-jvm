@@ -8,7 +8,7 @@ use std::sync::Arc;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use rust_jvm_common::loading::LoaderArc;
 use std::rc::Rc;
-use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual};
+use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual, invoke_interface};
 use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
 use classfile_parser::types::parse_field_descriptor;
@@ -207,7 +207,7 @@ pub fn run_function(
             InstructionInfo::ineg => unimplemented!(),
             InstructionInfo::instanceof(cp) => invoke_instanceof(state,&current_frame,cp),
             InstructionInfo::invokedynamic(_) => unimplemented!(),
-            InstructionInfo::invokeinterface(_) => unimplemented!(),
+            InstructionInfo::invokeinterface(invoke_i) => invoke_interface(state, current_frame.clone(), invoke_i),
             InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
             InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp),
             InstructionInfo::invokevirtual(cp) => invoke_virtual(state, current_frame.clone(), cp),

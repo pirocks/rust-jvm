@@ -56,6 +56,13 @@ pub fn can_verify_map() {
 }
 
 #[test]
+//#[timeout(30000)]
+pub fn can_verify_set() {
+    let main_class_name = "java/util/Hashtable$EntrySet".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
+
+#[test]
 #[timeout(30000)]
 pub fn can_verify_exceptions() {
     let main_class_name = "java/lang/Throwable".to_string();
