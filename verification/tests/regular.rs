@@ -56,11 +56,19 @@ pub fn can_verify_map() {
 }
 
 #[test]
-//#[timeout(30000)]
-pub fn can_verify_set() {
+#[timeout(30000)]
+pub fn can_verify_hashtable_entry_set() {
     let main_class_name = "java/util/Hashtable$EntrySet".to_string();
     verify_class_with_name(&main_class_name).unwrap();
 }
+
+#[test]
+//#[timeout(30000)]
+pub fn can_verify_file_input_stream() {
+    let main_class_name = "java/io/FileInputStream".to_string();
+    verify_class_with_name(&main_class_name).unwrap();
+}
+
 
 #[test]
 #[timeout(30000)]
@@ -88,7 +96,7 @@ pub fn can_verify_system() {
 }
 
 #[test]
-#[timeout(10000)]
+//#[timeout(10000)]
 pub fn can_verify_input_stream() {
     let main_class_name = "java/io/InputStream".to_string();
     verify_class_with_name(&main_class_name).unwrap();

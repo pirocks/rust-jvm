@@ -135,6 +135,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             _ => is_assignable(vf, &VType::OneWord, to)
         }
         VType::Class(c) => match to {
+            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.deref()),
             VType::Class(c2) => {
                 if c == c2 {
                     return Result::Ok(());
@@ -189,6 +190,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         },
         VType::UninitializedThis => match to {
             VType::UninitializedThis => Result::Ok(()),
+            VType::UninitializedThisOrClass(_) => Result::Ok(()),
             _ => is_assignable(vf, &VType::UninitializedEmpty, to)
         },
         VType::NullType => match to {
@@ -222,6 +224,12 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                 Result::Err(unknown_error_verifying!())
             }
         },
+        VType::UninitializedThisOrClass(c) => {
+            match to {
+                VType::UninitializedThis => Result::Ok(()),
+                _ => is_assignable(vf, c.deref(), to)
+            }
+        }
         _ => {
             dbg!(from);
             panic!("This is a bug")
@@ -251,7 +259,8 @@ fn atom(t: &ParsedType) -> bool {
         }
         ParsedType::Class(_) |
         ParsedType::ArrayReferenceType(_) |
-        ParsedType::Uninitialized(_) => {
+        ParsedType::Uninitialized(_) |
+        ParsedType::UninitializedThisOrClass(_) => {
             false
         }
     }
@@ -433,7 +442,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
     for method in &class.methods {
         let method_name = method.method_name(&class);
         if member_name == method_name {
-            let parsed_member_types = MethodDescriptor::from(method,&class,&super_.loader);
+            let parsed_member_types = MethodDescriptor::from(method, &class, &super_.loader);
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }

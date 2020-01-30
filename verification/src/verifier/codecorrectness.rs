@@ -160,8 +160,6 @@ pub fn can_pop(vf: &VerifierContext, input_frame: &Frame, types: Vec<VType>) -> 
 }
 
 pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
-//    dbg!(left);
-//    dbg!(right);
     let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| {
         is_assignable(vf, left_, right_)
     }).collect();
@@ -170,14 +168,18 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
         is_assignable(vf, left_, right_)
     }).collect();
     let stack_assignable = stack_assignable_res.is_ok();
-    if left.stack_map.len() == right.stack_map.len() && locals_assignable && stack_assignable &&
+    if left.stack_map.len() == right.stack_map.len() && locals_assignable && stack_assignable /*&&
         if left.flag_this_uninit {
             right.flag_this_uninit
         } else {
-            true
-        } {
+            true//todo realisitically I shouldn't check this b/c no way of knowing from stackmapframes.
+        }*/ {
         Result::Ok(())
     } else {
+        dbg!(locals_assignable);
+        dbg!(stack_assignable);
+        dbg!(left);
+        dbg!(right);
         panic!();
 //        Result::Err(unknown_error_verifying!())
     }
@@ -268,7 +270,16 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
 //    dbg!(&return_type);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
     handlers_are_legal(&env)?;
-    merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame))?;
+    merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame))?;/*{
+        Ok(_) => Result::Ok(()),
+        Err(_) => {
+            //then maybe we need to try alternate initial_this_type
+            let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size,true);
+            let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
+            handlers_are_legal(&env)?;
+            merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame))
+        },
+    }*/
     Result::Ok(())
 }
 

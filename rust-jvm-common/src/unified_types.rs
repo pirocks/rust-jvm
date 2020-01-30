@@ -64,6 +64,11 @@ pub enum ParsedType {
     NullType,
     Uninitialized(UninitializedVariableInfo),
     UninitializedThis,
+
+    //todo hack. so b/c stackmapframes doesn't really know what type to give to UnitialziedThis, b/c invoke special could have happened or not
+    // I suspect that Uninitialized might work for this, but making my own anyway
+    UninitializedThisOrClass(Box<ParsedType>),
+
 }
 
 impl ParsedType {
@@ -83,27 +88,8 @@ impl ParsedType {
             ParsedType::TopType => VType::TopType,
             ParsedType::NullType => VType::NullType,
             ParsedType::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
-            ParsedType::UninitializedThis => VType::UninitializedThis
-        }
-    }
-
-    pub fn to_verification_type_with_top(&self) -> Vec<VType> {
-        match self {
-            ParsedType::ByteType => vec![VType::IntType],
-            ParsedType::CharType => vec![VType::IntType],
-            ParsedType::DoubleType => vec![VType::TopType,VType::DoubleType],
-            ParsedType::FloatType => vec![VType::FloatType],
-            ParsedType::IntType => vec![VType::IntType],
-            ParsedType::LongType => vec![VType::TopType,VType::LongType],
-            ParsedType::Class(cl) => vec![VType::Class(cl.clone())],
-            ParsedType::ShortType => vec![VType::IntType],
-            ParsedType::BooleanType => vec![VType::IntType],
-            ParsedType::ArrayReferenceType(at) => vec![VType::ArrayReferenceType(at.clone())],
-            ParsedType::VoidType => vec![VType::VoidType],
-            ParsedType::TopType => vec![VType::TopType],
-            ParsedType::NullType => vec![VType::NullType],
-            ParsedType::Uninitialized(uvi) => vec![VType::Uninitialized(uvi.clone())],
-            ParsedType::UninitializedThis => vec![VType::UninitializedThis]
+            ParsedType::UninitializedThis => VType::UninitializedThis,
+            ParsedType::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(Box::new(c.to_verification_type()))
         }
     }
 }
@@ -124,6 +110,9 @@ pub enum VType {
     NullType,
     Uninitialized(UninitializedVariableInfo),
     UninitializedThis,
+    //todo hack. so b/c stackmapframes doesn't really know what type to give to UnitialziedThis, b/c invoke special could have happened or not
+    // I suspect that Uninitialized might work for this, but making my own anyway
+    UninitializedThisOrClass(Box<VType>),
     //below here used internally in isAssignable
 
     TwoWord,
@@ -149,7 +138,8 @@ impl Clone for ParsedType {
             ParsedType::TopType => ParsedType::TopType,
             ParsedType::NullType => ParsedType::NullType,
             ParsedType::Uninitialized(uvi) => ParsedType::Uninitialized(uvi.clone()),
-            ParsedType::UninitializedThis => ParsedType::UninitializedThis
+            ParsedType::UninitializedThis => ParsedType::UninitializedThis,
+            ParsedType::UninitializedThisOrClass(t) => ParsedType::UninitializedThisOrClass(t.clone())
         }
     }
 }
@@ -173,6 +163,7 @@ impl Clone for VType {
             VType::OneWord => VType::OneWord,
             VType::Reference => VType::TwoWord,
             VType::UninitializedEmpty => VType::OneWord,
+            VType::UninitializedThisOrClass(t) => VType::UninitializedThisOrClass(t.clone())
         }
     }
 }

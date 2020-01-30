@@ -144,7 +144,8 @@ pub fn init_frame(parameter_types: Vec<ParsedType>, this_pointer: Option<ParsedT
     match this_pointer {
         None => {}//class is static etc.
         Some(t) => {
-            add_verification_type_to_array_convert(&mut locals, &t)
+//            add_verification_type_to_array_convert(&mut locals, &t)
+            add_verification_type_to_array_convert(&mut locals, &ParsedType::UninitializedThisOrClass(t.clone().into()))
         }
     }
     //so these parameter types come unconverted and therefore need conversion

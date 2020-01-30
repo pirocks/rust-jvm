@@ -86,6 +86,7 @@ pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, stack_fra
 }
 
 pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    dbg!(stack_frame);
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::Reference])?;
     target_is_type_safe(env, &next_frame, target)?;
     standard_exception_frame(stack_frame, next_frame)
