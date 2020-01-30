@@ -6,9 +6,11 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Error;
 use std::ops::Deref;
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Hash)]
 pub struct ArrayType {
     pub sub_type: Box<ParsedType>
 }
@@ -19,9 +21,17 @@ impl Clone for ArrayType {
     }
 }
 
+//#[derive(Hash)]
 pub struct ClassWithLoader {
     pub class_name: ClassName,
     pub loader: LoaderArc,
+}
+
+impl Hash for ClassWithLoader{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.class_name.hash(state);
+        self.loader.name().hash(state);
+    }
 }
 
 impl PartialEq for ClassWithLoader {
@@ -48,6 +58,7 @@ impl Debug for ClassWithLoader {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Hash)]
 pub enum ParsedType {
     ByteType,
     CharType,

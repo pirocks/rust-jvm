@@ -9,7 +9,7 @@ use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
-use classfile_parser::types::MethodDescriptor;
+use classfile_parser::types::{MethodDescriptor, parse_field_type};
 use rust_jvm_common::unified_types::ParsedType;
 use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::ClassWithLoader;
@@ -30,46 +30,76 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
                                   loader_arc: LoaderArc,
 ) -> Arc<Object> {
     //todo in future this may introduce new and exciting concurrency bugs
+    if class_name.get_referred_name().starts_with('[') {
+        array_object(state, class_name, current_frame, loader_arc)
+    } else {
+        regular_object(state, class_name, current_frame, loader_arc)
+    }
+}
 
+fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
+    let referred_class_name = class_name.get_referred_name();
+    let after_parse = parse_field_type(&loader_arc, referred_class_name.as_str()).unwrap();
+    assert!(after_parse.0.is_empty());
+    let type_for_object : ParsedType = after_parse.1.unwrap_array_type();
+    let res = state.array_object_pool.borrow().get(&type_for_object).cloned();
+    match res {
+        None => {
+            let r = create_a_class_object(state, current_frame);
+            r.unwrap_object().array_class_object_pointer.replace(type_for_object.clone().into());
+            state.array_object_pool.borrow_mut().insert(type_for_object.clone(), r.clone());
+            r
+        },
+        Some(r) => r.clone(),
+    }
+}
+
+fn regular_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
     let class_for_object = check_inited_class(state, class_name, current_frame.clone().into(), loader_arc);
     let res = state.class_object_pool.borrow().get(&class_for_object).cloned();
     match res {
         None => {
-            let java_lang_class = ClassName::class();
-            let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-            let current_loader = current_frame.class_pointer.loader.clone();
-            let class_class = check_inited_class(state, &java_lang_class, current_frame.clone().into(), current_loader.clone());
-            let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone().into(), current_loader.clone());
-            //the above would only be required for higher jdks where a class loader obect is part of Class.
-            //as it stands we can just push to operand stack
-            push_new_object(current_frame.clone(), &class_class);
-            let object = current_frame.pop();
-            match object.clone() {
-                JavaValue::Object(o) => {
-                    let boostrap_loader_object = NormalObject{
-                        gc_reachable: true,
-                        fields: RefCell::new(HashMap::new()),
-                        class_pointer: class_loader_class.clone(),
-                        bootstrap_loader: true,
-                        object_class_object_pointer: RefCell::new(None),
-                    };
-                    let bootstrap_arc = Arc::new(Object::Object(boostrap_loader_object));
-                    let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
-                    {
-                        bootstrap_arc.unwrap_object().fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
-                        bootstrap_arc.unwrap_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
-                        o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
-                    }
-                }
-                _ => panic!(),
-            }
-            let r = object.unwrap_object().unwrap();
+            let r = create_a_class_object(state, current_frame);
             r.unwrap_object().object_class_object_pointer.replace(Some(class_for_object.clone()));
             state.class_object_pool.borrow_mut().insert(class_for_object, r.clone());
             r
-        }
+        },
         Some(r) => r.clone(),
     }
+}
+
+fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEntry>) -> Arc<Object> {
+    let java_lang_class = ClassName::class();
+    let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
+    let current_loader = current_frame.class_pointer.loader.clone();
+    let class_class = check_inited_class(state, &java_lang_class, current_frame.clone().into(), current_loader.clone());
+    let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone().into(), current_loader.clone());
+    //the above would only be required for higher jdks where a class loader object is part of Class.
+    //as it stands we can just push to operand stack
+    push_new_object(current_frame.clone(), &class_class);
+    let object = current_frame.pop();
+    match object.clone() {
+        JavaValue::Object(o) => {
+            let boostrap_loader_object = NormalObject {
+                gc_reachable: true,
+                fields: RefCell::new(HashMap::new()),
+                class_pointer: class_loader_class.clone(),
+                bootstrap_loader: true,
+                object_class_object_pointer: RefCell::new(None),
+                array_class_object_pointer: RefCell::new(None)
+            };
+            let bootstrap_arc = Arc::new(Object::Object(boostrap_loader_object));
+            let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
+            {
+                bootstrap_arc.unwrap_object().fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
+                bootstrap_arc.unwrap_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
+                o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
+            }
+        }
+        _ => panic!(),
+    }
+    let r = object.unwrap_object().unwrap();
+    r
 }
 
 pub fn run(
@@ -89,6 +119,7 @@ pub fn run(
         initialized_classes: RwLock::new(HashMap::new()),
         string_internment: RefCell::new(HashMap::new()),
         class_object_pool: RefCell::new(HashMap::new()),
+        array_object_pool: RefCell::new(HashMap::new()),
         jni,
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
@@ -132,8 +163,8 @@ fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
     let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
     let psvms = main.lookup_method_name("main".to_string());
-    for (i,m) in psvms{
-        let desc = MethodDescriptor::from(m,main,bl);
+    for (i, m) in psvms {
+        let desc = MethodDescriptor::from(m, main, bl);
         if m.is_static() && desc.parameter_types == vec![string_array.clone()] && desc.return_type == ParsedType::VoidType {
             return i;
         }

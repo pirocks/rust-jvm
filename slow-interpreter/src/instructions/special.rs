@@ -48,6 +48,8 @@ pub fn invoke_checkcast(state: &mut InterpreterState, current_frame: &Rc<StackEn
                 ParsedType::Class(c1) => {
                     let actual_runtime_class = check_inited_class(state,&a.elem_type.unwrap_class_type().class_name,current_frame.clone().into(),current_frame.class_pointer.loader.clone());
                     let expected_runtime_class = check_inited_class(state,&expected_type.unwrap_class_type().class_name,current_frame.clone().into(),current_frame.class_pointer.loader.clone());
+                    dbg!(class_name(&actual_runtime_class.classfile));
+                    dbg!(class_name(&expected_runtime_class.classfile));
                     inherits_from(state,&actual_runtime_class,&expected_runtime_class)
                 },
                 ParsedType::ArrayReferenceType(_) => unimplemented!(),
@@ -104,6 +106,9 @@ fn runtime_interface_class(state: &mut InterpreterState, class_: &Arc<RuntimeCla
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
 fn inherits_from(state: &mut InterpreterState, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
+    if class_name(&inherits.classfile) == class_name(&parent.classfile){
+        return true;
+    }
     let interfaces_match = inherits.classfile.interfaces.iter().any(|x| {
         let interface = runtime_interface_class(state, inherits, *x);
         class_name(&interface.classfile) == class_name(&parent.classfile)

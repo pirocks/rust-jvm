@@ -12,6 +12,7 @@ use crate::java_values::{Object, JavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use libloading::Library;
 use std::rc::Rc;
+use rust_jvm_common::unified_types::ParsedType;
 
 pub mod java_values;
 pub mod runtime_class;
@@ -24,6 +25,7 @@ pub struct InterpreterState {
     pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
     pub string_internment: RefCell<HashMap<String, Arc<Object>>>,
     pub class_object_pool: RefCell<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
+    pub array_object_pool: RefCell<HashMap<ParsedType, Arc<Object>>>,
     //todo needs to be used for all instances of getClass
     pub jni: LibJavaLoading,
 }

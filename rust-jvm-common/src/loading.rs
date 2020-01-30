@@ -23,6 +23,7 @@ impl Error for ClassLoadingError {}
 
 
 #[derive(Debug)]
+#[derive(Hash)]
 pub enum LoaderName {
     Str(String),
     BootstrapLoader,

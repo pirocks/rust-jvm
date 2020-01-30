@@ -189,6 +189,7 @@ impl JavaValue {
             fields: RefCell::new(HashMap::new()),
             bootstrap_loader: false,
             object_class_object_pointer: RefCell::new(None),
+            array_class_object_pointer: RefCell::new(None)
         })).into()
     }
 }
@@ -269,6 +270,7 @@ pub struct NormalObject {
     pub bootstrap_loader: bool,
     //points to the object represented by this class object of relevant
     pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
+    pub array_class_object_pointer: RefCell<Option<ParsedType>>,
 }
 
 impl Debug for NormalObject {

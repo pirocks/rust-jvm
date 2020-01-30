@@ -13,8 +13,8 @@ pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
         }
     }
     let classfile = &current_frame.class_pointer.classfile;
-    dbg!(class_name(classfile).get_referred_name());
-    dbg!(classfile.methods[current_frame.method_i as usize].method_name(classfile));
+//    dbg!(class_name(classfile).get_referred_name());
+//    dbg!(classfile.methods[current_frame.method_i as usize].method_name(classfile));
     current_frame.local_vars.borrow_mut()[n] = object_ref;
 }
 

@@ -157,6 +157,22 @@ pub fn if_icmplt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
+pub fn if_icmple(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+    let value2 = current_frame.pop();
+    let value1 = current_frame.pop();
+    let succeeds = match value1 {
+        JavaValue::Int(i1) => match value2 {
+            JavaValue::Int(i2) => i1 <= i2,
+            _ => panic!()
+        },
+        _ => panic!()
+    };
+    if succeeds {
+        current_frame.pc_offset.replace(offset as isize);
+    }
+}
+
+
 pub fn if_icmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
@@ -192,7 +208,24 @@ pub fn if_icmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 pub fn if_acmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
-    let succeeds = !match value1 {
+    let succeeds = !equal_ref(value2, value1);
+    if succeeds {
+        current_frame.pc_offset.replace(offset as isize);
+    }
+}
+
+
+pub fn if_acmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+    let value2 = current_frame.pop();
+    let value1 = current_frame.pop();
+    let succeeds = equal_ref(value2, value1);
+    if succeeds {
+        current_frame.pc_offset.replace(offset as isize);
+    }
+}
+
+fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
+    match value1 {
         JavaValue::Object(o1) => match value2 {
             JavaValue::Object(o2) => match o1 {
                 None => match o2 {
@@ -207,8 +240,5 @@ pub fn if_acmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
             _ => panic!()
         },
         _ => panic!()
-    };
-    if succeeds {
-        current_frame.pc_offset.replace(offset as isize);
     }
 }

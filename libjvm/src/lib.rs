@@ -14,7 +14,7 @@ use slow_interpreter::get_or_create_class_object;
 use std::rc::Rc;
 use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object};
-use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf};
+use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH};
 use log::trace;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
@@ -1163,6 +1163,35 @@ unsafe extern "system" fn jio_vfprintf(
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(
     env: *mut JNIEnv,
-    cb: jclass) -> (){
+    cb: jclass) -> () {
     //todo for no register nothing, register later as needed.
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_arrayBaseOffset(env: *mut JNIEnv,
+                                                               obj: jobject,
+                                                               cb: jclass) -> jint {
+    -1//unimplemented but can't return nothing.
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_arrayIndexScale(env: *mut JNIEnv,
+                                                               obj: jobject,
+                                                               cb: jclass) -> jint {
+    -1//unimplemented but can't return nothing.
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_addressSize(env: *mut JNIEnv,
+                                                           obj: jobject) -> jint {
+    64//officially speaking unimplemented but can't return nothing, and should maybe return something reasonable todo
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_reflect_Reflection_getCallerClass(env: *mut JNIEnv,
+                                                                     cb: jclass) -> jclass
+{
+    return JVM_GetCallerClass(env, JVM_CALLER_DEPTH);
 }

@@ -190,6 +190,7 @@ pub struct ArrayVariableInfo {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Hash)]
 pub struct UninitializedVariableInfo {
     pub offset: u16
 }

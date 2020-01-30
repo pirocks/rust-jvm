@@ -286,8 +286,8 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
     let this_pointer = this_pointer_o.unwrap_object();
     current_frame.operand_stack.replace(checkpoint);
     let target_class = this_pointer.class_pointer.clone();
-    dbg!(invoke_interface.count);
-    dbg!(class_name(&target_class.classfile));
+//    dbg!(invoke_interface.count);
+//    dbg!(class_name(&target_class.classfile));
     let (target_method_i, final_target_class) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
     invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i]);

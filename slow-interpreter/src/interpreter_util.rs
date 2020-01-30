@@ -23,7 +23,7 @@ use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd, 
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::{dup, dup_x1};
-use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne, if_icmpeq};
+use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne, if_icmpeq, if_icmple, if_acmpeq};
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast};
 use log::trace;
 
@@ -177,14 +177,14 @@ pub fn run_function(
             InstructionInfo::iconst_4 => iconst_4(&current_frame),
             InstructionInfo::iconst_5 => iconst_5(&current_frame),
             InstructionInfo::idiv => unimplemented!(),
-            InstructionInfo::if_acmpeq(_) => unimplemented!(),
+            InstructionInfo::if_acmpeq(offset) => if_acmpeq(&current_frame, offset),
             InstructionInfo::if_acmpne(offset) => if_acmpne(&current_frame, offset),
             InstructionInfo::if_icmpeq(offset) => if_icmpeq(&current_frame, offset),
             InstructionInfo::if_icmpne(offset) => if_icmpne(&current_frame, offset),
             InstructionInfo::if_icmplt(offset) => if_icmplt(&current_frame, offset),
             InstructionInfo::if_icmpge(_) => unimplemented!(),
             InstructionInfo::if_icmpgt(offset) => if_icmpgt(&current_frame, offset),
-            InstructionInfo::if_icmple(_) => unimplemented!(),
+            InstructionInfo::if_icmple(offset) => if_icmple(&current_frame, offset),
             InstructionInfo::ifeq(offset) => ifeq(&current_frame, offset),
             InstructionInfo::ifne(offset) => ifne(&current_frame, offset),
             InstructionInfo::iflt(offset) => iflt(&current_frame, offset),
