@@ -22,6 +22,13 @@ pub fn iand(current_frame: &Rc<StackEntry>) -> () {
 }
 
 
+pub fn ixor(current_frame: &Rc<StackEntry>) -> () {
+    let first = current_frame.pop().unwrap_int();
+    let second = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Int(first ^ second))
+}
+
+
 pub fn iadd(current_frame: &Rc<StackEntry>) -> () {
     let first = current_frame.pop().unwrap_int();
     let second = current_frame.pop().unwrap_int();
@@ -41,6 +48,15 @@ pub fn ishl(current_frame: &Rc<StackEntry>) -> () {
     let value1 = current_frame.pop().unwrap_int();
     current_frame.push(JavaValue::Int(value1 << (value2 & 63)));
 }
+
+
+pub fn iushr(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_int() as u32;
+    let value1 = current_frame.pop().unwrap_int() as u32;
+    let res = value1 >> (value2 & 63);
+    current_frame.push(JavaValue::Int(res as i32));
+}
+
 
 pub fn isub(current_frame: &Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_int();

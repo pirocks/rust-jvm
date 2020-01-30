@@ -1157,3 +1157,12 @@ unsafe extern "system" fn jio_vfprintf(
 }
 
 
+//this ends required symbols
+//The following symbols are not needed for linking
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(
+    env: *mut JNIEnv,
+    cb: jclass) -> (){
+    //todo for no register nothing, register later as needed.
+}

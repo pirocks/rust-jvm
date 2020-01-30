@@ -27,7 +27,7 @@ use std::mem::size_of;
 use std::convert::TryInto;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use std::rc::Rc;
-use crate::rust_jni::value_conversion::{to_native_type, to_native};
+use crate::rust_jni::value_conversion::{to_native_type, to_native, runtime_class_to_native};
 use crate::interpreter_util::check_inited_class;
 use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
 use crate::rust_jni::native_util::{get_state, get_frame, from_object};
@@ -66,10 +66,9 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfi
 
 pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn()) -> Result<Option<JavaValue>, Error> {
     let mut args_type = vec![Type::pointer(), Type::pointer()];
-    let jclass: jclass = unsafe { transmute(&classfile) };
     let env = &get_interface(state, current_frame);
-    let mut c_args = vec![Arg::new(&&env), Arg::new(&jclass)];
-//todo inconsistent
+    let mut c_args = vec![Arg::new(&&env), runtime_class_to_native(classfile.clone())];
+//todo inconsistent use of class and/pr arc<RuntimeClass>
 //    dbg!(&args);
     for j in args {
         args_type.push(to_native_type(j.clone()));

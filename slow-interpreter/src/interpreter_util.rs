@@ -19,7 +19,7 @@ use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i};
 use crate::instructions::new::{new, anewarray, newarray};
 use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
-use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd, ishl, isub};
+use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd, ishl, isub, iushr, ixor};
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::{dup, dup_x1};
@@ -222,8 +222,8 @@ pub fn run_function(
             InstructionInfo::istore_2 => istore(&current_frame, 2),
             InstructionInfo::istore_3 => istore(&current_frame, 3),
             InstructionInfo::isub => isub(&current_frame),
-            InstructionInfo::iushr => unimplemented!(),
-            InstructionInfo::ixor => unimplemented!(),
+            InstructionInfo::iushr => iushr(&current_frame),
+            InstructionInfo::ixor => ixor(&current_frame),
             InstructionInfo::jsr(_) => unimplemented!(),
             InstructionInfo::jsr_w(_) => unimplemented!(),
             InstructionInfo::l2d => unimplemented!(),

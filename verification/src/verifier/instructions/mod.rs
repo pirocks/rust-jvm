@@ -105,13 +105,13 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> Result<(), TypeSafetyError> {
     let frame = offset_stack_frame(env, target)?;
 //    dbg!(&env.merged_code);
-    let classfile = get_class(&env.vf, &env.method.class);
-    dbg!(classfile.methods[env.method.method_index as usize].method_name(&classfile));
+//    let classfile = get_class(&env.vf, &env.method.class);
+//    dbg!(classfile.methods[env.method.method_index as usize].method_name(&classfile));
 //    dbg!(&frame);
 //    dbg!(target);
-    dbg!(env.merged_code);
-    dbg!(&stack_frame);
-    dbg!(&frame);
+//    dbg!(env.merged_code);
+//    dbg!(&stack_frame);
+//    dbg!(&frame);
     frame_is_assignable(&env.vf, stack_frame, &frame)?;
     Result::Ok(())
 }

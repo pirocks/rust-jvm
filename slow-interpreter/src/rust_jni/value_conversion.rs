@@ -3,6 +3,10 @@ use libffi::middle::Arg;
 use libffi::middle::Type;
 use crate::rust_jni::native_util::to_object;
 use std::ffi::c_void;
+use runtime_common::runtime_class::RuntimeClass;
+use jni_bindings::jclass;
+use std::sync::Arc;
+use std::ops::Deref;
 
 pub fn to_native(j: JavaValue) -> Arg {
     match j {
@@ -29,6 +33,20 @@ pub fn to_native(j: JavaValue) -> Arg {
         },
         JavaValue::Top => panic!()
     }
+}
+
+
+pub fn runtime_class_to_native(runtime_class : Arc<RuntimeClass>) -> Arg{
+    let boxed_arc = Box::new(runtime_class);
+    let arc_pointer = Box::into_raw(boxed_arc);
+    let pointer_ref = Box::leak(Box::new(arc_pointer));
+    Arg::new(pointer_ref)
+}
+
+
+pub unsafe fn native_to_runtime_class(clazz: jclass) -> Arc<RuntimeClass>{
+    let boxed_arc = Box::from_raw(clazz as *mut Arc<RuntimeClass>);
+    boxed_arc.deref().clone()
 }
 
 

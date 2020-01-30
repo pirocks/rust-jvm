@@ -7,7 +7,7 @@ use classfile_parser::types::parse_field_descriptor;
 use crate::InterpreterState;
 use crate::run_function;
 use std::rc::Rc;
-use runtime_common::java_values::default_value;
+use runtime_common::java_values::{default_value, JavaValue};
 use runtime_common::runtime_class::RuntimeClass;
 use std::cell::RefCell;
 use runtime_common::StackEntry;
@@ -58,17 +58,23 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass>, state: &mut Interprete
     let classfile = &class_arc.classfile;
     let lookup_res = classfile.lookup_method_name("<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
-    let (clinit_i, _) = match lookup_res.iter().nth(0){
+    let (clinit_i, clinit) = match lookup_res.iter().nth(0){
         None => return class_arc,
         Some(x) => x,
     };
     //todo should I really be manipulating the interpreter state like this
 
+    let mut locals = vec![];
+    let locals_n = clinit.code_attribute().unwrap().max_locals;
+    for _ in 0..locals_n{
+        locals.push(JavaValue::Top);
+    }
+
     let new_stack = StackEntry {
         last_call_stack: stack,
         class_pointer: class_arc.clone(),
         method_i: *clinit_i as u16,
-        local_vars: vec![].into(),
+        local_vars: locals.into(),
         operand_stack: vec![].into(),
         pc: 0.into(),
         pc_offset: 0.into(),

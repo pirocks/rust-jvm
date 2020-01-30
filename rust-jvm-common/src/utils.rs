@@ -106,7 +106,7 @@ impl Classfile {
         }).collect()
     }
 
-    pub fn lookup_method_name_owned(self,self_ref: &Self, name: String) -> Vec<(usize, MethodInfo)> {
+    pub fn lookup_method_name_owned(self, self_ref: &Self, name: String) -> Vec<(usize, MethodInfo)> {
         let mut res = vec![];
         let mut i = 0;
         for m in self.methods {
@@ -170,5 +170,9 @@ impl FieldInfo {
             }
         }
         None
+    }
+
+    pub fn name(&self, class: &Classfile) -> String {
+        class.constant_pool[self.name_index as usize].extract_string_from_utf8()
     }
 }

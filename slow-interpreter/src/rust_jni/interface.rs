@@ -1,6 +1,6 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID};
 use std::mem::transmute;
 use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
@@ -14,10 +14,10 @@ use runtime_common::java_values::{JavaValue, Object};
 use log::trace;
 use crate::instructions::ldc::load_class_constant_by_name;
 use std::sync::Arc;
+use runtime_common::runtime_class::RuntimeClass;
+use crate::rust_jni::value_conversion::native_to_runtime_class;
 
-//CallObjectMethod
-//ExceptionOccurred
-//DeleteLocalRef
+//GetFieldID
 pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
@@ -117,7 +117,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         CallNonvirtualVoidMethod: None,
         CallNonvirtualVoidMethodV: None,
         CallNonvirtualVoidMethodA: None,
-        GetFieldID: None,
+        GetFieldID: Some(get_field_id),
         GetObjectField: None,
         GetBooleanField: None,
         GetByteField: None,
@@ -294,6 +294,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
             ParsedType::NullType => unimplemented!(),
             ParsedType::Uninitialized(_) => unimplemented!(),
             ParsedType::UninitializedThis => unimplemented!(),
+            ParsedType::UninitializedThisOrClass(_) => panic!(),
         }
     }
     //todo add params into operand stack;
@@ -388,6 +389,7 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
             ParsedType::NullType => unimplemented!(),
             ParsedType::Uninitialized(_) => unimplemented!(),
             ParsedType::UninitializedThis => unimplemented!(),
+            ParsedType::UninitializedThisOrClass(_) => panic!()
         }
     }
     trace!("----NATIVE EXIT ----");
@@ -403,4 +405,22 @@ unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: js
         str.push(unicode.offset(i as isize).read() as u8 as char)
     }
     new_string_with_string(env,str)
+}
+
+pub struct FieldID{
+    pub class: Arc<RuntimeClass>,
+    pub field_i: usize,
+}
+
+unsafe extern "C" fn get_field_id(_env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID{
+    let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
+    let runtime_class = native_to_runtime_class(clazz);
+    let fields = &runtime_class.classfile.fields;
+    for field_i in 0..fields.len() {
+        //todo check descriptor
+        if fields[field_i].name(&runtime_class.classfile) == name{
+            return Box::into_raw(Box::new(FieldID { class: runtime_class.clone(), field_i })) as jfieldID;
+        }
+    }
+    panic!()
 }

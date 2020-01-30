@@ -269,6 +269,7 @@ pub fn default_value(type_: ParsedType) -> JavaValue {
         ParsedType::NullType => JavaValue::Object(None),
         ParsedType::Uninitialized(_) => unimplemented!(),
         ParsedType::UninitializedThis => unimplemented!(),
+        ParsedType::UninitializedThisOrClass(_) => panic!(),
     }
 }
 
