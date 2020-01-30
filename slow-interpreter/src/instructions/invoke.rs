@@ -276,7 +276,7 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
         _ => panic!()
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
-    let target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
+    let _target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
     let mut args = vec![];
     let checkpoint = current_frame.operand_stack.borrow().clone();
     setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16  + 1);
@@ -288,5 +288,4 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
     let (target_method_i, final_target_class) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
     invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i]);
-    unimplemented!()
 }

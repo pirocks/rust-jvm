@@ -22,9 +22,9 @@ use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
 use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd, ishl, isub};
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
-use crate::instructions::dup::dup;
-use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne};
-use crate::instructions::special::{arraylength, invoke_instanceof};
+use crate::instructions::dup::{dup, dup_x1};
+use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne, if_icmpeq};
+use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast};
 use log::trace;
 
 //todo jni should really live in interpreter state
@@ -95,7 +95,7 @@ pub fn run_function(
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
             InstructionInfo::caload => unimplemented!(),
             InstructionInfo::castore => castore(&current_frame),
-            InstructionInfo::checkcast(_) => unimplemented!(),
+            InstructionInfo::checkcast(cp) => invoke_checkcast(state,&current_frame,cp),
             InstructionInfo::d2f => unimplemented!(),
             InstructionInfo::d2i => unimplemented!(),
             InstructionInfo::d2l => unimplemented!(),
@@ -123,7 +123,7 @@ pub fn run_function(
             InstructionInfo::dstore_3 => unimplemented!(),
             InstructionInfo::dsub => unimplemented!(),
             InstructionInfo::dup => dup(&current_frame),
-            InstructionInfo::dup_x1 => unimplemented!(),
+            InstructionInfo::dup_x1 => dup_x1(&current_frame),
             InstructionInfo::dup_x2 => unimplemented!(),
             InstructionInfo::dup2 => unimplemented!(),
             InstructionInfo::dup2_x1 => unimplemented!(),
@@ -179,7 +179,7 @@ pub fn run_function(
             InstructionInfo::idiv => unimplemented!(),
             InstructionInfo::if_acmpeq(_) => unimplemented!(),
             InstructionInfo::if_acmpne(offset) => if_acmpne(&current_frame, offset),
-            InstructionInfo::if_icmpeq(_) => unimplemented!(),
+            InstructionInfo::if_icmpeq(offset) => if_icmpeq(&current_frame, offset),
             InstructionInfo::if_icmpne(offset) => if_icmpne(&current_frame, offset),
             InstructionInfo::if_icmplt(offset) => if_icmplt(&current_frame, offset),
             InstructionInfo::if_icmpge(_) => unimplemented!(),
