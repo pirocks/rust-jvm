@@ -1,8 +1,7 @@
 use jni_bindings::{JNIEnv, jstring, jboolean, jchar};
 use std::os::raw::c_char;
-use runtime_common::java_values::{JavaValue, Object};
-use std::cell::{Ref, RefCell};
-use std::sync::Arc;
+use runtime_common::java_values::JavaValue;
+use std::cell::Ref;
 use std::alloc::Layout;
 use std::mem::{size_of, transmute};
 use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object};
@@ -12,10 +11,11 @@ use crate::instructions::ldc::create_string_on_stack;
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
                                              name: jstring,
                                              is_copy: *mut jboolean) -> *const c_char {
-    let str_obj: Arc<Object> = from_object(name).unwrap();
-    let unwrapped = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_array();
-    let refcell: &RefCell<Vec<JavaValue>> = &unwrapped;
-    let char_array: &Ref<Vec<JavaValue>> = &refcell.borrow();
+    let str_obj_o = from_object(name).unwrap();
+    let str_obj= str_obj_o.unwrap_object();
+    let string_chars_o = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_object().unwrap();
+    let unwrapped = string_chars_o.unwrap_array().elems.borrow();
+    let char_array: &Ref<Vec<JavaValue>> = &unwrapped;
     let chars_layout = Layout::from_size_align((char_array.len() + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
     let res = std::alloc::alloc(chars_layout) as *mut c_char;
     char_array.iter().enumerate().for_each(|(i, j)| {

@@ -6,7 +6,7 @@ use rust_jvm_common::classnames::class_name;
 pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
     let object_ref = current_frame.pop();
     match object_ref.clone() {
-        JavaValue::Object(_) | JavaValue::Array(_) => {}
+        JavaValue::Object(_) => {}
         _ => {
             dbg!(&object_ref);
             panic!()
@@ -22,19 +22,21 @@ pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
 pub fn castore(current_frame: &Rc<StackEntry>) -> () {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
-    let array_ref = current_frame.pop().unwrap_array();
+    let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
+    let array_ref = &mut arrar_ref_o.unwrap_array().elems.borrow_mut();
     let char_ = val as u8 as char;
-    array_ref.borrow_mut()[index as usize] = JavaValue::Char(char_);
+    array_ref[index as usize] = JavaValue::Char(char_);
 }
 
 
 pub fn aastore(current_frame: &Rc<StackEntry>) -> () {
     let val = current_frame.pop();
     let index = current_frame.pop().unwrap_int();
-    let array_ref = current_frame.pop().unwrap_array();
+    let arrary_ref_o = current_frame.pop().unwrap_object().unwrap();
+    let mut array_ref = arrary_ref_o.unwrap_array().elems.borrow_mut();
     match val {
         JavaValue::Object(_) => {}
         _ => panic!(),
     }
-    array_ref.borrow_mut()[index as usize] = val.clone();
+    array_ref[index as usize] = val.clone();
 }

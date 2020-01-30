@@ -92,6 +92,22 @@ impl ParsedType {
             ParsedType::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(Box::new(c.to_verification_type()))
         }
     }
+    pub fn unwrap_array_type(&self) -> ParsedType{
+        match self {
+            ParsedType::ArrayReferenceType(a) => {
+                a.sub_type.deref().clone()
+            },
+            _ => panic!()
+        }
+    }
+    pub fn unwrap_class_type(&self) -> ClassWithLoader{
+        match self {
+            ParsedType::Class(c) => {
+                c.clone()
+            },
+            _ => panic!()
+        }
+    }
 }
 
 #[derive(Debug)]

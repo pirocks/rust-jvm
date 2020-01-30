@@ -18,7 +18,7 @@ use crate::interpreter_util::{run_function, check_inited_class};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
-use runtime_common::java_values::{JavaValue, Object};
+use runtime_common::java_values::{JavaValue, Object, NormalObject};
 use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
@@ -46,25 +46,25 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
             let object = current_frame.pop();
             match object.clone() {
                 JavaValue::Object(o) => {
-                    let boostrap_loader_object = Object {
+                    let boostrap_loader_object = NormalObject{
                         gc_reachable: true,
                         fields: RefCell::new(HashMap::new()),
                         class_pointer: class_loader_class.clone(),
                         bootstrap_loader: true,
                         object_class_object_pointer: RefCell::new(None),
                     };
-                    let bootstrap_arc = Arc::new(boostrap_loader_object);
+                    let bootstrap_arc = Arc::new(Object::Object(boostrap_loader_object));
                     let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
                     {
-                        bootstrap_arc.fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
-                        bootstrap_arc.fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
-                        o.unwrap().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
+                        bootstrap_arc.unwrap_object().fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
+                        bootstrap_arc.unwrap_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
+                        o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
                     }
                 }
                 _ => panic!(),
             }
             let r = object.unwrap_object().unwrap();
-            r.object_class_object_pointer.replace(Some(class_for_object.clone()));
+            r.unwrap_object().object_class_object_pointer.replace(Some(class_for_object.clone()));
             state.class_object_pool.borrow_mut().insert(class_for_object, r.clone());
             r
         }
@@ -104,12 +104,14 @@ pub fn run(
     };
 
     run_function(&mut state, initialize_system_frame.into());
+//    let array_elem_type = ParsedType::Class(ClassWithLoader { class_name: ClassName::string(), loader: bl.clone() });
+    //todo use array_elem_type
     let main_stack = StackEntry {
         last_call_stack: None,
         class_pointer: Arc::new(main_class),
         method_i: main_i as u16,
 //            todo is that vec access safe, or does it not heap allocate?
-        local_vars: vec![JavaValue::Array(Some(Arc::new(vec![].into())))].into(),//todo handle parameters
+        local_vars: vec![].into(),//todo handle parameters, todo handle non-zero size locals
         operand_stack: vec![].into(),
         pc: RefCell::new(0),
         pc_offset: 0.into(),

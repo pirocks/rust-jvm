@@ -13,7 +13,7 @@ use crate::interpreter_util::check_inited_class;
 use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::StackEntry;
-use std::cell::RefCell;
+use std::cell::Ref;
 use crate::rust_jni::{call_impl, call};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
@@ -251,15 +251,17 @@ pub fn run_native_method(
 }
 
 fn system_array_copy(args: &mut Vec<JavaValue>) -> () {
-    let src = args[0].clone().unwrap_array();
+    let src_o = args[0].clone().unwrap_object();
+    let src = src_o.as_ref().unwrap().unwrap_array();
     let src_pos = args[1].clone().unwrap_int() as usize;
-    let dest = args[2].clone().unwrap_array();
+    let src_o = args[2].clone().unwrap_object();
+    let dest = src_o.as_ref().unwrap().unwrap_array();
     let dest_pos = args[3].clone().unwrap_int() as usize;
     let length = args[4].clone().unwrap_int() as usize;
     for i in 0..length {
-        let borrowed: &RefCell<Vec<JavaValue>> = src.borrow();
+        let borrowed: Ref<Vec<JavaValue>> = src.elems.borrow();
         let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
-        dest.borrow_mut()[dest_pos + i] = temp;
+        dest.elems.borrow_mut()[dest_pos + i] = temp;
     }
 }
 
@@ -280,7 +282,8 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
     let mut args = vec![];
     let checkpoint = current_frame.operand_stack.borrow().clone();
     setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16  + 1);
-    let this_pointer = args[0].unwrap_object().unwrap();
+    let this_pointer_o = args[0].unwrap_object().unwrap();
+    let this_pointer = this_pointer_o.unwrap_object();
     current_frame.operand_stack.replace(checkpoint);
     let target_class = this_pointer.class_pointer.clone();
     dbg!(invoke_interface.count);

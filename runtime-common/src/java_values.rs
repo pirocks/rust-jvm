@@ -18,7 +18,7 @@ pub enum JavaValue {
     Float(f32),
     Double(f64),
 
-    Array(Option<Arc<RefCell<Vec<JavaValue>>>>),
+//    Array(Option<(ParsedType,Arc<RefCell<Vec<JavaValue>>>)>),
     Object(Option<Arc<Object>>),
 
     Top,//should never be interacted with by the bytecode
@@ -54,17 +54,21 @@ impl JavaValue {
 
 
     pub fn unwrap_object(&self) -> Option<Arc<Object>> {
+        self.try_unwrap_object().unwrap()
+    }
+
+
+    pub fn try_unwrap_object(&self) -> Option<Option<Arc<Object>>> {
         match self {
             JavaValue::Object(o) => {
                 let option = o.as_ref();
-                match option {
+                Some(match option {
                     None => None,
                     Some(o) => o.clone().into(),
-                }
+                })
             }
             _ => {
-                dbg!(self);
-                panic!()
+                None
             }
         }
     }
@@ -81,7 +85,7 @@ impl Clone for JavaValue {
             JavaValue::Char(c) => JavaValue::Char(*c),
             JavaValue::Float(f) => JavaValue::Float(*f),
             JavaValue::Double(d) => JavaValue::Double(*d),
-            JavaValue::Array(a) => JavaValue::Array(a.clone()),
+//            JavaValue::Array(a) => JavaValue::Array(a.clone()),
             JavaValue::Object(o) => JavaValue::Object(o.clone()),
             JavaValue::Top => JavaValue::Top,
         }
@@ -139,12 +143,12 @@ impl PartialEq for JavaValue {
                     _ => false
                 }
             }
-            JavaValue::Array(x) => {
+            /*JavaValue::Array(x) => {
                 match other {
                     JavaValue::Array(x1) => x == x1,
                     _ => false
                 }
-            }
+            }*/
             JavaValue::Object(x) => {
                 match other {
                     JavaValue::Object(x1) => {
@@ -179,13 +183,13 @@ impl PartialEq for JavaValue {
 
 impl JavaValue {
     pub fn new_object(runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
-        Arc::new(Object {
+        Arc::new(Object::Object(NormalObject {
             gc_reachable: true,
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
             bootstrap_loader: false,
             object_class_object_pointer: RefCell::new(None),
-        }).into()
+        })).into()
     }
 }
 
@@ -207,12 +211,12 @@ impl JavaValue {
 //}
 
 impl JavaValue {
-    pub fn new_vec(len: usize, val: JavaValue) -> Option<Arc<RefCell<Vec<JavaValue>>>> {
+    pub fn new_vec(len: usize, val: JavaValue, elem_type:ParsedType) -> Option<Arc<Object>> {
         let mut buf: Vec<JavaValue> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Arc::new(RefCell::new(buf)).into()
+        Some(Arc::new(Object::Array(ArrayObject{ elems: buf.into(), elem_type })))
     }
 }
 
@@ -228,8 +232,36 @@ impl JavaValue {
 //    }
 //}
 
+#[derive(Debug)]
+pub enum Object{
+    Array(ArrayObject),
+    Object(NormalObject)
+}
+
+impl Object{
+    pub fn unwrap_object(&self) -> &NormalObject {
+        match self{
+            Object::Array(_) => panic!(),
+            Object::Object(o) => o,
+        }
+    }
+
+    pub fn unwrap_array(&self) -> &ArrayObject {
+        match self{
+            Object::Array(a) => a,
+            Object::Object(_) => panic!(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ArrayObject{
+    pub elems : RefCell<Vec<JavaValue>>,
+    pub elem_type : ParsedType
+}
+
 //#[derive(Debug)]
-pub struct Object {
+pub struct NormalObject {
     pub gc_reachable: bool,
     //I guess this never changes so unneeded?
     pub fields: RefCell<HashMap<String, JavaValue>>,
@@ -239,7 +271,7 @@ pub struct Object {
     pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
 }
 
-impl Debug for Object {
+impl Debug for NormalObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "{:?}", class_name(&self.class_pointer.classfile).get_referred_name())?;
         write!(f, "-")?;
@@ -274,7 +306,8 @@ pub fn default_value(type_: ParsedType) -> JavaValue {
 }
 
 impl JavaValue {
-    pub fn unwrap_array(&self) -> Arc<RefCell<Vec<JavaValue>>> {
+/*
+    pub fn unwrap_array(&self) -> (ParsedType,Arc<RefCell<Vec<JavaValue>>>) {
         match self {
             JavaValue::Array(a) => {
                 a.as_ref().unwrap().clone()
@@ -285,6 +318,7 @@ impl JavaValue {
             }
         }
     }
+*/
 
     pub fn unwrap_char(&self) -> char {
         match self {

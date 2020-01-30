@@ -1,7 +1,7 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use rust_jvm_common::classfile::{ConstantInfo, Class, String_, ConstantKind};
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, ArrayObject, Object};
 use rust_jvm_common::classnames::ClassName;
 use crate::get_or_create_class_object;
 use crate::interpreter_util::{check_inited_class, push_new_object, run_function};
@@ -36,7 +36,7 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     push_new_object(current_frame.clone().into(), &string_class);
     let string_object = current_frame.pop();
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Array(Arc::new(RefCell::new(chars)).into()));
+    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(chars), elem_type: ParsedType::CharType })))));
     let char_array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) });
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
     let (constructor_i, final_target_class) = find_target_method(state,current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);

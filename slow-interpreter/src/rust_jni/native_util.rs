@@ -7,7 +7,8 @@ use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
-    let obj: Arc<Object> = from_object(obj).unwrap();//todo double free hazard
+    let unwrapped = from_object(obj).unwrap();
+    let obj= unwrapped.unwrap_object();//todo double free hazard
     let state = get_state(env);
     let frame = get_frame(env);
     let class_object = get_or_create_class_object(state, &class_name(&obj.class_pointer.classfile), frame, obj.class_pointer.loader.clone());

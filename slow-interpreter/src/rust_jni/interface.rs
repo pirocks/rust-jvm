@@ -10,7 +10,7 @@ use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
-use runtime_common::java_values::{JavaValue, Object};
+use runtime_common::java_values::JavaValue;
 use log::trace;
 use crate::instructions::ldc::load_class_constant_by_name;
 use std::sync::Arc;
@@ -348,7 +348,8 @@ unsafe extern "C" fn get_static_method_id(
 ) -> jmethodID {
     let method_name = CStr::from_ptr(name).to_str().unwrap().to_string();
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
-    let class_obj: Arc<Object> = from_object(clazz).unwrap();
+    let class_obj_o = from_object(clazz).unwrap();
+    let class_obj = class_obj_o.unwrap_object();
     //todo dup
     let runtime_class = class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone();
     let classfile = &runtime_class.classfile;

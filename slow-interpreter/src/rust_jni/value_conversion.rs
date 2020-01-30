@@ -19,7 +19,6 @@ pub fn to_native(j: JavaValue) -> Arg {
         JavaValue::Char(c) => Arg::new(&c),
         JavaValue::Float(f) => Arg::new(&f),
         JavaValue::Double(d) => Arg::new(&d),
-        JavaValue::Array(_) => unimplemented!(),
         JavaValue::Object(o) => match o {
             None => Arg::new(&(std::ptr::null() as *const Object)),
             Some(op) => {
@@ -88,7 +87,6 @@ pub fn to_native_type(j: JavaValue) -> Type {
         JavaValue::Char(_) => Type::i16(),
         JavaValue::Float(_) => Type::f32(),
         JavaValue::Double(_) => Type::f64(),
-        JavaValue::Array(_) => unimplemented!(),
         JavaValue::Object(_) => Type::pointer(),
         JavaValue::Top => panic!()
     }
