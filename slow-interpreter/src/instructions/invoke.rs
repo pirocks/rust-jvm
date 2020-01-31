@@ -17,6 +17,8 @@ use std::cell::Ref;
 use crate::rust_jni::{call_impl, call};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
+use rust_jvm_common::classnames::class_name;
+use log::trace;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -224,6 +226,7 @@ pub fn run_native_method(
     } else {
         setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
     }
+    trace!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
     if method.method_name(classfile) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         frame.push(JavaValue::Boolean(false))
     } else if method.method_name(classfile) == "arraycopy".to_string() {
@@ -249,6 +252,7 @@ pub fn run_native_method(
             Some(res) => frame.push(res),
         }
     }
+    trace!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
 fn system_array_copy(args: &mut Vec<JavaValue>) -> () {

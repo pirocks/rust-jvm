@@ -262,7 +262,9 @@ unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, threadClass: jclass, milli
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclass) -> jobject {
-    unimplemented!()
+    //threads are not a thing atm.
+    //todo
+    to_object(None)
 }
 
 #[no_mangle]

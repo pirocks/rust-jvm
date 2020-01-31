@@ -60,9 +60,9 @@ pub fn caload(current_frame: &Rc<StackEntry>) -> () {
     let array_refcell= unborrowed.elems.borrow();
 //    dbg!(&current_frame.operand_stack);
 //    dbg!(&current_frame.local_vars);
-    match array_refcell[index as usize] {
-        JavaValue::Char(_) => {}
+    let as_int = match array_refcell[index as usize] {
+        JavaValue::Char(c) => c as i32,
         _ => panic!(),
-    }//.unwrap_object();
-    current_frame.push(array_refcell[index as usize].clone())
+    };//.unwrap_object();
+    current_frame.push(JavaValue::Int(as_int))
 }

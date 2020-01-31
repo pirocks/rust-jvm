@@ -26,6 +26,7 @@ use crate::instructions::dup::{dup, dup_x1};
 use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne, if_icmpeq, if_icmple, if_acmpeq};
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast};
 use log::trace;
+use std::io::Write;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -49,7 +50,6 @@ pub fn check_inited_class(
 }
 
 
-
 pub fn run_function(
     state: &mut InterpreterState,
     current_frame: Rc<StackEntry>,
@@ -58,11 +58,14 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-    if meth_name == "storeToXML" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Properties".to_string()){
+    if meth_name == "storeToXML" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Properties".to_string()) {
         dbg!(&current_frame.local_vars);
         dbg!("here");
     }
-    trace!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth());
+    log::warn!("{}",format!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), &meth_name, current_frame.depth()));
+    dbg!(format!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), &meth_name, current_frame.depth()));
+    std::io::stdout().flush().unwrap();
+    std::io::stderr().flush().unwrap();
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw {
         let (instruct, instruction_size) = {
@@ -95,7 +98,7 @@ pub fn run_function(
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
             InstructionInfo::caload => caload(&current_frame),
             InstructionInfo::castore => castore(&current_frame),
-            InstructionInfo::checkcast(cp) => invoke_checkcast(state,&current_frame,cp),
+            InstructionInfo::checkcast(cp) => invoke_checkcast(state, &current_frame, cp),
             InstructionInfo::d2f => unimplemented!(),
             InstructionInfo::d2i => unimplemented!(),
             InstructionInfo::d2l => unimplemented!(),
@@ -155,7 +158,10 @@ pub fn run_function(
             InstructionInfo::fstore_2 => unimplemented!(),
             InstructionInfo::fstore_3 => unimplemented!(),
             InstructionInfo::fsub => unimplemented!(),
-            InstructionInfo::getfield(cp) => get_field(&current_frame, cp),
+            InstructionInfo::getfield(cp) => {
+//                dbg!(format!("Current Function: {} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth()));
+                get_field(&current_frame, cp)
+            }
             InstructionInfo::getstatic(cp) => get_static(state, &current_frame, cp),
             InstructionInfo::goto_(target) => goto_(&current_frame, target),
             InstructionInfo::goto_w(_) => unimplemented!(),
@@ -197,7 +203,7 @@ pub fn run_function(
                 let val = current_frame.local_vars.borrow()[iinc.index as usize].unwrap_int();
                 let res = val + iinc.const_ as i32;
                 current_frame.local_vars.borrow_mut()[iinc.index as usize] = JavaValue::Int(res);
-            },
+            }
             InstructionInfo::iload(n) => iload(&current_frame, n as usize),
             InstructionInfo::iload_0 => iload(&current_frame, 0),
             InstructionInfo::iload_1 => iload(&current_frame, 1),
@@ -205,7 +211,7 @@ pub fn run_function(
             InstructionInfo::iload_3 => iload(&current_frame, 3),
             InstructionInfo::imul => unimplemented!(),
             InstructionInfo::ineg => unimplemented!(),
-            InstructionInfo::instanceof(cp) => invoke_instanceof(state,&current_frame,cp),
+            InstructionInfo::instanceof(cp) => invoke_instanceof(state, &current_frame, cp),
             InstructionInfo::invokedynamic(_) => unimplemented!(),
             InstructionInfo::invokeinterface(invoke_i) => invoke_interface(state, current_frame.clone(), invoke_i),
             InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
@@ -267,7 +273,7 @@ pub fn run_function(
             InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
             InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
             InstructionInfo::nop => unimplemented!(),
-            InstructionInfo::pop => {current_frame.pop();},
+            InstructionInfo::pop => { current_frame.pop(); }
             InstructionInfo::pop2 => unimplemented!(),
             InstructionInfo::putfield(cp) => putfield(state, &current_frame, cp),
             InstructionInfo::putstatic(cp) => putstatic(state, &current_frame, cp),
@@ -299,7 +305,7 @@ pub fn run_function(
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
     let object_ref = current_frame.pop();
     match object_ref.clone() {
-        JavaValue::Int(_) | JavaValue::Char(_)  => {}
+        JavaValue::Int(_) | JavaValue::Char(_) => {}
         _ => {
             dbg!(&object_ref);
             panic!()

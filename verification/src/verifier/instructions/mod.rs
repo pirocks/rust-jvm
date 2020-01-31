@@ -363,7 +363,7 @@ fn dup2_form2_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Res
     //popCategory2(InputOperandStack, Type, _),
     //    canSafelyPush(Environment, InputOperandStack, Type, OutputOperandStack).
     let mut stack1 = input_stack.clone();
-    dbg!(&input_stack);
+//    dbg!(&input_stack);
     let type_ = pop_category2(&env.vf, &mut stack1)?;
     can_safely_push_list(env, input_stack, vec![type_.clone()])
 }
