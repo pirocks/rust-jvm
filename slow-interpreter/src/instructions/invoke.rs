@@ -30,20 +30,11 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
     };
 //    trace!("Call:{} {}", method_class_name.get_referred_name(), method_name.clone());
     let target_class = check_inited_class(state, &method_class_name, current_frame.clone().into(), loader_arc.clone());
-    let (target_m_i, final_target_class) = find_target_method(state,loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
+    let (target_m_i, final_target_class) = find_target_method(state, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
     let target_m = &final_target_class.classfile.methods[target_m_i];
     let mut args = vec![];
     let max_locals = target_m.code_attribute().unwrap().max_locals;
-    for _ in 0..max_locals {
-        args.push(JavaValue::Top);
-    }
-    for i in 1..(parsed_descriptor.parameter_types.len() + 1) {
-        args[i] = current_frame.pop();
-        //todo does ordering end up correct
-    }
-    args[1..(parsed_descriptor.parameter_types.len() + 1)].reverse();
-    args[0] = current_frame.pop();
-//    dbg!(&args);
+    setup_virtual_args(current_frame, &parsed_descriptor, &mut args, max_locals);
     let next_entry = StackEntry {
         last_call_stack: Some(current_frame.clone()),
         class_pointer: final_target_class.clone(),
@@ -75,7 +66,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
-    let (target_method_i, final_target_class) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
+    let (target_method_i, final_target_class) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
     invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i])
 }
 
@@ -113,18 +104,48 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
 }
 
 pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
-    for _ in 0..(max_locals) {// todo +1
+    for _ in 0..(max_locals) {
         args.push(JavaValue::Top);
     }
-    for i in 1..(expected_descriptor.parameter_types.len() + 1) {
-        args[i] = current_frame.pop();
+    let mut i = 1;
+    dbg!(&expected_descriptor.parameter_types);
+    for _ in &expected_descriptor.parameter_types {
+        let value = current_frame.pop();
+        if expected_descriptor.parameter_types.len() == 4 {
+            dbg!(&value);
+        }
+        match value.clone() {
+            JavaValue::Long(_) | JavaValue::Double(_) => {
+                args[i] = JavaValue::Top;
+                args[i + 1] = value;
+                i += 2
+            }
+            _ => {
+                args[i] = value;
+                i += 1
+            }
+        };
         //todo does ordering end up correct
     }
 //    dbg!(&args[1..(expected_descriptor.parameter_types.len() + 1)]);
     if expected_descriptor.parameter_types.len() != 0 {
-        args[1..(expected_descriptor.parameter_types.len() + 1)].reverse();
+        args[1..i].reverse();
     }
     args[0] = current_frame.pop();
+
+
+    /*
+      for _ in 0..max_locals {
+        args.push(JavaValue::Top);
+    }
+    for i in 1..(parsed_descriptor.parameter_types.len() + 1) {
+        args[i] = current_frame.pop();
+        //todo does ordering end up correct
+    }
+    args[1..(parsed_descriptor.parameter_types.len() + 1)].reverse();
+    args[0] = current_frame.pop();
+//    dbg!(&args);
+*/
 }
 
 pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
@@ -138,7 +159,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEn
         _ => panic!()
     };
     let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
-    let (target_method_i, final_target_method) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
+    let (target_method_i, final_target_method) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
     invoke_static_impl(state, current_frame, expected_descriptor, final_target_method.clone(), target_method_i, &final_target_method.classfile.methods[target_method_i]);
 }
@@ -198,10 +219,10 @@ pub fn find_target_method(
     loader_arc: LoaderArc,
     expected_method_name: String,
     parsed_descriptor: &MethodDescriptor,
-    target_class: Arc<RuntimeClass>
+    target_class: Arc<RuntimeClass>,
 ) -> (usize, Arc<RuntimeClass>) {
     //todo bug need to handle super class, issue with that is need frame/state.
-    lookup_method_parsed(state,target_class,expected_method_name,parsed_descriptor,&loader_arc).unwrap()
+    lookup_method_parsed(state, target_class, expected_method_name, parsed_descriptor, &loader_arc).unwrap()
 }
 
 
@@ -271,7 +292,6 @@ fn system_array_copy(args: &mut Vec<JavaValue>) -> () {
 }
 
 
-
 pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEntry>, invoke_interface: InvokeInterface) {
     invoke_interface.count;
     let classfile = &current_frame.class_pointer.classfile;
@@ -286,14 +306,14 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
     let _target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
     let mut args = vec![];
     let checkpoint = current_frame.operand_stack.borrow().clone();
-    setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16  + 1);
+    setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);
     let this_pointer_o = args[0].unwrap_object().unwrap();
     let this_pointer = this_pointer_o.unwrap_normal_object();
     current_frame.operand_stack.replace(checkpoint);
     let target_class = this_pointer.class_pointer.clone();
 //    dbg!(invoke_interface.count);
 //    dbg!(class_name(&target_class.classfile));
-    let (target_method_i, final_target_class) = find_target_method(state,loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
+    let (target_method_i, final_target_class) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
     invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i]);
 }

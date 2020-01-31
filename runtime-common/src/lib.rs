@@ -6,7 +6,7 @@ use std::sync::{RwLock, Arc};
 use std::cell::RefCell;
 use rust_jvm_common::loading::LoaderArc;
 use std::collections::HashMap;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::{Object, JavaValue};
 use rust_jvm_common::classfile::CPIndex;
@@ -45,7 +45,7 @@ pub struct StackEntry {
 
 impl StackEntry {
     pub fn pop(&self) -> JavaValue {
-        self.operand_stack.borrow_mut().pop().unwrap_or_else(||{
+        self.operand_stack.borrow_mut().pop().unwrap_or_else(|| {
             let classfile = &self.class_pointer.classfile;
             let method = &classfile.methods[self.method_i as usize];
             dbg!(&method.method_name(&classfile));
@@ -58,10 +58,24 @@ impl StackEntry {
         self.operand_stack.borrow_mut().push(j)
     }
 
-    pub fn depth(&self) ->  usize{
-        match &self.last_call_stack{
+    pub fn depth(&self) -> usize {
+        match &self.last_call_stack {
             None => 0,
             Some(last) => last.depth() + 1,
+        }
+    }
+
+    pub fn print_stack_trace(&self) {
+        let class_file = &self.class_pointer.classfile;
+        let method = &class_file.methods[self.method_i as usize];
+        println!("{} {} {} {}",
+                         &class_name(class_file).get_referred_name(),
+                         method.method_name(class_file),
+                         method.descriptor_str(class_file),
+                         self.depth());
+        match &self.last_call_stack{
+            None => {},
+            Some(last) => last.print_stack_trace(),
         }
     }
 }

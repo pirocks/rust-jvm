@@ -11,7 +11,7 @@ use std::rc::Rc;
 use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual, invoke_interface};
 use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
-use classfile_parser::types::{parse_field_descriptor, parse_return_descriptor};
+use classfile_parser::types::parse_field_descriptor;
 use crate::instructions::load::{aload, fload, iload, aaload, caload, iaload, lload};
 use crate::instructions::store::{astore, castore, aastore, iastore};
 use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
@@ -25,7 +25,6 @@ use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::{dup, dup_x1};
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast};
-use log::trace;
 use std::io::Write;
 
 //todo jni should really live in interpreter state
@@ -58,8 +57,9 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-    if meth_name == "storeToXML" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Properties".to_string()) {
+    if meth_name == "init" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string()) {
         dbg!(&current_frame.local_vars);
+        dbg!(&current_frame.local_vars.borrow().get(6));
         dbg!("here");
     }
     let class_name = class_name(&current_frame.class_pointer.classfile).get_referred_name();

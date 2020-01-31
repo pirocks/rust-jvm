@@ -269,7 +269,7 @@ static mut MAIN_THREAD: Option<Arc<Object>> = None;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclass) -> jobject {
-    match MAIN_THREAD.clone(){
+    match MAIN_THREAD.clone() {
         None => {
             let runtime_thread_class = native_to_runtime_class(threadClass);
             let state = get_state(env);
@@ -278,17 +278,53 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
             let thread_object = frame.pop().unwrap_object();
             MAIN_THREAD = thread_object.clone();
             to_object(thread_object)
-        },
+        }
         Some(_) => {
             to_object(MAIN_THREAD.clone())
-        },
+        }
     }
     //threads are not a thing atm.
     //todo
+}
 
+
+static mut SYSTEM_THREAD_GROUP: Option<Arc<Object>> = None;
+
+fn init_system_thread_group(state: &mut InterpreterState, frame: &Rc<StackEntry>) {
+    let thread_group_class = check_inited_class(state, &ClassName::Str("java/lang/ThreadGroup".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
+    push_new_object(frame.clone(), &thread_group_class);
+    let object = frame.pop();
+    let (init_i, init) = thread_group_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
+    let new_frame = StackEntry {
+        last_call_stack: frame.clone().into(),
+        class_pointer: thread_group_class.clone(),
+        method_i: init_i as u16,
+        local_vars: RefCell::new(vec![object.clone()]),
+        operand_stack: RefCell::new(vec![]),
+        pc: RefCell::new(0),
+        pc_offset: RefCell::new(0),
+    };
+    unsafe { SYSTEM_THREAD_GROUP = object.unwrap_object(); }
+    run_function(state, Rc::new(new_frame));
+    if state.terminate || state.throw {
+        unimplemented!()
+    }
+    if state.function_return {
+        state.function_return = false;
+    }
 }
 
 unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut InterpreterState, frame: &Rc<StackEntry>) {
+    //first create thread group
+    let thread_group_object = match SYSTEM_THREAD_GROUP.clone() {
+        None => {
+            init_system_thread_group(state, frame);
+            SYSTEM_THREAD_GROUP.clone()
+        }
+        Some(_) => SYSTEM_THREAD_GROUP.clone(),
+    };
+
+
     let thread_class = check_inited_class(state, &ClassName::Str("java/lang/Thread".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     push_new_object(frame.clone(), &thread_class);
@@ -301,10 +337,10 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut Inte
         local_vars: RefCell::new(vec![object.clone()]),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
-        pc_offset: RefCell::new(0)
+        pc_offset: RefCell::new(0),
     };
     MAIN_THREAD = object.unwrap_object().clone();
-    dbg!(&MAIN_THREAD);
+    MAIN_THREAD.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert("group".to_string(), JavaValue::Object(thread_group_object));
     run_function(state, Rc::new(new_frame));
     if state.terminate || state.throw {
         unimplemented!()
@@ -450,7 +486,7 @@ unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os:
     Therefore it only sorta works*/
     let frame = get_frame(env);
     let state = get_state(env);
-    load_class_constant_by_name(state,&frame,"java/lang/Object".to_string());
+    load_class_constant_by_name(state, &frame, "java/lang/Object".to_string());
     let jclass = frame.pop().unwrap_object();
     to_object(jclass)
 }
@@ -484,7 +520,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     if *utf.offset(0) == 'i' as i8 &&
         *utf.offset(1) == 'n' as i8 &&
         *utf.offset(2) == 't' as i8 &&
-        *utf.offset(3) == 0 as i8  {
+        *utf.offset(3) == 0 as i8 {
         let state = get_state(env);
         let frame = get_frame(env);
         let res = get_or_create_class_object(state, &ClassName::new("java/lang/Integer"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
@@ -738,10 +774,10 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     let unwrapped_action = action.clone().unwrap();
     let runtime_class = &unwrapped_action.unwrap_normal_object().class_pointer;
     let classfile = &runtime_class.classfile;
-    let (run_method_i,run_method) = classfile.lookup_method("run".to_string(),"()Ljava/lang/Object;".to_string()).unwrap();
+    let (run_method_i, run_method) = classfile.lookup_method("run".to_string(), "()Ljava/lang/Object;".to_string()).unwrap();
     let expected_descriptor = MethodDescriptor {
         parameter_types: vec![],
-        return_type: ParsedType::Class(ClassWithLoader { class_name: ClassName::object(), loader: runtime_class.loader.clone() })
+        return_type: ParsedType::Class(ClassWithLoader { class_name: ClassName::object(), loader: runtime_class.loader.clone() }),
     };
     frame.push(JavaValue::Object(action));
 //    dbg!(&frame.operand_stack);

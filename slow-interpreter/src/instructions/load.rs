@@ -8,6 +8,9 @@ pub fn aload(current_frame: &Rc<StackEntry>, n: usize) -> () {
         JavaValue::Object(_)  => {}
         _ => {
             dbg!(ref_);
+            dbg!(n);
+            current_frame.print_stack_trace();
+            dbg!(&current_frame.local_vars.borrow());
             panic!()
         }
     }
