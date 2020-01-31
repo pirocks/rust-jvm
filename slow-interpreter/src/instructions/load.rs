@@ -26,6 +26,18 @@ pub fn iload(current_frame: &Rc<StackEntry>, n: usize) {
     current_frame.push(java_val.clone())
 }
 
+pub fn lload(current_frame: &Rc<StackEntry>, n: usize) {
+    let java_val = &current_frame.local_vars.borrow()[n];
+    match java_val {
+        JavaValue::Long(_) => {}
+        _ => {
+            dbg!(java_val);
+            panic!()
+        }
+    }
+    current_frame.push(java_val.clone())
+}
+
 pub fn fload(current_frame: &Rc<StackEntry>, n: usize) {
     let java_val = &current_frame.local_vars.borrow()[n];
     match java_val {
@@ -62,6 +74,19 @@ pub fn caload(current_frame: &Rc<StackEntry>) -> () {
 //    dbg!(&current_frame.local_vars);
     let as_int = match array_refcell[index as usize] {
         JavaValue::Char(c) => c as i32,
+        _ => panic!(),
+    };//.unwrap_object();
+    current_frame.push(JavaValue::Int(as_int))
+}
+
+
+pub fn iaload(current_frame: &Rc<StackEntry>) -> () {
+    let index = current_frame.pop().unwrap_int();
+    let arc = current_frame.pop().unwrap_object().unwrap();
+    let unborrowed = arc.unwrap_array();
+    let array_refcell= unborrowed.elems.borrow();
+    let as_int = match array_refcell[index as usize] {
+        JavaValue::Int(i) => i,
         _ => panic!(),
     };//.unwrap_object();
     current_frame.push(JavaValue::Int(as_int))

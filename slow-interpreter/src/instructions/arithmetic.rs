@@ -35,6 +35,12 @@ pub fn iadd(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int(first + second))
 }
 
+pub fn imul(current_frame: &Rc<StackEntry>) -> () {
+    let first = current_frame.pop().unwrap_int();
+    let second = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Int(first * second))
+}
+
 
 pub fn irem(current_frame: &Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_int();

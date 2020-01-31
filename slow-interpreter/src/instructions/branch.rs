@@ -7,7 +7,7 @@ pub fn goto_(current_frame: &Rc<StackEntry>, target: i16) {
     current_frame.pc_offset.replace(target as isize);
 }
 
-
+//todo why are these consts in branch?
 pub fn iconst_5(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int(5))
 }
@@ -30,6 +30,10 @@ pub fn iconst_1(current_frame: &Rc<StackEntry>) -> () {
 
 pub fn iconst_0(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int(0))
+}
+
+pub fn lconst(current_frame: &Rc<StackEntry>, i: i64) -> () {
+    current_frame.push(JavaValue::Long(i))
 }
 
 pub fn ifnull(current_frame: &Rc<StackEntry>, offset: i16) -> () {

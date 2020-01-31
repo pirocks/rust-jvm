@@ -11,19 +11,19 @@ use std::rc::Rc;
 use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual, invoke_interface};
 use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
-use classfile_parser::types::parse_field_descriptor;
-use crate::instructions::load::{aload, fload, iload, aaload, caload};
-use crate::instructions::store::{astore, castore, aastore};
+use classfile_parser::types::{parse_field_descriptor, parse_return_descriptor};
+use crate::instructions::load::{aload, fload, iload, aaload, caload, iaload, lload};
+use crate::instructions::store::{astore, castore, aastore, iastore};
 use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
 use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i};
 use crate::instructions::new::{new, anewarray, newarray};
 use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
-use crate::instructions::arithmetic::{ladd, land, lshl, fmul, iand, irem, iadd, ishl, isub, iushr, ixor};
+use crate::instructions::arithmetic::*;
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::{dup, dup_x1};
-use crate::instructions::branch::{goto_, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, if_icmpgt, ifeq, ifne, iflt, ifge, ifgt, ifle, ifnonnull, ifnull, if_icmplt, if_icmpne, if_acmpne, if_icmpeq, if_icmple, if_acmpeq};
+use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast};
 use log::trace;
 use std::io::Write;
@@ -62,8 +62,11 @@ pub fn run_function(
         dbg!(&current_frame.local_vars);
         dbg!("here");
     }
-    log::warn!("{}",format!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), &meth_name, current_frame.depth()));
-    dbg!(format!("CALL BEGIN:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), &meth_name, current_frame.depth()));
+    let class_name = class_name(&current_frame.class_pointer.classfile).get_referred_name();
+    let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
+    let current_depth = current_frame.depth();
+    println!("CALL BEGIN:{} {} {} {}", &class_name, &meth_name, method_desc, current_depth);
+//    dbg!(format!("CALL BEGIN:{} {} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), &meth_name, method.descriptor_str(&current_frame.class_pointer.classfile),current_frame.depth()));
     std::io::stdout().flush().unwrap();
     std::io::stderr().flush().unwrap();
     assert!(!state.function_return);
@@ -172,9 +175,9 @@ pub fn run_function(
             InstructionInfo::i2l => i2l(&current_frame),
             InstructionInfo::i2s => unimplemented!(),
             InstructionInfo::iadd => iadd(&current_frame),
-            InstructionInfo::iaload => unimplemented!(),
+            InstructionInfo::iaload => iaload(&current_frame),
             InstructionInfo::iand => iand(&current_frame),
-            InstructionInfo::iastore => unimplemented!(),
+            InstructionInfo::iastore => iastore(&current_frame),
             InstructionInfo::iconst_m1 => unimplemented!(),
             InstructionInfo::iconst_0 => iconst_0(&current_frame),
             InstructionInfo::iconst_1 => iconst_1(&current_frame),
@@ -209,7 +212,7 @@ pub fn run_function(
             InstructionInfo::iload_1 => iload(&current_frame, 1),
             InstructionInfo::iload_2 => iload(&current_frame, 2),
             InstructionInfo::iload_3 => iload(&current_frame, 3),
-            InstructionInfo::imul => unimplemented!(),
+            InstructionInfo::imul => imul(&current_frame),
             InstructionInfo::ineg => unimplemented!(),
             InstructionInfo::instanceof(cp) => invoke_instanceof(state, &current_frame, cp),
             InstructionInfo::invokedynamic(_) => unimplemented!(),
@@ -240,17 +243,17 @@ pub fn run_function(
             InstructionInfo::land => land(current_frame.clone()),
             InstructionInfo::lastore => unimplemented!(),
             InstructionInfo::lcmp => unimplemented!(),
-            InstructionInfo::lconst_0 => unimplemented!(),
-            InstructionInfo::lconst_1 => unimplemented!(),
+            InstructionInfo::lconst_0 => lconst(&current_frame,0),
+            InstructionInfo::lconst_1 => lconst(&current_frame,1),
             InstructionInfo::ldc(cp) => ldc(state, current_frame.clone(), cp),
             InstructionInfo::ldc_w(_) => unimplemented!(),
             InstructionInfo::ldc2_w(cp) => ldc2_w(current_frame.clone(), cp),
             InstructionInfo::ldiv => unimplemented!(),
-            InstructionInfo::lload(_) => unimplemented!(),
-            InstructionInfo::lload_0 => unimplemented!(),
-            InstructionInfo::lload_1 => unimplemented!(),
-            InstructionInfo::lload_2 => unimplemented!(),
-            InstructionInfo::lload_3 => unimplemented!(),
+            InstructionInfo::lload(i) => lload(&current_frame, i as usize),
+            InstructionInfo::lload_0 => lload(&current_frame,0),
+            InstructionInfo::lload_1 => lload(&current_frame,1),
+            InstructionInfo::lload_2 => lload(&current_frame,2),
+            InstructionInfo::lload_3 => lload(&current_frame,3),
             InstructionInfo::lmul => unimplemented!(),
             InstructionInfo::lneg => unimplemented!(),
             InstructionInfo::lookupswitch(_) => unimplemented!(),
@@ -296,10 +299,8 @@ pub fn run_function(
             pc -= (-offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
         }
         current_frame.pc.replace(pc);
-//        dbg!(&current_frame.class_pointer.static_vars.borrow().get("savedProps"));
     }
-//    dbg!(&current_frame.class_pointer.static_vars.borrow().get("savedProps"));
-    trace!("CALL END:{} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth());
+    println!("CALL END:{} {} {}", &class_name, meth_name, current_depth);
 }
 
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {

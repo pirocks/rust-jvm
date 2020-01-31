@@ -27,6 +27,15 @@ pub fn castore(current_frame: &Rc<StackEntry>) -> () {
     array_ref[index as usize] = JavaValue::Char(char_);
 }
 
+pub fn iastore(current_frame: &Rc<StackEntry>) -> () {
+    let val = current_frame.pop().unwrap_int();
+    let index = current_frame.pop().unwrap_int();
+    let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
+    let array_ref = &mut arrar_ref_o.unwrap_array().elems.borrow_mut();
+    let int_ = val;
+    array_ref[index as usize] = JavaValue::Int(int_);
+}
+
 
 pub fn aastore(current_frame: &Rc<StackEntry>) -> () {
     let val = current_frame.pop();

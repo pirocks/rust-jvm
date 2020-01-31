@@ -67,7 +67,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dup => instruction_is_type_safe_dup(env, stack_frame),
         InstructionInfo::dup_x1 => instruction_is_type_safe_dup_x1(env, stack_frame),
         InstructionInfo::dup_x2 => instruction_is_type_safe_dup_x2(env, stack_frame),
-        InstructionInfo::dup2 => instruction_is_type_safe_dup2(env,stack_frame),
+        InstructionInfo::dup2 => instruction_is_type_safe_dup2(env, stack_frame),
         InstructionInfo::dup2_x1 => { unimplemented!() }
         InstructionInfo::dup2_x2 => { unimplemented!() }
         InstructionInfo::f2d => instruction_is_type_safe_f2d(env, stack_frame),
@@ -215,11 +215,10 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             instruction_is_type_safe_lookupswitch(targets, keys, env, stack_frame)
         }
         InstructionInfo::lor => instruction_is_type_safe_ladd(env, stack_frame),
-        InstructionInfo::lrem =>instruction_is_type_safe_ladd(env, stack_frame),
+        InstructionInfo::lrem => instruction_is_type_safe_ladd(env, stack_frame),
         InstructionInfo::lreturn => instruction_is_type_safe_lreturn(env, stack_frame),
         InstructionInfo::lshl => instruction_is_type_safe_lshl(env, stack_frame),
         InstructionInfo::lshr => instruction_is_type_safe_lshl(env, stack_frame),
-        //todo offtopic but offset is like the most useless param ever.
         InstructionInfo::lstore(i) => instruction_is_type_safe_lstore(*i as usize, env, stack_frame),
         InstructionInfo::lstore_0 => instruction_is_type_safe_lstore(0, env, stack_frame),
         InstructionInfo::lstore_1 => instruction_is_type_safe_lstore(1, env, stack_frame),

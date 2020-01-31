@@ -31,8 +31,8 @@ pub fn anewarray(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp
         ConstantKind::Class(c) => {
             let name = ClassName::Str(constant_pool[c.name_index as usize].extract_string_from_utf8());
             check_inited_class(state, &name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-            let t  = ParsedType::Class(ClassWithLoader { class_name: name, loader: current_frame.class_pointer.loader.clone() });
-            current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(len as usize, JavaValue::Object(None),t).unwrap()).into()))
+            let t = ParsedType::Class(ClassWithLoader { class_name: name, loader: current_frame.class_pointer.loader.clone() });
+            current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(len as usize, JavaValue::Object(None), t).unwrap()).into()))
         }
         _ => {
             dbg!(cp_entry);
@@ -47,10 +47,17 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
         JavaValue::Int(i) => { i }
         _ => panic!()
     };
-    match a_type {
+    let type_ = match a_type {
         Atype::TChar => {
-            current_frame.push(JavaValue::Object(JavaValue::new_vec(count as usize, default_value(ParsedType::CharType),ParsedType::CharType)));
+            ParsedType::CharType
         }
-        _ => unimplemented!()
-    }
+        Atype::TInt => {
+            ParsedType::IntType
+        }
+        _ => {
+            dbg!(a_type);
+            unimplemented!()
+        }
+    };
+    current_frame.push(JavaValue::Object(JavaValue::new_vec(count as usize, default_value(type_.clone()), type_)));
 }

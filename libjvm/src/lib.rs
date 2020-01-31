@@ -26,6 +26,7 @@ use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use std::sync::Arc;
 use std::cell::RefCell;
 use runtime_common::runtime_class::RuntimeClass;
+use std::thread::Thread;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -287,7 +288,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 
 }
 
-fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut InterpreterState, frame: &Rc<StackEntry>) {
+unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut InterpreterState, frame: &Rc<StackEntry>) {
     let thread_class = check_inited_class(state, &ClassName::Str("java/lang/Thread".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     push_new_object(frame.clone(), &thread_class);
@@ -297,11 +298,13 @@ fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut Interpreter
         last_call_stack: frame.clone().into(),
         class_pointer: thread_class.clone(),
         method_i: init_i as u16,
-        local_vars: RefCell::new(vec![object]),
+        local_vars: RefCell::new(vec![object.clone()]),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
         pc_offset: RefCell::new(0)
     };
+    MAIN_THREAD = object.unwrap_object().clone();
+    dbg!(&MAIN_THREAD);
     run_function(state, Rc::new(new_frame));
     if state.terminate || state.throw {
         unimplemented!()
@@ -476,6 +479,15 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         let state = get_state(env);
         let frame = get_frame(env);
         let res = get_or_create_class_object(state, &ClassName::new("java/lang/Double"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return to_object(res.into());
+    }
+    if *utf.offset(0) == 'i' as i8 &&
+        *utf.offset(1) == 'n' as i8 &&
+        *utf.offset(2) == 't' as i8 &&
+        *utf.offset(3) == 0 as i8  {
+        let state = get_state(env);
+        let frame = get_frame(env);
+        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Integer"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
         return to_object(res.into());
     }
 
