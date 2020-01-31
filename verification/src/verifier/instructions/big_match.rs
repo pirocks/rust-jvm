@@ -215,7 +215,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             instruction_is_type_safe_lookupswitch(targets, keys, env, stack_frame)
         }
         InstructionInfo::lor => instruction_is_type_safe_ladd(env, stack_frame),
-        InstructionInfo::lrem => { unimplemented!() }
+        InstructionInfo::lrem =>instruction_is_type_safe_ladd(env, stack_frame),
         InstructionInfo::lreturn => instruction_is_type_safe_lreturn(env, stack_frame),
         InstructionInfo::lshl => instruction_is_type_safe_lshl(env, stack_frame),
         InstructionInfo::lshr => instruction_is_type_safe_lshl(env, stack_frame),
