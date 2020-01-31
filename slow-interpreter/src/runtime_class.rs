@@ -56,7 +56,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass>, state: &mut Interprete
     //todo detecting if assertions are enabled?
     let class_arc = runtime_class;
     let classfile = &class_arc.classfile;
-    let lookup_res = classfile.lookup_method_name("<clinit>".to_string());
+    let lookup_res = classfile.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
     let (clinit_i, clinit) = match lookup_res.iter().nth(0){
         None => return class_arc,

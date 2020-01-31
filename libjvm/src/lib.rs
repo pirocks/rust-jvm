@@ -16,6 +16,8 @@ use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object};
 use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH};
 use log::trace;
+use slow_interpreter::interpreter_util::check_inited_class;
+use slow_interpreter::instructions::ldc::load_class_constant_by_name;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -391,7 +393,13 @@ unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
-    unimplemented!()
+    /*todo, so this is needed for booting but it is what could best be described as an advanced feature.
+    Therefore it only sorta works*/
+    let frame = get_frame(env);
+    let state = get_state(env);
+    load_class_constant_by_name(state,&frame,"java/lang/Object".to_string());
+    let jclass = frame.pop().unwrap_object();
+    to_object(jclass)
 }
 
 #[no_mangle]

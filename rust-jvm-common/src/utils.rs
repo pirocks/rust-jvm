@@ -100,9 +100,9 @@ impl Classfile {
     }
 
 
-    pub fn lookup_method_name(&self, name: String) -> Vec<(usize, &MethodInfo)> {
+    pub fn lookup_method_name(&self, name: &String) -> Vec<(usize, &MethodInfo)> {
         self.methods.iter().enumerate().filter(|(_i, m)| {
-            m.method_name(self) == name
+            &m.method_name(self) == name
         }).collect()
     }
 

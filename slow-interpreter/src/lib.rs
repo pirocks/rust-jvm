@@ -3,6 +3,7 @@
 extern crate log;
 extern crate simple_logger;
 extern crate libc;
+extern crate regex;
 //extern crate va_list;
 
 use std::sync::{Arc, RwLock};
@@ -93,7 +94,8 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
             {
                 bootstrap_arc.unwrap_object().fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
                 bootstrap_arc.unwrap_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
-                o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
+//                o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
+                o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
             }
         }
         _ => panic!(),
@@ -123,12 +125,16 @@ pub fn run(
         jni,
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
-    let (init_system_class_i, _method_info) = locate_init_system_class(&system_class.classfile);
+    let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
+    let mut locals = vec![];
+    for _ in 0..method_info.code_attribute().unwrap().max_locals{
+        locals.push(JavaValue::Top);
+    }
     let initialize_system_frame = StackEntry {
         last_call_stack: None,
         class_pointer: system_class.clone(),
         method_i: init_system_class_i as u16,
-        local_vars: RefCell::new(vec![]),
+        local_vars: RefCell::new(locals),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
         pc_offset: RefCell::new(-1),
@@ -155,14 +161,14 @@ pub fn run(
 }
 
 fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
-    system.lookup_method_name("initializeSystemClass".to_string()).iter().nth(0).unwrap().clone()
+    system.lookup_method_name(&"initializeSystemClass".to_string()).iter().nth(0).unwrap().clone()
 }
 
 fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     let string_name = ClassName::string();
     let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
     let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
-    let psvms = main.lookup_method_name("main".to_string());
+    let psvms = main.lookup_method_name(&"main".to_string());
     for (i, m) in psvms {
         let desc = MethodDescriptor::from(m, main, bl);
         if m.is_static() && desc.parameter_types == vec![string_array.clone()] && desc.return_type == ParsedType::VoidType {
