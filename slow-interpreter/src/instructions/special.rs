@@ -76,7 +76,7 @@ pub fn invoke_instanceof(state: &mut InterpreterState, current_frame: &Rc<StackE
         return;
     }
     let unwrapped = possibly_null.unwrap();
-    let object = unwrapped.unwrap_object();
+    let object = unwrapped.unwrap_normal_object();
     let classfile = &current_frame.class_pointer.classfile;
     let instance_of_class_name = classfile.extract_class_from_constant_pool_name(cp);
     let instanceof_class = check_inited_class(state, &ClassName::Str(instance_of_class_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());

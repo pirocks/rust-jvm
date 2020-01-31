@@ -12,7 +12,7 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
                                              name: jstring,
                                              is_copy: *mut jboolean) -> *const c_char {
     let str_obj_o = from_object(name).unwrap();
-    let str_obj= str_obj_o.unwrap_object();
+    let str_obj= str_obj_o.unwrap_normal_object();
     let string_chars_o = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_object().unwrap();
     let unwrapped = string_chars_o.unwrap_array().elems.borrow();
     let char_array: &Ref<Vec<JavaValue>> = &unwrapped;

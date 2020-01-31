@@ -288,7 +288,7 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
     let checkpoint = current_frame.operand_stack.borrow().clone();
     setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16  + 1);
     let this_pointer_o = args[0].unwrap_object().unwrap();
-    let this_pointer = this_pointer_o.unwrap_object();
+    let this_pointer = this_pointer_o.unwrap_normal_object();
     current_frame.operand_stack.replace(checkpoint);
     let target_class = this_pointer.class_pointer.clone();
 //    dbg!(invoke_interface.count);

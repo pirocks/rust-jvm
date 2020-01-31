@@ -240,7 +240,7 @@ pub enum Object{
 }
 
 impl Object{
-    pub fn unwrap_object(&self) -> &NormalObject {
+    pub fn unwrap_normal_object(&self) -> &NormalObject {
         match self{
             Object::Array(_) => panic!(),
             Object::Object(o) => o,

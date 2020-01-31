@@ -342,7 +342,7 @@ fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>
             let type_ = descriptor.field_type;
             let val = default_value(type_);
             {
-                object_pointer.clone().unwrap().unwrap_object().fields.borrow_mut().insert(name, val);
+                object_pointer.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert(name, val);
             }
         }
     }

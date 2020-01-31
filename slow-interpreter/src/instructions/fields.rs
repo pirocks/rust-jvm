@@ -26,7 +26,7 @@ pub fn putfield(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp
     match object_ref {
         JavaValue::Object(o) => {
             {
-                o.unwrap().unwrap_object().fields.borrow_mut().insert(field_name, val);
+                o.unwrap().unwrap_normal_object().fields.borrow_mut().insert(field_name, val);
             }
         }
         _ => {
@@ -58,7 +58,7 @@ pub fn get_field(current_frame: &Rc<StackEntry>, cp: u16) -> () {
 //            dbg!(_field_class_name);
 //            dbg!(_field_descriptor);
 //            dbg!(&field_name);
-            let fields = o.as_ref().unwrap().unwrap_object().fields.borrow();
+            let fields = o.as_ref().unwrap().unwrap_normal_object().fields.borrow();
             let res = fields.get(field_name.as_str()).unwrap().clone();
             current_frame.push(res);
         }

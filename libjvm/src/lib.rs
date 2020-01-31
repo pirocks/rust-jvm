@@ -16,12 +16,15 @@ use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH};
 use log::trace;
-use slow_interpreter::interpreter_util::check_inited_class;
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_function};
 use slow_interpreter::instructions::ldc::load_class_constant_by_name;
-use slow_interpreter::instructions::invoke::invoke_virtual_method_i;
+use slow_interpreter::instructions::invoke::{invoke_virtual_method_i, invoke_special};
 use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
 use runtime_common::java_values::JavaValue;
+use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
+use std::sync::Arc;
+use std::cell::RefCell;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -264,7 +267,33 @@ unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, threadClass: jclass, milli
 unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclass) -> jobject {
     //threads are not a thing atm.
     //todo
-    to_object(None)
+    let runtime_thread_class = native_to_runtime_class(threadClass);
+    let state = get_state(env);
+    let frame = get_frame(env);
+    let thread_class = check_inited_class(state,&ClassName::Str("java/lang/Thread".to_string()),frame.clone().into(),frame.class_pointer.loader.clone());
+    assert!(Arc::ptr_eq(&thread_class,&runtime_thread_class));
+    push_new_object(frame.clone(), &thread_class);
+    let object = frame.pop();
+    let (init_i,init ) = thread_class.classfile.lookup_method("<init>".to_string(),"()V".to_string()).unwrap();
+    let new_frame = StackEntry {
+        last_call_stack: frame.clone().into(),
+        class_pointer: thread_class.clone(),
+        method_i: init_i as u16,
+        local_vars: RefCell::new(vec![object]),
+        operand_stack: RefCell::new(vec![]),
+        pc: RefCell::new(0),
+        pc_offset: RefCell::new(0)
+    };
+    run_function(state,Rc::new(new_frame));
+
+    if state.terminate || state.throw {
+        unimplemented!()
+    }
+    if state.function_return {
+        state.function_return = false;
+    }
+
+    to_object(frame.pop().unwrap_object())
 }
 
 #[no_mangle]
@@ -680,7 +709,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
 //    dbg!(&class_name(&action.as_ref().unwrap().unwrap_object().class_pointer.classfile));
 //    dbg!(&action.as_re/f().unwrap().unwrap_object().fields.borrow().keys());
     let unwrapped_action = action.clone().unwrap();
-    let runtime_class = &unwrapped_action.unwrap_object().class_pointer;
+    let runtime_class = &unwrapped_action.unwrap_normal_object().class_pointer;
     let classfile = &runtime_class.classfile;
     let (run_method_i,run_method) = classfile.lookup_method("run".to_string(),"()Ljava/lang/Object;".to_string()).unwrap();
     let expected_descriptor = MethodDescriptor {

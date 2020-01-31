@@ -47,7 +47,7 @@ fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_fr
     match res {
         None => {
             let r = create_a_class_object(state, current_frame);
-            r.unwrap_object().array_class_object_pointer.replace(type_for_object.clone().into());
+            r.unwrap_normal_object().array_class_object_pointer.replace(type_for_object.clone().into());
             state.array_object_pool.borrow_mut().insert(type_for_object.clone(), r.clone());
             r
         },
@@ -61,7 +61,7 @@ fn regular_object(state: &mut InterpreterState, class_name: &ClassName, current_
     match res {
         None => {
             let r = create_a_class_object(state, current_frame);
-            r.unwrap_object().object_class_object_pointer.replace(Some(class_for_object.clone()));
+            r.unwrap_normal_object().object_class_object_pointer.replace(Some(class_for_object.clone()));
             state.class_object_pool.borrow_mut().insert(class_for_object, r.clone());
             r
         },
@@ -92,10 +92,10 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
             let bootstrap_arc = Arc::new(Object::Object(boostrap_loader_object));
             let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
             {
-                bootstrap_arc.unwrap_object().fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
-                bootstrap_arc.unwrap_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
+                bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
+                bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
 //                o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
-                o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
+                o.unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
             }
         }
         _ => panic!(),
