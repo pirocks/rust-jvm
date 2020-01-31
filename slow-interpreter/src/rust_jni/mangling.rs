@@ -12,7 +12,7 @@ pub fn mangle(classfile: Arc<RuntimeClass>, method_i: usize) -> String {
         let descriptor_str = method.descriptor_str(&classfile.classfile);
         let rg = Regex::new(r"\(([A-Za-z/;]*)\)").unwrap();
         let extracted_descriptor = rg.captures(descriptor_str.as_str()).unwrap().get(1).unwrap().as_str().to_string();
-        dbg!(&descriptor_str);
+//        dbg!(&descriptor_str);
         format!("Java_{}_{}__{}", escape(class_name), escape(method_name), escape(extracted_descriptor))
     } else {
         //todo in the case of overloaded names this is incorrect

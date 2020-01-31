@@ -2,8 +2,7 @@ use rust_jvm_common::classfile::{Instruction, InstructionInfo};
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
-use crate::verifier::instructions::{instruction_is_type_safe_dup, instruction_is_type_safe_dup_x1, instruction_is_type_safe_dup_x2, instruction_is_type_safe_i2d, instruction_is_type_safe_i2f, instruction_is_type_safe_i2l, instruction_is_type_safe_iadd, instruction_is_type_safe_iinc, instruction_is_type_safe_ineg, instruction_is_type_safe_l2i, instruction_is_type_safe_ladd, instruction_is_type_safe_lcmp, instruction_is_type_safe_ldc, instruction_is_type_safe_ldc2_w, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg, instruction_is_type_safe_lshl, instruction_is_type_safe_pop, instruction_is_type_safe_sipush, InstructionTypeSafe,
-};
+use crate::verifier::instructions::{instruction_is_type_safe_dup, instruction_is_type_safe_dup_x1, instruction_is_type_safe_dup_x2, instruction_is_type_safe_i2d, instruction_is_type_safe_i2f, instruction_is_type_safe_i2l, instruction_is_type_safe_iadd, instruction_is_type_safe_iinc, instruction_is_type_safe_ineg, instruction_is_type_safe_l2i, instruction_is_type_safe_ladd, instruction_is_type_safe_lcmp, instruction_is_type_safe_ldc, instruction_is_type_safe_ldc2_w, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg, instruction_is_type_safe_lshl, instruction_is_type_safe_pop, instruction_is_type_safe_sipush, InstructionTypeSafe, instruction_is_type_safe_dup2};
 use crate::verifier::instructions::branches::*;
 use crate::verifier::instructions::consts::*;
 use crate::verifier::instructions::float::*;
@@ -68,7 +67,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dup => instruction_is_type_safe_dup(env, stack_frame),
         InstructionInfo::dup_x1 => instruction_is_type_safe_dup_x1(env, stack_frame),
         InstructionInfo::dup_x2 => instruction_is_type_safe_dup_x2(env, stack_frame),
-        InstructionInfo::dup2 => { unimplemented!() }
+        InstructionInfo::dup2 => instruction_is_type_safe_dup2(env,stack_frame),
         InstructionInfo::dup2_x1 => { unimplemented!() }
         InstructionInfo::dup2_x2 => { unimplemented!() }
         InstructionInfo::f2d => instruction_is_type_safe_f2d(env, stack_frame),

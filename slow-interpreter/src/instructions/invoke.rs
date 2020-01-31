@@ -17,7 +17,6 @@ use std::cell::Ref;
 use crate::rust_jni::{call_impl, call};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
-use rust_jvm_common::classnames::class_name;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -84,6 +83,8 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
     } else if target_method.access_flags & ACC_ABSTRACT == 0 {
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
+
+//        dbg!(target_method.method_name(&target_class.classfile));
 
         setup_virtual_args(&current_frame, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry {

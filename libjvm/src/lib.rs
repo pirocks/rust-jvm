@@ -9,15 +9,19 @@ extern crate simple_logger;
 use std::str::from_utf8;
 use std::borrow::Borrow;
 use runtime_common::{InterpreterState, StackEntry};
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::classnames::{ClassName, class_name};
 use slow_interpreter::get_or_create_class_object;
 use std::rc::Rc;
 use std::intrinsics::transmute;
-use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object};
+use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH};
 use log::trace;
 use slow_interpreter::interpreter_util::check_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_name;
+use slow_interpreter::instructions::invoke::invoke_virtual_method_i;
+use classfile_parser::types::MethodDescriptor;
+use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
+use runtime_common::java_values::JavaValue;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -665,7 +669,29 @@ unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobj
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
-    unimplemented!()
+//    if wrapException == 0{
+//        unimplemented!()
+//    }
+    let state = get_state(env);
+    let frame = get_frame(env);
+    let action = from_object(action);
+//    dbg!(&class_name(&action.as_ref().unwrap().unwrap_object().class_pointer.classfile));
+//    dbg!(&action.as_re/f().unwrap().unwrap_object().fields.borrow().keys());
+    let unwrapped_action = action.clone().unwrap();
+    let runtime_class = &unwrapped_action.unwrap_object().class_pointer;
+    let classfile = &runtime_class.classfile;
+    let (run_method_i,run_method) = classfile.lookup_method("run".to_string(),"()Ljava/lang/Object;".to_string()).unwrap();
+    let expected_descriptor = MethodDescriptor {
+        parameter_types: vec![],
+        return_type: ParsedType::Class(ClassWithLoader { class_name: ClassName::object(), loader: runtime_class.loader.clone() })
+    };
+    frame.push(JavaValue::Object(action));
+//    dbg!(&frame.operand_stack);
+//    dbg!(&run_method.code_attribute().unwrap());
+    invoke_virtual_method_i(state, frame.clone(), expected_descriptor, runtime_class.clone(), run_method_i, run_method);
+//    dbg!(&frame.operand_stack);
+//    unimplemented!()
+    to_object(frame.pop().unwrap_object())
 }
 
 #[no_mangle]

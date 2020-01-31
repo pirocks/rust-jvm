@@ -1,7 +1,6 @@
 use runtime_common::StackEntry;
 use std::rc::Rc;
 use runtime_common::java_values::JavaValue;
-use rust_jvm_common::classnames::class_name;
 
 pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
     let object_ref = current_frame.pop();
@@ -12,7 +11,7 @@ pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
             panic!()
         }
     }
-    let classfile = &current_frame.class_pointer.classfile;
+//    let classfile = &current_frame.class_pointer.classfile;
 //    dbg!(class_name(classfile).get_referred_name());
 //    dbg!(classfile.methods[current_frame.method_i as usize].method_name(classfile));
     current_frame.local_vars.borrow_mut()[n] = object_ref;

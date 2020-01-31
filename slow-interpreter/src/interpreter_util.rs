@@ -93,7 +93,7 @@ pub fn run_function(
             InstructionInfo::baload => unimplemented!(),
             InstructionInfo::bastore => unimplemented!(),
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
-            InstructionInfo::caload => unimplemented!(),
+            InstructionInfo::caload => caload(&current_frame,b),
             InstructionInfo::castore => castore(&current_frame),
             InstructionInfo::checkcast(cp) => invoke_checkcast(state,&current_frame,cp),
             InstructionInfo::d2f => unimplemented!(),

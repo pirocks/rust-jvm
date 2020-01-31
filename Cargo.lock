@@ -293,6 +293,7 @@ dependencies = [
 name = "jvm"
 version = "0.1.0"
 dependencies = [
+ "classfile-parser 0.1.0",
  "jni-bindings 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "runtime-common 0.1.0",
