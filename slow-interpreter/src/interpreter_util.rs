@@ -12,7 +12,7 @@ use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virt
 use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
 use classfile_parser::types::parse_field_descriptor;
-use crate::instructions::load::{aload, fload, iload, aaload};
+use crate::instructions::load::{aload, fload, iload, aaload, caload};
 use crate::instructions::store::{astore, castore, aastore};
 use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
 use crate::instructions::cmp::{fcmpg, fcmpl};
@@ -93,7 +93,7 @@ pub fn run_function(
             InstructionInfo::baload => unimplemented!(),
             InstructionInfo::bastore => unimplemented!(),
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
-            InstructionInfo::caload => caload(&current_frame,b),
+            InstructionInfo::caload => caload(&current_frame),
             InstructionInfo::castore => castore(&current_frame),
             InstructionInfo::checkcast(cp) => invoke_checkcast(state,&current_frame,cp),
             InstructionInfo::d2f => unimplemented!(),
@@ -299,7 +299,7 @@ pub fn run_function(
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
     let object_ref = current_frame.pop();
     match object_ref.clone() {
-        JavaValue::Int(_) => {}
+        JavaValue::Int(_) | JavaValue::Char(_)  => {}
         _ => {
             dbg!(&object_ref);
             panic!()
