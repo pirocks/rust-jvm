@@ -229,7 +229,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lxor => instruction_is_type_safe_ladd(env, stack_frame),
         InstructionInfo::monitorenter => instruction_is_type_safe_monitorenter(env, stack_frame),
         InstructionInfo::monitorexit => instruction_is_type_safe_monitorenter(env, stack_frame),
-        InstructionInfo::multianewarray(_) => { unimplemented!() }
+        InstructionInfo::multianewarray(m) => instruction_is_type_safe_multianewarray(m.index as usize, m.dims as usize, env, stack_frame),
         InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize, offset, env, stack_frame),
         InstructionInfo::newarray(type_code) => instruction_is_type_safe_newarray(*type_code as usize, env, stack_frame),
         InstructionInfo::nop => { unimplemented!() }

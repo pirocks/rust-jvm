@@ -13,7 +13,7 @@ use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::{substitute, possibly_array_to_type};
 use crate::OperandStack;
-use classfile_parser::types::Descriptor;
+use classfile_parser::types::{Descriptor, parse_field_type};
 use classfile_parser::types::FieldDescriptor;
 use classfile_parser::types::parse_field_descriptor;
 use rust_jvm_common::unified_types::ArrayType;
@@ -23,6 +23,7 @@ use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
 use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
+use std::ops::Deref;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
@@ -126,14 +127,12 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
 }
 
 
-
-
 pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_classfile = get_class(&env.vf, env.method.class);
-    if method_classfile.methods[env.method.method_index].method_name(&method_classfile) == "<init>"{
-        match instruction_is_type_safe_putfield_second_case(cp, env, stack_frame){
+    if method_classfile.methods[env.method.method_index].method_name(&method_classfile) == "<init>" {
+        match instruction_is_type_safe_putfield_second_case(cp, env, stack_frame) {
             Ok(res) => return Result::Ok(res),
-            Err(_) => {},
+            Err(_) => {}
         };
     }
     match instruction_is_type_safe_putfield_first_case(cp, env, stack_frame) {
@@ -213,11 +212,33 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: &Fr
     standard_exception_frame(stack_frame, next_frame)
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let classfile = get_class(&env.vf, env.method.class);
+    let expected_type = parse_field_type(&env.class_loader, classfile.extract_class_from_constant_pool_name(cp as u16).as_str()).unwrap().1;
+    if class_dimension(&expected_type.to_verification_type()) != dim {
+        return Result::Err(unknown_error_verifying!());
+    }
+    let dim_list = dim_list(dim);
+    type_transition(env,stack_frame,dim_list,expected_type.to_verification_type())
+}
 
+fn dim_list(dim : usize) -> Vec<VType>{
+    let mut res = vec![];
+    for _ in 0..dim {
+        res.push(VType::IntType)
+    }
+    res
+}
+
+fn class_dimension(v: &VType) -> usize {
+    match v {
+        VType::ArrayReferenceType(sub) => {
+            class_dimension(&sub.sub_type.deref().to_verification_type()) + 1
+        }
+        _ => 0,
+//        _ => unimplemented!()
+    }
+}
 
 pub fn instruction_is_type_safe_new(cp: usize, offset: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;

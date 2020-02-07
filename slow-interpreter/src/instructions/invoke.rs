@@ -33,8 +33,8 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
     let (target_m_i, final_target_class) = find_target_method(state, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
     let target_m = &final_target_class.classfile.methods[target_m_i];
     if target_m.access_flags & ACC_NATIVE > 0 {
-        run_native_method(state,current_frame.clone(),final_target_class,target_m_i);
-    }else {
+        run_native_method(state, current_frame.clone(), final_target_class, target_m_i);
+    } else {
         let mut args = vec![];
 //        dbg!(method_class_name.get_referred_name());
 //        dbg!(&method_name);
@@ -105,7 +105,15 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
             return;
         }
     } else {
-        unimplemented!()
+        dbg!(class_name(&target_class.classfile).get_referred_name());
+        let this_pointer = {
+            let operand_stack = current_frame.operand_stack.borrow();
+            &operand_stack[operand_stack.len() - expected_descriptor.parameter_types.len() - 1].clone()
+        };
+        let new_target_class = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
+        let old_method_info = &target_class.classfile.methods[target_method_i];
+        let (new_i, new_m) = new_target_class.classfile.lookup_method(old_method_info.method_name(&target_class.classfile), target_class.classfile.constant_pool[old_method_info.descriptor_index as usize].extract_string_from_utf8()).unwrap();
+        invoke_virtual_method_i(state, current_frame.clone(), expected_descriptor, new_target_class.clone(), new_i, new_m);
     }
 }
 

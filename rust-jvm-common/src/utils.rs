@@ -92,13 +92,16 @@ impl Classfile {
 
     pub fn lookup_method(&self, name: String, descriptor: String) -> Option<(usize, &MethodInfo)> {
         for (i, m) in self.methods.iter().enumerate() {
+//            dbg!(&name);
+//            dbg!(&m.method_name(self));
+//            dbg!(&descriptor);
+//            dbg!(&m.descriptor_str(self));
             if m.method_name(self) == name && m.descriptor_str(self) == descriptor {
                 return Some((i, m));
             }
         }
         None
     }
-
 
     pub fn lookup_method_name(&self, name: &String) -> Vec<(usize, &MethodInfo)> {
         self.methods.iter().enumerate().filter(|(_i, m)| {

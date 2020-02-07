@@ -37,7 +37,7 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo {
             for _ in 0..length {
                 buffer.push(p.read8())
             }
-            let str_ = String::from_utf8(buffer).expect("Invalid utf8 in constant pool");
+            let str_ = unsafe {String::from_utf8_unchecked(buffer)};//.expect("Invalid utf8 in constant pool");
             ConstantKind::Utf8(Utf8 { length, string: str_ })
         }
         INTEGER_CONST_NUM => {
@@ -132,15 +132,17 @@ pub fn parse_constant_infos(p: &mut dyn ParsingContext, constant_pool_count: u16
     let mut constants = Vec::with_capacity(constant_pool_count as usize);
     let mut skip_next_iter = true;
     //skip first loop iteration b/c the first element of the constant pool isn't a thing
+    let mut i = 1;
     for _ in 0..constant_pool_count {
         if skip_next_iter {
             constants.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
             skip_next_iter = false;
             continue;
         }
-        let constant_info = parse_constant_info(p);
-//        dbg!(&constant_info);
 //        dbg!(i);
+        let constant_info = parse_constant_info(p);
+        i += 1;
+//        dbg!(&constant_info);
         match constant_info.kind {
             ConstantKind::Long(_) | ConstantKind::Double(_) => {
                 skip_next_iter = true;

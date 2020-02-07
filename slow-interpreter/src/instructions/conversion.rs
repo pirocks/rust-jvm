@@ -12,6 +12,11 @@ pub fn i2f(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Float(int as f32));
 }
 
+pub fn i2c(current_frame: &Rc<StackEntry>) -> () {
+    let int = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Int(int as u8 as char as i32));
+}
+
 
 pub fn f2i(current_frame: &Rc<StackEntry>) -> () {
     let f = current_frame.pop().unwrap_float();

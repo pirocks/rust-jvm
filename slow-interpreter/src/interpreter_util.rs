@@ -16,7 +16,7 @@ use crate::instructions::load::{aload, fload, iload, aaload, caload, iaload, llo
 use crate::instructions::store::{astore, castore, aastore, iastore};
 use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
 use crate::instructions::cmp::{fcmpg, fcmpl};
-use crate::instructions::conversion::{i2l, i2f, f2i};
+use crate::instructions::conversion::{i2l, i2f, f2i, i2c};
 use crate::instructions::new::*;
 use crate::instructions::return_::*;
 use crate::instructions::arithmetic::*;
@@ -26,6 +26,7 @@ use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast};
 use std::io::Write;
+use crate::instructions::switch::invoke_lookupswitch;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -37,6 +38,7 @@ pub fn check_inited_class(
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
         let bl = state.bootstrap_loader.clone();
+        current_frame.clone().map( |x|{x.print_stack_trace()});
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
         let prepared = Arc::new(prepare_class(target_classfile.clone(), loader_arc.clone()));
         state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
@@ -171,7 +173,7 @@ pub fn run_function(
             InstructionInfo::goto_(target) => goto_(&current_frame, target),
             InstructionInfo::goto_w(_) => unimplemented!(),
             InstructionInfo::i2b => unimplemented!(),
-            InstructionInfo::i2c => unimplemented!(),
+            InstructionInfo::i2c => i2c(&current_frame),
             InstructionInfo::i2d => unimplemented!(),
             InstructionInfo::i2f => i2f(&current_frame),
             InstructionInfo::i2l => i2l(&current_frame),
@@ -222,7 +224,7 @@ pub fn run_function(
             InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
             InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp),
             InstructionInfo::invokevirtual(cp) => invoke_virtual(state, current_frame.clone(), cp),
-            InstructionInfo::ior => unimplemented!(),
+            InstructionInfo::ior => ior(&current_frame),
             InstructionInfo::irem => irem(&current_frame),
             InstructionInfo::ireturn => ireturn(state, &current_frame),
             InstructionInfo::ishl => ishl(&current_frame),
@@ -258,7 +260,7 @@ pub fn run_function(
             InstructionInfo::lload_3 => lload(&current_frame,3),
             InstructionInfo::lmul => unimplemented!(),
             InstructionInfo::lneg => unimplemented!(),
-            InstructionInfo::lookupswitch(_) => unimplemented!(),
+            InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls,&current_frame),
             InstructionInfo::lor => unimplemented!(),
             InstructionInfo::lrem => unimplemented!(),
             InstructionInfo::lreturn => lreturn(state, &current_frame),

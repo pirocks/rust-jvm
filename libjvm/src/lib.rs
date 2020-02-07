@@ -18,11 +18,11 @@ use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, f
 use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH};
 use log::trace;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_function};
-use slow_interpreter::instructions::ldc::load_class_constant_by_name;
+use slow_interpreter::instructions::ldc::{load_class_constant_by_name, create_string_on_stack};
 use slow_interpreter::instructions::invoke::{invoke_virtual_method_i, invoke_special};
-use classfile_parser::types::MethodDescriptor;
+use classfile_parser::types::{MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
-use runtime_common::java_values::{JavaValue, Object};
+use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use std::sync::Arc;
 use std::cell::RefCell;
@@ -542,6 +542,29 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         let res = get_or_create_class_object(state, &ClassName::new("java/lang/Integer"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
         return to_object(res.into());
     }
+    if *utf.offset(0) == 'b' as i8 &&
+        *utf.offset(1) == 'o' as i8 &&
+        *utf.offset(2) == 'o' as i8 &&
+        *utf.offset(3) == 'l' as i8 &&
+        *utf.offset(4) == 'e' as i8 &&
+        *utf.offset(5) == 'a' as i8 &&
+        *utf.offset(6) == 'n' as i8 &&
+        *utf.offset(7) == 0  {
+        let state = get_state(env);
+        let frame = get_frame(env);
+        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Boolean"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return to_object(res.into());
+    }
+    if *utf.offset(0) == 'c' as i8 &&
+        *utf.offset(1) == 'h' as i8 &&
+        *utf.offset(2) == 'a' as i8 &&
+        *utf.offset(3) == 'r' as i8 &&
+        *utf.offset(4) == 0  {
+        let state = get_state(env);
+        let frame = get_frame(env);
+        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Character"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return to_object(res.into());
+    }
 
     dbg!((*utf) as u8 as char);
     unimplemented!()
@@ -672,6 +695,25 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     unimplemented!()
 }
 
+fn field_type_to_class(state: &mut InterpreterState,frame: &Rc<StackEntry>,type_: &ParsedType) -> JavaValue{
+    match type_{
+        ParsedType::IntType => {
+            load_class_constant_by_name(state,frame,"java/lang/Integer".to_string());
+        }
+        ParsedType::Class(cl) => {
+            load_class_constant_by_name(state,frame,cl.class_name.get_referred_name());
+        }
+        ParsedType::BooleanType => {
+            //todo dup.
+            load_class_constant_by_name(state,frame,"java/lang/Boolean".to_string());
+        }
+        _ => {
+            dbg!(type_);
+            unimplemented!()}
+    }
+    frame.pop()
+}
+
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let frame = get_frame(env);
@@ -682,12 +724,39 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let runtime_object = state.class_object_pool.borrow().get(&class_obj).unwrap();
     let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     let mut object_array = vec![];
-    for f in class_obj.classfile.fields {
+    &class_obj.classfile.fields.iter().enumerate().for_each(|(i,f)|{
         push_new_object(frame.clone(), &field_classfile);
-        let field_object = frame.operand_stack.pop();
+        let field_object = frame.pop();
 
-        object_array.push(field_object)
-    }
+        object_array.push(field_object.clone());
+        let field_class_name = class_name(&class_obj.classfile).get_referred_name();
+        load_class_constant_by_name(state, &frame, field_class_name);
+        let parent_runtime_class = frame.pop();
+        let field_name  = class_obj.classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
+        create_string_on_stack(state,&frame,field_name);
+        let field_name_string = frame.pop();
+
+        let field_desc_str = class_obj.classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
+        let field_type = parse_field_descriptor(&frame.class_pointer.loader,field_desc_str.as_str()).unwrap().field_type;
+        let field_type_class = field_type_to_class(state,&frame,&field_type);
+
+        let modifiers = JavaValue::Int(f.access_flags as i32);
+        let slot = JavaValue::Int(i as i32);
+
+        create_string_on_stack(state,&frame,field_desc_str);
+        let signature_string = frame.pop();
+
+        //todo impl annotations.
+        let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: ParsedType::ByteType }))));
+
+        run_constructor(
+            state,
+            frame.clone(),
+            field_classfile.clone(),
+            vec![field_object,parent_runtime_class,field_name_string,field_type_class,modifiers,slot,signature_string,annotations],
+            "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string()
+        )
+    });
 
     //first arg: runtime_class
     //second arg: name
@@ -709,8 +778,17 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     unimplemented!()
 }
 
-fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
-    target_classfile.classfile.lookup_method("<init>", descriptor)
+fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
+    let (i,m) =  target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
+    let md = parse_method_descriptor(&target_classfile.loader,descriptor.as_str()).unwrap();
+    let this_ptr = full_args[0].clone();
+    let actual_args = &mut full_args[1..];
+//    actual_args.reverse();
+    frame.push(this_ptr);
+    for arg in actual_args {
+        frame.push(arg.clone());
+    }
+    invoke_virtual_method_i(state,frame,md,target_classfile.clone(),i,m);
 }
 
 #[no_mangle]

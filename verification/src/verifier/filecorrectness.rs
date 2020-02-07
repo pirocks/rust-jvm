@@ -211,8 +211,12 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             VType::IntType => {
                 panic!()
             }
+            VType::ArrayReferenceType(_) => {
+                panic!()
+            }
             _ => {
 //                dbg!(to);
+//                panic!();
                 Result::Err(unknown_error_verifying!())
             }
         },

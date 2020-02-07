@@ -36,6 +36,7 @@ impl JarHandle {
 
     pub fn lookup(&mut self, class_name: &ClassName, loader: LoaderArc) -> Result<Arc<Classfile>, Box<dyn Error>> {
         let lookup_res = &mut self.zip_archive.by_name(format!("{}.class", class_name.get_referred_name()).as_str())?;//todo dup
+//        dbg!(format!("{}.class", class_name.get_referred_name()).as_str());
         if lookup_res.is_file() {
             Result::Ok(parse_class_file(lookup_res, loader.clone()))
         } else {
