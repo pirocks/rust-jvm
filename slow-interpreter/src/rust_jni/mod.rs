@@ -64,13 +64,25 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfi
         };
         symbol.deref().clone()
     };
-    Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw))
+    if classfile.classfile.methods[method_i].is_static(){
+        Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw,false))
+    }else {
+        Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw,true))
+    }
 }
 
-pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn()) -> Option<JavaValue> {
-    let mut args_type = vec![Type::pointer(), Type::pointer()];
+pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Option<JavaValue> {
+    let mut args_type = if suppress_runtime_class {
+        vec![Type::pointer()]
+    } else {
+        vec![Type::pointer(), Type::pointer()]
+    };
     let env = &get_interface(state, current_frame);
-    let mut c_args = vec![Arg::new(&&env), runtime_class_to_native(classfile.clone())];
+    let mut c_args = if suppress_runtime_class {
+        vec![Arg::new(&&env)]
+    } else {
+        vec![Arg::new(&&env), runtime_class_to_native(classfile.clone())]
+    };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 //    dbg!(&args);
     for j in args {

@@ -23,7 +23,7 @@ use slow_interpreter::instructions::invoke::{invoke_virtual_method_i, invoke_spe
 use classfile_parser::types::{MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
-use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
+use slow_interpreter::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
 use std::sync::Arc;
 use std::cell::RefCell;
 use runtime_common::runtime_class::RuntimeClass;

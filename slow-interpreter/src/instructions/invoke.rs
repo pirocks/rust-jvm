@@ -289,7 +289,7 @@ pub fn run_native_method(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            let res = call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn);
+            let res = call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn, false);//so technically we should omit on non-static but leave like this for now todo
             res
         } else {
             let res = match call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type){
