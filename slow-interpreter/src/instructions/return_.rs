@@ -49,3 +49,14 @@ pub fn ireturn(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> 
     current_frame.last_call_stack.as_ref().unwrap().push(res);
 }
 
+
+pub fn lreturn(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> () {
+    let res = current_frame.pop();
+    state.function_return = true;
+    match res {
+        JavaValue::Long(_) => {}
+        _ => panic!()
+    }
+    current_frame.last_call_stack.as_ref().unwrap().push(res);
+}
+

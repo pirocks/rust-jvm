@@ -54,17 +54,20 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfi
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
-            match state.jni.lib.get(mangled.as_bytes()) {
+            match state.jni.lib.get(mangled.clone().as_bytes()) {
                 Ok(o) => o,
-                Err(e) => return Result::Err(e),
+                Err(e) => {
+                    dbg!(mangled);
+                    return Result::Err(e);
+                }
             }
         };
         symbol.deref().clone()
     };
-    call_impl(state, current_frame, classfile, args, return_type, &raw)
+    Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw))
 }
 
-pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn()) -> Result<Option<JavaValue>, Error> {
+pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn()) -> Option<JavaValue> {
     let mut args_type = vec![Type::pointer(), Type::pointer()];
     let env = &get_interface(state, current_frame);
     let mut c_args = vec![Arg::new(&&env), runtime_class_to_native(classfile.clone())];
@@ -82,7 +85,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         cif.call(fn_ptr, c_args.as_slice())
     };
 //    trace!("----NATIVE EXIT ----");
-    Result::Ok(match return_type {
+    match return_type {
         ParsedType::VoidType => {
             None
         }
@@ -104,7 +107,9 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
             }
         }
 //            ParsedType::ShortType => {}
-//            ParsedType::BooleanType => {}
+        ParsedType::BooleanType => {
+            Some(JavaValue::Boolean(cif_res as u64 != 0))
+        }
 //            ParsedType::ArrayReferenceType(_) => {}
 //            ParsedType::TopType => {}
 //            ParsedType::NullType => {}
@@ -114,7 +119,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
             dbg!(return_type);
             panic!()
         }
-    })
+    }
 }
 
 

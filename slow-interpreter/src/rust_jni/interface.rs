@@ -187,11 +187,11 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         SetStaticFloatField: None,
         SetStaticDoubleField: None,
         NewString: Some(new_string),
-        GetStringLength: None,
+        GetStringLength: Some(get_string_utflength),
         GetStringChars: None,
         ReleaseStringChars: Some(release_string_chars),
         NewStringUTF: Some(new_string_utf),
-        GetStringUTFLength: None,
+        GetStringUTFLength: Some(get_string_utflength),
         GetStringUTFChars: Some(get_string_utfchars),
         ReleaseStringUTFChars: Some(release_string_utfchars),
         GetArrayLength: None,
@@ -244,7 +244,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         MonitorExit: None,
         GetJavaVM: None,
         GetStringRegion: None,
-        GetStringUTFRegion: None,
+        GetStringUTFRegion: Some(get_string_utfregion),
         GetPrimitiveArrayCritical: None,
         ReleasePrimitiveArrayCritical: None,
         GetStringCritical: None,
@@ -424,4 +424,28 @@ unsafe extern "C" fn get_field_id(_env: *mut JNIEnv, clazz: jclass, c_name: *con
         }
     }
     panic!()
+}
+
+
+unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -> jsize{
+    let str_obj = from_object(str).unwrap();
+    //todo use length function.
+    let str_fields = str_obj.unwrap_normal_object().fields.borrow();
+    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
+    let chars = char_object.unwrap_array();
+    let borrowed_elems = chars.elems.borrow();
+    borrowed_elems.len() as i32
+}
+
+
+pub  unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char){
+    let str_obj = from_object(str).unwrap();
+    let str_fields = str_obj.unwrap_normal_object().fields.borrow();
+    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
+    let chars = char_object.unwrap_array();
+    let borrowed_elems = chars.elems.borrow();
+    for i in start..(start + len) {
+        let char_ = (&borrowed_elems[i as usize]).unwrap_char() as i8 as u8 as char;
+        buf.offset(i as isize).write(char_ as i8)
+    }
 }

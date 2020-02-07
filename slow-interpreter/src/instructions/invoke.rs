@@ -32,26 +32,32 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
     let target_class = check_inited_class(state, &method_class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_m_i, final_target_class) = find_target_method(state, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
     let target_m = &final_target_class.classfile.methods[target_m_i];
-    let mut args = vec![];
-    let max_locals = target_m.code_attribute().unwrap().max_locals;
-    setup_virtual_args(current_frame, &parsed_descriptor, &mut args, max_locals);
-    let next_entry = StackEntry {
-        last_call_stack: Some(current_frame.clone()),
-        class_pointer: final_target_class.clone(),
-        method_i: target_m_i as u16,
-        local_vars: args.into(),
-        operand_stack: vec![].into(),
-        pc: 0.into(),
-        pc_offset: 0.into(),
-    };
-    run_function(state, Rc::new(next_entry));
-    if state.terminate || state.throw {
-        unimplemented!()
-    }
-    if state.function_return {
-        state.function_return = false;
+    if target_m.access_flags & ACC_NATIVE > 0 {
+        run_native_method(state,current_frame.clone(),final_target_class,target_m_i);
+    }else {
+        let mut args = vec![];
+//        dbg!(method_class_name.get_referred_name());
+//        dbg!(&method_name);
+        let max_locals = target_m.code_attribute().unwrap().max_locals;
+        setup_virtual_args(current_frame, &parsed_descriptor, &mut args, max_locals);
+        let next_entry = StackEntry {
+            last_call_stack: Some(current_frame.clone()),
+            class_pointer: final_target_class.clone(),
+            method_i: target_m_i as u16,
+            local_vars: args.into(),
+            operand_stack: vec![].into(),
+            pc: 0.into(),
+            pc_offset: 0.into(),
+        };
+        run_function(state, Rc::new(next_entry));
+        if state.terminate || state.throw {
+            unimplemented!()
+        }
+        if state.function_return {
+            state.function_return = false;
 //        trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
-        return;
+            return;
+        }
     }
 }
 
@@ -108,12 +114,9 @@ pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &
         args.push(JavaValue::Top);
     }
     let mut i = 1;
-    dbg!(&expected_descriptor.parameter_types);
+//    dbg!(&expected_descriptor.parameter_types);
     for _ in &expected_descriptor.parameter_types {
         let value = current_frame.pop();
-        if expected_descriptor.parameter_types.len() == 4 {
-            dbg!(&value);
-        }
         match value.clone() {
             JavaValue::Long(_) | JavaValue::Double(_) => {
                 args[i] = JavaValue::Top;
@@ -262,7 +265,7 @@ pub fn run_native_method(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            let res = call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn).unwrap();
+            let res = call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn);
             res
         } else {
             let res = call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type).unwrap();

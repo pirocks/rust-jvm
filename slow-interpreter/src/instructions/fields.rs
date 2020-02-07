@@ -60,6 +60,8 @@ pub fn get_field(current_frame: &Rc<StackEntry>, cp: u16) -> () {
 //            dbg!(&field_name);
             let fields = o.as_ref().unwrap().unwrap_normal_object().fields.borrow();
             let res = fields.get(field_name.as_str()).unwrap().clone();
+//            if(field_name == )
+//            dbg!(res);
             current_frame.push(res);
         }
         _ => panic!(),

@@ -17,12 +17,12 @@ use crate::instructions::store::{astore, castore, aastore, iastore};
 use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
 use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i};
-use crate::instructions::new::{new, anewarray, newarray};
-use crate::instructions::return_::{return_, areturn, dreturn, freturn, ireturn};
+use crate::instructions::new::*;
+use crate::instructions::return_::*;
 use crate::instructions::arithmetic::*;
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
-use crate::instructions::dup::{dup, dup_x1};
+use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast};
 use std::io::Write;
@@ -57,11 +57,13 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
+/*
     if meth_name == "init" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string()) {
-        dbg!(&current_frame.local_vars);
-        dbg!(&current_frame.local_vars.borrow().get(6));
+//        dbg!(&current_frame.local_vars);
+//        dbg!(&current_frame.local_vars.borrow().get(6));
         dbg!("here");
     }
+*/
     let class_name = class_name(&current_frame.class_pointer.classfile).get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
@@ -131,7 +133,7 @@ pub fn run_function(
             InstructionInfo::dup => dup(&current_frame),
             InstructionInfo::dup_x1 => dup_x1(&current_frame),
             InstructionInfo::dup_x2 => unimplemented!(),
-            InstructionInfo::dup2 => unimplemented!(),
+            InstructionInfo::dup2 => dup2(&current_frame),
             InstructionInfo::dup2_x1 => unimplemented!(),
             InstructionInfo::dup2_x2 => unimplemented!(),
             InstructionInfo::f2d => unimplemented!(),
@@ -191,7 +193,7 @@ pub fn run_function(
             InstructionInfo::if_icmpeq(offset) => if_icmpeq(&current_frame, offset),
             InstructionInfo::if_icmpne(offset) => if_icmpne(&current_frame, offset),
             InstructionInfo::if_icmplt(offset) => if_icmplt(&current_frame, offset),
-            InstructionInfo::if_icmpge(_) => unimplemented!(),
+            InstructionInfo::if_icmpge(offset) => if_icmpge(&current_frame,offset),
             InstructionInfo::if_icmpgt(offset) => if_icmpgt(&current_frame, offset),
             InstructionInfo::if_icmple(offset) => if_icmple(&current_frame, offset),
             InstructionInfo::ifeq(offset) => ifeq(&current_frame, offset),
@@ -259,7 +261,7 @@ pub fn run_function(
             InstructionInfo::lookupswitch(_) => unimplemented!(),
             InstructionInfo::lor => unimplemented!(),
             InstructionInfo::lrem => unimplemented!(),
-            InstructionInfo::lreturn => unimplemented!(),
+            InstructionInfo::lreturn => lreturn(state, &current_frame),
             InstructionInfo::lshl => lshl(current_frame.clone()),
             InstructionInfo::lshr => unimplemented!(),
             InstructionInfo::lstore(_) => unimplemented!(),

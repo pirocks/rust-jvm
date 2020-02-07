@@ -5,6 +5,7 @@
 
 extern crate log;
 extern crate simple_logger;
+extern crate regex;
 
 use std::str::from_utf8;
 use std::borrow::Borrow;
@@ -27,13 +28,20 @@ use std::sync::Arc;
 use std::cell::RefCell;
 use runtime_common::runtime_class::RuntimeClass;
 use std::thread::Thread;
+use slow_interpreter::rust_jni::string::new_string_with_string;
+use std::ffi::CStr;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
-    unimplemented!()
+    let obj = native_to_runtime_class(cls);
+    let full_name = class_name(&obj.classfile).get_referred_name().replace("/", ".");
+//    use regex::Regex;
+//    let rg = Regex::new("/[A-Za-z_][A-Za-z_0-9]*");//todo use a correct regex
+//    let class_name = rg.unwrap().captures(full_name.as_str()).unwrap().iter().last().unwrap().unwrap().as_str();
+    new_string_with_string(env, full_name)
 }
 
 #[no_mangle]
@@ -225,9 +233,12 @@ unsafe extern "system" fn JVM_DisableCompiler(env: *mut JNIEnv, compCls: jclass)
     unimplemented!()
 }
 
+static mut MAIN_ALIVE: bool = false;
+
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
-    unimplemented!()
+//    assert!(Arc::ptr_eq(MAIN_THREAD.as_ref().unwrap(),&from_object(thread).unwrap()));//todo why does this not pass?
+    MAIN_ALIVE = true
 }
 
 #[no_mangle]
@@ -237,7 +248,7 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -> jboolean {
-    unimplemented!()
+    MAIN_ALIVE as jboolean // todo we don't do threads atm.
 }
 
 #[no_mangle]
@@ -252,7 +263,7 @@ unsafe extern "system" fn JVM_ResumeThread(env: *mut JNIEnv, thread: jobject) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_SetThreadPriority(env: *mut JNIEnv, thread: jobject, prio: jint) {
-    unimplemented!()
+    //todo threads not implemented, noop
 }
 
 #[no_mangle]
@@ -341,7 +352,12 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut Inte
     };
     MAIN_THREAD = object.unwrap_object().clone();
     MAIN_THREAD.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert("group".to_string(), JavaValue::Object(thread_group_object));
+    //for some reason the constructor doesn't handle priority.
+    let NORM_PRIORITY = 5;
+    MAIN_THREAD.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert("priority".to_string(), JavaValue::Int(NORM_PRIORITY));
     run_function(state, Rc::new(new_frame));
+    frame.push(JavaValue::Object(MAIN_THREAD.clone()));
+    dbg!(&frame.operand_stack);
     if state.terminate || state.throw {
         unimplemented!()
     }
@@ -658,7 +674,43 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
+    let frame = get_frame(env);
+    let state = get_state(env);
+    frame.print_stack_trace();
+    let class_obj = native_to_runtime_class(ofClass);
+//    dbg!(&class_obj.clone().unwrap_normal_object().class_pointer);
+    let runtime_object = state.class_object_pool.borrow().get(&class_obj).unwrap();
+    let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
+    let mut object_array = vec![];
+    for f in class_obj.classfile.fields {
+        push_new_object(frame.clone(), &field_classfile);
+        let field_object = frame.operand_stack.pop();
+
+        object_array.push(field_object)
+    }
+
+    //first arg: runtime_class
+    //second arg: name
+    //third arg: type class pointer
+    //fourth arg: access_flags
+    //fifth: put index here
+    //descriptor
+    //just put empty byte array??
+//    Field(Class<?> var1, String var2, Class<?> var3, int var4, int var5, String var6, byte[] var7) {
+//        this.clazz = var1;
+//        this.name = var2;
+//        this.type = var3;
+//        this.modifiers = var4;
+//        this.slot = var5;
+//        this.signature = var6;
+//        this.annotations = var7;
+//    }
+//    class_obj.unwrap()
     unimplemented!()
+}
+
+fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
+    target_classfile.classfile.lookup_method("<init>", descriptor)
 }
 
 #[no_mangle]
@@ -795,7 +847,10 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv,
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
-    unimplemented!()
+//    let frame = get_frame(env);
+//    frame.print_stack_trace();
+    //todo this is obscure java stuff that isn't supported atm.
+    to_object(None)
 }
 
 #[no_mangle]
@@ -1219,12 +1274,16 @@ unsafe extern "system" fn JVM_CopySwapMemory(
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromCaller(
     env: *mut JNIEnv,
-    name: *const ::std::os::raw::c_char,
+    c_name: *const ::std::os::raw::c_char,
     init: jboolean,
     loader: jobject,
     caller: jclass,
 ) -> jclass {
-    unimplemented!()
+    let state = get_state(env);
+    let frame = get_frame(env);
+
+    let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
+    to_object(Some(get_or_create_class_object(state, &ClassName::Str(name), frame.clone(), frame.class_pointer.loader.clone())))
 }
 
 
