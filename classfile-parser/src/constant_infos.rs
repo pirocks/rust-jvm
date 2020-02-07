@@ -132,7 +132,7 @@ pub fn parse_constant_infos(p: &mut dyn ParsingContext, constant_pool_count: u16
     let mut constants = Vec::with_capacity(constant_pool_count as usize);
     let mut skip_next_iter = true;
     //skip first loop iteration b/c the first element of the constant pool isn't a thing
-    let mut i = 1;
+//    let mut i = 1;
     for _ in 0..constant_pool_count {
         if skip_next_iter {
             constants.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
@@ -141,7 +141,7 @@ pub fn parse_constant_infos(p: &mut dyn ParsingContext, constant_pool_count: u16
         }
 //        dbg!(i);
         let constant_info = parse_constant_info(p);
-        i += 1;
+//        i += 1;
 //        dbg!(&constant_info);
         match constant_info.kind {
             ConstantKind::Long(_) | ConstantKind::Double(_) => {
