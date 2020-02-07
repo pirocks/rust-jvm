@@ -31,6 +31,8 @@ use std::thread::Thread;
 use slow_interpreter::rust_jni::string::new_string_with_string;
 use std::ffi::CStr;
 use std::ops::Deref;
+use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -77,11 +79,28 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
     unimplemented!()
 }
 
-
+pub static mut STRING_INTERNMENT_CAMP: Option<HashMap<String, Arc<Object>>> = None;
 
 #[no_mangle]
-unsafe extern "system" fn JVM_InternString(env: *mut JNIEnv, str: jstring) -> jstring {
-    unimplemented!()
+unsafe extern "system" fn JVM_InternString(env: *mut JNIEnv, str_unsafe: jstring) -> jstring {
+    match &STRING_INTERNMENT_CAMP {
+        None => { STRING_INTERNMENT_CAMP = Some(HashMap::new()) }
+        Some(_) => {}
+    };
+    let str_obj = from_object(str_unsafe);
+    let char_array_ptr = str_obj.clone().unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
+    let char_array = char_array_ptr.unwrap_array().elems.borrow();
+    let mut native_string = String::with_capacity(char_array.len());
+    for char_ in &*char_array {
+        native_string.push(char_.unwrap_char());
+    }
+    if STRING_INTERNMENT_CAMP.as_ref().unwrap().contains_key(&native_string) {
+        let res = STRING_INTERNMENT_CAMP.as_ref().unwrap().get(&native_string).unwrap().clone();
+        to_object(res.into())
+    } else {
+        STRING_INTERNMENT_CAMP.as_mut().unwrap().insert(native_string, str_obj.as_ref().unwrap().clone());
+        to_object(str_obj)
+    }
 }
 
 #[no_mangle]
@@ -553,7 +572,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         *utf.offset(4) == 'e' as i8 &&
         *utf.offset(5) == 'a' as i8 &&
         *utf.offset(6) == 'n' as i8 &&
-        *utf.offset(7) == 0  {
+        *utf.offset(7) == 0 {
         let state = get_state(env);
         let frame = get_frame(env);
         let res = get_or_create_class_object(state, &ClassName::new("java/lang/Boolean"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
@@ -563,7 +582,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         *utf.offset(1) == 'h' as i8 &&
         *utf.offset(2) == 'a' as i8 &&
         *utf.offset(3) == 'r' as i8 &&
-        *utf.offset(4) == 0  {
+        *utf.offset(4) == 0 {
         let state = get_state(env);
         let frame = get_frame(env);
         let res = get_or_create_class_object(state, &ClassName::new("java/lang/Character"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
@@ -574,7 +593,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         *utf.offset(1) == 'o' as i8 &&
         *utf.offset(2) == 'n' as i8 &&
         *utf.offset(3) == 'g' as i8 &&
-        *utf.offset(4) == 0  {
+        *utf.offset(4) == 0 {
         let state = get_state(env);
         let frame = get_frame(env);
         let res = get_or_create_class_object(state, &ClassName::new("java/lang/Long"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
@@ -710,28 +729,29 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     unimplemented!()
 }
 
-fn field_type_to_class(state: &mut InterpreterState,frame: &Rc<StackEntry>,type_: &ParsedType) -> JavaValue{
-    match type_{
+fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, type_: &ParsedType) -> JavaValue {
+    match type_ {
         ParsedType::IntType => {
-            load_class_constant_by_name(state,frame,"java/lang/Integer".to_string());
+            load_class_constant_by_name(state, frame, "java/lang/Integer".to_string());
         }
         ParsedType::Class(cl) => {
-            load_class_constant_by_name(state,frame,cl.class_name.get_referred_name());
+            load_class_constant_by_name(state, frame, cl.class_name.get_referred_name());
         }
         ParsedType::BooleanType => {
             //todo dup.
-            load_class_constant_by_name(state,frame,"java/lang/Boolean".to_string());
+            load_class_constant_by_name(state, frame, "java/lang/Boolean".to_string());
         }
         ParsedType::LongType => {
             //todo dup.
-            load_class_constant_by_name(state,frame,"java/lang/Long".to_string());
+            load_class_constant_by_name(state, frame, "java/lang/Long".to_string());
         }
         ParsedType::ArrayReferenceType(sub) => {
-            frame.push(JavaValue::Object(array_of_type_class(state,frame.clone(),sub.sub_type.deref()).into()));
+            frame.push(JavaValue::Object(array_of_type_class(state, frame.clone(), sub.sub_type.deref()).into()));
         }
         _ => {
             dbg!(type_);
-            unimplemented!()}
+            unimplemented!()
+        }
     }
     frame.pop()
 }
@@ -746,7 +766,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let runtime_object = state.class_object_pool.borrow().get(&class_obj).unwrap();
     let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     let mut object_array = vec![];
-    &class_obj.classfile.fields.iter().enumerate().for_each(|(i,f)|{
+    &class_obj.classfile.fields.iter().enumerate().for_each(|(i, f)| {
         push_new_object(frame.clone(), &field_classfile);
         let field_object = frame.pop();
 
@@ -754,18 +774,18 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let field_class_name = class_name(&class_obj.classfile).get_referred_name();
         load_class_constant_by_name(state, &frame, field_class_name);
         let parent_runtime_class = frame.pop();
-        let field_name  = class_obj.classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
-        create_string_on_stack(state,&frame,field_name);
+        let field_name = class_obj.classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
+        create_string_on_stack(state, &frame, field_name);
         let field_name_string = frame.pop();
 
         let field_desc_str = class_obj.classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
-        let field_type = parse_field_descriptor(&frame.class_pointer.loader,field_desc_str.as_str()).unwrap().field_type;
-        let field_type_class = field_type_to_class(state,&frame,&field_type);
+        let field_type = parse_field_descriptor(&frame.class_pointer.loader, field_desc_str.as_str()).unwrap().field_type;
+        let field_type_class = field_type_to_class(state, &frame, &field_type);
 
         let modifiers = JavaValue::Int(f.access_flags as i32);
         let slot = JavaValue::Int(i as i32);
 
-        create_string_on_stack(state,&frame,field_desc_str);
+        create_string_on_stack(state, &frame, field_desc_str);
         let signature_string = frame.pop();
 
         //todo impl annotations.
@@ -775,8 +795,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             state,
             frame.clone(),
             field_classfile.clone(),
-            vec![field_object,parent_runtime_class,field_name_string,field_type_class,modifiers,slot,signature_string,annotations],
-            "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string()
+            vec![field_object, parent_runtime_class, field_name_string, field_type_class, modifiers, slot, signature_string, annotations],
+            "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),
         )
     });
 
