@@ -14,11 +14,11 @@ use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::StackEntry;
 use std::cell::Ref;
-use crate::rust_jni::{call_impl, call};
+use crate::rust_jni::{call_impl, call, mangling};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
 use rust_jvm_common::classnames::class_name;
-use log::trace;
+use std::io::Error;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -57,9 +57,11 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
         if state.function_return {
             state.function_return = false;
 //        trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
-            return;
         }
     }
+//    if method_name == "<init>"{
+//        dbg!(&current_frame.operand_stack);
+//    }
 }
 
 pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
@@ -124,9 +126,9 @@ pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &
     }
     let mut i = 1;
 //    dbg!(&expected_descriptor.parameter_types);
-    if(args.len() == 5){
-        dbg!(&current_frame.operand_stack);
-    }
+//    if args.len() == 5 {
+//        dbg!(&current_frame.operand_stack);
+//    }
     for _ in &expected_descriptor.parameter_types {
         let value = current_frame.pop();
         match value.clone() {
@@ -208,11 +210,12 @@ pub fn invoke_static_impl(
             last_call_stack: Some(current_frame),
             class_pointer: target_class,
             method_i: target_method_i as u16,
-            local_vars: args.into(),
+            local_vars: args.clone().into(),
             operand_stack: vec![].into(),
             pc: 0.into(),
             pc_offset: 0.into(),
         };
+//        dbg!(&args);
         run_function(state, Rc::new(next_entry));
         if state.throw.is_some() || state.terminate {
             unimplemented!();
@@ -260,9 +263,16 @@ pub fn run_native_method(
         }
         args.reverse();
     } else {
-        frame.print_stack_trace();
-
-        setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
+        if method.access_flags & ACC_NATIVE > 0{
+            for _ in parsed.parameter_types {
+                args.push(frame.pop());
+            }
+            args.reverse();
+            args.insert(0,frame.pop());
+        }else {
+            panic!();
+//            setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
+        }
     }
     println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
     if method.method_name(classfile) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
@@ -282,7 +292,19 @@ pub fn run_native_method(
             let res = call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn);
             res
         } else {
-            let res = call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type).unwrap();
+            let res = match call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type){
+                Ok(r) => r,
+                Err(_) => {
+                    let mangled = mangling::mangle(class.clone(), method_i);
+                    if mangled == "Java_sun_misc_Unsafe_compareAndSwapObject".to_string(){
+                        //todo do nothing for now and see what happens
+                        //
+                        Some(JavaValue::Boolean(true))
+                    }else {
+                        panic!()
+                    }
+                },
+            };
             res
         };
         match result {

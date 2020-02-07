@@ -77,6 +77,8 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
     unimplemented!()
 }
 
+
+
 #[no_mangle]
 unsafe extern "system" fn JVM_InternString(env: *mut JNIEnv, str: jstring) -> jstring {
     unimplemented!()
@@ -359,7 +361,7 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut Inte
     MAIN_THREAD.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert("priority".to_string(), JavaValue::Int(NORM_PRIORITY));
     run_function(state, Rc::new(new_frame));
     frame.push(JavaValue::Object(MAIN_THREAD.clone()));
-    dbg!(&frame.operand_stack);
+//    dbg!(&frame.operand_stack);
     if state.throw.is_some() || state.terminate {
         unimplemented!()
     }
@@ -795,7 +797,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 //        this.annotations = var7;
 //    }
 //    class_obj.unwrap()
-    unimplemented!()
+    let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: ParsedType::Class(ClassWithLoader { class_name: class_name(&field_classfile.classfile), loader: field_classfile.loader.clone() }) })));
+    to_object(res)
 }
 
 

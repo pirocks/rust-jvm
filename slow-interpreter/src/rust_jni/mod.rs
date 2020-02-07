@@ -110,7 +110,11 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         ParsedType::BooleanType => {
             Some(JavaValue::Boolean(cif_res as u64 != 0))
         }
-//            ParsedType::ArrayReferenceType(_) => {}
+        ParsedType::ArrayReferenceType(_art) => {
+            unsafe {
+                Some(JavaValue::Object(from_object(transmute(cif_res))))
+            }
+        }
 //            ParsedType::TopType => {}
 //            ParsedType::NullType => {}
 //            ParsedType::Uninitialized(_) => {}
@@ -127,7 +131,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                       clazz: jclass,
                                       methods: *const JNINativeMethod,
                                       n_methods: jint) -> jint {
-    trace!("Call to register_natives, n_methods: {}", n_methods);
+    println!("Call to register_natives, n_methods: {}", n_methods);
     for to_register_i in 0..n_methods {
         let jni_context = &get_state(env).jni;
         let method = *methods.offset(to_register_i as isize);
@@ -139,7 +143,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
             let descriptor_str = method_info.descriptor_str(classfile);
             let current_name = method_info.method_name(classfile);
             if current_name == expected_name && descriptor == descriptor_str {
-                trace!("Registering method:{},{},{}", class_name(classfile).get_referred_name(), expected_name, descriptor_str);
+                println!("Registering method:{},{},{}", class_name(classfile).get_referred_name(), expected_name, descriptor_str);
                 register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
             }
         });
