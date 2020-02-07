@@ -19,7 +19,7 @@ pub mod runtime_class;
 
 pub struct InterpreterState {
     pub terminate: bool,
-    pub throw: bool,
+    pub throw: Option<Arc<Object>>,
     pub function_return: bool,
     pub bootstrap_loader: LoaderArc,
     pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,

@@ -105,7 +105,7 @@ fn runtime_interface_class(state: &mut InterpreterState, class_: &Arc<RuntimeCla
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-fn inherits_from(state: &mut InterpreterState, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
+pub fn inherits_from(state: &mut InterpreterState, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
     if class_name(&inherits.classfile) == class_name(&parent.classfile){
         return true;
     }

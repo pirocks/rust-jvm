@@ -43,6 +43,10 @@ fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_fr
     let after_parse = parse_field_type(&loader_arc, referred_class_name.as_str()).unwrap();
     assert!(after_parse.0.is_empty());
     let type_for_object : ParsedType = after_parse.1.unwrap_array_type();
+    array_of_type_class(state, current_frame, &type_for_object)
+}
+
+pub fn array_of_type_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, type_for_object: &ParsedType) -> Arc<Object> {
     let res = state.array_object_pool.borrow().get(&type_for_object).cloned();
     match res {
         None => {
@@ -115,7 +119,7 @@ pub fn run(
     let main_i = locate_main_method(&bl, &main);
     let mut state = InterpreterState {
         terminate: false,
-        throw: false,
+        throw: None,
         function_return: false,
         bootstrap_loader: bl.clone(),
         initialized_classes: RwLock::new(HashMap::new()),
@@ -154,7 +158,7 @@ pub fn run(
         pc_offset: 0.into(),
     };
     run_function(&mut state, Rc::new(main_stack));
-    if state.throw || state.terminate {
+    if state.throw.is_some() || state.terminate {
         unimplemented!()
     }
     Result::Ok(())

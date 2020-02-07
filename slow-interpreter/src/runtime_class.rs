@@ -80,7 +80,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass>, state: &mut Interprete
         pc_offset: 0.into(),
     };
     run_function(state, Rc::new(new_stack));
-    if state.throw || state.terminate {
+    if state.throw.is_some() || state.terminate {
         unimplemented!()
         //need to clear status after
     }

@@ -277,9 +277,9 @@ impl Debug for NormalObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "{:?}", class_name(&self.class_pointer.classfile).get_referred_name())?;
         write!(f, "-")?;
-        write!(f, "{:?}", self.class_pointer.static_vars)?;
+//        write!(f, "{:?}", self.class_pointer.static_vars)?;
         write!(f, "-")?;
-        write!(f, "{:?}", self.fields)?;
+//        write!(f, "{:?}", self.fields)?;
         write!(f, "-")?;
         write!(f, "{:?}", self.bootstrap_loader)?;
         Result::Ok(())

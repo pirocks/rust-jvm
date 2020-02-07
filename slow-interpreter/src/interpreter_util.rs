@@ -8,10 +8,10 @@ use std::sync::Arc;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use rust_jvm_common::loading::LoaderArc;
 use std::rc::Rc;
-use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual, invoke_interface};
+use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual, invoke_interface, invoke_virtual_method_i};
 use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
-use classfile_parser::types::parse_field_descriptor;
+use classfile_parser::types::{parse_field_descriptor, parse_method_descriptor};
 use crate::instructions::load::{aload, fload, iload, aaload, caload, iaload, lload};
 use crate::instructions::store::{astore, castore, aastore, iastore};
 use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
@@ -24,9 +24,9 @@ use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
 use crate::instructions::ldc::{ldc, ldc2_w};
 use crate::instructions::dup::*;
 use crate::instructions::branch::*;
-use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast};
-use std::io::Write;
+use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
 use crate::instructions::switch::invoke_lookupswitch;
+use log::trace;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -38,7 +38,7 @@ pub fn check_inited_class(
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
         let bl = state.bootstrap_loader.clone();
-        current_frame.clone().map( |x|{x.print_stack_trace()});
+//        current_frame.clone().map( |x|{x.print_stack_trace()});
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
         let prepared = Arc::new(prepare_class(target_classfile.clone(), loader_arc.clone()));
         state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
@@ -66,15 +66,15 @@ pub fn run_function(
         dbg!("here");
     }
 */
-    let class_name = class_name(&current_frame.class_pointer.classfile).get_referred_name();
+    let class_name_ = class_name(&current_frame.class_pointer.classfile).get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
-    println!("CALL BEGIN:{} {} {} {}", &class_name, &meth_name, method_desc, current_depth);
+    println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
 //    dbg!(format!("CALL BEGIN:{} {} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), &meth_name, method.descriptor_str(&current_frame.class_pointer.classfile),current_frame.depth()));
-    std::io::stdout().flush().unwrap();
-    std::io::stderr().flush().unwrap();
+//    std::io::stdout().flush().unwrap();
+//    std::io::stderr().flush().unwrap();
     assert!(!state.function_return);
-    while !state.terminate && !state.function_return && !state.throw {
+    while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
             let mut context = CodeParserContext { offset: 0, iter: current.iter() };
@@ -103,7 +103,7 @@ pub fn run_function(
             InstructionInfo::baload => unimplemented!(),
             InstructionInfo::bastore => unimplemented!(),
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
-            InstructionInfo::caload => caload(&current_frame),
+            InstructionInfo::caload => caload(state,&current_frame),
             InstructionInfo::castore => castore(&current_frame),
             InstructionInfo::checkcast(cp) => invoke_checkcast(state, &current_frame, cp),
             InstructionInfo::d2f => unimplemented!(),
@@ -294,17 +294,44 @@ pub fn run_function(
             InstructionInfo::wide(_) => unimplemented!(),
             InstructionInfo::EndOfCode => unimplemented!(),
         }
-        //todo need to figure out where return res ends up on next stack
-        let offset = *current_frame.pc_offset.borrow();
-        let mut pc = *current_frame.pc.borrow();
-        if offset > 0 {
-            pc += offset as usize;
+        if state.throw.is_some(){
+            let throw_class = state.throw.as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
+            dbg!(&code.exception_table);
+            for excep_table in &code.exception_table{
+                if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize)  {//todo exclusive
+                    assert_ne!(excep_table.catch_type, 0);
+                    let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
+                    dbg!(&catch_runtime_name);
+                    dbg!(class_name(&throw_class.classfile).get_referred_name());
+                    let catch_class = check_inited_class(state,&ClassName::Str(catch_runtime_name),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
+                    if inherits_from(state,&throw_class,&catch_class){
+                        current_frame.push(JavaValue::Object(state.throw.clone()));
+                        state.throw = None;
+                        current_frame.pc.replace(excep_table.handler_pc as usize);
+                        println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
+                        current_frame.print_stack_trace();
+                        break
+                    }
+                }
+            }
+            if state.throw.is_some() {
+                //need to propogate to caller
+                unimplemented!()
+            }
         } else {
-            pc -= (-offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
+
+            //todo need to figure out where return res ends up on next stack
+            let offset = *current_frame.pc_offset.borrow();
+            let mut pc = *current_frame.pc.borrow();
+            if offset > 0 {
+                pc += offset as usize;
+            } else {
+                pc -= (-offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
+            }
+            current_frame.pc.replace(pc);
         }
-        current_frame.pc.replace(pc);
     }
-    println!("CALL END:{} {} {}", &class_name, meth_name, current_depth);
+    println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
 }
 
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
@@ -353,3 +380,15 @@ fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>
     }
 }
 
+pub fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
+    let (i,m) =  target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
+    let md = parse_method_descriptor(&target_classfile.loader,descriptor.as_str()).unwrap();
+    let this_ptr = full_args[0].clone();
+    let actual_args = &mut full_args[1..];
+//    actual_args.reverse();
+    frame.push(this_ptr);
+    for arg in actual_args {
+        frame.push(arg.clone());
+    }
+    invoke_virtual_method_i(state,frame,md,target_classfile.clone(),i,m);
+}

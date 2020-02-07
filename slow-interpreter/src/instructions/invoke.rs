@@ -49,8 +49,9 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
             pc: 0.into(),
             pc_offset: 0.into(),
         };
+//        dbg!(target_m.code_attribute());
         run_function(state, Rc::new(next_entry));
-        if state.terminate || state.throw {
+        if state.throw.is_some() || state.terminate {
             unimplemented!()
         }
         if state.function_return {
@@ -96,7 +97,7 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
             pc_offset: 0.into(),
         };
         run_function(state, Rc::new(next_entry));
-        if state.throw || state.terminate {
+        if state.throw.is_some() || state.terminate {
             unimplemented!();
         }
         if state.function_return {
@@ -118,11 +119,14 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
 }
 
 pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
-    for _ in 0..(max_locals) {
+    for _ in 0..max_locals {
         args.push(JavaValue::Top);
     }
     let mut i = 1;
 //    dbg!(&expected_descriptor.parameter_types);
+    if(args.len() == 5){
+        dbg!(&current_frame.operand_stack);
+    }
     for _ in &expected_descriptor.parameter_types {
         let value = current_frame.pop();
         match value.clone() {
@@ -210,7 +214,7 @@ pub fn invoke_static_impl(
             pc_offset: 0.into(),
         };
         run_function(state, Rc::new(next_entry));
-        if state.throw || state.terminate {
+        if state.throw.is_some() || state.terminate {
             unimplemented!();
         }
         if state.function_return {
@@ -256,9 +260,11 @@ pub fn run_native_method(
         }
         args.reverse();
     } else {
+        frame.print_stack_trace();
+
         setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
     }
-    trace!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
+    println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
     if method.method_name(classfile) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         frame.push(JavaValue::Boolean(false))
     } else if method.method_name(classfile) == "arraycopy".to_string() {
@@ -284,7 +290,7 @@ pub fn run_native_method(
             Some(res) => frame.push(res),
         }
     }
-    trace!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
+    println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
 fn system_array_copy(args: &mut Vec<JavaValue>) -> () {

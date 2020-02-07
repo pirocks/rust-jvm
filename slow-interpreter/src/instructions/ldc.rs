@@ -50,7 +50,7 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
         pc_offset: 0.into(),
     };
     run_function(state, Rc::new(next_entry));
-    if state.terminate || state.throw {
+    if state.throw.is_some() || state.terminate {
         unimplemented!()
     }
     if state.function_return {

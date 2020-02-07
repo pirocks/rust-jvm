@@ -453,18 +453,17 @@ pub fn instruction_is_type_safe_ineg(env: &Environment, stack_frame: &Frame) -> 
     type_transition(env, stack_frame, vec![VType::IntType], VType::IntType)
 }
 
-//
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_l2d(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_l2f(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+
+
+
+pub fn instruction_is_type_safe_l2d(env: &Environment, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VType::LongType], VType::DoubleType)
+}
+
+pub fn instruction_is_type_safe_l2f(env: &Environment, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VType::LongType], VType::FloatType)
+}
+
 
 pub fn instruction_is_type_safe_l2i(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VType::LongType], VType::IntType)

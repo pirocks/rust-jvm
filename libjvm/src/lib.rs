@@ -11,13 +11,13 @@ use std::str::from_utf8;
 use std::borrow::Borrow;
 use runtime_common::{InterpreterState, StackEntry};
 use rust_jvm_common::classnames::{ClassName, class_name};
-use slow_interpreter::get_or_create_class_object;
+use slow_interpreter::{get_or_create_class_object, array_of_type_class};
 use std::rc::Rc;
 use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH};
 use log::trace;
-use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_function};
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_function, run_constructor};
 use slow_interpreter::instructions::ldc::{load_class_constant_by_name, create_string_on_stack};
 use slow_interpreter::instructions::invoke::{invoke_virtual_method_i, invoke_special};
 use classfile_parser::types::{MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
@@ -30,6 +30,7 @@ use runtime_common::runtime_class::RuntimeClass;
 use std::thread::Thread;
 use slow_interpreter::rust_jni::string::new_string_with_string;
 use std::ffi::CStr;
+use std::ops::Deref;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -185,7 +186,8 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobject) {
-    unimplemented!()
+    //todo no stacktraces for now.
+//    unimplemented!()
 }
 
 #[no_mangle]
@@ -317,7 +319,7 @@ fn init_system_thread_group(state: &mut InterpreterState, frame: &Rc<StackEntry>
     };
     unsafe { SYSTEM_THREAD_GROUP = object.unwrap_object(); }
     run_function(state, Rc::new(new_frame));
-    if state.terminate || state.throw {
+    if state.throw.is_some() || state.terminate {
         unimplemented!()
     }
     if state.function_return {
@@ -358,7 +360,7 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut Inte
     run_function(state, Rc::new(new_frame));
     frame.push(JavaValue::Object(MAIN_THREAD.clone()));
     dbg!(&frame.operand_stack);
-    if state.terminate || state.throw {
+    if state.throw.is_some() || state.terminate {
         unimplemented!()
     }
     if state.function_return {
@@ -566,6 +568,17 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         return to_object(res.into());
     }
 
+    if *utf.offset(0) == 'l' as i8 &&
+        *utf.offset(1) == 'o' as i8 &&
+        *utf.offset(2) == 'n' as i8 &&
+        *utf.offset(3) == 'g' as i8 &&
+        *utf.offset(4) == 0  {
+        let state = get_state(env);
+        let frame = get_frame(env);
+        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Long"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return to_object(res.into());
+    }
+
     dbg!((*utf) as u8 as char);
     unimplemented!()
 }
@@ -707,6 +720,13 @@ fn field_type_to_class(state: &mut InterpreterState,frame: &Rc<StackEntry>,type_
             //todo dup.
             load_class_constant_by_name(state,frame,"java/lang/Boolean".to_string());
         }
+        ParsedType::LongType => {
+            //todo dup.
+            load_class_constant_by_name(state,frame,"java/lang/Long".to_string());
+        }
+        ParsedType::ArrayReferenceType(sub) => {
+            frame.push(JavaValue::Object(array_of_type_class(state,frame.clone(),sub.sub_type.deref()).into()));
+        }
         _ => {
             dbg!(type_);
             unimplemented!()}
@@ -778,18 +798,6 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     unimplemented!()
 }
 
-fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
-    let (i,m) =  target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
-    let md = parse_method_descriptor(&target_classfile.loader,descriptor.as_str()).unwrap();
-    let this_ptr = full_args[0].clone();
-    let actual_args = &mut full_args[1..];
-//    actual_args.reverse();
-    frame.push(this_ptr);
-    for arg in actual_args {
-        frame.push(arg.clone());
-    }
-    invoke_virtual_method_i(state,frame,md,target_classfile.clone(),i,m);
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
