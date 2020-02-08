@@ -515,7 +515,7 @@ unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os:
         load_class_constant_by_name(state, &frame, "java/io/BufferedInputStream".to_string());
         let jclass = frame.pop().unwrap_object();
         to_object(jclass)
-    }else{
+    } else {
         load_class_constant_by_name(state, &frame, "java/lang/Object".to_string());
         let jclass = frame.pop().unwrap_object();
         to_object(jclass)
@@ -667,8 +667,49 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
 }
 
 #[no_mangle]
+/**
+    * Determines if the specified {@code Class} object represents a
+    * primitive type.
+    *
+    * <p> There are nine predefined {@code Class} objects to represent
+    * the eight primitive types and void.  These are created by the Java
+    * Virtual Machine, and have the same names as the primitive types that
+    * they represent, namely {@code boolean}, {@code byte},
+    * {@code char}, {@code short}, {@code int},
+    * {@code long}, {@code float}, and {@code double}.
+    *
+    * <p> These objects may only be accessed via the following public static
+    * final variables, and are the only {@code Class} objects for which
+    * this method returns {@code true}.
+    *
+    * @return true if and only if this class represents a primitive type
+    *
+    * @see     java.lang.Boolean#TYPE
+    * @see     java.lang.Character#TYPE
+    * @see     java.lang.Byte#TYPE
+    * @see     java.lang.Short#TYPE
+    * @see     java.lang.Integer#TYPE
+    * @see     java.lang.Long#TYPE
+    * @see     java.lang.Float#TYPE
+    * @see     java.lang.Double#TYPE
+    * @see     java.lang.Void#TYPE
+    * @since JDK1.1
+    */
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    unimplemented!()
+    get_frame(env).print_stack_trace();
+    let name = class_name(&native_to_runtime_class(cls).classfile).get_referred_name();
+    dbg!(&name);
+    let is_primitive = name == "java/lang/Boolean".to_string() ||
+        name == "java/lang/Character".to_string() ||
+        name == "java/lang/Byte".to_string() ||
+        name == "java/lang/Short".to_string() ||
+        name == "java/lang/Integer".to_string() ||
+        name == "java/lang/Long".to_string() ||
+        name == "java/lang/Float".to_string() ||
+        name == "java/lang/Double".to_string() ||
+        name == "java/lang/Void".to_string();
+
+    is_primitive as jboolean
 }
 
 #[no_mangle]
