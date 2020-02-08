@@ -486,10 +486,10 @@ unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: 
 
 unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject){
 //Box::into_raw(Box::new(FieldID { class: runtime_class.clone(), field_i })) as jfieldID;
-    let field_id =  Box::leak(Box::from_raw(field_id_raw as *mut FieldID));//todo leak
-    let static_class = native_to_runtime_class(clazz);
+    let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));//todo leak
     let value = from_object(value);
     let classfile = &field_id.class.classfile;
     let field_name = classfile.constant_pool[classfile.fields[field_id.field_i].name_index as usize].extract_string_from_utf8();
+    let static_class = native_to_runtime_class(clazz);
     static_class.static_vars.borrow_mut().insert(field_name,JavaValue::Object(value));
 }
