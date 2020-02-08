@@ -41,7 +41,7 @@ use slow_interpreter::rust_jni::interface::runtime_class_from_object;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
-    let obj = runtime_class_from_object(cls);
+    let obj = runtime_class_from_object(cls).unwrap();
     let full_name = class_name(&obj.classfile).get_referred_name().replace("/", ".");
 //    use regex::Regex;
 //    let rg = Regex::new("/[A-Za-z_][A-Za-z_0-9]*");//todo use a correct regex
@@ -697,7 +697,11 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
     */
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     get_frame(env).print_stack_trace();
-    let name = class_name(&native_to_runtime_class(cls).classfile).get_referred_name();
+    let class_object = runtime_class_from_object(cls);
+    if class_object.is_none(){
+        return false as jboolean;
+    }
+    let name = class_name(&class_object.unwrap().classfile).get_referred_name();
     dbg!(&name);
     let is_primitive = name == "java/lang/Boolean".to_string() ||
         name == "java/lang/Character".to_string() ||
@@ -799,19 +803,19 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 //    let runtime_object = state.class_object_pool.borrow().get(&class_obj).unwrap();
     let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     let mut object_array = vec![];
-    &class_obj.classfile.fields.iter().enumerate().for_each(|(i, f)| {
+    &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
         push_new_object(frame.clone(), &field_classfile);
         let field_object = frame.pop();
 
         object_array.push(field_object.clone());
-        let field_class_name = class_name(&class_obj.classfile).get_referred_name();
+        let field_class_name = class_name(&class_obj.clone().as_ref().unwrap().classfile).get_referred_name();
         load_class_constant_by_name(state, &frame, field_class_name);
         let parent_runtime_class = frame.pop();
-        let field_name = class_obj.classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
+        let field_name = class_obj.clone().unwrap().classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
         create_string_on_stack(state, &frame, field_name);
         let field_name_string = frame.pop();
 
-        let field_desc_str = class_obj.classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
+        let field_desc_str = class_obj.clone().unwrap().classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
         let field_type = parse_field_descriptor(&frame.class_pointer.loader, field_desc_str.as_str()).unwrap().field_type;
         let field_type_class = field_type_to_class(state, &frame, &field_type);
 
@@ -863,7 +867,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
     let frame = get_frame(env);
-    runtime_class_from_object(cls).classfile.access_flags as i32
+    runtime_class_from_object(cls).unwrap().classfile.access_flags as i32
 }
 
 #[no_mangle]

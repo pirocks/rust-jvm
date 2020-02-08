@@ -453,13 +453,15 @@ pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, s
 }
 
 
-pub unsafe fn runtime_class_from_object(cls: jclass) -> Arc<RuntimeClass>{
-    from_object(cls).unwrap().unwrap_normal_object().object_class_object_pointer.borrow().as_ref().unwrap().clone()
+pub unsafe fn runtime_class_from_object(cls: jclass) -> Option<Arc<RuntimeClass>>{
+    let object_non_null = from_object(cls).unwrap().clone();
+    let object_class = object_non_null.unwrap_normal_object().object_class_object_pointer.borrow();
+    object_class.clone()
 }
 
 
 unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
-    let super_name = match runtime_class_from_object(sub).classfile.super_class_name(){
+    let super_name = match runtime_class_from_object(sub).unwrap().classfile.super_class_name(){
         None => {return to_object(None)},
         Some(n) => n,
     };

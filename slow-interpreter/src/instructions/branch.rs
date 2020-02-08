@@ -2,7 +2,6 @@ use runtime_common::StackEntry;
 use std::rc::Rc;
 use runtime_common::java_values::JavaValue;
 use std::sync::Arc;
-use rust_jvm_common::classnames::class_name;
 
 pub fn goto_(current_frame: &Rc<StackEntry>, target: i16) {
     current_frame.pc_offset.replace(target as isize);
