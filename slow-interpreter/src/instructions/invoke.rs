@@ -79,6 +79,24 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
 }
 
 pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
+    dbg!(class_name(&target_class.classfile).get_referred_name());
+    let this_pointer = {
+        let operand_stack = current_frame.operand_stack.borrow();
+        &operand_stack[operand_stack.len() - expected_descriptor.parameter_types.len() - 1].clone()
+    };
+    let new_target_class = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
+    let old_method_info = &target_class.classfile.methods[target_method_i];
+    let new_target_method: Option<_> = new_target_class.classfile.lookup_method(old_method_info.method_name(&target_class.classfile), target_class.classfile.constant_pool[old_method_info.descriptor_index as usize].extract_string_from_utf8());
+    let (new_i, new_m) = match new_target_method {
+        None => {
+            return invoke_virtual_method_i_impl(state, current_frame, expected_descriptor, target_class, target_method_i, target_method);
+        }
+        Some(m) => m
+    };
+    invoke_virtual_method_i_impl(state, current_frame.clone(), expected_descriptor, new_target_class.clone(), new_i, new_m)
+}
+
+pub fn invoke_virtual_method_i_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
     if target_method.access_flags & ACC_NATIVE > 0 {
         run_native_method(state, current_frame.clone(), target_class, target_method_i)
     } else if target_method.access_flags & ACC_ABSTRACT == 0 {
@@ -106,16 +124,6 @@ pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<S
 //            trace!("Exit:{} {}", class_name(&target_class.classfile).get_referred_name(), expected_method_name);
             return;
         }
-    } else {
-        dbg!(class_name(&target_class.classfile).get_referred_name());
-        let this_pointer = {
-            let operand_stack = current_frame.operand_stack.borrow();
-            &operand_stack[operand_stack.len() - expected_descriptor.parameter_types.len() - 1].clone()
-        };
-        let new_target_class = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
-        let old_method_info = &target_class.classfile.methods[target_method_i];
-        let (new_i, new_m) = new_target_class.classfile.lookup_method(old_method_info.method_name(&target_class.classfile), target_class.classfile.constant_pool[old_method_info.descriptor_index as usize].extract_string_from_utf8()).unwrap();
-        invoke_virtual_method_i(state, current_frame.clone(), expected_descriptor, new_target_class.clone(), new_i, new_m);
     }
 }
 
@@ -320,8 +328,8 @@ pub fn run_native_method(
                         let borrow_4 = field_class.object_class_object_pointer.borrow();
                         let field_class_classfile = borrow_4.as_ref().unwrap().classfile.clone();
                         let mut res = None;
-                        &field_class_classfile.fields.iter().enumerate().for_each(|(i,f)|{
-                            if f.name(&field_class_classfile) == field_name{
+                        &field_class_classfile.fields.iter().enumerate().for_each(|(i, f)| {
+                            if f.name(&field_class_classfile) == field_name {
                                 res = Some(Some(JavaValue::Long(i as i64)));
                             }
                         });
@@ -347,10 +355,10 @@ pub fn run_native_method(
                         let field_name = classfile.constant_pool[classfile.fields[var_offset as usize].name_index as usize].extract_string_from_utf8();
                         let mut fields = target_obj.fields.borrow_mut();
                         let cur_val = fields.get(&field_name).unwrap().unwrap_int();
-                        if cur_val != old{
+                        if cur_val != old {
                             JavaValue::Boolean(false)
-                        }else {
-                            fields.insert(field_name,JavaValue::Int(new));
+                        } else {
+                            fields.insert(field_name, JavaValue::Int(new));
                             JavaValue::Boolean(true)
                         }.into()
                     } else {

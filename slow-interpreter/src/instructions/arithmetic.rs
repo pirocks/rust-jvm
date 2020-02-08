@@ -45,7 +45,7 @@ pub fn iadd(current_frame: &Rc<StackEntry>) -> () {
 pub fn imul(current_frame: &Rc<StackEntry>) -> () {
     let first = current_frame.pop().unwrap_int();
     let second = current_frame.pop().unwrap_int();
-    current_frame.push(JavaValue::Int(first * second))
+    current_frame.push(JavaValue::Int((first as i64 * second as i64) as i32))
 }
 
 
