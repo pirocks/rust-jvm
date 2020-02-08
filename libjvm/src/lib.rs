@@ -38,9 +38,13 @@ use slow_interpreter::rust_jni::string::intern_impl;
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
 
+unsafe fn runtime_class_from_object(cls: jclass) -> Arc<RuntimeClass>{
+    from_object(cls).unwrap().unwrap_normal_object().object_class_object_pointer.borrow().as_ref().unwrap().clone()
+}
+
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
-    let obj = native_to_runtime_class(cls);
+    let obj = runtime_class_from_object(cls);
     let full_name = class_name(&obj.classfile).get_referred_name().replace("/", ".");
 //    use regex::Regex;
 //    let rg = Regex::new("/[A-Za-z_][A-Za-z_0-9]*");//todo use a correct regex
@@ -743,9 +747,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let frame = get_frame(env);
     let state = get_state(env);
     frame.print_stack_trace();
-    let class_obj = native_to_runtime_class(ofClass);
+    let class_obj = runtime_class_from_object(ofClass);
 //    dbg!(&class_obj.clone().unwrap_normal_object().class_pointer);
-    let runtime_object = state.class_object_pool.borrow().get(&class_obj).unwrap();
+//    let runtime_object = state.class_object_pool.borrow().get(&class_obj).unwrap();
     let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     let mut object_array = vec![];
     &class_obj.classfile.fields.iter().enumerate().for_each(|(i, f)| {

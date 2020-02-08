@@ -26,7 +26,6 @@ use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
 use crate::instructions::switch::invoke_lookupswitch;
-use log::trace;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -59,13 +58,13 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-/*
-    if meth_name == "init" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string()) {
-//        dbg!(&current_frame.local_vars);
-//        dbg!(&current_frame.local_vars.borrow().get(6));
-        dbg!("here");
-    }
-*/
+    /*
+        if meth_name == "init" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string()) {
+    //        dbg!(&current_frame.local_vars);
+    //        dbg!(&current_frame.local_vars.borrow().get(6));
+            dbg!("here");
+        }
+    */
     let class_name_ = class_name(&current_frame.class_pointer.classfile).get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
@@ -101,11 +100,12 @@ pub fn run_function(
             InstructionInfo::astore_3 => astore(&current_frame, 3),
             InstructionInfo::athrow => {
                 current_frame.print_stack_trace();
-                unimplemented!()},
+                unimplemented!()
+            }
             InstructionInfo::baload => unimplemented!(),
             InstructionInfo::bastore => unimplemented!(),
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
-            InstructionInfo::caload => caload(state,&current_frame),
+            InstructionInfo::caload => caload(state, &current_frame),
             InstructionInfo::castore => castore(&current_frame),
             InstructionInfo::checkcast(cp) => invoke_checkcast(state, &current_frame, cp),
             InstructionInfo::d2f => unimplemented!(),
@@ -197,7 +197,7 @@ pub fn run_function(
             InstructionInfo::if_icmpeq(offset) => if_icmpeq(&current_frame, offset),
             InstructionInfo::if_icmpne(offset) => if_icmpne(&current_frame, offset),
             InstructionInfo::if_icmplt(offset) => if_icmplt(&current_frame, offset),
-            InstructionInfo::if_icmpge(offset) => if_icmpge(&current_frame,offset),
+            InstructionInfo::if_icmpge(offset) => if_icmpge(&current_frame, offset),
             InstructionInfo::if_icmpgt(offset) => if_icmpgt(&current_frame, offset),
             InstructionInfo::if_icmple(offset) => if_icmple(&current_frame, offset),
             InstructionInfo::ifeq(offset) => ifeq(&current_frame, offset),
@@ -249,20 +249,20 @@ pub fn run_function(
             InstructionInfo::land => land(current_frame.clone()),
             InstructionInfo::lastore => unimplemented!(),
             InstructionInfo::lcmp => unimplemented!(),
-            InstructionInfo::lconst_0 => lconst(&current_frame,0),
-            InstructionInfo::lconst_1 => lconst(&current_frame,1),
+            InstructionInfo::lconst_0 => lconst(&current_frame, 0),
+            InstructionInfo::lconst_1 => lconst(&current_frame, 1),
             InstructionInfo::ldc(cp) => ldc(state, current_frame.clone(), cp),
             InstructionInfo::ldc_w(_) => unimplemented!(),
             InstructionInfo::ldc2_w(cp) => ldc2_w(current_frame.clone(), cp),
             InstructionInfo::ldiv => unimplemented!(),
             InstructionInfo::lload(i) => lload(&current_frame, i as usize),
-            InstructionInfo::lload_0 => lload(&current_frame,0),
-            InstructionInfo::lload_1 => lload(&current_frame,1),
-            InstructionInfo::lload_2 => lload(&current_frame,2),
-            InstructionInfo::lload_3 => lload(&current_frame,3),
+            InstructionInfo::lload_0 => lload(&current_frame, 0),
+            InstructionInfo::lload_1 => lload(&current_frame, 1),
+            InstructionInfo::lload_2 => lload(&current_frame, 2),
+            InstructionInfo::lload_3 => lload(&current_frame, 3),
             InstructionInfo::lmul => unimplemented!(),
             InstructionInfo::lneg => unimplemented!(),
-            InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls,&current_frame),
+            InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, &current_frame),
             InstructionInfo::lor => unimplemented!(),
             InstructionInfo::lrem => unimplemented!(),
             InstructionInfo::lreturn => lreturn(state, &current_frame),
@@ -296,23 +296,23 @@ pub fn run_function(
             InstructionInfo::wide(_) => unimplemented!(),
             InstructionInfo::EndOfCode => unimplemented!(),
         }
-        if state.throw.is_some(){
+        if state.throw.is_some() {
             let throw_class = state.throw.as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             dbg!(&code.exception_table);
-            for excep_table in &code.exception_table{
-                if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize)  {//todo exclusive
+            for excep_table in &code.exception_table {
+                if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize) {//todo exclusive
                     assert_ne!(excep_table.catch_type, 0);
                     let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
                     dbg!(&catch_runtime_name);
                     dbg!(class_name(&throw_class.classfile).get_referred_name());
-                    let catch_class = check_inited_class(state,&ClassName::Str(catch_runtime_name),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
-                    if inherits_from(state,&throw_class,&catch_class){
+                    let catch_class = check_inited_class(state, &ClassName::Str(catch_runtime_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+                    if inherits_from(state, &throw_class, &catch_class) {
                         current_frame.push(JavaValue::Object(state.throw.clone()));
                         state.throw = None;
                         current_frame.pc.replace(excep_table.handler_pc as usize);
                         println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
                         current_frame.print_stack_trace();
-                        break
+                        break;
                     }
                 }
             }
@@ -383,8 +383,8 @@ fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>
 }
 
 pub fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
-    let (i,m) =  target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
-    let md = parse_method_descriptor(&target_classfile.loader,descriptor.as_str()).unwrap();
+    let (i, m) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
+    let md = parse_method_descriptor(&target_classfile.loader, descriptor.as_str()).unwrap();
     let this_ptr = full_args[0].clone();
     let actual_args = &mut full_args[1..];
 //    actual_args.reverse();
@@ -392,5 +392,5 @@ pub fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, targ
     for arg in actual_args {
         frame.push(arg.clone());
     }
-    invoke_virtual_method_i(state,frame,md,target_classfile.clone(),i,m);
+    invoke_virtual_method_i(state, frame, md, target_classfile.clone(), i, m);
 }
