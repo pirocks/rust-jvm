@@ -18,7 +18,6 @@ use crate::rust_jni::{call_impl, call, mangling};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
 use rust_jvm_common::classnames::class_name;
-use std::io::Error;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -263,13 +262,13 @@ pub fn run_native_method(
         }
         args.reverse();
     } else {
-        if method.access_flags & ACC_NATIVE > 0{
+        if method.access_flags & ACC_NATIVE > 0 {
             for _ in parsed.parameter_types {
                 args.push(frame.pop());
             }
             args.reverse();
-            args.insert(0,frame.pop());
-        }else {
+            args.insert(0, frame.pop());
+        } else {
             panic!();
 //            setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
         }
@@ -289,21 +288,20 @@ pub fn run_native_method(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            let res = call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn, false);//so technically we should omit on non-static but leave like this for now todo
-            res
+            call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn, !method.is_static())
         } else {
-            let res = match call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type){
+            let res = match call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type) {
                 Ok(r) => r,
                 Err(_) => {
                     let mangled = mangling::mangle(class.clone(), method_i);
-                    if mangled == "Java_sun_misc_Unsafe_compareAndSwapObject".to_string(){
+                    if mangled == "Java_sun_misc_Unsafe_compareAndSwapObject".to_string() {
                         //todo do nothing for now and see what happens
                         //
                         Some(JavaValue::Boolean(true))
-                    }else {
+                    } else {
                         panic!()
                     }
-                },
+                }
             };
             res
         };

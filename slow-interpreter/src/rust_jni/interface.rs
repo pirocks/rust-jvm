@@ -446,6 +446,7 @@ pub  unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, 
     let borrowed_elems = chars.elems.borrow();
     for i in start..(start + len) {
         let char_ = (&borrowed_elems[i as usize]).unwrap_char() as i8 as u8 as char;
-        buf.offset(i as isize).write(char_ as i8)
+        buf.offset(i as isize).write(char_ as i8);
     }
+    buf.offset((start + len) as isize).write('\0' as i8);
 }
