@@ -103,7 +103,8 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p: jobject) -> jobject {
-    //todo so in theory I should do stuff here, but not needed for hello world so....
+    //todo so in theory I should do more stuff here, but not needed for hello world so....
+    //p is a Hashtable
     p
 }
 

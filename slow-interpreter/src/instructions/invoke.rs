@@ -336,6 +336,23 @@ pub fn run_native_method(
                         let field_name = classfile.constant_pool[classfile.fields[var_offset as usize].name_index as usize].extract_string_from_utf8();
                         let fields = target_obj.fields.borrow();
                         fields.get(&field_name).unwrap().clone().into()
+                    } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapInt".to_string() {
+                        let param1_obj = args[1].unwrap_object();
+                        let unwrapped = param1_obj.unwrap();
+                        let target_obj = unwrapped.unwrap_normal_object();
+                        let var_offset = args[2].unwrap_long();
+                        let old = args[3].unwrap_int();
+                        let new = args[4].unwrap_int();
+                        let classfile = &target_obj.class_pointer.classfile;
+                        let field_name = classfile.constant_pool[classfile.fields[var_offset as usize].name_index as usize].extract_string_from_utf8();
+                        let mut fields = target_obj.fields.borrow_mut();
+                        let cur_val = fields.get(&field_name).unwrap().unwrap_int();
+                        if cur_val != old{
+                            JavaValue::Boolean(false)
+                        }else {
+                            fields.insert(field_name,JavaValue::Int(new));
+                            JavaValue::Boolean(true)
+                        }.into()
                     } else {
                         frame.print_stack_trace();
                         panic!()

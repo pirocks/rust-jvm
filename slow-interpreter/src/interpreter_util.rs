@@ -301,18 +301,28 @@ pub fn run_function(
             dbg!(&code.exception_table);
             for excep_table in &code.exception_table {
                 if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize) {//todo exclusive
-                    assert_ne!(excep_table.catch_type, 0);
-                    let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
-                    dbg!(&catch_runtime_name);
-                    dbg!(class_name(&throw_class.classfile).get_referred_name());
-                    let catch_class = check_inited_class(state, &ClassName::Str(catch_runtime_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-                    if inherits_from(state, &throw_class, &catch_class) {
+//                    assert_ne!(excep_table.catch_type, 0);
+                    if excep_table.catch_type == 0{
+                        //todo dup
                         current_frame.push(JavaValue::Object(state.throw.clone()));
                         state.throw = None;
                         current_frame.pc.replace(excep_table.handler_pc as usize);
                         println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
                         current_frame.print_stack_trace();
                         break;
+                    }else {
+                        let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
+                        dbg!(&catch_runtime_name);
+                        dbg!(class_name(&throw_class.classfile).get_referred_name());
+                        let catch_class = check_inited_class(state, &ClassName::Str(catch_runtime_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+                        if inherits_from(state, &throw_class, &catch_class) {
+                            current_frame.push(JavaValue::Object(state.throw.clone()));
+                            state.throw = None;
+                            current_frame.pc.replace(excep_table.handler_pc as usize);
+                            println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
+                            current_frame.print_stack_trace();
+                            break;
+                        }
                     }
                 }
             }
