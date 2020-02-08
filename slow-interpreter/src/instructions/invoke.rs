@@ -283,8 +283,8 @@ pub fn run_native_method(
             state.jni.registered_natives.borrow().get(&class).unwrap().borrow().contains_key(&(method_i as u16))
         {
             //todo dup
-            dbg!(class_name(&class.classfile).get_referred_name());
-            dbg!(&class.classfile.methods[method_i].method_name(&class.classfile));
+//            dbg!(class_name(&class.classfile).get_referred_name());
+//            dbg!(&class.classfile.methods[method_i].method_name(&class.classfile));
             let res_fn = {
                 let reg_natives = state.jni.registered_natives.borrow();
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
@@ -304,7 +304,7 @@ pub fn run_native_method(
                     } else if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
                         frame.print_stack_trace();
                         let param0_obj = args[0].unwrap_object();
-                        let the_unsafe = param0_obj.as_ref().unwrap().unwrap_normal_object();
+                        let _the_unsafe = param0_obj.as_ref().unwrap().unwrap_normal_object();
                         let param1_obj = args[1].unwrap_object();
                         let field_obj = param1_obj.as_ref().unwrap().unwrap_normal_object();
                         let borrow_1 = field_obj.fields.borrow().get("name").unwrap().unwrap_object();

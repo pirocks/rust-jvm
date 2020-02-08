@@ -15,9 +15,8 @@ use log::trace;
 use crate::instructions::ldc::load_class_constant_by_name;
 use std::sync::Arc;
 use runtime_common::runtime_class::RuntimeClass;
-use crate::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
+use crate::rust_jni::value_conversion::native_to_runtime_class;
 use crate::interpreter_util::check_inited_class;
-use rust_jvm_common::classnames::ClassName;
 
 //GetFieldID
 pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
@@ -467,7 +466,7 @@ unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
     let frame = get_frame(env);
     let state = get_state(env);
 //    frame.print_stack_trace();
-    let inited_class = check_inited_class(state, &super_name, frame.clone().into(),frame.class_pointer.loader.clone());
+    let _inited_class = check_inited_class(state, &super_name, frame.clone().into(),frame.class_pointer.loader.clone());
     load_class_constant_by_name(state,&frame,super_name.get_referred_name());
     to_object(frame.pop().unwrap_object())
 }

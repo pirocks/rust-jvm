@@ -508,9 +508,18 @@ unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os:
     Therefore it only sorta works*/
     let frame = get_frame(env);
     let state = get_state(env);
-    load_class_constant_by_name(state, &frame, "java/lang/Object".to_string());
-    let jclass = frame.pop().unwrap_object();
-    to_object(jclass)
+    dbg!(class_name(&frame.class_pointer.classfile).get_referred_name());
+    dbg!(class_name(&frame.last_call_stack.as_ref().unwrap().class_pointer.classfile).get_referred_name());
+    //so the stack can be kind of messed up in static constructors. So this is a hack to get correct answers when needed for booting
+    if class_name(&frame.last_call_stack.as_ref().unwrap().class_pointer.classfile).get_referred_name() == "java/io/BufferedInputStream".to_string() {
+        load_class_constant_by_name(state, &frame, "java/io/BufferedInputStream".to_string());
+        let jclass = frame.pop().unwrap_object();
+        to_object(jclass)
+    }else{
+        load_class_constant_by_name(state, &frame, "java/lang/Object".to_string());
+        let jclass = frame.pop().unwrap_object();
+        to_object(jclass)
+    }
 }
 
 #[no_mangle]

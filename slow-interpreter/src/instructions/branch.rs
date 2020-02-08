@@ -249,8 +249,6 @@ pub fn if_acmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
-//    dbg!(&value2.try_unwrap_object().map(|x|{class_name(&x.unwrap_normal_object().class_pointer.classfile).get_referred_name()}));
-//    dbg!(&value1.try_unwrap_object().map(|x|{class_name(&x.unwrap_normal_object().class_pointer.classfile).get_referred_name()}));
     match value1 {
         JavaValue::Object(o1) => match value2 {
             JavaValue::Object(o2) => match o1 {
@@ -260,7 +258,16 @@ fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
                 },
                 Some(o1_arc) => match o2 {
                     None => true,
-                    Some(o2_arc) => Arc::ptr_eq(&o1_arc, &o2_arc),
+                    Some(o2_arc) => {
+                        dbg!(o1_arc
+                            .try_unwrap_normal_object().map(|x| {
+                            x.object_class_object_pointer.borrow().as_ref().map(|x| {
+                                class_name(&x.classfile).get_referred_name()
+                            })
+                        }));
+                        dbg!(o2_arc.try_unwrap_normal_object().map(|x| { x.object_class_object_pointer.borrow().as_ref().map(|x| { class_name(&x.classfile).get_referred_name() }) }));
+                        Arc::ptr_eq(&o1_arc, &o2_arc)
+                    }
                 },
             },
             _ => panic!()

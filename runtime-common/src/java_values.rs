@@ -246,6 +246,13 @@ impl Object{
             Object::Object(o) => o,
         }
     }
+    pub fn try_unwrap_normal_object(&self) -> Option<&NormalObject> {
+        match self{
+            Object::Array(_) => None,
+            Object::Object(o) => Some(o),
+        }
+    }
+
 
     pub fn unwrap_array(&self) -> &ArrayObject {
         match self{
