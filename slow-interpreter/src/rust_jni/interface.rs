@@ -168,7 +168,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         CallStaticVoidMethod: None,
         CallStaticVoidMethodV: None,
         CallStaticVoidMethodA: None,
-        GetStaticFieldID: None,
+        GetStaticFieldID: Some(get_static_field_id),
         GetStaticObjectField: None,
         GetStaticBooleanField: None,
         GetStaticByteField: None,
@@ -178,7 +178,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         GetStaticLongField: None,
         GetStaticFloatField: None,
         GetStaticDoubleField: None,
-        SetStaticObjectField: None,
+        SetStaticObjectField: Some(set_static_object_field),
         SetStaticBooleanField: None,
         SetStaticByteField: None,
         SetStaticCharField: None,
@@ -477,4 +477,13 @@ unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
 unsafe extern "C" fn is_assignable_from(_env: *mut JNIEnv, _sub: jclass, _sup: jclass) -> jboolean{
     //todo impl later
     true as jboolean
+}
+
+unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: *const ::std::os::raw::c_char, sig: *const ::std::os::raw::c_char) -> jfieldID{
+    get_frame(env).print_stack_trace();
+    get_field_id(env,clazz,name,sig)
+}
+
+unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass, fieldID: jfieldID, value: jobject){
+    unimplemented!()
 }

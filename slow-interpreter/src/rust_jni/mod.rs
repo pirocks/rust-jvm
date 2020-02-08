@@ -67,6 +67,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfi
     if classfile.classfile.methods[method_i].is_static(){
         Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw,false))
     }else {
+        current_frame.print_stack_trace();
         Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw,true))
     }
 }
