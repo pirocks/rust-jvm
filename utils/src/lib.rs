@@ -22,7 +22,7 @@ pub fn lookup_method_parsed_impl(state: &mut InterpreterState,class: Arc<Runtime
             return Some((*i,class.clone()));
         }
     }
-    let super_class = state.initialized_classes.read().unwrap().get(&class.classfile.super_class_name()).unwrap().clone();
+    let super_class = state.initialized_classes.read().unwrap().get(&class.classfile.super_class_name().unwrap()).unwrap().clone();
     lookup_method_parsed_impl(state,super_class, name, descriptor, loader)
 }
 

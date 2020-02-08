@@ -75,16 +75,22 @@ impl Classfile {
         }
     }
 
-    pub fn super_class_name(&self) -> ClassName {
-        let class_info = match &(self.constant_pool[self.super_class as usize]).kind {
+    pub fn super_class_name(&self) -> Option<ClassName> {
+        let super_i = self.super_class;
+        if super_i == 0 {
+            return None;
+        }
+        let class_info = match &(self.constant_pool[super_i as usize]).kind {
             ConstantKind::Class(c) => {
                 c
             }
-            _ => { panic!() }
+            a => {
+                dbg!(a);
+                panic!() }
         };
         match &(self.constant_pool[class_info.name_index as usize]).kind {
             ConstantKind::Utf8(s) => {
-                return ClassName::Str(s.string.clone());
+                return ClassName::Str(s.string.clone()).into();
             }
             _ => { panic!() }
         }

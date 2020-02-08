@@ -15,7 +15,9 @@ use log::trace;
 use crate::instructions::ldc::load_class_constant_by_name;
 use std::sync::Arc;
 use runtime_common::runtime_class::RuntimeClass;
-use crate::rust_jni::value_conversion::native_to_runtime_class;
+use crate::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
+use crate::interpreter_util::check_inited_class;
+use rust_jvm_common::classnames::ClassName;
 
 //GetFieldID
 pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
@@ -33,7 +35,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         FromReflectedMethod: None,
         FromReflectedField: None,
         ToReflectedMethod: None,
-        GetSuperclass: None,
+        GetSuperclass: Some(get_superclass),
         IsAssignableFrom: None,
         ToReflectedField: None,
         Throw: None,
@@ -353,7 +355,7 @@ unsafe extern "C" fn get_static_method_id(
     //todo dup
     let runtime_class = class_obj.object_class_object_pointer.borrow().as_ref().unwrap().clone();
     let classfile = &runtime_class.classfile;
-    let (method_i , method) = classfile.lookup_method(method_name,method_descriptor_str).unwrap();
+    let (method_i, method) = classfile.lookup_method(method_name, method_descriptor_str).unwrap();
     assert!(method.is_static());
     let res = Box::into_raw(Box::new(MethodId { class: runtime_class.clone(), method_i }));
     transmute(res)
@@ -400,26 +402,26 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
     to_object(res)
 }
 
-unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring{
+unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring {
     let mut str = String::with_capacity(len as usize);
-    for i in 0..len{
+    for i in 0..len {
         str.push(unicode.offset(i as isize).read() as u8 as char)
     }
-    new_string_with_string(env,str)
+    new_string_with_string(env, str)
 }
 
-pub struct FieldID{
+pub struct FieldID {
     pub class: Arc<RuntimeClass>,
     pub field_i: usize,
 }
 
-unsafe extern "C" fn get_field_id(_env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID{
+unsafe extern "C" fn get_field_id(_env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let runtime_class = native_to_runtime_class(clazz);
     let fields = &runtime_class.classfile.fields;
     for field_i in 0..fields.len() {
         //todo check descriptor
-        if fields[field_i].name(&runtime_class.classfile) == name{
+        if fields[field_i].name(&runtime_class.classfile) == name {
             return Box::into_raw(Box::new(FieldID { class: runtime_class.clone(), field_i })) as jfieldID;
         }
     }
@@ -427,7 +429,7 @@ unsafe extern "C" fn get_field_id(_env: *mut JNIEnv, clazz: jclass, c_name: *con
 }
 
 
-unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -> jsize{
+unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -> jsize {
     let str_obj = from_object(str).unwrap();
     //todo use length function.
     let str_fields = str_obj.unwrap_normal_object().fields.borrow();
@@ -438,7 +440,7 @@ unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -> js
 }
 
 
-pub  unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char){
+pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
     let str_obj = from_object(str).unwrap();
     let str_fields = str_obj.unwrap_normal_object().fields.borrow();
     let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
@@ -449,4 +451,23 @@ pub  unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, 
         buf.offset(i as isize).write(char_ as i8);
     }
     buf.offset((start + len) as isize).write('\0' as i8);
+}
+
+
+pub unsafe fn runtime_class_from_object(cls: jclass) -> Arc<RuntimeClass>{
+    from_object(cls).unwrap().unwrap_normal_object().object_class_object_pointer.borrow().as_ref().unwrap().clone()
+}
+
+
+unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
+    let super_name = match runtime_class_from_object(sub).classfile.super_class_name(){
+        None => {return to_object(None)},
+        Some(n) => n,
+    };
+    let frame = get_frame(env);
+    let state = get_state(env);
+//    frame.print_stack_trace();
+    let inited_class = check_inited_class(state, &super_name, frame.clone().into(),frame.class_pointer.loader.clone());
+    load_class_constant_by_name(state,&frame,super_name.get_referred_name());
+    to_object(frame.pop().unwrap_object())
 }

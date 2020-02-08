@@ -204,7 +204,7 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, clas
         });
     } else {
         let name = class.classfile.super_class_name();
-        let super_ = check_inited_class(state, &name, frame.clone().into(), class.loader.clone());
+        let super_ = check_inited_class(state, &name.unwrap(), frame.clone().into(), class.loader.clone());
         for (c, i) in get_all_methods(state, frame, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }

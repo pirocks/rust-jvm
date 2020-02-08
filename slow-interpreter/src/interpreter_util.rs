@@ -100,7 +100,7 @@ pub fn run_function(
             InstructionInfo::astore_3 => astore(&current_frame, 3),
             InstructionInfo::athrow => {
                 current_frame.print_stack_trace();
-                unimplemented!()
+                state.throw = current_frame.pop().unwrap_object().unwrap().into();
             }
             InstructionInfo::baload => unimplemented!(),
             InstructionInfo::bastore => unimplemented!(),
@@ -184,7 +184,7 @@ pub fn run_function(
             InstructionInfo::iaload => iaload(&current_frame),
             InstructionInfo::iand => iand(&current_frame),
             InstructionInfo::iastore => iastore(&current_frame),
-            InstructionInfo::iconst_m1 => unimplemented!(),
+            InstructionInfo::iconst_m1 => iconst_m1(&current_frame),
             InstructionInfo::iconst_0 => iconst_0(&current_frame),
             InstructionInfo::iconst_1 => iconst_1(&current_frame),
             InstructionInfo::iconst_2 => iconst_2(&current_frame),
@@ -318,7 +318,7 @@ pub fn run_function(
             }
             if state.throw.is_some() {
                 //need to propogate to caller
-                unimplemented!()
+                break;
             }
         } else {
 
@@ -360,7 +360,7 @@ pub fn push_new_object(current_frame: Rc<StackEntry>, target_classfile: &Arc<Run
 fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
     if classfile.super_class != 0 {
         let super_name = classfile.super_class_name();
-        let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name, bl.clone()).unwrap();
+        let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone()).unwrap();
         default_init_fields(loader_arc.clone(), object_pointer.clone(), &loaded_super, bl);
     }
     for field in &classfile.fields {

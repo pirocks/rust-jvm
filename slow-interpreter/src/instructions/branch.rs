@@ -2,6 +2,7 @@ use runtime_common::StackEntry;
 use std::rc::Rc;
 use runtime_common::java_values::JavaValue;
 use std::sync::Arc;
+use rust_jvm_common::classnames::class_name;
 
 pub fn goto_(current_frame: &Rc<StackEntry>, target: i16) {
     current_frame.pc_offset.replace(target as isize);
@@ -30,6 +31,10 @@ pub fn iconst_1(current_frame: &Rc<StackEntry>) -> () {
 
 pub fn iconst_0(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int(0))
+}
+
+pub fn iconst_m1(current_frame: &Rc<StackEntry>) -> () {
+    current_frame.push(JavaValue::Int(-1))
 }
 
 pub fn lconst(current_frame: &Rc<StackEntry>, i: i64) -> () {
@@ -244,8 +249,8 @@ pub fn if_acmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
-    dbg!(&value2);
-    dbg!(&value1);
+//    dbg!(&value2.try_unwrap_object().map(|x|{class_name(&x.unwrap_normal_object().class_pointer.classfile).get_referred_name()}));
+//    dbg!(&value1.try_unwrap_object().map(|x|{class_name(&x.unwrap_normal_object().class_pointer.classfile).get_referred_name()}));
     match value1 {
         JavaValue::Object(o1) => match value2 {
             JavaValue::Object(o2) => match o1 {

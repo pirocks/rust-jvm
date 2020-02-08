@@ -62,7 +62,7 @@ impl Loader for BootstrapLoader {
                     self.load_class(self_arc.clone(), &ClassName::object(), bl.clone())?;
                 } else {
                     let super_class_name = classfile.super_class_name();
-                    self.load_class(self_arc.clone(), &super_class_name, bl.clone())?;
+                    self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone())?;
                 }
             }
             for i in &classfile.interfaces {

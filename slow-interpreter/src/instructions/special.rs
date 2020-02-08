@@ -92,7 +92,7 @@ pub fn invoke_instanceof(state: &mut InterpreterState, current_frame: &Rc<StackE
 
 fn runtime_super_class(state: &mut InterpreterState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.classfile.has_super_class() {
-        Some(check_inited_class(state, &inherits.classfile.super_class_name(), None, inherits.loader.clone()))
+        Some(check_inited_class(state, &inherits.classfile.super_class_name().unwrap(), None, inherits.loader.clone()))
     } else {
         None
     }

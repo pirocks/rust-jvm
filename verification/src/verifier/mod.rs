@@ -86,7 +86,7 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
         let super_class_name = get_class(vf, class).super_class_name();
-        let super_class = loaded_class(vf, super_class_name, vf.bootstrap_loader.clone()).unwrap();
+        let super_class = loaded_class(vf, super_class_name.unwrap(), vf.bootstrap_loader.clone()).unwrap();
         if class_is_final(vf, &super_class) {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
         }

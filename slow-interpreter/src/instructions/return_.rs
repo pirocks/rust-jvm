@@ -55,7 +55,11 @@ pub fn lreturn(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> 
     state.function_return = true;
     match res {
         JavaValue::Long(_) => {}
-        _ => panic!()
+        _ => {
+            current_frame.print_stack_trace();
+            dbg!(res);
+            panic!()
+        }
     }
     current_frame.last_call_stack.as_ref().unwrap().push(res);
 }

@@ -34,13 +34,10 @@ use std::ops::Deref;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
 use slow_interpreter::rust_jni::string::intern_impl;
+use slow_interpreter::rust_jni::interface::runtime_class_from_object;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
-
-unsafe fn runtime_class_from_object(cls: jclass) -> Arc<RuntimeClass>{
-    from_object(cls).unwrap().unwrap_normal_object().object_class_object_pointer.borrow().as_ref().unwrap().clone()
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
@@ -815,7 +812,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
-    unimplemented!()
+    let frame = get_frame(env);
+    runtime_class_from_object(cls).classfile.access_flags as i32
 }
 
 #[no_mangle]

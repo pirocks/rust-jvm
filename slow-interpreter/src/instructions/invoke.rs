@@ -217,7 +217,7 @@ pub fn invoke_static_impl(
 //        dbg!(&args);
         run_function(state, Rc::new(next_entry));
         if state.throw.is_some() || state.terminate {
-            unimplemented!();
+            return;
         }
         if state.function_return {
             state.function_return = false;
@@ -283,6 +283,8 @@ pub fn run_native_method(
             state.jni.registered_natives.borrow().get(&class).unwrap().borrow().contains_key(&(method_i as u16))
         {
             //todo dup
+            dbg!(class_name(&class.classfile).get_referred_name());
+            dbg!(&class.classfile.methods[method_i].method_name(&class.classfile));
             let res_fn = {
                 let reg_natives = state.jni.registered_natives.borrow();
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
@@ -290,14 +292,41 @@ pub fn run_native_method(
             };
             call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn, !method.is_static())
         } else {
-            let res = match call(state, frame.clone(), class.clone(), method_i, args, parsed.return_type) {
+            let res = match call(state, frame.clone(), class.clone(), method_i, args.clone(), parsed.return_type) {
                 Ok(r) => r,
                 Err(_) => {
                     let mangled = mangling::mangle(class.clone(), method_i);
+                    //todo actually impl these at some point
                     if mangled == "Java_sun_misc_Unsafe_compareAndSwapObject".to_string() {
                         //todo do nothing for now and see what happens
                         //
                         Some(JavaValue::Boolean(true))
+                    } else if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
+                        frame.print_stack_trace();
+                        let param0_obj = args[0].unwrap_object();
+                        let the_unsafe = param0_obj.as_ref().unwrap().unwrap_normal_object();
+                        let param1_obj = args[1].unwrap_object();
+                        let field_obj = param1_obj.as_ref().unwrap().unwrap_normal_object();
+                        let borrow_1 = field_obj.fields.borrow().get("name").unwrap().unwrap_object();
+                        let name_str_obj = borrow_1.as_ref().unwrap().unwrap_normal_object();
+                        let borrow_2 = name_str_obj.fields.borrow().get("value").unwrap().unwrap_object();
+                        let name_char_array = borrow_2.as_ref().unwrap().unwrap_array().elems.borrow();
+                        let mut field_name = String::with_capacity(name_char_array.len());
+                        for char_ in &*name_char_array {
+                            field_name.push(char_.unwrap_char());
+                        }
+                        let borrow_3 = field_obj.fields.borrow().get("clazz").unwrap().unwrap_object().unwrap();
+                        let field_class = borrow_3.unwrap_normal_object();
+                        let borrow_4 = field_class.object_class_object_pointer.borrow();
+                        let field_class_classfile = borrow_4.as_ref().unwrap().classfile.clone();
+                        let mut res = None;
+                        &field_class_classfile.fields.iter().enumerate().for_each(|(i,f)|{
+                            if f.name(&field_class_classfile) == field_name{
+                                res = Some(Some(JavaValue::Long(i as i64)));
+                            }
+                        });
+                        res.unwrap()
+//                        unimplemented!()
                     } else {
                         panic!()
                     }
