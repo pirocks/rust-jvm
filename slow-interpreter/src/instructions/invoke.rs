@@ -327,7 +327,17 @@ pub fn run_native_method(
                         });
                         res.unwrap()
 //                        unimplemented!()
+                    } else if mangled == "Java_sun_misc_Unsafe_getIntVolatile".to_string() {
+                        let param1_obj = args[1].unwrap_object();
+                        let unwrapped = param1_obj.unwrap();
+                        let target_obj = unwrapped.unwrap_normal_object();
+                        let var_offset = args[2].unwrap_long();
+                        let classfile = &target_obj.class_pointer.classfile;
+                        let field_name = classfile.constant_pool[classfile.fields[var_offset as usize].name_index as usize].extract_string_from_utf8();
+                        let fields = target_obj.fields.borrow();
+                        fields.get(&field_name).unwrap().clone().into()
                     } else {
+                        frame.print_stack_trace();
                         panic!()
                     }
                 }

@@ -21,7 +21,7 @@ use crate::instructions::new::*;
 use crate::instructions::return_::*;
 use crate::instructions::arithmetic::*;
 use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
-use crate::instructions::ldc::{ldc, ldc2_w};
+use crate::instructions::ldc::{ldc_w, ldc2_w};
 use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
@@ -251,8 +251,8 @@ pub fn run_function(
             InstructionInfo::lcmp => unimplemented!(),
             InstructionInfo::lconst_0 => lconst(&current_frame, 0),
             InstructionInfo::lconst_1 => lconst(&current_frame, 1),
-            InstructionInfo::ldc(cp) => ldc(state, current_frame.clone(), cp),
-            InstructionInfo::ldc_w(_) => unimplemented!(),
+            InstructionInfo::ldc(cp) => ldc_w(state, current_frame.clone(), cp as u16),
+            InstructionInfo::ldc_w(cp) => ldc_w(state, current_frame.clone(), cp),
             InstructionInfo::ldc2_w(cp) => ldc2_w(current_frame.clone(), cp),
             InstructionInfo::ldiv => unimplemented!(),
             InstructionInfo::lload(i) => lload(&current_frame, i as usize),

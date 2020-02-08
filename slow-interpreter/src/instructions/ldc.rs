@@ -83,7 +83,7 @@ pub fn ldc2_w(current_frame: Rc<StackEntry>, cp: u16) -> () {
 }
 
 
-pub fn ldc(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u8) -> () {
+pub fn ldc_w(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> () {
     let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
     let pool_entry = &constant_pool[cp as usize];
     match &pool_entry.kind {
