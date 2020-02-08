@@ -33,6 +33,7 @@ use std::ffi::CStr;
 use std::ops::Deref;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
+use slow_interpreter::rust_jni::string::intern_impl;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -79,28 +80,9 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
     unimplemented!()
 }
 
-pub static mut STRING_INTERNMENT_CAMP: Option<HashMap<String, Arc<Object>>> = None;
-
 #[no_mangle]
 unsafe extern "system" fn JVM_InternString(env: *mut JNIEnv, str_unsafe: jstring) -> jstring {
-    match &STRING_INTERNMENT_CAMP {
-        None => { STRING_INTERNMENT_CAMP = Some(HashMap::new()) }
-        Some(_) => {}
-    };
-    let str_obj = from_object(str_unsafe);
-    let char_array_ptr = str_obj.clone().unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
-    let char_array = char_array_ptr.unwrap_array().elems.borrow();
-    let mut native_string = String::with_capacity(char_array.len());
-    for char_ in &*char_array {
-        native_string.push(char_.unwrap_char());
-    }
-    if STRING_INTERNMENT_CAMP.as_ref().unwrap().contains_key(&native_string) {
-        let res = STRING_INTERNMENT_CAMP.as_ref().unwrap().get(&native_string).unwrap().clone();
-        to_object(res.into())
-    } else {
-        STRING_INTERNMENT_CAMP.as_mut().unwrap().insert(native_string, str_obj.as_ref().unwrap().clone());
-        to_object(str_obj)
-    }
+    intern_impl(str_unsafe)
 }
 
 #[no_mangle]

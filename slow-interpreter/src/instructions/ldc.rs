@@ -11,6 +11,8 @@ use crate::instructions::invoke::find_target_method;
 use classfile_parser::types::MethodDescriptor;
 use std::mem::transmute;
 use std::cell::RefCell;
+use crate::rust_jni::native_util::{to_object, from_object};
+use crate::rust_jni::string::intern_impl;
 
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
     let res_class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();
@@ -39,7 +41,7 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(chars), elem_type: ParsedType::CharType })))));
     let char_array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) });
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: ParsedType::VoidType };
-    let (constructor_i, final_target_class) = find_target_method(state,current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
+    let (constructor_i, final_target_class) = find_target_method(state, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry {
         last_call_stack: Some(current_frame.clone().into()),
         class_pointer: final_target_class,
@@ -56,7 +58,10 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     if state.function_return {
         state.function_return = false;
     }
-    current_frame.push(string_object);
+    let interned = unsafe {
+        from_object(intern_impl(to_object(string_object.unwrap_object())))
+    };
+    current_frame.push(JavaValue::Object(interned));
 }
 
 pub fn ldc2_w(current_frame: Rc<StackEntry>, cp: u16) -> () {
@@ -99,7 +104,7 @@ pub fn ldc(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u8) 
     }
 }
 
-pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>,c: &ConstantInfo, state: &mut InterpreterState, stack: Option<Rc<StackEntry>>) -> JavaValue {
+pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantInfo, state: &mut InterpreterState, stack: Option<Rc<StackEntry>>) -> JavaValue {
     match &c.kind {
         ConstantKind::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
         ConstantKind::Float(f) => JavaValue::Float(unsafe { transmute(f.bytes) }),
@@ -113,10 +118,10 @@ pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>,c: &ConstantIn
             let low = d.low_bytes as u64;
             transmute(high | low)
         }),
-        ConstantKind::String(s) =>{
-            load_string_constant(state,&stack.clone().unwrap(),constant_pool,s);
+        ConstantKind::String(s) => {
+            load_string_constant(state, &stack.clone().unwrap(), constant_pool, s);
             stack.unwrap().pop()
-        },
+        }
         _ => panic!()
     }
 }

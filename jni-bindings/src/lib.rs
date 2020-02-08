@@ -4,3 +4,9 @@
 #![allow(unused)]
 
 include!(concat!("../gen", "/bindings.rs"));
+
+
+
+//extern "C" {
+//    pub fn JVM_InternString(env: *mut JNIEnv, str_unsafe: jstring) -> jstring;
+//}

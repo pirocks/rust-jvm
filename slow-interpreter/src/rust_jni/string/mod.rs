@@ -1,11 +1,13 @@
 use jni_bindings::{JNIEnv, jstring, jboolean, jchar};
 use std::os::raw::c_char;
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, Object};
 use std::cell::Ref;
 use std::alloc::Layout;
 use std::mem::{size_of, transmute};
 use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object};
 use crate::instructions::ldc::create_string_on_stack;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 //todo shouldn't this be handled by a registered native
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
@@ -53,4 +55,28 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     create_string_on_stack(state, &frame, owned_str);
     let string = frame.pop().unwrap_object();
     to_object(string.into())
+}
+
+
+pub static mut STRING_INTERNMENT_CAMP: Option<HashMap<String, Arc<Object>>> = None;
+
+pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring{
+    match &STRING_INTERNMENT_CAMP {
+        None => { STRING_INTERNMENT_CAMP = Some(HashMap::new()) }
+        Some(_) => {}
+    };
+    let str_obj = from_object(str_unsafe);
+    let char_array_ptr = str_obj.clone().unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
+    let char_array = char_array_ptr.unwrap_array().elems.borrow();
+    let mut native_string = String::with_capacity(char_array.len());
+    for char_ in &*char_array {
+        native_string.push(char_.unwrap_char());
+    }
+    if STRING_INTERNMENT_CAMP.as_ref().unwrap().contains_key(&native_string) {
+        let res = STRING_INTERNMENT_CAMP.as_ref().unwrap().get(&native_string).unwrap().clone();
+        to_object(res.into())
+    } else {
+        STRING_INTERNMENT_CAMP.as_mut().unwrap().insert(native_string, str_obj.as_ref().unwrap().clone());
+        to_object(str_obj)
+    }
 }

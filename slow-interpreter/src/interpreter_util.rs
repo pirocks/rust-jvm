@@ -99,7 +99,9 @@ pub fn run_function(
             InstructionInfo::astore_1 => astore(&current_frame, 1),
             InstructionInfo::astore_2 => astore(&current_frame, 2),
             InstructionInfo::astore_3 => astore(&current_frame, 3),
-            InstructionInfo::athrow => {unimplemented!()},
+            InstructionInfo::athrow => {
+                current_frame.print_stack_trace();
+                unimplemented!()},
             InstructionInfo::baload => unimplemented!(),
             InstructionInfo::bastore => unimplemented!(),
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
