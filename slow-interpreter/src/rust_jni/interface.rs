@@ -1,6 +1,6 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID, jboolean};
 use std::mem::transmute;
 use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
@@ -35,7 +35,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         FromReflectedField: None,
         ToReflectedMethod: None,
         GetSuperclass: Some(get_superclass),
-        IsAssignableFrom: None,
+        IsAssignableFrom: Some(is_assignable_from),
         ToReflectedField: None,
         Throw: None,
         ThrowNew: None,
@@ -471,4 +471,10 @@ unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
     let _inited_class = check_inited_class(state, &super_name, frame.clone().into(),frame.class_pointer.loader.clone());
     load_class_constant_by_name(state,&frame,super_name.get_referred_name());
     to_object(frame.pop().unwrap_object())
+}
+
+
+unsafe extern "C" fn is_assignable_from(_env: *mut JNIEnv, _sub: jclass, _sup: jclass) -> jboolean{
+    //todo impl later
+    true as jboolean
 }

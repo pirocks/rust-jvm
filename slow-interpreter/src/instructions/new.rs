@@ -54,6 +54,9 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
         Atype::TInt => {
             ParsedType::IntType
         }
+        Atype::TByte => {
+            ParsedType::ByteType
+        }
         _ => {
             dbg!(a_type);
             unimplemented!()
