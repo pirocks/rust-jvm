@@ -82,7 +82,28 @@ pub fn isub(current_frame: &Rc<StackEntry>) -> () {
 }
 
 
-pub fn ladd(current_frame: Rc<StackEntry>) -> () {
+pub fn lsub(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_long();
+    let value1 = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Long(value1 - value2));
+}
+
+pub fn lcmp(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_long();
+    let value1 = current_frame.pop().unwrap_long();
+    if value1 == value2{
+        current_frame.push(JavaValue::Int(0))
+    }
+    if value1 > value2{
+        current_frame.push(JavaValue::Int(1))
+    }
+    if value1 < value2{
+        current_frame.push(JavaValue::Int(-1))
+    }
+}
+
+
+pub fn ladd(current_frame: &Rc<StackEntry>) -> () {
     let first = current_frame.pop().unwrap_long();
     let second = current_frame.pop().unwrap_long();
     current_frame.push(JavaValue::Long(first + second));

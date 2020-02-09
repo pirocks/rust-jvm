@@ -3,6 +3,7 @@ use crate::interpreter_util::check_inited_class;
 use std::rc::Rc;
 use verification::verifier::instructions::special::extract_field_descriptor;
 use runtime_common::java_values::JavaValue;
+use rust_jvm_common::classnames::class_name;
 
 
 pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -42,7 +43,16 @@ pub fn get_static(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, 
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone(), loader_arc.clone());
+    /*if field_name == "reflectionFactory" {
+        dbg!(cp);
+        panic!()
+    }*/
     let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
+    current_frame.print_stack_trace();
+    dbg!(class_name(classfile));
+    dbg!(&field_name);
+    dbg!(&field_class_name);
+    dbg!(cp);
     let field_value = target_classfile.static_vars.borrow().get(&field_name).unwrap().clone();
     let mut stack = current_frame.operand_stack.borrow_mut();
     stack.push(field_value);

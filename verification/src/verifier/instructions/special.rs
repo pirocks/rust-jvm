@@ -169,6 +169,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 
 //todo maybe move to impl
 pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>, l: LoaderArc) -> (ClassName, String, FieldDescriptor) {
+    dbg!(cp);
     let current_class = class;
     let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
     let (class_index, name_and_type_index) = match field_entry {
@@ -186,6 +187,7 @@ pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>, l: LoaderArc
         }
         _ => panic!()
     };
+    dbg!(&field_class_name);
     let (field_name_index, descriptor_index) = match &current_class.constant_pool[name_and_type_index as usize].kind {
         ConstantKind::NameAndType(nt) => {
             (nt.name_index, nt.descriptor_index)

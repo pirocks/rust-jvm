@@ -10,7 +10,7 @@ use rust_jvm_common::classfile::MethodInfo;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
 use rust_jvm_common::unified_types::ParsedType;
 use crate::interpreter_util::check_inited_class;
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::StackEntry;
 use std::cell::Ref;
@@ -63,22 +63,35 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
 //    }
 }
 
-fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> (Arc<RuntimeClass>,String,MethodDescriptor){
+fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>,String,MethodDescriptor)>{
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
     let class_name_ = match class_name_type {
         ParsedType::Class(c) => c.class_name,
-        ParsedType::ArrayReferenceType(_) => unimplemented!(),
+        ParsedType::ArrayReferenceType(_a) => {
+            if expected_method_name == "clone".to_string() {
+                //todo replace with proper native impl
+                let temp = current_frame.pop().unwrap_object().unwrap();
+                let to_clone_array = temp.unwrap_array();
+                current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject{ elems: to_clone_array.elems.clone(), elem_type: to_clone_array.elem_type.clone() })))));
+                return None;
+            }else {
+                unimplemented!();
+            }
+        },
         _ => panic!()
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let resolved_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
-    (resolved_class, expected_method_name, expected_descriptor)
+    (resolved_class, expected_method_name, expected_descriptor).into()
 }
 
 pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
-    let (_resolved_class,method_name,expected_descriptor) = resolved_class(state,current_frame.clone(),cp);
+    let (_resolved_class,method_name,expected_descriptor) = match resolved_class(state,current_frame.clone(),cp){
+        None => return,
+        Some(o) => {o},
+    };
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>".to_string() ||
         method_name == "<clinit>".to_string() {
