@@ -74,7 +74,7 @@ pub fn run_function(
             let mut context = CodeParserContext { offset: 0, iter: current.iter() };
             (parse_instruction(&mut context).unwrap().clone(), context.offset)
         };
-        if meth_name == "lookup2" //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string())
+        /*if meth_name == "get" //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string())
         {
             dbg!(&current_frame.local_vars);
             dbg!(&current_frame.operand_stack);
@@ -88,7 +88,7 @@ pub fn run_function(
 //            }
             dbg!(&instruct);
 //            std::io::stderr().flush();
-        }
+        }*/
         current_frame.pc_offset.replace(instruction_size as isize);
 //        dbg!(instruct.clone());
         match instruct {
@@ -240,7 +240,7 @@ pub fn run_function(
             InstructionInfo::irem => irem(&current_frame),
             InstructionInfo::ireturn => ireturn(state, &current_frame),
             InstructionInfo::ishl => ishl(&current_frame),
-            InstructionInfo::ishr => unimplemented!(),
+            InstructionInfo::ishr => ishr(&current_frame),
             InstructionInfo::istore(n) => istore(&current_frame, n),
             InstructionInfo::istore_0 => istore(&current_frame, 0),
             InstructionInfo::istore_1 => istore(&current_frame, 1),
@@ -318,7 +318,7 @@ pub fn run_function(
                         state.throw = None;
                         current_frame.pc.replace(excep_table.handler_pc as usize);
                         println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
-                        current_frame.print_stack_trace();
+//                        current_frame.print_stack_trace();
                         break;
                     } else {
                         let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
@@ -330,7 +330,7 @@ pub fn run_function(
                             state.throw = None;
                             current_frame.pc.replace(excep_table.handler_pc as usize);
                             println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
-                            current_frame.print_stack_trace();
+//                            current_frame.print_stack_trace();
                             break;
                         }
                     }

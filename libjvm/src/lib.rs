@@ -19,7 +19,7 @@ use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobj
 use log::trace;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_function, run_constructor};
 use slow_interpreter::instructions::ldc::{load_class_constant_by_name, create_string_on_stack};
-use slow_interpreter::instructions::invoke::{invoke_virtual_method_i, invoke_special};
+use slow_interpreter::instructions::invoke::{invoke_virtual_method_i, invoke_special, actually_virtual};
 use classfile_parser::types::{MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
@@ -35,6 +35,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
 use slow_interpreter::rust_jni::string::intern_impl;
 use slow_interpreter::rust_jni::interface::runtime_class_from_object;
+use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -644,7 +645,8 @@ unsafe extern "system" fn JVM_GetClassLoader(env: *mut JNIEnv, cls: jclass) -> j
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    unimplemented!()
+    get_frame(env).print_stack_trace();
+    (runtime_class_from_object(cls).unwrap().classfile.access_flags & ACC_INTERFACE > 0) as jboolean
 }
 
 #[no_mangle]
@@ -697,9 +699,9 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
     * @since JDK1.1
     */
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    get_frame(env).print_stack_trace();
+//    get_frame(env).print_stack_trace();
     let class_object = runtime_class_from_object(cls);
-    if class_object.is_none(){
+    if class_object.is_none() {
         return false as jboolean;
     }
     let name = class_name(&class_object.unwrap().classfile).get_referred_name();
@@ -798,7 +800,7 @@ fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, typ
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let frame = get_frame(env);
     let state = get_state(env);
-    frame.print_stack_trace();
+//    frame.print_stack_trace();
     let class_obj = runtime_class_from_object(ofClass);
 //    dbg!(&class_obj.clone().unwrap_normal_object().class_pointer);
 //    let runtime_object = state.class_object_pool.borrow().get(&class_obj).unwrap();
@@ -855,19 +857,91 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 //        this.annotations = var7;
 //    }
 //    class_obj.unwrap()
+
     let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: ParsedType::Class(ClassWithLoader { class_name: class_name(&field_classfile.classfile), loader: field_classfile.loader.clone() }) })));
     to_object(res)
 }
 
 
+const CONSTRUCTOR_SIGNATURE: &'static str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
+
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
-    unimplemented!()
+    let temp = runtime_class_from_object(ofClass).unwrap();
+    let target_classfile = &temp.classfile;
+    let constructors = target_classfile.lookup_method_name(&"<init>".to_string());
+    let state = get_state(env);
+    let frame = get_frame(env);
+    let class_obj = runtime_class_from_object(ofClass);
+    let loader = frame.class_pointer.loader.clone();
+    let constructor_class = check_inited_class(state, &ClassName::new("java/lang/reflect/Constructor"), frame.clone().into(), loader.clone());
+    let mut object_array = vec![];
+
+    constructors.clone().iter().filter(|(i, m)| {
+        if publicOnly > 0 {
+            m.access_flags & ACC_PUBLIC > 0
+        } else {
+            true
+        }
+    }).for_each(|(i, m)| {
+        let class_type = ParsedType::Class(ClassWithLoader { class_name: ClassName::class(), loader: loader.clone() });//todo this should be a global const
+
+        push_new_object(frame.clone(), &constructor_class);
+        let constructor_object = frame.pop();
+
+        object_array.push(constructor_object.clone());
+
+        let clazz = {
+            let field_class_name = class_name(&class_obj.clone().as_ref().unwrap().classfile).get_referred_name();
+            load_class_constant_by_name(state, &frame, field_class_name);
+            frame.pop()
+        };
+
+        let parameter_types = {
+            let mut res = vec![];
+            let desc_str = m.descriptor_str(&target_classfile);
+            let parsed = parse_method_descriptor(&loader, desc_str.as_str()).unwrap();
+            for param_type in parsed.parameter_types {
+                res.push(match param_type {
+                    ParsedType::Class(c) => {
+                        load_class_constant_by_name(state, &frame, c.class_name.get_referred_name());
+                        frame.pop()
+                    }
+                    _ => unimplemented!()
+                });
+            }
+
+            JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(res), elem_type: class_type.clone() }))))
+        };
+
+
+        let exceptionTypes = {
+            //todo not currently supported
+            assert!(m.code_attribute().unwrap().exception_table.is_empty());
+            JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: class_type.clone() }))))
+        };
+
+        let modifiers = JavaValue::Int(constructor_class.classfile.access_flags as i32);
+        //todo what does slot do?
+        let slot = JavaValue::Int(-1);
+
+        let signature = {
+            create_string_on_stack(state, &frame, CONSTRUCTOR_SIGNATURE.to_string());
+            frame.pop()
+        };
+
+        //todo impl these
+        let empty_byte_array = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: ParsedType::ByteType }))));
+
+        let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, empty_byte_array.clone(), empty_byte_array];
+        run_constructor(state, frame.clone(), constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
+    });
+    let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: ParsedType::Class(ClassWithLoader { class_name: class_name(&constructor_class.classfile), loader: constructor_class.loader.clone() }) })));
+    to_object(res)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
-    let frame = get_frame(env);
     runtime_class_from_object(cls).unwrap().classfile.access_flags as i32
 }
 
@@ -982,10 +1056,13 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     frame.push(JavaValue::Object(action));
 //    dbg!(&frame.operand_stack);
 //    dbg!(&run_method.code_attribute().unwrap());
-    invoke_virtual_method_i(state, frame.clone(), expected_descriptor, runtime_class.clone(), run_method_i, run_method);
+    actually_virtual(state, frame.clone(), expected_descriptor, &runtime_class, run_method);
     dbg!(&frame.operand_stack);
 //    unimplemented!()
-    to_object(frame.pop().unwrap_object())
+
+    let res = frame.pop().unwrap_object();
+    dbg!(&res);
+    to_object(res)
 }
 
 #[no_mangle]

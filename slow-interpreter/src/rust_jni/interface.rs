@@ -480,7 +480,8 @@ unsafe extern "C" fn is_assignable_from(_env: *mut JNIEnv, _sub: jclass, _sup: j
 }
 
 unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: *const ::std::os::raw::c_char, sig: *const ::std::os::raw::c_char) -> jfieldID{
-    get_frame(env).print_stack_trace();
+//    get_frame(env).print_stack_trace();
+    //todo should have its own impl
     get_field_id(env,clazz,name,sig)
 }
 

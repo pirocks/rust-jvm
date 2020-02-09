@@ -67,7 +67,7 @@ pub fn call(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfi
     if classfile.classfile.methods[method_i].is_static(){
         Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw,false))
     }else {
-        current_frame.print_stack_trace();
+//        current_frame.print_stack_trace();
         Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw,true))
     }
 }
@@ -213,7 +213,7 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, clas
         }
     }
 
-    return res;
+    res
 }
 
 //for now a method id is a pair of class pointers and i.

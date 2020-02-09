@@ -61,7 +61,11 @@ pub fn ishl(current_frame: &Rc<StackEntry>) -> () {
     let value1 = current_frame.pop().unwrap_int();
     current_frame.push(JavaValue::Int(value1 << (value2 & 63)));
 }
-
+pub fn ishr(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Int(value1 >> (value2 & 63)));
+}
 
 pub fn iushr(current_frame: &Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_int() as u32;
