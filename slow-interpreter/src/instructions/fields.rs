@@ -57,8 +57,12 @@ pub fn get_field(current_frame: &Rc<StackEntry>, cp: u16) -> () {
         JavaValue::Object(o) => {
 //            dbg!(_field_class_name);
 //            dbg!(_field_descriptor);
-//            dbg!(&field_name);
+            dbg!(&field_name);
             let fields = o.as_ref().unwrap().unwrap_normal_object().fields.borrow();
+            if fields.get(field_name.as_str()).is_none() {
+                dbg!(&o);
+                dbg!(&fields.keys());
+            }
             let res = fields.get(field_name.as_str()).unwrap().clone();
 //            if(field_name == )
 //            dbg!(res);

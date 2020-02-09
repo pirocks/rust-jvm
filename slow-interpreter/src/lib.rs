@@ -85,6 +85,7 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
     let object = current_frame.pop();
     match object.clone() {
         JavaValue::Object(o) => {
+//            assert_eq!(&class_loader_class.classfile.access_flags & ACC_ABSTRACT, 0);
             let boostrap_loader_object = NormalObject {
                 gc_reachable: true,
                 fields: RefCell::new(HashMap::new()),

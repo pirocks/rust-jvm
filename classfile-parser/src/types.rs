@@ -16,6 +16,13 @@ impl MethodDescriptor {
     }
 }
 
+impl PartialEq for MethodDescriptor{
+    fn eq(&self, other: &Self) -> bool {
+        self.parameter_types == other.parameter_types &&
+            self.return_type == other.return_type
+    }
+}
+
 #[derive(Debug)]
 pub struct FieldDescriptor { pub field_type: ParsedType }
 

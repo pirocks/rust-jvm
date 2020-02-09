@@ -58,13 +58,8 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-    /*
-        if meth_name == "init" && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string()) {
-    //        dbg!(&current_frame.local_vars);
-    //        dbg!(&current_frame.local_vars.borrow().get(6));
-            dbg!("here");
-        }
-    */
+
+
     let class_name_ = class_name(&current_frame.class_pointer.classfile).get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
@@ -79,6 +74,21 @@ pub fn run_function(
             let mut context = CodeParserContext { offset: 0, iter: current.iter() };
             (parse_instruction(&mut context).unwrap().clone(), context.offset)
         };
+        if meth_name == "lookup2" //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string())
+        {
+            dbg!(&current_frame.local_vars);
+            dbg!(&current_frame.operand_stack);
+//            dbg!(&current_frame.local_vars.borrow().get(6));
+//            match instruct{
+//                InstructionInfo::invokevirtual(31) => {
+//                    dbg!(&instruct);
+//
+//                },
+//                _ => {}
+//            }
+            dbg!(&instruct);
+//            std::io::stderr().flush();
+        }
         current_frame.pc_offset.replace(instruction_size as isize);
 //        dbg!(instruct.clone());
         match instruct {
@@ -302,7 +312,7 @@ pub fn run_function(
             for excep_table in &code.exception_table {
                 if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize) {//todo exclusive
 //                    assert_ne!(excep_table.catch_type, 0);
-                    if excep_table.catch_type == 0{
+                    if excep_table.catch_type == 0 {
                         //todo dup
                         current_frame.push(JavaValue::Object(state.throw.clone()));
                         state.throw = None;
@@ -310,7 +320,7 @@ pub fn run_function(
                         println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
                         current_frame.print_stack_trace();
                         break;
-                    }else {
+                    } else {
                         let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
                         dbg!(&catch_runtime_name);
                         dbg!(class_name(&throw_class.classfile).get_referred_name());

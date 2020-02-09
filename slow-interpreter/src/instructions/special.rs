@@ -35,6 +35,7 @@ pub fn invoke_checkcast(state: &mut InterpreterState, current_frame: &Rc<StackEn
                 current_frame.push(JavaValue::Object(object.clone().into()));
                 return;
             } else {
+                current_frame.print_stack_trace();
                 unimplemented!()
             }
         },

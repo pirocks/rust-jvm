@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
 use rust_jvm_common::classnames::class_name;
+use rust_jvm_common::classfile::ACC_ABSTRACT;
 
 #[derive(Debug)]
 pub enum JavaValue {
@@ -183,6 +184,7 @@ impl PartialEq for JavaValue {
 
 impl JavaValue {
     pub fn new_object(runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
+        assert_eq!(runtime_class.classfile.access_flags & ACC_ABSTRACT, 0);
         Arc::new(Object::Object(NormalObject {
             gc_reachable: true,
             class_pointer: runtime_class,

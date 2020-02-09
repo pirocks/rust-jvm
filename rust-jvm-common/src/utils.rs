@@ -86,7 +86,8 @@ impl Classfile {
             }
             a => {
                 dbg!(a);
-                panic!() }
+                panic!()
+            }
         };
         match &(self.constant_pool[class_info.name_index as usize]).kind {
             ConstantKind::Utf8(s) => {
@@ -163,6 +164,14 @@ impl MethodInfo {
 
     pub fn is_static(&self) -> bool {
         self.access_flags & ACC_STATIC > 0
+    }
+
+    pub fn is_abstract(&self) -> bool {
+        self.access_flags & ACC_ABSTRACT > 0
+    }
+
+    pub fn is_native(&self) -> bool {
+        self.access_flags & ACC_NATIVE > 0
     }
     //todo need a find method function
 }

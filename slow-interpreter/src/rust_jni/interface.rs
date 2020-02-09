@@ -1,12 +1,12 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID, jboolean};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID, jboolean, jbyteArray};
 use std::mem::transmute;
 use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars, new_string_with_string};
-use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
+use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl, invoke_virtual_method_i_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
@@ -200,7 +200,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         GetObjectArrayElement: None,
         SetObjectArrayElement: None,
         NewBooleanArray: None,
-        NewByteArray: None,
+        NewByteArray: Some(new_byte_array),
         NewCharArray: None,
         NewShortArray: None,
         NewIntArray: None,
@@ -300,7 +300,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     }
     //todo add params into operand stack;
     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
+    invoke_virtual_method_i_impl(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
     trace!("----NATIVE ENTER ----");
     let res = frame.pop().unwrap_object();
     to_object(res)
@@ -492,4 +492,9 @@ unsafe extern "C" fn set_static_object_field(_env: *mut JNIEnv, clazz: jclass, f
     let field_name = classfile.constant_pool[classfile.fields[field_id.field_i].name_index as usize].extract_string_from_utf8();
     let static_class = native_to_runtime_class(clazz);
     static_class.static_vars.borrow_mut().insert(field_name,JavaValue::Object(value));
+}
+
+
+unsafe extern "C" fn new_byte_array(_env: *mut JNIEnv, _len: jsize) -> jbyteArray{
+    std::ptr::null_mut() as jbyteArray//todo unimplemented
 }

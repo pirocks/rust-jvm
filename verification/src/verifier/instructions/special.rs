@@ -23,7 +23,6 @@ use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
 use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
-use std::ops::Deref;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
