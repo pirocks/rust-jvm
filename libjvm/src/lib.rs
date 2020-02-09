@@ -983,7 +983,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
 //    dbg!(&frame.operand_stack);
 //    dbg!(&run_method.code_attribute().unwrap());
     invoke_virtual_method_i(state, frame.clone(), expected_descriptor, runtime_class.clone(), run_method_i, run_method);
-//    dbg!(&frame.operand_stack);
+    dbg!(&frame.operand_stack);
 //    unimplemented!()
     to_object(frame.pop().unwrap_object())
 }

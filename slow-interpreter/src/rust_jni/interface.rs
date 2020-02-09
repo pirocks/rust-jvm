@@ -6,7 +6,7 @@ use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars, new_string_with_string};
-use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl, invoke_virtual_method_i_impl};
+use crate::instructions::invoke::{invoke_static_impl,  invoke_virtual_method_i};
 use rust_jvm_common::classfile::ACC_STATIC;
 use classfile_parser::types::parse_method_descriptor;
 use rust_jvm_common::unified_types::ParsedType;
@@ -300,7 +300,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     }
     //todo add params into operand stack;
     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i_impl(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
+    invoke_virtual_method_i(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
     trace!("----NATIVE ENTER ----");
     let res = frame.pop().unwrap_object();
     to_object(res)

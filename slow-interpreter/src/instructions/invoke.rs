@@ -3,7 +3,7 @@ use std::rc::Rc;
 use verification::verifier::instructions::branches::get_method_descriptor;
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, InvokeInterface};
 use crate::interpreter_util::run_function;
-use classfile_parser::types::{MethodDescriptor, parse_method_descriptor};
+use classfile_parser::types::MethodDescriptor;
 use std::sync::Arc;
 use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::MethodInfo;
@@ -14,7 +14,7 @@ use runtime_common::java_values::JavaValue;
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::StackEntry;
 use std::cell::Ref;
-use crate::rust_jni::{call_impl, call, mangling, get_all_methods};
+use crate::rust_jni::{call_impl, call, mangling};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
 use rust_jvm_common::classnames::class_name;
@@ -63,6 +63,21 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
 //    }
 }
 
+/*pub fn invoke_virtual_2(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16){
+    let classfile = &current_frame.class_pointer.classfile;
+    let loader_arc = &current_frame.class_pointer.loader;
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
+    let class_name_ = match class_name_type {
+        ParsedType::Class(c) => c.class_name,
+        ParsedType::ArrayReferenceType(_) => unimplemented!(),
+        _ => panic!()
+    };
+    //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
+    let target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
+    let (target_method_i, final_target_class) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
+    invoke_virtual_method_i(state,current_frame,expected_descriptor,final_target_class,target_method_i,&final_target_class.classfile.methods[target_method_i])
+}*/
+
 pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
@@ -75,26 +90,12 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
     let (target_method_i, final_target_class) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
-    invoke_virtual_method_i_impl(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i])
+    dbg!(&expected_method_name);
+    invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i])
 }
 
 pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
-    let this_pointer = {
-        let operand_stack = current_frame.operand_stack.borrow();
-        &operand_stack[operand_stack.len() - expected_descriptor.parameter_types.len() - 1].clone()
-    };
-    let new_target_class = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
-    assert_eq!(new_target_class.classfile.access_flags & ACC_ABSTRACT, 0);
-    dbg!(class_name(&new_target_class.classfile).get_referred_name());
-    let old_method_info = &target_class.classfile.methods[target_method_i];
-    let new_target_method: Option<_> = new_target_class.classfile.lookup_method(old_method_info.method_name(&target_class.classfile), target_class.classfile.constant_pool[old_method_info.descriptor_index as usize].extract_string_from_utf8());
-    let (new_i, new_m) = match new_target_method {
-        None => {
-            return invoke_virtual_method_i_impl(state, current_frame, expected_descriptor, new_target_class, target_method_i, target_method);
-        }
-        Some(m) => m
-    };
-    invoke_virtual_method_i_impl(state, current_frame.clone(), expected_descriptor, new_target_class.clone(), new_i, new_m)
+    invoke_virtual_method_i_impl(state, current_frame.clone(), expected_descriptor, target_class, target_method_i, target_method)
 }
 
 pub fn invoke_virtual_method_i_impl(
@@ -110,8 +111,6 @@ pub fn invoke_virtual_method_i_impl(
     } else if target_method.access_flags & ACC_ABSTRACT == 0 {
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-
-//        dbg!(target_method.method_name(&target_class.classfile));
 
         setup_virtual_args(&current_frame, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry {
@@ -129,11 +128,32 @@ pub fn invoke_virtual_method_i_impl(
         }
         if state.function_return {
             state.function_return = false;
-//            trace!("Exit:{} {}", class_name(&target_class.classfile).get_referred_name(), expected_method_name);
             return;
         }
     } else {
-//        assert_eq!(target_class.classfile.access_flags & ACC_ABSTRACT, 0);
+        dbg!("Called actually virtual");
+        dbg!(class_name(&target_class.classfile).get_referred_name());
+        current_frame.print_stack_trace();
+        let this_pointer = {
+            let operand_stack = current_frame.operand_stack.borrow();
+            &operand_stack[operand_stack.len() - expected_descriptor.parameter_types.len() - 1].clone()
+        };
+        let new_target_class = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
+        assert_eq!(new_target_class.classfile.access_flags & ACC_ABSTRACT, 0);
+        dbg!(class_name(&new_target_class.classfile).get_referred_name());
+        let old_method_info = &target_class.classfile.methods[target_method_i];
+        let temp = new_target_class.clone();
+        //todo so this is incorrect due to subclassing of return value.
+        let new_target_method: Option<_> = temp.classfile.lookup_method(old_method_info.method_name(&target_class.classfile), target_class.classfile.constant_pool[old_method_info.descriptor_index as usize].extract_string_from_utf8());
+        let (new_i, new_m) = match new_target_method {
+            None => {
+                panic!()
+            }
+            Some(m) => m
+        };
+        invoke_virtual_method_i(state, current_frame, expected_descriptor, new_target_class, new_i, new_m)
+        /*
+        //        assert_eq!(target_class.classfile.access_flags & ACC_ABSTRACT, 0);
         let methods = get_all_methods(state,current_frame.clone(),target_class.clone());
         let target_method = methods.iter().find(|(c,m)|{
             let cur_method_info = &c.classfile.methods[*m];
@@ -153,6 +173,7 @@ pub fn invoke_virtual_method_i_impl(
         let new_target_class = target_method.0.clone();
         let new_target_i = target_method.1.clone();
         invoke_virtual_method_i_impl(state, current_frame.clone(), expected_descriptor, new_target_class.clone(), new_target_i, &new_target_class.clone().classfile.methods[new_target_i])
+*/
     }
 }
 
