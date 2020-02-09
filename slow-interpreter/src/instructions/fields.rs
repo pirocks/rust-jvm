@@ -3,7 +3,10 @@ use crate::interpreter_util::check_inited_class;
 use std::rc::Rc;
 use verification::verifier::instructions::special::extract_field_descriptor;
 use runtime_common::java_values::JavaValue;
-use rust_jvm_common::classnames::class_name;
+use rust_jvm_common::classnames::{class_name, ClassName};
+use std::sync::Arc;
+use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::loading::LoaderArc;
 
 
 pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -47,13 +50,22 @@ pub fn get_static(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, 
         dbg!(cp);
         panic!()
     }*/
+    get_static_impl(state, current_frame, cp,  loader_arc, &field_class_name, &field_name);
+}
+
+fn get_static_impl(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &String) {
     let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
-    current_frame.print_stack_trace();
-    dbg!(class_name(classfile));
-    dbg!(&field_name);
-    dbg!(&field_class_name);
-    dbg!(cp);
-    let field_value = target_classfile.static_vars.borrow().get(&field_name).unwrap().clone();
+//    current_frame.print_stack_trace();
+    let temp = target_classfile.static_vars.borrow();
+    let attempted_get = temp.get(field_name);
+    let field_value = match attempted_get {
+        None => {
+            return get_static_impl(state,current_frame,cp,loader_arc,&target_classfile.classfile.super_class_name().unwrap(),field_name)
+        },
+        Some(val) => {
+            val.clone()
+        },
+    };
     let mut stack = current_frame.operand_stack.borrow_mut();
     stack.push(field_value);
 }
