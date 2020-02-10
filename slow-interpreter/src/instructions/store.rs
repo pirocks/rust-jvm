@@ -1,6 +1,7 @@
 use runtime_common::StackEntry;
 use std::rc::Rc;
 use runtime_common::java_values::JavaValue;
+use rust_jvm_common::unified_types::ParsedType;
 
 pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
     let object_ref = current_frame.pop();
@@ -11,12 +12,21 @@ pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
             panic!()
         }
     }
-//    let classfile = &current_frame.class_pointer.classfile;
-//    dbg!(class_name(classfile).get_referred_name());
-//    dbg!(classfile.methods[current_frame.method_i as usize].method_name(classfile));
-//    current_frame.print_stack_trace();
     current_frame.local_vars.borrow_mut()[n] = object_ref;
 }
+
+pub fn lstore(current_frame: &Rc<StackEntry>, n: usize) -> () {
+    let val = current_frame.pop();
+    match val.clone() {
+        JavaValue::Long(_) => {}
+        _ => {
+            dbg!(&val);
+            panic!()
+        }
+    }
+    current_frame.local_vars.borrow_mut()[n] = val;
+}
+
 
 
 pub fn castore(current_frame: &Rc<StackEntry>) -> () {
@@ -27,6 +37,16 @@ pub fn castore(current_frame: &Rc<StackEntry>) -> () {
     let char_ = val as u8 as char;
     array_ref[index as usize] = JavaValue::Char(char_);
 }
+
+pub fn bastore(current_frame: &Rc<StackEntry>) -> () {
+    let val = current_frame.pop().unwrap_int();
+    let index = current_frame.pop().unwrap_int();
+    let array_ref_o = current_frame.pop().unwrap_object().unwrap();
+    assert!(array_ref_o.unwrap_array().elem_type == ParsedType::ByteType || array_ref_o.unwrap_array().elem_type == ParsedType::BooleanType);
+    let array_ref = &mut array_ref_o.unwrap_array().elems.borrow_mut();
+    array_ref[index as usize] = JavaValue::Byte(val as i8);
+}
+
 
 pub fn iastore(current_frame: &Rc<StackEntry>) -> () {
     let val = current_frame.pop().unwrap_int();

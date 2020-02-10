@@ -569,11 +569,40 @@ pub fn instruction_is_type_safe_pop(env: &Environment, stack_frame: &Frame) -> R
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_pop2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_pop2(env: &Environment, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = &stack_frame.locals;
+    let operand_stack = &stack_frame.stack_map;
+    let flags = &stack_frame.flag_this_uninit;
+    let out = pop2form_is_type_safe(env,operand_stack.clone())?;//todo uneeded clone
+    let next_frame = Frame {
+        locals: locals.clone(),
+        stack_map: out.clone(),
+        flag_this_uninit: *flags
+    };
+    let exception_frame = exception_stack_frame(stack_frame);
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))//todo dup
+}
+
+fn pop2form_is_type_safe(env: &Environment, mut input : OperandStack) -> Result<OperandStack,TypeSafetyError>{
+    let first_pop = input.operand_pop();
+    let second_pop = input.operand_pop();
+    let succeds = match first_pop{
+        VType::TopType => {
+            size_of(&env.vf,&second_pop) == 2
+        },
+        _ => {
+            size_of(&env.vf,&first_pop) == 1 &&
+                size_of(&env.vf,&second_pop) ==  1
+        }
+    };
+    if succeds{
+        Result::Ok(input)
+    }else {
+        Result::Err(unknown_error_verifying!())
+    }
+
+}
+
 
 pub fn instruction_is_type_safe_sipush(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![], VType::IntType)

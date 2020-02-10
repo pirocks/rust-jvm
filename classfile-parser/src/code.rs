@@ -20,15 +20,20 @@ fn read_invoke_interface(c: &mut CodeParserContext) -> Option<InvokeInterface> {
 
 fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
     while !(c.offset % 4 == 0) {
-        read_u8(c).expect("Uneexpected end of code");
+        let padding = read_u8(c);
+        padding.expect("Unexpected end of code");
+        dbg!(padding);
     };
-    let default = read_i32(c)?;
-    let npairs = read_i32(c)?;
+//    dbg!(c.offset);
+    let default = read_i32(c).unwrap();
+//    dbg!(default);
+    let npairs = read_i32(c).unwrap();
     assert!(npairs > 0);
     let mut pairs = vec![];
+//    dbg!(npairs);
     for _ in 0..npairs {
         //key target
-        pairs.push((read_i32(c)?, read_i32(c)?));
+        pairs.push((read_i32(c).unwrap(), read_i32(c).unwrap()));
     }
     return Some(LookupSwitch {
         default,
@@ -76,13 +81,24 @@ pub struct CodeParserContext<'l> {
 }
 
 pub fn parse_code_raw(raw: &[u8]) -> Vec<Instruction> {
+    //is this offset of 0 even correct?
+    // what if code starts at non-aligned?
     let mut c = CodeParserContext { iter: raw.iter(), offset: 0 };
     return parse_code_impl(&mut c);
 }
 
 fn read_u8(c: &mut CodeParserContext) -> Option<u8> {
     c.offset += 1;
-    return Some(*c.iter.next()?);
+    let next = c.iter.next();
+//    match next{
+//        None => {
+//            dbg!(&c.offset);
+//            dbg!(&c.iter);
+//        },
+//        Some(_) => {},
+//    }
+    return Some(*next?);
+
 }
 
 fn read_i8(c: &mut CodeParserContext) -> Option<i8> {
@@ -330,15 +346,15 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::aaload => { InstructionInfo::aaload }
         InstructionTypeNum::aastore => { InstructionInfo::aastore }
         InstructionTypeNum::aconst_null => { InstructionInfo::aconst_null }
-        InstructionTypeNum::aload => { InstructionInfo::aload(read_u8(c)?) }
+        InstructionTypeNum::aload => { InstructionInfo::aload(read_u8(c).unwrap()) }
         InstructionTypeNum::aload_0 => { InstructionInfo::aload_0 }
         InstructionTypeNum::aload_1 => { InstructionInfo::aload_1 }
         InstructionTypeNum::aload_2 => { InstructionInfo::aload_2 }
         InstructionTypeNum::aload_3 => { InstructionInfo::aload_3 }
-        InstructionTypeNum::anewarray => { InstructionInfo::anewarray(read_u16(c)?) }
+        InstructionTypeNum::anewarray => { InstructionInfo::anewarray(read_u16(c).unwrap()) }
         InstructionTypeNum::areturn => { InstructionInfo::areturn }
         InstructionTypeNum::arraylength => { InstructionInfo::arraylength }
-        InstructionTypeNum::astore => { InstructionInfo::astore(read_u8(c)?) }
+        InstructionTypeNum::astore => { InstructionInfo::astore(read_u8(c).unwrap()) }
         InstructionTypeNum::astore_0 => { InstructionInfo::astore_0 }
         InstructionTypeNum::astore_1 => { InstructionInfo::astore_1 }
         InstructionTypeNum::astore_2 => { InstructionInfo::astore_2 }
@@ -346,10 +362,10 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::athrow => { InstructionInfo::athrow }
         InstructionTypeNum::baload => { InstructionInfo::baload }
         InstructionTypeNum::bastore => { InstructionInfo::bastore }
-        InstructionTypeNum::bipush => { InstructionInfo::bipush(read_u8(c)?) }
+        InstructionTypeNum::bipush => { InstructionInfo::bipush(read_u8(c).unwrap()) }
         InstructionTypeNum::caload => { InstructionInfo::caload }
         InstructionTypeNum::castore => { InstructionInfo::castore }
-        InstructionTypeNum::checkcast => { InstructionInfo::checkcast(read_u16(c)?) }
+        InstructionTypeNum::checkcast => { InstructionInfo::checkcast(read_u16(c).unwrap()) }
         InstructionTypeNum::d2f => { InstructionInfo::d2f }
         InstructionTypeNum::d2i => { InstructionInfo::d2i }
         InstructionTypeNum::d2l => { InstructionInfo::d2l }
@@ -361,7 +377,7 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::dconst_0 => { InstructionInfo::dconst_0 }
         InstructionTypeNum::dconst_1 => { InstructionInfo::dconst_1 }
         InstructionTypeNum::ddiv => { InstructionInfo::ddiv }
-        InstructionTypeNum::dload => { InstructionInfo::dload(read_u8(c)?) }
+        InstructionTypeNum::dload => { InstructionInfo::dload(read_u8(c).unwrap()) }
         InstructionTypeNum::dload_0 => { InstructionInfo::dload_0 }
         InstructionTypeNum::dload_1 => { InstructionInfo::dload_1 }
         InstructionTypeNum::dload_2 => { InstructionInfo::dload_2 }
@@ -370,7 +386,7 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::dneg => { InstructionInfo::dneg }
         InstructionTypeNum::drem => { InstructionInfo::drem }
         InstructionTypeNum::dreturn => { InstructionInfo::dreturn }
-        InstructionTypeNum::dstore => { InstructionInfo::dstore(read_u8(c)?) }
+        InstructionTypeNum::dstore => { InstructionInfo::dstore(read_u8(c).unwrap()) }
         InstructionTypeNum::dstore_0 => { InstructionInfo::dstore_0 }
         InstructionTypeNum::dstore_1 => { InstructionInfo::dstore_1 }
         InstructionTypeNum::dstore_2 => { InstructionInfo::dstore_2 }
@@ -394,7 +410,7 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::fconst_1 => { InstructionInfo::fconst_1 }
         InstructionTypeNum::fconst_2 => { InstructionInfo::fconst_2 }
         InstructionTypeNum::fdiv => { InstructionInfo::fdiv }
-        InstructionTypeNum::fload => { InstructionInfo::fload(read_u8(c)?) }
+        InstructionTypeNum::fload => { InstructionInfo::fload(read_u8(c).unwrap()) }
         InstructionTypeNum::fload_0 => { InstructionInfo::fload_0 }
         InstructionTypeNum::fload_1 => { InstructionInfo::fload_1 }
         InstructionTypeNum::fload_2 => { InstructionInfo::fload_2 }
@@ -403,16 +419,16 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::fneg => { InstructionInfo::fneg }
         InstructionTypeNum::frem => { InstructionInfo::frem }
         InstructionTypeNum::freturn => { InstructionInfo::freturn }
-        InstructionTypeNum::fstore => { InstructionInfo::fstore(read_u8(c)?) }
+        InstructionTypeNum::fstore => { InstructionInfo::fstore(read_u8(c).unwrap()) }
         InstructionTypeNum::fstore_0 => { InstructionInfo::fstore_0 }
         InstructionTypeNum::fstore_1 => { InstructionInfo::fstore_1 }
         InstructionTypeNum::fstore_2 => { InstructionInfo::fstore_2 }
         InstructionTypeNum::fstore_3 => { InstructionInfo::fstore_3 }
         InstructionTypeNum::fsub => { InstructionInfo::fsub }
-        InstructionTypeNum::getfield => { InstructionInfo::getfield(read_u16(c)?) }
-        InstructionTypeNum::getstatic => { InstructionInfo::getstatic(read_u16(c)?) }
-        InstructionTypeNum::goto_ => { InstructionInfo::goto_(read_i16(c)?) }
-        InstructionTypeNum::goto_w => { InstructionInfo::goto_w(read_i32(c)?) }
+        InstructionTypeNum::getfield => { InstructionInfo::getfield(read_u16(c).unwrap()) }
+        InstructionTypeNum::getstatic => { InstructionInfo::getstatic(read_u16(c).unwrap()) }
+        InstructionTypeNum::goto_ => { InstructionInfo::goto_(read_i16(c).unwrap()) }
+        InstructionTypeNum::goto_w => { InstructionInfo::goto_w(read_i32(c).unwrap()) }
         InstructionTypeNum::i2b => { InstructionInfo::i2b }
         InstructionTypeNum::i2c => { InstructionInfo::i2c }
         InstructionTypeNum::i2d => { InstructionInfo::i2d }
@@ -431,47 +447,47 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::iconst_4 => { InstructionInfo::iconst_4 }
         InstructionTypeNum::iconst_5 => { InstructionInfo::iconst_5 }
         InstructionTypeNum::idiv => { InstructionInfo::idiv }
-        InstructionTypeNum::if_acmpeq => { InstructionInfo::if_acmpeq(read_i16(c)?) }
-        InstructionTypeNum::if_acmpne => { InstructionInfo::if_acmpne(read_i16(c)?) }
-        InstructionTypeNum::if_icmpeq => { InstructionInfo::if_icmpeq(read_i16(c)?) }
-        InstructionTypeNum::if_icmpne => { InstructionInfo::if_icmpne(read_i16(c)?) }
-        InstructionTypeNum::if_icmplt => { InstructionInfo::if_icmplt(read_i16(c)?) }
-        InstructionTypeNum::if_icmpge => { InstructionInfo::if_icmpge(read_i16(c)?) }
-        InstructionTypeNum::if_icmpgt => { InstructionInfo::if_icmpgt(read_i16(c)?) }
-        InstructionTypeNum::if_icmple => { InstructionInfo::if_icmple(read_i16(c)?) }
-        InstructionTypeNum::ifeq => { InstructionInfo::ifeq(read_i16(c)?) }
-        InstructionTypeNum::ifne => { InstructionInfo::ifne(read_i16(c)?) }
-        InstructionTypeNum::iflt => { InstructionInfo::iflt(read_i16(c)?) }
-        InstructionTypeNum::ifge => { InstructionInfo::ifge(read_i16(c)?) }
-        InstructionTypeNum::ifgt => { InstructionInfo::ifgt(read_i16(c)?) }
-        InstructionTypeNum::ifle => { InstructionInfo::ifle(read_i16(c)?) }
-        InstructionTypeNum::ifnonnull => { InstructionInfo::ifnonnull(read_i16(c)?) }
-        InstructionTypeNum::ifnull => { InstructionInfo::ifnull(read_i16(c)?) }
-        InstructionTypeNum::iinc => { InstructionInfo::iinc(read_iinc(c)?) }
-        InstructionTypeNum::iload => { InstructionInfo::iload(read_u8(c)?) }
+        InstructionTypeNum::if_acmpeq => { InstructionInfo::if_acmpeq(read_i16(c).unwrap()) }
+        InstructionTypeNum::if_acmpne => { InstructionInfo::if_acmpne(read_i16(c).unwrap()) }
+        InstructionTypeNum::if_icmpeq => { InstructionInfo::if_icmpeq(read_i16(c).unwrap()) }
+        InstructionTypeNum::if_icmpne => { InstructionInfo::if_icmpne(read_i16(c).unwrap()) }
+        InstructionTypeNum::if_icmplt => { InstructionInfo::if_icmplt(read_i16(c).unwrap()) }
+        InstructionTypeNum::if_icmpge => { InstructionInfo::if_icmpge(read_i16(c).unwrap()) }
+        InstructionTypeNum::if_icmpgt => { InstructionInfo::if_icmpgt(read_i16(c).unwrap()) }
+        InstructionTypeNum::if_icmple => { InstructionInfo::if_icmple(read_i16(c).unwrap()) }
+        InstructionTypeNum::ifeq => { InstructionInfo::ifeq(read_i16(c).unwrap()) }
+        InstructionTypeNum::ifne => { InstructionInfo::ifne(read_i16(c).unwrap()) }
+        InstructionTypeNum::iflt => { InstructionInfo::iflt(read_i16(c).unwrap()) }
+        InstructionTypeNum::ifge => { InstructionInfo::ifge(read_i16(c).unwrap()) }
+        InstructionTypeNum::ifgt => { InstructionInfo::ifgt(read_i16(c).unwrap()) }
+        InstructionTypeNum::ifle => { InstructionInfo::ifle(read_i16(c).unwrap()) }
+        InstructionTypeNum::ifnonnull => { InstructionInfo::ifnonnull(read_i16(c).unwrap()) }
+        InstructionTypeNum::ifnull => { InstructionInfo::ifnull(read_i16(c).unwrap()) }
+        InstructionTypeNum::iinc => { InstructionInfo::iinc(read_iinc(c).unwrap()) }
+        InstructionTypeNum::iload => { InstructionInfo::iload(read_u8(c).unwrap()) }
         InstructionTypeNum::iload_0 => { InstructionInfo::iload_0 }
         InstructionTypeNum::iload_1 => { InstructionInfo::iload_1 }
         InstructionTypeNum::iload_2 => { InstructionInfo::iload_2 }
         InstructionTypeNum::iload_3 => { InstructionInfo::iload_3 }
         InstructionTypeNum::imul => { InstructionInfo::imul }
         InstructionTypeNum::ineg => { InstructionInfo::ineg }
-        InstructionTypeNum::instanceof => { InstructionInfo::instanceof(read_u16(c)?) }
+        InstructionTypeNum::instanceof => { InstructionInfo::instanceof(read_u16(c).unwrap()) }
         InstructionTypeNum::invokedynamic => {
-            let res = InstructionInfo::invokedynamic(read_u16(c)?);
+            let res = InstructionInfo::invokedynamic(read_u16(c).unwrap());
             let zero = read_u16(c)?;
             assert_eq!(zero, 0);
             res
         }
-        InstructionTypeNum::invokeinterface => { InstructionInfo::invokeinterface(read_invoke_interface(c)?) }
-        InstructionTypeNum::invokespecial => { InstructionInfo::invokespecial(read_u16(c)?) }
-        InstructionTypeNum::invokestatic => { InstructionInfo::invokestatic(read_u16(c)?) }
-        InstructionTypeNum::invokevirtual => { InstructionInfo::invokevirtual(read_u16(c)?) }
+        InstructionTypeNum::invokeinterface => { InstructionInfo::invokeinterface(read_invoke_interface(c).unwrap()) }
+        InstructionTypeNum::invokespecial => { InstructionInfo::invokespecial(read_u16(c).unwrap()) }
+        InstructionTypeNum::invokestatic => { InstructionInfo::invokestatic(read_u16(c).unwrap()) }
+        InstructionTypeNum::invokevirtual => { InstructionInfo::invokevirtual(read_u16(c).unwrap()) }
         InstructionTypeNum::ior => { InstructionInfo::ior }
         InstructionTypeNum::irem => { InstructionInfo::irem }
         InstructionTypeNum::ireturn => { InstructionInfo::ireturn }
         InstructionTypeNum::ishl => { InstructionInfo::ishl }
         InstructionTypeNum::ishr => { InstructionInfo::ishr }
-        InstructionTypeNum::istore => { InstructionInfo::istore(read_u8(c)?) }
+        InstructionTypeNum::istore => { InstructionInfo::istore(read_u8(c).unwrap()) }
         InstructionTypeNum::istore_0 => { InstructionInfo::istore_0 }
         InstructionTypeNum::istore_1 => { InstructionInfo::istore_1 }
         InstructionTypeNum::istore_2 => { InstructionInfo::istore_2 }
@@ -479,8 +495,8 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::isub => { InstructionInfo::isub }
         InstructionTypeNum::iushr => { InstructionInfo::iushr }
         InstructionTypeNum::ixor => { InstructionInfo::ixor }
-        InstructionTypeNum::jsr => { InstructionInfo::jsr(read_i16(c)?) }
-        InstructionTypeNum::jsr_w => { InstructionInfo::jsr_w(read_i32(c)?) }
+        InstructionTypeNum::jsr => { InstructionInfo::jsr(read_i16(c).unwrap()) }
+        InstructionTypeNum::jsr_w => { InstructionInfo::jsr_w(read_i32(c).unwrap()) }
         InstructionTypeNum::l2d => { InstructionInfo::l2d }
         InstructionTypeNum::l2f => { InstructionInfo::l2f }
         InstructionTypeNum::l2i => { InstructionInfo::l2i }
@@ -491,24 +507,24 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::lcmp => { InstructionInfo::lcmp }
         InstructionTypeNum::lconst_0 => { InstructionInfo::lconst_0 }
         InstructionTypeNum::lconst_1 => { InstructionInfo::lconst_1 }
-        InstructionTypeNum::ldc => { InstructionInfo::ldc(read_u8(c)?) }
-        InstructionTypeNum::ldc_w => { InstructionInfo::ldc_w(read_u16(c)?) }
-        InstructionTypeNum::ldc2_w => { InstructionInfo::ldc2_w(read_u16(c)?) }
+        InstructionTypeNum::ldc => { InstructionInfo::ldc(read_u8(c).unwrap()) }
+        InstructionTypeNum::ldc_w => { InstructionInfo::ldc_w(read_u16(c).unwrap()) }
+        InstructionTypeNum::ldc2_w => { InstructionInfo::ldc2_w(read_u16(c).unwrap()) }
         InstructionTypeNum::ldiv => { InstructionInfo::ldiv }
-        InstructionTypeNum::lload => { InstructionInfo::lload(read_u8(c)?) }
+        InstructionTypeNum::lload => { InstructionInfo::lload(read_u8(c).unwrap()) }
         InstructionTypeNum::lload_0 => { InstructionInfo::lload_0 }
         InstructionTypeNum::lload_1 => { InstructionInfo::lload_1 }
         InstructionTypeNum::lload_2 => { InstructionInfo::lload_2 }
         InstructionTypeNum::lload_3 => { InstructionInfo::lload_3 }
         InstructionTypeNum::lmul => { InstructionInfo::lmul }
         InstructionTypeNum::lneg => { InstructionInfo::lneg }
-        InstructionTypeNum::lookupswitch => { InstructionInfo::lookupswitch(read_lookup_switch(c)?) }
+        InstructionTypeNum::lookupswitch => { InstructionInfo::lookupswitch(read_lookup_switch(c).unwrap()) }
         InstructionTypeNum::lor => { InstructionInfo::lor }
         InstructionTypeNum::lrem => { InstructionInfo::lrem }
         InstructionTypeNum::lreturn => { InstructionInfo::lreturn }
         InstructionTypeNum::lshl => { InstructionInfo::lshl }
         InstructionTypeNum::lshr => { InstructionInfo::lshr }
-        InstructionTypeNum::lstore => { InstructionInfo::lstore(read_u8(c)?) }
+        InstructionTypeNum::lstore => { InstructionInfo::lstore(read_u8(c).unwrap()) }
         InstructionTypeNum::lstore_0 => { InstructionInfo::lstore_0 }
         InstructionTypeNum::lstore_1 => { InstructionInfo::lstore_1 }
         InstructionTypeNum::lstore_2 => { InstructionInfo::lstore_2 }
@@ -518,22 +534,22 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Option<InstructionInfo> {
         InstructionTypeNum::lxor => { InstructionInfo::lxor }
         InstructionTypeNum::monitorenter => { InstructionInfo::monitorenter }
         InstructionTypeNum::monitorexit => { InstructionInfo::monitorexit }
-        InstructionTypeNum::multianewarray => { InstructionInfo::multianewarray(read_multi_new_array(c)?) }
-        InstructionTypeNum::new => { InstructionInfo::new(read_u16(c)?) }
-        InstructionTypeNum::newarray => { InstructionInfo::newarray(read_atype(c)?) }
+        InstructionTypeNum::multianewarray => { InstructionInfo::multianewarray(read_multi_new_array(c).unwrap()) }
+        InstructionTypeNum::new => { InstructionInfo::new(read_u16(c).unwrap()) }
+        InstructionTypeNum::newarray => { InstructionInfo::newarray(read_atype(c).unwrap()) }
         InstructionTypeNum::nop => { InstructionInfo::nop }
         InstructionTypeNum::pop => { InstructionInfo::pop }
         InstructionTypeNum::pop2 => { InstructionInfo::pop2 }
-        InstructionTypeNum::putfield => { InstructionInfo::putfield(read_u16(c)?) }
-        InstructionTypeNum::putstatic => { InstructionInfo::putstatic(read_u16(c)?) }
-        InstructionTypeNum::ret => { InstructionInfo::ret(read_u8(c)?) }
+        InstructionTypeNum::putfield => { InstructionInfo::putfield(read_u16(c).unwrap()) }
+        InstructionTypeNum::putstatic => { InstructionInfo::putstatic(read_u16(c).unwrap()) }
+        InstructionTypeNum::ret => { InstructionInfo::ret(read_u8(c).unwrap()) }
         InstructionTypeNum::return_ => { InstructionInfo::return_ }
         InstructionTypeNum::saload => { InstructionInfo::saload }
         InstructionTypeNum::sastore => { InstructionInfo::sastore }
-        InstructionTypeNum::sipush => { InstructionInfo::sipush(read_u16(c)?) }
+        InstructionTypeNum::sipush => { InstructionInfo::sipush(read_u16(c).unwrap()) }
         InstructionTypeNum::swap => { InstructionInfo::swap }
-        InstructionTypeNum::tableswitch => { InstructionInfo::tableswitch(read_table_switch(c)?) }
-        InstructionTypeNum::wide => { InstructionInfo::wide(read_wide(c)?) }
+        InstructionTypeNum::tableswitch => { InstructionInfo::tableswitch(read_table_switch(c).unwrap()) }
+        InstructionTypeNum::wide => { InstructionInfo::wide(read_wide(c).unwrap()) }
     })
 }
 

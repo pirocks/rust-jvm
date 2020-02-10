@@ -31,6 +31,9 @@ impl JavaValue {
             JavaValue::Int(i) => {
                 *i
             }
+            JavaValue::Byte(i) => {
+                *i as i32
+            }
             _ => panic!()
         }
     }
@@ -68,7 +71,8 @@ impl JavaValue {
                     Some(o) => o.clone().into(),
                 })
             }
-            _ => {
+            other => {
+                dbg!(other);
                 None
             }
         }

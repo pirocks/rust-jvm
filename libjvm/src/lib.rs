@@ -1126,7 +1126,7 @@ unsafe extern "system" fn JVM_AssertionStatusDirectives(env: *mut JNIEnv, unused
 
 #[no_mangle]
 unsafe extern "system" fn JVM_SupportsCX8() -> jboolean {
-    unimplemented!()
+    false as jboolean//todo this is actually something that might be easy to support.
 }
 
 

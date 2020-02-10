@@ -12,9 +12,9 @@ use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virt
 use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
 use classfile_parser::types::{parse_field_descriptor, parse_method_descriptor};
-use crate::instructions::load::{aload, fload, iload, aaload, caload, iaload, lload};
-use crate::instructions::store::{astore, castore, aastore, iastore};
-use crate::instructions::fields::{get_field, get_static, putfield, putstatic};
+use crate::instructions::load::*;
+use crate::instructions::store::*;
+use crate::instructions::fields::*;
 use crate::instructions::cmp::{fcmpg, fcmpl};
 use crate::instructions::conversion::{i2l, i2f, f2i, i2c};
 use crate::instructions::new::*;
@@ -71,24 +71,25 @@ pub fn run_function(
     while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
-            let mut context = CodeParserContext { offset: 0, iter: current.iter() };
-            (parse_instruction(&mut context).unwrap().clone(), context.offset)
+            let mut context = CodeParserContext { offset: *current_frame.pc.borrow(), iter: current.iter() };
+//            current_frame.print_stack_trace();
+            (parse_instruction(&mut context).unwrap().clone(), context.offset - *current_frame.pc.borrow())
         };
-        if meth_name == "defaultCharset" //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string())
-        {
-            dbg!(&current_frame.local_vars);
-            dbg!(&current_frame.operand_stack);
-//            dbg!(&current_frame.local_vars.borrow().get(6));
-//            match instruct{
-//                InstructionInfo::invokevirtual(31) => {
-//                    dbg!(&instruct);
-//
-//                },
-//                _ => {}
-//            }
-            dbg!(&instruct);
-//            std::io::stderr().flush();
-        }
+//        if meth_name == "defaultCharset" //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string())
+//        {
+//            dbg!(&current_frame.local_vars);
+//            dbg!(&current_frame.operand_stack);
+////            dbg!(&current_frame.local_vars.borrow().get(6));
+////            match instruct{
+////                InstructionInfo::invokevirtual(31) => {
+////                    dbg!(&instruct);
+////
+////                },
+////                _ => {}
+////            }
+//            dbg!(&instruct);
+////            std::io::stderr().flush();
+//        }
         current_frame.pc_offset.replace(instruction_size as isize);
 //        dbg!(instruct.clone());
         match instruct {
@@ -112,8 +113,8 @@ pub fn run_function(
                 current_frame.print_stack_trace();
                 state.throw = current_frame.pop().unwrap_object().unwrap().into();
             }
-            InstructionInfo::baload => unimplemented!(),
-            InstructionInfo::bastore => unimplemented!(),
+            InstructionInfo::baload => baload(&current_frame),
+            InstructionInfo::bastore => bastore(&current_frame),
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
             InstructionInfo::caload => caload(state, &current_frame),
             InstructionInfo::castore => castore(&current_frame),
@@ -166,7 +167,7 @@ pub fn run_function(
             InstructionInfo::fload_0 => fload(&current_frame, 0),
             InstructionInfo::fload_1 => fload(&current_frame, 1),
             InstructionInfo::fload_2 => fload(&current_frame, 2),
-            InstructionInfo::fload_3 => unimplemented!(),
+            InstructionInfo::fload_3 => fload(&current_frame,3),
             InstructionInfo::fmul => fmul(current_frame.clone()),
             InstructionInfo::fneg => unimplemented!(),
             InstructionInfo::frem => unimplemented!(),
@@ -278,11 +279,11 @@ pub fn run_function(
             InstructionInfo::lreturn => lreturn(state, &current_frame),
             InstructionInfo::lshl => lshl(current_frame.clone()),
             InstructionInfo::lshr => unimplemented!(),
-            InstructionInfo::lstore(_) => unimplemented!(),
-            InstructionInfo::lstore_0 => unimplemented!(),
-            InstructionInfo::lstore_1 => unimplemented!(),
-            InstructionInfo::lstore_2 => unimplemented!(),
-            InstructionInfo::lstore_3 => unimplemented!(),
+            InstructionInfo::lstore(n) => lstore(&current_frame, n as usize),
+            InstructionInfo::lstore_0 => lstore(&current_frame, 0),
+            InstructionInfo::lstore_1 => lstore(&current_frame, 1),
+            InstructionInfo::lstore_2 => lstore(&current_frame, 2),
+            InstructionInfo::lstore_3 => lstore(&current_frame, 3),
             InstructionInfo::lsub => lsub(&current_frame),
             InstructionInfo::lushr => unimplemented!(),
             InstructionInfo::lxor => unimplemented!(),
@@ -369,13 +370,13 @@ pub fn run_function(
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
     let object_ref = current_frame.pop();
     match object_ref.clone() {
-        JavaValue::Int(_) | JavaValue::Char(_) => {}
+        JavaValue::Int(_) | JavaValue::Char(_) | JavaValue::Byte(_) => {}
         _ => {
             dbg!(&object_ref);
             panic!()
         }
     }
-    current_frame.local_vars.borrow_mut()[n as usize] = object_ref;
+    current_frame.local_vars.borrow_mut()[n as usize] = JavaValue::Int(object_ref.unwrap_int());
 }
 
 

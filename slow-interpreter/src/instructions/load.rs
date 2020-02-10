@@ -108,3 +108,16 @@ pub fn iaload(current_frame: &Rc<StackEntry>) -> () {
     };//.unwrap_object();
     current_frame.push(JavaValue::Int(as_int))
 }
+
+
+pub fn baload(current_frame: &Rc<StackEntry>) -> () {
+    let index = current_frame.pop().unwrap_int();
+    let arc = current_frame.pop().unwrap_object().unwrap();
+    let unborrowed = arc.unwrap_array();
+    let array_refcell = unborrowed.elems.borrow();
+    let as_byte = match array_refcell[index as usize] {
+        JavaValue::Byte(i) => i,
+        _ => panic!(),
+    };//.unwrap_object();
+    current_frame.push(JavaValue::Int(as_byte as i32))
+}

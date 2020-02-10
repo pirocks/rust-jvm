@@ -18,6 +18,7 @@ use crate::rust_jni::{call_impl, call, mangling, get_all_methods};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
 use rust_jvm_common::classnames::class_name;
+use std::intrinsics::transmute;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -63,7 +64,7 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
 //    }
 }
 
-fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>,String,MethodDescriptor)>{
+fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
@@ -74,12 +75,12 @@ fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, c
                 //todo replace with proper native impl
                 let temp = current_frame.pop().unwrap_object().unwrap();
                 let to_clone_array = temp.unwrap_array();
-                current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject{ elems: to_clone_array.elems.clone(), elem_type: to_clone_array.elem_type.clone() })))));
+                current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: to_clone_array.elems.clone(), elem_type: to_clone_array.elem_type.clone() })))));
                 return None;
-            }else {
+            } else {
                 unimplemented!();
             }
-        },
+        }
         _ => panic!()
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
@@ -88,9 +89,9 @@ fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, c
 }
 
 pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
-    let (_resolved_class,method_name,expected_descriptor) = match resolved_class(state,current_frame.clone(),cp){
+    let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, current_frame.clone(), cp) {
         None => return,
-        Some(o) => {o},
+        Some(o) => { o }
     };
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>".to_string() ||
@@ -128,7 +129,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     let final_classfile = &final_target_class.classfile;
     let target_method = &final_classfile.methods[*new_i];
     let final_descriptor = parse_method_descriptor(&loader_arc, target_method.descriptor_str(&final_classfile).as_str()).unwrap();
-    invoke_virtual_method_i(state,current_frame.clone(),final_descriptor,final_target_class.clone(),*new_i,target_method)
+    invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), *new_i, target_method)
 }
 
 pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
@@ -141,7 +142,7 @@ pub fn invoke_virtual_method_i_impl(
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
-    target_method: &MethodInfo
+    target_method: &MethodInfo,
 ) -> () {
     if target_method.access_flags & ACC_NATIVE > 0 {
         run_native_method(state, current_frame.clone(), target_class, target_method_i)
@@ -443,6 +444,37 @@ pub fn run_native_method(
                             fields.insert(field_name, JavaValue::Int(new));
                             JavaValue::Boolean(true)
                         }.into()
+                    } else if mangled == "Java_sun_misc_Unsafe_allocateMemory".to_string() {
+                        let res: i64 = unsafe {
+                            transmute(libc::malloc(transmute(args[1].unwrap_long())))
+                        };
+                        JavaValue::Long(res).into()
+                    } else if mangled == "Java_sun_misc_Unsafe_putLong__JJ".to_string() {
+//                        let args_1_borrow = args[1].unwrap_object().unwrap();
+//                        let target_obj = args_1_borrow.unwrap_normal_object();
+//                        let classfile = &target_obj.class_pointer.classfile;
+//                        let fieldinfo_arr = &classfile.fields;
+//                        let field_info_idx = args[2].unwrap_long();
+//                        let target_fields = &mut target_obj.fields.borrow_mut();
+//                        target_fields.insert(classfile.constant_pool[fieldinfo_arr[field_info_idx as usize].name_index as usize].extract_string_from_utf8(), args[3].clone());
+//                        None
+                        frame.print_stack_trace();
+                        unsafe {
+                            let ptr: *mut i64 = transmute(args[1].unwrap_long());
+                            let val = args[2].unwrap_long();
+                            ptr.write(val);
+                        }
+                        None
+                    } else if mangled == "Java_sun_misc_Unsafe_getByte__J".to_string(){
+                        unsafe {
+                            let ptr: *mut i8 = transmute(args[1].unwrap_long());
+                            JavaValue::Byte(ptr.read()).into()
+                        }
+                    }else if mangled == "Java_sun_misc_Unsafe_freeMemory".to_string() {
+                        unsafe {
+                            libc::free(transmute(args[1].unwrap_long()))
+                        };
+                        None
                     } else {
 //                        frame.print_stack_trace();
                         panic!()
