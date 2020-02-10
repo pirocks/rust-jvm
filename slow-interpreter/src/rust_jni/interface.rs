@@ -1,6 +1,6 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID, jboolean, jbyteArray, jarray, jbyte};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID, jboolean, jbyteArray, jarray, jbyte, JavaVM, JNIInvokeInterface_, jlong};
 use std::mem::transmute;
 use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
@@ -16,7 +16,7 @@ use crate::instructions::ldc::load_class_constant_by_name;
 use std::sync::Arc;
 use runtime_common::runtime_class::RuntimeClass;
 use crate::interpreter_util::{check_inited_class, push_new_object};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::cell::RefCell;
 
 //GetFieldID
@@ -130,12 +130,12 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         GetFloatField: None,
         GetDoubleField: None,
         SetObjectField: None,
-        SetBooleanField: None,
+        SetBooleanField: Some(set_boolean_field),
         SetByteField: None,
         SetCharField: None,
         SetShortField: None,
-        SetIntField: None,
-        SetLongField: None,
+        SetIntField: Some(set_int_field),
+        SetLongField: Some(set_long_field),
         SetFloatField: None,
         SetDoubleField: None,
         GetStaticMethodID: Some(get_static_method_id),
@@ -244,7 +244,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         UnregisterNatives: None,
         MonitorEnter: None,
         MonitorExit: None,
-        GetJavaVM: None,
+        GetJavaVM: Some(get_java_vm),
         GetStringRegion: Some(get_string_region),
         GetStringUTFRegion: Some(get_string_utfregion),
         GetPrimitiveArrayCritical: None,
@@ -587,7 +587,7 @@ unsafe extern "C" fn set_byte_array_region(_env: *mut JNIEnv, array: jbyteArray,
 }
 
 
-unsafe extern "C" fn new_object(env: *mut JNIEnv, clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
+unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
     let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
     let state = get_state(env);
     let frame = get_frame(env);
@@ -637,4 +637,41 @@ unsafe extern "C" fn new_object(env: *mut JNIEnv, clazz: jclass, jmethod_id: jme
         &classfile.methods[method_id.method_i]
     );
     to_object(obj.unwrap_object())
+}
+
+
+unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint{
+    *vm = Box::into_raw(Box::new(Box::leak(Box::new(JNIInvokeInterface_ {
+        reserved0: std::ptr::null_mut(),
+        reserved1: std::ptr::null_mut(),
+        reserved2: std::ptr::null_mut(),
+        DestroyJavaVM: None,
+        AttachCurrentThread: None,
+        DetachCurrentThread: None,
+        GetEnv: None,
+        AttachCurrentThreadAsDaemon: None
+    }))));
+    0 as jint
+}
+
+unsafe extern "C" fn set_int_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jint){
+    let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
+    let classfile = &field_id.class.classfile;
+    let name = classfile.fields[field_id.field_i as usize].name(classfile);
+    from_object(obj).unwrap().unwrap_normal_object().fields.borrow_mut().deref_mut().insert(name,JavaValue::Int(val));
+}
+
+unsafe extern "C" fn set_long_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jlong){
+    let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
+    let classfile = &field_id.class.classfile;
+    let name = classfile.fields[field_id.field_i as usize].name(classfile);
+    from_object(obj).unwrap().unwrap_normal_object().fields.borrow_mut().deref_mut().insert(name,JavaValue::Long(val));
+}
+
+
+unsafe extern "C" fn set_boolean_field(env : * mut JNIEnv, obj : jobject, field_id_raw : jfieldID, val : jboolean ){
+    let field_id:& FieldID  = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
+    let classfile = &field_id.class.classfile;
+    let name = classfile.fields[field_id.field_i as usize].name(classfile);
+    from_object(obj).unwrap().unwrap_normal_object().fields.borrow_mut().deref_mut().insert(name,JavaValue::Boolean(val != 0));
 }

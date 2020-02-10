@@ -77,9 +77,9 @@ pub fn run_function(
 //            current_frame.print_stack_trace();
             (parse_instruction(&mut context).unwrap().clone(), context.offset - *current_frame.pc.borrow())
         };
-        if meth_name == "get".to_string() && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Hashtable".to_string())
+        if meth_name == "replaceWith".to_string() //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Hashtable".to_string())
         {
-            dbg!(&current_frame.local_vars.borrow().deref()[0].unwrap_object().unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
+//            dbg!(&current_frame.local_vars.borrow().deref()[0].unwrap_object().unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
 //            dbg!(&current_frame.operand_stack);
 ////            dbg!(&current_frame.local_vars.borrow().get(6));
 ////            match instruct{
@@ -366,7 +366,7 @@ pub fn run_function(
             current_frame.pc.replace(pc);
         }
     }
-    if meth_name == "get".to_string() {
+    if meth_name == "replaceWith".to_string() {
         std::io::stdout().flush().unwrap();
         std::io::stderr().flush().unwrap();
 //        dbg!(&current_frame.local_vars);

@@ -15,7 +15,7 @@ use slow_interpreter::{get_or_create_class_object, array_of_type_class};
 use std::rc::Rc;
 use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
-use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH};
+use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH, JavaVM, JNI_VERSION_1_8};
 use log::trace;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_function, run_constructor};
 use slow_interpreter::instructions::ldc::{load_class_constant_by_name, create_string_on_stack};
@@ -29,13 +29,14 @@ use std::cell::RefCell;
 use runtime_common::runtime_class::RuntimeClass;
 use std::thread::Thread;
 use slow_interpreter::rust_jni::string::new_string_with_string;
-use std::ffi::CStr;
+use std::ffi::{CStr, c_void};
 use std::ops::Deref;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
 use slow_interpreter::rust_jni::string::intern_impl;
 use slow_interpreter::rust_jni::interface::runtime_class_from_object;
 use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
+use std::os::raw::{c_int, c_char};
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
@@ -108,7 +109,6 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     let p1 = add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/Desktop/jdk8u232-b09/jre/lib/amd64".to_string());
     let p2 = add_prop(env, p1, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string());
     dbg!(from_object(p2).unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
-    panic!();
     p2
 }
 
@@ -199,17 +199,23 @@ unsafe extern "system" fn JVM_UnloadLibrary(handle: *mut ::std::os::raw::c_void)
     unimplemented!()
 }
 
+unsafe extern "system" fn provide_jni_version(jvm: *mut *mut JavaVM, something : *mut c_void) -> c_int{
+    //todo I'm confused as to why this is returned from JVM_FindLibraryEntry, and I wrote this
+    JNI_VERSION_1_8 as c_int
+}
+
 #[no_mangle]
 unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut ::std::os::raw::c_void, name: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_void {
 //    unimplemented!();
     //todo not implemented for now
 
-    transmute(0xdeadbeafdeadbeaf as usize)
+    transmute(provide_jni_version as *mut c_void)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsSupportedJNIVersion(version: jint) -> jboolean {
-    unimplemented!()
+    //todo for now we support everything?
+    true as jboolean
 }
 
 #[no_mangle]
@@ -1145,7 +1151,11 @@ unsafe extern "system" fn JVM_RaiseSignal(sig: jint) -> jboolean {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindSignal(name: *const ::std::os::raw::c_char) -> jint {
-    unimplemented!()
+    if name.offset(0).read() == 'H' as c_char && name.offset(1).read() == 'U' as c_char && name.offset(2).read() == 'P' as c_char{
+        1 //todo bindgen signal.h
+    }else {
+        unimplemented!()
+    }
 }
 
 #[no_mangle]
