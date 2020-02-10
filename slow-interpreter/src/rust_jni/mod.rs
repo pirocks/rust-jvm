@@ -33,6 +33,7 @@ use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jme
 use crate::rust_jni::native_util::{get_state, get_frame, from_object};
 use crate::rust_jni::interface::get_interface;
 use std::io::Error;
+use crate::instructions::ldc::load_class_constant_by_name;
 
 
 pub mod value_conversion;
@@ -78,11 +79,12 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     } else {
         vec![Type::pointer(), Type::pointer()]
     };
-    let env = &get_interface(state, current_frame);
+    let env = &get_interface(state, current_frame.clone());
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&&env)]
     } else {
-        vec![Arg::new(&&env), runtime_class_to_native(classfile.clone())]
+        load_class_constant_by_name(state,&current_frame,class_name(&classfile.classfile.clone()).get_referred_name());
+        vec![Arg::new(&&env), to_native(current_frame.pop())]
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 //    dbg!(&args);

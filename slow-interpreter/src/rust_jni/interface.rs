@@ -416,7 +416,7 @@ pub struct FieldID {
 
 unsafe extern "C" fn get_field_id(_env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let runtime_class = native_to_runtime_class(clazz);
+    let runtime_class = runtime_class_from_object(clazz).unwrap();
     let fields = &runtime_class.classfile.fields;
     for field_i in 0..fields.len() {
         //todo check descriptor
