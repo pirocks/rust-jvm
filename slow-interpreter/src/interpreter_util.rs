@@ -74,7 +74,7 @@ pub fn run_function(
             let mut context = CodeParserContext { offset: 0, iter: current.iter() };
             (parse_instruction(&mut context).unwrap().clone(), context.offset)
         };
-        /*if meth_name == "get" //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string())
+        if meth_name == "defaultCharset" //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string())
         {
             dbg!(&current_frame.local_vars);
             dbg!(&current_frame.operand_stack);
@@ -88,7 +88,7 @@ pub fn run_function(
 //            }
             dbg!(&instruct);
 //            std::io::stderr().flush();
-        }*/
+        }
         current_frame.pc_offset.replace(instruction_size as isize);
 //        dbg!(instruct.clone());
         match instruct {
@@ -354,6 +354,10 @@ pub fn run_function(
         }
     }
     println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
+    dbg!(current_frame.last_call_stack.as_ref().map(|x| {
+        let x1 = x.operand_stack.borrow();
+        x1.last().map(|y|{y.clone()}).clone()
+    }));
 }
 
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {

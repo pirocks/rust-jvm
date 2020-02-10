@@ -288,7 +288,7 @@ impl Debug for NormalObject {
         write!(f, "-")?;
 //        write!(f, "{:?}", self.class_pointer.static_vars)?;
         write!(f, "-")?;
-        write!(f, "{:?}", self.fields)?;
+//        write!(f, "{:?}", self.fields)?;
         write!(f, "-")?;
         write!(f, "{:?}", self.bootstrap_loader)?;
         Result::Ok(())

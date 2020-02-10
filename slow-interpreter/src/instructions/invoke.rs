@@ -108,6 +108,10 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     };
     let c = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
     let all_methods = get_all_methods(state, current_frame.clone(), c.clone());
+//    current_frame.print_stack_trace();
+//    dbg!(class_name(&c.classfile));
+//    dbg!(&method_name);
+//    dbg!(&expected_descriptor);
     let (final_target_class, new_i) = all_methods.iter().find(|(c, m)| {
         let cur_method_info = &c.classfile.methods[*m];
         let cur_name = cur_method_info.method_name(&c.classfile);
@@ -171,8 +175,8 @@ pub fn invoke_virtual_method_i_impl(
 
 //todo we should be going to this first imo. b/c as is we have correctness issues with overloaded impls?
 pub fn actually_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: &Arc<RuntimeClass>, target_method: &MethodInfo) -> () {
-    dbg!("Called actually virtual");
-    dbg!(class_name(&target_class.classfile).get_referred_name());
+//    dbg!("Called actually virtual");
+//    dbg!(class_name(&target_class.classfile).get_referred_name());
 //    current_frame.print_stack_trace();
     let this_pointer = {
         let operand_stack = current_frame.operand_stack.borrow();
@@ -180,7 +184,7 @@ pub fn actually_virtual(state: &mut InterpreterState, current_frame: Rc<StackEnt
     };
     let new_target_class = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
     assert_eq!(new_target_class.classfile.access_flags & ACC_ABSTRACT, 0);
-    dbg!(class_name(&new_target_class.classfile).get_referred_name());
+//    dbg!(class_name(&new_target_class.classfile).get_referred_name());
 //todo so this is incorrect due to subclassing of return value.
     let all_methods = get_all_methods(state, current_frame.clone(), new_target_class.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, m)| {
@@ -189,12 +193,12 @@ pub fn actually_virtual(state: &mut InterpreterState, current_frame: Rc<StackEnt
         let desc_str = cur_method_info.descriptor_str(&c.classfile);
         let cur_desc = parse_method_descriptor(&c.loader.clone(), desc_str.as_str()).unwrap();
         let expected_name = target_method.method_name(&target_class.classfile);
-        if expected_name == cur_name{
-            dbg!(&expected_name);
-            dbg!(&cur_name);
-            dbg!(&expected_descriptor);
-            dbg!(&cur_desc);
-        }
+//        if expected_name == cur_name{
+//            dbg!(&expected_name);
+//            dbg!(&cur_name);
+//            dbg!(&expected_descriptor);
+//            dbg!(&cur_desc);
+//        }
 
         cur_name == expected_name &&
             expected_descriptor.parameter_types == cur_desc.parameter_types &&

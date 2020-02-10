@@ -637,7 +637,7 @@ unsafe extern "system" fn JVM_GetClassLoader(env: *mut JNIEnv, cls: jclass) -> j
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    get_frame(env).print_stack_trace();
+//    get_frame(env).print_stack_trace();
     (runtime_class_from_object(cls).unwrap().classfile.access_flags & ACC_INTERFACE > 0) as jboolean
 }
 
@@ -918,7 +918,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let slot = JavaValue::Int(-1);
 
         let signature = {
-            create_string_on_stack(state, &frame, CONSTRUCTOR_SIGNATURE.to_string());
+            create_string_on_stack(state, &frame, m.descriptor_str(&target_classfile));
             frame.pop()
         };
 
@@ -1076,8 +1076,9 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     frame.push(JavaValue::Object(action));
 //    dbg!(&frame.operand_stack);
 //    dbg!(&run_method.code_attribute().unwrap());
+    //todo shouldn't this be invoke_virtual
     actually_virtual(state, frame.clone(), expected_descriptor, &runtime_class, run_method);
-    dbg!(&frame.operand_stack);
+//    dbg!(&frame.operand_stack);
 //    unimplemented!()
 
     let res = frame.pop().unwrap_object();

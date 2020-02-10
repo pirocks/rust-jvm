@@ -3,9 +3,7 @@ use crate::interpreter_util::check_inited_class;
 use std::rc::Rc;
 use verification::verifier::instructions::special::extract_field_descriptor;
 use runtime_common::java_values::JavaValue;
-use rust_jvm_common::classnames::{class_name, ClassName};
-use std::sync::Arc;
-use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
 
 
@@ -79,7 +77,7 @@ pub fn get_field(current_frame: &Rc<StackEntry>, cp: u16) -> () {
         JavaValue::Object(o) => {
 //            dbg!(_field_class_name);
 //            dbg!(_field_descriptor);
-            dbg!(&field_name);
+//            dbg!(&field_name);
             let fields = o.as_ref().unwrap().unwrap_normal_object().fields.borrow();
             if fields.get(field_name.as_str()).is_none() {
                 dbg!(&o);

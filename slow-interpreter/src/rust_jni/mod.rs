@@ -195,7 +195,7 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
 
 pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
-    dbg!(&class_name(&class.classfile).get_referred_name());
+//    dbg!(&class_name(&class.classfile).get_referred_name());
     class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
@@ -206,7 +206,7 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, clas
         });
     } else {
         let name = class.classfile.super_class_name();
-        dbg!(&name);
+//        dbg!(&name);
         let super_ = check_inited_class(state, &name.unwrap(), frame.clone().into(), class.loader.clone());
         for (c, i) in get_all_methods(state, frame, super_) {
             res.push((c, i));//todo accidental O(n^2)
