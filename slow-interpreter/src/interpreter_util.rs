@@ -286,8 +286,14 @@ pub fn run_function(
             InstructionInfo::lsub => lsub(&current_frame),
             InstructionInfo::lushr => unimplemented!(),
             InstructionInfo::lxor => unimplemented!(),
-            InstructionInfo::monitorenter => { /*unimplemented for now todo*/ }
-            InstructionInfo::monitorexit => { /*unimplemented for now todo*/ }
+            InstructionInfo::monitorenter => {
+                current_frame.pop().unwrap_object().unwrap();
+                /*unimplemented for now todo*/
+            }
+            InstructionInfo::monitorexit => {
+                current_frame.pop().unwrap_object().unwrap();
+                /*unimplemented for now todo*/
+            }
             InstructionInfo::multianewarray(_) => unimplemented!(),
             InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
             InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
