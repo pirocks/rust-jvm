@@ -16,16 +16,18 @@ use crate::instructions::load::*;
 use crate::instructions::store::*;
 use crate::instructions::fields::*;
 use crate::instructions::cmp::{fcmpg, fcmpl};
-use crate::instructions::conversion::{i2l, i2f, f2i, i2c};
+use crate::instructions::conversion::*;
 use crate::instructions::new::*;
 use crate::instructions::return_::*;
 use crate::instructions::arithmetic::*;
-use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null};
+use crate::instructions::constant::{fconst_0, sipush, bipush, aconst_null, fconst_1};
 use crate::instructions::ldc::{ldc_w, ldc2_w};
 use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
 use crate::instructions::switch::invoke_lookupswitch;
+use std::io::Write;
+use std::ops::Deref;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -75,9 +77,9 @@ pub fn run_function(
 //            current_frame.print_stack_trace();
             (parse_instruction(&mut context).unwrap().clone(), context.offset - *current_frame.pc.borrow())
         };
-//        if meth_name == "defaultCharset" //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/lang/Thread".to_string())
-//        {
-//            dbg!(&current_frame.local_vars);
+        if meth_name == "get".to_string() && class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Hashtable".to_string())
+        {
+            dbg!(&current_frame.local_vars.borrow().deref()[0].unwrap_object().unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
 //            dbg!(&current_frame.operand_stack);
 ////            dbg!(&current_frame.local_vars.borrow().get(6));
 ////            match instruct{
@@ -87,9 +89,9 @@ pub fn run_function(
 ////                },
 ////                _ => {}
 ////            }
-//            dbg!(&instruct);
+            dbg!(&instruct);
 ////            std::io::stderr().flush();
-//        }
+        }
         current_frame.pc_offset.replace(instruction_size as isize);
 //        dbg!(instruct.clone());
         match instruct {
@@ -120,7 +122,7 @@ pub fn run_function(
             InstructionInfo::castore => castore(&current_frame),
             InstructionInfo::checkcast(cp) => invoke_checkcast(state, &current_frame, cp),
             InstructionInfo::d2f => unimplemented!(),
-            InstructionInfo::d2i => unimplemented!(),
+            InstructionInfo::d2i => d2i(&current_frame),
             InstructionInfo::d2l => unimplemented!(),
             InstructionInfo::dadd => unimplemented!(),
             InstructionInfo::daload => unimplemented!(),
@@ -135,7 +137,7 @@ pub fn run_function(
             InstructionInfo::dload_1 => unimplemented!(),
             InstructionInfo::dload_2 => unimplemented!(),
             InstructionInfo::dload_3 => unimplemented!(),
-            InstructionInfo::dmul => unimplemented!(),
+            InstructionInfo::dmul => dmul(&current_frame),
             InstructionInfo::dneg => unimplemented!(),
             InstructionInfo::drem => unimplemented!(),
             InstructionInfo::dreturn => dreturn(state, &current_frame),
@@ -151,7 +153,7 @@ pub fn run_function(
             InstructionInfo::dup2 => dup2(&current_frame),
             InstructionInfo::dup2_x1 => unimplemented!(),
             InstructionInfo::dup2_x2 => unimplemented!(),
-            InstructionInfo::f2d => unimplemented!(),
+            InstructionInfo::f2d => f2d(&current_frame),
             InstructionInfo::f2i => f2i(&current_frame),
             InstructionInfo::f2l => unimplemented!(),
             InstructionInfo::fadd => unimplemented!(),
@@ -160,15 +162,15 @@ pub fn run_function(
             InstructionInfo::fcmpg => fcmpg(&current_frame),
             InstructionInfo::fcmpl => fcmpl(&current_frame),
             InstructionInfo::fconst_0 => fconst_0(&current_frame),
-            InstructionInfo::fconst_1 => unimplemented!(),
+            InstructionInfo::fconst_1 => fconst_1(&current_frame),
             InstructionInfo::fconst_2 => unimplemented!(),
             InstructionInfo::fdiv => unimplemented!(),
             InstructionInfo::fload(_) => unimplemented!(),
             InstructionInfo::fload_0 => fload(&current_frame, 0),
             InstructionInfo::fload_1 => fload(&current_frame, 1),
             InstructionInfo::fload_2 => fload(&current_frame, 2),
-            InstructionInfo::fload_3 => fload(&current_frame,3),
-            InstructionInfo::fmul => fmul(current_frame.clone()),
+            InstructionInfo::fload_3 => fload(&current_frame, 3),
+            InstructionInfo::fmul => fmul(&current_frame),
             InstructionInfo::fneg => unimplemented!(),
             InstructionInfo::frem => unimplemented!(),
             InstructionInfo::freturn => freturn(state, &current_frame),
@@ -185,9 +187,9 @@ pub fn run_function(
             InstructionInfo::getstatic(cp) => get_static(state, &current_frame, cp),
             InstructionInfo::goto_(target) => goto_(&current_frame, target),
             InstructionInfo::goto_w(_) => unimplemented!(),
-            InstructionInfo::i2b => unimplemented!(),
+            InstructionInfo::i2b => i2b(&current_frame),
             InstructionInfo::i2c => i2c(&current_frame),
-            InstructionInfo::i2d => unimplemented!(),
+            InstructionInfo::i2d => i2d(&current_frame),
             InstructionInfo::i2f => i2f(&current_frame),
             InstructionInfo::i2l => i2l(&current_frame),
             InstructionInfo::i2s => unimplemented!(),
@@ -202,7 +204,11 @@ pub fn run_function(
             InstructionInfo::iconst_3 => iconst_3(&current_frame),
             InstructionInfo::iconst_4 => iconst_4(&current_frame),
             InstructionInfo::iconst_5 => iconst_5(&current_frame),
-            InstructionInfo::idiv => unimplemented!(),
+            InstructionInfo::idiv => idiv(&current_frame),
+//                {
+//                current_frame.print_stack_trace();
+//                unimplemented!()
+//            }
             InstructionInfo::if_acmpeq(offset) => if_acmpeq(&current_frame, offset),
             InstructionInfo::if_acmpne(offset) => if_acmpne(&current_frame, offset),
             InstructionInfo::if_icmpeq(offset) => if_icmpeq(&current_frame, offset),
@@ -360,11 +366,15 @@ pub fn run_function(
             current_frame.pc.replace(pc);
         }
     }
+    if meth_name == "get".to_string() {
+        std::io::stdout().flush().unwrap();
+        std::io::stderr().flush().unwrap();
+//        dbg!(&current_frame.local_vars);
+        dbg!(current_frame.last_call_stack.as_ref().map(|x| { let x1 = x.operand_stack.borrow();x1.last().map(|y|{y.clone()}).clone() }));
+        std::io::stdout().flush().unwrap();
+        std::io::stderr().flush().unwrap();
+    }
     println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
-    dbg!(current_frame.last_call_stack.as_ref().map(|x| {
-        let x1 = x.operand_stack.borrow();
-        x1.last().map(|y|{y.clone()}).clone()
-    }));
 }
 
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {

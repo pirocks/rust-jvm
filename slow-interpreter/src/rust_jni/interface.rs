@@ -1,22 +1,23 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID, jboolean, jbyteArray};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jthrowable, jint, jclass, __va_list_tag, jchar, jsize, jstring, jfieldID, jboolean, jbyteArray, jarray, jbyte};
 use std::mem::transmute;
 use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars, new_string_with_string};
-use crate::instructions::invoke::{invoke_static_impl,  invoke_virtual_method_i};
+use crate::instructions::invoke::{invoke_static_impl, invoke_virtual_method_i, invoke_special, invoke_special_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
-use classfile_parser::types::parse_method_descriptor;
+use classfile_parser::types::{parse_method_descriptor, MethodDescriptor};
 use rust_jvm_common::unified_types::ParsedType;
-use runtime_common::java_values::JavaValue;
+use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use log::trace;
 use crate::instructions::ldc::load_class_constant_by_name;
 use std::sync::Arc;
 use runtime_common::runtime_class::RuntimeClass;
-use crate::rust_jni::value_conversion::native_to_runtime_class;
-use crate::interpreter_util::check_inited_class;
+use crate::interpreter_util::{check_inited_class, push_new_object};
+use std::ops::Deref;
+use std::cell::RefCell;
 
 //GetFieldID
 pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
@@ -52,7 +53,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         NewLocalRef: None,
         EnsureLocalCapacity: Some(ensure_local_capacity),
         AllocObject: None,
-        NewObject: None,
+        NewObject: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject>(new_object as *mut c_void) }),
         NewObjectV: None,
         NewObjectA: None,
         GetObjectClass: Some(get_object_class),
@@ -119,7 +120,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         CallNonvirtualVoidMethodV: None,
         CallNonvirtualVoidMethodA: None,
         GetFieldID: Some(get_field_id),
-        GetObjectField: None,
+        GetObjectField: Some(get_object_field),
         GetBooleanField: None,
         GetByteField: None,
         GetCharField: None,
@@ -142,7 +143,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         CallStaticObjectMethodV: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, args: *mut __va_list_tag) -> jobject>(call_static_object_method_v as *mut c_void) }),
         CallStaticObjectMethodA: None,
         CallStaticBooleanMethod: None,
-        CallStaticBooleanMethodV: None,
+        CallStaticBooleanMethodV: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, args: *mut __va_list_tag) -> jboolean>(call_static_boolean_method_v as *mut c_void) }),
         CallStaticBooleanMethodA: None,
         CallStaticByteMethod: None,
         CallStaticByteMethodV: None,
@@ -195,7 +196,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         GetStringUTFLength: Some(get_string_utflength),
         GetStringUTFChars: Some(get_string_utfchars),
         ReleaseStringUTFChars: Some(release_string_utfchars),
-        GetArrayLength: None,
+        GetArrayLength: Some(get_array_length),
         NewObjectArray: None,
         GetObjectArrayElement: None,
         SetObjectArrayElement: None,
@@ -224,7 +225,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         ReleaseFloatArrayElements: None,
         ReleaseDoubleArrayElements: None,
         GetBooleanArrayRegion: None,
-        GetByteArrayRegion: None,
+        GetByteArrayRegion: Some(get_byte_array_region),
         GetCharArrayRegion: None,
         GetShortArrayRegion: None,
         GetIntArrayRegion: None,
@@ -232,7 +233,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         GetFloatArrayRegion: None,
         GetDoubleArrayRegion: None,
         SetBooleanArrayRegion: None,
-        SetByteArrayRegion: None,
+        SetByteArrayRegion: Some(set_byte_array_region),
         SetCharArrayRegion: None,
         SetShortArrayRegion: None,
         SetIntArrayRegion: None,
@@ -244,7 +245,7 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         MonitorEnter: None,
         MonitorExit: None,
         GetJavaVM: None,
-        GetStringRegion: None,
+        GetStringRegion: Some(get_string_region),
         GetStringUTFRegion: Some(get_string_utfregion),
         GetPrimitiveArrayCritical: None,
         ReleasePrimitiveArrayCritical: None,
@@ -318,7 +319,7 @@ unsafe extern "C" fn delete_local_ref(_env: *mut JNIEnv, _obj: jobject) {
 
 unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
-    return 0;
+    0 as jint
 }
 
 unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::raw::c_char) -> jclass {
@@ -361,6 +362,12 @@ unsafe extern "C" fn get_static_method_id(
 }
 
 unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: VaList) -> jobject {
+    let frame = call_static_method_v(env, jmethod_id, &mut l);
+    let res = frame.pop().unwrap_object();
+    to_object(res)
+}
+
+unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, l: &mut VaList) -> Rc<StackEntry> {
     let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
     let state = get_state(env);
     let frame = get_frame(env);
@@ -369,7 +376,15 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
     let method_descriptor_str = method.descriptor_str(classfile);
     let _name = method.method_name(classfile);
     let parsed = parse_method_descriptor(&method_id.class.loader, method_descriptor_str.as_str()).unwrap();
-    //todo dup
+//todo dup
+    push_params_onto_frame(l, &frame, &parsed);
+    trace!("----NATIVE EXIT ----");
+    invoke_static_impl(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
+    trace!("----NATIVE ENTER----");
+    frame
+}
+
+unsafe fn push_params_onto_frame(l: &mut VaList, frame: &Rc<StackEntry>, parsed: &MethodDescriptor) {
     for type_ in &parsed.parameter_types {
         match type_ {
             ParsedType::ByteType => unimplemented!(),
@@ -385,7 +400,12 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
             }
             ParsedType::ShortType => unimplemented!(),
             ParsedType::BooleanType => unimplemented!(),
-            ParsedType::ArrayReferenceType(_) => unimplemented!(),
+            ParsedType::ArrayReferenceType(a) => {
+                let native_object: jobject = l.arg();
+                let o = from_object(native_object);
+                frame.push(JavaValue::Object(o));
+                //todo dupe.
+            },
             ParsedType::VoidType => unimplemented!(),
             ParsedType::TopType => unimplemented!(),
             ParsedType::NullType => unimplemented!(),
@@ -394,11 +414,6 @@ unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclas
             ParsedType::UninitializedThisOrClass(_) => panic!()
         }
     }
-    trace!("----NATIVE EXIT ----");
-    invoke_static_impl(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
-    trace!("----NATIVE ENTER----");
-    let res = frame.pop().unwrap_object();
-    to_object(res)
 }
 
 unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring {
@@ -406,7 +421,9 @@ unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: js
     for i in 0..len {
         str.push(unicode.offset(i as isize).read() as u8 as char)
     }
-    new_string_with_string(env, str)
+    let res = new_string_with_string(env, str);
+    assert_ne!(res, std::ptr::null_mut());
+    res
 }
 
 pub struct FieldID {
@@ -453,7 +470,7 @@ pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, s
 }
 
 
-pub unsafe fn runtime_class_from_object(cls: jclass) -> Option<Arc<RuntimeClass>>{
+pub unsafe fn runtime_class_from_object(cls: jclass) -> Option<Arc<RuntimeClass>> {
     let object_non_null = from_object(cls).unwrap().clone();
     let object_class = object_non_null.unwrap_normal_object().object_class_object_pointer.borrow();
     object_class.clone()
@@ -461,41 +478,163 @@ pub unsafe fn runtime_class_from_object(cls: jclass) -> Option<Arc<RuntimeClass>
 
 
 unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
-    let super_name = match runtime_class_from_object(sub).unwrap().classfile.super_class_name(){
-        None => {return to_object(None)},
+    let super_name = match runtime_class_from_object(sub).unwrap().classfile.super_class_name() {
+        None => { return to_object(None); }
         Some(n) => n,
     };
     let frame = get_frame(env);
     let state = get_state(env);
 //    frame.print_stack_trace();
-    let _inited_class = check_inited_class(state, &super_name, frame.clone().into(),frame.class_pointer.loader.clone());
-    load_class_constant_by_name(state,&frame,super_name.get_referred_name());
+    let _inited_class = check_inited_class(state, &super_name, frame.clone().into(), frame.class_pointer.loader.clone());
+    load_class_constant_by_name(state, &frame, super_name.get_referred_name());
     to_object(frame.pop().unwrap_object())
 }
 
 
-unsafe extern "C" fn is_assignable_from(_env: *mut JNIEnv, _sub: jclass, _sup: jclass) -> jboolean{
+unsafe extern "C" fn is_assignable_from(_env: *mut JNIEnv, _sub: jclass, _sup: jclass) -> jboolean {
     //todo impl later
     true as jboolean
 }
 
-unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: *const ::std::os::raw::c_char, sig: *const ::std::os::raw::c_char) -> jfieldID{
+unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: *const ::std::os::raw::c_char, sig: *const ::std::os::raw::c_char) -> jfieldID {
 //    get_frame(env).print_stack_trace();
     //todo should have its own impl
-    get_field_id(env,clazz,name,sig)
+    get_field_id(env, clazz, name, sig)
 }
 
-unsafe extern "C" fn set_static_object_field(_env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject){
+unsafe extern "C" fn set_static_object_field(_env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject) {
 //Box::into_raw(Box::new(FieldID { class: runtime_class.clone(), field_i })) as jfieldID;
     let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));//todo leak
     let value = from_object(value);
     let classfile = &field_id.class.classfile;
     let field_name = classfile.constant_pool[classfile.fields[field_id.field_i].name_index as usize].extract_string_from_utf8();
-    let static_class = native_to_runtime_class(clazz);
-    static_class.static_vars.borrow_mut().insert(field_name,JavaValue::Object(value));
+    let static_class = runtime_class_from_object(clazz).unwrap();
+    static_class.static_vars.borrow_mut().insert(field_name, JavaValue::Object(value));
 }
 
 
-unsafe extern "C" fn new_byte_array(_env: *mut JNIEnv, _len: jsize) -> jbyteArray{
-    std::ptr::null_mut() as jbyteArray//todo unimplemented
+unsafe extern "C" fn new_byte_array(_env: *mut JNIEnv, len: jsize) -> jbyteArray {
+    let mut the_vec = vec![];
+    for _ in 0..len {
+        the_vec.push(JavaValue::Byte(0))
+    }
+    to_object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(the_vec), elem_type: ParsedType::ByteType }))))
+}
+
+unsafe extern "C" fn get_string_region(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut jchar) {
+    let temp = from_object(str).unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
+    let char_array = &temp.unwrap_array().elems.borrow();
+    let mut str_ = Vec::new();
+    for char_ in char_array.iter() {
+        str_.push(char_.unwrap_char())
+    }
+    for i in start..(start + len) {
+        buf.offset(i as isize).write(str_[i as usize] as jchar);
+    }
+}
+
+unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jboolean {
+    call_static_method_v(env, method_id, &mut l);
+    let res = get_frame(env).pop();
+    res.unwrap_int() as jboolean
+}
+
+
+unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
+    let non_null_array: &Object = &from_object(array).unwrap();
+    let len = match non_null_array {
+        Object::Array(a) => {
+            a.elems.borrow().len()
+        }
+        Object::Object(_o) => {
+            unimplemented!()
+        }
+    };
+    len as jsize
+}
+
+
+unsafe extern "C" fn get_byte_array_region(_env: *mut JNIEnv, array: jbyteArray, start: jsize, len: jsize, buf: *mut jbyte) {
+    let non_null_array_obj = from_object(array).unwrap();
+    let array_ref = non_null_array_obj.unwrap_array().elems.borrow();
+    let array = array_ref.deref();
+    for i in start..(start + len) {
+        buf.offset(i as isize).write(array[i as usize].unwrap_int() as jbyte)
+    }
+}
+
+
+unsafe extern "C" fn get_object_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jobject {
+    let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
+    let nonnull = from_object(obj).unwrap();
+    let field_borrow = nonnull.unwrap_normal_object().fields.borrow();
+    let fields = field_borrow.deref();
+    let classfile = &field_id.class.classfile;
+    let field_name = classfile.fields[field_id.field_i].name(classfile);
+    to_object(fields.get(&field_name).unwrap().unwrap_object())
+}
+
+
+unsafe extern "C" fn set_byte_array_region(_env: *mut JNIEnv, array: jbyteArray, start: jsize, len: jsize, buf: *const jbyte) {
+    for i in start..(start + len) {
+        from_object(array)
+            .unwrap()
+            .unwrap_array()
+            .elems
+            .borrow_mut()
+            .insert(i as usize, JavaValue::Byte(buf.offset(i as isize).read() as i8));
+    }
+}
+
+
+unsafe extern "C" fn new_object(env: *mut JNIEnv, clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
+    let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
+    let state = get_state(env);
+    let frame = get_frame(env);
+    let classfile = &method_id.class.classfile;
+    let method = &classfile.methods[method_id.method_i];
+    let method_descriptor_str = method.descriptor_str(classfile);
+    let _name = method.method_name(classfile);
+    let parsed = parse_method_descriptor(&method_id.class.loader, method_descriptor_str.as_str()).unwrap();
+    push_new_object(frame.clone(), &method_id.class);
+    let obj = frame.pop();
+    frame.push(obj.clone());
+    for type_ in &parsed.parameter_types {
+        match type_ {
+            ParsedType::ByteType => unimplemented!(),
+            ParsedType::CharType => unimplemented!(),
+            ParsedType::DoubleType => unimplemented!(),
+            ParsedType::FloatType => unimplemented!(),
+            ParsedType::IntType => unimplemented!(),
+            ParsedType::LongType => unimplemented!(),
+            ParsedType::Class(_) => {
+                let native_object: jobject = l.arg();
+                let o = from_object(native_object);
+                frame.push(JavaValue::Object(o));
+            }
+            ParsedType::ShortType => unimplemented!(),
+            ParsedType::BooleanType => unimplemented!(),
+            ParsedType::ArrayReferenceType(a) => {
+                let native_object: jobject = l.arg();
+                let o = from_object(native_object);
+                frame.push(JavaValue::Object(o));
+                //todo dupe.
+            },
+            ParsedType::VoidType => unimplemented!(),
+            ParsedType::TopType => unimplemented!(),
+            ParsedType::NullType => unimplemented!(),
+            ParsedType::Uninitialized(_) => unimplemented!(),
+            ParsedType::UninitializedThis => unimplemented!(),
+            ParsedType::UninitializedThisOrClass(_) => panic!()
+        }
+    }
+    invoke_special_impl(
+        state,
+        &frame,
+        &parsed,
+        method_id.method_i,
+        method_id.class.clone(),
+        &classfile.methods[method_id.method_i]
+    );
+    to_object(obj.unwrap_object())
 }

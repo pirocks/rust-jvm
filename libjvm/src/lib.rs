@@ -103,9 +103,33 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p: jobject) -> jobject {
-    //todo so in theory I should do more stuff here, but not needed for hello world so....
-    //p is a Hashtable
+unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {
+//sun.boot.library.path
+    let p1 = add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/Desktop/jdk8u232-b09/jre/lib/amd64".to_string());
+    let p2 = add_prop(env, p1, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string());
+    dbg!(from_object(p2).unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
+    panic!();
+    p2
+}
+
+unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key:String,val: String)->jobject{
+    let frame = get_frame(env);
+    let state = get_state(env);
+    create_string_on_stack(state, &frame, key);
+    let key = frame.pop();
+    create_string_on_stack(state, &frame, val);
+    let val = frame.pop();
+    let prop_obj = from_object(p).unwrap();
+    let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
+    let classfile = &runtime_class.classfile;
+    let candidate_meth = classfile.lookup_method_name(&"setProperty".to_string());
+    let (meth_i , meth) = candidate_meth.iter().next().unwrap();
+    let md = parse_method_descriptor(&runtime_class.loader, meth.descriptor_str(classfile).as_str()).unwrap();
+    frame.push(JavaValue::Object(prop_obj.clone().into()));
+    frame.push(key);
+    frame.push(val);
+    invoke_virtual_method_i(state,frame.clone(),md,runtime_class.clone(),*meth_i,meth);
+    frame.pop();
     p
 }
 
@@ -177,7 +201,10 @@ unsafe extern "system" fn JVM_UnloadLibrary(handle: *mut ::std::os::raw::c_void)
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut ::std::os::raw::c_void, name: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_void {
-    unimplemented!()
+//    unimplemented!();
+    //todo not implemented for now
+
+    transmute(0xdeadbeafdeadbeaf as usize)
 }
 
 #[no_mangle]
@@ -290,7 +317,7 @@ static mut MAIN_THREAD: Option<Arc<Object>> = None;
 unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclass) -> jobject {
     match MAIN_THREAD.clone() {
         None => {
-            let runtime_thread_class = native_to_runtime_class(threadClass);
+            let runtime_thread_class = runtime_class_from_object(threadClass).unwrap();
             let state = get_state(env);
             let frame = get_frame(env);
             make_thread(&runtime_thread_class, state, &frame);
@@ -345,6 +372,9 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut Inte
 
 
     let thread_class = check_inited_class(state, &ClassName::Str("java/lang/Thread".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
+    if !Arc::ptr_eq(&thread_class, &runtime_thread_class) {
+        frame.print_stack_trace();
+    }
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     push_new_object(frame.clone(), &thread_class);
     let object = frame.pop();
@@ -780,8 +810,12 @@ fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, typ
         ParsedType::ArrayReferenceType(sub) => {
             frame.push(JavaValue::Object(array_of_type_class(state, frame.clone(), sub.sub_type.deref()).into()));
         }
+        ParsedType::CharType=> {
+            load_class_constant_by_name(state, frame, "java/lang/Character".to_string());
+        }
         _ => {
             dbg!(type_);
+            frame.print_stack_trace();
             unimplemented!()
         }
     }

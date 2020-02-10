@@ -32,6 +32,13 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
     let target_class = check_inited_class(state, &method_class_name, current_frame.clone().into(), loader_arc.clone());
     let (target_m_i, final_target_class) = find_target_method(state, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
     let target_m = &final_target_class.classfile.methods[target_m_i];
+    invoke_special_impl(state, current_frame, &parsed_descriptor, target_m_i, final_target_class.clone(), target_m);
+//    if method_name == "<init>"{
+//        dbg!(&current_frame.operand_stack);
+//    }
+}
+
+pub fn invoke_special_impl(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, parsed_descriptor: &MethodDescriptor, target_m_i: usize, final_target_class: Arc<RuntimeClass>, target_m: &MethodInfo) -> () {
     if target_m.access_flags & ACC_NATIVE > 0 {
         run_native_method(state, current_frame.clone(), final_target_class, target_m_i);
     } else {
@@ -59,9 +66,6 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
 //        trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
         }
     }
-//    if method_name == "<init>"{
-//        dbg!(&current_frame.operand_stack);
-//    }
 }
 
 fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {

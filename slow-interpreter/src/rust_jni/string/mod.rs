@@ -54,7 +54,8 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     let frame = get_frame(env);
     create_string_on_stack(state, &frame, owned_str);
     let string = frame.pop().unwrap_object();
-    to_object(string.into())
+    assert!(!string.is_none());
+    to_object(string)
 }
 
 

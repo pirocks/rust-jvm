@@ -6,6 +6,11 @@ pub fn fconst_0(current_frame: &Rc<StackEntry>) {
     current_frame.push(JavaValue::Float(0.0));
 }
 
+pub fn fconst_1(current_frame: &Rc<StackEntry>) {
+    current_frame.push(JavaValue::Float(1.0));
+}
+
+
 pub fn bipush(current_frame: &Rc<StackEntry>, b: u8) -> () {
     current_frame.push(JavaValue::Int(b as i32))
 }

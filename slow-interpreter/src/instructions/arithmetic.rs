@@ -2,10 +2,16 @@ use runtime_common::StackEntry;
 use std::rc::Rc;
 use runtime_common::java_values::JavaValue;
 
-pub fn fmul(current_frame: Rc<StackEntry>) -> () {
+pub fn fmul(current_frame: &Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_float();
     let value1 = current_frame.pop().unwrap_float();
     current_frame.push(JavaValue::Float(value2 * value1));
+}
+
+pub fn dmul(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_double();
+    let value1 = current_frame.pop().unwrap_double();
+    current_frame.push(JavaValue::Double(value2 * value1));
 }
 
 
@@ -39,7 +45,13 @@ pub fn ior(current_frame: &Rc<StackEntry>) -> () {
 pub fn iadd(current_frame: &Rc<StackEntry>) -> () {
     let first = current_frame.pop().unwrap_int();
     let second = current_frame.pop().unwrap_int();
-    current_frame.push(JavaValue::Int(first + second))
+    current_frame.push(JavaValue::Int(((first as i64) + (second as i64)) as i32))
+}
+
+pub fn idiv(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Int(((value1 as i64) / (value2 as i64)) as i32))
 }
 
 pub fn imul(current_frame: &Rc<StackEntry>) -> () {

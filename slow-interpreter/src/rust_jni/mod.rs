@@ -24,14 +24,13 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use std::os::raw::{c_char, c_void};
 use std::alloc::Layout;
 use std::mem::size_of;
-use std::convert::TryInto;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use std::rc::Rc;
-use crate::rust_jni::value_conversion::{to_native_type, to_native, runtime_class_to_native};
+use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
 use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
 use crate::rust_jni::native_util::{get_state, get_frame, from_object};
-use crate::rust_jni::interface::get_interface;
+use crate::rust_jni::interface::{get_interface, runtime_class_from_object};
 use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_name;
 
@@ -42,8 +41,9 @@ pub mod mangling;
 pub fn new_java_loading(path: String) -> LibJavaLoading {
     trace!("Loading libjava.so from:`{}`", path);
 //    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), (dlopen::RTLD_NOW | dlopen::RTLD_GLOBAL).try_into().unwrap()).unwrap();
-    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), (dlopen::RTLD_NOW | dlopen::RTLD_GLOBAL).try_into().unwrap()).unwrap();
-    let lib = Library::from(loaded);
+//    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), (dlopen::RTLD_NOW /*| dlopen::RTLD_GLOBAL*/).try_into().unwrap()).unwrap();
+    let lib = Library::new(path.clone()).unwrap();
+//    let lib = Library::from(loaded);
     LibJavaLoading {
         lib,
         registered_natives: RefCell::new(HashMap::new()),
@@ -152,7 +152,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
-        let runtime_class: &Arc<RuntimeClass> = transmute(clazz);
+        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz).unwrap();
         let classfile = &runtime_class.classfile;
         &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
             let descriptor_str = method_info.descriptor_str(classfile);
