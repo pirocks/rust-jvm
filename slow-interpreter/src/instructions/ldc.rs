@@ -12,7 +12,7 @@ use classfile_parser::types::MethodDescriptor;
 use std::mem::transmute;
 use std::cell::RefCell;
 use crate::rust_jni::native_util::{to_object, from_object};
-use crate::rust_jni::string::intern_impl;
+use crate::rust_jni::interface::string::intern_impl;
 
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
     let res_class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();

@@ -6,9 +6,9 @@ use runtime_common::{StackEntry, InterpreterState};
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
 use jni_bindings::{JNIEnv, jclass, jobject, jlong, jint, jboolean, jobjectArray, jstring, jintArray};
-use slow_interpreter::rust_jni::interface::runtime_class_from_object;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object};
 use runtime_common::runtime_class::RuntimeClass;
+use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {

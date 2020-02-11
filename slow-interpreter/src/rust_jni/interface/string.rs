@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jstring, jboolean, jchar};
+use jni_bindings::{JNIEnv, jstring, jboolean, jchar, jsize};
 use std::os::raw::c_char;
 use runtime_common::java_values::{JavaValue, Object};
 use std::cell::Ref;
@@ -14,7 +14,7 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
                                              name: jstring,
                                              is_copy: *mut jboolean) -> *const c_char {
     let str_obj_o = from_object(name).unwrap();
-    let str_obj= str_obj_o.unwrap_normal_object();
+    let str_obj = str_obj_o.unwrap_normal_object();
     let string_chars_o = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_object().unwrap();
     let unwrapped = string_chars_o.unwrap_array().elems.borrow();
     let char_array: &Ref<Vec<JavaValue>> = &unwrapped;
@@ -61,7 +61,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 
 pub static mut STRING_INTERNMENT_CAMP: Option<HashMap<String, Arc<Object>>> = None;
 
-pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring{
+pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring {
     match &STRING_INTERNMENT_CAMP {
         None => { STRING_INTERNMENT_CAMP = Some(HashMap::new()) }
         Some(_) => {}
@@ -81,3 +81,52 @@ pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring{
         to_object(str_obj)
     }
 }
+
+
+pub unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -> jsize {
+    let str_obj = from_object(str).unwrap();
+    //todo use length function.
+    let str_fields = str_obj.unwrap_normal_object().fields.borrow();
+    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
+    let chars = char_object.unwrap_array();
+    let borrowed_elems = chars.elems.borrow();
+    borrowed_elems.len() as i32
+}
+
+
+pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
+    let str_obj = from_object(str).unwrap();
+    let str_fields = str_obj.unwrap_normal_object().fields.borrow();
+    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
+    let chars = char_object.unwrap_array();
+    let borrowed_elems = chars.elems.borrow();
+    for i in 0..len {
+        let char_ = (&borrowed_elems[(start + i) as usize]).unwrap_char() as i8 as u8 as char;
+        buf.offset(i as isize).write(char_ as i8);
+    }
+    buf.offset((len) as isize).write('\0' as i8);
+}
+
+
+pub unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring {
+    let mut str = String::with_capacity(len as usize);
+    for i in 0..len {
+        str.push(unicode.offset(i as isize).read() as u8 as char)
+    }
+    let res = new_string_with_string(env, str);
+    assert_ne!(res, std::ptr::null_mut());
+    res
+}
+
+pub unsafe extern "C" fn get_string_region(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut jchar) {
+    let temp = from_object(str).unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
+    let char_array = &temp.unwrap_array().elems.borrow();
+    let mut str_ = Vec::new();
+    for char_ in char_array.iter() {
+        str_.push(char_.unwrap_char())
+    }
+    for i in 0..len {
+        buf.offset(i as isize).write(str_[(start + i) as usize] as jchar);
+    }
+}
+

@@ -1,5 +1,4 @@
 use jni_bindings::{jobjectArray, jclass, JNIEnv, jobject, jint, jstring, jbyteArray, jboolean, JVM_ExceptionTableEntryType};
-use slow_interpreter::rust_jni::interface::runtime_class_from_object;
 use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame};
 use std::sync::Arc;
 use runtime_common::java_values::{Object, ArrayObject, JavaValue};
@@ -15,7 +14,8 @@ use slow_interpreter::{array_of_type_class, get_or_create_class_object};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use std::ops::Deref;
 use std::ffi::CStr;
-use slow_interpreter::rust_jni::string::new_string_with_string;
+use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
+use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 
 pub mod constant_pool {
     use jni_bindings::{JNIEnv, jclass, jobject, jint, jobjectArray, jfloat, jlong, jdouble, jstring};
@@ -100,9 +100,9 @@ pub mod constant_pool {
 
 pub mod is_x{
     use jni_bindings::{jdouble, jboolean, JNIEnv, jclass};
-    use slow_interpreter::rust_jni::interface::runtime_class_from_object;
     use rust_jvm_common::classfile::ACC_INTERFACE;
     use rust_jvm_common::classnames::class_name;
+    use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 
     #[no_mangle]
     unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
