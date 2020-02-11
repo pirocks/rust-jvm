@@ -5,9 +5,9 @@ use runtime_common::java_values::JavaValue;
 pub fn fcmpl(current_frame: &Rc<StackEntry>) -> () {
     //todo dup
     let value2 = current_frame.pop().unwrap_float();
-    dbg!(value2);
+//    dbg!(value2);
     let value1 = current_frame.pop().unwrap_float();
-    dbg!(value1);
+//    dbg!(value1);
     if value1 == value2 {
         current_frame.push(JavaValue::Int(0))
     } else if value1 > value2 {

@@ -4,7 +4,6 @@ use rust_jvm_common::classnames::class_name;
 use regex::Regex;
 use rust_jvm_common::classfile::ACC_NATIVE;
 
-
 pub fn mangle(classfile: Arc<RuntimeClass>, method_i: usize) -> String {
     let method = &classfile.classfile.methods[method_i];
     let method_name = method.method_name(&classfile.classfile);
@@ -31,7 +30,8 @@ pub fn escape(s: String) -> String {
         .replace("[", "_3")
         .replace("(","")
         .replace(")","")
+        .replace("$","_00024")
         .replace("/", "_");
-    //todo need to handle non-unicode but shouldn't be an issue for now.
+    //todo need to handle unicode but shouldn't be an issue for now.
     initial_replace
 }

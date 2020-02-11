@@ -146,6 +146,12 @@ pub fn run(
     };
 
     run_function(&mut state, initialize_system_frame.into());
+    if state.function_return{
+        state.function_return = false;
+    }
+    if state.throw.is_some() || state.terminate {
+        unimplemented!()
+    }
 //    let array_elem_type = ParsedType::Class(ClassWithLoader { class_name: ClassName::string(), loader: bl.clone() });
     //todo use array_elem_type
     let main_stack = StackEntry {

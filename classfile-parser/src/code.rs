@@ -22,7 +22,7 @@ fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
     while !(c.offset % 4 == 0) {
         let padding = read_u8(c);
         padding.expect("Unexpected end of code");
-        dbg!(padding);
+//        dbg!(padding);
     };
 //    dbg!(c.offset);
     let default = read_i32(c).unwrap();

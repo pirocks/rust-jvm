@@ -26,8 +26,6 @@ use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
 use crate::instructions::switch::invoke_lookupswitch;
-use std::io::Write;
-use std::ops::Deref;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -89,7 +87,7 @@ pub fn run_function(
 ////                },
 ////                _ => {}
 ////            }
-            dbg!(&instruct);
+//            dbg!(&instruct);
 ////            std::io::stderr().flush();
         }
         current_frame.pc_offset.replace(instruction_size as isize);
@@ -321,7 +319,7 @@ pub fn run_function(
         }
         if state.throw.is_some() {
             let throw_class = state.throw.as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
-            dbg!(&code.exception_table);
+//            dbg!(&code.exception_table);
             for excep_table in &code.exception_table {
                 if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize) {//todo exclusive
 //                    assert_ne!(excep_table.catch_type, 0);
@@ -335,8 +333,8 @@ pub fn run_function(
                         break;
                     } else {
                         let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
-                        dbg!(&catch_runtime_name);
-                        dbg!(class_name(&throw_class.classfile).get_referred_name());
+//                        dbg!(&catch_runtime_name);
+//                        dbg!(class_name(&throw_class.classfile).get_referred_name());
                         let catch_class = check_inited_class(state, &ClassName::Str(catch_runtime_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
                         if inherits_from(state, &throw_class, &catch_class) {
                             current_frame.push(JavaValue::Object(state.throw.clone()));
@@ -366,14 +364,14 @@ pub fn run_function(
             current_frame.pc.replace(pc);
         }
     }
-    if meth_name == "replaceWith".to_string() {
-        std::io::stdout().flush().unwrap();
-        std::io::stderr().flush().unwrap();
-//        dbg!(&current_frame.local_vars);
-        dbg!(current_frame.last_call_stack.as_ref().map(|x| { let x1 = x.operand_stack.borrow();x1.last().map(|y|{y.clone()}).clone() }));
-        std::io::stdout().flush().unwrap();
-        std::io::stderr().flush().unwrap();
-    }
+//    if meth_name == "replaceWith".to_string() {
+//        std::io::stdout().flush().unwrap();
+//        std::io::stderr().flush().unwrap();
+////        dbg!(&current_frame.local_vars);
+////        dbg!(current_frame.last_call_stack.as_ref().map(|x| { let x1 = x.operand_stack.borrow();x1.last().map(|y|{y.clone()}).clone() }));
+//        std::io::stdout().flush().unwrap();
+//        std::io::stderr().flush().unwrap();
+//    }
     println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
 }
 
@@ -424,8 +422,8 @@ fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>
 }
 
 pub fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
-    dbg!(&descriptor);
-    dbg!(class_name(&target_classfile.classfile).get_referred_name());
+//    dbg!(&descriptor);
+//    dbg!(class_name(&target_classfile.classfile).get_referred_name());
     let (i, m) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
     let md = parse_method_descriptor(&target_classfile.loader, descriptor.as_str()).unwrap();
     let this_ptr = full_args[0].clone();

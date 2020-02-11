@@ -352,13 +352,13 @@ pub fn run_native_method(
     let mut args = vec![];
     //todo should have some setup args functions
     if method.access_flags & ACC_STATIC > 0 {
-        for _ in parsed.parameter_types {
+        for _ in &parsed.parameter_types {
             args.push(frame.pop());
         }
         args.reverse();
     } else {
         if method.access_flags & ACC_NATIVE > 0 {
-            for _ in parsed.parameter_types {
+            for _ in &parsed.parameter_types {
                 args.push(frame.pop());
             }
             args.reverse();
@@ -385,9 +385,9 @@ pub fn run_native_method(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            call_impl(state, frame.clone(), class.clone(), args, parsed.return_type, &res_fn, !method.is_static())
+            call_impl(state, frame.clone(), class.clone(), args, parsed, &res_fn, !method.is_static())
         } else {
-            let res = match call(state, frame.clone(), class.clone(), method_i, args.clone(), parsed.return_type) {
+            let res = match call(state, frame.clone(), class.clone(), method_i, args.clone(), parsed) {
                 Ok(r) => r,
                 Err(_) => {
                     let mangled = mangling::mangle(class.clone(), method_i);

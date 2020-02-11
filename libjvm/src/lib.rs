@@ -75,7 +75,7 @@ unsafe extern "system" fn JVM_MonitorNotify(env: *mut JNIEnv, obj: jobject) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorNotifyAll(env: *mut JNIEnv, obj: jobject) {
-    unimplemented!()
+    //todo unimpl for now, since we don't support mutlithreading anyway
 }
 
 #[no_mangle]
@@ -108,11 +108,11 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
 //sun.boot.library.path
     let p1 = add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/Desktop/jdk8u232-b09/jre/lib/amd64".to_string());
     let p2 = add_prop(env, p1, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string());
-    dbg!(from_object(p2).unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
+//    dbg!(from_object(p2).unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
     p2
 }
 
-unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key:String,val: String)->jobject{
+unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jobject {
     let frame = get_frame(env);
     let state = get_state(env);
     create_string_on_stack(state, &frame, key);
@@ -123,12 +123,12 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key:String,val: String)->jobjec
     let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
     let classfile = &runtime_class.classfile;
     let candidate_meth = classfile.lookup_method_name(&"setProperty".to_string());
-    let (meth_i , meth) = candidate_meth.iter().next().unwrap();
+    let (meth_i, meth) = candidate_meth.iter().next().unwrap();
     let md = parse_method_descriptor(&runtime_class.loader, meth.descriptor_str(classfile).as_str()).unwrap();
     frame.push(JavaValue::Object(prop_obj.clone().into()));
     frame.push(key);
     frame.push(val);
-    invoke_virtual_method_i(state,frame.clone(),md,runtime_class.clone(),*meth_i,meth);
+    invoke_virtual_method_i(state, frame.clone(), md, runtime_class.clone(), *meth_i, meth);
     frame.pop();
     p
 }
@@ -199,7 +199,7 @@ unsafe extern "system" fn JVM_UnloadLibrary(handle: *mut ::std::os::raw::c_void)
     unimplemented!()
 }
 
-unsafe extern "system" fn provide_jni_version(jvm: *mut *mut JavaVM, something : *mut c_void) -> c_int{
+unsafe extern "system" fn provide_jni_version(jvm: *mut *mut JavaVM, something: *mut c_void) -> c_int {
     //todo I'm confused as to why this is returned from JVM_FindLibraryEntry, and I wrote this
     JNI_VERSION_1_8 as c_int
 }
@@ -816,7 +816,7 @@ fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, typ
         ParsedType::ArrayReferenceType(sub) => {
             frame.push(JavaValue::Object(array_of_type_class(state, frame.clone(), sub.sub_type.deref()).into()));
         }
-        ParsedType::CharType=> {
+        ParsedType::CharType => {
             load_class_constant_by_name(state, frame, "java/lang/Character".to_string());
         }
         _ => {
@@ -985,9 +985,9 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
 #[no_mangle]
 unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jobject, args0: jobjectArray) -> jobject {
 //    assert_ne!(args0, std::ptr::null_mut());
-    let args =if args0 == std::ptr::null_mut(){
+    let args = if args0 == std::ptr::null_mut() {
         vec![]
-    }else {
+    } else {
         let temp_1 = from_object(args0).unwrap().clone();
         let array_temp = temp_1.unwrap_array().borrow();
         let elems_refcell = array_temp.elems.borrow();
@@ -1002,16 +1002,16 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let temp_2 = signature_str_obj.unwrap_object().unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
     let sig_chars = &temp_2.unwrap_array().borrow().elems;
     let mut signature = String::new();
-    for char_ in sig_chars.borrow().iter(){
+    for char_ in sig_chars.borrow().iter() {
         signature.push(char_.unwrap_char())
     }
     let state = get_state(env);
     let frame = get_frame(env);
-    push_new_object(frame.clone(),&clazz);
+    push_new_object(frame.clone(), &clazz);
     let obj = frame.pop();
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());
-    run_constructor(state,frame,clazz,full_args,signature);
+    run_constructor(state, frame, clazz, full_args, signature);
     to_object(obj.unwrap_object())
 }
 
@@ -1122,7 +1122,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
 //    unimplemented!()
 
     let res = frame.pop().unwrap_object();
-    dbg!(&res);
+//    dbg!(&res);
     to_object(res)
 }
 
@@ -1141,7 +1141,8 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls
 
 #[no_mangle]
 unsafe extern "system" fn JVM_RegisterSignal(sig: jint, handler: *mut ::std::os::raw::c_void) -> *mut ::std::os::raw::c_void {
-    unimplemented!()
+    //todo unimpl for now
+    transmute(0xdeaddeadbeafdead as usize)
 }
 
 #[no_mangle]
@@ -1151,9 +1152,13 @@ unsafe extern "system" fn JVM_RaiseSignal(sig: jint) -> jboolean {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindSignal(name: *const ::std::os::raw::c_char) -> jint {
-    if name.offset(0).read() == 'H' as c_char && name.offset(1).read() == 'U' as c_char && name.offset(2).read() == 'P' as c_char{
+    if name.offset(0).read() == 'H' as c_char && name.offset(1).read() == 'U' as c_char && name.offset(2).read() == 'P' as c_char {
         1 //todo bindgen signal.h
-    }else {
+    } else if name.offset(0).read() == 'I' as c_char && name.offset(1).read() == 'N' as c_char && name.offset(2).read() == 'T' as c_char {
+        2 //todo bindgen signal.h
+    } else if name.offset(0).read() == 'T' as c_char && name.offset(1).read() == 'E' as c_char && name.offset(2).read() == 'R' as c_char && name.offset(3).read() == 'M' as c_char {
+        15 //todo bindgen signal.h
+    } else {
         unimplemented!()
     }
 }

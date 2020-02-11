@@ -37,7 +37,7 @@ impl Debug for JavaValue {
             JavaValue::Float(l) => { write!(f, "{}", l) }
             JavaValue::Double(l) => { write!(f, "{}", l) }
             JavaValue::Object(o) => { write!(f, "{:?}", o) }
-            JavaValue::Top => {write!(f,"top")}
+            JavaValue::Top => { write!(f, "top") }
         }
     }
 }
@@ -51,7 +51,13 @@ impl JavaValue {
             JavaValue::Byte(i) => {
                 *i as i32
             }
-            _ => panic!()
+            JavaValue::Boolean(i) => {
+                *i as i32
+            }
+            _ => {
+                dbg!(self);
+                panic!()
+            }
         }
     }
 

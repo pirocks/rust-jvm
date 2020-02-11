@@ -7,7 +7,7 @@ use log::trace;
 use libloading::Library;
 use libloading::Symbol;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::java_values::{JavaValue, Object};
 use std::ffi::CStr;
@@ -33,6 +33,7 @@ use crate::rust_jni::native_util::{get_state, get_frame, from_object};
 use crate::rust_jni::interface::{get_interface, runtime_class_from_object};
 use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_name;
+use classfile_parser::types::MethodDescriptor;
 
 
 pub mod value_conversion;
@@ -51,29 +52,42 @@ pub fn new_java_loading(path: String) -> LibJavaLoading {
 }
 
 
-pub fn call(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, return_type: ParsedType) -> Result<Option<JavaValue>, Error> {
+pub fn call(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, method_i: usize, args: Vec<JavaValue>, md: MethodDescriptor) -> Result<Option<JavaValue>, Error> {
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
             match state.jni.lib.get(mangled.clone().as_bytes()) {
                 Ok(o) => o,
                 Err(e) => {
-                    dbg!(mangled);
+//                    dbg!(mangled);
                     return Result::Err(e);
                 }
             }
         };
         symbol.deref().clone()
     };
-    if classfile.classfile.methods[method_i].is_static(){
-        Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw,false))
-    }else {
+    if classfile.classfile.methods[method_i].is_static() {
+        Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, false))
+    } else {
 //        current_frame.print_stack_trace();
-        Result::Ok(call_impl(state, current_frame, classfile, args, return_type, &raw,true))
+//        if mangled == "Java_java_io_FileOutputStream_writeBytes".to_string() {
+//            let temp = args[1].unwrap_object().unwrap();
+//            let temp_2 = temp.unwrap_array().elems.borrow();
+//            let unwrapped = &temp_2.deref();
+////            dbg!(unwrapped);
+//            // jint off, jint len, jboolean append
+//            let off = &args[2].unwrap_int();
+////            dbg!(off);
+//            let len = &args[3].unwrap_int();
+////            dbg!(len);
+//            let append = &args[4].unwrap_int();
+////            dbg!(append);
+//        }
+        Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true))
     }
 }
 
-pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, return_type: ParsedType, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Option<JavaValue> {
+pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
@@ -83,15 +97,30 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&&env)]
     } else {
-        load_class_constant_by_name(state,&current_frame,class_name(&classfile.classfile.clone()).get_referred_name());
-        vec![Arg::new(&&env), to_native(current_frame.pop())]
+        load_class_constant_by_name(state, &current_frame, class_name(&classfile.classfile.clone()).get_referred_name());
+        vec![Arg::new(&&env), to_native(current_frame.pop(), &ParsedType::Class(ClassWithLoader { class_name: ClassName::object(), loader: classfile.loader.clone() }))]
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 //    dbg!(&args);
-    for j in args {
-        args_type.push(to_native_type(j.clone()));
-        c_args.push(to_native(j));
+//    if args.len() > 0 {
+//        for j in &args[1..] {
+//            dbg!(j);
+//        }
+//    }
+    if suppress_runtime_class {
+        for (j, t) in args.iter().zip(vec![ParsedType::Class(ClassWithLoader { class_name: ClassName::object(), loader: classfile.loader.clone() })].iter().chain(md.parameter_types.iter())) {
+            args_type.push(to_native_type(t));
+            c_args.push(to_native(j.clone(), t));
+        }
+    }else {
+        for (j, t) in args.iter().zip(md.parameter_types.iter()) {
+            args_type.push(to_native_type(t));
+            c_args.push(to_native(j.clone(), t));
+        }
     }
+
+//    dbg!(&c_args);
+//    dbg!(&args_type);
     let cif = Cif::new(args_type.into_iter(), Type::usize());
 //todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
@@ -100,7 +129,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         cif.call(fn_ptr, c_args.as_slice())
     };
 //    trace!("----NATIVE EXIT ----");
-    match return_type {
+    match &md.return_type {
         ParsedType::VoidType => {
             None
         }
@@ -135,7 +164,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
 //            ParsedType::Uninitialized(_) => {}
 //            ParsedType::UninitializedThis => {}
         _ => {
-            dbg!(return_type);
+            dbg!(md.return_type);
             panic!()
         }
     }

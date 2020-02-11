@@ -6,7 +6,7 @@ use std::ffi::{c_void, CStr, VaList};
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id, MethodId};
 use crate::rust_jni::native_util::{get_object_class, get_frame, get_state, to_object, from_object};
 use crate::rust_jni::string::{release_string_chars, new_string_utf, get_string_utfchars, new_string_with_string};
-use crate::instructions::invoke::{invoke_static_impl, invoke_virtual_method_i, invoke_special, invoke_special_impl};
+use crate::instructions::invoke::{invoke_static_impl, invoke_virtual_method_i, invoke_special_impl};
 use rust_jvm_common::classfile::ACC_STATIC;
 use classfile_parser::types::{parse_method_descriptor, MethodDescriptor};
 use rust_jvm_common::unified_types::ParsedType;
@@ -125,8 +125,8 @@ pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINati
         GetByteField: None,
         GetCharField: None,
         GetShortField: None,
-        GetIntField: None,
-        GetLongField: None,
+        GetIntField: Some(get_int_field),
+        GetLongField: Some(get_long_field),
         GetFloatField: None,
         GetDoubleField: None,
         SetObjectField: None,
@@ -400,7 +400,7 @@ unsafe fn push_params_onto_frame(l: &mut VaList, frame: &Rc<StackEntry>, parsed:
             }
             ParsedType::ShortType => unimplemented!(),
             ParsedType::BooleanType => unimplemented!(),
-            ParsedType::ArrayReferenceType(a) => {
+            ParsedType::ArrayReferenceType(_a) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
@@ -462,11 +462,11 @@ pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, s
     let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
     let chars = char_object.unwrap_array();
     let borrowed_elems = chars.elems.borrow();
-    for i in start..(start + len) {
-        let char_ = (&borrowed_elems[i as usize]).unwrap_char() as i8 as u8 as char;
+    for i in 0..len {
+        let char_ = (&borrowed_elems[(start + i) as usize]).unwrap_char() as i8 as u8 as char;
         buf.offset(i as isize).write(char_ as i8);
     }
-    buf.offset((start + len) as isize).write('\0' as i8);
+    buf.offset((len) as isize).write('\0' as i8);
 }
 
 
@@ -528,8 +528,8 @@ unsafe extern "C" fn get_string_region(_env: *mut JNIEnv, str: jstring, start: j
     for char_ in char_array.iter() {
         str_.push(char_.unwrap_char())
     }
-    for i in start..(start + len) {
-        buf.offset(i as isize).write(str_[i as usize] as jchar);
+    for i in 0..len {
+        buf.offset(i as isize).write(str_[ (start + i) as usize] as jchar);
     }
 }
 
@@ -558,8 +558,10 @@ unsafe extern "C" fn get_byte_array_region(_env: *mut JNIEnv, array: jbyteArray,
     let non_null_array_obj = from_object(array).unwrap();
     let array_ref = non_null_array_obj.unwrap_array().elems.borrow();
     let array = array_ref.deref();
-    for i in start..(start + len) {
-        buf.offset(i as isize).write(array[i as usize].unwrap_int() as jbyte)
+    for i in 0..len {
+        let byte = array[(start + i) as usize].unwrap_int() as jbyte;
+//        dbg!(byte as u8 as char);
+        buf.offset(i as isize).write(byte)
     }
 }
 
@@ -576,13 +578,13 @@ unsafe extern "C" fn get_object_field(_env: *mut JNIEnv, obj: jobject, field_id_
 
 
 unsafe extern "C" fn set_byte_array_region(_env: *mut JNIEnv, array: jbyteArray, start: jsize, len: jsize, buf: *const jbyte) {
-    for i in start..(start + len) {
+    for i in 0..len {
         from_object(array)
             .unwrap()
             .unwrap_array()
             .elems
             .borrow_mut()
-            .insert(i as usize, JavaValue::Byte(buf.offset(i as isize).read() as i8));
+            .insert((start + i) as usize, JavaValue::Byte(buf.offset(i as isize).read() as i8));
     }
 }
 
@@ -614,7 +616,7 @@ unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jm
             }
             ParsedType::ShortType => unimplemented!(),
             ParsedType::BooleanType => unimplemented!(),
-            ParsedType::ArrayReferenceType(a) => {
+            ParsedType::ArrayReferenceType(_a) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
@@ -640,7 +642,7 @@ unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jm
 }
 
 
-unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint{
+unsafe extern "C" fn get_java_vm(_env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint{
     *vm = Box::into_raw(Box::new(Box::leak(Box::new(JNIInvokeInterface_ {
         reserved0: std::ptr::null_mut(),
         reserved1: std::ptr::null_mut(),
@@ -654,14 +656,14 @@ unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint
     0 as jint
 }
 
-unsafe extern "C" fn set_int_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jint){
+unsafe extern "C" fn set_int_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jint){
     let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
     let classfile = &field_id.class.classfile;
     let name = classfile.fields[field_id.field_i as usize].name(classfile);
     from_object(obj).unwrap().unwrap_normal_object().fields.borrow_mut().deref_mut().insert(name,JavaValue::Int(val));
 }
 
-unsafe extern "C" fn set_long_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jlong){
+unsafe extern "C" fn set_long_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jlong){
     let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
     let classfile = &field_id.class.classfile;
     let name = classfile.fields[field_id.field_i as usize].name(classfile);
@@ -669,9 +671,25 @@ unsafe extern "C" fn set_long_field(env: *mut JNIEnv, obj: jobject, field_id_raw
 }
 
 
-unsafe extern "C" fn set_boolean_field(env : * mut JNIEnv, obj : jobject, field_id_raw : jfieldID, val : jboolean ){
+unsafe extern "C" fn set_boolean_field(_env : * mut JNIEnv, obj : jobject, field_id_raw : jfieldID, val : jboolean ){
     let field_id:& FieldID  = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
     let classfile = &field_id.class.classfile;
     let name = classfile.fields[field_id.field_i as usize].name(classfile);
     from_object(obj).unwrap().unwrap_normal_object().fields.borrow_mut().deref_mut().insert(name,JavaValue::Boolean(val != 0));
+}
+
+unsafe extern "C" fn get_long_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jlong{
+    let field_id:& FieldID  = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
+    let classfile = &field_id.class.classfile;
+    let name = classfile.fields[field_id.field_i as usize].name(classfile);
+    from_object(obj).unwrap().unwrap_normal_object().fields.borrow().deref().get(&name).unwrap().unwrap_long() as jlong
+}
+
+
+
+unsafe extern "C" fn get_int_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jint{
+    let field_id:& FieldID  = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
+    let classfile = &field_id.class.classfile;
+    let name = classfile.fields[field_id.field_i as usize].name(classfile);
+    from_object(obj).unwrap().unwrap_normal_object().fields.borrow().deref().get(&name).unwrap().unwrap_int() as jint
 }
