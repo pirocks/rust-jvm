@@ -17,172 +17,10 @@ use std::ffi::CStr;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 
-pub mod constant_pool {
-    use jni_bindings::{JNIEnv, jclass, jobject, jint, jobjectArray, jfloat, jlong, jdouble, jstring};
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass) -> jobject {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, unused: jobject, jcpool: jobject) -> jint {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jclass {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jclass {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jobject {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetMethodAtIfLoaded(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jobject {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetFieldAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jobject {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jobject {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jobjectArray {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jint {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jlong {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jfloat {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jdouble {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetStringAt(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jstring {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_ConstantPoolGetUTF8At(env: *mut JNIEnv, unused: jobject, jcpool: jobject, index: jint) -> jstring {
-        unimplemented!()
-    }
-
-}
-
-
-pub mod is_x{
-    use jni_bindings::{jdouble, jboolean, JNIEnv, jclass};
-    use rust_jvm_common::classfile::ACC_INTERFACE;
-    use rust_jvm_common::classnames::class_name;
-    use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
-//    get_frame(env).print_stack_trace();
-        (runtime_class_from_object(cls).unwrap().classfile.access_flags & ACC_INTERFACE > 0) as jboolean
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    /**
-        * Determines if the specified {@code Class} object represents a
-        * primitive type.
-        *
-        * <p> There are nine predefined {@code Class} objects to represent
-        * the eight primitive types and void.  These are created by the Java
-        * Virtual Machine, and have the same names as the primitive types that
-        * they represent, namely {@code boolean}, {@code byte},
-        * {@code char}, {@code short}, {@code int},
-        * {@code long}, {@code float}, and {@code double}.
-        *
-        * <p> These objects may only be accessed via the following public static
-        * final variables, and are the only {@code Class} objects for which
-        * this method returns {@code true}.
-        *
-        * @return true if and only if this class represents a primitive type
-        *
-        * @see     java.lang.Boolean#TYPE
-        * @see     java.lang.Character#TYPE
-        * @see     java.lang.Byte#TYPE
-        * @see     java.lang.Short#TYPE
-        * @see     java.lang.Integer#TYPE
-        * @see     java.lang.Long#TYPE
-        * @see     java.lang.Float#TYPE
-        * @see     java.lang.Double#TYPE
-        * @see     java.lang.Void#TYPE
-        * @since JDK1.1
-        */
-    unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-//    get_frame(env).print_stack_trace();
-        let class_object = runtime_class_from_object(cls);
-        if class_object.is_none() {
-            return false as jboolean;
-        }
-        let name = class_name(&class_object.unwrap().classfile).get_referred_name();
-        dbg!(&name);
-        let is_primitive = name == "java/lang/Boolean".to_string() ||
-            name == "java/lang/Character".to_string() ||
-            name == "java/lang/Byte".to_string() ||
-            name == "java/lang/Short".to_string() ||
-            name == "java/lang/Integer".to_string() ||
-            name == "java/lang/Long".to_string() ||
-            name == "java/lang/Float".to_string() ||
-            name == "java/lang/Double".to_string() ||
-            name == "java/lang/Void".to_string();
-
-        is_primitive as jboolean
-    }
-
-
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jboolean {
-        unimplemented!()
-    }
-
-    #[no_mangle]
-    unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jboolean {
-        unimplemented!()
-    }
-
-}
+pub mod constant_pool;
+pub mod is_x;
+pub mod index;
+pub mod method_annotations;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
@@ -226,25 +64,6 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     unimplemented!()
 }
 
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass) -> jbyteArray {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassTypeAnnotations(env: *mut JNIEnv, cls: jclass) -> jbyteArray {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetFieldTypeAnnotations(env: *mut JNIEnv, field: jobject) -> jbyteArray {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodTypeAnnotations(env: *mut JNIEnv, method: jobject) -> jbyteArray {
-    unimplemented!()
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
@@ -468,51 +287,6 @@ unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxByteCode(env: *mut JNIEnv, cb: jclass, method_index: jint, code: *mut ::std::os::raw::c_uchar) {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetFieldIxModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
 unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobject) -> jobjectArray {
     unimplemented!()
 }
@@ -529,15 +303,6 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     to_object(jclass)
 }
 
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
@@ -594,26 +359,6 @@ unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: 
     unimplemented!()
 }
 
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionTableEntry(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-    entry_index: jint,
-    entry: *mut JVM_ExceptionTableEntryType,
-) {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionIndexes(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-    exceptions: *mut ::std::os::raw::c_ushort,
-) {
-    unimplemented!()
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromCaller(
@@ -629,7 +374,6 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     to_object(Some(get_or_create_class_object(state, &ClassName::Str(name), frame.clone(), frame.class_pointer.loader.clone())))
 }
-
 
 
 #[no_mangle]
