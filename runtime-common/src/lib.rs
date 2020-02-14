@@ -13,6 +13,7 @@ use rust_jvm_common::classfile::CPIndex;
 use libloading::Library;
 use std::rc::Rc;
 use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::stage2::string_pool::StringPool;
 
 pub mod java_values;
 pub mod runtime_class;
@@ -28,6 +29,7 @@ pub struct InterpreterState {
     pub array_object_pool: RefCell<HashMap<ParsedType, Arc<Object>>>,
     //todo needs to be used for all instances of getClass
     pub jni: LibJavaLoading,
+    pub string_pool: StringPool,//todo this should really be in some sort of parser/jvm state
 }
 
 #[derive(Debug)]

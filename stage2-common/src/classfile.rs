@@ -1,13 +1,20 @@
 use std::hash::Hasher;
 use crate::unified_types::ParsedType;
-use crate::stage2::string_pool::StringPoolEntry;
+use crate::stage2::string_pool::{StringPoolEntry, StringPool};
 use std::sync::Arc;
+use crate::classfile::ConstantKind;
+use std::mem::transmute;
+use crate::unified_types::VType::DoubleType;
+use crate::stage2::types::PType;
+use crate::string_pool::{StringPoolEntry, StringPool};
+use rust_jvm_common::classfile::ConstantKind;
+use descriptor_parser::parse_field_descriptor;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SourceFile {
     //todo
-    pub sourcefile_index: CPIndex
+    pub sourcefile: Arc<StringPoolEntry>
 }
 
 #[derive(Debug)]
@@ -431,8 +438,13 @@ pub struct IInc {
 #[derive(Debug)]
 #[derive(Eq)]
 pub struct Utf8 {
-    pub length: u16,
-    pub string: String,
+    entry: Arc<StringPoolEntry>
+}
+
+impl Utf8 {
+    pub fn new<'cl, 'l>(s: &'l String, pool: &'l mut StringPool) -> Self {
+        Utf8 { entry: pool.get_or_add(s.clone()) }
+    }
 }
 
 
@@ -453,44 +465,40 @@ pub struct Integer {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Float {
-    pub bytes: u32
+    pub val: f32
     //unimplemented!()
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Long {
-    pub low_bytes: u32,
-    pub high_bytes: u32,
+    pub val: i64
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Double {
-    pub low_bytes: u32,
-    pub high_bytes: u32,
+    pub val: f64
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Class {
-    //unimplemented!()
-    pub name_index: u16
+    pub name: Arc<StringPoolEntry>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct String_ {
-    //unimplemented!()
-    pub string_index: u16
+    pub str: Arc<StringPoolEntry>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Fieldref {
     //unimplemented!()
-    pub class_index: CPIndex,
-    pub name_and_type_index: CPIndex,
+    pub class_name: Arc<StringPoolEntry>,
+    pub name_and_type: NameAndType,
 }
 
 #[derive(Debug)]
@@ -510,8 +518,8 @@ pub struct InterfaceMethodref {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct NameAndType {
-    pub name_index: CPIndex,
-    pub descriptor_index: CPIndex,
+    pub name: Arc<StringPoolEntry>,
+    pub field_type: ParsedType,
 }
 
 #[derive(Debug)]
@@ -532,13 +540,15 @@ pub struct MethodType {
 pub struct Dynamic {
     //todo
 }
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct InvokeDynamic {
-    pub bootstrap_method_attr_index: CPIndex,
-    pub name_and_type_index: CPIndex,
-}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//pub struct InvokeDynamic<'l> {
+////    pub bootstrap_method_attr_index: CPIndex,
+////    pub name_and_type_index: CPIndex,
+////todo not in java8
+//
+//}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -558,8 +568,7 @@ pub struct InvalidConstant {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-//#[derive(Copy, Clone)]
-pub enum ConstantKind {
+pub enum ConstantInfo<'cl> {
     Utf8(Utf8),
     Integer(Integer),
     Float(Float),
@@ -574,23 +583,97 @@ pub enum ConstantKind {
     MethodHandle(MethodHandle),
     MethodType(MethodType),
     Dynamic(Dynamic),
-    InvokeDynamic(InvokeDynamic),
+    //    InvokeDynamic(InvokeDynamic<'cl>),//todo not in java8
     Module(Module),
     Package(Package),
     InvalidConstant(InvalidConstant),
 }
 
-
-#[derive(Debug)]
-#[derive(Eq)]
-//#[derive(Copy, Clone)]
-pub struct ConstantInfo {
-    pub kind: ConstantKind,
+fn from_stage_1_constant_pool<'cl, 'l>(
+    constant_pool_stage_1: &'l Vec<crate::classfile::ConstantInfo>,
+    string_pool: &mut StringPool,
+) -> Vec<ConstantInfo<'cl>> {
+    let mut res_pool = vec![];
+    for (_, x) in constant_pool_stage_1.iter().enumerate() {
+        res_pool.push(ConstantInfo::from_stage_1(x, constant_pool_stage_1, string_pool));
+    };
+    res_pool
 }
 
-impl PartialEq for ConstantInfo {
-    fn eq(&self, other: &Self) -> bool {
-        self.kind == other.kind
+
+impl ConstantInfo<'_> {
+    fn from_stage_1<'cl, 'l>(
+        stage_1: &'l crate::classfile::ConstantInfo,
+        constant_pool_stage_1: &'l Vec<crate::classfile::ConstantInfo>,
+        string_pool: &mut StringPool,
+    ) -> Self {
+        match &stage_1.kind {
+            ConstantKind::Utf8(utf8) => {
+                ConstantInfo::Utf8(Utf8::new(&utf8.string, string_pool))
+            }
+            ConstantKind::Integer(i) => {
+                Integer { bytes: i.bytes }
+            }
+            ConstantKind::Float(f) => {
+                Float { val: unsafe { transmute(f.bytes) } }//todo this may/may not be correct
+            }
+            ConstantKind::Long(l) => {
+                Long { val: (((l.high_bytes as u64) << 32) | (l.low_bytes as u64)) as i64 }//todo is magic constant ok?
+            }
+            ConstantKind::Double(d) => {
+                Double {
+                    val: unsafe { transmute(((l.high_bytes as u64) << 32) | (l.low_bytes as u64)) }
+                }
+            }
+            ConstantKind::Class(c) => {
+                let class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();
+                let class_name_entry = string_pool.get_or_add(class_name);
+                ConstantInfo::Class(Class {
+                    name: class_name_entry,
+                })
+            }
+            ConstantKind::String(s) => {
+                let str = constant_pool[s.string_index as usize].extract_string_from_utf8();
+                let str_entry = string_pool.get_or_add(str);
+                ConstantInfo::String(String_ {
+                    str: str_entry
+                })
+            }
+            ConstantKind::Fieldref(fr) => {
+                let name_index = match &constant_pool_stage_1[fr.class_index as usize].kind {
+                    ConstantKind::Class(c) => c.name_index,
+                    _ => panic!()
+                };
+                let class_name = constant_pool_stage_1[name_index as usize].extract_string_from_utf8();
+                let class_name_entry = string_pool.get_or_add(class_name);
+                let name_and_type = match &constant_pool_stage_1[fr.name_and_type_index as usize].kind {
+                    ConstantKind::NameAndType(nt) => {
+                        let desc_str = (constant_pool_stage_1[nt.descriptor_index as usize]).extract_string_from_utf8();
+                        let parsed_type = parse_field_descriptor(desc_str).unwrap().field_type;
+
+                        let class_name = constant_pool_stage_1[nt.name_index as usize].extract_string_from_utf8();
+                        let class_name_entry = string_pool.get_or_add(class_name);
+
+                        NameAndType { name: class_name_entry, field_type: parsed_type }
+                    }
+                    _ => panic!(),
+                };
+                ConstantInfo::Fieldref(Fieldref {
+                    class_name: class_name_entry,
+                    name_and_type,
+                })
+            }
+            ConstantKind::Methodref(_) => { todo!() }
+            ConstantKind::InterfaceMethodref(_) => { todo!() }
+            ConstantKind::NameAndType(_) => { todo!() }
+            ConstantKind::MethodHandle(_) => { todo!() }
+            ConstantKind::MethodType(_) => { todo!() }
+            ConstantKind::Dynamic(_) => { todo!() }
+            ConstantKind::InvokeDynamic(_) => { todo!() }
+            ConstantKind::Module(_) => { todo!() }
+            ConstantKind::Package(_) => { todo!() }
+            ConstantKind::InvalidConstant(_) => { todo!() }
+        }
     }
 }
 
@@ -686,6 +769,7 @@ pub struct Wide {}
 #[derive(Eq, PartialEq)]
 pub struct Instruction {
     pub offset: usize,
+    //maybe in future all instructions are of size 1 in phase 2
     pub instruction: InstructionInfo,
 }
 
@@ -903,54 +987,47 @@ pub enum InstructionInfo {
     tableswitch(TableSwitch),
     wide(Wide),
     EndOfCode,
+
 }
-
-
-//#[repr(u16)]
-//pub enum ClassAccessFlags {
-//TODO THIS NEEDS TO BE DIFFERENT FOR DIFFERNT TYPES
-//maybe not but at very least is incomplete
-pub const ACC_PUBLIC: u16 = 0x0001;
-pub const ACC_PRIVATE: u16 = 0x0002;
-pub const ACC_PROTECTED: u16 = 0x0004;
-pub const ACC_STATIC: u16 = 0x0008;
-pub const ACC_FINAL: u16 = 0x0010;
-pub const ACC_SUPER: u16 = 0x0020;
-pub const ACC_BRIDGE: u16 = 0x0040;
-pub const ACC_VOLATILE: u16 = 0x0040;
-pub const ACC_TRANSIENT: u16 = 0x0080;
-pub const ACC_NATIVE: u16 = 0x0100;
-pub const ACC_INTERFACE: u16 = 0x0200;
-pub const ACC_ABSTRACT: u16 = 0x0400;
-pub const ACC_STRICT: u16 = 0x0800;
-pub const ACC_SYNTHETIC: u16 = 0x1000;
-pub const ACC_ANNOTATION: u16 = 0x2000;
-pub const ACC_ENUM: u16 = 0x4000;
-pub const ACC_MODULE: u16 = 0x8000;
-//}
-
 
 #[derive(Debug)]
-//#[derive(Eq)]
-//#[derive(Copy, Clone)]
-pub struct Classfile {
-    pub magic: u32,
-    pub minor_version: u16,
-    pub major_version: u16,
-    //todo look at this for code size reduction/simplification opturnities
-    pub constant_pool: Vec<ConstantInfo>,
-    pub access_flags: u16,
-    pub this_class: CPIndex,
-    pub super_class: CPIndex,
-    pub interfaces: Vec<Interface>,//todo why is this only used 3 times?
-    pub fields: Vec<FieldInfo>,
-    pub methods: Vec<MethodInfo>,
-    pub attributes: Vec<AttributeInfo>,
+pub struct Classfile<'cl> {
+    magic: u32,
+    minor_version: u16,
+    major_version: u16,
+    constant_pool: Vec<ConstantInfo<'cl>>,
+    access_flags: u16,
+    this_class: CPIndex,
+    super_class: CPIndex,
+    interfaces: Vec<Interface>,
+    fields: Vec<FieldInfo>,
+    methods: Vec<MethodInfo>,
+    attributes: Vec<AttributeInfo>,
 }
 
-pub type Interface = u16;
+pub struct Interface {
+    //todo
+}
 
-impl std::cmp::PartialEq for Classfile {
+impl Classfile<'_> {
+    fn from_stage1(stage_1: &crate::classfile::Classfile) -> Self {
+        Classfile {
+            magic: stage_1.magic,
+            minor_version: stage_1.minor_version,
+            major_version: stage_1.major_version,
+            constant_pool: todo!(),
+            access_flags: stage_1.access_flags,
+            this_class: todo!(),
+            super_class: todo!(),
+            interfaces: todo!(),
+            fields: todo!(),
+            methods: todo!(),
+            attributes: todo!(),
+        }
+    }
+}
+
+impl std::cmp::PartialEq for Classfile<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.magic == other.magic &&
             self.minor_version == other.minor_version &&
@@ -966,7 +1043,7 @@ impl std::cmp::PartialEq for Classfile {
     }
 }
 
-impl std::hash::Hash for Classfile {
+impl std::hash::Hash for Classfile<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u32(self.magic);
         state.write_u16(self.minor_version);

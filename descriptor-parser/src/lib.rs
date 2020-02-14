@@ -12,7 +12,7 @@ pub struct MethodDescriptor { pub parameter_types: Vec<ParsedType>, pub return_t
 
 impl MethodDescriptor {
     pub fn from(method_info: &MethodInfo, classfile: &Classfile, loader: &LoaderArc) -> Self {
-        parse_method_descriptor(loader, method_info.descriptor_str(classfile).as_str()).unwrap()
+        parse_method_descriptor( method_info.descriptor_str(classfile).as_str()).unwrap()
     }
 }
 
@@ -51,7 +51,7 @@ pub fn parse_base_type(str_: &str) -> Option<(&str, ParsedType)> {
     }))
 }
 
-pub fn parse_object_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_object_type(str_: &str) -> Option<(&str, ParsedType)> {
     match str_.chars().nth(0)? {
         'L' => {
             let str_without_l = eat_one(str_);
@@ -68,10 +68,10 @@ pub fn parse_object_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option
     }
 }
 
-pub fn parse_array_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_array_type(str_: &str) -> Option<(&str, ParsedType)> {
     match str_.chars().nth(0)? {
         '[' => {
-            let (remaining_to_parse, sub_type) = parse_component_type(loader, &str_[1..str_.len()])?;
+            let (remaining_to_parse, sub_type) = parse_component_type(&str_[1..str_.len()])?;
             let array_type = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::from(sub_type) });
             Some((remaining_to_parse, array_type))
         }
@@ -79,10 +79,10 @@ pub fn parse_array_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<
     }
 }
 
-pub fn parse_field_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
-    parse_array_type(loader, str_).or_else(|| {
+pub fn parse_field_type(str_: &str) -> Option<(&str, ParsedType)> {
+    parse_array_type( str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
-            parse_object_type(loader, str_).or_else(|| {
+            parse_object_type( str_).or_else(|| {
                 panic!("{}", str_)
             })
         })
@@ -90,8 +90,8 @@ pub fn parse_field_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<
 }
 
 
-pub fn parse_field_descriptor(loader: &LoaderArc, str_: &str) -> Option<FieldDescriptor> {
-    if let Some((should_be_empty, field_type)) = parse_field_type(loader, str_) {
+pub fn parse_field_descriptor(str_: &str) -> Option<FieldDescriptor> {
+    if let Some((should_be_empty, field_type)) = parse_field_type(str_) {
         if should_be_empty.is_empty() {
             Some(FieldDescriptor { field_type })
         } else {
@@ -102,18 +102,18 @@ pub fn parse_field_descriptor(loader: &LoaderArc, str_: &str) -> Option<FieldDes
     }
 }
 
-pub fn parse_component_type<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
-    parse_field_type(loader, str_)
+pub fn parse_component_type(str_: &str) -> Option<(&str, ParsedType)> {
+    parse_field_type(str_)
 }
 
-pub fn parse_method_descriptor(loader: &LoaderArc, str_: &str) -> Option<MethodDescriptor> {
+pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
     if str_.chars().nth(0)? != '(' {
         return None;
     }
     let mut remaining_to_parse = eat_one(str_);
     let mut parameter_types = Vec::new();
     while remaining_to_parse.chars().nth(0)? != ')' {
-        if let Some((rem, type_)) = parse_field_type(loader, remaining_to_parse) {
+        if let Some((rem, type_)) = parse_field_type(remaining_to_parse) {
             remaining_to_parse = rem;
             parameter_types.push(type_);
         } else {
@@ -121,7 +121,7 @@ pub fn parse_method_descriptor(loader: &LoaderArc, str_: &str) -> Option<MethodD
         }
     }
     remaining_to_parse = eat_one(remaining_to_parse);
-    if let Some((should_be_empty, return_type)) = parse_return_descriptor(loader, remaining_to_parse) {
+    if let Some((should_be_empty, return_type)) = parse_return_descriptor( remaining_to_parse) {
         if should_be_empty.is_empty() {
             Some(MethodDescriptor { return_type, parameter_types })
         } else {
@@ -132,8 +132,8 @@ pub fn parse_method_descriptor(loader: &LoaderArc, str_: &str) -> Option<MethodD
     }
 }
 
-pub fn parse_parameter_descriptor<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
-    parse_field_type(loader, str_)
+pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, ParsedType)> {
+    parse_field_type( str_)
 }
 
 pub fn parse_void_descriptor(str_: &str) -> Option<(&str, ParsedType)> {
@@ -143,8 +143,9 @@ pub fn parse_void_descriptor(str_: &str) -> Option<(&str, ParsedType)> {
     }
 }
 
-pub fn parse_return_descriptor<'a, 'b>(loader: &'a LoaderArc, str_: &'b str) -> Option<(&'b str, ParsedType)> {
+pub fn parse_return_descriptor(str_: &str) -> Option<(&str, ParsedType)> {
     parse_void_descriptor(str_).or_else(|| {
-        parse_field_type(loader, str_)
+        parse_field_type( str_)
     })
 }
+

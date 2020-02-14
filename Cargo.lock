@@ -208,6 +208,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "descriptor-parser"
+version = "0.1.0"
+dependencies = [
+ "rust-jvm-common 0.1.0",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -601,6 +608,7 @@ version = "0.1.0"
 dependencies = [
  "argparse 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "classfile-parser 0.1.0",
+ "descriptor-parser 0.1.0",
  "jar-manipulation 0.1.0",
  "jni-bindings 0.1.0",
  "jvm 0.1.0",
@@ -610,6 +618,7 @@ dependencies = [
  "rust-jvm-common 0.1.0",
  "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slow-interpreter 0.1.0",
+ "stage2-common 0.1.0",
  "utils 0.1.0",
  "verification 0.1.0",
 ]
@@ -658,6 +667,14 @@ dependencies = [
  "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "utils 0.1.0",
  "verification 0.1.0",
+]
+
+[[package]]
+name = "stage2-common"
+version = "0.1.0"
+dependencies = [
+ "descriptor-parser 0.1.0",
+ "rust-jvm-common 0.1.0",
 ]
 
 [[package]]
