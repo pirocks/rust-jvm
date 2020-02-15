@@ -10,8 +10,7 @@ use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
-use rust_jvm_common::unified_types::PType;
-use rust_jvm_common::unified_types::ClassWithLoader;
+use rust_jvm_common::unified_types::{PType, ReferenceType};
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
 use std::collections::HashMap;
@@ -39,7 +38,7 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
 
 fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
     let referred_class_name = class_name.get_referred_name();
-    let after_parse = parse_field_type(&loader_arc, referred_class_name.as_str()).unwrap();
+    let after_parse = parse_field_type(referred_class_name.as_str()).unwrap();
     assert!(after_parse.0.is_empty());
     let type_for_object : PType = after_parse.1.unwrap_array_type();
     array_of_type_class(state, current_frame, &type_for_object)
@@ -177,8 +176,8 @@ fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
 
 fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     let string_name = ClassName::string();
-    let string_class = PType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
-    let string_array = PType::ArrayReferenceType(string_class);
+    let string_class = PType::Ref(ReferenceType::Class(string_name));
+    let string_array = PType::Ref(ReferenceType::Array(string_class.into()));
     let psvms = main.lookup_method_name(&"main".to_string());
     for (i, m) in psvms {
         let desc = MethodDescriptor::from(m, main);

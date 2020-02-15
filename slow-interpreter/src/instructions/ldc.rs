@@ -5,7 +5,7 @@ use runtime_common::java_values::{JavaValue, ArrayObject, Object};
 use rust_jvm_common::classnames::ClassName;
 use crate::get_or_create_class_object;
 use crate::interpreter_util::{check_inited_class, push_new_object, run_function};
-use rust_jvm_common::unified_types::PType;
+use rust_jvm_common::unified_types::{PType, ReferenceType};
 use std::sync::Arc;
 use crate::instructions::invoke::find_target_method;
 use std::mem::transmute;
@@ -39,7 +39,7 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     let string_object = current_frame.pop();
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(chars), elem_type: PType::CharType })))));
-    let char_array_type = PType::ArrayReferenceType(PType::CharType) ;
+    let char_array_type = PType::Ref(ReferenceType::Array(PType::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: PType::VoidType };
     let (constructor_i, final_target_class) = find_target_method(state, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry {

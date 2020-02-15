@@ -13,7 +13,6 @@ use std::sync::Arc;
 use crate::OperandStack;
 use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
-use rust_jvm_common::loading::LoaderArc;
 use descriptor_parser::{Descriptor, MethodDescriptor, parse_method_descriptor, parse_field_descriptor};
 use std::ops::Deref;
 

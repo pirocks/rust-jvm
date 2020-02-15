@@ -16,7 +16,6 @@ use crate::verifier::instructions::stores::is_small_array;
 pub fn instruction_is_type_safe_aaload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = nth1_operand_stack_is(2, stack_frame)?;
     let component_type = array_component_type(array_type)?;
-    let bl = env.vf.bootstrap_loader.clone();
     let object_array = VType::ArrayReferenceType(PType::Ref(ReferenceType::Class(ClassName::object())));
     let next_frame = valid_type_transition(env, vec![VType::IntType, object_array], &component_type.to_verification_type(&env.class_loader), stack_frame)?;
     standard_exception_frame(stack_frame, next_frame)

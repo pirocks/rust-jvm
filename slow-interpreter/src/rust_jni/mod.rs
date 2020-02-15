@@ -7,7 +7,7 @@ use log::trace;
 use libloading::Library;
 use libloading::Symbol;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::{PType, ClassWithLoader};
+use rust_jvm_common::unified_types::{PType, ClassWithLoader, ReferenceType};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::java_values::{JavaValue, Object};
 use std::ffi::CStr;
@@ -99,7 +99,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         vec![Arg::new(&&env)]
     } else {
         load_class_constant_by_name(state, &current_frame, class_name(&classfile.classfile.clone()).get_referred_name());
-        vec![Arg::new(&&env), to_native(current_frame.pop(), &PType::Class(ClassWithLoader { class_name: ClassName::object(), loader: classfile.loader.clone() }))]
+        vec![Arg::new(&&env), to_native(current_frame.pop(), &PType::Ref(ReferenceType::Class(ClassName::object())))]
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 //    dbg!(&args);
@@ -109,7 +109,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
 //        }
 //    }
     if suppress_runtime_class {
-        for (j, t) in args.iter().zip(vec![PType::Class(ClassWithLoader { class_name: ClassName::object(), loader: classfile.loader.clone() })].iter().chain(md.parameter_types.iter())) {
+        for (j, t) in args.iter().zip(vec![PType::Ref(ReferenceType::Class(ClassName::object()))].iter().chain(md.parameter_types.iter())) {
             args_type.push(to_native_type(t));
             c_args.push(to_native(j.clone(), t));
         }
@@ -146,16 +146,11 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         PType::LongType => {
             Some(JavaValue::Long(cif_res as i64))
         }
-        PType::Class(_) => {
-            unsafe {
-                Some(JavaValue::Object(from_object(transmute(cif_res))))
-            }
-        }
 //            ParsedType::ShortType => {}
         PType::BooleanType => {
             Some(JavaValue::Boolean(cif_res as u64 != 0))
         }
-        PType::ArrayReferenceType(_art) => {
+        PType::Ref(_) => {
             unsafe {
                 Some(JavaValue::Object(from_object(transmute(cif_res))))
             }

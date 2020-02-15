@@ -64,19 +64,13 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
             PType::FloatType => unimplemented!(),
             PType::IntType => unimplemented!(),
             PType::LongType => unimplemented!(),
-            PType::Class(_) => {
+            PType::Ref(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
             PType::ShortType => unimplemented!(),
             PType::BooleanType => unimplemented!(),
-            PType::ArrayReferenceType(_a) => {
-                let native_object: jobject = l.arg();
-                let o = from_object(native_object);
-                frame.push(JavaValue::Object(o));
-                //todo dupe.
-            }
             PType::VoidType => unimplemented!(),
             PType::TopType => unimplemented!(),
             PType::NullType => unimplemented!(),

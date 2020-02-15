@@ -20,7 +20,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
         if (field.access_flags & ACC_STATIC) > 0 {
             let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
             let field_descriptor_string = classfile.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
-            let parsed = parse_field_descriptor(&loader, field_descriptor_string.as_str()).unwrap();//todo we should really have two pass parsing
+            let parsed = parse_field_descriptor(field_descriptor_string.as_str()).unwrap();//todo we should really have two pass parsing
             let val = default_value(parsed.field_type);
             res.insert(name, val);
         }

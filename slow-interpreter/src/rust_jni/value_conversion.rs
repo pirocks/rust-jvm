@@ -42,10 +42,9 @@ pub fn to_native_type(t: &PType) -> Type {
         PType::FloatType => Type::f32(),
         PType::IntType => Type::i32(),
         PType::LongType => Type::i64(),
-        PType::Class(_) => Type::pointer(),
         PType::ShortType => Type::i16(),
         PType::BooleanType => Type::u8(),
-        PType::ArrayReferenceType(_) => Type::pointer(),
+        PType::Ref(_) => Type::pointer(),
         PType::VoidType => unimplemented!(),
         PType::TopType => unimplemented!(),
         PType::NullType => unimplemented!(),
@@ -76,7 +75,7 @@ pub fn to_native(j: JavaValue, t: &PType) -> Arg {
         PType::LongType => {
             Arg::new(Box::leak(Box::new(j.unwrap_long())))//todo free after call
         },
-        PType::Class(_) => {
+        PType::Ref(_) => {
             match j.unwrap_object(){
                 None => Arg::new(&(std::ptr::null() as *const Object)),
                 Some(op) => {
@@ -94,20 +93,6 @@ pub fn to_native(j: JavaValue, t: &PType) -> Arg {
         },
         PType::BooleanType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as u8)))//todo free after call
-        },
-        PType::ArrayReferenceType(_) => {
-            //todo dup
-            match j.unwrap_object(){
-                None => Arg::new(&(std::ptr::null() as *const Object)),
-                Some(op) => {
-                    unsafe {
-                        let object_ptr = to_object(op.into()) as *mut c_void;
-                        let ref_box = Box::new(object_ptr);
-                        //todo don;t forget to free later, and/or do this with lifetimes
-                        Arg::new/*::<*mut c_void>*/(Box::leak(ref_box))
-                    }
-                }
-            }
         },
         PType::VoidType => panic!(),
         PType::TopType => panic!(),

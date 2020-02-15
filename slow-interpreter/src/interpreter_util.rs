@@ -425,7 +425,7 @@ pub fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, targ
 //    dbg!(&descriptor);
 //    dbg!(class_name(&target_classfile.classfile).get_referred_name());
     let (i, m) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
-    let md = parse_method_descriptor(&target_classfile.loader, descriptor.as_str()).unwrap();
+    let md = parse_method_descriptor(descriptor.as_str()).unwrap();
     let this_ptr = full_args[0].clone();
     let actual_args = &mut full_args[1..];
 //    actual_args.reverse();

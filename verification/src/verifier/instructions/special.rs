@@ -17,7 +17,6 @@ use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
-use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
 use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_type, parse_field_descriptor};
 
@@ -30,7 +29,7 @@ pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stac
 
 
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class));
     let field_type = &field_descriptor.field_type.to_verification_type(&env.class_loader);
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
@@ -39,7 +38,7 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_f
 }
 
 pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class));
     let field_type = &field_descriptor.field_type.to_verification_type(&env.class_loader);
     type_transition(env, stack_frame, vec![], field_type.clone())
 }
@@ -135,7 +134,7 @@ pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_f
 
 fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo duplication
-    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
+    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class));
     let field_type = (&field_descriptor.field_type).to_verification_type(&env.class_loader);
     if env.method.class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
@@ -150,7 +149,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
 }
 
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class));
     let field_type = (&field_descriptor.field_type).to_verification_type(&env.class_loader);
     let _popped_frame = can_pop(&env.vf, stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
@@ -161,7 +160,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 }
 
 //todo maybe move to impl
-pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>, l: LoaderArc) -> (ClassName, String, FieldDescriptor) {
+pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>) -> (ClassName, String, FieldDescriptor) {
 //    dbg!(cp);
     let current_class = class;
     let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
@@ -194,7 +193,7 @@ pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>, l: LoaderArc
 }
 
 pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class));
     let field_type = (&field_descriptor.field_type).to_verification_type(&env.class_loader);
     let next_frame = can_pop(&env.vf, stack_frame, vec![field_type])?;
     standard_exception_frame(stack_frame, next_frame)

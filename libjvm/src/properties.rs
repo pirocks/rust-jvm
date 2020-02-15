@@ -1,6 +1,5 @@
 use jni_bindings::{jobject, JNIEnv};
 use runtime_common::java_values::JavaValue;
-use classfile_parser::types::parse_method_descriptor;
 use slow_interpreter::instructions::invoke::invoke_virtual_method_i;
 use slow_interpreter::instructions::ldc::create_string_on_stack;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, from_object};

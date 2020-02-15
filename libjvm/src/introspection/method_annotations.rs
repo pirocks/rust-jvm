@@ -1,4 +1,4 @@
-use jni_bindings::{jbyteArray, jclass, JNIEnv};
+use jni_bindings::{jbyteArray, jclass, JNIEnv, jobject};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass) -> jbyteArray {

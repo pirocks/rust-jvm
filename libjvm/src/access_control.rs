@@ -3,7 +3,6 @@ use jni_bindings::{jobject, jclass, JNIEnv, jboolean};
 use slow_interpreter::instructions::invoke::actually_virtual;
 use runtime_common::java_values::JavaValue;
 use rust_jvm_common::unified_types::{PType, ClassWithLoader};
-use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::classnames::ClassName;
 
 #[no_mangle]

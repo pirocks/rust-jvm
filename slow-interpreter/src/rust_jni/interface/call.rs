@@ -22,7 +22,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     let state = get_state(env);
     let frame = get_frame(env);
     let exp_descriptor_str = method.descriptor_str(&classfile);
-    let parsed = parse_method_descriptor(&method_id.class.loader, exp_descriptor_str.as_str()).unwrap();
+    let parsed = parse_method_descriptor(exp_descriptor_str.as_str()).unwrap();
 
     frame.push(JavaValue::Object(from_object(obj)));
     for type_ in &parsed.parameter_types {
@@ -33,14 +33,13 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
             PType::FloatType => unimplemented!(),
             PType::IntType => unimplemented!(),
             PType::LongType => unimplemented!(),
-            PType::Class(_) => {
+            PType::Ref(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
             PType::ShortType => unimplemented!(),
             PType::BooleanType => unimplemented!(),
-            PType::ArrayReferenceType(_) => unimplemented!(),
             PType::VoidType => unimplemented!(),
             PType::TopType => unimplemented!(),
             PType::NullType => unimplemented!(),
@@ -89,19 +88,14 @@ unsafe fn push_params_onto_frame(l: &mut VaList, frame: &Rc<StackEntry>, parsed:
             PType::FloatType => unimplemented!(),
             PType::IntType => unimplemented!(),
             PType::LongType => unimplemented!(),
-            PType::Class(_) => {
+            PType::Ref(_) => {
+                //todo dup with other line
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
             PType::ShortType => unimplemented!(),
             PType::BooleanType => unimplemented!(),
-            PType::ArrayReferenceType(_a) => {
-                let native_object: jobject = l.arg();
-                let o = from_object(native_object);
-                frame.push(JavaValue::Object(o));
-                //todo dupe.
-            }
             PType::VoidType => unimplemented!(),
             PType::TopType => unimplemented!(),
             PType::NullType => unimplemented!(),
