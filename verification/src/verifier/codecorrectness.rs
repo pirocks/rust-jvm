@@ -15,12 +15,10 @@ use crate::verifier::filecorrectness::get_access_flags;
 use crate::{StackMap, VerifierContext};
 use rust_jvm_common::classnames::ClassName;
 use crate::OperandStack;
-use classfile_parser::types::parse_method_descriptor;
-use classfile_parser::types::MethodDescriptor;
 use rust_jvm_common::classfile::ConstantKind;
 use rust_jvm_common::unified_types::VType;
-use rust_jvm_common::unified_types::ParsedType;
-
+use rust_jvm_common::unified_types::PType;
+use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
 
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
@@ -322,7 +320,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     let classfile = get_class(vf, class);
     let method_info = &classfile.methods[method.method_index as usize];
     let method_descriptor = method_info.descriptor_str(&classfile);
-    let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
+    let initial_parsed_descriptor = parse_method_descriptor(method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types.clone(),
         return_type: initial_parsed_descriptor.return_type.clone(),
@@ -330,7 +328,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     let this_list = method_initial_this_type(vf, class, method);
     let flag_this_uninit = flags(&this_list);
     //todo this long and frequently duped
-    let args = expand_type_list(vf, parsed_descriptor.parameter_types.iter().map(ParsedType::to_verification_type).collect());
+    let args = expand_type_list(vf, parsed_descriptor.parameter_types.iter().map(|x|x.to_verification_type(&vf.bootstrap_loader)).collect());//todo need to solve loader situation
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
         this_args.push(x.clone());
@@ -339,7 +337,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = expand_to_length_verification(this_args, frame_size as usize, VType::TopType);
-    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type.to_verification_type());
+    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type.to_verification_type(&vf.bootstrap_loader));
 }
 
 
@@ -365,7 +363,7 @@ fn flags(this_list: &Option<VType>) -> bool {
 }
 
 
-pub fn expand_to_length(list: Vec<ParsedType>, size: usize, filler: ParsedType) -> Vec<ParsedType> {
+pub fn expand_to_length(list: Vec<PType>, size: usize, filler: PType) -> Vec<PType> {
     assert!(list.len() <= size);
     let mut res = vec![];
     for i in 0..size {

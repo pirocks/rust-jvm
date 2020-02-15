@@ -1,6 +1,7 @@
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::collections::HashSet;
 use std::borrow::Borrow;
+use std::ops::Deref;
 
 pub type StringPoolEntry = String;
 
@@ -11,7 +12,7 @@ pub struct StringPool{
 
 impl StringPool{
     pub fn get_or_add(&mut self,s: String) -> Arc<StringPoolEntry>{
-        match self.entries.borrow().get(s.into()){
+        match self.entries.borrow().get(&s){
             None => {
                 let string_arc = Arc::new(s);
                 self.entries.insert(string_arc.clone());
@@ -27,11 +28,11 @@ impl StringPool{
         let mut to_remove = vec![];
         for s in &self.entries {
             if Arc::strong_count(&s) == 1{
-                to_remove.push(s);
+                to_remove.push(s.clone());
             }
         }
         for x in to_remove {
-            self.entries.remove(x);
+            self.entries.remove(x.deref());
         }
     }
 }

@@ -1,4 +1,3 @@
-use log::trace;
 use std::sync::Arc;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
@@ -10,10 +9,10 @@ use crate::verifier::filecorrectness::loaded_class;
 use crate::OperandStack;
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
-use classfile_parser::types::Descriptor;
 use rust_jvm_common::unified_types::VType;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames};
+use descriptor_parser::Descriptor;
 
 
 macro_rules! unknown_error_verifying {
@@ -28,8 +27,8 @@ pub mod filecorrectness;
 pub mod codecorrectness;
 
 pub struct InternalFrame {
-    pub locals: Vec<ParsedType>,
-    pub stack: Vec<ParsedType>,
+    pub locals: Vec<PType>,
+    pub stack: Vec<PType>,
     pub max_locals: u16,
     pub current_offset: u16,
 }
@@ -71,15 +70,13 @@ pub enum TypeSafetyError {
     NeedToLoad(Vec<ClassName>),
 }
 
+//todo could be an impl method on VerifierContext
 pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if class.class_name == ClassName::object() {
         if !is_bootstrap_loader(vf, &class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
         }
-        trace!("Class was java/lang/Object, skipping lots of overriding checks");
     } else {
-        trace!("Class not java/lang/Object performing superclass checks");
-        //class must have a superclass or be 'java/lang/Object'
         let mut chain = vec![];
         super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
         if chain.is_empty() {

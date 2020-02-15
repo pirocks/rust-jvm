@@ -3,7 +3,7 @@ use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame};
 use std::sync::Arc;
 use runtime_common::java_values::{Object, ArrayObject, JavaValue};
 use std::cell::RefCell;
-use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
+use rust_jvm_common::unified_types::{PType, ClassWithLoader};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_name};
@@ -70,26 +70,26 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     unimplemented!()
 }
 
-fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, type_: &ParsedType) -> JavaValue {
+fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, type_: &PType) -> JavaValue {
     match type_ {
-        ParsedType::IntType => {
+        PType::IntType => {
             load_class_constant_by_name(state, frame, "java/lang/Integer".to_string());
         }
-        ParsedType::Class(cl) => {
+        PType::Class(cl) => {
             load_class_constant_by_name(state, frame, cl.class_name.get_referred_name());
         }
-        ParsedType::BooleanType => {
+        PType::BooleanType => {
             //todo dup.
             load_class_constant_by_name(state, frame, "java/lang/Boolean".to_string());
         }
-        ParsedType::LongType => {
+        PType::LongType => {
             //todo dup.
             load_class_constant_by_name(state, frame, "java/lang/Long".to_string());
         }
-        ParsedType::ArrayReferenceType(sub) => {
+        PType::ArrayReferenceType(sub) => {
             frame.push(JavaValue::Object(array_of_type_class(state, frame.clone(), sub.sub_type.deref()).into()));
         }
-        ParsedType::CharType => {
+        PType::CharType => {
             load_class_constant_by_name(state, frame, "java/lang/Character".to_string());
         }
         _ => {
@@ -134,7 +134,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let signature_string = frame.pop();
 
         //todo impl annotations.
-        let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: ParsedType::ByteType }))));
+        let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PType::ByteType }))));
 
         run_constructor(
             state,
@@ -163,7 +163,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 //    }
 //    class_obj.unwrap()
 
-    let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: ParsedType::Class(ClassWithLoader { class_name: class_name(&field_classfile.classfile), loader: field_classfile.loader.clone() }) })));
+    let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: PType::Class(ClassWithLoader { class_name: class_name(&field_classfile.classfile), loader: field_classfile.loader.clone() }) })));
     to_object(res)
 }
 
@@ -189,7 +189,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
             true
         }
     }).for_each(|(i, m)| {
-        let class_type = ParsedType::Class(ClassWithLoader { class_name: ClassName::class(), loader: loader.clone() });//todo this should be a global const
+        let class_type = PType::Class(ClassWithLoader { class_name: ClassName::class(), loader: loader.clone() });//todo this should be a global const
 
         push_new_object(frame.clone(), &constructor_class);
         let constructor_object = frame.pop();
@@ -208,7 +208,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
             let parsed = parse_method_descriptor(&loader, desc_str.as_str()).unwrap();
             for param_type in parsed.parameter_types {
                 res.push(match param_type {
-                    ParsedType::Class(c) => {
+                    PType::Class(c) => {
                         load_class_constant_by_name(state, &frame, c.class_name.get_referred_name());
                         frame.pop()
                     }
@@ -236,12 +236,12 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         };
 
         //todo impl these
-        let empty_byte_array = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: ParsedType::ByteType }))));
+        let empty_byte_array = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PType::ByteType }))));
 
         let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, empty_byte_array.clone(), empty_byte_array];
         run_constructor(state, frame.clone(), constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
     });
-    let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: ParsedType::Class(ClassWithLoader { class_name: class_name(&constructor_class.classfile), loader: constructor_class.loader.clone() }) })));
+    let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: PType::Class(ClassWithLoader { class_name: class_name(&constructor_class.classfile), loader: constructor_class.loader.clone() }) })));
     to_object(res)
 }
 

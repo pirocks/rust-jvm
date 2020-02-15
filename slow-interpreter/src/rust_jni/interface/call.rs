@@ -1,7 +1,6 @@
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
 use crate::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
-use classfile_parser::types::{parse_method_descriptor, MethodDescriptor};
 use runtime_common::java_values::JavaValue;
 use rust_jvm_common::classfile::ACC_STATIC;
 use crate::rust_jni::MethodId;
@@ -10,6 +9,7 @@ use std::ffi::VaList;
 use std::rc::Rc;
 use runtime_common::StackEntry;
 use log::trace;
+use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
 
 #[no_mangle]
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
@@ -27,26 +27,26 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     frame.push(JavaValue::Object(from_object(obj)));
     for type_ in &parsed.parameter_types {
         match type_ {
-            ParsedType::ByteType => unimplemented!(),
-            ParsedType::CharType => unimplemented!(),
-            ParsedType::DoubleType => unimplemented!(),
-            ParsedType::FloatType => unimplemented!(),
-            ParsedType::IntType => unimplemented!(),
-            ParsedType::LongType => unimplemented!(),
-            ParsedType::Class(_) => {
+            PType::ByteType => unimplemented!(),
+            PType::CharType => unimplemented!(),
+            PType::DoubleType => unimplemented!(),
+            PType::FloatType => unimplemented!(),
+            PType::IntType => unimplemented!(),
+            PType::LongType => unimplemented!(),
+            PType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
-            ParsedType::ShortType => unimplemented!(),
-            ParsedType::BooleanType => unimplemented!(),
-            ParsedType::ArrayReferenceType(_) => unimplemented!(),
-            ParsedType::VoidType => unimplemented!(),
-            ParsedType::TopType => unimplemented!(),
-            ParsedType::NullType => unimplemented!(),
-            ParsedType::Uninitialized(_) => unimplemented!(),
-            ParsedType::UninitializedThis => unimplemented!(),
-            ParsedType::UninitializedThisOrClass(_) => panic!(),
+            PType::ShortType => unimplemented!(),
+            PType::BooleanType => unimplemented!(),
+            PType::ArrayReferenceType(_) => unimplemented!(),
+            PType::VoidType => unimplemented!(),
+            PType::TopType => unimplemented!(),
+            PType::NullType => unimplemented!(),
+            PType::Uninitialized(_) => unimplemented!(),
+            PType::UninitializedThis => unimplemented!(),
+            PType::UninitializedThisOrClass(_) => panic!(),
         }
     }
     //todo add params into operand stack;
@@ -71,7 +71,7 @@ pub unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod
     let method = &classfile.methods[method_id.method_i];
     let method_descriptor_str = method.descriptor_str(classfile);
     let _name = method.method_name(classfile);
-    let parsed = parse_method_descriptor(&method_id.class.loader, method_descriptor_str.as_str()).unwrap();
+    let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
 //todo dup
     push_params_onto_frame(l, &frame, &parsed);
     trace!("----NATIVE EXIT ----");
@@ -83,31 +83,31 @@ pub unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod
 unsafe fn push_params_onto_frame(l: &mut VaList, frame: &Rc<StackEntry>, parsed: &MethodDescriptor) {
     for type_ in &parsed.parameter_types {
         match type_ {
-            ParsedType::ByteType => unimplemented!(),
-            ParsedType::CharType => unimplemented!(),
-            ParsedType::DoubleType => unimplemented!(),
-            ParsedType::FloatType => unimplemented!(),
-            ParsedType::IntType => unimplemented!(),
-            ParsedType::LongType => unimplemented!(),
-            ParsedType::Class(_) => {
+            PType::ByteType => unimplemented!(),
+            PType::CharType => unimplemented!(),
+            PType::DoubleType => unimplemented!(),
+            PType::FloatType => unimplemented!(),
+            PType::IntType => unimplemented!(),
+            PType::LongType => unimplemented!(),
+            PType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
-            ParsedType::ShortType => unimplemented!(),
-            ParsedType::BooleanType => unimplemented!(),
-            ParsedType::ArrayReferenceType(_a) => {
+            PType::ShortType => unimplemented!(),
+            PType::BooleanType => unimplemented!(),
+            PType::ArrayReferenceType(_a) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
                 //todo dupe.
             }
-            ParsedType::VoidType => unimplemented!(),
-            ParsedType::TopType => unimplemented!(),
-            ParsedType::NullType => unimplemented!(),
-            ParsedType::Uninitialized(_) => unimplemented!(),
-            ParsedType::UninitializedThis => unimplemented!(),
-            ParsedType::UninitializedThisOrClass(_) => panic!()
+            PType::VoidType => unimplemented!(),
+            PType::TopType => unimplemented!(),
+            PType::NullType => unimplemented!(),
+            PType::Uninitialized(_) => unimplemented!(),
+            PType::UninitializedThis => unimplemented!(),
+            PType::UninitializedThisOrClass(_) => panic!()
         }
     }
 }

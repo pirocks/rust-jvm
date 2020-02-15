@@ -1,6 +1,6 @@
 use jni_bindings::{JNIEnv, jbyte, jsize, jbyteArray, jarray};
 use std::cell::RefCell;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use runtime_common::java_values::{ArrayObject, Object, JavaValue};
 use std::sync::Arc;
 use crate::rust_jni::native_util::{to_object, from_object};
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn new_byte_array(_env: *mut JNIEnv, len: jsize) -> jbyteA
     for _ in 0..len {
         the_vec.push(JavaValue::Byte(0))
     }
-    to_object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(the_vec), elem_type: ParsedType::ByteType }))))
+    to_object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(the_vec), elem_type: PType::ByteType }))))
 }
 
 

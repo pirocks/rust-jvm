@@ -12,8 +12,8 @@ use crate::java_values::{Object, JavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use libloading::Library;
 use std::rc::Rc;
-use rust_jvm_common::unified_types::ParsedType;
-use rust_jvm_common::stage2::string_pool::StringPool;
+use rust_jvm_common::unified_types::PType;
+use stage2_common::string_pool::StringPool;
 
 pub mod java_values;
 pub mod runtime_class;
@@ -26,7 +26,7 @@ pub struct InterpreterState {
     pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
     pub string_internment: RefCell<HashMap<String, Arc<Object>>>,
     pub class_object_pool: RefCell<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
-    pub array_object_pool: RefCell<HashMap<ParsedType, Arc<Object>>>,
+    pub array_object_pool: RefCell<HashMap<PType, Arc<Object>>>,
     //todo needs to be used for all instances of getClass
     pub jni: LibJavaLoading,
     pub string_pool: StringPool,//todo this should really be in some sort of parser/jvm state

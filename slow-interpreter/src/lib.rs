@@ -10,9 +10,7 @@ use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
-use classfile_parser::types::{MethodDescriptor, parse_field_type};
-use rust_jvm_common::unified_types::ParsedType;
-use rust_jvm_common::unified_types::ArrayType;
+use rust_jvm_common::unified_types::PType;
 use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
@@ -23,6 +21,7 @@ use runtime_common::java_values::{JavaValue, Object, NormalObject};
 use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
+use descriptor_parser::{MethodDescriptor, parse_field_type};
 
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
@@ -42,11 +41,11 @@ fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_fr
     let referred_class_name = class_name.get_referred_name();
     let after_parse = parse_field_type(&loader_arc, referred_class_name.as_str()).unwrap();
     assert!(after_parse.0.is_empty());
-    let type_for_object : ParsedType = after_parse.1.unwrap_array_type();
+    let type_for_object : PType = after_parse.1.unwrap_array_type();
     array_of_type_class(state, current_frame, &type_for_object)
 }
 
-pub fn array_of_type_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, type_for_object: &ParsedType) -> Arc<Object> {
+pub fn array_of_type_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, type_for_object: &PType) -> Arc<Object> {
     let res = state.array_object_pool.borrow().get(&type_for_object).cloned();
     match res {
         None => {
@@ -128,6 +127,7 @@ pub fn run(
         class_object_pool: RefCell::new(HashMap::new()),
         array_object_pool: RefCell::new(HashMap::new()),
         jni,
+        string_pool: unimplemented!()
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
@@ -177,12 +177,12 @@ fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
 
 fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     let string_name = ClassName::string();
-    let string_class = ParsedType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
-    let string_array = ParsedType::ArrayReferenceType(ArrayType { sub_type: Box::new(string_class) });
+    let string_class = PType::Class(ClassWithLoader { class_name: string_name, loader: bl.clone() });
+    let string_array = PType::ArrayReferenceType(string_class);
     let psvms = main.lookup_method_name(&"main".to_string());
     for (i, m) in psvms {
-        let desc = MethodDescriptor::from(m, main, bl);
-        if m.is_static() && desc.parameter_types == vec![string_array.clone()] && desc.return_type == ParsedType::VoidType {
+        let desc = MethodDescriptor::from(m, main);
+        if m.is_static() && desc.parameter_types == vec![string_array.clone()] && desc.return_type == PType::VoidType {
             return i;
         }
     }

@@ -5,11 +5,10 @@ use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::special::nth1_operand_stack_is;
 use crate::verifier::instructions::special::array_component_type;
-use rust_jvm_common::unified_types::ArrayType;
-use rust_jvm_common::unified_types::ClassWithLoader;
+use rust_jvm_common::unified_types::ReferenceType;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::VType;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::stores::is_small_array;
 
@@ -18,9 +17,8 @@ pub fn instruction_is_type_safe_aaload(env: &Environment, stack_frame: &Frame) -
     let array_type = nth1_operand_stack_is(2, stack_frame)?;
     let component_type = array_component_type(array_type)?;
     let bl = env.vf.bootstrap_loader.clone();
-    let object = ClassWithLoader { class_name: ClassName::object(), loader: bl };
-    let object_array = VType::ArrayReferenceType(ArrayType { sub_type: Box::from(ParsedType::Class(object)) });
-    let next_frame = valid_type_transition(env, vec![VType::IntType, object_array], &component_type.to_verification_type(), stack_frame)?;
+    let object_array = VType::ArrayReferenceType(PType::Ref(ReferenceType::Class(ClassName::object())));
+    let next_frame = valid_type_transition(env, vec![VType::IntType, object_array], &component_type.to_verification_type(&env.class_loader), stack_frame)?;
     standard_exception_frame(stack_frame, next_frame)
 }
 
@@ -50,11 +48,11 @@ pub fn instruction_is_type_safe_baload(env: &Environment, stack_frame: &Frame) -
 }
 
 pub fn instruction_is_type_safe_caload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env, stack_frame, vec![VType::IntType, VType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::CharType) })], VType::IntType)
+    type_transition(env, stack_frame, vec![VType::IntType, VType::ArrayReferenceType(PType::CharType)], VType::IntType)
 }
 
 pub fn instruction_is_type_safe_daload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::DoubleType) });
+    let array_type = VType::ArrayReferenceType(PType::DoubleType);
     type_transition(env, stack_frame, vec![VType::IntType, array_type], VType::DoubleType)
 }
 
@@ -64,7 +62,7 @@ pub fn instruction_is_type_safe_dload(index: usize, env: &Environment, stack_fra
 }
 
 pub fn instruction_is_type_safe_faload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::FloatType) });
+    let array_type = VType::ArrayReferenceType(PType::FloatType);
     type_transition(env, stack_frame, vec![VType::IntType, array_type], VType::FloatType)
 }
 
@@ -74,7 +72,7 @@ pub fn instruction_is_type_safe_fload(index: usize, env: &Environment, stack_fra
 }
 
 pub fn instruction_is_type_safe_iaload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env, stack_frame, vec![VType::IntType, VType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::IntType) })], VType::IntType)
+    type_transition(env, stack_frame, vec![VType::IntType, VType::ArrayReferenceType(PType::IntType)], VType::IntType)
 }
 
 
@@ -84,11 +82,11 @@ pub fn instruction_is_type_safe_iload(index: usize, env: &Environment, stack_fra
 }
 
 pub fn instruction_is_type_safe_laload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::LongType) });
+    let array_type = VType::ArrayReferenceType(PType::LongType);
     type_transition(env, stack_frame, vec![VType::IntType, array_type], VType::LongType)
 }
 
 pub fn instruction_is_type_safe_saload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::ShortType) });
+    let array_type = VType::ArrayReferenceType(PType::ShortType);
     type_transition(env, stack_frame, vec![VType::IntType, array_type], VType::IntType)
 }

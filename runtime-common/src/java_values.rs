@@ -1,6 +1,6 @@
 use crate::runtime_class::RuntimeClass;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
@@ -249,7 +249,7 @@ impl JavaValue {
 //}
 
 impl JavaValue {
-    pub fn new_vec(len: usize, val: JavaValue, elem_type: ParsedType) -> Option<Arc<Object>> {
+    pub fn new_vec(len: usize, val: JavaValue, elem_type: PType) -> Option<Arc<Object>> {
         let mut buf: Vec<JavaValue> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -302,7 +302,7 @@ impl Object {
 #[derive(Debug)]
 pub struct ArrayObject {
     pub elems: RefCell<Vec<JavaValue>>,
-    pub elem_type: ParsedType,
+    pub elem_type: PType,
 }
 
 //#[derive(Debug)]
@@ -314,7 +314,7 @@ pub struct NormalObject {
     pub bootstrap_loader: bool,
     //points to the object represented by this class object of relevant
     pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
-    pub array_class_object_pointer: RefCell<Option<ParsedType>>,
+    pub array_class_object_pointer: RefCell<Option<PType>>,
 }
 
 impl Debug for NormalObject {
@@ -330,24 +330,23 @@ impl Debug for NormalObject {
     }
 }
 
-pub fn default_value(type_: ParsedType) -> JavaValue {
+pub fn default_value(type_: PType) -> JavaValue {
     match type_ {
-        ParsedType::ByteType => JavaValue::Byte(0),
-        ParsedType::CharType => JavaValue::Char('\u{000000}'),
-        ParsedType::DoubleType => JavaValue::Double(0.0),
-        ParsedType::FloatType => JavaValue::Float(0.0),
-        ParsedType::IntType => JavaValue::Int(0),
-        ParsedType::LongType => JavaValue::Long(0),
-        ParsedType::Class(_) => JavaValue::Object(None),
-        ParsedType::ShortType => JavaValue::Short(0),
-        ParsedType::BooleanType => JavaValue::Boolean(false),
-        ParsedType::ArrayReferenceType(_) => JavaValue::Object(None),
-        ParsedType::VoidType => panic!(),
-        ParsedType::TopType => JavaValue::Top,
-        ParsedType::NullType => JavaValue::Object(None),
-        ParsedType::Uninitialized(_) => unimplemented!(),
-        ParsedType::UninitializedThis => unimplemented!(),
-        ParsedType::UninitializedThisOrClass(_) => panic!(),
+        PType::ByteType => JavaValue::Byte(0),
+        PType::CharType => JavaValue::Char('\u{000000}'),
+        PType::DoubleType => JavaValue::Double(0.0),
+        PType::FloatType => JavaValue::Float(0.0),
+        PType::IntType => JavaValue::Int(0),
+        PType::LongType => JavaValue::Long(0),
+        PType::Ref(_) => JavaValue::Object(None),
+        PType::ShortType => JavaValue::Short(0),
+        PType::BooleanType => JavaValue::Boolean(false),
+        PType::VoidType => panic!(),
+        PType::TopType => JavaValue::Top,
+        PType::NullType => JavaValue::Object(None),
+        PType::Uninitialized(_) => unimplemented!(),
+        PType::UninitializedThis => unimplemented!(),
+        PType::UninitializedThisOrClass(_) => panic!(),
     }
 }
 

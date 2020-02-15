@@ -1,7 +1,7 @@
 use runtime_common::StackEntry;
 use std::rc::Rc;
 use runtime_common::java_values::JavaValue;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 
 pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
     let object_ref = current_frame.pop();
@@ -42,7 +42,7 @@ pub fn bastore(current_frame: &Rc<StackEntry>) -> () {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = current_frame.pop().unwrap_object().unwrap();
-    assert!(array_ref_o.unwrap_array().elem_type == ParsedType::ByteType || array_ref_o.unwrap_array().elem_type == ParsedType::BooleanType);
+    assert!(array_ref_o.unwrap_array().elem_type == PType::ByteType || array_ref_o.unwrap_array().elem_type == PType::BooleanType);
     let array_ref = &mut array_ref_o.unwrap_array().elems.borrow_mut();
     array_ref[index as usize] = JavaValue::Byte(val as i8);
 }

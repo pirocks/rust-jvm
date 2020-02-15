@@ -16,9 +16,6 @@ use rust_jvm_common::unified_types::VType;
 pub mod verifier;
 
 
-/**
-We can only verify one class at a time, all needed classes need to be in jvm state as loading, including the class to verify.
-*/
 pub fn verify(vf: &VerifierContext, to_verify: Arc<Classfile>, loader: LoaderArc) -> Result<(), TypeSafetyError> {
     match class_is_type_safe(vf, &ClassWithLoader {
         class_name: class_name(&to_verify),
@@ -37,15 +34,11 @@ pub fn verify(vf: &VerifierContext, to_verify: Arc<Classfile>, loader: LoaderArc
     }
 }
 
-
 #[derive(Debug)]
 pub struct StackMap {
     pub offset: usize,
     pub map_frame: Frame,
 }
-
-
-
 
 pub struct VerifierContext {
     pub bootstrap_loader: LoaderArc
@@ -114,7 +107,7 @@ impl OperandStack {
         self.data.iter()
     }
 
-    pub(crate) fn substitute(&mut self, old: &VType, new: &VType) {
+    pub fn substitute(&mut self, old: &VType, new: &VType) {
         for entry in &mut self.data {
             if entry == old {
                 *entry = new.clone();

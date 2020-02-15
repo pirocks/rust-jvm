@@ -4,7 +4,7 @@ use rust_jvm_common::classfile::{ConstantKind, Atype};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use runtime_common::java_values::{JavaValue, default_value};
-use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
+use rust_jvm_common::unified_types::{PType, ClassWithLoader};
 
 pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
@@ -31,7 +31,7 @@ pub fn anewarray(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp
         ConstantKind::Class(c) => {
             let name = ClassName::Str(constant_pool[c.name_index as usize].extract_string_from_utf8());
             check_inited_class(state, &name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-            let t = ParsedType::Class(ClassWithLoader { class_name: name, loader: current_frame.class_pointer.loader.clone() });
+            let t = PType::Class(ClassWithLoader { class_name: name, loader: current_frame.class_pointer.loader.clone() });
             current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(len as usize, JavaValue::Object(None), t).unwrap()).into()))
         }
         _ => {
@@ -49,13 +49,13 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
     };
     let type_ = match a_type {
         Atype::TChar => {
-            ParsedType::CharType
+            PType::CharType
         }
         Atype::TInt => {
-            ParsedType::IntType
+            PType::IntType
         }
         Atype::TByte => {
-            ParsedType::ByteType
+            PType::ByteType
         }
         _ => {
             dbg!(a_type);

@@ -1,11 +1,11 @@
 use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers, UninitializedVariableInfo};
 use crate::constant_infos::is_utf8;
 use crate::code::parse_code_raw;
-use crate::types::parse_field_descriptor;
-use rust_jvm_common::unified_types::ClassWithLoader;
+use rust_jvm_common::unified_types::ReferenceType;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use crate::parsing_util::ParsingContext;
+use descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::classfile::EnclosingMethod;
 
 pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
@@ -252,17 +252,17 @@ fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> StackMapFrame {
     }
 }
 
-fn parse_verification_type_info(p: &mut dyn ParsingContext) -> ParsedType {
+fn parse_verification_type_info(p: &mut dyn ParsingContext) -> PType {
     let type_ = p.read8();
     //todo magic constants
     match type_ {
-        0 => ParsedType::TopType,
-        1 => ParsedType::IntType,
-        2 => ParsedType::FloatType,
-        3 => ParsedType::DoubleType,
-        4 => ParsedType::LongType,
-        5 => ParsedType::NullType,
-        6 => ParsedType::UninitializedThis,
+        0 => PType::TopType,
+        1 => PType::IntType,
+        2 => PType::FloatType,
+        3 => PType::DoubleType,
+        4 => PType::LongType,
+        5 => PType::NullType,
+        6 => PType::UninitializedThis,
         7 => {
             let original_index = p.read16();
             let index = match &p.constant_pool_borrow()[original_index as usize].kind {
@@ -273,13 +273,13 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> ParsedType {
             };
             let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8();
             if type_descriptor.starts_with("[") {
-                let res_descriptor = parse_field_descriptor(&p.loader(), type_descriptor.as_str()).unwrap();
+                let res_descriptor = parse_field_descriptor(type_descriptor.as_str()).unwrap();
                 res_descriptor.field_type
             } else {
-                ParsedType::Class(ClassWithLoader { class_name: ClassName::Str(type_descriptor), loader: p.loader() })
+                PType::Ref(ReferenceType::Class(ClassName::Str(type_descriptor)))
             }
         }
-        8 => { ParsedType::Uninitialized(UninitializedVariableInfo { offset: p.read16() }) }
+        8 => { PType::Uninitialized(UninitializedVariableInfo { offset: p.read16() }) }
         _ => { unimplemented!("{}", type_) }
     }
 }

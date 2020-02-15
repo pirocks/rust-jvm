@@ -1,14 +1,10 @@
 use std::hash::Hasher;
-use crate::unified_types::ParsedType;
-use crate::stage2::string_pool::{StringPoolEntry, StringPool};
-use std::sync::Arc;
-use crate::classfile::ConstantKind;
-use std::mem::transmute;
-use crate::unified_types::VType::DoubleType;
-use crate::stage2::types::PType;
 use crate::string_pool::{StringPoolEntry, StringPool};
-use rust_jvm_common::classfile::ConstantKind;
+use std::sync::Arc;
+use std::mem::transmute;
 use descriptor_parser::parse_field_descriptor;
+use rust_jvm_common::unified_types::PType;
+use rust_jvm_common::classfile::ConstantKind;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -194,7 +190,7 @@ pub struct ObjectVariableInfo {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ArrayVariableInfo {
-    pub array_type: ParsedType
+    pub array_type: PType
 }
 
 #[derive(Debug)]
@@ -237,14 +233,14 @@ pub struct SameFrame {
 #[derive(Eq, PartialEq)]
 pub struct SameLocals1StackItemFrame {
     pub offset_delta: u16,
-    pub stack: ParsedType,
+    pub stack: PType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SameLocals1StackItemFrameExtended {
     pub offset_delta: u16,
-    pub stack: ParsedType,
+    pub stack: PType,
 }
 
 #[derive(Debug)]
@@ -264,7 +260,7 @@ pub struct SameFrameExtended {
 #[derive(Eq, PartialEq)]
 pub struct AppendFrame {
     pub offset_delta: u16,
-    pub locals: Vec<ParsedType>,
+    pub locals: Vec<PType>,
 }
 
 #[derive(Debug)]
@@ -272,9 +268,9 @@ pub struct AppendFrame {
 pub struct FullFrame {
     pub offset_delta: u16,
     pub number_of_locals: u16,
-    pub locals: Vec<ParsedType>,
+    pub locals: Vec<PType>,
     pub number_of_stack_items: u16,
-    pub stack: Vec<ParsedType>,
+    pub stack: Vec<PType>,
 }
 
 #[derive(Debug)]
@@ -450,8 +446,7 @@ impl Utf8 {
 
 impl PartialEq for Utf8 {
     fn eq(&self, other: &Self) -> bool {
-        return self.length == other.length &&
-            self.string == other.string;
+        Arc::ptr_eq(&self.entry,&other.entry)
     }
 }
 
@@ -463,10 +458,14 @@ pub struct Integer {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
 pub struct Float {
     pub val: f32
-    //unimplemented!()
+}
+impl Eq for Float {}
+impl PartialEq for Float{
+    fn eq(&self, other: &Self) -> bool {
+        self.val == other.val
+    }
 }
 
 #[derive(Debug)]
@@ -476,9 +475,14 @@ pub struct Long {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
 pub struct Double {
     pub val: f64
+}
+impl Eq for Double {}
+impl PartialEq for Double{
+    fn eq(&self, other: &Self) -> bool {
+        self.val == other.val
+    }
 }
 
 #[derive(Debug)]
@@ -519,7 +523,7 @@ pub struct InterfaceMethodref {
 #[derive(Eq, PartialEq)]
 pub struct NameAndType {
     pub name: Arc<StringPoolEntry>,
-    pub field_type: ParsedType,
+    pub field_type: PType,
 }
 
 #[derive(Debug)]
@@ -568,7 +572,7 @@ pub struct InvalidConstant {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub enum ConstantInfo<'cl> {
+pub enum ConstantInfo {
     Utf8(Utf8),
     Integer(Integer),
     Float(Float),
@@ -589,10 +593,10 @@ pub enum ConstantInfo<'cl> {
     InvalidConstant(InvalidConstant),
 }
 
-fn from_stage_1_constant_pool<'cl, 'l>(
-    constant_pool_stage_1: &'l Vec<crate::classfile::ConstantInfo>,
+fn from_stage_1_constant_pool(
+    constant_pool_stage_1: &Vec<rust_jvm_common::classfile::ConstantInfo>,
     string_pool: &mut StringPool,
-) -> Vec<ConstantInfo<'cl>> {
+) -> Vec<ConstantInfo> {
     let mut res_pool = vec![];
     for (_, x) in constant_pool_stage_1.iter().enumerate() {
         res_pool.push(ConstantInfo::from_stage_1(x, constant_pool_stage_1, string_pool));
@@ -600,44 +604,82 @@ fn from_stage_1_constant_pool<'cl, 'l>(
     res_pool
 }
 
+impl From<Integer> for ConstantInfo{
+    fn from(i: Integer) -> Self {
+        ConstantInfo::Integer(i)
+    }
+}
+impl From<Double> for ConstantInfo{
+    fn from(d: Double) -> Self {
+        ConstantInfo::Double(d)
+    }
+}
+impl From<Float> for ConstantInfo{
+    fn from(f: Float) -> Self {
+        ConstantInfo::Float(f)
+    }
+}
+impl From<Utf8> for ConstantInfo{
+    fn from(u: Utf8) -> Self {
+        ConstantInfo::Utf8(u)
+    }
+}
+impl From<Long> for ConstantInfo{
+    fn from(u: Long) -> Self {
+        ConstantInfo::Long(u)
+    }
+}
+impl From<Class> for ConstantInfo{
+    fn from(c: Class) -> Self {
+        ConstantInfo::Class(c)
+    }
+}
 
-impl ConstantInfo<'_> {
-    fn from_stage_1<'cl, 'l>(
-        stage_1: &'l crate::classfile::ConstantInfo,
-        constant_pool_stage_1: &'l Vec<crate::classfile::ConstantInfo>,
+impl From<String_> for ConstantInfo{
+    fn from(s: String_) -> Self {
+        ConstantInfo::String(s)
+    }
+}
+
+impl From<Fieldref> for ConstantInfo{
+    fn from(f: Fieldref) -> Self {
+        ConstantInfo::Fieldref(f)
+    }
+}
+
+impl ConstantInfo {
+    fn from_stage_1<'l>(
+        stage_1: &'l rust_jvm_common::classfile::ConstantInfo,
+        constant_pool_stage_1: &'l Vec<rust_jvm_common::classfile::ConstantInfo>,
         string_pool: &mut StringPool,
     ) -> Self {
         match &stage_1.kind {
             ConstantKind::Utf8(utf8) => {
-                ConstantInfo::Utf8(Utf8::new(&utf8.string, string_pool))
+                Utf8::new(&utf8.string, string_pool).into()
             }
             ConstantKind::Integer(i) => {
-                Integer { bytes: i.bytes }
+                Integer { bytes: i.bytes }.into()
             }
             ConstantKind::Float(f) => {
-                Float { val: unsafe { transmute(f.bytes) } }//todo this may/may not be correct
+                Float { val: unsafe { transmute(f.bytes) } }.into()//todo this may/may not be correct
             }
             ConstantKind::Long(l) => {
-                Long { val: (((l.high_bytes as u64) << 32) | (l.low_bytes as u64)) as i64 }//todo is magic constant ok?
+                Long { val: (((l.high_bytes as u64) << 32) | (l.low_bytes as u64)) as i64 }.into()//todo is magic constant ok?
             }
             ConstantKind::Double(d) => {
                 Double {
-                    val: unsafe { transmute(((l.high_bytes as u64) << 32) | (l.low_bytes as u64)) }
-                }
+                    val: unsafe { transmute(((d.high_bytes as u64) << 32) | (d.low_bytes as u64)) }
+                }.into()
             }
             ConstantKind::Class(c) => {
-                let class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();
+                let class_name = constant_pool_stage_1[c.name_index as usize].extract_string_from_utf8();
                 let class_name_entry = string_pool.get_or_add(class_name);
-                ConstantInfo::Class(Class {
-                    name: class_name_entry,
-                })
+                Class { name: class_name_entry }.into()
             }
             ConstantKind::String(s) => {
-                let str = constant_pool[s.string_index as usize].extract_string_from_utf8();
+                let str = constant_pool_stage_1[s.string_index as usize].extract_string_from_utf8();
                 let str_entry = string_pool.get_or_add(str);
-                ConstantInfo::String(String_ {
-                    str: str_entry
-                })
+                String_ { str: str_entry }.into()
             }
             ConstantKind::Fieldref(fr) => {
                 let name_index = match &constant_pool_stage_1[fr.class_index as usize].kind {
@@ -649,7 +691,7 @@ impl ConstantInfo<'_> {
                 let name_and_type = match &constant_pool_stage_1[fr.name_and_type_index as usize].kind {
                     ConstantKind::NameAndType(nt) => {
                         let desc_str = (constant_pool_stage_1[nt.descriptor_index as usize]).extract_string_from_utf8();
-                        let parsed_type = parse_field_descriptor(desc_str).unwrap().field_type;
+                        let parsed_type = parse_field_descriptor(&desc_str).unwrap().field_type;
 
                         let class_name = constant_pool_stage_1[nt.name_index as usize].extract_string_from_utf8();
                         let class_name_entry = string_pool.get_or_add(class_name);
@@ -658,10 +700,7 @@ impl ConstantInfo<'_> {
                     }
                     _ => panic!(),
                 };
-                ConstantInfo::Fieldref(Fieldref {
-                    class_name: class_name_entry,
-                    name_and_type,
-                })
+                Fieldref { class_name: class_name_entry, name_and_type, }.into()
             }
             ConstantKind::Methodref(_) => { todo!() }
             ConstantKind::InterfaceMethodref(_) => { todo!() }
@@ -991,11 +1030,11 @@ pub enum InstructionInfo {
 }
 
 #[derive(Debug)]
-pub struct Classfile<'cl> {
+pub struct Classfile {
     magic: u32,
     minor_version: u16,
     major_version: u16,
-    constant_pool: Vec<ConstantInfo<'cl>>,
+    constant_pool: Vec<ConstantInfo>,
     access_flags: u16,
     this_class: CPIndex,
     super_class: CPIndex,
@@ -1005,11 +1044,12 @@ pub struct Classfile<'cl> {
     attributes: Vec<AttributeInfo>,
 }
 
+#[derive(Debug)]
 pub struct Interface {
     //todo
 }
 
-impl Classfile<'_> {
+impl Classfile {
     fn from_stage1(stage_1: &crate::classfile::Classfile) -> Self {
         Classfile {
             magic: stage_1.magic,
@@ -1027,35 +1067,37 @@ impl Classfile<'_> {
     }
 }
 
-impl std::cmp::PartialEq for Classfile<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.magic == other.magic &&
-            self.minor_version == other.minor_version &&
-            self.major_version == other.major_version &&
-            self.constant_pool == other.constant_pool &&
-            self.access_flags == other.access_flags &&
-            self.this_class == other.this_class &&
-            self.super_class == other.super_class &&
-            self.interfaces == other.interfaces &&
-            self.fields == other.fields &&
-            self.methods == other.methods &&
-            self.attributes == other.attributes
+impl std::cmp::PartialEq for Classfile {
+    fn eq(&self, _other: &Self) -> bool {
+        unimplemented!()
+//        self.magic == other.magic &&
+//            self.minor_version == other.minor_version &&
+//            self.major_version == other.major_version &&
+//            self.constant_pool == other.constant_pool &&
+//            self.access_flags == other.access_flags &&
+//            self.this_class == other.this_class &&
+//            self.super_class == other.super_class &&
+//            self.interfaces == other.interfaces &&
+//            self.fields == other.fields &&
+//            self.methods == other.methods &&
+//            self.attributes == other.attributes
     }
 }
 
-impl std::hash::Hash for Classfile<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u32(self.magic);
-        state.write_u16(self.minor_version);
-        state.write_u16(self.major_version);
-        //todo constant_pool
-        state.write_u16(self.access_flags);
-        state.write_u16(self.this_class);
-        state.write_u16(self.super_class);
-        for interface in &self.interfaces {
-            state.write_u16(*interface)
-        }
-        //todo fields
+impl std::hash::Hash for Classfile {
+    fn hash<H: Hasher>(&self, _state: &mut H) {
+        unimplemented!()
+//        state.write_u32(self.magic);
+//        state.write_u16(self.minor_version);
+//        state.write_u16(self.major_version);
+//        todo constant_pool
+//        state.write_u16(self.access_flags);
+//        state.write_u16(self.this_class);
+//        state.write_u16(self.super_class);
+//        for interface in &self.interfaces {
+//            state.write_u16(*interface)
+//        }
+//        todo fields
         //todo methods
         //todo attributes
     }

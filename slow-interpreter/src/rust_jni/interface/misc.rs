@@ -1,14 +1,14 @@
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object};
 use runtime_common::java_values::JavaValue;
 use jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_};
-use classfile_parser::types::parse_method_descriptor;
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use crate::rust_jni::MethodId;
 use crate::instructions::invoke::invoke_special_impl;
 use std::ffi::CStr;
 use crate::instructions::ldc::load_class_constant_by_name;
 use crate::rust_jni::interface::util::runtime_class_from_object;
+use descriptor_parser::parse_method_descriptor;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -52,37 +52,37 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     let method = &classfile.methods[method_id.method_i];
     let method_descriptor_str = method.descriptor_str(classfile);
     let _name = method.method_name(classfile);
-    let parsed = parse_method_descriptor(&method_id.class.loader, method_descriptor_str.as_str()).unwrap();
+    let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
     push_new_object(frame.clone(), &method_id.class);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {
         match type_ {
-            ParsedType::ByteType => unimplemented!(),
-            ParsedType::CharType => unimplemented!(),
-            ParsedType::DoubleType => unimplemented!(),
-            ParsedType::FloatType => unimplemented!(),
-            ParsedType::IntType => unimplemented!(),
-            ParsedType::LongType => unimplemented!(),
-            ParsedType::Class(_) => {
+            PType::ByteType => unimplemented!(),
+            PType::CharType => unimplemented!(),
+            PType::DoubleType => unimplemented!(),
+            PType::FloatType => unimplemented!(),
+            PType::IntType => unimplemented!(),
+            PType::LongType => unimplemented!(),
+            PType::Class(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
-            ParsedType::ShortType => unimplemented!(),
-            ParsedType::BooleanType => unimplemented!(),
-            ParsedType::ArrayReferenceType(_a) => {
+            PType::ShortType => unimplemented!(),
+            PType::BooleanType => unimplemented!(),
+            PType::ArrayReferenceType(_a) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
                 //todo dupe.
             }
-            ParsedType::VoidType => unimplemented!(),
-            ParsedType::TopType => unimplemented!(),
-            ParsedType::NullType => unimplemented!(),
-            ParsedType::Uninitialized(_) => unimplemented!(),
-            ParsedType::UninitializedThis => unimplemented!(),
-            ParsedType::UninitializedThisOrClass(_) => panic!()
+            PType::VoidType => unimplemented!(),
+            PType::TopType => unimplemented!(),
+            PType::NullType => unimplemented!(),
+            PType::Uninitialized(_) => unimplemented!(),
+            PType::UninitializedThis => unimplemented!(),
+            PType::UninitializedThisOrClass(_) => panic!()
         }
     }
     invoke_special_impl(

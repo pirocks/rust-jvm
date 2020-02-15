@@ -7,30 +7,12 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classfile::ConstantKind;
 use rust_jvm_common::loading::LoaderName;
 use crate::VerifierContext;
-use classfile_parser::types::{Descriptor, MethodDescriptor};
-use classfile_parser::types::parse_field_descriptor;
 use std::ops::Deref;
 use rust_jvm_common::unified_types::VType;
-use rust_jvm_common::unified_types::ParsedType;
-
-#[allow(unused)]
-fn same_runtime_package(vf: &VerifierContext, class1: ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    unimplemented!()//todo remove this function
-}
+use rust_jvm_common::unified_types::PType;
+use descriptor_parser::{MethodDescriptor, Descriptor, parse_field_descriptor};
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    //sameRuntimePackage(Class1, Class2) :-
-    //    classDefiningLoader(Class1, L),
-    //    classDefiningLoader(Class2, L),
-    //    samePackageName(Class1, Class2).
-    //
-    //differentRuntimePackage(Class1, Class2) :-
-    //    classDefiningLoader(Class1, L1),
-    //    classDefiningLoader(Class2, L2),
-    //    L1 \= L2.
-    //
-    //differentRuntimePackage(Class1, Class2) :-
-    //    differentPackageName(Class1, Class2).
     return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(vf, class1, class2);
 }
 
@@ -46,12 +28,6 @@ fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class
     package_slice1.iter().zip(package_slice2.iter()).all(|(a, b)| {
         a == b
     })
-//    dbg!(&package_slice1);
-//    dbg!(&package_slice2);
-//    unimplemented!();
-//    let packages1 = class_entry_from_string(&get_referred_name(&class1.class_name), false).packages;
-//    let packages2 = class_entry_from_string(&get_referred_name(&class2.class_name), false).packages;
-//    return packages1 != packages2;
 }
 
 
@@ -98,7 +74,6 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
         x.class_name == to.class_name
     }) {
         None => {
-//            dbg!(chain);
             dbg!(&from.class_name);
             dbg!(&to.class_name);
             dbg!(&chain);
@@ -153,8 +128,6 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                 if a == a2 {
                     return Result::Ok(());
                 } else {
-//                    dbg!(a);
-//                    dbg!(a2);
                     is_java_assignable(vf, from, to)
                 }
             }
@@ -218,8 +191,6 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                 panic!()
             }
             _ => {
-//                dbg!(to);
-//                panic!();
                 Result::Err(unknown_error_verifying!())
             }
         },
@@ -244,30 +215,25 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
     }
 }
 
-fn atom(t: &ParsedType) -> bool {
+fn atom(t: &PType) -> bool {
     match t {
-        ParsedType::ByteType |
-        ParsedType::CharType |
-        ParsedType::DoubleType |
-        ParsedType::FloatType |
-        ParsedType::IntType |
-        ParsedType::LongType |
-        ParsedType::ShortType |
-        ParsedType::VoidType |
-        ParsedType::TopType |
-        ParsedType::NullType |
-        ParsedType::UninitializedThis |
-//        ParsedType::TwoWord |
-//        ParsedType::OneWord |
-//        ParsedType::Reference |
-//        ParsedType::UninitializedEmpty |
-        ParsedType::BooleanType => {
+        PType::ByteType |
+        PType::CharType |
+        PType::DoubleType |
+        PType::FloatType |
+        PType::IntType |
+        PType::LongType |
+        PType::ShortType |
+        PType::VoidType |
+        PType::TopType |
+        PType::NullType |
+        PType::UninitializedThis |
+        PType::BooleanType => {
             true
         }
-        ParsedType::Class(_) |
-        ParsedType::ArrayReferenceType(_) |
-        ParsedType::Uninitialized(_) |
-        ParsedType::UninitializedThisOrClass(_) => {
+        PType::Ref(_) |
+        PType::Uninitialized(_) |
+        PType::UninitializedThisOrClass(_) => {
             false
         }
     }
@@ -295,7 +261,7 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
                     unimplemented!()
                 }
                 VType::ArrayReferenceType(a2) => {
-                    is_java_assignable_array_types(vf, a1.sub_type.deref(), a2.sub_type.deref())
+                    is_java_assignable_array_types(vf, a1, a2)
                 }
                 _ => unimplemented!()
             }
@@ -304,14 +270,16 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
     }
 }
 
-fn is_java_assignable_array_types(vf: &VerifierContext, left: &ParsedType, right: &ParsedType) -> Result<(), TypeSafetyError> {
+fn is_java_assignable_array_types(vf: &VerifierContext, left: &PType, right: &PType) -> Result<(), TypeSafetyError> {
     if atom(&left) && atom(&right) {
         if left == right {
             return Result::Ok(());
         }
     }
     if !atom(&left) && !atom(&right) {
-        return is_java_assignable(vf, &left.to_verification_type(), &right.to_verification_type());//todo so is this correct or does the spec handle this in full generality?
+        //todo is this bootstrap loader thing ok?
+        //todo in general there needs to be a better way of handling this
+        return is_java_assignable(vf, &left.to_verification_type(&vf.bootstrap_loader), &right.to_verification_type(&vf.bootstrap_loader));//todo so is this correct or does the spec handle this in full generality?
     }
     Result::Err(unknown_error_verifying!())
 }
@@ -349,7 +317,7 @@ pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> 
 pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: LoaderArc, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
     if chain_start.class_name == ClassName::object() {
         //todo magic constant
-        if /*res.is_empty() &&*/ is_bootstrap_loader(vf, &loader) {
+        if is_bootstrap_loader(vf, &loader) {
             return Result::Ok(());
         } else {
             return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
@@ -372,7 +340,6 @@ pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, cla
 
 pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if same
-//    assert!(class == method.class);
     (get_access_flags(vf, class, method) & ACC_STATIC) > 0
 }
 
@@ -439,7 +406,7 @@ pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class:
 }
 
 pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
-//    assert!(method.prolog_class == class);//todo why the duplicate parameters?
+    //todo why the duplicate parameters?
     get_class(vf, method.class).methods[method.method_index as usize].access_flags
 }
 
@@ -449,7 +416,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
     for method in &class.methods {
         let method_name = method.method_name(&class);
         if member_name == method_name {
-            let parsed_member_types = MethodDescriptor::from(method, &class, &super_.loader);
+            let parsed_member_types = MethodDescriptor::from(method, &class);
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }
@@ -467,7 +434,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
         let field_name = class.constant_pool[field.name_index as usize].extract_string_from_utf8();
         if member_name == field_name {
             let field_descriptor_string = class.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
-            let parsed_member_type = match parse_field_descriptor(&super_.loader, field_descriptor_string.as_str()) {
+            let parsed_member_type = match parse_field_descriptor(field_descriptor_string.as_str()) {
                 None => panic!(),
                 Some(str_) => str_,
             };

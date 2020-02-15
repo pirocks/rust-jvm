@@ -1,7 +1,6 @@
 use crate::verifier::instructions::{InstructionTypeSafe, type_transition};
-use crate::verifier::codecorrectness::valid_type_transition;
 use crate::verifier::codecorrectness::Environment;
-use crate::verifier::{TypeSafetyError, standard_exception_frame};
+use crate::verifier::TypeSafetyError;
 use crate::verifier::Frame;
 use rust_jvm_common::unified_types::VType;
 

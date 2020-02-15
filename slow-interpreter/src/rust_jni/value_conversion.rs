@@ -7,7 +7,7 @@ use runtime_common::runtime_class::RuntimeClass;
 use jni_bindings::jclass;
 use std::sync::Arc;
 use std::ops::Deref;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 
 pub fn runtime_class_to_native(runtime_class : Arc<RuntimeClass>) -> Arg{
     let boxed_arc = Box::new(runtime_class);
@@ -23,7 +23,7 @@ pub unsafe fn native_to_runtime_class(clazz: jclass) -> Arc<RuntimeClass>{
 }
 
 
-pub fn to_native_type(t: &ParsedType) -> Type {
+pub fn to_native_type(t: &PType) -> Type {
 
 //    pub type jint = i32;
 //    pub type jlong = i64;
@@ -36,47 +36,47 @@ pub fn to_native_type(t: &ParsedType) -> Type {
 //    pub type jsize = jint;
 
     match t {
-        ParsedType::ByteType => Type::i8(),
-        ParsedType::CharType => Type::u16(),
-        ParsedType::DoubleType => Type::f64(),
-        ParsedType::FloatType => Type::f32(),
-        ParsedType::IntType => Type::i32(),
-        ParsedType::LongType => Type::i64(),
-        ParsedType::Class(_) => Type::pointer(),
-        ParsedType::ShortType => Type::i16(),
-        ParsedType::BooleanType => Type::u8(),
-        ParsedType::ArrayReferenceType(_) => Type::pointer(),
-        ParsedType::VoidType => unimplemented!(),
-        ParsedType::TopType => unimplemented!(),
-        ParsedType::NullType => unimplemented!(),
-        ParsedType::Uninitialized(_) => unimplemented!(),
-        ParsedType::UninitializedThis => unimplemented!(),
-        ParsedType::UninitializedThisOrClass(_) => unimplemented!(),
+        PType::ByteType => Type::i8(),
+        PType::CharType => Type::u16(),
+        PType::DoubleType => Type::f64(),
+        PType::FloatType => Type::f32(),
+        PType::IntType => Type::i32(),
+        PType::LongType => Type::i64(),
+        PType::Class(_) => Type::pointer(),
+        PType::ShortType => Type::i16(),
+        PType::BooleanType => Type::u8(),
+        PType::ArrayReferenceType(_) => Type::pointer(),
+        PType::VoidType => unimplemented!(),
+        PType::TopType => unimplemented!(),
+        PType::NullType => unimplemented!(),
+        PType::Uninitialized(_) => unimplemented!(),
+        PType::UninitializedThis => unimplemented!(),
+        PType::UninitializedThisOrClass(_) => unimplemented!(),
     }
 }
 
 
-pub fn to_native(j: JavaValue, t: &ParsedType) -> Arg {
+pub fn to_native(j: JavaValue, t: &PType) -> Arg {
     match t {
-        ParsedType::ByteType => {
+        PType::ByteType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as i8)))//todo free after call
         },
-        ParsedType::CharType => {
+        PType::CharType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as u16)))//todo free after call
         },
-        ParsedType::DoubleType => {
+        PType::DoubleType => {
             Arg::new(Box::leak(Box::new(j.unwrap_double())))//todo free after call
         },
-        ParsedType::FloatType => {
+        PType::FloatType => {
             Arg::new(Box::leak(Box::new(j.unwrap_float())))//todo free after call
         },
-        ParsedType::IntType => {
+        PType::IntType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int())))//todo free after call
         },
-        ParsedType::LongType => {
+        PType::LongType => {
             Arg::new(Box::leak(Box::new(j.unwrap_long())))//todo free after call
         },
-        ParsedType::Class(_) => {
+        PType::Class(_) => {
             match j.unwrap_object(){
                 None => Arg::new(&(std::ptr::null() as *const Object)),
                 Some(op) => {
@@ -89,13 +89,13 @@ pub fn to_native(j: JavaValue, t: &ParsedType) -> Arg {
                 }
             }
         },
-        ParsedType::ShortType => {
+        PType::ShortType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as i16)))//todo free after call
         },
-        ParsedType::BooleanType => {
+        PType::BooleanType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as u8)))//todo free after call
         },
-        ParsedType::ArrayReferenceType(_) => {
+        PType::ArrayReferenceType(_) => {
             //todo dup
             match j.unwrap_object(){
                 None => Arg::new(&(std::ptr::null() as *const Object)),
@@ -109,12 +109,12 @@ pub fn to_native(j: JavaValue, t: &ParsedType) -> Arg {
                 }
             }
         },
-        ParsedType::VoidType => panic!(),
-        ParsedType::TopType => panic!(),
-        ParsedType::NullType => panic!(),
-        ParsedType::Uninitialized(_) => panic!(),
-        ParsedType::UninitializedThis => panic!(),
-        ParsedType::UninitializedThisOrClass(_) => panic!(),
+        PType::VoidType => panic!(),
+        PType::TopType => panic!(),
+        PType::NullType => panic!(),
+        PType::Uninitialized(_) => panic!(),
+        PType::UninitializedThis => panic!(),
+        PType::UninitializedThisOrClass(_) => panic!(),
     }
     /*match j {
         //todo suspect primitive types don't work

@@ -1,26 +1,26 @@
 use crate::verifier::{InternalFrame, get_class};
 use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
-use rust_jvm_common::unified_types::ClassWithLoader;
+use rust_jvm_common::unified_types::{ClassWithLoader, ReferenceType};
 use classfile_parser::stack_map_table_attribute;
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
-use classfile_parser::types::MethodDescriptor;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
+use descriptor_parser::MethodDescriptor;
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];
     let code = method_info
         .code_attribute()
         .expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
-    let parsed_descriptor = MethodDescriptor::from(method_info,&get_class(vf, class),&class.loader);
+    let parsed_descriptor = MethodDescriptor::from(method_info,&get_class(vf, class));
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let this_pointer = if method_info.access_flags & ACC_STATIC > 0 {
         None
     } else {
-        Some(ParsedType::Class(ClassWithLoader { class_name: class.class_name.clone(), loader: class.loader.clone() }))
+        Some(PType::Ref(ReferenceType::Class(class.class_name.clone())))
     };
     let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
 
@@ -43,12 +43,12 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
         res.push(StackMap {
             offset: frame.current_offset as usize,
             map_frame: Frame {
-                locals: expand_to_length(frame.locals.clone(), frame.max_locals as usize, ParsedType::TopType)
+                locals: expand_to_length(frame.locals.clone(), frame.max_locals as usize, PType::TopType)
                     .iter()
-                    .map(ParsedType::to_verification_type)
+                    .map(|x|x.to_verification_type(&vf.bootstrap_loader))
                     .collect(),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter()
-                    .map(ParsedType::to_verification_type)
+                    .map(|x|x.to_verification_type(&vf.bootstrap_loader))
                     .collect()),
                 flag_this_uninit: false,
             },
@@ -77,11 +77,11 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
         //so basically what's going on here is we want to remove [Double|Long, top],[any type including top]
         let removed = frame.locals.pop().unwrap();
         match removed {
-            ParsedType::DoubleType | ParsedType::LongType => panic!(),
-            ParsedType::TopType => {
+            PType::DoubleType | PType::LongType => panic!(),
+            PType::TopType => {
                 let second_removed = frame.locals.pop().unwrap();
                 match second_removed {
-                    ParsedType::DoubleType | ParsedType::LongType => {}
+                    PType::DoubleType | PType::LongType => {}
                     _ => {
                         frame.locals.push(second_removed);
                     }
@@ -125,27 +125,26 @@ pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
 }
 
 
-fn add_verification_type_to_array_convert(locals: &mut Vec<ParsedType>, new_local: &ParsedType) -> () {
+fn add_verification_type_to_array_convert(locals: &mut Vec<PType>, new_local: &PType) -> () {
     match new_local.clone() {
-        ParsedType::DoubleType => {
-            locals.push(ParsedType::DoubleType);
-            locals.push(ParsedType::TopType);
+        PType::DoubleType => {
+            locals.push(PType::DoubleType);
+            locals.push(PType::TopType);
         }
-        ParsedType::LongType => {
-            locals.push(ParsedType::LongType);
-            locals.push(ParsedType::TopType);
+        PType::LongType => {
+            locals.push(PType::LongType);
+            locals.push(PType::TopType);
         }
         new => { locals.push(new); }
     }
 }
 
-pub fn init_frame(parameter_types: Vec<ParsedType>, this_pointer: Option<ParsedType>, max_locals: u16) -> InternalFrame {
+pub fn init_frame(parameter_types: Vec<PType>, this_pointer: Option<PType>, max_locals: u16) -> InternalFrame {
     let mut locals = Vec::with_capacity(max_locals as usize);
     match this_pointer {
         None => {}//class is static etc.
         Some(t) => {
-//            add_verification_type_to_array_convert(&mut locals, &t)
-            add_verification_type_to_array_convert(&mut locals, &ParsedType::UninitializedThisOrClass(t.clone().into()))
+            add_verification_type_to_array_convert(&mut locals, &PType::UninitializedThisOrClass(t.clone().into()))
         }
     }
     //so these parameter types come unconverted and therefore need conversion

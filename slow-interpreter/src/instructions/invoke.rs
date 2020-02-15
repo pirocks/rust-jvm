@@ -3,12 +3,11 @@ use std::rc::Rc;
 use verification::verifier::instructions::branches::get_method_descriptor;
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, InvokeInterface};
 use crate::interpreter_util::run_function;
-use classfile_parser::types::{MethodDescriptor, parse_method_descriptor};
 use std::sync::Arc;
 use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::MethodInfo;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use crate::interpreter_util::check_inited_class;
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use runtime_common::runtime_class::RuntimeClass;
@@ -19,13 +18,14 @@ use std::borrow::Borrow;
 use utils::lookup_method_parsed;
 use rust_jvm_common::classnames::class_name;
 use std::intrinsics::transmute;
+use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
-    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &current_frame.class_pointer.classfile, loader_arc.clone());
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &current_frame.class_pointer.classfile);
     let method_class_name = match method_class_type {
-        ParsedType::Class(c) => c.class_name,
+        PType::Class(c) => c.class_name,
         _ => panic!()
     };
 //    trace!("Call:{} {}", method_class_name.get_referred_name(), method_name.clone());
@@ -71,10 +71,10 @@ pub fn invoke_special_impl(state: &mut InterpreterState, current_frame: &Rc<Stac
 fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone());
     let class_name_ = match class_name_type {
-        ParsedType::Class(c) => c.class_name,
-        ParsedType::ArrayReferenceType(_a) => {
+        PType::Class(c) => c.class_name,
+        PType::ArrayReferenceType(_a) => {
             if expected_method_name == "clone".to_string() {
                 //todo replace with proper native impl
                 let temp = current_frame.pop().unwrap_object().unwrap();
@@ -121,7 +121,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
         let cur_method_info = &c.classfile.methods[*m];
         let cur_name = cur_method_info.method_name(&c.classfile);
         let desc_str = cur_method_info.descriptor_str(&c.classfile);
-        let cur_desc = parse_method_descriptor(&c.loader.clone(), desc_str.as_str()).unwrap();
+        let cur_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
         let expected_name = &method_name;
         &cur_name == expected_name &&
             expected_descriptor.parameter_types == cur_desc.parameter_types &&
@@ -132,7 +132,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     let loader_arc = current_frame.class_pointer.loader.clone();
     let final_classfile = &final_target_class.classfile;
     let target_method = &final_classfile.methods[*new_i];
-    let final_descriptor = parse_method_descriptor(&loader_arc, target_method.descriptor_str(&final_classfile).as_str()).unwrap();
+    let final_descriptor = parse_method_descriptor( target_method.descriptor_str(&final_classfile).as_str()).unwrap();
     invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), *new_i, target_method)
 }
 
@@ -196,7 +196,7 @@ pub fn actually_virtual(state: &mut InterpreterState, current_frame: Rc<StackEnt
         let cur_method_info = &c.classfile.methods[*m];
         let cur_name = cur_method_info.method_name(&c.classfile);
         let desc_str = cur_method_info.descriptor_str(&c.classfile);
-        let cur_desc = parse_method_descriptor(&c.loader.clone(), desc_str.as_str()).unwrap();
+        let cur_desc = parse_method_descriptor( desc_str.as_str()).unwrap();
         let expected_name = target_method.method_name(&target_class.classfile);
 //        if expected_name == cur_name{
 //            dbg!(&expected_name);
@@ -266,7 +266,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEn
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &classfile.clone(), loader_arc.clone());
     let class_name = match class_name_type {
-        ParsedType::Class(c) => c.class_name,
+        PType::Class(c) => c.class_name,
         _ => panic!()
     };
     let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
@@ -517,8 +517,8 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &classfile.clone(), loader_arc.clone());
     let class_name_ = match class_name_type {
-        ParsedType::Class(c) => c.class_name,
-        ParsedType::ArrayReferenceType(_) => unimplemented!(),
+        PType::Class(c) => c.class_name,
+        PType::ArrayReferenceType(_) => unimplemented!(),
         _ => panic!()
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack

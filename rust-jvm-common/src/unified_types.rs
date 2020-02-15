@@ -8,26 +8,13 @@ use std::fmt::Error;
 use std::ops::Deref;
 use std::hash::{Hash, Hasher};
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Hash)]
-pub struct ArrayType {
-    pub sub_type: Box<ParsedType>
-}
-
-impl Clone for ArrayType {
-    fn clone(&self) -> Self {
-        ArrayType { sub_type: Box::new(self.sub_type.deref().clone()) }
-    }
-}
-
 //#[derive(Hash)]
 pub struct ClassWithLoader {
     pub class_name: ClassName,
     pub loader: LoaderArc,
 }
 
-impl Hash for ClassWithLoader{
+impl Hash for ClassWithLoader {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.class_name.hash(state);
         self.loader.name().hash(state);
@@ -59,17 +46,16 @@ impl Debug for ClassWithLoader {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Hash)]
-pub enum ParsedType {
+pub enum PType {
     ByteType,
     CharType,
     DoubleType,
     FloatType,
     IntType,
     LongType,
-    Class(ClassWithLoader),
+    Ref(ReferenceType),
     ShortType,
     BooleanType,
-    ArrayReferenceType(ArrayType),
     VoidType,
     TopType,
     NullType,
@@ -78,44 +64,75 @@ pub enum ParsedType {
 
     //todo hack. so b/c stackmapframes doesn't really know what type to give to UnitialziedThis, b/c invoke special could have happened or not
     // I suspect that Uninitialized might work for this, but making my own anyway
-    UninitializedThisOrClass(Box<ParsedType>),
+    UninitializedThisOrClass(Box<PType>),
 
 }
 
-impl ParsedType {
-    pub fn to_verification_type(&self) -> VType {
-        match self {
-            ParsedType::ByteType => VType::IntType,
-            ParsedType::CharType => VType::IntType,
-            ParsedType::DoubleType => VType::DoubleType,
-            ParsedType::FloatType => VType::FloatType,
-            ParsedType::IntType => VType::IntType,
-            ParsedType::LongType => VType::LongType,
-            ParsedType::Class(cl) => VType::Class(cl.clone()),
-            ParsedType::ShortType => VType::IntType,
-            ParsedType::BooleanType => VType::IntType,
-            ParsedType::ArrayReferenceType(at) => VType::ArrayReferenceType(at.clone()),
-            ParsedType::VoidType => VType::VoidType,
-            ParsedType::TopType => VType::TopType,
-            ParsedType::NullType => VType::NullType,
-            ParsedType::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
-            ParsedType::UninitializedThis => VType::UninitializedThis,
-            ParsedType::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(Box::new(c.to_verification_type()))
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Hash)]
+pub enum ReferenceType {
+    Class(ClassName),
+    Array(Box<PType>),
+}
+
+impl Clone for ReferenceType{
+    fn clone(&self) -> Self {
+        match self{
+            ReferenceType::Class(c) => ReferenceType::Class(c.clone()),
+            ReferenceType::Array(a) => ReferenceType::Array(a.clone()),
         }
     }
-    pub fn unwrap_array_type(&self) -> ParsedType{
+}
+
+impl PType {
+    pub fn to_verification_type(&self, loader: &LoaderArc) -> VType {
         match self {
-            ParsedType::ArrayReferenceType(a) => {
-                a.sub_type.deref().clone()
-            },
+            PType::ByteType => VType::IntType,
+            PType::CharType => VType::IntType,
+            PType::DoubleType => VType::DoubleType,
+            PType::FloatType => VType::FloatType,
+            PType::IntType => VType::IntType,
+            PType::LongType => VType::LongType,
+//            PType::Class(cl) => VType::Class(cl.clone()),
+            PType::ShortType => VType::IntType,
+            PType::BooleanType => VType::IntType,
+//            PType::ArrayReferenceType(at) => VType::ArrayReferenceType(at.clone()),
+            PType::VoidType => VType::VoidType,
+            PType::TopType => VType::TopType,
+            PType::NullType => VType::NullType,
+            PType::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
+            PType::UninitializedThis => VType::UninitializedThis,
+            PType::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(Box::new(c.to_verification_type(loader))),
+            PType::Ref(r) => {
+                match r {
+                    ReferenceType::Class(c) => { VType::Class(ClassWithLoader{ class_name: c.clone(), loader: loader.clone() }) }
+                    ReferenceType::Array(p) => { VType::ArrayReferenceType(p.deref().clone()) }
+                }
+            }
+        }
+    }
+    pub fn unwrap_array_type(&self) -> PType {
+        match self {
+            PType::Ref(r) => {
+                match r {
+                    ReferenceType::Class(_) => panic!(),
+                    ReferenceType::Array(a) => {
+                        a.deref().clone()
+                    }
+                }
+            }
             _ => panic!()
         }
     }
-    pub fn unwrap_class_type(&self) -> ClassWithLoader{
+    pub fn unwrap_class_type(&self) -> ClassName {
         match self {
-            ParsedType::Class(c) => {
-                c.clone()
-            },
+            PType::Ref(r) => {
+                match r {
+                    ReferenceType::Class(c) => c.clone(),
+                    ReferenceType::Array(_) => panic!(),
+                }
+            }
             _ => panic!()
         }
     }
@@ -131,7 +148,7 @@ pub enum VType {
     IntType,
     LongType,
     Class(ClassWithLoader),
-    ArrayReferenceType(ArrayType),
+    ArrayReferenceType(PType),
     VoidType,
     TopType,
     NullType,
@@ -148,25 +165,24 @@ pub enum VType {
     UninitializedEmpty,
 }
 
-impl Clone for ParsedType {
+impl Clone for PType {
     fn clone(&self) -> Self {
         match self {
-            ParsedType::ByteType => ParsedType::ByteType,
-            ParsedType::CharType => ParsedType::CharType,
-            ParsedType::DoubleType => ParsedType::DoubleType,
-            ParsedType::FloatType => ParsedType::FloatType,
-            ParsedType::IntType => ParsedType::IntType,
-            ParsedType::LongType => ParsedType::LongType,
-            ParsedType::Class(cl) => ParsedType::Class(cl.clone()),
-            ParsedType::ShortType => ParsedType::ShortType,
-            ParsedType::BooleanType => ParsedType::BooleanType,
-            ParsedType::ArrayReferenceType(at) => ParsedType::ArrayReferenceType(at.clone()),
-            ParsedType::VoidType => ParsedType::VoidType,
-            ParsedType::TopType => ParsedType::TopType,
-            ParsedType::NullType => ParsedType::NullType,
-            ParsedType::Uninitialized(uvi) => ParsedType::Uninitialized(uvi.clone()),
-            ParsedType::UninitializedThis => ParsedType::UninitializedThis,
-            ParsedType::UninitializedThisOrClass(t) => ParsedType::UninitializedThisOrClass(t.clone())
+            PType::ByteType => PType::ByteType,
+            PType::CharType => PType::CharType,
+            PType::DoubleType => PType::DoubleType,
+            PType::FloatType => PType::FloatType,
+            PType::IntType => PType::IntType,
+            PType::LongType => PType::LongType,
+            PType::ShortType => PType::ShortType,
+            PType::BooleanType => PType::BooleanType,
+            PType::VoidType => PType::VoidType,
+            PType::TopType => PType::TopType,
+            PType::NullType => PType::NullType,
+            PType::Uninitialized(uvi) => PType::Uninitialized(uvi.clone()),
+            PType::UninitializedThis => PType::UninitializedThis,
+            PType::UninitializedThisOrClass(t) => PType::UninitializedThisOrClass(t.clone()),
+            PType::Ref(r) => PType::Ref(r.clone())
         }
     }
 }

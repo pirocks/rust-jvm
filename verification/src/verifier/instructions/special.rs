@@ -13,38 +13,35 @@ use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::{substitute, possibly_array_to_type};
 use crate::OperandStack;
-use classfile_parser::types::{Descriptor, parse_field_type};
-use classfile_parser::types::FieldDescriptor;
-use classfile_parser::types::parse_field_descriptor;
-use rust_jvm_common::unified_types::ArrayType;
 use rust_jvm_common::unified_types::VType;
-use rust_jvm_common::unified_types::ParsedType;
+use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
 use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
+use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_type, parse_field_descriptor};
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
     let bl = &env.vf.bootstrap_loader.clone();
     let object = VType::Class(ClassWithLoader { class_name: ClassName::object(), loader: bl.clone() });
-    type_transition(env,stack_frame,vec![object],VType::IntType)
+    type_transition(env, stack_frame, vec![object], VType::IntType)
 }
 
 
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
-    let field_type = &field_descriptor.field_type.to_verification_type();
+    let field_type = &field_descriptor.field_type.to_verification_type(&env.class_loader);
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
     let expected_types_on_stack = vec![VType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })];
-    type_transition(env,stack_frame,expected_types_on_stack,field_type.clone())
+    type_transition(env, stack_frame, expected_types_on_stack, field_type.clone())
 }
 
 pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
-    let field_type = &field_descriptor.field_type.to_verification_type();
-    type_transition(env,stack_frame,vec![],field_type.clone())
+    let field_type = &field_descriptor.field_type.to_verification_type(&env.class_loader);
+    type_transition(env, stack_frame, vec![], field_type.clone())
 }
 
 
@@ -59,13 +56,13 @@ pub fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, env: &Environme
 
 
 pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let sub_type = Box::new(extract_constant_pool_entry_as_type(cp, &env));
+    let sub_type = extract_constant_pool_entry_as_type(cp, &env);
     let expected_types_on_stack = vec![VType::IntType];
-    let res_type = VType::ArrayReferenceType(ArrayType { sub_type });
-    type_transition(env,stack_frame,expected_types_on_stack,res_type)
+    let res_type = VType::ArrayReferenceType(sub_type);
+    type_transition(env, stack_frame, expected_types_on_stack, res_type)
 }
 
-fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> ParsedType {
+fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> PType {
     let class = get_class(&env.vf, &env.method.class);
     let class_name = match &class.constant_pool[cp as usize].kind {
         ConstantKind::Class(c) => {
@@ -73,21 +70,20 @@ fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> Parsed
         }
         _ => panic!()
     };
-    let subtype = possibly_array_to_type(&env.class_loader, class_name);
-    subtype
+    let subtype = possibly_array_to_type(class_name);
+    PType::Ref(subtype)
 }
 
 pub fn instruction_is_type_safe_arraylength(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = nth1_operand_stack_is(1, stack_frame)?;
     array_component_type(array_type)?;
-    type_transition(env,stack_frame,vec![VType::TopType],VType::IntType)
+    type_transition(env, stack_frame, vec![VType::TopType], VType::IntType)
 }
 
-pub fn array_component_type(type_: VType) -> Result<ParsedType, TypeSafetyError> {
-    use std::ops::Deref;
+pub fn array_component_type(type_: VType) -> Result<PType, TypeSafetyError> {
     Result::Ok(match type_ {
-        VType::ArrayReferenceType(a) => a.sub_type.deref().clone(),
-        VType::NullType => ParsedType::NullType,
+        VType::ArrayReferenceType(a) => a.clone(),
+        VType::NullType => PType::NullType,
         _ => panic!()
     })
 }
@@ -114,12 +110,12 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
     let result_type = match &class.constant_pool[index].kind {
         ConstantKind::Class(c) => {
             let name = class.constant_pool[c.name_index as usize].extract_string_from_utf8();
-            possibly_array_to_type(&env.class_loader, name).to_verification_type()
+            PType::Ref(possibly_array_to_type(name)).to_verification_type(&env.class_loader)
         }
         _ => panic!()
     };
     let expected_types_on_stack = vec![VType::Class(object_class)];
-    type_transition(env,stack_frame,expected_types_on_stack,result_type)
+    type_transition(env, stack_frame, expected_types_on_stack, result_type)
 }
 
 
@@ -140,7 +136,7 @@ pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_f
 fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo duplication
     let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
-    let field_type = (&field_descriptor.field_type).to_verification_type();
+    let field_type = (&field_descriptor.field_type).to_verification_type(&env.class_loader);
     if env.method.class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
     }
@@ -155,7 +151,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
 
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
-    let field_type = (&field_descriptor.field_type).to_verification_type();
+    let field_type = (&field_descriptor.field_type).to_verification_type(&env.class_loader);
     let _popped_frame = can_pop(&env.vf, stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
@@ -193,13 +189,13 @@ pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>, l: LoaderArc
     };
     let field_name = current_class.constant_pool[field_name_index as usize].extract_string_from_utf8();
     let descriptor_string = current_class.constant_pool[descriptor_index as usize].extract_string_from_utf8();
-    let field_descriptor = parse_field_descriptor(&l, descriptor_string.as_ref()).unwrap();
+    let field_descriptor = parse_field_descriptor(descriptor_string.as_ref()).unwrap();
     (field_class_name, field_name, field_descriptor)
 }
 
 pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
-    let field_type = (&field_descriptor.field_type).to_verification_type();
+    let field_type = (&field_descriptor.field_type).to_verification_type(&env.class_loader);
     let next_frame = can_pop(&env.vf, stack_frame, vec![field_type])?;
     standard_exception_frame(stack_frame, next_frame)
 }
@@ -212,15 +208,15 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: &Fr
 
 pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let classfile = get_class(&env.vf, env.method.class);
-    let expected_type = parse_field_type(&env.class_loader, classfile.extract_class_from_constant_pool_name(cp as u16).as_str()).unwrap().1;
-    if class_dimension(&expected_type.to_verification_type()) != dim {
+    let expected_type = parse_field_type(classfile.extract_class_from_constant_pool_name(cp as u16).as_str()).unwrap().1;
+    if class_dimension(env,&expected_type.to_verification_type(&env.class_loader)) != dim {
         return Result::Err(unknown_error_verifying!());
     }
     let dim_list = dim_list(dim);
-    type_transition(env,stack_frame,dim_list,expected_type.to_verification_type())
+    type_transition(env, stack_frame, dim_list, expected_type.to_verification_type(&env.class_loader))
 }
 
-fn dim_list(dim : usize) -> Vec<VType>{
+fn dim_list(dim: usize) -> Vec<VType> {
     let mut res = vec![];
     for _ in 0..dim {
         res.push(VType::IntType)
@@ -228,10 +224,10 @@ fn dim_list(dim : usize) -> Vec<VType>{
     res
 }
 
-fn class_dimension(v: &VType) -> usize {
+fn class_dimension(env: &Environment,v: &VType) -> usize {
     match v {
         VType::ArrayReferenceType(sub) => {
-            class_dimension(&sub.sub_type.to_verification_type()) + 1
+            class_dimension(env,&sub.to_verification_type(&env.class_loader)) + 1
         }
         _ => 0,
 //        _ => unimplemented!()
@@ -264,19 +260,19 @@ pub fn instruction_is_type_safe_new(cp: usize, offset: usize, env: &Environment,
 
 pub fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let element_type = primitive_array_info(type_code);
-    type_transition(env, stack_frame, vec![VType::IntType], VType::ArrayReferenceType(ArrayType { sub_type: Box::new(element_type) }))
+    type_transition(env, stack_frame, vec![VType::IntType], VType::ArrayReferenceType(element_type))
 }
 
-fn primitive_array_info(type_code: usize) -> ParsedType {
+fn primitive_array_info(type_code: usize) -> PType {
     match type_code {
-        4 => ParsedType::BooleanType,
-        5 => ParsedType::CharType,
-        6 => ParsedType::FloatType,
-        7 => ParsedType::DoubleType,
-        8 => ParsedType::ByteType,
-        9 => ParsedType::ShortType,
-        10 => ParsedType::IntType,
-        11 => ParsedType::LongType,
+        4 => PType::BooleanType,
+        5 => PType::CharType,
+        6 => PType::FloatType,
+        7 => PType::DoubleType,
+        8 => PType::ByteType,
+        9 => PType::ShortType,
+        10 => PType::IntType,
+        11 => PType::LongType,
         _ => panic!()
     }
 }

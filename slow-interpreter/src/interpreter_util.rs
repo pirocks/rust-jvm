@@ -11,7 +11,6 @@ use std::rc::Rc;
 use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual, invoke_interface, invoke_virtual_method_i};
 use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
-use classfile_parser::types::{parse_field_descriptor, parse_method_descriptor};
 use crate::instructions::load::*;
 use crate::instructions::store::*;
 use crate::instructions::fields::*;
@@ -26,6 +25,7 @@ use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
 use crate::instructions::switch::invoke_lookupswitch;
+use descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
@@ -411,7 +411,7 @@ fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>
             };
             let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
             let descriptor_str = classfile.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
-            let descriptor = parse_field_descriptor(&loader_arc, descriptor_str.as_str()).unwrap();
+            let descriptor = parse_field_descriptor(descriptor_str.as_str()).unwrap();
             let type_ = descriptor.field_type;
             let val = default_value(type_);
             {

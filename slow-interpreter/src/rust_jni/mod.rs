@@ -7,7 +7,7 @@ use log::trace;
 use libloading::Library;
 use libloading::Symbol;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::{ParsedType, ClassWithLoader};
+use rust_jvm_common::unified_types::{PType, ClassWithLoader};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::java_values::{JavaValue, Object};
 use std::ffi::CStr;
@@ -33,8 +33,8 @@ use crate::rust_jni::native_util::{get_state, get_frame, from_object};
 use crate::rust_jni::interface::get_interface;
 use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_name;
-use classfile_parser::types::MethodDescriptor;
 use crate::rust_jni::interface::util::runtime_class_from_object;
+use descriptor_parser::MethodDescriptor;
 
 
 pub mod value_conversion;
@@ -99,7 +99,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         vec![Arg::new(&&env)]
     } else {
         load_class_constant_by_name(state, &current_frame, class_name(&classfile.classfile.clone()).get_referred_name());
-        vec![Arg::new(&&env), to_native(current_frame.pop(), &ParsedType::Class(ClassWithLoader { class_name: ClassName::object(), loader: classfile.loader.clone() }))]
+        vec![Arg::new(&&env), to_native(current_frame.pop(), &PType::Class(ClassWithLoader { class_name: ClassName::object(), loader: classfile.loader.clone() }))]
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 //    dbg!(&args);
@@ -109,7 +109,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
 //        }
 //    }
     if suppress_runtime_class {
-        for (j, t) in args.iter().zip(vec![ParsedType::Class(ClassWithLoader { class_name: ClassName::object(), loader: classfile.loader.clone() })].iter().chain(md.parameter_types.iter())) {
+        for (j, t) in args.iter().zip(vec![PType::Class(ClassWithLoader { class_name: ClassName::object(), loader: classfile.loader.clone() })].iter().chain(md.parameter_types.iter())) {
             args_type.push(to_native_type(t));
             c_args.push(to_native(j.clone(), t));
         }
@@ -131,31 +131,31 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     };
 //    trace!("----NATIVE EXIT ----");
     match &md.return_type {
-        ParsedType::VoidType => {
+        PType::VoidType => {
             None
         }
 //            ParsedType::ByteType => {}
 //            ParsedType::CharType => {}
-        ParsedType::DoubleType => {
+        PType::DoubleType => {
             Some(JavaValue::Double(unsafe { transmute(cif_res) }))
         }
 //            ParsedType::FloatType => {}
-        ParsedType::IntType => {
+        PType::IntType => {
             Some(JavaValue::Int(cif_res as i32))
         }
-        ParsedType::LongType => {
+        PType::LongType => {
             Some(JavaValue::Long(cif_res as i64))
         }
-        ParsedType::Class(_) => {
+        PType::Class(_) => {
             unsafe {
                 Some(JavaValue::Object(from_object(transmute(cif_res))))
             }
         }
 //            ParsedType::ShortType => {}
-        ParsedType::BooleanType => {
+        PType::BooleanType => {
             Some(JavaValue::Boolean(cif_res as u64 != 0))
         }
-        ParsedType::ArrayReferenceType(_art) => {
+        PType::ArrayReferenceType(_art) => {
             unsafe {
                 Some(JavaValue::Object(from_object(transmute(cif_res))))
             }
