@@ -18,20 +18,17 @@ pub fn instruction_is_type_safe_d2l(env: &Environment, stack_frame: &Frame) -> R
     type_transition(env, stack_frame, vec![VType::DoubleType], VType::LongType)
 }
 
-
 pub fn instruction_is_type_safe_dadd(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VType::DoubleType, VType::DoubleType], VType::DoubleType)
 }
-
 
 pub fn instruction_is_type_safe_dcmpg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VType::DoubleType, VType::DoubleType], VType::IntType)
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_dneg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe,TypeSafetyError>{
-//    unimplemented!()
-//}
+pub fn instruction_is_type_safe_dneg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_transition(env, stack_frame, vec![VType::DoubleType], VType::DoubleType)
+}
 
 pub fn instruction_is_type_safe_f2d(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VType::FloatType], VType::DoubleType)

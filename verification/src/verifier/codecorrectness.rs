@@ -24,9 +24,6 @@ use rust_jvm_common::unified_types::ParsedType;
 
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
-//    dbg!(&expected_types_on_stack);
-//    dbg!(&result_type);
-//    dbg!(&input_frame.stack_map);
     let input_operand_stack = &input_frame.stack_map;
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&env.vf, &interim_operand_stack, &result_type);
@@ -37,18 +34,8 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VTy
     }
 }
 
-//IMPORTANT NOTE:
-// lists are stored in same order as prolog, e.g. 0 is first elem, n-1 is last.
-// This is problematic for adding to the beginning of a Vec. as a result linked lists may be used in impl.
-// alternatively results can be reversed at the end.
 pub fn pop_matching_list(vf: &VerifierContext, pop_from: &OperandStack, pop: Vec<VType>) -> Result<OperandStack, TypeSafetyError> {
-//    if pop_from.len() > 1 && pop.len() > 1{
-//        dbg!("Attempt to pop matching:");
-//        dbg!(&pop_from);
-//        dbg!(&pop);
-//    }
     let result = pop_matching_list_impl(vf, &mut pop_from.clone(), pop.as_slice());
-//    dbg!(&result);
     return result;
 }
 
@@ -124,27 +111,6 @@ pub fn push_operand_stack(vf: &VerifierContext, operand_stack: &OperandStack, ty
 pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: &OperandStack) -> bool {
     operand_stack.len() <= environment.max_stack as usize
 }
-//
-//#[allow(unused)]
-//pub fn pop_category_1(types: Vec<VerificationType>) -> Option<(VerificationType, Vec<VerificationType>)> {
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-//pub fn can_safely_push(environment: Environment, input_operand_stack: Vec<VerificationType>, type_: VerificationType) -> Option<Vec<VerificationType>> {
-//    unimplemented!();
-//}
-//
-//#[allow(unused)]
-//pub fn can_safely_push_list(environment: Environment, input_operand_stack: Vec<VerificationType>, type_list: Vec<VerificationType>) -> Option<Vec<VerificationType>> {
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-//pub fn can_push_list(input_operand_stack: Vec<VerificationType>, type_list: Vec<VerificationType>) -> Option<Vec<VerificationType>> {
-//    unimplemented!()
-//}
-//
 
 pub fn can_pop(vf: &VerifierContext, input_frame: &Frame, types: Vec<VType>) -> Result<Frame, TypeSafetyError> {
     let poped_stack = pop_matching_list(vf, &input_frame.stack_map, types)?;
@@ -187,18 +153,10 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
 
 pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let access_flags = get_access_flags(vf, class, method);
-//    dbg!(get_class(vf,method.class).methods[method.method_index].method_name(&get_class(vf,method.class)));
-//    dbg!(get_class(vf,method.class).methods[method.method_index].descriptor_str(&get_class(vf,method.class)));
-//    trace!("got access_flags:{}", access_flags);
     does_not_override_final_method(vf, class, method)?;
-//    trace!("does not override final method");
-//    dbg!(&does_not_override_final_method);
-
     if access_flags & ACC_NATIVE != 0 {
-//        trace!("method is native");
         Result::Ok(())
     } else if access_flags & ACC_ABSTRACT != 0 {
-//        trace!("method is abstract");
         Result::Ok(())
     } else {
         //will have a code attribute. or else method_with_code_is_type_safe will crash todo
@@ -258,16 +216,8 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
     instructs.push(&end_of_code);
     let handlers = get_handlers(vf, class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, class, method_info);
-//    trace!("stack map frames generated:");
-//    dbg!(&stack_map);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x| { x }).collect());
-//    trace!("stack map frames merged:");
-//    dbg!(&merged);
     let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size);
-//    trace!("Initial stack frame:");
-//    dbg!(&frame);
-//    dbg!(&frame_size);
-//    dbg!(&return_type);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
     handlers_are_legal(&env)?;
     merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame))?;/*{
@@ -321,16 +271,6 @@ pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(
 
 pub enum UnifiedInstruction {}
 
-//#[allow(unused)]
-//pub fn is_applicable_instruction(vf:&VerifierContext,handler_start: u64, instruction: &UnifiedInstruction) -> bool {
-//    unimplemented!()
-//}
-//
-//#[allow(unused)]
-//pub fn no_attempt_to_return_normally(vf:&VerifierContext,instruction: &UnifiedInstruction) -> bool {
-//    unimplemented!()
-//}
-
 #[allow(dead_code)]
 pub struct Environment<'l> {
     pub method: &'l ClassWithLoaderMethod<'l>,
@@ -377,53 +317,14 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
     return res;
 }
-//
-//pub fn translate_types_to_vm_types(type_: &VerificationType) -> VerificationType {
-//    match type_ {
-//        VerificationType::ByteType => VerificationType::IntType,
-//        VerificationType::CharType => VerificationType::IntType,
-//        VerificationType::ShortType => VerificationType::IntType,
-//        VerificationType::DoubleType => VerificationType::DoubleType,
-//        VerificationType::FloatType => UnifiedType::FloatType,
-//        UnifiedType::IntType => UnifiedType::IntType,
-//        UnifiedType::BooleanType => UnifiedType::IntType,
-//        UnifiedType::LongType => UnifiedType::LongType,
-//        UnifiedType::Class(_) => type_.clone(),
-//        UnifiedType::ArrayReferenceType(_) => {
-//            type_.clone()
-////            let translated_subtype = translate_types_to_vm_types(&a.sub_type);
-////            UnifiedType::ArrayReferenceType(ArrayType { sub_type: Box::new(translated_subtype) })
-//        }
-//        UnifiedType::VoidType => UnifiedType::VoidType,
-//        UnifiedType::TopType => panic!(),
-//        UnifiedType::NullType => panic!(),
-//        UnifiedType::Uninitialized(_) => panic!(),
-//        UnifiedType::UninitializedThis => panic!(),
-//        UnifiedType::TwoWord => panic!(),
-//        UnifiedType::OneWord => panic!(),
-//        UnifiedType::Reference => panic!(),
-//        UnifiedType::UninitializedEmpty => panic!(),
-//    }
-//}
 
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, VType) {
-    //methodInitialStackFrame(Class, Method, FrameSize, frame(Locals, [], Flags),ReturnType):-
-    //    methodDescriptor(Method, Descriptor),
-    //    parseMethodDescriptor(Descriptor, RawArgs, ReturnType),
-    //    expandTypeList(RawArgs, Args),
-    //    methodInitialThisType(Class, Method, ThisList),
-    //    flags(ThisList, Flags),
-    //    append(ThisList, Args, ThisArgs),
-    //    expandToLength(ThisArgs, FrameSize, top, Locals).
     let classfile = get_class(vf, class);
     let method_info = &classfile.methods[method.method_index as usize];
     let method_descriptor = method_info.descriptor_str(&classfile);
     let initial_parsed_descriptor = parse_method_descriptor(&class.loader, method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
-        parameter_types: initial_parsed_descriptor.parameter_types.clone()
-//            .iter()
-//            .map(ParsedType::to_verification_type)
-        /*.collect()*/,
+        parameter_types: initial_parsed_descriptor.parameter_types.clone(),
         return_type: initial_parsed_descriptor.return_type.clone(),
     };
     let this_list = method_initial_this_type(vf, class, method);
@@ -505,7 +406,6 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
     } else {
         Some(instance_method_initial_this_type(vf, class, method).unwrap())
     }
-//    return Some(UnifiedType::UninitializedThis);
 }
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VType, TypeSafetyError> {

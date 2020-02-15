@@ -55,9 +55,6 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: &Frame) 
         VType::IntType => {}
         _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string()))
     }
-//    dbg!(stack_frame);
-//    let classfile = get_class(&env.vf, env.method.class);
-//    dbg!(method_name(&classfile, &classfile.methods[env.method.method_index as usize]));
     can_pop(&env.vf, stack_frame, vec![VType::IntType])?;
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
@@ -86,7 +83,6 @@ pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, stack_fra
 }
 
 pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    dbg!(stack_frame);
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::Reference])?;
     target_is_type_safe(env, &next_frame, target)?;
     standard_exception_frame(stack_frame, next_frame)
@@ -112,7 +108,6 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
     }
     let operand_arg_list: Vec<VType> = descriptor.parameter_types.iter().rev().map(ParsedType::to_verification_type).collect();
     let return_type = descriptor.return_type.to_verification_type();
-//    operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     standard_exception_frame(stack_frame, next_frame)
@@ -147,7 +142,6 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     let current_loader = env.class_loader.clone();
     //todo this is almost certainly wrong.
     operand_arg_list.push(VType::Class(ClassWithLoader { class_name: ClassName::Str(method_intf_name), loader: current_loader }));
-//    operand_arg_list.reverse();
     let stack_arg_list = operand_arg_list;
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let next_frame = valid_type_transition(env, vec![], &return_type, &temp_frame)?;
@@ -181,17 +175,12 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, stac
 fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name: &ClassName, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(ParsedType::to_verification_type).collect();
     stack_arg_list.reverse();
-//    dbg!(&stack_arg_list);
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let locals = temp_frame.locals;
     let mut operand_stack = temp_frame.stack_map.clone();
     let first = operand_stack.operand_pop();
     let flags = temp_frame.flag_this_uninit;
     let current_class_loader = env.class_loader.clone();
-//    match first {
-//        None => unimplemented!(),
-//        Some(u) => {
-//    dbg!(&operand_stack);
     match first {
         VType::Uninitialized(address) => {
             let uninit_address = VType::Uninitialized(UninitializedVariableInfo { offset: address.offset });
@@ -200,18 +189,18 @@ fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name
             let this_class = VType::Class(this);
             let next_operand_stack = substitute_operand_stack(&uninit_address, &this_class, &operand_stack);
             let next_locals = substitute(&uninit_address, &this_class, locals.as_slice());
-            let next_stack_frame = Frame {
+            let next_frame = Frame {
                 locals: next_locals,
                 stack_map: next_operand_stack,
                 flag_this_uninit: next_flags,
             };
-            let exception_stack_frame = Frame {
+            let exception_frame = Frame {
                 locals,
                 stack_map: OperandStack::empty(),
                 flag_this_uninit: flags,
             };
-            passes_protected_check(env, &method_class_name.clone(), "<init>".to_string(), Descriptor::Method(&parsed_descriptor), &next_stack_frame)?;
-            Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame: next_stack_frame, exception_frame: exception_stack_frame }))
+            passes_protected_check(env, &method_class_name.clone(), "<init>".to_string(), Descriptor::Method(&parsed_descriptor), &next_frame)?;
+            Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
         }
         VType::UninitializedThis => {
             let this = rewritten_uninitialized_type(&VType::UninitializedThis, env, &ClassWithLoader { class_name: method_class_name.clone(), loader: current_class_loader })?;
@@ -220,22 +209,20 @@ fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name
             let next_operand_stack = substitute_operand_stack(&VType::UninitializedThis, &this_class, &operand_stack);
             let next_locals = substitute(&VType::UninitializedThis, &this_class, locals.as_slice());
             //todo duplication with above
-            let next_stack_frame = Frame {
+            let next_frame = Frame {
                 locals: next_locals,
                 stack_map: next_operand_stack,
                 flag_this_uninit,
             };
-            let exception_stack_frame = Frame {
+            let exception_frame = Frame {
                 locals,
                 stack_map: OperandStack::empty(),
                 flag_this_uninit: flags,
             };
-            Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame: next_stack_frame, exception_frame: exception_stack_frame }))
+            Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
         }
         _ => panic!(),
     }
-//        }
-//    }
 }
 
 pub fn substitute(old: &VType, new: &VType, list: &[VType]) -> Vec<VType> {
@@ -328,12 +315,10 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
     is_assignable(&env.vf, &current_class, &method_class)?;
     let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(ParsedType::to_verification_type).collect();
     operand_arg_list_copy.push(current_class);
-//    operand_arg_list_copy.reverse();
     let return_type = &parsed_descriptor.return_type.to_verification_type();
     let next_frame = valid_type_transition(env, operand_arg_list_copy, &return_type, stack_frame)?;
     let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(ParsedType::to_verification_type).collect();
     operand_arg_list_copy2.push(method_class);
-//    operand_arg_list_copy2.reverse();
     valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
     return Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }));

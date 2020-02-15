@@ -1,6 +1,5 @@
 use std::hash::Hasher;
 use crate::unified_types::ParsedType;
-use crate::stage2::string_pool::StringPoolEntry;
 use std::sync::Arc;
 
 #[derive(Debug)]

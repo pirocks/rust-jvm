@@ -25,11 +25,10 @@ use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    let type_ = extract_constant_pool_entry_as_type(cp,env);//todo verify that cp is valid
+    //todo verify that cp is valid
     let bl = &env.vf.bootstrap_loader.clone();
     let object = VType::Class(ClassWithLoader { class_name: ClassName::object(), loader: bl.clone() });
-    let next_frame = valid_type_transition(env, vec![object], &VType::IntType, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_transition(env,stack_frame,vec![object],VType::IntType)
 }
 
 
@@ -38,15 +37,14 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_f
     let field_type = &field_descriptor.field_type.to_verification_type();
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
-    let next_frame = valid_type_transition(env, vec![VType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })], &field_type, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    let expected_types_on_stack = vec![VType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })];
+    type_transition(env,stack_frame,expected_types_on_stack,field_type.clone())
 }
 
 pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, get_class(&env.vf, env.method.class), env.class_loader.clone());
     let field_type = &field_descriptor.field_type.to_verification_type();
-    let next_frame = valid_type_transition(env, vec![], &field_type, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_transition(env,stack_frame,vec![],field_type.clone())
 }
 
 
@@ -62,8 +60,9 @@ pub fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, env: &Environme
 
 pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let sub_type = Box::new(extract_constant_pool_entry_as_type(cp, &env));
-    let next_frame = valid_type_transition(env, vec![VType::IntType], &VType::ArrayReferenceType(ArrayType { sub_type }), stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    let expected_types_on_stack = vec![VType::IntType];
+    let res_type = VType::ArrayReferenceType(ArrayType { sub_type });
+    type_transition(env,stack_frame,expected_types_on_stack,res_type)
 }
 
 fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> ParsedType {
@@ -79,11 +78,9 @@ fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> Parsed
 }
 
 pub fn instruction_is_type_safe_arraylength(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    dbg!(stack_frame);
     let array_type = nth1_operand_stack_is(1, stack_frame)?;
     array_component_type(array_type)?;
-    let next_frame = valid_type_transition(env, vec![VType::TopType], &VType::IntType, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_transition(env,stack_frame,vec![VType::TopType],VType::IntType)
 }
 
 pub fn array_component_type(type_: VType) -> Result<ParsedType, TypeSafetyError> {
@@ -121,8 +118,8 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
         }
         _ => panic!()
     };
-    let next_frame = valid_type_transition(env, vec![VType::Class(object_class)], &result_type, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    let expected_types_on_stack = vec![VType::Class(object_class)];
+    type_transition(env,stack_frame,expected_types_on_stack,result_type)
 }
 
 

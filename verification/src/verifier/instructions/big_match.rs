@@ -12,8 +12,6 @@ use crate::verifier::instructions::stores::*;
 use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    dbg!(&stack_frame.stack_map);
-//    dbg!(instruction);
     match &instruction.instruction {
         InstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
         InstructionInfo::aastore => instruction_is_type_safe_aastore(env, stack_frame),
@@ -55,7 +53,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dload_2 => instruction_is_type_safe_dload(2, env, stack_frame),
         InstructionInfo::dload_3 => instruction_is_type_safe_dload(3, env, stack_frame),
         InstructionInfo::dmul => instruction_is_type_safe_dadd(env, stack_frame),
-        InstructionInfo::dneg => { unimplemented!() }
+        InstructionInfo::dneg => instruction_is_type_safe_dneg(env,stack_frame),
         InstructionInfo::drem => { unimplemented!() }
         InstructionInfo::dreturn => instruction_is_type_safe_dreturn(env, stack_frame),
         InstructionInfo::dstore(i) => instruction_is_type_safe_dstore(*i as usize, env, stack_frame),
@@ -249,7 +247,6 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
                 targets.push((offset as isize + *o as isize) as usize)
             }
             targets.push((offset as isize + s.default as isize) as usize);
-//            dbg!(&targets);
             instruction_is_type_safe_tableswitch(targets, env, stack_frame)
         }
         InstructionInfo::wide(_) => { unimplemented!() }

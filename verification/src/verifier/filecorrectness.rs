@@ -15,7 +15,7 @@ use rust_jvm_common::unified_types::ParsedType;
 
 #[allow(unused)]
 fn same_runtime_package(vf: &VerifierContext, class1: ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    unimplemented!()
+    unimplemented!()//todo remove this function
 }
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
@@ -112,6 +112,9 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
     }
 }
 
+
+
+//todo why is this in this file?
 pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(), TypeSafetyError> {
     match from {
         VType::DoubleType => match to {

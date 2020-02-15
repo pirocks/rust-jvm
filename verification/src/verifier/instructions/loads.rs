@@ -83,7 +83,6 @@ pub fn instruction_is_type_safe_iload(index: usize, env: &Environment, stack_fra
     standard_exception_frame(stack_frame, next_frame)
 }
 
-//#[allow(unused)]
 pub fn instruction_is_type_safe_laload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = VType::ArrayReferenceType(ArrayType { sub_type: Box::new(ParsedType::LongType) });
     type_transition(env, stack_frame, vec![VType::IntType, array_type], VType::LongType)

@@ -104,14 +104,6 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
 
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> Result<(), TypeSafetyError> {
     let frame = offset_stack_frame(env, target)?;
-//    dbg!(&env.merged_code);
-//    let classfile = get_class(&env.vf, &env.method.class);
-//    dbg!(classfile.methods[env.method.method_index as usize].method_name(&classfile));
-//    dbg!(&frame);
-//    dbg!(target);
-//    dbg!(env.merged_code);
-//    dbg!(&stack_frame);
-//    dbg!(&frame);
     frame_is_assignable(&env.vf, stack_frame, &frame)?;
     Result::Ok(())
 }
@@ -122,8 +114,6 @@ fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_st
         is_applicable_handler(offset as usize, h)
     });
     let res: Result<Vec<_>, _> = applicable_handler.map(|h| {
-        //dbg!(&h);
-//        dbg!(offset);
         instruction_satisfies_handler(env, exception_stack_frame, h)
     }).collect();
     res?;
@@ -241,9 +231,7 @@ pub fn pop_category1(vf: &VerifierContext, input: &mut OperandStack) -> Result<V
     if size_of(vf, &input.peek()) == 1 {
         let type_ = input.operand_pop();
         return Result::Ok(type_);
-    } /*else {
-        unimplemented!()
-    }*/
+    }
     Result::Err(unknown_error_verifying!())
 }
 
@@ -254,9 +242,7 @@ pub fn pop_category2(vf: &VerifierContext, input: &mut OperandStack) -> Result<V
     if size_of(vf, &input.peek()) == 2 {
         let type_ = input.operand_pop();
         return Result::Ok(type_);
-    } /*else {
-        unimplemented!()
-    }*/
+    }
     Result::Err(unknown_error_verifying!())
 }
 
@@ -296,10 +282,6 @@ pub fn can_push_list(vf: &VerifierContext, input_stack: &OperandStack, types: &[
 }
 
 pub fn instruction_is_type_safe_dup2(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    StackFrame = frame(Locals, InputOperandStack, Flags),
-//    dup2FormIsTypeSafe(Environment,InputOperandStack, OutputOperandStack),
-//    NextStackFrame = frame(Locals, OutputOperandStack, Flags),
-//    exceptionStackFrame(StackFrame, ExceptionStackFrame).
     let locals = &stack_frame.locals;
     let input_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
@@ -349,9 +331,6 @@ fn dup2_form_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Resu
 
 
 fn dup2_form1_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
-//    popCategory1(InputOperandStack, Type1, TempStack),
-//    popCategory1(TempStack, Type2, _),
-//    canSafelyPushList(Environment, InputOperandStack, [Type2, Type1], OutputOperandStack).
     let mut temp_stack = input_stack.clone();
     let type1 = pop_category1(&env.vf, &mut temp_stack)?;
     let mut stack2 = temp_stack.clone();
@@ -360,10 +339,7 @@ fn dup2_form1_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Res
 }
 
 fn dup2_form2_is_type_safe(env: &Environment, input_stack: &OperandStack) -> Result<OperandStack, TypeSafetyError> {
-    //popCategory2(InputOperandStack, Type, _),
-    //    canSafelyPush(Environment, InputOperandStack, Type, OutputOperandStack).
     let mut stack1 = input_stack.clone();
-//    dbg!(&input_stack);
     let type_ = pop_category2(&env.vf, &mut stack1)?;
     can_safely_push_list(env, input_stack, vec![type_.clone()])
 }
@@ -470,14 +446,11 @@ pub fn instruction_is_type_safe_l2i(env: &Environment, stack_frame: &Frame) -> R
 }
 
 pub fn instruction_is_type_safe_ladd(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = valid_type_transition(env, vec![VType::LongType, VType::LongType], &VType::LongType, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_transition(env,stack_frame,vec![VType::LongType, VType::LongType],VType::LongType)
 }
 
 fn instruction_is_type_safe_lcmp(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    //todo dup with other arithmetic
-    let next_frame = valid_type_transition(env, vec![VType::LongType, VType::LongType], &VType::IntType, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_transition(env,stack_frame,vec![VType::LongType, VType::LongType],VType::IntType)
 }
 
 pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> VType {
@@ -510,8 +483,7 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Fra
         VType::LongType => { return Result::Err(unknown_error_verifying!()); }
         _ => {}
     };
-    let next_frame = valid_type_transition(env, vec![], &type_, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_transition(env,stack_frame,vec![],type_)
 }
 
 pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -535,8 +507,7 @@ pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_fra
         VType::LongType => {}
         _ => { return Result::Err(unknown_error_verifying!()); }
     };
-    let next_frame = valid_type_transition(env, vec![], &type_, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_transition(env,stack_frame,vec![],type_)
 }
 
 pub fn instruction_is_type_safe_lneg(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -565,8 +536,7 @@ pub fn instruction_is_type_safe_pop(env: &Environment, stack_frame: &Frame) -> R
         stack_map: rest,
         flag_this_uninit: flags,
     };
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    standard_exception_frame(stack_frame,next_frame)
 }
 
 pub fn instruction_is_type_safe_pop2(env: &Environment, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -579,8 +549,7 @@ pub fn instruction_is_type_safe_pop2(env: &Environment, stack_frame: &Frame)  ->
         stack_map: out.clone(),
         flag_this_uninit: *flags
     };
-    let exception_frame = exception_stack_frame(stack_frame);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))//todo dup
+    standard_exception_frame(stack_frame,next_frame)
 }
 
 fn pop2form_is_type_safe(env: &Environment, mut input : OperandStack) -> Result<OperandStack,TypeSafetyError>{
@@ -613,18 +582,6 @@ pub fn instruction_is_type_safe_sipush(env: &Environment, stack_frame: &Frame) -
 //    unimplemented!()
 //}
 //
-
-
-#[allow(unused)]
-fn different_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    unimplemented!()
-}
-
-#[allow(unused)]
-fn same_package_name(class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    unimplemented!()
-}
-
 
 pub fn exception_stack_frame(f: &Frame) -> Frame {
     Frame { locals: f.locals.iter().map(|x| x.clone()).collect(), stack_map: OperandStack::empty(), flag_this_uninit: f.flag_this_uninit }

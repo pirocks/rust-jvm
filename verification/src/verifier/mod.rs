@@ -92,12 +92,8 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
         }
     }
     let methods = get_class_methods(vf, class);
-//    trace!("got class methods:");
     let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
         let res = method_is_type_safe(vf, class, m);
-//        trace!("method was:");
-//        dbg!(&res);
-//        return early:
         match res {
             Ok(_) => {}
             Err(e) => {
@@ -163,7 +159,6 @@ fn classes_in_other_pkg_with_protected_member_impl(
             dbg!(&chain);
             dbg!(&member_class_name);
             panic!();
-//            return Result::Err(unknown_error_verifying!())
         }
         let l = first.loader.clone();
         if different_runtime_package(vf, class, first) {

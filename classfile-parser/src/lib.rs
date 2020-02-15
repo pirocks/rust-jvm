@@ -29,7 +29,6 @@ const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 
 
 mod parsing_util;
-pub mod types;
 
 pub fn parse_interfaces(p: &mut dyn ParsingContext, interfaces_count: u16) -> Vec<u16> {
     let mut res = Vec::with_capacity(interfaces_count as usize);
