@@ -7,7 +7,7 @@ use log::trace;
 use libloading::Library;
 use libloading::Symbol;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::{PType, ClassWithLoader, ReferenceType};
+use rust_jvm_common::unified_types::{PType, ReferenceType};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::java_values::{JavaValue, Object};
 use std::ffi::CStr;

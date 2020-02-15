@@ -130,7 +130,6 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
             !cur_method_info.is_abstract() //&&
 //            !cur_method_info.is_native()
     }).unwrap();
-    let loader_arc = current_frame.class_pointer.loader.clone();
     let final_classfile = &final_target_class.classfile;
     let target_method = &final_classfile.methods[*new_i];
     let final_descriptor = parse_method_descriptor( target_method.descriptor_str(&final_classfile).as_str()).unwrap();

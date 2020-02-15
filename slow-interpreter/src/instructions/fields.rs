@@ -70,7 +70,6 @@ fn get_static_impl(state: &mut InterpreterState, current_frame: &Rc<StackEntry>,
 
 pub fn get_field(current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
-    let loader_arc = &current_frame.class_pointer.loader;
     let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone());
     let object_ref = current_frame.pop();
     match object_ref {

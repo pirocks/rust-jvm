@@ -7,7 +7,7 @@ pub type StringPoolEntry = String;
 
 
 pub struct StringPool{
-    entries: HashSet<Arc<StringPoolEntry>>
+    pub entries: HashSet<Arc<StringPoolEntry>>
 }
 
 impl StringPool{

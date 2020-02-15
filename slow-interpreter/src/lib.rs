@@ -4,7 +4,6 @@ extern crate log;
 extern crate simple_logger;
 extern crate libc;
 extern crate regex;
-//extern crate va_list;
 
 use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
@@ -13,7 +12,7 @@ use std::error::Error;
 use rust_jvm_common::unified_types::{PType, ReferenceType};
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::cell::RefCell;
 use runtime_common::java_values::{JavaValue, Object, NormalObject};
@@ -21,7 +20,7 @@ use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
 use descriptor_parser::{MethodDescriptor, parse_field_type};
-
+use stage2_common::string_pool::StringPool;
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
                                   class_name: &ClassName,
@@ -30,13 +29,13 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
 ) -> Arc<Object> {
     //todo in future this may introduce new and exciting concurrency bugs
     if class_name.get_referred_name().starts_with('[') {
-        array_object(state, class_name, current_frame, loader_arc)
+        array_object(state, class_name, current_frame)
     } else {
         regular_object(state, class_name, current_frame, loader_arc)
     }
 }
 
-fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
+fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>) -> Arc<Object> {
     let referred_class_name = class_name.get_referred_name();
     let after_parse = parse_field_type(referred_class_name.as_str()).unwrap();
     assert!(after_parse.0.is_empty());
@@ -126,7 +125,9 @@ pub fn run(
         class_object_pool: RefCell::new(HashMap::new()),
         array_object_pool: RefCell::new(HashMap::new()),
         jni,
-        string_pool: unimplemented!()
+        string_pool: StringPool {
+            entries: HashSet::new()
+        }
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);

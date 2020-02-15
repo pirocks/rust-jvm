@@ -3,6 +3,7 @@ use runtime_common::java_values::JavaValue;
 use slow_interpreter::instructions::invoke::invoke_virtual_method_i;
 use slow_interpreter::instructions::ldc::create_string_on_stack;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, from_object};
+use descriptor_parser::parse_method_descriptor;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {
@@ -25,7 +26,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jo
     let classfile = &runtime_class.classfile;
     let candidate_meth = classfile.lookup_method_name(&"setProperty".to_string());
     let (meth_i, meth) = candidate_meth.iter().next().unwrap();
-    let md = parse_method_descriptor(&runtime_class.loader, meth.descriptor_str(classfile).as_str()).unwrap();
+    let md = parse_method_descriptor(meth.descriptor_str(classfile).as_str()).unwrap();
     frame.push(JavaValue::Object(prop_obj.clone().into()));
     frame.push(key);
     frame.push(val);

@@ -2,8 +2,9 @@ use slow_interpreter::rust_jni::native_util::{to_object, from_object, get_frame,
 use jni_bindings::{jobject, jclass, JNIEnv, jboolean};
 use slow_interpreter::instructions::invoke::actually_virtual;
 use runtime_common::java_values::JavaValue;
-use rust_jvm_common::unified_types::{PType, ClassWithLoader};
+use rust_jvm_common::unified_types::{PType, ClassWithLoader, ReferenceType};
 use rust_jvm_common::classnames::ClassName;
+use descriptor_parser::MethodDescriptor;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
@@ -21,7 +22,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     let (run_method_i, run_method) = classfile.lookup_method("run".to_string(), "()Ljava/lang/Object;".to_string()).unwrap();
     let expected_descriptor = MethodDescriptor {
         parameter_types: vec![],
-        return_type: PType::Class(ClassWithLoader { class_name: ClassName::object(), loader: runtime_class.loader.clone() }),
+        return_type: PType::Ref(ReferenceType::Class(ClassName::object())),
     };
     frame.push(JavaValue::Object(action));
 //    dbg!(&frame.operand_stack);

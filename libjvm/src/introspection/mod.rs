@@ -3,7 +3,7 @@ use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame};
 use std::sync::Arc;
 use runtime_common::java_values::{Object, ArrayObject, JavaValue};
 use std::cell::RefCell;
-use rust_jvm_common::unified_types::{PType, ClassWithLoader};
+use rust_jvm_common::unified_types::{PType, ClassWithLoader, ReferenceType};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_name};
@@ -15,6 +15,7 @@ use std::ops::Deref;
 use std::ffi::CStr;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
+use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
 
 pub mod constant_pool;
 pub mod is_x;
@@ -74,8 +75,19 @@ fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, typ
         PType::IntType => {
             load_class_constant_by_name(state, frame, "java/lang/Integer".to_string());
         }
-        PType::Class(cl) => {
-            load_class_constant_by_name(state, frame, cl.class_name.get_referred_name());
+        PType::Ref(ref_) => {
+            match ref_ {
+                ReferenceType::Class(cl) => {
+                    load_class_constant_by_name(state, frame, cl.get_referred_name());
+                }
+                ReferenceType::Array(sub) => {
+                    frame.push(JavaValue::Object(array_of_type_class(
+                        state,
+                        frame.clone(),
+                        sub.deref(),
+                    ).into()));
+                }
+            }
         }
         PType::BooleanType => {
             //todo dup.
@@ -84,9 +96,6 @@ fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, typ
         PType::LongType => {
             //todo dup.
             load_class_constant_by_name(state, frame, "java/lang/Long".to_string());
-        }
-        PType::ArrayReferenceType(sub) => {
-            frame.push(JavaValue::Object(array_of_type_class(state, frame.clone(), sub.sub_type.deref()).into()));
         }
         PType::CharType => {
             load_class_constant_by_name(state, frame, "java/lang/Character".to_string());
@@ -123,7 +132,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let field_name_string = frame.pop();
 
         let field_desc_str = class_obj.clone().unwrap().classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
-        let field_type = parse_field_descriptor(&frame.class_pointer.loader, field_desc_str.as_str()).unwrap().field_type;
+        let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
         let field_type_class = field_type_to_class(state, &frame, &field_type);
 
         let modifiers = JavaValue::Int(f.access_flags as i32);
@@ -162,7 +171,11 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 //    }
 //    class_obj.unwrap()
 
-    let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: PType::Class(ClassWithLoader { class_name: class_name(&field_classfile.classfile), loader: field_classfile.loader.clone() }) })));
+    let res = Some(Arc::new(
+        Object::Array(ArrayObject {
+            elem_type: PType::Ref(ReferenceType::Class(class_name(&field_classfile.classfile))),
+            elems: RefCell::new(object_array),
+        })));
     to_object(res)
 }
 
@@ -188,7 +201,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
             true
         }
     }).for_each(|(i, m)| {
-        let class_type = PType::Class(ClassWithLoader { class_name: ClassName::class(), loader: loader.clone() });//todo this should be a global const
+        let class_type = PType::Ref(ReferenceType::Class(ClassName::class()));//todo this should be a global const
 
         push_new_object(frame.clone(), &constructor_class);
         let constructor_object = frame.pop();
@@ -204,12 +217,17 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let parameter_types = {
             let mut res = vec![];
             let desc_str = m.descriptor_str(&target_classfile);
-            let parsed = parse_method_descriptor(&loader, desc_str.as_str()).unwrap();
+            let parsed = parse_method_descriptor(desc_str.as_str()).unwrap();
             for param_type in parsed.parameter_types {
                 res.push(match param_type {
-                    PType::Class(c) => {
-                        load_class_constant_by_name(state, &frame, c.class_name.get_referred_name());
-                        frame.pop()
+                    PType::Ref(r) => {
+                        match r {
+                            ReferenceType::Class(c) => {
+                                load_class_constant_by_name(state, &frame, c.get_referred_name());
+                                frame.pop()
+                            }
+                            ReferenceType::Array(_) => unimplemented!()
+                        }
                     }
                     _ => unimplemented!()
                 });
@@ -240,7 +258,10 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, empty_byte_array.clone(), empty_byte_array];
         run_constructor(state, frame.clone(), constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
     });
-    let res = Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(object_array), elem_type: PType::Class(ClassWithLoader { class_name: class_name(&constructor_class.classfile), loader: constructor_class.loader.clone() }) })));
+    let res = Some(Arc::new(Object::Array(ArrayObject {
+        elems: RefCell::new(object_array),
+        elem_type: PType::Ref(ReferenceType::Class(class_name(&constructor_class.classfile))),
+    })));
     to_object(res)
 }
 
