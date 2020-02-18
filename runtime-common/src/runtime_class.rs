@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::fmt::{Formatter, Debug, Error};
 use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::loading::LoaderArc;
 use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
 

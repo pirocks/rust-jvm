@@ -4,7 +4,6 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, InvokeInterface};
 use crate::interpreter_util::run_function;
 use std::sync::Arc;
-use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::MethodInfo;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
 use rust_jvm_common::unified_types::{PType, ReferenceType};

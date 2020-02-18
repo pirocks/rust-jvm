@@ -7,17 +7,17 @@ use crate::verifier::instructions::special::nth1_operand_stack_is;
 use crate::verifier::instructions::special::array_component_type;
 use rust_jvm_common::unified_types::ReferenceType;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::stores::is_small_array;
+use crate::vtype::{VType, to_verification_type};
 
 
 pub fn instruction_is_type_safe_aaload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = nth1_operand_stack_is(2, stack_frame)?;
     let component_type = array_component_type(array_type)?;
     let object_array = VType::ArrayReferenceType(PType::Ref(ReferenceType::Class(ClassName::object())));
-    let next_frame = valid_type_transition(env, vec![VType::IntType, object_array], &component_type.to_verification_type(&env.class_loader), stack_frame)?;
+    let next_frame = valid_type_transition(env, vec![VType::IntType, object_array], &to_verification_type(&component_type,&env.class_loader), stack_frame)?;
     standard_exception_frame(stack_frame, next_frame)
 }
 

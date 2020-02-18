@@ -2,19 +2,20 @@ use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames, except
 use crate::verifier::codecorrectness::{Environment, can_pop, MergedCodeInstruction};
 use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::TypeSafetyError;
-use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo, Classfile};
-
-use rust_jvm_common::unified_types::{ClassWithLoader, ReferenceType};
+use rust_jvm_common::classfile::{InstructionInfo, UninitializedVariableInfo};
+use rust_jvm_common::unified_types::ReferenceType;
 use crate::verifier::passes_protected_check;
 use crate::verifier::codecorrectness::valid_type_transition;
-use rust_jvm_common::classnames::{ClassName, NameReference};
+use rust_jvm_common::classnames::ClassName;
 use crate::verifier::filecorrectness::is_assignable;
 use std::sync::Arc;
 use crate::OperandStack;
-use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
-use descriptor_parser::{Descriptor, MethodDescriptor, parse_method_descriptor, parse_field_descriptor};
+use descriptor_parser::{Descriptor, MethodDescriptor, parse_field_descriptor, DescriptorOwned};
 use std::ops::Deref;
+use crate::vtype::{VType, to_verification_type};
+use loading_common::ClassWithLoader;
+use stage2_common::classfile::ConstantInfo;
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -84,13 +85,14 @@ pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stac
     target_is_type_safe(env, &next_frame, target)?;
     standard_exception_frame(stack_frame, next_frame)
 }
-
+/*
+//todo not needed jdk8
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.class);
-    let constant_pool = &method_class.constant_pool;
-    let (name_index, descriptor_index) = match &constant_pool[cp].kind {
+    let constant_pool = &method_class.get_constant_pool();
+    let (name_index, descriptor_index) = match &constant_pool[cp] {
         ConstantKind::InvokeDynamic(i) => {
-            match &constant_pool[i.name_and_type_index as usize].kind {
+            match &constant_pool[i.name_and_type_index as usize] {
                 ConstantKind::NameAndType(nt) => (nt.name_index as usize, nt.descriptor_index as usize),
                 _ => panic!()
             }
@@ -103,42 +105,35 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
     if call_site_name == "<init>" || call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
     }
-    let operand_arg_list: Vec<VType> = descriptor.parameter_types.iter().rev().map(|x| {x.to_verification_type(&env.class_loader) }).collect();
-    let return_type = descriptor.return_type.to_verification_type(&env.class_loader);
+    let operand_arg_list: Vec<VType> = descriptor.parameter_types.iter().rev().map(|x| {to_verification_type(x,&env.class_loader) }).collect();
+    let return_type = to_verification_type(&descriptor.return_type,&env.class_loader);
     let stack_arg_list = operand_arg_list;
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     standard_exception_frame(stack_frame, next_frame)
 }
-
+*/
 pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.class);
-    let constant_pool = &method_class.constant_pool;
-    let ((name_index, descriptor_index), class_index) = match &constant_pool[cp].kind {
-        ConstantKind::InterfaceMethodref(i) => {
-            (match &constant_pool[i.nt_index as usize].kind {
-                ConstantKind::NameAndType(nt) => {
-                    (nt.name_index as usize, nt.descriptor_index as usize)
-                }
-                _ => panic!()
-            }, i.class_index as usize)
+    let constant_pool = method_class.get_constant_pool();
+    let ((method_name, descriptor_index), class) = match &constant_pool[cp] {
+        ConstantInfo::InterfaceMethodref(i) => {
+            ((i.nt.name.clone(), &i.nt.field_type), i.class.clone())
         }
         _ => panic!()
     };
-    let method_intf_name = match &constant_pool[class_index].kind {
-        ConstantKind::Class(c) => { &constant_pool[c.name_index as usize] }
-        _ => panic!()
-    }.extract_string_from_utf8();
-    let method_name = constant_pool[name_index].extract_string_from_utf8();
-    let descriptor_string = constant_pool[descriptor_index].extract_string_from_utf8();
-    let descriptor = parse_method_descriptor(descriptor_string.as_str()).unwrap();
-    if method_name == "<init>" || method_name == "<clinit>" {
+    let method_intf_name = class;
+    let descriptor = match descriptor_index {
+        DescriptorOwned::Method(m) => m,
+        DescriptorOwned::Field(_) => panic!(),
+    };
+    if method_name.deref() == &"<init>".to_string() || method_name.deref() == &"<clinit>".to_string() {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
     }
-    let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x|{PType::to_verification_type(x,&env.class_loader)}).collect();
-    let return_type = &descriptor.return_type.to_verification_type(&env.class_loader);
+    let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x| { to_verification_type(x, &env.class_loader) }).collect();
+    let return_type = &to_verification_type(&descriptor.return_type, &env.class_loader);
     let current_loader = env.class_loader.clone();
     //todo this is almost certainly wrong.
-    operand_arg_list.push(VType::Class(ClassWithLoader { class_name: ClassName::Str(method_intf_name), loader: current_loader }));
+    operand_arg_list.push(VType::Class(ClassWithLoader { class_name: method_intf_name, loader: current_loader }));
     let stack_arg_list = operand_arg_list;
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let next_frame = valid_type_transition(env, vec![], &return_type, &temp_frame)?;
@@ -170,7 +165,7 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, stac
 }
 
 fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name: &ClassName, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x|{x.to_verification_type(&env.class_loader)}).collect();
+    let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| { to_verification_type(x, &env.class_loader) }).collect();
     stack_arg_list.reverse();
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let locals = temp_frame.locals;
@@ -267,12 +262,9 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
                             MergedCodeInstruction::Instruction(instr) => match instr.instruction {
                                 InstructionInfo::new(this) => {
                                     let method_class = get_class(&env.vf, env.method.class);
-                                    match &method_class.constant_pool[this as usize].kind {
-                                        ConstantKind::Class(c) => {
-                                            let class_name = ClassName::Ref(NameReference {
-                                                class_file: Arc::downgrade(&method_class),
-                                                index: c.name_index,
-                                            });
+                                    match &method_class.get_constant_pool()[this as usize] {
+                                        ConstantInfo::Class(c) => {
+                                            let class_name = ClassName::SharedStr(c.name.clone());
                                             return Result::Ok(ClassWithLoader { class_name, loader: env.class_loader.clone() });
                                         }
                                         _ => { unimplemented!() }
@@ -310,11 +302,11 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
         loader: current_loader.clone(),
     });
     is_assignable(&env.vf, &current_class, &method_class)?;
-    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x|{x.to_verification_type(&env.class_loader)}).collect();
+    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| { to_verification_type(x, &env.class_loader) }).collect();
     operand_arg_list_copy.push(current_class);
-    let return_type = &parsed_descriptor.return_type.to_verification_type(&env.class_loader);
+    let return_type = &to_verification_type(&parsed_descriptor.return_type, &env.class_loader);
     let next_frame = valid_type_transition(env, operand_arg_list_copy, &return_type, stack_frame)?;
-    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x|{x.to_verification_type(&env.class_loader)}).collect();
+    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| { to_verification_type(x, &env.class_loader) }).collect();
     operand_arg_list_copy2.push(method_class);
     valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -326,14 +318,14 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
-    let operand_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x|x.to_verification_type(&env.class_loader)).collect();
+    let operand_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| to_verification_type(x, &env.class_loader)).collect();
 
     //todo redundant?
     let stack_arg_list: Vec<_> = operand_arg_list.iter()
         .rev()
         .map(|x| x.clone())
         .collect();
-    let return_type = &parsed_descriptor.return_type.to_verification_type(&env.class_loader);
+    let return_type = &to_verification_type(&parsed_descriptor.return_type, &env.class_loader);
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     standard_exception_frame(stack_frame, next_frame)
 }
@@ -341,7 +333,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf, env.method.class));
     let (class_name, method_class) = match class_type {
-        PType::Ref(r)=> {
+        PType::Ref(r) => {
             match r {
                 ReferenceType::Class(c) => (Some(c.clone()), VType::Class(ClassWithLoader { class_name: c.clone(), loader: env.class_loader.clone() })),
                 ReferenceType::Array(a) => {
@@ -357,7 +349,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
         unimplemented!();
     }
     // the operand_arg list is in the order displayed by the spec, e.g first elem a 0.
-    let operand_arg_list: &Vec<_> = &parsed_descriptor.parameter_types.iter().map(|x|x.to_verification_type(&env.class_loader)).collect();
+    let operand_arg_list: &Vec<_> = &parsed_descriptor.parameter_types.iter().map(|x| to_verification_type(x, &env.class_loader)).collect();
     // arg list is the reversed verison of operand_arg_list
     let arg_list: Vec<_> = operand_arg_list.iter()
         .rev()
@@ -365,7 +357,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
         .collect();
     let mut stack_arg_list: Vec<_> = arg_list.clone();
     stack_arg_list.push(method_class);
-    let return_type = &parsed_descriptor.return_type.to_verification_type(&env.class_loader);//todo what should the loader here be?
+    let return_type = to_verification_type(&parsed_descriptor.return_type, &env.class_loader);//todo what should the loader here be?
     let nf = valid_type_transition(env, stack_arg_list.clone(), &return_type, stack_frame)?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
     if class_name.is_some() {
@@ -374,37 +366,27 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     standard_exception_frame(stack_frame, nf)
 }
 
-pub fn get_method_descriptor(cp: usize, classfile: &Arc<Classfile>) -> (PType, String, MethodDescriptor) {
-    let c = &classfile.constant_pool[cp].kind;
+pub fn get_method_descriptor(cp: usize, classfile: &Arc<stage2_common::classfile::Classfile>) -> (PType, String, MethodDescriptor) {
+    let c = &classfile.get_constant_pool()[cp];
     let (class_name, method_name, parsed_descriptor) = match c {
-        ConstantKind::Methodref(m) => {
-            let c = classfile.extract_class_from_constant_pool(m.class_index);
-            let class_name = classfile.constant_pool[c.name_index as usize].extract_string_from_utf8();
-            //todo ideally for name we would return weak ref.
-            let (method_name, descriptor) = classfile.name_and_type_extractor(m.name_and_type_index);
-            let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
-                None => { unimplemented!() }
-                Some(pd) => { pd }
-            };
+        ConstantInfo::Methodref(m) => {
+            let class_name = m.class_name.clone();
+            let (method_name, parsed_descriptor) = (m.name_and_type_index.name.deref().clone(), m.name_and_type_index.field_type.clone().unwrap_method());
             (class_name, method_name, parsed_descriptor)
         }
-        ConstantKind::InterfaceMethodref(m) => {
+        ConstantInfo::InterfaceMethodref(m) => {
             //todo dup?
-            let c = classfile.extract_class_from_constant_pool(m.class_index);
-            let class_name = classfile.constant_pool[c.name_index as usize].extract_string_from_utf8();
-            let (method_name, descriptor) = classfile.name_and_type_extractor(m.nt_index);
-            let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
-                None => { unimplemented!() }
-                Some(pd) => { pd }
-            };
+            let class_name = m.class.clone();
+            let parsed_descriptor = m.nt.field_type.clone().unwrap_method();
+            let method_name = m.nt.name.deref().clone();
             (class_name, method_name, parsed_descriptor)
         }
         _ => unimplemented!("{:?}", c)
     };
-    (PType::Ref(possibly_array_to_type(class_name)), method_name, parsed_descriptor)
+    (PType::Ref(possibly_array_to_type(&class_name.get_referred_name())), method_name.deref().to_string(), parsed_descriptor)
 }
 
-pub fn possibly_array_to_type(class_name: String) -> ReferenceType {
+pub fn possibly_array_to_type(class_name: &String) -> ReferenceType {
     if class_name.contains("[") {
         let class_type = match parse_field_descriptor(class_name.as_str()) {
             None => panic!(),
@@ -412,7 +394,7 @@ pub fn possibly_array_to_type(class_name: String) -> ReferenceType {
         };
         ReferenceType::Array(class_type.unwrap_array_type().into())
     } else {
-        ReferenceType::Class(ClassName::Str(class_name))
+        ReferenceType::Class(ClassName::Str(class_name.clone()))
     }
 }
 

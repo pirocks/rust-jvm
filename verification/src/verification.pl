@@ -1605,6 +1605,8 @@ samePackageNameImpl(Name1,Name2) :-
     append(Packages2,[ObjectName2],Split2),
     Packages1 = Packages2.
 
+classSuperClassName(foo,foo).
+
 :- discontiguous isNotStatic/2.
 :- discontiguous isStatic/2.
 :- discontiguous isNotPrivate/2.

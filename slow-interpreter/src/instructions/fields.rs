@@ -4,9 +4,6 @@ use std::rc::Rc;
 use verification::verifier::instructions::special::extract_field_descriptor;
 use runtime_common::java_values::JavaValue;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::LoaderArc;
-
-
 pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;

@@ -23,17 +23,18 @@ use slow_interpreter::instructions::invoke::{invoke_virtual_method_i, invoke_spe
 use rust_jvm_common::unified_types::{PType, ClassWithLoader};
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use slow_interpreter::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
 use runtime_common::runtime_class::RuntimeClass;
 use std::thread::Thread;
 use std::ffi::{CStr, c_void};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
 use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
 use crate::introspection::JVM_GetCallerClass;
 use std::os::raw::{c_int, c_char};
+use std::pin::Pin;
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?

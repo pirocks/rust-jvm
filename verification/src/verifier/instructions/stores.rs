@@ -6,11 +6,12 @@ use crate::verifier::codecorrectness::pop_matching_type;
 use crate::verifier::codecorrectness::size_of;
 use crate::VerifierContext;
 use crate::verifier::codecorrectness::can_pop;
-use rust_jvm_common::unified_types::{ClassWithLoader, ReferenceType};
+use rust_jvm_common::unified_types::{ ReferenceType};
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::instructions::special::nth1_operand_stack_is;
-use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
+use crate::vtype::VType;
+use loading_common::ClassWithLoader;
 
 fn store_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: &Frame) -> Result<Frame, TypeSafetyError> {
     let mut next_stack = frame.stack_map.clone();

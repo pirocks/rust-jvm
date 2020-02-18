@@ -4,7 +4,6 @@ extern crate libloading;
 
 use std::sync::{RwLock, Arc};
 use std::cell::RefCell;
-use rust_jvm_common::loading::LoaderArc;
 use std::collections::HashMap;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::runtime_class::RuntimeClass;

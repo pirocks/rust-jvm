@@ -7,7 +7,6 @@ extern crate regex;
 
 use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
 use rust_jvm_common::unified_types::{PType, ReferenceType};
 use crate::runtime_class::prepare_class;

@@ -6,7 +6,6 @@ use std::sync::Arc;
 use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo, FieldInfo, Classfile};
 use crate::attribute_infos::parse_attributes;
 use crate::constant_infos::parse_constant_infos;
-use rust_jvm_common::loading::LoaderArc;
 use crate::parsing_util::ParsingContext;
 use crate::parsing_util::FileParsingContext;
 use std::io::Read;
@@ -72,8 +71,8 @@ pub fn parse_methods(p: &mut dyn ParsingContext, methods_count: u16) -> Vec<Meth
     return res;
 }
 
-pub fn parse_class_file(read: &mut dyn Read, loader: LoaderArc) -> Arc<Classfile> {
-    let mut p = FileParsingContext { constant_pool: None, read, loader };
+pub fn parse_class_file(read: &mut dyn Read) -> Arc<Classfile> {
+    let mut p = FileParsingContext { constant_pool: None, read};
     let mut class_file = parse_from_context(&mut p);
     class_file.constant_pool = p.constant_pool();//todo to avoid this yuckiness two pass parsing could be used
     Arc::new(class_file)

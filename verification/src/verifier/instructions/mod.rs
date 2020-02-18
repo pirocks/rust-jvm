@@ -1,16 +1,17 @@
 use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition, handler_exception_class, Handler, size_of, push_operand_stack};
-use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
+use rust_jvm_common::classfile::InstructionInfo;
 use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
-use rust_jvm_common::unified_types::ClassWithLoader;
-use rust_jvm_common::classnames::{ClassName, class_name};
+use rust_jvm_common::classnames::{ClassName};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
 use crate::VerifierContext;
 use crate::OperandStack;
-use rust_jvm_common::unified_types::VType;
+use crate::vtype::VType;
+use loading_common::ClassWithLoader;
+use stage2_common::classfile::ConstantInfo;
 
 pub mod loads;
 pub mod consts;
@@ -126,7 +127,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 
 fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> VType {
     let classfile = get_class(vf, class);
-    let class_name = class_name(&classfile);
+    let class_name = classfile.name();
     VType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
 }
 
@@ -178,7 +179,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 //todo how does bootstrap loader from throwable make its way into this
                 //todo why do I take the class name when I already know it
-                let class_name = class_name(&get_class(&env.vf, &exception_class));
+                let class_name = get_class(&env.vf, &exception_class).name();
                 is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
                               &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.bootstrap_loader.clone() }))
             } else {
@@ -453,30 +454,30 @@ fn instruction_is_type_safe_lcmp(env: &Environment, stack_frame: &Frame) -> Resu
     type_transition(env,stack_frame,vec![VType::LongType, VType::LongType],VType::IntType)
 }
 
-pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> VType {
+pub fn loadable_constant(vf: &VerifierContext, c: &stage2_common::classfile::ConstantInfo) -> VType {
     match c {
-        ConstantKind::Integer(_) => VType::IntType,
-        ConstantKind::Float(_) => VType::FloatType,
-        ConstantKind::Long(_) => VType::LongType,
-        ConstantKind::Double(_) => VType::DoubleType,
-        ConstantKind::Class(_c) => {
+        ConstantInfo::Integer(_) => VType::IntType,
+        ConstantInfo::Float(_) => VType::FloatType,
+        ConstantInfo::Long(_) => VType::LongType,
+        ConstantInfo::Double(_) => VType::DoubleType,
+        ConstantInfo::Class(_c) => {
             let class_name = ClassName::class();
             VType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         }
-        ConstantKind::String(_) => {
+        ConstantInfo::String(_) => {
             let class_name = ClassName::string();
             VType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         }
-        ConstantKind::MethodHandle(_) => unimplemented!(),
-        ConstantKind::MethodType(_) => unimplemented!(),
-        ConstantKind::Dynamic(_) => unimplemented!(),
-        ConstantKind::InvokeDynamic(_) => unimplemented!(),
+        ConstantInfo::MethodHandle(_) => unimplemented!(),
+        ConstantInfo::MethodType(_) => unimplemented!(),
+        ConstantInfo::Dynamic(_) => unimplemented!(),
+//        ConstantInfo::InvokeDynamic(_) => unimplemented!(),
         _ => panic!()
     }
 }
 
 pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
+    let const_ = &get_class(&env.vf, env.method.class).get_constant_pool()[cp as usize];
     let type_: VType = loadable_constant(&env.vf, const_);
     match type_ {
         VType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
@@ -487,20 +488,20 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Fra
 }
 
 pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
+    let const_ = &get_class(&env.vf, env.method.class).get_constant_pool()[cp as usize];
     let type_ = match const_ {
-        ConstantKind::Integer(_) => VType::IntType,
-        ConstantKind::Float(_) => VType::FloatType,
-        ConstantKind::Class(_) => VType::Class(ClassWithLoader { class_name: ClassName::class(), loader: env.vf.bootstrap_loader.clone() }),
-        ConstantKind::String(_) => VType::Class(ClassWithLoader { class_name: ClassName::string(), loader: env.vf.bootstrap_loader.clone() }),
-        ConstantKind::MethodType(_) => VType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/invoke/MethodType"), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantInfo::Integer(_) => VType::IntType,
+        ConstantInfo::Float(_) => VType::FloatType,
+        ConstantInfo::Class(_) => VType::Class(ClassWithLoader { class_name: ClassName::class(), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantInfo::String(_) => VType::Class(ClassWithLoader { class_name: ClassName::string(), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantInfo::MethodType(_) => VType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/invoke/MethodType"), loader: env.vf.bootstrap_loader.clone() }),
         _ => panic!()
     };
     type_transition(env, stack_frame, vec![], type_)
 }
 
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
+    let const_ = &get_class(&env.vf, env.method.class).get_constant_pool()[cp as usize];
     let type_: VType = loadable_constant(&env.vf, const_);//todo dup
     match type_ {
         VType::DoubleType => {}

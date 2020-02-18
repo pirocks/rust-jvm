@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use rust_jvm_common::classfile::{Classfile, ACC_FINAL};
-use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::ACC_STATIC;
 use std::collections::HashMap;
 use crate::InterpreterState;

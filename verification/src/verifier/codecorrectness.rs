@@ -1,24 +1,21 @@
 use crate::verifier::{Frame, ClassWithLoaderMethod, get_class};
 use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
 use crate::verifier::stackmapframes::get_stack_map_frames;
-use std::sync::Arc;
 use crate::verifier::instructions::{handlers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
 
 use std::option::Option::Some;
-use rust_jvm_common::unified_types::ClassWithLoader;
-use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
-use rust_jvm_common::classnames::{NameReference, class_name};
-use rust_jvm_common::loading::LoaderArc;
+use rust_jvm_common::classfile::{InstructionInfo, Instruction, Code, ACC_STATIC};
+use rust_jvm_common::classnames::class_name;
 use crate::verifier::TypeSafetyError;
-use crate::verifier::filecorrectness::get_access_flags;
 use crate::{StackMap, VerifierContext};
 use rust_jvm_common::classnames::ClassName;
 use crate::OperandStack;
-use rust_jvm_common::classfile::ConstantKind;
-use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
 use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
+use crate::vtype::VType;
+use loading_common::{ClassWithLoader, LoaderArc};
+use stage2_common::classfile::ConstantInfo;
 
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
@@ -150,11 +147,11 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
 }
 
 pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let access_flags = get_access_flags(vf, class, method);
+    let method_ = get_class(vf, method.class).get_method_from_i(method.method_index);
     does_not_override_final_method(vf, class, method)?;
-    if access_flags & ACC_NATIVE != 0 {
+    if method_.is_native() {
         Result::Ok(())
-    } else if access_flags & ACC_ABSTRACT != 0 {
+    } else if method_.is_abstract() {
         Result::Ok(())
     } else {
         //will have a code attribute. or else method_with_code_is_type_safe will crash todo
@@ -183,22 +180,19 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
         target: f.handler_pc as usize,
         class_name: if f.catch_type == 0 { None } else {
             let classfile = get_class(vf, class);
-            let catch_type_name_index = match &classfile.constant_pool[f.catch_type as usize].kind {
-                ConstantKind::Class(c) => {
-                    c.name_index
+            let catch_type_name = match &classfile.get_constant_pool()[f.catch_type as usize] {
+                ConstantInfo::Class(c) => {
+                    c.name
                 }
                 _ => panic!()
             };
-            Some(ClassName::Ref(NameReference {// should be a name as is currently b/c spec says so.
-                index: catch_type_name_index,
-                class_file: Arc::downgrade(&get_class(vf, class)),
-            }))
+            Some(ClassName::SharedStr(catch_type_name))
         },
     }).collect()
 }
 
 pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let method_info = &get_class(vf, class).methods[method.method_index];
+    let method_info = &get_class(vf, class).get_method_from_i(method.method_index as usize);
     let code = method_info.code_attribute().unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
@@ -318,7 +312,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
 
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, VType) {
     let classfile = get_class(vf, class);
-    let method_info = &classfile.methods[method.method_index as usize];
+    let method_info = &classfile.get_method_from_i(method.method_index as usize);
     let method_descriptor = method_info.descriptor_str(&classfile);
     let initial_parsed_descriptor = parse_method_descriptor(method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {

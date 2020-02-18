@@ -3,17 +3,17 @@ extern crate simple_logger;
 
 use std::sync::Arc;
 use crate::verifier::class_is_type_safe;
-use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::class_name;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
-use rust_jvm_common::unified_types::VType;
+use loading_common::{LoaderArc, ClassWithLoader};
+use crate::vtype::VType;
 
 
 pub mod verifier;
+pub mod vtype;
 
 
 pub fn verify(vf: &VerifierContext, to_verify: Arc<Classfile>, loader: LoaderArc) -> Result<(), TypeSafetyError> {

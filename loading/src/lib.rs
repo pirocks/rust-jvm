@@ -16,7 +16,15 @@ use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
 use verification::verify;
 use verification::VerifierContext;
+use core::fmt;
+use crate::classfile::Classfile;
+use crate::classnames::ClassName;
+use std::fmt::Display;
+use std::fmt::Debug;
+use std::error::Error;
+use std::fmt::Formatter;
 use log::trace;
+use std::hash::Hash;
 
 #[derive(Debug)]
 pub struct Classpath {
@@ -66,8 +74,8 @@ impl Loader for BootstrapLoader {
                 }
             }
             for i in &classfile.interfaces {
-                let interface_name= classfile.extract_class_from_constant_pool_name(*i);
-                self.load_class(self_arc.clone(),&ClassName::Str(interface_name),bl.clone())?;
+                let interface_name = classfile.extract_class_from_constant_pool_name(*i);
+                self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone())?;
             }
             match verify(&VerifierContext { bootstrap_loader: bl.clone() }, classfile.clone(), self_arc) {
                 Ok(_) => {}
@@ -140,3 +148,35 @@ impl BootstrapLoader {
         }
     }
 }
+
+
+
+
+
+
+impl Error for ClassLoadingError {}
+
+pub struct EmptyLoader {}
+
+impl Loader for EmptyLoader {
+    fn initiating_loader_of(&self, _class: &ClassName) -> bool {
+        unimplemented!()
+    }
+
+    fn find_representation_of(&self, _class: &ClassName) -> Result<File, ClassLoadingError> {
+        unimplemented!()
+    }
+
+    fn load_class(&self, _self_arc: LoaderArc, _class: &ClassName, _bl: LoaderArc) -> Result<Arc<Classfile>, ClassLoadingError> {
+        unimplemented!()
+    }
+
+    fn name(&self) -> LoaderName {
+        unimplemented!()
+    }
+
+    fn pre_load(&self, _self_arc: LoaderArc, _name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+        unimplemented!()
+    }
+}
+

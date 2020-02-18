@@ -4,17 +4,17 @@ use rust_jvm_common::unified_types::PType;
 use rust_jvm_common::classfile::{MethodInfo, Classfile};
 
 
-
 #[derive(Debug)]
+#[derive(Eq)]
 pub struct MethodDescriptor { pub parameter_types: Vec<PType>, pub return_type: PType }
 
 impl MethodDescriptor {
     pub fn from(method_info: &MethodInfo, classfile: &Classfile) -> Self {
-        parse_method_descriptor( method_info.descriptor_str(classfile).as_str()).unwrap()
+        parse_method_descriptor(method_info.descriptor_str(classfile).as_str()).unwrap()
     }
 }
 
-impl PartialEq for MethodDescriptor{
+impl PartialEq for MethodDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.parameter_types == other.parameter_types &&
             self.return_type == other.return_type
@@ -22,13 +22,53 @@ impl PartialEq for MethodDescriptor{
 }
 
 #[derive(Debug)]
+#[derive(Eq)]
 pub struct FieldDescriptor { pub field_type: PType }
 
 
+impl PartialEq for FieldDescriptor {
+    fn eq(&self, other: &Self) -> bool {
+        self.field_type == other.field_type
+    }
+}
+
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub enum Descriptor<'l> {
     Method(&'l MethodDescriptor),
     Field(&'l FieldDescriptor),
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub enum DescriptorOwned {
+    Method(MethodDescriptor),
+    Field(FieldDescriptor),
+}
+
+impl DescriptorOwned {
+    pub fn unwrap_method(self) -> MethodDescriptor {
+        match self {
+            DescriptorOwned::Method(m) => m,
+            DescriptorOwned::Field(_) => panic!(),
+        }
+    }
+
+    pub fn unwrap_field(self) -> FieldDescriptor {
+        match self {
+            DescriptorOwned::Method(_) => panic!(),
+            DescriptorOwned::Field(f) => f,
+        }
+    }
+}
+
+impl Clone for DescriptorOwned {
+    fn clone(&self) -> Self {
+        match self {
+            DescriptorOwned::Method(m) => DescriptorOwned::Method(MethodDescriptor { parameter_types: m.parameter_types.clone(), return_type: m.return_type.clone() }),
+            DescriptorOwned::Field(f) => DescriptorOwned::Field(FieldDescriptor { field_type: f.field_type.clone() }),
+        }
+    }
 }
 
 pub fn eat_one(str_: &str) -> &str {
@@ -78,9 +118,9 @@ pub fn parse_array_type(str_: &str) -> Option<(&str, PType)> {
 }
 
 pub fn parse_field_type(str_: &str) -> Option<(&str, PType)> {
-    parse_array_type( str_).or_else(|| {
+    parse_array_type(str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
-            parse_object_type( str_).or_else(|| {
+            parse_object_type(str_).or_else(|| {
                 panic!("{}", str_)
             })
         })
@@ -119,7 +159,7 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
         }
     }
     remaining_to_parse = eat_one(remaining_to_parse);
-    if let Some((should_be_empty, return_type)) = parse_return_descriptor( remaining_to_parse) {
+    if let Some((should_be_empty, return_type)) = parse_return_descriptor(remaining_to_parse) {
         if should_be_empty.is_empty() {
             Some(MethodDescriptor { return_type, parameter_types })
         } else {
@@ -131,7 +171,7 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
 }
 
 pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, PType)> {
-    parse_field_type( str_)
+    parse_field_type(str_)
 }
 
 pub fn parse_void_descriptor(str_: &str) -> Option<(&str, PType)> {
@@ -143,7 +183,7 @@ pub fn parse_void_descriptor(str_: &str) -> Option<(&str, PType)> {
 
 pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PType)> {
     parse_void_descriptor(str_).or_else(|| {
-        parse_field_type( str_)
+        parse_field_type(str_)
     })
 }
 

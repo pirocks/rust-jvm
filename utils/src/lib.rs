@@ -1,4 +1,3 @@
-use rust_jvm_common::loading::LoaderArc;
 use std::sync::Arc;
 use runtime_common::InterpreterState;
 use runtime_common::runtime_class::RuntimeClass;

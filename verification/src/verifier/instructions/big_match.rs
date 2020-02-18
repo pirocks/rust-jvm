@@ -162,7 +162,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::imul => instruction_is_type_safe_iadd(env, stack_frame),
         InstructionInfo::ineg => instruction_is_type_safe_ineg(env, stack_frame),
         InstructionInfo::instanceof(cp) => instruction_is_type_safe_instanceof(*cp, env, stack_frame),
-        InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, stack_frame),
+//        InstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, stack_frame),
         InstructionInfo::invokeinterface(ii) => instruction_is_type_safe_invokeinterface(ii.index as usize, ii.count as usize, env, stack_frame),
         InstructionInfo::invokespecial(cp) => instruction_is_type_safe_invokespecial(*cp as usize, env, stack_frame),
         InstructionInfo::invokestatic(cp) => instruction_is_type_safe_invokestatic(*cp as usize, env, stack_frame),

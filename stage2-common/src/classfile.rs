@@ -2,9 +2,10 @@ use std::hash::Hasher;
 use crate::string_pool::{StringPoolEntry, StringPool};
 use std::sync::Arc;
 use std::mem::transmute;
-use descriptor_parser::parse_field_descriptor;
+use descriptor_parser::{parse_field_descriptor, FieldDescriptor, MethodDescriptor, parse_method_descriptor, DescriptorOwned};
 use rust_jvm_common::unified_types::PType;
-use rust_jvm_common::classfile::ConstantKind;
+use rust_jvm_common::classfile::{ConstantKind, ACC_STATIC, ACC_FINAL, ACC_PUBLIC, ACC_PRIVATE, ACC_ABSTRACT, UninitializedVariableInfo, ACC_INTERFACE, ACC_NATIVE, ACC_PROTECTED, NestMembers, Exceptions, Code, RuntimeInvisibleParameterAnnotations, RuntimeVisibleParameterAnnotations, AnnotationDefault, MethodParameters, Synthetic, Deprecated, Signature, RuntimeVisibleAnnotations, RuntimeInvisibleAnnotations, LineNumberTable, LocalVariableTable, LocalVariableTypeTable, StackMapTable, RuntimeVisibleTypeAnnotations, RuntimeInvisibleTypeAnnotations};
+use rust_jvm_common::classnames::ClassName;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -60,125 +61,6 @@ pub struct ConstantValue {
     pub constant_value_index: u16
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Code {
-    pub attributes: Vec<AttributeInfo>,
-    pub max_stack: u16,
-    pub max_locals: u16,
-    pub code_raw: Vec<u8>,
-    pub code: Vec<Instruction>,
-    pub exception_table: Vec<ExceptionTableElem>,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct ExceptionTableElem {
-    pub start_pc: u16,
-    pub end_pc: u16,
-    pub handler_pc: u16,
-    pub catch_type: u16,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct LineNumberTableEntry {
-    pub start_pc: u16,
-    pub line_number: u16,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Exceptions {
-    //todo
-    pub exception_index_table: Vec<u16>
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct RuntimeVisibleParameterAnnotations {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct RuntimeInvisibleParameterAnnotations {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct AnnotationDefault {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct MethodParameters {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Synthetic {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Deprecated {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Signature {
-    //todo
-    pub signature_index: u16
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct RuntimeVisibleAnnotations {
-    //todo
-    pub annotations: Vec<Annotation>
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct RuntimeInvisibleAnnotations {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct LineNumberTable {
-    //todo
-    pub line_number_table: Vec<LineNumberTableEntry>
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct LocalVariableTable {
-    //todo
-    pub local_variable_table: Vec<LocalVariableTableEntry>
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct LocalVariableTableEntry {
-    pub start_pc: u16,
-    pub length: u16,
-    pub name_index: u16,
-    pub descriptor_index: u16,
-    pub index: u16,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct LocalVariableTypeTable {
-    //todo
-}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -192,19 +74,19 @@ pub struct ObjectVariableInfo {
 pub struct ArrayVariableInfo {
     pub array_type: PType
 }
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Hash)]
-pub struct UninitializedVariableInfo {
-    pub offset: u16
-}
-
-impl Clone for UninitializedVariableInfo {
-    fn clone(&self) -> Self {
-        UninitializedVariableInfo { offset: self.offset }
-    }
-}
+//
+//#[derive(Debug)]
+//#[derive(Eq, PartialEq)]
+//#[derive(Hash)]
+//pub struct UninitializedVariableInfo {
+//    pub offset: u16
+//}
+//
+//impl Clone for UninitializedVariableInfo {
+//    fn clone(&self) -> Self {
+//        UninitializedVariableInfo { offset: self.offset }
+//    }
+//}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -220,93 +102,6 @@ pub enum VerificationTypeInfo {
     Uninitialized(UninitializedVariableInfo),
     Array(ArrayVariableInfo),
 
-}
-
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct SameFrame {
-    pub offset_delta: u16
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct SameLocals1StackItemFrame {
-    pub offset_delta: u16,
-    pub stack: PType,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct SameLocals1StackItemFrameExtended {
-    pub offset_delta: u16,
-    pub stack: PType,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct ChopFrame {
-    pub offset_delta: u16,
-    pub k_frames_to_chop: u8,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct SameFrameExtended {
-    pub offset_delta: u16
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct AppendFrame {
-    pub offset_delta: u16,
-    pub locals: Vec<PType>,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct FullFrame {
-    pub offset_delta: u16,
-    pub number_of_locals: u16,
-    pub locals: Vec<PType>,
-    pub number_of_stack_items: u16,
-    pub stack: Vec<PType>,
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub enum StackMapFrame {
-    SameFrame(SameFrame),
-    SameLocals1StackItemFrame(SameLocals1StackItemFrame),
-    SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended),
-    ChopFrame(ChopFrame),
-    SameFrameExtended(SameFrameExtended),
-    AppendFrame(AppendFrame),
-    FullFrame(FullFrame),
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct StackMapTable {
-    pub entries: Vec<StackMapFrame>
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct RuntimeVisibleTypeAnnotations {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct RuntimeInvisibleTypeAnnotations {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct NestMembers {
-    pub classes: Vec<u16>
 }
 
 #[derive(Debug)]
@@ -446,7 +241,7 @@ impl Utf8 {
 
 impl PartialEq for Utf8 {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.entry,&other.entry)
+        Arc::ptr_eq(&self.entry, &other.entry)
     }
 }
 
@@ -461,8 +256,10 @@ pub struct Integer {
 pub struct Float {
     pub val: f32
 }
+
 impl Eq for Float {}
-impl PartialEq for Float{
+
+impl PartialEq for Float {
     fn eq(&self, other: &Self) -> bool {
         self.val == other.val
     }
@@ -478,8 +275,10 @@ pub struct Long {
 pub struct Double {
     pub val: f64
 }
+
 impl Eq for Double {}
-impl PartialEq for Double{
+
+impl PartialEq for Double {
     fn eq(&self, other: &Self) -> bool {
         self.val == other.val
     }
@@ -500,30 +299,30 @@ pub struct String_ {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Fieldref {
-    //unimplemented!()
-    pub class_name: Arc<StringPoolEntry>,
+    pub class_name: ClassName,
     pub name_and_type: NameAndType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Methodref {
-    pub class_index: CPIndex,
-    pub name_and_type_index: CPIndex,
+    pub class_name: ClassName,
+    pub name_and_type_index: NameAndType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct InterfaceMethodref {
-    pub class_index: CPIndex,
-    pub nt_index: CPIndex,
+    pub class: ClassName,
+    pub nt: NameAndType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct NameAndType {
     pub name: Arc<StringPoolEntry>,
-    pub field_type: PType,
+    pub field_type: DescriptorOwned,
 }
 
 #[derive(Debug)]
@@ -593,6 +392,16 @@ pub enum ConstantInfo {
     InvalidConstant(InvalidConstant),
 }
 
+impl ConstantInfo {
+    pub fn unwrap_class(&self) -> &Class {
+        match self {
+            ConstantInfo::Class(c) => c,
+            _ => panic!()
+        }
+    }
+}
+
+
 fn from_stage_1_constant_pool(
     constant_pool_stage_1: &Vec<rust_jvm_common::classfile::ConstantInfo>,
     string_pool: &mut StringPool,
@@ -604,46 +413,51 @@ fn from_stage_1_constant_pool(
     res_pool
 }
 
-impl From<Integer> for ConstantInfo{
+impl From<Integer> for ConstantInfo {
     fn from(i: Integer) -> Self {
         ConstantInfo::Integer(i)
     }
 }
-impl From<Double> for ConstantInfo{
+
+impl From<Double> for ConstantInfo {
     fn from(d: Double) -> Self {
         ConstantInfo::Double(d)
     }
 }
-impl From<Float> for ConstantInfo{
+
+impl From<Float> for ConstantInfo {
     fn from(f: Float) -> Self {
         ConstantInfo::Float(f)
     }
 }
-impl From<Utf8> for ConstantInfo{
+
+impl From<Utf8> for ConstantInfo {
     fn from(u: Utf8) -> Self {
         ConstantInfo::Utf8(u)
     }
 }
-impl From<Long> for ConstantInfo{
+
+impl From<Long> for ConstantInfo {
     fn from(u: Long) -> Self {
         ConstantInfo::Long(u)
     }
 }
-impl From<Class> for ConstantInfo{
+
+impl From<Class> for ConstantInfo {
     fn from(c: Class) -> Self {
         ConstantInfo::Class(c)
     }
 }
 
-impl From<String_> for ConstantInfo{
+impl From<String_> for ConstantInfo {
     fn from(s: String_) -> Self {
         ConstantInfo::String(s)
     }
 }
 
-impl From<Fieldref> for ConstantInfo{
-    fn from(f: Fieldref) -> Self {
-        ConstantInfo::Fieldref(f)
+impl From<crate::classfile::Fieldref> for crate::classfile::ConstantInfo {
+    fn from(f: crate::classfile::Fieldref) -> crate::classfile::ConstantInfo {
+        crate::classfile::ConstantInfo::Fieldref(f)
     }
 }
 
@@ -691,16 +505,16 @@ impl ConstantInfo {
                 let name_and_type = match &constant_pool_stage_1[fr.name_and_type_index as usize].kind {
                     ConstantKind::NameAndType(nt) => {
                         let desc_str = (constant_pool_stage_1[nt.descriptor_index as usize]).extract_string_from_utf8();
-                        let parsed_type = parse_field_descriptor(&desc_str).unwrap().field_type;
+                        let parsed_field = parse_field_descriptor(&desc_str).unwrap();
 
                         let class_name = constant_pool_stage_1[nt.name_index as usize].extract_string_from_utf8();
                         let class_name_entry = string_pool.get_or_add(class_name);
 
-                        NameAndType { name: class_name_entry, field_type: parsed_type }
+                        NameAndType { name: class_name_entry, field_type: DescriptorOwned::Field(parsed_field) }
                     }
                     _ => panic!(),
                 };
-                Fieldref { class_name: class_name_entry, name_and_type, }.into()
+                Fieldref { class_name: ClassName::SharedStr(class_name_entry), name_and_type }.into()
             }
             ConstantKind::Methodref(_) => { todo!() }
             ConstantKind::InterfaceMethodref(_) => { todo!() }
@@ -725,22 +539,133 @@ pub struct AttributeInfo {
     pub attribute_type: AttributeType,
 }
 
+impl From<&rust_jvm_common::classfile::AttributeType> for AttributeType {
+    fn from(t: &rust_jvm_common::classfile::AttributeType) -> Self {
+        match t {
+            rust_jvm_common::classfile::AttributeType::SourceFile(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::InnerClasses(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::EnclosingMethod(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::SourceDebugExtension(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::BootstrapMethods(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::Module(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::NestHost(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::NestMembers(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::ConstantValue(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::Code(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::Exceptions(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::RuntimeVisibleParameterAnnotations(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::RuntimeInvisibleParameterAnnotations(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::AnnotationDefault(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::MethodParameters(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::Synthetic(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::Deprecated(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::Signature(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::RuntimeVisibleAnnotations(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::RuntimeInvisibleAnnotations(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::LineNumberTable(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::LocalVariableTable(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::LocalVariableTypeTable(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::StackMapTable(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::RuntimeVisibleTypeAnnotations(_) => unimplemented!(),
+            rust_jvm_common::classfile::AttributeType::RuntimeInvisibleTypeAnnotations(_) => unimplemented!(),
+        }
+    }
+}
+
+impl From<&rust_jvm_common::classfile::AttributeInfo> for AttributeInfo {
+    fn from(a: &rust_jvm_common::classfile::AttributeInfo) -> Self {
+        AttributeInfo {
+            attribute_name_index: a.attribute_name_index,
+            attribute_length: a.attribute_length,
+            attribute_type: (&a.attribute_type).into(),
+        }
+    }
+}
+
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct FieldInfo {
     pub access_flags: u16,
-    pub name_index: CPIndex,
-    pub descriptor_index: CPIndex,
+    pub name: Arc<StringPoolEntry>,
+    pub descriptor: FieldDescriptor,
     pub attributes: Vec<AttributeInfo>,
+}
+
+impl FieldInfo {
+    pub fn is_final(&self) -> bool {
+        self.access_flags & ACC_FINAL > 0
+    }
+    pub fn is_static(&self) -> bool {
+        self.access_flags & ACC_STATIC > 0
+    }
+    pub fn is_abstract(&self) -> bool {
+        self.access_flags & ACC_ABSTRACT > 0
+    }
+
+    pub fn is_private(&self) -> bool {
+        self.access_flags & ACC_PRIVATE > 0
+    }
+
+    pub fn is_protected(&self) -> bool {
+        self.access_flags & ACC_PROTECTED > 0
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.access_flags & ACC_PUBLIC > 0
+    }
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct MethodInfo {
-    pub access_flags: u16,
-    pub name_index: CPIndex,
-    pub descriptor_index: CPIndex,
+    access_flags: u16,
+    pub name: Arc<StringPoolEntry>,
+    pub descriptor: MethodDescriptor,
     pub attributes: Vec<AttributeInfo>,
+}
+
+impl MethodInfo {
+    pub fn is_final(&self) -> bool {
+        self.access_flags & ACC_FINAL > 0
+    }
+    pub fn is_static(&self) -> bool {
+        self.access_flags & ACC_STATIC > 0
+    }
+    pub fn is_native(&self) -> bool {
+        self.access_flags & ACC_NATIVE > 0
+    }
+    pub fn is_abstract(&self) -> bool {
+        self.access_flags & ACC_ABSTRACT > 0
+    }
+
+    pub fn is_private(&self) -> bool {
+        self.access_flags & ACC_PRIVATE > 0
+    }
+
+    pub fn is_protected(&self) -> bool {
+        self.access_flags & ACC_PROTECTED > 0
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.access_flags & ACC_PUBLIC > 0
+    }
+
+    pub fn code_attribute(&self) -> Option<&Code>{
+        if self.is_abstract() || self.is_native() {
+            return None;
+        }
+
+        for attr in self.attributes.iter() {
+            match &attr.attribute_type {
+                AttributeType::Code(code) => {
+                    return Some(code);
+                }
+                _ => {}
+            }
+        }
+        //todo dup
+        panic!("Method has no code attribute, which is unusual given code is sorta the point of a method.")
+    }
 }
 
 
@@ -1036,8 +961,8 @@ pub struct Classfile {
     major_version: u16,
     constant_pool: Vec<ConstantInfo>,
     access_flags: u16,
-    this_class: CPIndex,
-    super_class: CPIndex,
+    this_name: ClassName,
+    super_name: Option<ClassName>,
     interfaces: Vec<Interface>,
     fields: Vec<FieldInfo>,
     methods: Vec<MethodInfo>,
@@ -1046,24 +971,140 @@ pub struct Classfile {
 
 #[derive(Debug)]
 pub struct Interface {
-    //todo
+    name: ClassName
 }
 
 impl Classfile {
-    fn from_stage1(stage_1: &crate::classfile::Classfile) -> Self {
+    pub fn from_stage1(stage_1: &rust_jvm_common::classfile::Classfile, string_pool: &mut StringPool) -> Self {
+        let this_name = ClassName::SharedStr(string_pool.get_or_add(stage_1.constant_pool[stage_1.this_class as usize].extract_string_from_utf8()));
+        let super_name: Option<ClassName>;
+        if stage_1.super_class == 0 {
+            super_name = None;
+        } else {
+            super_name = ClassName::SharedStr(string_pool.get_or_add(stage_1.constant_pool[stage_1.super_class as usize].extract_string_from_utf8())).into();
+        }
+        let mut interfaces = vec![];
+        for interface_name_i in &stage_1.interfaces {
+            let interface_name = ClassName::SharedStr(string_pool.get_or_add(stage_1.extract_class_from_constant_pool_name(*interface_name_i)));
+            interfaces.push(Interface { name: interface_name })
+        }
+        let mut fields = vec![];
+        for field in &stage_1.fields {
+            let res_field = Classfile::field_from_stage(&stage_1, string_pool, field);
+            fields.push(res_field);
+        }
+        let mut methods = vec![];
+        for method in &stage_1.methods {
+            let res_method = Classfile::method_from_stage(stage_1, string_pool, method);
+            methods.push(res_method);
+        }
         Classfile {
             magic: stage_1.magic,
             minor_version: stage_1.minor_version,
             major_version: stage_1.major_version,
-            constant_pool: todo!(),
+            constant_pool: from_stage_1_constant_pool(&stage_1.constant_pool, string_pool),//todo maybe minimize constant pool
             access_flags: stage_1.access_flags,
-            this_class: todo!(),
-            super_class: todo!(),
-            interfaces: todo!(),
-            fields: todo!(),
-            methods: todo!(),
-            attributes: todo!(),
+            this_name,
+            super_name,
+            interfaces,
+            fields,
+            methods,
+            attributes: stage_1.attributes.iter().map(|x| x.into()).collect(),
         }
+    }
+
+    fn method_from_stage(
+        stage_1: &rust_jvm_common::classfile::Classfile,
+        string_pool: &mut StringPool,
+        method: &rust_jvm_common::classfile::MethodInfo,
+    ) -> MethodInfo {
+        let name_str = stage_1.constant_pool[method.name_index as usize].extract_string_from_utf8();
+        let desc_str = stage_1.constant_pool[method.descriptor_index as usize].extract_string_from_utf8();
+        let descriptor = parse_method_descriptor(&desc_str).unwrap();
+        let res_method = MethodInfo {
+            access_flags: method.access_flags,
+            name: string_pool.get_or_add(name_str),
+            descriptor,
+            attributes: method.attributes.iter().map(|x| x.into()).collect(),
+        };
+        res_method
+    }
+
+    fn field_from_stage(
+        stage_1: &rust_jvm_common::classfile::Classfile,
+        string_pool: &mut StringPool,
+        field: &rust_jvm_common::classfile::FieldInfo,
+    ) -> FieldInfo {
+        let name_str = stage_1.constant_pool[field.name_index as usize].extract_string_from_utf8();
+        let desc_str = stage_1.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
+        let descriptor = parse_field_descriptor(&desc_str).unwrap();
+        let res_field = FieldInfo {
+            access_flags: field.access_flags,
+            name: string_pool.get_or_add(name_str),
+            descriptor,
+            attributes: stage_1.attributes.iter().map(|x| x.into()).collect(),
+        };
+        res_field
+    }
+
+    pub fn is_static(&self) -> bool {
+        self.access_flags & ACC_STATIC > 0
+    }
+
+    pub fn is_final(&self) -> bool {
+        self.access_flags & ACC_FINAL > 0
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.access_flags & ACC_PUBLIC > 0
+    }
+
+    pub fn is_private(&self) -> bool {
+        self.access_flags & ACC_PRIVATE > 0
+    }
+
+    pub fn is_abstract(&self) -> bool {
+        self.access_flags & ACC_ABSTRACT > 0
+    }
+
+    pub fn is_interface(&self) -> bool {
+        self.access_flags & ACC_INTERFACE > 0
+    }
+
+    pub fn super_name(&self) -> Option<ClassName> {
+        self.super_name.clone()
+    }
+
+    pub fn name(&self) -> ClassName {
+        self.this_name.clone()
+    }
+
+    pub fn get_constant_pool(&self) -> &Vec<ConstantInfo> {
+        //todo this method will be phased out, since breaks encapsulation or something.
+        &self.constant_pool
+    }
+
+    pub fn get_method_from_i(&self, i: usize) -> &MethodInfo {
+        //todo phase out this method and all array index access
+        &self.methods[i]
+    }
+
+    pub fn num_methods(&self) -> usize {
+        self.methods.len()
+    }
+
+    pub fn methods(&self) -> &Vec<MethodInfo> {
+        //todo phase out
+        &self.methods
+    }
+
+    pub fn fields(&self) -> &Vec<FieldInfo> {
+        //todo phase out
+        &self.fields
+    }
+
+    pub fn old() -> Arc<rust_jvm_common::classfile::Classfile>{
+        unimplemented!()
     }
 }
 

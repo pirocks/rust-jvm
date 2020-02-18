@@ -370,6 +370,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "loading-common"
+version = "0.1.0"
+dependencies = [
+ "rust-jvm-common 0.1.0",
+ "stage2-common 0.1.0",
+]
+
+[[package]]
 name = "log"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -599,6 +607,7 @@ name = "runtime-common"
 version = "0.1.0"
 dependencies = [
  "libloading 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "loading 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-jvm-common 0.1.0",
  "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -616,6 +625,7 @@ dependencies = [
  "jni-bindings 0.1.0",
  "jvm 0.1.0",
  "loading 0.1.0",
+ "loading-common 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "runtime-common 0.1.0",
  "rust-jvm-common 0.1.0",
@@ -719,6 +729,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_"
+version = "0.1.0"
+
+[[package]]
 name = "textwrap"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -786,10 +800,12 @@ dependencies = [
  "descriptor-parser 0.1.0",
  "jar-manipulation 0.1.0",
  "loading 0.1.0",
+ "loading-common 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ntest_timeout 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-jvm-common 0.1.0",
  "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stage2-common 0.1.0",
  "timebomb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

@@ -4,6 +4,7 @@ use std::fmt::Formatter;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct NameReference {
@@ -25,6 +26,7 @@ impl PartialEq for NameReference {
 pub enum ClassName {
     Ref(NameReference),
     Str(String),
+    SharedStr(Arc<String>),
 }
 
 impl ClassName {
@@ -64,15 +66,12 @@ impl PartialEq for ClassName {
 impl std::clone::Clone for ClassName {
     fn clone(&self) -> Self {
         match self {
-            ClassName::Ref(r) => {
-                ClassName::Ref(NameReference {
-                    index: r.index,
-                    class_file: r.class_file.clone(),
-                })
-            }
-            ClassName::Str(s) => {
-                ClassName::Str(s.clone())//todo fix
-            }
+            ClassName::Ref(r) => ClassName::Ref(NameReference {
+                index: r.index,
+                class_file: r.class_file.clone(),
+            }),
+            ClassName::Str(s) => ClassName::Str(s.clone()),//todo fix
+            ClassName::SharedStr(s) => ClassName::SharedStr(s.clone())
         }
     }
 }
@@ -94,7 +93,8 @@ impl ClassName {
                 };
                 return upgraded_class_ref.constant_pool[r.index as usize].extract_string_from_utf8();
             }
-            ClassName::Str(s) => { s.clone() }//todo this clone may be expensive, ditch?
+            ClassName::Str(s) => s.clone(), //todo this clone may be expensive, ditch?
+            ClassName::SharedStr(s) => s.deref().clone() //todo this clone is also expensive
         }
     }
 }
@@ -106,8 +106,8 @@ pub fn class_name(class: &Arc<Classfile>) -> ClassName {
         _ => { panic!() }
     };
 
-    return ClassName::Ref(NameReference {
+    ClassName::Ref(NameReference {
         class_file: Arc::downgrade(&class),
         index: class_info_entry.name_index,
-    });
+    })
 }
