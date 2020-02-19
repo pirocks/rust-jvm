@@ -47,7 +47,7 @@ impl ClassView {
     pub fn name(&self) -> ClassName {
         unimplemented!()
     }
-    pub fn super_name(&self) -> ClassName {
+    pub fn super_name(&self) -> Option<ClassName> {
         unimplemented!()
     }
     pub fn methods(&self) -> MethodIterator {

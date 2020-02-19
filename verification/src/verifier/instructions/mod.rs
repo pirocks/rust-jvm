@@ -11,6 +11,7 @@ use crate::VerifierContext;
 use crate::OperandStack;
 use rust_jvm_common::vtype::VType;
 use rust_jvm_common::loading::ClassWithLoader;
+use rust_jvm_common::view::constant_info_view::ConstantInfoView;
 
 pub mod loads;
 pub mod consts;
@@ -178,7 +179,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 //todo how does bootstrap loader from throwable make its way into this
                 //todo why do I take the class name when I already know it
-                let class_name = &get_class(&env.vf, &exception_class).name();
+                let class_name = get_class(&env.vf, &exception_class).name().clone();
                 is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
                               &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.bootstrap_loader.clone() }))
             } else {
@@ -453,7 +454,7 @@ fn instruction_is_type_safe_lcmp(env: &Environment, stack_frame: &Frame) -> Resu
     type_transition(env,stack_frame,vec![VType::LongType, VType::LongType],VType::IntType)
 }
 
-pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> VType {
+pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
     match c {
         ConstantKind::Integer(_) => VType::IntType,
         ConstantKind::Float(_) => VType::FloatType,
@@ -476,7 +477,7 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantKind) -> VType {
 }
 
 pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
+    let const_ = &get_class(&env.vf, env.method.class).constant_pool_view(cp as usize);
     let type_: VType = loadable_constant(&env.vf, const_);
     match type_ {
         VType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
@@ -487,7 +488,7 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Fra
 }
 
 pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
+    let const_ = &get_class(&env.vf, env.method.class).constant_pool_view(cp as usize);
     let type_ = match const_ {
         ConstantKind::Integer(_) => VType::IntType,
         ConstantKind::Float(_) => VType::FloatType,
@@ -500,7 +501,7 @@ pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_fram
 }
 
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool[cp as usize].kind;
+    let const_ = &get_class(&env.vf, env.method.class).constant_pool_view(cp as usize);
     let type_: VType = loadable_constant(&env.vf, const_);//todo dup
     match type_ {
         VType::DoubleType => {}

@@ -6,7 +6,6 @@ use crate::verifier::codecorrectness::pop_matching_type;
 use crate::verifier::codecorrectness::size_of;
 use crate::VerifierContext;
 use crate::verifier::codecorrectness::can_pop;
-use rust_jvm_common::unified_types::{ReferenceType, PType};
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::instructions::special::nth1_operand_stack_is;
 use rust_jvm_common::vtype::VType;

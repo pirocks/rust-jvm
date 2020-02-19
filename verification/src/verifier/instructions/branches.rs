@@ -16,6 +16,8 @@ use descriptor_parser::{Descriptor, MethodDescriptor, parse_method_descriptor, p
 use std::ops::Deref;
 use rust_jvm_common::vtype::VType;
 use rust_jvm_common::loading::ClassWithLoader;
+use rust_jvm_common::view::ptype_view::PTypeView;
+use rust_jvm_common::view::ClassView;
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -135,7 +137,7 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     if method_name == "<init>" || method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
     }
-    let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x|{PType::to_verification_type(x,&env.class_loader)}).collect();
+    let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x|{PTypeView::to_verification_type(x,&env.class_loader)}).collect();
     let return_type = &descriptor.return_type.to_verification_type(&env.class_loader);
     let current_loader = env.class_loader.clone();
     //todo this is almost certainly wrong.
@@ -375,7 +377,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     standard_exception_frame(stack_frame, nf)
 }
 
-pub fn get_method_descriptor(cp: usize, classfile: &Arc<Classfile>) -> (PType, String, MethodDescriptor) {
+pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PType, String, MethodDescriptor) {
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantKind::Methodref(m) => {

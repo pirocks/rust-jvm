@@ -5,7 +5,6 @@ use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::special::nth1_operand_stack_is;
 use crate::verifier::instructions::special::array_component_type;
-use rust_jvm_common::unified_types::ReferenceType;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::type_transition;
@@ -48,11 +47,11 @@ pub fn instruction_is_type_safe_baload(env: &Environment, stack_frame: &Frame) -
 }
 
 pub fn instruction_is_type_safe_caload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env, stack_frame, vec![VType::IntType, VType::ArrayReferenceType(PType::CharType)], VType::IntType)
+    type_transition(env, stack_frame, vec![VType::IntType, VType::ArrayReferenceType(PTypeView::CharType)], VType::IntType)
 }
 
 pub fn instruction_is_type_safe_daload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(PType::DoubleType);
+    let array_type = VType::ArrayReferenceType(PTypeView::DoubleType);
     type_transition(env, stack_frame, vec![VType::IntType, array_type], VType::DoubleType)
 }
 
@@ -72,7 +71,7 @@ pub fn instruction_is_type_safe_fload(index: usize, env: &Environment, stack_fra
 }
 
 pub fn instruction_is_type_safe_iaload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    type_transition(env, stack_frame, vec![VType::IntType, VType::ArrayReferenceType(PType::IntType)], VType::IntType)
+    type_transition(env, stack_frame, vec![VType::IntType, VType::ArrayReferenceType(PTypeView::IntType)], VType::IntType)
 }
 
 
