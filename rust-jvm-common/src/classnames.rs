@@ -4,6 +4,8 @@ use std::fmt::Formatter;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
+use crate::string_pool::StringPoolEntry;
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct NameReference {
@@ -24,7 +26,8 @@ impl PartialEq for NameReference {
 //#[derive(Hash)]
 pub enum ClassName {
     Ref(NameReference),
-    Str(String),
+    Str(String),//todo deprecate
+    SharedStr(Arc<StringPoolEntry>)
 }
 
 impl ClassName {
@@ -73,6 +76,7 @@ impl std::clone::Clone for ClassName {
             ClassName::Str(s) => {
                 ClassName::Str(s.clone())//todo fix
             }
+            ClassName::SharedStr(s) => {s.clone()}
         }
     }
 }
@@ -85,16 +89,17 @@ impl std::fmt::Debug for ClassName {
 }
 
 impl ClassName {
-    pub fn get_referred_name(&self) -> String {
+    pub fn get_referred_name(&self) -> &String {
         match self {
             ClassName::Ref(r) => {
                 let upgraded_class_ref = match r.class_file.upgrade() {
                     None => panic!(),
                     Some(c) => c
                 };
-                return upgraded_class_ref.constant_pool[r.index as usize].extract_string_from_utf8();
+                return &upgraded_class_ref.constant_pool[r.index as usize].extract_string_from_utf8();
             }
-            ClassName::Str(s) => { s.clone() }//todo this clone may be expensive, ditch?
+            ClassName::Str(s) => { s }//todo this clone may be expensive, ditch?
+            ClassName::SharedStr(s) => { s.deref() }
         }
     }
 }
