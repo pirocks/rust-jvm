@@ -1,11 +1,11 @@
 use std::sync::Arc;
-use crate::view::method_view::MethodIterator;
-use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile};
+use crate::view::method_view::{MethodIterator, MethodView};
+use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE};
 use crate::classnames::ClassName;
 use crate::view::constant_info_view::ConstantInfoView;
 
 
-trait HasAccessFlags {
+pub trait HasAccessFlags {
     fn access_flags(&self) -> u16;
     fn is_static(&self) -> bool {
         self.access_flags() & ACC_STATIC > 0
@@ -27,6 +27,9 @@ trait HasAccessFlags {
     }
     fn is_abstract(&self) -> bool {
         self.access_flags() & ACC_ABSTRACT > 0
+    }
+    fn is_interface(&self) -> bool {
+        self.access_flags() & ACC_INTERFACE > 0
     }
 }
 
@@ -50,6 +53,9 @@ impl ClassView {
     pub fn methods(&self) -> MethodIterator {
         MethodIterator { backing_class: self, i: 0 }
     }
+    pub fn method_view_i(&self, i: usize) -> MethodView{
+        MethodView { backing_class: self.backing_class.clone(), method_i: i }
+    }
     pub fn num_methods(&self) -> usize {
         self.backing_class.methods.len()
     }
@@ -65,6 +71,5 @@ impl HasAccessFlags for ClassView {
 }
 
 pub mod constant_info_view;
-
 pub mod method_view;
 pub mod ptype_view;

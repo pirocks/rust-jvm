@@ -1,27 +1,33 @@
 use crate::classnames::ClassName;
-use crate::classfile::{Classfile, CPIndex, ConstantKind, NameAndType};
+use crate::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref};
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct Utf8View{
     //todo
 }
 
+#[derive(Debug)]
 pub struct IntegerView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct FloatView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct LongView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct DoubleView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct ClassPoolElemView{
     backing_class : Arc<Classfile>,
     name_index : usize
@@ -33,14 +39,33 @@ impl ClassPoolElemView{
     }
 }
 
+#[derive(Debug)]
 pub struct StringView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct FieldrefView{
-    //todo
+    backing_class : Arc<Classfile>,
+    i: usize
+}
+impl FieldrefView {
+    fn field_ref(&self) -> &Fieldref{
+        match &self.backing_class.constant_pool[self.i].kind{
+            ConstantKind::Fieldref(fr) => fr,
+            _ => panic!(),
+        }
+    }
+    pub fn class(&self) -> String{
+        self.backing_class.constant_pool[self.backing_class.extract_class_from_constant_pool(self.field_ref().class_index).name_index as usize].extract_string_from_utf8()
+    }
+    pub fn name_and_type(&self) -> NameAndTypeView {
+        NameAndTypeView { backing_class: self.backing_class.clone(), i: self.i }
+    }
 }
 
+
+#[derive(Debug)]
 pub struct MethodrefView{
     backing_class: Arc<Classfile>,
     class_index: CPIndex,//todo replace with one i:usize
@@ -48,10 +73,10 @@ pub struct MethodrefView{
 }
 
 impl MethodrefView{
-    fn class(&self) -> ClassName{
+    pub fn class(&self) -> ClassName{
         ClassName::Str(self.backing_class.constant_pool[self.class_index as usize].extract_string_from_utf8())
     }
-    fn name_and_type(&self) -> NameAndTypeView{
+    pub fn name_and_type(&self) -> NameAndTypeView{
         NameAndTypeView {
             backing_class: self.backing_class.clone(),
             i: self.name_and_type_index as usize
@@ -59,15 +84,36 @@ impl MethodrefView{
     }
 }
 
+#[derive(Debug)]
 pub struct InterfaceMethodrefView{
-    //todo
+    backing_class: Arc<Classfile>,
+    i : usize,
 }
 
+impl InterfaceMethodrefView{
+    fn interface_method_ref(&self) -> &InterfaceMethodref {
+        match &self.backing_class.constant_pool[self.i].kind{
+            ConstantKind::InterfaceMethodref(imr) => {
+                imr
+            },
+            _ => panic!(),
+        }
+    }
+    pub fn class(&self) -> ClassName{
+        ClassName::Str(self.backing_class.extract_class_from_constant_pool_name(self.interface_method_ref().class_index))
+    }
+    pub fn name_and_type(&self) -> NameAndTypeView{
+        NameAndTypeView { backing_class: self.backing_class.clone(), i: self.interface_method_ref().nt_index as usize }
+    }
+}
+
+#[derive(Debug)]
 pub struct NameAndTypeView{
     backing_class: Arc<Classfile>,
     i : usize,
 }
 
+#[derive(Debug)]
 pub struct FieldDescriptorView{
     //todo
 }
@@ -91,36 +137,50 @@ impl NameAndTypeView{
     }
 }
 
+#[derive(Debug)]
 pub struct MethodHandleView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct MethodTypeView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct DynamicView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct InvokeDynamicView{
     backing_class: Arc<Classfile>,
     bootstrap_method_attr_index: CPIndex,
     name_and_type_index: CPIndex,
 }
 
+impl InvokeDynamicView{
+    pub fn name_and_type(&self) -> NameAndTypeView{
+        NameAndTypeView { backing_class: self.backing_class.clone(), i: self.name_and_type_index as usize }
+    }
+}
+
+#[derive(Debug)]
 pub struct ModuleView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct PackageView{
     //todo
 }
 
+#[derive(Debug)]
 pub struct InvalidConstantView{
     //todo
 }
 
+#[derive(Debug)]
 pub enum ConstantInfoView {
     Utf8(Utf8View),
     Integer(IntegerView),
@@ -140,4 +200,13 @@ pub enum ConstantInfoView {
     Module(ModuleView),
     Package(PackageView),
     InvalidConstant(InvalidConstantView)
+}
+
+impl ConstantInfoView{
+    pub fn unwrap_class(&self) -> &ClassPoolElemView{
+        match self{
+            ConstantInfoView::Class(c) => {c},
+            _ => panic!(),
+        }
+    }
 }

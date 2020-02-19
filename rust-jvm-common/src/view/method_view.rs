@@ -4,8 +4,8 @@ use crate::classfile::Classfile;
 use crate::string_pool::StringPoolEntry;
 
 pub struct MethodView {
-    backing_class: Arc<Classfile>,
-    method_i: usize,
+    pub(crate) backing_class: Arc<Classfile>,
+    pub(crate) method_i: usize,
 }
 
 impl HasAccessFlags for MethodView {
@@ -20,6 +20,10 @@ impl MethodView {
     }
 
     pub fn name(&self) -> Arc<StringPoolEntry> {
+        unimplemented!()
+    }
+
+    pub fn desc_str(&self) -> String {
         unimplemented!()
     }
 }

@@ -6,12 +6,12 @@ use crate::verifier::filecorrectness::loaded_class;
 use crate::OperandStack;
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
-use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames};
 use descriptor_parser::Descriptor;
 use rust_jvm_common::loading::ClassWithLoader;
 use rust_jvm_common::vtype::VType;
 use rust_jvm_common::view::ClassView;
+use rust_jvm_common::view::ptype_view::PTypeView;
 
 
 macro_rules! unknown_error_verifying {
@@ -26,8 +26,8 @@ pub mod filecorrectness;
 pub mod codecorrectness;
 
 pub struct InternalFrame {
-    pub locals: Vec<PType>,
-    pub stack: Vec<PType>,
+    pub locals: Vec<PTypeView>,
+    pub stack: Vec<PTypeView>,
     pub max_locals: u16,
     pub current_offset: u16,
 }

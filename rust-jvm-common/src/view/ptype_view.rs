@@ -127,3 +127,30 @@ impl Clone for PTypeView {
         }
     }
 }
+
+impl PTypeView {
+    pub fn unwrap_array_type(&self) -> PTypeView {
+        match self {
+            PTypeView::Ref(r) => {
+                match r {
+                    ReferenceTypeView::Class(_) => panic!(),
+                    ReferenceTypeView::Array(a) => {
+                        a.deref().clone()
+                    }
+                }
+            }
+            _ => panic!()
+        }
+    }
+    pub fn unwrap_class_type(&self) -> ClassName {
+        match self {
+            PTypeView::Ref(r) => {
+                match r {
+                    ReferenceTypeView::Class(c) => c.clone(),
+                    ReferenceTypeView::Array(_) => panic!(),
+                }
+            }
+            _ => panic!()
+        }
+    }
+}

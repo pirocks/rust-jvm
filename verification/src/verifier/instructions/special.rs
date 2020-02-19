@@ -3,24 +3,22 @@ use crate::verifier::{Frame, standard_exception_frame};
 use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames, exception_stack_frame};
 use crate::verifier::TypeSafetyError;
 use crate::verifier::get_class;
-use rust_jvm_common::classfile::{ConstantKind, UninitializedVariableInfo};
+use rust_jvm_common::classfile::{UninitializedVariableInfo};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::classnames::NameReference;
-use std::sync::Arc;
 use crate::verifier::codecorrectness::can_pop;
 use crate::verifier::passes_protected_check;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::{substitute, possibly_array_to_type};
 use crate::OperandStack;
-use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
-use rust_jvm_common::classfile::Classfile;
 use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_type, parse_field_descriptor};
 use rust_jvm_common::vtype::VType;
 use rust_jvm_common::loading::ClassWithLoader;
 use rust_jvm_common::view::ptype_view::PTypeView;
 use rust_jvm_common::view::constant_info_view::ConstantInfoView;
+use rust_jvm_common::view::ClassView;
+use std::ops::Deref;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
@@ -63,7 +61,7 @@ pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, stack_
     type_transition(env, stack_frame, expected_types_on_stack, res_type)
 }
 
-fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> PType {
+fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> PTypeView {
     let class = get_class(&env.vf, &env.method.class);
     let class_name = match &class.constant_pool_view(cp as usize) {
         ConstantInfoView::Class(c) => {
@@ -72,7 +70,7 @@ fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> PType 
         _ => panic!()
     };
     let subtype = possibly_array_to_type(class_name.get_referred_name());
-    PType::Ref(subtype)
+    PTypeView::Ref(subtype)
 }
 
 pub fn instruction_is_type_safe_arraylength(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -108,10 +106,10 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, stack_frame: &Frame) -
 pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let object_class = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.bootstrap_loader.clone() };
     let class = get_class(&env.vf, env.method.class);
-    let result_type = match &class.constant_pool[index].kind {
-        ConstantKind::Class(c) => {
-            let name = class.constant_pool[c.name_index as usize].extract_string_from_utf8();
-            PType::Ref(possibly_array_to_type(name)).to_verification_type(&env.class_loader)
+    let result_type = match &class.constant_pool_view(index) {
+        ConstantInfoView::Class(c) => {
+            let name = c.class_name();
+            PTypeView::Ref(possibly_array_to_type(name.get_referred_name())).to_verification_type(&env.class_loader)
         }
         _ => panic!()
     };
@@ -122,7 +120,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
 
 pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_classfile = get_class(&env.vf, env.method.class);
-    if method_classfile.methods[env.method.method_index].method_name(&method_classfile) == "<init>" {
+    if method_classfile.method_view_i(env.method.method_index).name().deref() == "<init>" {
         match instruction_is_type_safe_putfield_second_case(cp, env, stack_frame) {
             Ok(res) => return Result::Ok(res),
             Err(_) => {}
@@ -143,7 +141,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     }
     //todo is this equivalent to isInit
     let method_classfile = get_class(&env.vf, env.method.class);
-    if method_classfile.methods[env.method.method_index].method_name(&method_classfile) != "<init>" {
+    if method_classfile.method_view_i(env.method.method_index).name().deref() != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
     let next_frame = can_pop(&env.vf, stack_frame, vec![field_type, VType::UninitializedThis])?;
@@ -162,34 +160,21 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 }
 
 //todo maybe move to impl
-pub fn extract_field_descriptor(cp: CPIndex, class: Arc<Classfile>) -> (ClassName, String, FieldDescriptor) {
+pub fn extract_field_descriptor(cp: CPIndex, class: ClassView) -> (ClassName, String, FieldDescriptor) {
 //    dbg!(cp);
     let current_class = class;
-    let field_entry: &ConstantKind = &current_class.constant_pool[cp as usize].kind;
+    let field_entry = &current_class.constant_pool_view(cp as usize);
     let (class_index, name_and_type_index) = match field_entry {
-        ConstantKind::Fieldref(f) => {
-            (f.class_index, f.name_and_type_index)
+        ConstantInfoView::Fieldref(f) => {
+            (f.class(), f.name_and_type())
         }
         _ => {
             dbg!(&field_entry);
             panic!()
         }
     };
-    let field_class_name = match &current_class.constant_pool[class_index as usize].kind {
-        ConstantKind::Class(c) => {
-            ClassName::Ref(NameReference { class_file: Arc::downgrade(&current_class), index: c.name_index })
-        }
-        _ => panic!()
-    };
-//    dbg!(&field_class_name);
-    let (field_name_index, descriptor_index) = match &current_class.constant_pool[name_and_type_index as usize].kind {
-        ConstantKind::NameAndType(nt) => {
-            (nt.name_index, nt.descriptor_index)
-        }
-        _ => panic!()
-    };
-    let field_name = current_class.constant_pool[field_name_index as usize].extract_string_from_utf8();
-    let descriptor_string = current_class.constant_pool[descriptor_index as usize].extract_string_from_utf8();
+    let field_class_name = ClassName::Str(class_index);
+    let (field_name, descriptor_string) = (name_and_type_index.name(), name_and_type_index.desc());
     let field_descriptor = parse_field_descriptor(descriptor_string.as_ref()).unwrap();
     (field_class_name, field_name, field_descriptor)
 }
@@ -209,7 +194,7 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: &Fr
 
 pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let classfile = get_class(&env.vf, env.method.class);
-    let expected_type = parse_field_type(classfile.extract_class_from_constant_pool_name(cp as u16).as_str()).unwrap().1;
+    let expected_type = parse_field_type(classfile.constant_pool_view(cp).unwrap_class().class_name().get_referred_name().as_str()).unwrap().1;
     if class_dimension(env,&expected_type.to_verification_type(&env.class_loader)) != dim {
         return Result::Err(unknown_error_verifying!());
     }
@@ -239,8 +224,8 @@ pub fn instruction_is_type_safe_new(cp: usize, offset: usize, env: &Environment,
     let locals = &stack_frame.locals;
     let operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    match &get_class(&env.vf, env.method.class).constant_pool[cp].kind {
-        ConstantKind::Class(_) => {}
+    match &get_class(&env.vf, env.method.class).constant_pool_view(cp) {
+        ConstantInfoView::Class(_) => {}
         _ => panic!()
     };
     let new_item = VType::Uninitialized(UninitializedVariableInfo { offset: offset as u16 });
@@ -264,16 +249,16 @@ pub fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, st
     type_transition(env, stack_frame, vec![VType::IntType], VType::ArrayReferenceType(element_type))
 }
 
-fn primitive_array_info(type_code: usize) -> PType {
+fn primitive_array_info(type_code: usize) -> PTypeView {
     match type_code {
-        4 => PType::BooleanType,
-        5 => PType::CharType,
-        6 => PType::FloatType,
-        7 => PType::DoubleType,
-        8 => PType::ByteType,
-        9 => PType::ShortType,
-        10 => PType::IntType,
-        11 => PType::LongType,
+        4 => PTypeView::BooleanType,
+        5 => PTypeView::CharType,
+        6 => PTypeView::FloatType,
+        7 => PTypeView::DoubleType,
+        8 => PTypeView::ByteType,
+        9 => PTypeView::ShortType,
+        10 => PTypeView::IntType,
+        11 => PTypeView::LongType,
         _ => panic!()
     }
 }

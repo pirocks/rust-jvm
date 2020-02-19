@@ -1,14 +1,14 @@
 use crate::verifier::{ClassWithLoaderMethod, get_class};
-use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL, ACC_PROTECTED};
+use rust_jvm_common::classfile::{ACC_PROTECTED};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::classfile::ConstantKind;
 use crate::VerifierContext;
 use std::ops::Deref;
-use rust_jvm_common::unified_types::PType;
 use descriptor_parser::{MethodDescriptor, Descriptor, parse_field_descriptor};
 use rust_jvm_common::vtype::VType;
 use rust_jvm_common::loading::{LoaderName, ClassWithLoader, LoaderArc};
+use rust_jvm_common::view::ptype_view::PTypeView;
+use rust_jvm_common::view::HasAccessFlags;
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
     return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(vf, class1, class2);
@@ -35,14 +35,14 @@ pub fn is_bootstrap_loader(vf: &VerifierContext, loader: &LoaderArc) -> bool {
 
 pub fn get_class_methods<'l>(vf: &VerifierContext, class: &'l ClassWithLoader) -> Vec<ClassWithLoaderMethod<'l>> {
     let mut res = vec![];
-    for method_index in 0..get_class(vf, class).methods.len() {
-        res.push(ClassWithLoaderMethod { class: class, method_index })
+    for method_index in 0..get_class(vf, class).num_methods() {
+        res.push(ClassWithLoaderMethod { class, method_index })
     }
     res
 }
 
 pub fn class_is_final(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
-    get_class(vf, class).access_flags & ACC_FINAL != 0
+    get_class(vf, class).is_final()
 }
 
 
@@ -59,7 +59,7 @@ pub fn loaded_class(_vf: &VerifierContext, class_name: ClassName, loader: Loader
 
 
 pub fn class_is_interface(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
-    get_class(vf, class).access_flags & ACC_INTERFACE != 0
+    get_class(vf, class).is_interface()
 }
 
 pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
@@ -213,25 +213,25 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
     }
 }
 
-fn atom(t: &PType) -> bool {
+fn atom(t: &PTypeView) -> bool {
     match t {
-        PType::ByteType |
-        PType::CharType |
-        PType::DoubleType |
-        PType::FloatType |
-        PType::IntType |
-        PType::LongType |
-        PType::ShortType |
-        PType::VoidType |
-        PType::TopType |
-        PType::NullType |
-        PType::UninitializedThis |
-        PType::BooleanType => {
+        PTypeView::ByteType |
+        PTypeView::CharType |
+        PTypeView::DoubleType |
+        PTypeView::FloatType |
+        PTypeView::IntType |
+        PTypeView::LongType |
+        PTypeView::ShortType |
+        PTypeView::VoidType |
+        PTypeView::TopType |
+        PTypeView::NullType |
+        PTypeView::UninitializedThis |
+        PTypeView::BooleanType => {
             true
         }
-        PType::Ref(_) |
-        PType::Uninitialized(_) |
-        PType::UninitializedThisOrClass(_) => {
+        PTypeView::Ref(_) |
+        PTypeView::Uninitialized(_) |
+        PTypeView::UninitializedThisOrClass(_) => {
             false
         }
     }
@@ -268,7 +268,7 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
     }
 }
 
-fn is_java_assignable_array_types(vf: &VerifierContext, left: &PType, right: &PType) -> Result<(), TypeSafetyError> {
+fn is_java_assignable_array_types(vf: &VerifierContext, left: &PTypeView, right: &PTypeView) -> Result<(), TypeSafetyError> {
     if atom(&left) && atom(&right) {
         if left == right {
             return Result::Ok(());
@@ -302,14 +302,15 @@ pub fn is_java_subclass_of(_vf: &VerifierContext, _sub: &ClassWithLoader, _super
 pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> ClassName {
     //todo dup, this must exist elsewhere
     let classfile = get_class(vf, class);
-    let class_entry = &classfile.constant_pool[classfile.super_class as usize];
-    let utf8 = match &class_entry.kind {
-        ConstantKind::Class(c) => {
-            &classfile.constant_pool[c.name_index as usize]
-        }
-        _ => panic!()
-    };
-    ClassName::Str(utf8.extract_string_from_utf8())//todo use weak ref + index instead
+//    let class_entry = &classfile.constant_pool_view(classfile.super_class as usize);
+//    let utf8 = match &class_entry.kind {
+//        ConstantKind::Class(c) => {
+//            &classfile.constant_pool_view(c.name_index as usize)
+//        }
+//        _ => panic!()
+//    };
+//    ClassName::Str(utf8.extract_string_from_utf8())//todo use weak ref + index instead
+    classfile.super_name().unwrap()
 }
 
 pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: LoaderArc, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
@@ -332,19 +333,19 @@ pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, lo
 
 pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if same
-    (get_access_flags(vf, class, method) & ACC_FINAL) > 0
+    get_class(vf, method.class).method_view_i(method.method_index as usize).is_final()
 }
 
 
 pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if same
-    (get_access_flags(vf, class, method) & ACC_STATIC) > 0
+    get_class(vf, method.class).method_view_i(method.method_index as usize).is_static()
 }
 
 pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
     //todo check if method class and class same
 //    assert!(class == method.class);
-    (get_access_flags(vf, class, method) & ACC_PRIVATE) > 0
+    get_class(vf, method.class).method_view_i(method.method_index as usize).is_private()
 }
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
@@ -365,14 +366,14 @@ pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoa
 
 pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, super_method_list: &Vec<ClassWithLoaderMethod>) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, method.class);
-    let method_info = &method_class.methods[method.method_index];
-    let method_name_ = method_info.method_name(&method_class);
-    let descriptor_string = method_info.descriptor_str(&method_class);
+    let method_info = &method_class.method_view_i(method.method_index);
+    let method_name_ = method_info.name().deref();
+    let descriptor_string = method_info.desc_str();
     let matching_method = super_method_list.iter().find(|x| {
         let x_method_class = get_class(vf, x.class);
-        let x_method_info = &x_method_class.methods[x.method_index];
-        let x_method_name = x_method_info.method_name(&x_method_class);
-        let x_descriptor_string = x_method_info.descriptor_str(&x_method_class);
+        let x_method_info = &x_method_class.method_view_i(x.method_index);
+        let x_method_name = x_method_info.name().deref();
+        let x_descriptor_string = x_method_info.desc_str();
         x_descriptor_string == descriptor_string && x_method_name == method_name_
     });
     match matching_method {
@@ -405,33 +406,29 @@ pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class:
 
 pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
     //todo why the duplicate parameters?
-    get_class(vf, method.class).methods[method.method_index as usize].access_flags
+    get_class(vf, method.class).method_view_i(method.method_index as usize).access_flags()
 }
 
 //todo ClassName v. Name
 pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor) -> bool {
     let class = get_class(vf, super_);
-    for method in &class.methods {
-        let method_name = method.method_name(&class);
-        if member_name == method_name {
+    for method in class.methods() {
+        let method_name = method.name().deref();
+        if &member_name == method_name {
             let parsed_member_types = MethodDescriptor::from(method, &class);
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }
             };
             if parsed_member_types.parameter_types == member_types.parameter_types && parsed_member_types.return_type == member_types.return_type {
-                if (method.access_flags & ACC_PROTECTED) > 0 {
-                    return true;
-                } else {
-                    return false;
-                }
+                return method.is_protected();
             }
         }
     }
-    for field in &class.fields {
-        let field_name = class.constant_pool[field.name_index as usize].extract_string_from_utf8();
+    for field in class.fields {
+        let field_name = class.constant_pool_view(field.name_index as usize).extract_string_from_utf8();
         if member_name == field_name {
-            let field_descriptor_string = class.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
+            let field_descriptor_string = class.constant_pool_view(field.descriptor_index as usize).extract_string_from_utf8();
             let parsed_member_type = match parse_field_descriptor(field_descriptor_string.as_str()) {
                 None => panic!(),
                 Some(str_) => str_,
