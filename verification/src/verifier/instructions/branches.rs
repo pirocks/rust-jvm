@@ -295,7 +295,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
     }
 }
 
-fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_name: String, method_name: String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_name: &String, method_name: String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string()));
     }

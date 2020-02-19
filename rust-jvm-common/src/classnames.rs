@@ -25,7 +25,7 @@ impl PartialEq for NameReference {
 #[derive(Eq)]
 //#[derive(Hash)]
 pub enum ClassName {
-    Ref(NameReference),
+//    Ref(NameReference),
     Str(String),//todo deprecate
     SharedStr(Arc<StringPoolEntry>)
 }
@@ -54,7 +54,7 @@ impl ClassName {
 
 impl Hash for ClassName {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(self.get_referred_name().into_bytes().as_slice())
+        state.write(self.get_referred_name().as_bytes())
     }
 }
 
@@ -67,16 +67,16 @@ impl PartialEq for ClassName {
 impl std::clone::Clone for ClassName {
     fn clone(&self) -> Self {
         match self {
-            ClassName::Ref(r) => {
+            /*ClassName::Ref(r) => {
                 ClassName::Ref(NameReference {
                     index: r.index,
                     class_file: r.class_file.clone(),
                 })
-            }
+            }*/
             ClassName::Str(s) => {
                 ClassName::Str(s.clone())//todo fix
             }
-            ClassName::SharedStr(s) => {s.clone()}
+            ClassName::SharedStr(s) => ClassName::SharedStr(s.clone())
         }
     }
 }
@@ -91,13 +91,6 @@ impl std::fmt::Debug for ClassName {
 impl ClassName {
     pub fn get_referred_name(&self) -> &String {
         match self {
-            ClassName::Ref(r) => {
-                let upgraded_class_ref = match r.class_file.upgrade() {
-                    None => panic!(),
-                    Some(c) => c
-                };
-                return &upgraded_class_ref.constant_pool[r.index as usize].extract_string_from_utf8();
-            }
             ClassName::Str(s) => { s }//todo this clone may be expensive, ditch?
             ClassName::SharedStr(s) => { s.deref() }
         }
@@ -111,8 +104,9 @@ pub fn class_name(class: &Arc<Classfile>) -> ClassName {
         _ => { panic!() }
     };
 
-    return ClassName::Ref(NameReference {
+    unimplemented!()
+    /*return ClassName::Ref(NameReference {
         class_file: Arc::downgrade(&class),
         index: class_info_entry.name_index,
-    });
+    });*/
 }

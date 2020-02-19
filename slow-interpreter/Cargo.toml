@@ -12,8 +12,6 @@ runtime-common = {path = "../runtime-common"}
 jni-bindings = {path = "../jni-bindings"}
 utils = {path = "../utils"}
 descriptor-parser = {path = "../descriptor-parser"}
-stage2-common = {path = "../stage2-common"}
-#rust-jni = {path = "src/rust-jni"}
 libloading = "0.5"
 log = "0.4"
 simple_logger = "1.3.0"

@@ -11,5 +11,4 @@ edition = "2018"
 log = "0.4"
 simple_logger = "1.3.0"
 rust-jvm-common = {path = "../rust-jvm-common"}
-stage2-common = {path = "../stage2-common"}
 libloading = "0.5"

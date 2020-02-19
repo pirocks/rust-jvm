@@ -13,7 +13,7 @@ use rust_jvm_common::classfile::CPIndex;
 use libloading::Library;
 use std::rc::Rc;
 use rust_jvm_common::unified_types::PType;
-use stage2_common::string_pool::StringPool;
+use rust_jvm_common::string_pool::StringPool;
 
 pub mod java_values;
 pub mod runtime_class;
