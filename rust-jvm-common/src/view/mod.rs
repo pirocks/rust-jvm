@@ -1,8 +1,5 @@
 use std::sync::Arc;
-use std::ops::Deref;
-use std::slice::Iter;
-use std::iter;
-use crate::view::method_view::{MethodView, MethodIterator};
+use crate::view::method_view::MethodIterator;
 use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile};
 use crate::classnames::ClassName;
 use crate::view::constant_info_view::ConstantInfoView;
@@ -67,9 +64,7 @@ impl HasAccessFlags for ClassView {
     }
 }
 
-pub mod constant_info_view{
-    pub enum ConstantInfoView {}
-}
+pub mod constant_info_view;
 
 pub mod method_view;
 pub mod ptype_view;

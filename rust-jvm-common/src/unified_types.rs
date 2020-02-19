@@ -1,11 +1,8 @@
 use crate::classnames::ClassName;
 use crate::classfile::UninitializedVariableInfo;
-use std::sync::Arc;
 use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::fmt::Error;
 use std::ops::Deref;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]

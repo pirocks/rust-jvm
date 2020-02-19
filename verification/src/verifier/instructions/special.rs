@@ -20,6 +20,7 @@ use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_type, parse_fie
 use rust_jvm_common::vtype::VType;
 use rust_jvm_common::loading::ClassWithLoader;
 use rust_jvm_common::view::ptype_view::PTypeView;
+use rust_jvm_common::view::constant_info_view::ConstantInfoView;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
@@ -64,13 +65,13 @@ pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, stack_
 
 fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> PType {
     let class = get_class(&env.vf, &env.method.class);
-    let class_name = match &class.constant_pool[cp as usize].kind {
-        ConstantKind::Class(c) => {
-            class.constant_pool[c.name_index as usize].extract_string_from_utf8()
+    let class_name = match &class.constant_pool_view(cp as usize) {
+        ConstantInfoView::Class(c) => {
+            c.class_name()
         }
         _ => panic!()
     };
-    let subtype = possibly_array_to_type(class_name);
+    let subtype = possibly_array_to_type(class_name.get_referred_name());
     PType::Ref(subtype)
 }
 

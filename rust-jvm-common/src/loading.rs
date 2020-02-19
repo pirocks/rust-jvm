@@ -1,6 +1,5 @@
 use core::fmt;
 use std::sync::Arc;
-use crate::classfile::Classfile;
 use crate::classnames::ClassName;
 use std::fs::File;
 use std::fmt::Display;

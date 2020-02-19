@@ -1,9 +1,9 @@
 use crate::verifier::codecorrectness::{Environment, MergedCodeInstruction, frame_is_assignable, operand_stack_has_legal_length, valid_type_transition, handler_exception_class, Handler, size_of, push_operand_stack};
-use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
+use rust_jvm_common::classfile::InstructionInfo;
 use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
-use rust_jvm_common::classnames::{ClassName, class_name};
+use rust_jvm_common::classnames::ClassName;
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
@@ -456,22 +456,22 @@ fn instruction_is_type_safe_lcmp(env: &Environment, stack_frame: &Frame) -> Resu
 
 pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
     match c {
-        ConstantKind::Integer(_) => VType::IntType,
-        ConstantKind::Float(_) => VType::FloatType,
-        ConstantKind::Long(_) => VType::LongType,
-        ConstantKind::Double(_) => VType::DoubleType,
-        ConstantKind::Class(_c) => {
+        ConstantInfoView::Integer(_) => VType::IntType,
+        ConstantInfoView::Float(_) => VType::FloatType,
+        ConstantInfoView::Long(_) => VType::LongType,
+        ConstantInfoView::Double(_) => VType::DoubleType,
+        ConstantInfoView::Class(_c) => {
             let class_name = ClassName::class();
             VType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         }
-        ConstantKind::String(_) => {
+        ConstantInfoView::String(_) => {
             let class_name = ClassName::string();
             VType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
         }
-        ConstantKind::MethodHandle(_) => unimplemented!(),
-        ConstantKind::MethodType(_) => unimplemented!(),
-        ConstantKind::Dynamic(_) => unimplemented!(),
-        ConstantKind::InvokeDynamic(_) => unimplemented!(),
+        ConstantInfoView::MethodHandle(_) => unimplemented!(),
+        ConstantInfoView::MethodType(_) => unimplemented!(),
+        ConstantInfoView::Dynamic(_) => unimplemented!(),
+        ConstantInfoView::InvokeDynamic(_) => unimplemented!(),
         _ => panic!()
     }
 }
@@ -490,11 +490,11 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Fra
 pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let const_ = &get_class(&env.vf, env.method.class).constant_pool_view(cp as usize);
     let type_ = match const_ {
-        ConstantKind::Integer(_) => VType::IntType,
-        ConstantKind::Float(_) => VType::FloatType,
-        ConstantKind::Class(_) => VType::Class(ClassWithLoader { class_name: ClassName::class(), loader: env.vf.bootstrap_loader.clone() }),
-        ConstantKind::String(_) => VType::Class(ClassWithLoader { class_name: ClassName::string(), loader: env.vf.bootstrap_loader.clone() }),
-        ConstantKind::MethodType(_) => VType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/invoke/MethodType"), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantInfoView::Integer(_) => VType::IntType,
+        ConstantInfoView::Float(_) => VType::FloatType,
+        ConstantInfoView::Class(_) => VType::Class(ClassWithLoader { class_name: ClassName::class(), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantInfoView::String(_) => VType::Class(ClassWithLoader { class_name: ClassName::string(), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantInfoView::MethodType(_) => VType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/invoke/MethodType"), loader: env.vf.bootstrap_loader.clone() }),
         _ => panic!()
     };
     type_transition(env, stack_frame, vec![], type_)

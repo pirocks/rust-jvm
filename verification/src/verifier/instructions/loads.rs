@@ -6,7 +6,6 @@ use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::special::nth1_operand_stack_is;
 use crate::verifier::instructions::special::array_component_type;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::stores::is_small_array;
 use rust_jvm_common::vtype::VType;

@@ -1,9 +1,9 @@
 use crate::loading::{LoaderArc, ClassWithLoader};
 use std::ops::Deref;
-use crate::unified_types::ReferenceType;
 use crate::classfile::UninitializedVariableInfo;
 use crate::classnames::ClassName;
 use crate::vtype::VType;
+use crate::unified_types::{PType, ReferenceType};
 
 
 #[derive(Debug)]
@@ -32,6 +32,26 @@ pub enum PTypeView {
 
 
 impl PTypeView {
+    pub fn to_ptype(&self) -> PType{
+        match self{
+            PTypeView::ByteType => PType::ByteType,
+            PTypeView::CharType => PType::CharType,
+            PTypeView::DoubleType => PType::DoubleType,
+            PTypeView::FloatType => PType::FloatType,
+            PTypeView::IntType => PType::IntType,
+            PTypeView::LongType => PType::LongType,
+            PTypeView::Ref(r) => PType::Ref(r.to_reference_type()),
+            PTypeView::ShortType => PType::ShortType,
+            PTypeView::BooleanType => PType::BooleanType,
+            PTypeView::VoidType => PType::VoidType,
+            PTypeView::TopType => PType::TopType,
+            PTypeView::NullType => PType::NullType,
+            PTypeView::Uninitialized(u) => PType::Uninitialized(u.clone()),
+            PTypeView::UninitializedThis => PType::UninitializedThis,
+            PTypeView::UninitializedThisOrClass(u) => PType::UninitializedThisOrClass(u.deref().to_ptype().into()),
+        }
+    }
+
     pub fn to_verification_type(&self, loader: &LoaderArc) -> VType {
         match self {
             PTypeView::ByteType => VType::IntType,
@@ -68,6 +88,14 @@ pub enum ReferenceTypeView {
     Array(Box<PTypeView>),
 }
 
+impl ReferenceTypeView{
+    pub fn to_reference_type(&self) -> ReferenceType{
+        match self{
+            ReferenceTypeView::Class(c) => ReferenceType::Class(c.clone()),
+            ReferenceTypeView::Array(a) => ReferenceType::Array(a.deref().to_ptype().into()),
+        }
+    }
+}
 
 impl Clone for ReferenceTypeView{
     fn clone(&self) -> Self {
@@ -77,7 +105,6 @@ impl Clone for ReferenceTypeView{
         }
     }
 }
-
 
 impl Clone for PTypeView {
     fn clone(&self) -> Self {

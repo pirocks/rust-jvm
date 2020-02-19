@@ -1,8 +1,6 @@
-use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, class_is_final, is_bootstrap_loader, get_class_methods};
-use rust_jvm_common::classfile::Classfile;
 use crate::VerifierContext;
 use crate::verifier::filecorrectness::loaded_class;
 use crate::OperandStack;

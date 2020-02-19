@@ -2,14 +2,13 @@ use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames, except
 use crate::verifier::codecorrectness::{Environment, can_pop, MergedCodeInstruction};
 use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::TypeSafetyError;
-use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo, Classfile};
+use rust_jvm_common::classfile::{ConstantKind, InstructionInfo, UninitializedVariableInfo};
 
 use rust_jvm_common::unified_types::ReferenceType;
 use crate::verifier::passes_protected_check;
 use crate::verifier::codecorrectness::valid_type_transition;
-use rust_jvm_common::classnames::{ClassName, NameReference};
+use rust_jvm_common::classnames::ClassName;
 use crate::verifier::filecorrectness::is_assignable;
-use std::sync::Arc;
 use crate::OperandStack;
 use rust_jvm_common::unified_types::PType;
 use descriptor_parser::{Descriptor, MethodDescriptor, parse_method_descriptor, parse_field_descriptor};
@@ -18,6 +17,7 @@ use rust_jvm_common::vtype::VType;
 use rust_jvm_common::loading::ClassWithLoader;
 use rust_jvm_common::view::ptype_view::PTypeView;
 use rust_jvm_common::view::ClassView;
+use rust_jvm_common::view::constant_info_view::ConstantInfoView;
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -91,17 +91,17 @@ pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stac
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.class);
     let constant_pool = &method_class.constant_pool;
-    let (name_index, descriptor_index) = match &constant_pool[cp].kind {
-        ConstantKind::InvokeDynamic(i) => {
-            match &constant_pool[i.name_and_type_index as usize].kind {
-                ConstantKind::NameAndType(nt) => (nt.name_index as usize, nt.descriptor_index as usize),
+    let (name_index, descriptor_index) = match &method_class.constant_pool_view(cp) {
+        ConstantInfoView::InvokeDynamic(i) => {
+            match &method_class.constant_pool_view(i.name_and_type_index as usize) {
+                ConstantInfoView::NameAndType(nt) => (nt.name_index as usize, nt.descriptor_index as usize),
                 _ => panic!()
             }
         }
         _ => panic!()
     };
-    let call_site_name = constant_pool[name_index].extract_string_from_utf8();
-    let descriptor_string = constant_pool[descriptor_index].extract_string_from_utf8();
+    let call_site_name = method_class.constant_pool_view(name_index).extract_string_from_utf8();
+    let descriptor_string = method_class.constant_pool_view(descriptor_index).extract_string_from_utf8();
     let descriptor = parse_method_descriptor(descriptor_string.as_str()).unwrap();
     if call_site_name == "<init>" || call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
@@ -270,12 +270,9 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
                             MergedCodeInstruction::Instruction(instr) => match instr.instruction {
                                 InstructionInfo::new(this) => {
                                     let method_class = get_class(&env.vf, env.method.class);
-                                    match &method_class.constant_pool[this as usize].kind {
-                                        ConstantKind::Class(c) => {
-                                            let class_name = ClassName::Ref(NameReference {
-                                                class_file: Arc::downgrade(&method_class),
-                                                index: c.name_index,
-                                            });
+                                    match &method_class.constant_pool_view(this as usize) {
+                                        ConstantInfoView::Class(c) => {
+                                            let class_name = c.class_name();
                                             return Result::Ok(ClassWithLoader { class_name, loader: env.class_loader.clone() });
                                         }
                                         _ => { unimplemented!() }
@@ -309,7 +306,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
         loader: current_loader.clone(),
     });
     let method_class = VType::Class(ClassWithLoader {
-        class_name: ClassName::Str(method_class_name),
+        class_name: ClassName::Str(method_class_name.clone()),
         loader: current_loader.clone(),
     });
     is_assignable(&env.vf, &current_class, &method_class)?;
@@ -380,9 +377,9 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
 pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PType, String, MethodDescriptor) {
     let c = &classfile.constant_pool[cp].kind;
     let (class_name, method_name, parsed_descriptor) = match c {
-        ConstantKind::Methodref(m) => {
+        ConstantInfoView::Methodref(m) => {
             let c = classfile.extract_class_from_constant_pool(m.class_index);
-            let class_name = classfile.constant_pool[c.name_index as usize].extract_string_from_utf8();
+            let class_name = classfile.constant_pool_view(c.name_index as usize).extract_string_from_utf8();
             //todo ideally for name we would return weak ref.
             let (method_name, descriptor) = classfile.name_and_type_extractor(m.name_and_type_index);
             let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
@@ -391,10 +388,10 @@ pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PType, String
             };
             (class_name, method_name, parsed_descriptor)
         }
-        ConstantKind::InterfaceMethodref(m) => {
+        ConstantInfoView::InterfaceMethodref(m) => {
             //todo dup?
             let c = classfile.extract_class_from_constant_pool(m.class_index);
-            let class_name = classfile.constant_pool[c.name_index as usize].extract_string_from_utf8();
+            let class_name = classfile.constant_pool_view(c.name_index as usize).extract_string_from_utf8();
             let (method_name, descriptor) = classfile.name_and_type_extractor(m.nt_index);
             let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
                 None => { unimplemented!() }
@@ -407,7 +404,7 @@ pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PType, String
     (PType::Ref(possibly_array_to_type(class_name)), method_name, parsed_descriptor)
 }
 
-pub fn possibly_array_to_type(class_name: String) -> ReferenceType {
+pub fn possibly_array_to_type(class_name: &String) -> ReferenceType {
     if class_name.contains("[") {
         let class_type = match parse_field_descriptor(class_name.as_str()) {
             None => panic!(),
@@ -415,7 +412,7 @@ pub fn possibly_array_to_type(class_name: String) -> ReferenceType {
         };
         ReferenceType::Array(class_type.unwrap_array_type().into())
     } else {
-        ReferenceType::Class(ClassName::Str(class_name))
+        ReferenceType::Class(ClassName::Str(class_name.clone()))
     }
 }
 

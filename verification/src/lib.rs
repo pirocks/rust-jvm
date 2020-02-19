@@ -3,8 +3,7 @@ extern crate simple_logger;
 
 use std::sync::Arc;
 use crate::verifier::class_is_type_safe;
-use rust_jvm_common::classfile::{Classfile, UninitializedVariableInfo};
-use rust_jvm_common::unified_types::PType;
+use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::class_name;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
