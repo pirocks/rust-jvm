@@ -3,14 +3,14 @@ use rust_jvm_common::classfile::{InstructionInfo, ConstantKind};
 use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
 use crate::verifier::codecorrectness::MergedCodeInstruction::{StackMap, Instruction};
-use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
 use crate::VerifierContext;
 use crate::OperandStack;
-use rust_jvm_common::unified_types::VType;
+use rust_jvm_common::vtype::VType;
+use rust_jvm_common::loading::ClassWithLoader;
 
 pub mod loads;
 pub mod consts;
@@ -125,8 +125,8 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 }
 
 fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> VType {
-    let classfile = get_class(vf, class);
-    let class_name = class_name(&classfile);
+    let class_view = get_class(vf, class);
+    let class_name = class_view.name();
     VType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
 }
 
@@ -178,7 +178,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 //todo how does bootstrap loader from throwable make its way into this
                 //todo why do I take the class name when I already know it
-                let class_name = class_name(&get_class(&env.vf, &exception_class));
+                let class_name = &get_class(&env.vf, &exception_class).name();
                 is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
                               &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.bootstrap_loader.clone() }))
             } else {

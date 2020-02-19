@@ -6,19 +6,18 @@ use crate::verifier::instructions::{handlers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
 
 use std::option::Option::Some;
-use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
 use rust_jvm_common::classnames::{NameReference, class_name};
-use rust_jvm_common::loading::LoaderArc;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::filecorrectness::get_access_flags;
 use crate::{StackMap, VerifierContext};
 use rust_jvm_common::classnames::ClassName;
 use crate::OperandStack;
 use rust_jvm_common::classfile::ConstantKind;
-use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
 use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
+use rust_jvm_common::vtype::VType;
+use rust_jvm_common::loading::{ClassWithLoader, LoaderArc};
 
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {

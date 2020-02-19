@@ -1,13 +1,13 @@
 use crate::verifier::{InternalFrame, get_class};
 use crate::verifier::Frame;
 use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
-use rust_jvm_common::unified_types::{ClassWithLoader, ReferenceType};
 use classfile_parser::stack_map_table_attribute;
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
-use rust_jvm_common::unified_types::PType;
+use rust_jvm_common::unified_types::{PType, ReferenceType};
 use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::loading::ClassWithLoader;
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodInfo) -> Vec<StackMap> {
     let mut res = vec![];

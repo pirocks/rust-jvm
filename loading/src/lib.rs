@@ -7,7 +7,6 @@ use rust_jvm_common::loading::{LoaderArc, Loader};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::ClassLoadingError;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::loading::LoaderName;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::path::Path;
@@ -17,6 +16,9 @@ use jar_manipulation::JarHandle;
 use verification::verify;
 use verification::VerifierContext;
 use log::trace;
+use std::fmt::{Debug, Formatter, Error};
+use std::hash::{Hasher, Hash};
+use crate::loading::{LoaderArc, ClassLoadingError, LoaderName};
 
 #[derive(Debug)]
 pub struct Classpath {
@@ -92,7 +94,7 @@ impl Loader for BootstrapLoader {
             None => {
                 let jar_class_file: Option<Arc<Classfile>> = self.classpath.jars.iter().find_map(|h| {
                     let mut h2 = h.write().unwrap();
-                    match h2.lookup(name, self_arc.clone()) {
+                    match h2.lookup(name) {
                         Ok(c) => Some(c),
                         Err(_) => None,
                     }
@@ -134,9 +136,10 @@ impl BootstrapLoader {
             }
             Some(path) => {
                 let file = File::open(path).unwrap();
-                let classfile = parse_class_file(&mut (&file).try_clone().unwrap(), self_arc);
+                let classfile = parse_class_file(&mut (&file).try_clone().unwrap());
                 Result::Ok(classfile)
             }
         }
     }
 }
+

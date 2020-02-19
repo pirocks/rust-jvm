@@ -11,7 +11,6 @@ use std::path::PathBuf;
 use loading::BootstrapLoader;
 use std::sync::RwLock;
 use loading::Classpath;
-use rust_jvm_common::loading::LoaderName;
 use verification::verify;
 use verification::VerifierContext;
 use rust_jvm_common::classnames::class_name;

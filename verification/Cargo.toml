@@ -16,7 +16,7 @@ classfile-parser = {path = "../classfile-parser"}
 descriptor-parser = {path = "../descriptor-parser"}
 
 [dev-dependencies]
+loading = {path = "../loading"}
 ntest_timeout = "0.3.0"
 timebomb = "0.1.2"
-loading = {path = "../loading"}
 jar-manipulation = {path = "../jar-manipulation"}

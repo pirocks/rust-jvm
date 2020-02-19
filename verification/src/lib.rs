@@ -3,15 +3,14 @@ extern crate simple_logger;
 
 use std::sync::Arc;
 use crate::verifier::class_is_type_safe;
-use rust_jvm_common::loading::LoaderArc;
-use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::unified_types::ClassWithLoader;
+use rust_jvm_common::classfile::{Classfile, UninitializedVariableInfo};
+use rust_jvm_common::unified_types::PType;
 use rust_jvm_common::classnames::class_name;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
-use rust_jvm_common::unified_types::VType;
-
+use rust_jvm_common::loading::{LoaderArc, ClassWithLoader};
+use rust_jvm_common::vtype::VType;
 
 pub mod verifier;
 
@@ -115,3 +114,5 @@ impl OperandStack {
         }
     }
 }
+
+

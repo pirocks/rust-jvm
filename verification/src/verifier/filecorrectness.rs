@@ -1,16 +1,14 @@
-use rust_jvm_common::unified_types::ClassWithLoader;
 use crate::verifier::{ClassWithLoaderMethod, get_class};
-use rust_jvm_common::loading::LoaderArc;
 use rust_jvm_common::classfile::{ACC_STATIC, ACC_PRIVATE, ACC_INTERFACE, ACC_FINAL, ACC_PROTECTED};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classfile::ConstantKind;
-use rust_jvm_common::loading::LoaderName;
 use crate::VerifierContext;
 use std::ops::Deref;
-use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
 use descriptor_parser::{MethodDescriptor, Descriptor, parse_field_descriptor};
+use rust_jvm_common::vtype::VType;
+use rust_jvm_common::loading::{LoaderName, ClassWithLoader, LoaderArc};
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
     return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(vf, class1, class2);

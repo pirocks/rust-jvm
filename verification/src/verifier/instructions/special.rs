@@ -9,16 +9,17 @@ use rust_jvm_common::classnames::NameReference;
 use std::sync::Arc;
 use crate::verifier::codecorrectness::can_pop;
 use crate::verifier::passes_protected_check;
-use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classfile::CPIndex;
 use crate::verifier::instructions::branches::{substitute, possibly_array_to_type};
 use crate::OperandStack;
-use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
 use rust_jvm_common::classfile::Classfile;
 use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_type, parse_field_descriptor};
+use rust_jvm_common::vtype::VType;
+use rust_jvm_common::loading::ClassWithLoader;
+use rust_jvm_common::view::ptype_view::PTypeView;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
@@ -79,10 +80,10 @@ pub fn instruction_is_type_safe_arraylength(env: &Environment, stack_frame: &Fra
     type_transition(env, stack_frame, vec![VType::TopType], VType::IntType)
 }
 
-pub fn array_component_type(type_: VType) -> Result<PType, TypeSafetyError> {
+pub fn array_component_type(type_: VType) -> Result<PTypeView, TypeSafetyError> {
     Result::Ok(match type_ {
         VType::ArrayReferenceType(a) => a.clone(),
-        VType::NullType => PType::NullType,
+        VType::NullType => PTypeView::NullType,
         _ => panic!()
     })
 }

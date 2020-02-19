@@ -22,7 +22,6 @@ descriptor-parser = {path = "./descriptor-parser"}
 argparse = "0.2.2"
 log = "0.4"
 simple_logger = "1.3.0"
-classfile-view = {path = "./classfile-view"}
 
 
 [workspace]
@@ -36,5 +35,4 @@ members = ["rust-jvm-common",
            "libjvm",
            "jni-bindings",
            "descriptor-parser",
-           "utils",
-           "classfile-view"]
+           "utils"]

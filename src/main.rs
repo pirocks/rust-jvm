@@ -14,7 +14,6 @@ use std::path::Path;
 use loading::BootstrapLoader;
 use std::sync::RwLock;
 use std::collections::HashMap;
-use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::run;
 use rust_jvm_common::classnames::ClassName;
 use jar_manipulation::JarHandle;

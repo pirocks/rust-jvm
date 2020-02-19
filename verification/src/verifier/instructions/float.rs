@@ -3,8 +3,7 @@ use crate::verifier::Frame;
 use crate::verifier::instructions::InstructionTypeSafe;
 use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::type_transition;
-use rust_jvm_common::unified_types::VType;
-
+use rust_jvm_common::vtype::VType;
 
 pub fn instruction_is_type_safe_d2f(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VType::DoubleType], VType::FloatType)

@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use rust_jvm_common::unified_types::ClassWithLoader;
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
 use crate::verifier::filecorrectness::{super_class_chain, class_is_final, is_bootstrap_loader, get_class_methods};
@@ -9,10 +8,12 @@ use crate::verifier::filecorrectness::loaded_class;
 use crate::OperandStack;
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
-use rust_jvm_common::unified_types::VType;
 use rust_jvm_common::unified_types::PType;
 use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames};
 use descriptor_parser::Descriptor;
+use rust_jvm_common::loading::ClassWithLoader;
+use rust_jvm_common::vtype::VType;
+use rust_jvm_common::view::ClassView;
 
 
 macro_rules! unknown_error_verifying {
@@ -34,7 +35,7 @@ pub struct InternalFrame {
 }
 
 //todo impl on VerifierContext
-pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<Classfile> {
+pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> ClassView {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     if class.loader.initiating_loader_of(&class.class_name) {
         match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.bootstrap_loader.clone()) {
@@ -82,7 +83,7 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
         if chain.is_empty() {
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
-        let super_class_name = get_class(vf, class).super_class_name();
+        let super_class_name = get_class(vf, class).super_name();
         let super_class = loaded_class(vf, super_class_name.unwrap(), vf.bootstrap_loader.clone()).unwrap();
         if class_is_final(vf, &super_class) {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));

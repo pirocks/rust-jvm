@@ -5,8 +5,10 @@ use crate::classnames::ClassName;
 use std::fs::File;
 use std::fmt::Display;
 use std::fmt::Debug;
-use std::error::Error;
+use std::fmt::Error;
 use std::fmt::Formatter;
+use std::hash::{Hash, Hasher};
+use crate::view::ClassView;
 
 #[derive(Debug)]
 pub enum ClassLoadingError {
@@ -19,7 +21,7 @@ impl Display for ClassLoadingError {
     }
 }
 
-impl Error for ClassLoadingError {}
+impl std::error::Error for ClassLoadingError {}
 
 
 #[derive(Debug)]
@@ -59,12 +61,12 @@ pub trait Loader {
     fn initiating_loader_of(&self, class: &ClassName) -> bool;
     //todo File will have to be a much more general array of bytes
     fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError>;
-    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc) -> Result<Arc<Classfile>, ClassLoadingError>;
+    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc) -> Result<ClassView, ClassLoadingError>;
     fn name(&self) -> LoaderName;
 
 
     //pre loading parses the class file but does not verify
-    fn pre_load(&self, self_arc: LoaderArc, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError>;
+    fn pre_load(&self, self_arc: LoaderArc, name: &ClassName) -> Result<ClassView, ClassLoadingError>;
 }
 
 //todo Loading Constraints
@@ -84,7 +86,7 @@ impl Loader for EmptyLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, _self_arc: LoaderArc, _class: &ClassName, _bl: LoaderArc) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn load_class(&self, _self_arc: LoaderArc, _class: &ClassName, _bl: LoaderArc) -> Result<ClassView, ClassLoadingError> {
         unimplemented!()
     }
 
@@ -92,7 +94,44 @@ impl Loader for EmptyLoader {
         unimplemented!()
     }
 
-    fn pre_load(&self, _self_arc: LoaderArc, _name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn pre_load(&self, _self_arc: LoaderArc, _name: &ClassName) -> Result<ClassView, ClassLoadingError> {
         unimplemented!()
+    }
+}
+
+
+
+
+pub struct ClassWithLoader {
+    pub class_name: ClassName,
+    pub loader: LoaderArc,
+}
+
+impl Hash for ClassWithLoader {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.class_name.hash(state);
+        self.loader.name().hash(state);
+    }
+}
+
+impl PartialEq for ClassWithLoader {
+    fn eq(&self, other: &ClassWithLoader) -> bool {
+        self.class_name == other.class_name &&
+            Arc::ptr_eq(&self.loader, &other.loader)
+    }
+}
+
+impl Clone for ClassWithLoader {
+    fn clone(&self) -> Self {
+        ClassWithLoader { class_name: self.class_name.clone(), loader: self.loader.clone() }
+    }
+}
+
+impl Eq for ClassWithLoader {}
+
+
+impl Debug for ClassWithLoader {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "<{},{}>", &self.class_name.get_referred_name(), self.loader.name())
     }
 }

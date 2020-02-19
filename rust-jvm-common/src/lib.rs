@@ -5,3 +5,5 @@ pub mod loading;
 pub mod utils;
 pub mod test_utils;
 pub mod string_pool;
+pub mod view;
+pub mod vtype;
