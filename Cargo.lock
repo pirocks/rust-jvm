@@ -192,6 +192,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "classfile-view"
+version = "0.1.0"
+dependencies = [
+ "rust-jvm-common 0.1.0",
+]
+
+[[package]]
 name = "colored"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -611,6 +618,7 @@ version = "0.1.0"
 dependencies = [
  "argparse 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "classfile-parser 0.1.0",
+ "classfile-view 0.1.0",
  "descriptor-parser 0.1.0",
  "jar-manipulation 0.1.0",
  "jni-bindings 0.1.0",

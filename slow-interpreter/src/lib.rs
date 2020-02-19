@@ -175,7 +175,7 @@ fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
     system.lookup_method_name(&"initializeSystemClass".to_string()).iter().nth(0).unwrap().clone()
 }
 
-fn locate_main_method(bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
+fn locate_main_method(_bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     let string_name = ClassName::string();
     let string_class = PType::Ref(ReferenceType::Class(string_name));
     let string_array = PType::Ref(ReferenceType::Array(string_class.into()));

@@ -23,8 +23,8 @@ stage2-common = {path = "./stage2-common"}
 argparse = "0.2.2"
 log = "0.4"
 simple_logger = "1.3.0"
-
+classfile-view = {path = "./classfile-view"}
 
 
 [workspace]
-members = ["rust-jvm-common","classfile-parser", "verification", "slow-interpreter","loading","jar-manipulation", "runtime-common", "libjvm", "jni-bindings", "utils", "descriptor-parser", "stage2-common"]
+members = ["rust-jvm-common","classfile-parser", "verification", "slow-interpreter","loading","jar-manipulation", "runtime-common", "libjvm", "jni-bindings", "descriptor-parser", "utils", "classfile-view"]
