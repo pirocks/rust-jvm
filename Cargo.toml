@@ -35,4 +35,5 @@ members = ["rust-jvm-common",
            "libjvm",
            "jni-bindings",
            "descriptor-parser",
-           "utils"]
+           "utils",
+           "libjvm-utils"]

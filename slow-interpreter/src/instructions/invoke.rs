@@ -477,8 +477,19 @@ pub fn run_native_method(
                             libc::free(transmute(args[1].unwrap_long()))
                         };
                         None
-                    } else {
+                        //todo all these unsafe function thingys are getting a tad excessive
+                    } else if mangled == "Java_sun_misc_Unsafe_getObjectVolatile".to_string(){
+                        let temp = args[1].unwrap_object().unwrap();
+                        let res = &temp.unwrap_array().elems.borrow()[args[2].unwrap_long() as usize];
+                        res.clone().into()
+                    } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapLong".to_string() {
+                        //    public final native boolean compareAndSwapLong(Object var1, long var2, long var4, long var6);
+//                        args[1].unwrap_object()
+                        unimplemented!()
+                    }
+                    else {
 //                        frame.print_stack_trace();
+                        dbg!(mangled);
                         panic!()
                     }
                 }

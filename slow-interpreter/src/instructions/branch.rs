@@ -32,6 +32,14 @@ pub fn iconst_0(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int(0))
 }
 
+pub fn dconst_1(current_frame: &Rc<StackEntry>) -> () {
+    current_frame.push(JavaValue::Double(1.0))
+}
+
+pub fn dconst_0(current_frame: &Rc<StackEntry>) -> () {
+    current_frame.push(JavaValue::Double(0.0))
+}
+
 pub fn iconst_m1(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int(-1))
 }

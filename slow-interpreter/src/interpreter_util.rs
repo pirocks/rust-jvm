@@ -78,20 +78,7 @@ pub fn run_function(
             (parse_instruction(&mut context).unwrap().clone(), context.offset - *current_frame.pc.borrow())
         };
         if meth_name == "replaceWith".to_string() //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Hashtable".to_string())
-        {
-//            dbg!(&current_frame.local_vars.borrow().deref()[0].unwrap_object().unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
-//            dbg!(&current_frame.operand_stack);
-////            dbg!(&current_frame.local_vars.borrow().get(6));
-////            match instruct{
-////                InstructionInfo::invokevirtual(31) => {
-////                    dbg!(&instruct);
-////
-////                },
-////                _ => {}
-////            }
-//            dbg!(&instruct);
-////            std::io::stderr().flush();
-        }
+        {}
         current_frame.pc_offset.replace(instruction_size as isize);
 //        dbg!(instruct.clone());
         match instruct {
@@ -123,14 +110,14 @@ pub fn run_function(
             InstructionInfo::checkcast(cp) => invoke_checkcast(state, &current_frame, cp),
             InstructionInfo::d2f => unimplemented!(),
             InstructionInfo::d2i => d2i(&current_frame),
-            InstructionInfo::d2l => unimplemented!(),
-            InstructionInfo::dadd => unimplemented!(),
+            InstructionInfo::d2l => d2l(&current_frame),
+            InstructionInfo::dadd => dadd(&current_frame),
             InstructionInfo::daload => unimplemented!(),
             InstructionInfo::dastore => unimplemented!(),
             InstructionInfo::dcmpg => unimplemented!(),
             InstructionInfo::dcmpl => unimplemented!(),
-            InstructionInfo::dconst_0 => unimplemented!(),
-            InstructionInfo::dconst_1 => unimplemented!(),
+            InstructionInfo::dconst_0 => dconst_0(&current_frame),
+            InstructionInfo::dconst_1 => dconst_1(&current_frame),
             InstructionInfo::ddiv => unimplemented!(),
             InstructionInfo::dload(_) => unimplemented!(),
             InstructionInfo::dload_0 => unimplemented!(),
@@ -141,11 +128,11 @@ pub fn run_function(
             InstructionInfo::dneg => unimplemented!(),
             InstructionInfo::drem => unimplemented!(),
             InstructionInfo::dreturn => dreturn(state, &current_frame),
-            InstructionInfo::dstore(_) => unimplemented!(),
-            InstructionInfo::dstore_0 => unimplemented!(),
-            InstructionInfo::dstore_1 => unimplemented!(),
-            InstructionInfo::dstore_2 => unimplemented!(),
-            InstructionInfo::dstore_3 => unimplemented!(),
+            InstructionInfo::dstore(i) => dstore(&current_frame, i as usize),
+            InstructionInfo::dstore_0 => dstore(&current_frame, 0 as usize),
+            InstructionInfo::dstore_1 => dstore(&current_frame, 1 as usize),
+            InstructionInfo::dstore_2 => dstore(&current_frame, 2 as usize),
+            InstructionInfo::dstore_3 => dstore(&current_frame, 3 as usize),
             InstructionInfo::dsub => unimplemented!(),
             InstructionInfo::dup => dup(&current_frame),
             InstructionInfo::dup_x1 => dup_x1(&current_frame),
@@ -164,7 +151,7 @@ pub fn run_function(
             InstructionInfo::fconst_0 => fconst_0(&current_frame),
             InstructionInfo::fconst_1 => fconst_1(&current_frame),
             InstructionInfo::fconst_2 => unimplemented!(),
-            InstructionInfo::fdiv => unimplemented!(),
+            InstructionInfo::fdiv => fdiv(&current_frame),
             InstructionInfo::fload(_) => unimplemented!(),
             InstructionInfo::fload_0 => fload(&current_frame, 0),
             InstructionInfo::fload_1 => fload(&current_frame, 1),
@@ -259,8 +246,8 @@ pub fn run_function(
             InstructionInfo::jsr(_) => unimplemented!(),
             InstructionInfo::jsr_w(_) => unimplemented!(),
             InstructionInfo::l2d => unimplemented!(),
-            InstructionInfo::l2f => unimplemented!(),
-            InstructionInfo::l2i => unimplemented!(),
+            InstructionInfo::l2f => l2f(&current_frame),
+            InstructionInfo::l2i => l2i(&current_frame),
             InstructionInfo::ladd => ladd(&current_frame),
             InstructionInfo::laload => unimplemented!(),
             InstructionInfo::land => land(current_frame.clone()),

@@ -15,7 +15,7 @@ impl HasAccessFlags for MethodView {
 
 impl MethodView {
     fn from(c: &ClassView, i: usize) -> MethodView {
-        unimplemented!()
+        MethodView { backing_class: c.backing_class.clone(), method_i: i }
     }
 
     fn method_info(&self) -> &MethodInfo{

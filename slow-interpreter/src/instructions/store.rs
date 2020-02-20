@@ -27,7 +27,17 @@ pub fn lstore(current_frame: &Rc<StackEntry>, n: usize) -> () {
     current_frame.local_vars.borrow_mut()[n] = val;
 }
 
-
+pub fn dstore(current_frame: &Rc<StackEntry>, n: usize) -> () {
+    let object_ref = current_frame.pop();
+    match object_ref.clone() {
+        JavaValue::Double(_) => {}
+        _ => {
+            dbg!(&object_ref);
+            panic!()
+        }
+    }
+    current_frame.local_vars.borrow_mut()[n] = object_ref;
+}
 
 pub fn castore(current_frame: &Rc<StackEntry>) -> () {
     let val = current_frame.pop().unwrap_int();

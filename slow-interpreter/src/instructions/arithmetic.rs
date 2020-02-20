@@ -8,10 +8,22 @@ pub fn fmul(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Float(value2 * value1));
 }
 
+pub fn fdiv(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_float();
+    let value1 = current_frame.pop().unwrap_float();
+    current_frame.push(JavaValue::Float(value1 / value2));
+}
+
 pub fn dmul(current_frame: &Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_double();
     let value1 = current_frame.pop().unwrap_double();
     current_frame.push(JavaValue::Double(value2 * value1));
+}
+
+pub fn dadd(current_frame: &Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_double();
+    let value1 = current_frame.pop().unwrap_double();
+    current_frame.push(JavaValue::Double(value2 + value1));
 }
 
 

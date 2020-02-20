@@ -5,7 +5,6 @@ use crate::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
 use crate::view::field_view::FieldIterator;
 use crate::view::interface_view::InterfaceIterator;
-use crate::classfile::AttributeType::ConstantValue;
 
 
 pub trait HasAccessFlags {
@@ -69,20 +68,20 @@ impl ClassView {
         let backing_class = self.backing_class.clone();
         match &self.backing_class.constant_pool[i].kind{
             ConstantKind::Utf8(_) => unimplemented!(),
-            ConstantKind::Integer(i) => ConstantInfoView::Integer(IntegerView {}),//todo
+            ConstantKind::Integer(_) => ConstantInfoView::Integer(IntegerView {}),//todo
             ConstantKind::Float(_) => ConstantInfoView::Float(FloatView{}),//todo
             ConstantKind::Long(_) => ConstantInfoView::Long(LongView{}),//todo
             ConstantKind::Double(_) => ConstantInfoView::Double(DoubleView{}),//todo
             ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
-            ConstantKind::String(s) => ConstantInfoView::String(StringView {}),//todo
+            ConstantKind::String(_) => ConstantInfoView::String(StringView {}),//todo
             ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { backing_class, i }),
             ConstantKind::Methodref(mr) => ConstantInfoView::Methodref(MethodrefView {
                 backing_class,
                 class_index: mr.class_index,
                 name_and_type_index: mr.name_and_type_index
             }),
-            ConstantKind::InterfaceMethodref(imf) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { backing_class, i }),
-            ConstantKind::NameAndType(nt) => ConstantInfoView::NameAndType(NameAndTypeView { backing_class, i }),
+            ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { backing_class, i }),
+            ConstantKind::NameAndType(_) => ConstantInfoView::NameAndType(NameAndTypeView { backing_class, i }),
             ConstantKind::MethodHandle(_) => unimplemented!(),
             ConstantKind::MethodType(_) => unimplemented!(),
             ConstantKind::Dynamic(_) => unimplemented!(),

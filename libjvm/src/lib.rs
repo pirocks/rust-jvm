@@ -39,9 +39,6 @@ use std::os::raw::{c_int, c_char};
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?
 
-
-
-
 pub mod hashcode;
 pub mod monitor;
 pub mod time;
@@ -137,7 +134,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_arrayBaseOffset(env: *mut JNIEnv,
 unsafe extern "system" fn Java_sun_misc_Unsafe_arrayIndexScale(env: *mut JNIEnv,
                                                                obj: jobject,
                                                                cb: jclass) -> jint {
-    -1//unimplemented but can't return nothing.
+    2//todo unimplemented but can't return nothing, and need to return a power of 2
 }
 
 

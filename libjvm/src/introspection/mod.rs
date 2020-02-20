@@ -17,6 +17,7 @@ use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+use libjvm_utils::ptype_to_class_object;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -46,36 +47,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let frame = get_frame(env);
     let object_non_null = from_object(cls).unwrap().clone();
     let object_class = object_non_null.unwrap_normal_object().array_class_object_pointer.borrow();
-    match object_class.as_ref().unwrap() {
-        PType::ByteType => unimplemented!(),
-        PType::CharType => {
-            load_class_constant_by_name(state, &frame, "java/lang/Character".to_string());
-        }
-        PType::DoubleType => unimplemented!(),
-        PType::FloatType => unimplemented!(),
-        PType::IntType => unimplemented!(),
-        PType::LongType => unimplemented!(),
-        PType::Ref(rt) => {
-            match rt{
-                ReferenceType::Class(c) => {
-                    load_class_constant_by_name(state,&frame,c.get_referred_name().clone())
-                },
-                ReferenceType::Array(a) => {
-                    unimplemented!()
-                },
-            }
-        },
-        PType::ShortType => unimplemented!(),
-        PType::BooleanType => unimplemented!(),
-        PType::VoidType => unimplemented!(),
-        PType::TopType => unimplemented!(),
-        PType::NullType => unimplemented!(),
-        PType::Uninitialized(_) => unimplemented!(),
-        PType::UninitializedThis => unimplemented!(),
-        PType::UninitializedThisOrClass(_) => unimplemented!(),
-    };
-    to_object(frame.pop().unwrap_object())
-//    load_class_constant_by_name()//todo should be a load class
+    to_object(ptype_to_class_object(state,&frame,object_class.as_ref().unwrap()))
 }
 
 #[no_mangle]
@@ -104,57 +76,12 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     unimplemented!()
 }
 
-fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, type_: &PType) -> JavaValue {
-    match type_ {
-        PType::IntType => {
-            load_class_constant_by_name(state, frame, "java/lang/Integer".to_string());
-        }
-        PType::Ref(ref_) => {
-            match ref_ {
-                ReferenceType::Class(cl) => {
-                    load_class_constant_by_name(state, frame, cl.get_referred_name().clone());
-                }
-                ReferenceType::Array(sub) => {
-                    frame.push(JavaValue::Object(array_of_type_class(
-                        state,
-                        frame.clone(),
-                        sub.deref(),
-                    ).into()));
-                }
-            }
-        }
-        PType::BooleanType => {
-            //todo dup.
-            load_class_constant_by_name(state, frame, "java/lang/Boolean".to_string());
-        }
-        PType::LongType => {
-            //todo dup.
-            load_class_constant_by_name(state, frame, "java/lang/Long".to_string());
-        }
-        PType::CharType => {
-            load_class_constant_by_name(state, frame, "java/lang/Character".to_string());
-        }
-        PType::FloatType => {
-            //todo there really needs to be a unified function for this
-            load_class_constant_by_name(state, frame, "java/lang/Float".to_string());
-        }
-        _ => {
-            dbg!(type_);
-            frame.print_stack_trace();
-            unimplemented!()
-        }
-    }
-    frame.pop()
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let frame = get_frame(env);
     let state = get_state(env);
-//    frame.print_stack_trace();
     let class_obj = runtime_class_from_object(ofClass);
-//    dbg!(&class_obj.clone().unwrap_normal_object().class_pointer);
-//    let runtime_object = state.class_object_pool.borrow().get(&class_obj).unwrap();
     let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     let mut object_array = vec![];
     &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
@@ -172,7 +99,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         let field_desc_str = class_obj.clone().unwrap().classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
         let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
-        let field_type_class = field_type_to_class(state, &frame, &field_type.to_ptype());
+        let field_type_class = ptype_to_class_object(state, &frame, &field_type.to_ptype());
 
         let modifiers = JavaValue::Int(f.access_flags as i32);
         let slot = JavaValue::Int(i as i32);
@@ -187,7 +114,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             state,
             frame.clone(),
             field_classfile.clone(),
-            vec![field_object, parent_runtime_class, field_name_string, field_type_class, modifiers, slot, signature_string, annotations],
+            vec![field_object, parent_runtime_class, field_name_string, JavaValue::Object(field_type_class), modifiers, slot, signature_string, annotations],
             "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),
         )
     });
@@ -326,19 +253,13 @@ unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *
     unimplemented!()
 }
 
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, types: *mut ::std::os::raw::c_uchar) {
-    unimplemented!()
-}
+pub mod fields{
+    use jni_bindings::{JNIEnv, jclass, jint};
 
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassCPEntriesCount(env: *mut JNIEnv, cb: jclass) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
-    unimplemented!()
+    #[no_mangle]
+    unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
+        unimplemented!()
+    }
 }
 
 #[no_mangle]
@@ -363,51 +284,6 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     to_object(jclass)
 }
 
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int, calledClass: jclass) -> jint {
-    unimplemented!()
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int, calledClass: jclass) -> jint {
-    unimplemented!()
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclass, class2: jclass) -> jboolean {
