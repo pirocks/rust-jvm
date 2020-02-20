@@ -72,7 +72,7 @@ fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, c
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(classfile.clone()));
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => {
-            match r{
+            match r {
                 ReferenceTypeView::Class(c) => c,
                 ReferenceTypeView::Array(_a) => {
                     if expected_method_name == "clone".to_string() {
@@ -115,10 +115,6 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     };
     let c = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
     let all_methods = get_all_methods(state, current_frame.clone(), c.clone());
-//    current_frame.print_stack_trace();
-//    dbg!(class_name(&c.classfile));
-//    dbg!(&method_name);
-//    dbg!(&expected_descriptor);
     let (final_target_class, new_i) = all_methods.iter().find(|(c, m)| {
         let cur_method_info = &c.classfile.methods[*m];
         let cur_name = cur_method_info.method_name(&c.classfile);
@@ -128,12 +124,11 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
         &cur_name == expected_name &&
             expected_descriptor.parameter_types == cur_desc.parameter_types &&
             !cur_method_info.is_static() &&
-            !cur_method_info.is_abstract() //&&
-//            !cur_method_info.is_native()
+            !cur_method_info.is_abstract()
     }).unwrap();
     let final_classfile = &final_target_class.classfile;
     let target_method = &final_classfile.methods[*new_i];
-    let final_descriptor = parse_method_descriptor( target_method.descriptor_str(&final_classfile).as_str()).unwrap();
+    let final_descriptor = parse_method_descriptor(target_method.descriptor_str(&final_classfile).as_str()).unwrap();
     invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), *new_i, target_method)
 }
 
@@ -181,30 +176,20 @@ pub fn invoke_virtual_method_i_impl(
 
 //todo we should be going to this first imo. b/c as is we have correctness issues with overloaded impls?
 pub fn actually_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: &Arc<RuntimeClass>, target_method: &MethodInfo) -> () {
-//    dbg!("Called actually virtual");
-//    dbg!(class_name(&target_class.classfile).get_referred_name());
-//    current_frame.print_stack_trace();
     let this_pointer = {
         let operand_stack = current_frame.operand_stack.borrow();
         &operand_stack[operand_stack.len() - expected_descriptor.parameter_types.len() - 1].clone()
     };
     let new_target_class = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
     assert_eq!(new_target_class.classfile.access_flags & ACC_ABSTRACT, 0);
-//    dbg!(class_name(&new_target_class.classfile).get_referred_name());
 //todo so this is incorrect due to subclassing of return value.
     let all_methods = get_all_methods(state, current_frame.clone(), new_target_class.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, m)| {
         let cur_method_info = &c.classfile.methods[*m];
         let cur_name = cur_method_info.method_name(&c.classfile);
         let desc_str = cur_method_info.descriptor_str(&c.classfile);
-        let cur_desc = parse_method_descriptor( desc_str.as_str()).unwrap();
+        let cur_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
         let expected_name = target_method.method_name(&target_class.classfile);
-//        if expected_name == cur_name{
-//            dbg!(&expected_name);
-//            dbg!(&cur_name);
-//            dbg!(&expected_descriptor);
-//            dbg!(&cur_desc);
-//        }
 
         cur_name == expected_name &&
             expected_descriptor.parameter_types == cur_desc.parameter_types &&
@@ -220,10 +205,6 @@ pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &
         args.push(JavaValue::Top);
     }
     let mut i = 1;
-//    dbg!(&expected_descriptor.parameter_types);
-//    if args.len() == 5 {
-//        dbg!(&current_frame.operand_stack);
-//    }
     for _ in &expected_descriptor.parameter_types {
         let value = current_frame.pop();
         match value.clone() {
@@ -237,27 +218,11 @@ pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &
                 i += 1
             }
         };
-        //todo does ordering end up correct
     }
-//    dbg!(&args[1..(expected_descriptor.parameter_types.len() + 1)]);
     if expected_descriptor.parameter_types.len() != 0 {
         args[1..i].reverse();
     }
     args[0] = current_frame.pop();
-
-
-    /*
-      for _ in 0..max_locals {
-        args.push(JavaValue::Top);
-    }
-    for i in 1..(parsed_descriptor.parameter_types.len() + 1) {
-        args[i] = current_frame.pop();
-        //todo does ordering end up correct
-    }
-    args[1..(parsed_descriptor.parameter_types.len() + 1)].reverse();
-    args[0] = current_frame.pop();
-//    dbg!(&args);
-*/
 }
 
 pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
@@ -283,21 +248,16 @@ pub fn invoke_static_impl(
 ) -> () {
     let mut args = vec![];
     if target_method.access_flags & ACC_NATIVE == 0 {
-//        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-//        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         for _ in 0..max_locals {
             args.push(JavaValue::Top);
         }
-//        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         for i in 0..expected_descriptor.parameter_types.len() {
             args[i] = current_frame.pop();
-            //todo does ordering end up correct
         }
         args[0..expected_descriptor.parameter_types.len()].reverse();
-//        dbg!(&target_class.static_vars.borrow().get("savedProps"));
         let next_entry = StackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class,
@@ -307,7 +267,6 @@ pub fn invoke_static_impl(
             pc: 0.into(),
             pc_offset: 0.into(),
         };
-//        dbg!(&args);
         run_function(state, Rc::new(next_entry));
         if state.throw.is_some() || state.terminate {
             return;
@@ -317,10 +276,7 @@ pub fn invoke_static_impl(
             return;
         }
     } else {
-//        dbg!(&target_class.static_vars.borrow().get("savedProps"));
-        //only works for static void
         run_native_method(state, current_frame.clone(), target_class.clone(), target_method_i);
-//        dbg!(&target_class.static_vars.borrow().get("savedProps"));
     }
 }
 
@@ -363,7 +319,6 @@ pub fn run_native_method(
             args.insert(0, frame.pop());
         } else {
             panic!();
-//            setup_virtual_args(&frame, &parsed, &mut args, (parsed.parameter_types.len() + 1) as u16)
         }
     }
     println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
@@ -376,8 +331,6 @@ pub fn run_native_method(
             state.jni.registered_natives.borrow().get(&class).unwrap().borrow().contains_key(&(method_i as u16))
         {
             //todo dup
-//            dbg!(class_name(&class.classfile).get_referred_name());
-//            dbg!(&class.classfile.methods[method_i].method_name(&class.classfile));
             let res_fn = {
                 let reg_natives = state.jni.registered_natives.borrow();
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
@@ -390,10 +343,7 @@ pub fn run_native_method(
                 Err(_) => {
                     let mangled = mangling::mangle(class.clone(), method_i);
                     //todo actually impl these at some point
-                    if mangled == "Java_sun_misc_Unsafe_compareAndSwapObject".to_string() {
-                        //todo do nothing for now and see what happens
-                        Some(JavaValue::Boolean(true))
-                    } else if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
+                    if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
                         let param0_obj = args[0].unwrap_object();
                         let _the_unsafe = param0_obj.as_ref().unwrap().unwrap_normal_object();
                         let param1_obj = args[1].unwrap_object();
@@ -455,20 +405,21 @@ pub fn run_native_method(
                             ptr.write(val);
                         }
                         None
-                    } else if mangled == "Java_sun_misc_Unsafe_getByte__J".to_string(){
+                    } else if mangled == "Java_sun_misc_Unsafe_getByte__J".to_string() {
                         unsafe {
                             let ptr: *mut i8 = transmute(args[1].unwrap_long());
                             JavaValue::Byte(ptr.read()).into()
                         }
-                    }else if mangled == "Java_sun_misc_Unsafe_freeMemory".to_string() {
+                    } else if mangled == "Java_sun_misc_Unsafe_freeMemory".to_string() {
                         unsafe {
                             libc::free(transmute(args[1].unwrap_long()))
                         };
                         None
                         //todo all these unsafe function thingys are getting a tad excessive
-                    } else if mangled == "Java_sun_misc_Unsafe_getObjectVolatile".to_string(){
+                    } else if mangled == "Java_sun_misc_Unsafe_getObjectVolatile".to_string() {
                         let temp = args[1].unwrap_object().unwrap();
-                        let res = &temp.unwrap_array().elems.borrow()[args[2].unwrap_long() as usize];
+                        let array_idx = args[2].unwrap_long() as usize;
+                        let res = &temp.unwrap_array().elems.borrow()[array_idx];
                         res.clone().into()
                     } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapLong".to_string() {
                         let param1_obj = args[1].unwrap_object();
@@ -487,8 +438,7 @@ pub fn run_native_method(
                             fields.insert(field_name, JavaValue::Long(new));
                             JavaValue::Boolean(true)
                         }.into()
-                    }
-                    else {
+                    } else {
 //                        frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
@@ -526,7 +476,7 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &ClassView::from(classfile.clone()));
-    let class_name_ =  class_name_type.unwrap_class_type();
+    let class_name_ = class_name_type.unwrap_class_type();
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let _target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
     let mut args = vec![];
@@ -536,8 +486,6 @@ pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEnt
     let this_pointer = this_pointer_o.unwrap_normal_object();
     current_frame.operand_stack.replace(checkpoint);
     let target_class = this_pointer.class_pointer.clone();
-//    dbg!(invoke_interface.count);
-//    dbg!(class_name(&target_class.classfile));
     let (target_method_i, final_target_class) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
     invoke_virtual_method_i(state, current_frame, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i]);
