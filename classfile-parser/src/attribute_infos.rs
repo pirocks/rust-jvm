@@ -1,4 +1,4 @@
-use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers, UninitializedVariableInfo};
+use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers, UninitializedVariableInfo, ArrayValue};
 use crate::constant_infos::is_utf8;
 use crate::code::parse_code_raw;
 use rust_jvm_common::classnames::ClassName;
@@ -147,6 +147,14 @@ fn parse_element_value(p: &mut dyn ParsingContext) -> ElementValue {
         'S' => { unimplemented!() }
         's' => {
             ElementValue::String(p.read16())
+        }
+        '[' => {
+            let num_values = p.read16();
+            let mut values = vec![];
+            for _ in 0..num_values{
+                values.push(parse_element_value(p));
+            }
+            ElementValue::ArrayType(ArrayValue{ values })
         }
         _ => { unimplemented!("{}", tag) }
     }

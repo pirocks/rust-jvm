@@ -370,12 +370,70 @@ fn dup_x2_form2_is_type_safe(env: &Environment, input_stack: &OperandStack) -> R
 //pub fn instruction_is_type_safe_dup2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
 //}
+
 //
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_dup2_x1(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
+//instructionIsTypeSafe(dup2_x1, Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
+//StackFrame = frame(Locals, InputOperandStack, Flags),
+//dup2_x1FormIsTypeSafe(Environment, InputOperandStack, OutputOperandStack),
+//NextStackFrame = frame(Locals, OutputOperandStack, Flags),
+//exceptionStackFrame(StackFrame, ExceptionStackFrame).
+pub fn instruction_is_type_safe_dup2_x1(env: &Environment, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = &stack_frame.locals;
+    let input_stack = &stack_frame.stack_map;
+    let flags = stack_frame.flag_this_uninit;
+    let output = dup2_x1form_is_type_safe(env,input_stack.clone())?;
+    let next_frame = Frame {
+        locals: locals.clone(),
+        stack_map: output,
+        flag_this_uninit: flags
+    };
+    standard_exception_frame(stack_frame,next_frame)
+}
+
+pub fn dup2_x1form_is_type_safe(env: &Environment, input_frame: OperandStack) -> Result<OperandStack,TypeSafetyError>{
+    dup2_x1form1_is_type_safe(env,input_frame.clone()).or_else(||{
+        dup2_x1form2_is_type_safe(env,input_frame)
+    })
+}
+//dup2_x1Form1IsTypeSafe(Environment, InputOperandStack, OutputOperandStack) :-
+//popCategory1(InputOperandStack, Type1, Stack1),
+//popCategory1(Stack1, Type2, Stack2),
+//popCategory1(Stack2, Type3, Rest),
+//canSafelyPushList(Environment, Rest, [Type2, Type1, Type3, Type2, Type1],OutputOperandStack).
+pub fn dup2_x1form1_is_type_safe(env: &Environment, mut input_frame: OperandStack) -> Result<OperandStack,TypeSafetyError>{
+    let stack1 = &mut input_frame;
+    let type1  = pop_category1(&env.vf, stack1)?;
+    let stack2 = &mut input_frame.clone();
+    let type2 = pop_category1(&env.vf, stack2)?;
+    let mut rest = stack2.clone();
+    let type3 = pop_category1(&env.vf,&mut rest)?;
+    can_safely_push_list(env,&rest,vec![type2.clone(),type1.clone(),type3,type2,type1])
+}
+
+//dup2_x1Form2IsTypeSafe(Environment, InputOperandStack, OutputOperandStack) :-
+//popCategory2(InputOperandStack, Type1, Stack1),
+//popCategory1(Stack1, Type2, Rest),
+//canSafelyPushList(Environment, Rest, [Type1, Type2, Type1],OutputOperandStack).
+pub fn dup2_x1form2_is_type_safe(env: &Environment, input_frame: OperandStack) -> Result<OperandStack,TypeSafetyError>{
+    let stack1 = &mut input_frame.clone();
+    let type1 = pop_category2(&env.vf, stack1)?;
+    let mut rest = stack1.clone();
+    let type2 = pop_category1(&env.vf, &mut rest)?;
+    can_safely_push_list(env,&rest,vec![type1.clone(),type2,type1])
+}
+
+
 //
+//dup2_x1FormIsTypeSafe(Environment, InputOperandStack, OutputOperandStack) :-
+//dup2_x1Form1IsTypeSafe(Environment, InputOperandStack, OutputOperandStack).
+//
+//dup2_x1FormIsTypeSafe(Environment, InputOperandStack, OutputOperandStack) :-
+//dup2_x1Form2IsTypeSafe(Environment, InputOperandStack, OutputOperandStack).
+//
+
+//
+
+
 //#[allow(unused)]
 //pub fn instruction_is_type_safe_dup2_x2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
 //    unimplemented!()
