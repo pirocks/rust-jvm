@@ -366,13 +366,14 @@ pub fn run_function(
 
 fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
     let object_ref = current_frame.pop();
-    match object_ref.clone() {
-        JavaValue::Int(_) | JavaValue::Char(_) | JavaValue::Byte(_) => {}
-        _ => {
-            dbg!(&object_ref);
-            panic!()
-        }
-    }
+//    match object_ref.clone() {
+//        //todo there needs to be a unified way of doing this
+//        JavaValue::Int(_) | JavaValue::Char(_) | JavaValue::Byte(_) | JavaValue::Boolean(_) => {}
+//        _ => {
+//            dbg!(&object_ref);
+//            panic!()
+//        }
+//    }
     current_frame.local_vars.borrow_mut()[n as usize] = JavaValue::Int(object_ref.unwrap_int());
 }
 

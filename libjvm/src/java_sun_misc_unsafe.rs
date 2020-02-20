@@ -13,7 +13,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(
 unsafe extern "system" fn Java_sun_misc_Unsafe_arrayBaseOffset(env: *mut JNIEnv,
                                                                obj: jobject,
                                                                cb: jclass) -> jint {
-    -1//unimplemented but can't return nothing.
+    0//unimplemented but can't return nothing.
+    //essentially the amount at the beginning of the array which is reserved
 }
 
 
@@ -21,7 +22,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_arrayBaseOffset(env: *mut JNIEnv,
 unsafe extern "system" fn Java_sun_misc_Unsafe_arrayIndexScale(env: *mut JNIEnv,
                                                                obj: jobject,
                                                                cb: jclass) -> jint {
-    2//todo unimplemented but can't return nothing, and need to return a power of 2
+    1//todo unimplemented but can't return nothing, and need to return a power of 2,1 counts as a power of two. This essentially reprs the size of an elem in java arrays
 }
 
 
