@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
 use rust_jvm_common::classnames::class_name;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
+use rust_jvm_common::view::ptype_view::PTypeView;
 
 //#[derive(Debug)]
 pub enum JavaValue {
@@ -330,23 +331,23 @@ impl Debug for NormalObject {
     }
 }
 
-pub fn default_value(type_: PType) -> JavaValue {
+pub fn default_value(type_: PTypeView) -> JavaValue {
     match type_ {
-        PType::ByteType => JavaValue::Byte(0),
-        PType::CharType => JavaValue::Char('\u{000000}'),
-        PType::DoubleType => JavaValue::Double(0.0),
-        PType::FloatType => JavaValue::Float(0.0),
-        PType::IntType => JavaValue::Int(0),
-        PType::LongType => JavaValue::Long(0),
-        PType::Ref(_) => JavaValue::Object(None),
-        PType::ShortType => JavaValue::Short(0),
-        PType::BooleanType => JavaValue::Boolean(false),
-        PType::VoidType => panic!(),
-        PType::TopType => JavaValue::Top,
-        PType::NullType => JavaValue::Object(None),
-        PType::Uninitialized(_) => unimplemented!(),
-        PType::UninitializedThis => unimplemented!(),
-        PType::UninitializedThisOrClass(_) => panic!(),
+        PTypeView::ByteType => JavaValue::Byte(0),
+        PTypeView::CharType => JavaValue::Char('\u{000000}'),
+        PTypeView::DoubleType => JavaValue::Double(0.0),
+        PTypeView::FloatType => JavaValue::Float(0.0),
+        PTypeView::IntType => JavaValue::Int(0),
+        PTypeView::LongType => JavaValue::Long(0),
+        PTypeView::Ref(_) => JavaValue::Object(None),
+        PTypeView::ShortType => JavaValue::Short(0),
+        PTypeView::BooleanType => JavaValue::Boolean(false),
+        PTypeView::VoidType => panic!(),
+        PTypeView::TopType => JavaValue::Top,
+        PTypeView::NullType => JavaValue::Object(None),
+        PTypeView::Uninitialized(_) => unimplemented!(),
+        PTypeView::UninitializedThis => unimplemented!(),
+        PTypeView::UninitializedThisOrClass(_) => panic!(),
     }
 }
 

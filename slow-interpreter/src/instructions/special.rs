@@ -55,7 +55,7 @@ pub fn invoke_checkcast(state: &mut InterpreterState, current_frame: &Rc<StackEn
                 },
 //                PType::ArrayReferenceType(_) => unimplemented!(),
                 _ => {
-                    a.elem_type == expected_type
+                    a.elem_type == expected_type.to_ptype()
                 }
             };
             if cast_succeeds{

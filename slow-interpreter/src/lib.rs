@@ -9,7 +9,7 @@ use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
-use rust_jvm_common::unified_types::{PType, ReferenceType};
+use rust_jvm_common::unified_types::PType;
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
 use std::collections::{HashMap, HashSet};
@@ -20,7 +20,8 @@ use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
 use descriptor_parser::{MethodDescriptor, parse_field_type};
-use stage2_common::string_pool::StringPool;
+use rust_jvm_common::string_pool::StringPool;
+use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
                                   class_name: &ClassName,
@@ -39,7 +40,7 @@ fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_fr
     let referred_class_name = class_name.get_referred_name();
     let after_parse = parse_field_type(referred_class_name.as_str()).unwrap();
     assert!(after_parse.0.is_empty());
-    let type_for_object : PType = after_parse.1.unwrap_array_type();
+    let type_for_object : PType = after_parse.1.unwrap_array_type().to_ptype();
     array_of_type_class(state, current_frame, &type_for_object)
 }
 
@@ -113,8 +114,8 @@ pub fn run(
     jni: LibJavaLoading,
 ) -> Result<(), Box<dyn Error>> {
     let main = bl.clone().load_class(bl.clone(), main_class_name, bl.clone())?;
-    let main_class = prepare_class(main.clone(), bl.clone());
-    let main_i = locate_main_method(&bl, &main);
+    let main_class = prepare_class(main.clone().backing_class(), bl.clone());
+    let main_i = locate_main_method(&bl, &main.backing_class());
     let mut state = InterpreterState {
         terminate: false,
         throw: None,
@@ -177,12 +178,12 @@ fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
 
 fn locate_main_method(_bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     let string_name = ClassName::string();
-    let string_class = PType::Ref(ReferenceType::Class(string_name));
-    let string_array = PType::Ref(ReferenceType::Array(string_class.into()));
+    let string_class = PTypeView::Ref(ReferenceTypeView::Class(string_name));
+    let string_array = PTypeView::Ref(ReferenceTypeView::Array(string_class.into()));
     let psvms = main.lookup_method_name(&"main".to_string());
     for (i, m) in psvms {
-        let desc = MethodDescriptor::from(m, main);
-        if m.is_static() && desc.parameter_types == vec![string_array.clone()] && desc.return_type == PType::VoidType {
+        let desc = MethodDescriptor::from_legacy(m, main);
+        if m.is_static() && desc.parameter_types == vec![string_array.clone()] && desc.return_type == PTypeView::VoidType {
             return i;
         }
     }

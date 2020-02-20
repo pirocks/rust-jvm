@@ -1,5 +1,5 @@
 use std::sync::{Weak, Arc};
-use crate::classfile::{Classfile, ConstantKind};
+use crate::classfile::Classfile;
 use std::fmt::Formatter;
 use std::fmt;
 use std::hash::Hash;
@@ -104,7 +104,7 @@ pub fn class_name(class: &Arc<Classfile>) -> ClassName {
 //        _ => { panic!() }
 //    };
 
-    unimplemented!()
+    ClassName::Str(class.extract_class_from_constant_pool_name(class.this_class))
     /*return ClassName::Ref(NameReference {
         class_file: Arc::downgrade(&class),
         index: class_info_entry.name_index,

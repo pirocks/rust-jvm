@@ -46,6 +46,9 @@ impl Clone for ClassView {
 }
 
 impl ClassView {
+    pub fn from(c : Arc<Classfile>) -> ClassView{
+        ClassView { backing_class: c.clone() }
+    }
     pub fn name(&self) -> ClassName {
         unimplemented!()
     }
@@ -75,6 +78,9 @@ impl ClassView {
     }
     pub fn num_interfaces(&self) -> usize {
         self.backing_class.interfaces.len()
+    }
+    pub fn backing_class(&self) -> Arc<Classfile>{
+        self.backing_class.clone()
     }
 }
 

@@ -5,6 +5,7 @@ use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use runtime_common::java_values::{JavaValue, default_value};
 use rust_jvm_common::unified_types::{PType, ReferenceType};
+use rust_jvm_common::view::ptype_view::PTypeView;
 
 pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
@@ -49,18 +50,18 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
     };
     let type_ = match a_type {
         Atype::TChar => {
-            PType::CharType
+            PTypeView::CharType
         }
         Atype::TInt => {
-            PType::IntType
+            PTypeView::IntType
         }
         Atype::TByte => {
-            PType::ByteType
+            PTypeView::ByteType
         }
         _ => {
             dbg!(a_type);
             unimplemented!()
         }
     };
-    current_frame.push(JavaValue::Object(JavaValue::new_vec(count as usize, default_value(type_.clone()), type_)));
+    current_frame.push(JavaValue::Object(JavaValue::new_vec(count as usize, default_value(type_.clone()), type_.to_ptype())));
 }

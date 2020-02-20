@@ -19,6 +19,7 @@ use rust_jvm_common::classnames::ClassName;
 use jar_manipulation::JarHandle;
 use std::sync::Arc;
 use slow_interpreter::rust_jni::new_java_loading;
+use rust_jvm_common::loading::LoaderName;
 
 
 extern crate classfile_parser;

@@ -16,6 +16,8 @@ use verification::VerifierContext;
 use rust_jvm_common::classnames::class_name;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::view::ClassView;
 
 //#[test]
 //#[timeout(10000)]
@@ -156,11 +158,11 @@ fn verify_impl(classname: &ClassName, jar_path: &Path) -> Result<(), TypeSafetyE
     };
     let bootstrap_loader = Arc::new(loader);
     let mut jar_handle = JarHandle::new(jar_path.into()).unwrap();
-    let classfile = jar_handle.lookup(classname, bootstrap_loader.clone()).unwrap();
+    let classfile = jar_handle.lookup(classname).unwrap();
     bootstrap_loader.parsed.write().unwrap().insert(class_name(&classfile), classfile.clone());
 
 
-    match verify(&VerifierContext { bootstrap_loader: bootstrap_loader.clone() }, classfile.clone(), bootstrap_loader.clone()) {
+    match verify(&VerifierContext { bootstrap_loader: bootstrap_loader.clone() }, ClassView::from(classfile.clone()), bootstrap_loader.clone()) {
         Ok(_) => Result::Ok(()),
         Err(err) => {
             match err {

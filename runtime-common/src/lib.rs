@@ -13,6 +13,7 @@ use libloading::Library;
 use std::rc::Rc;
 use rust_jvm_common::unified_types::PType;
 use rust_jvm_common::string_pool::StringPool;
+use rust_jvm_common::loading::LoaderArc;
 
 pub mod java_values;
 pub mod runtime_class;

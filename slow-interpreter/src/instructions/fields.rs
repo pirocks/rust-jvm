@@ -5,12 +5,13 @@ use verification::verifier::instructions::special::extract_field_descriptor;
 use runtime_common::java_values::JavaValue;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
+use rust_jvm_common::view::ClassView;
 
 
 pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone());
+    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
     let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
     let field_value = stack.pop().unwrap();
@@ -20,7 +21,7 @@ pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, c
 pub fn putfield(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone());
+    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
     let _target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
     let val = stack.pop().unwrap();
@@ -43,7 +44,7 @@ pub fn get_static(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, 
 
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone());
+    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
     /*if field_name == "reflectionFactory" {
         dbg!(cp);
         panic!()
@@ -70,7 +71,7 @@ fn get_static_impl(state: &mut InterpreterState, current_frame: &Rc<StackEntry>,
 
 pub fn get_field(current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
-    let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, classfile.clone());
+    let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
     let object_ref = current_frame.pop();
     match object_ref {
         JavaValue::Object(o) => {

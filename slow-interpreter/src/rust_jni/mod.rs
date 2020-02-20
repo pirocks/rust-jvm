@@ -7,7 +7,6 @@ use log::trace;
 use libloading::Library;
 use libloading::Symbol;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::{PType, ReferenceType};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::java_values::{JavaValue, Object};
 use std::ffi::CStr;
@@ -35,6 +34,7 @@ use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_name;
 use crate::rust_jni::interface::util::runtime_class_from_object;
 use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 
 pub mod value_conversion;
@@ -98,8 +98,8 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&&env)]
     } else {
-        load_class_constant_by_name(state, &current_frame, class_name(&classfile.classfile.clone()).get_referred_name());
-        vec![Arg::new(&&env), to_native(current_frame.pop(), &PType::Ref(ReferenceType::Class(ClassName::object())))]
+        load_class_constant_by_name(state, &current_frame, class_name(&classfile.classfile.clone()).get_referred_name().clone());
+        vec![Arg::new(&&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())]
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 //    dbg!(&args);
@@ -109,14 +109,14 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
 //        }
 //    }
     if suppress_runtime_class {
-        for (j, t) in args.iter().zip(vec![PType::Ref(ReferenceType::Class(ClassName::object()))].iter().chain(md.parameter_types.iter())) {
-            args_type.push(to_native_type(t));
-            c_args.push(to_native(j.clone(), t));
+        for (j, t) in args.iter().zip(vec![PTypeView::Ref(ReferenceTypeView::Class(ClassName::object()))].iter().chain(md.parameter_types.iter())) {
+            args_type.push(to_native_type(&t.to_ptype()));
+            c_args.push(to_native(j.clone(), &t.to_ptype()));
         }
     }else {
         for (j, t) in args.iter().zip(md.parameter_types.iter()) {
-            args_type.push(to_native_type(t));
-            c_args.push(to_native(j.clone(), t));
+            args_type.push(to_native_type(&t.to_ptype()));
+            c_args.push(to_native(j.clone(), &t.to_ptype()));
         }
     }
 
@@ -131,26 +131,26 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     };
 //    trace!("----NATIVE EXIT ----");
     match &md.return_type {
-        PType::VoidType => {
+        PTypeView::VoidType => {
             None
         }
 //            ParsedType::ByteType => {}
 //            ParsedType::CharType => {}
-        PType::DoubleType => {
+        PTypeView::DoubleType => {
             Some(JavaValue::Double(unsafe { transmute(cif_res) }))
         }
 //            ParsedType::FloatType => {}
-        PType::IntType => {
+        PTypeView::IntType => {
             Some(JavaValue::Int(cif_res as i32))
         }
-        PType::LongType => {
+        PTypeView::LongType => {
             Some(JavaValue::Long(cif_res as i64))
         }
 //            ParsedType::ShortType => {}
-        PType::BooleanType => {
+        PTypeView::BooleanType => {
             Some(JavaValue::Boolean(cif_res as u64 != 0))
         }
-        PType::Ref(_) => {
+        PTypeView::Ref(_) => {
             unsafe {
                 Some(JavaValue::Object(from_object(transmute(cif_res))))
             }

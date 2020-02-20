@@ -1,4 +1,3 @@
-use rust_jvm_common::unified_types::PType;
 use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
 use crate::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
 use runtime_common::java_values::JavaValue;
@@ -10,6 +9,7 @@ use std::rc::Rc;
 use runtime_common::StackEntry;
 use log::trace;
 use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
+use rust_jvm_common::view::ptype_view::PTypeView;
 
 #[no_mangle]
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
@@ -27,25 +27,25 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     frame.push(JavaValue::Object(from_object(obj)));
     for type_ in &parsed.parameter_types {
         match type_ {
-            PType::ByteType => unimplemented!(),
-            PType::CharType => unimplemented!(),
-            PType::DoubleType => unimplemented!(),
-            PType::FloatType => unimplemented!(),
-            PType::IntType => unimplemented!(),
-            PType::LongType => unimplemented!(),
-            PType::Ref(_) => {
+            PTypeView::ByteType => unimplemented!(),
+            PTypeView::CharType => unimplemented!(),
+            PTypeView::DoubleType => unimplemented!(),
+            PTypeView::FloatType => unimplemented!(),
+            PTypeView::IntType => unimplemented!(),
+            PTypeView::LongType => unimplemented!(),
+            PTypeView::Ref(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
-            PType::ShortType => unimplemented!(),
-            PType::BooleanType => unimplemented!(),
-            PType::VoidType => unimplemented!(),
-            PType::TopType => unimplemented!(),
-            PType::NullType => unimplemented!(),
-            PType::Uninitialized(_) => unimplemented!(),
-            PType::UninitializedThis => unimplemented!(),
-            PType::UninitializedThisOrClass(_) => panic!(),
+            PTypeView::ShortType => unimplemented!(),
+            PTypeView::BooleanType => unimplemented!(),
+            PTypeView::VoidType => unimplemented!(),
+            PTypeView::TopType => unimplemented!(),
+            PTypeView::NullType => unimplemented!(),
+            PTypeView::Uninitialized(_) => unimplemented!(),
+            PTypeView::UninitializedThis => unimplemented!(),
+            PTypeView::UninitializedThisOrClass(_) => panic!(),
         }
     }
     //todo add params into operand stack;
@@ -82,26 +82,26 @@ pub unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod
 unsafe fn push_params_onto_frame(l: &mut VaList, frame: &Rc<StackEntry>, parsed: &MethodDescriptor) {
     for type_ in &parsed.parameter_types {
         match type_ {
-            PType::ByteType => unimplemented!(),
-            PType::CharType => unimplemented!(),
-            PType::DoubleType => unimplemented!(),
-            PType::FloatType => unimplemented!(),
-            PType::IntType => unimplemented!(),
-            PType::LongType => unimplemented!(),
-            PType::Ref(_) => {
+            PTypeView::ByteType => unimplemented!(),
+            PTypeView::CharType => unimplemented!(),
+            PTypeView::DoubleType => unimplemented!(),
+            PTypeView::FloatType => unimplemented!(),
+            PTypeView::IntType => unimplemented!(),
+            PTypeView::LongType => unimplemented!(),
+            PTypeView::Ref(_) => {
                 //todo dup with other line
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
-            PType::ShortType => unimplemented!(),
-            PType::BooleanType => unimplemented!(),
-            PType::VoidType => unimplemented!(),
-            PType::TopType => unimplemented!(),
-            PType::NullType => unimplemented!(),
-            PType::Uninitialized(_) => unimplemented!(),
-            PType::UninitializedThis => unimplemented!(),
-            PType::UninitializedThisOrClass(_) => panic!()
+            PTypeView::ShortType => unimplemented!(),
+            PTypeView::BooleanType => unimplemented!(),
+            PTypeView::VoidType => unimplemented!(),
+            PTypeView::TopType => unimplemented!(),
+            PTypeView::NullType => unimplemented!(),
+            PTypeView::Uninitialized(_) => unimplemented!(),
+            PTypeView::UninitializedThis => unimplemented!(),
+            PTypeView::UninitializedThisOrClass(_) => panic!()
         }
     }
 }

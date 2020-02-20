@@ -54,17 +54,18 @@ unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) ->
     if class_object.is_none() {
         return false as jboolean;
     }
-    let name = class_name(&class_object.unwrap().classfile).get_referred_name();
+    let name_ = class_name(&class_object.unwrap().classfile);
+    let name = name_.get_referred_name();
     dbg!(&name);
-    let is_primitive = name == "java/lang/Boolean".to_string() ||
-        name == "java/lang/Character".to_string() ||
-        name == "java/lang/Byte".to_string() ||
-        name == "java/lang/Short".to_string() ||
-        name == "java/lang/Integer".to_string() ||
-        name == "java/lang/Long".to_string() ||
-        name == "java/lang/Float".to_string() ||
-        name == "java/lang/Double".to_string() ||
-        name == "java/lang/Void".to_string();
+    let is_primitive = name == &"java/lang/Boolean".to_string() ||
+        name == &"java/lang/Character".to_string() ||
+        name == &"java/lang/Byte".to_string() ||
+        name == &"java/lang/Short".to_string() ||
+        name == &"java/lang/Integer".to_string() ||
+        name == &"java/lang/Long".to_string() ||
+        name == &"java/lang/Float".to_string() ||
+        name == &"java/lang/Double".to_string() ||
+        name == &"java/lang/Void".to_string();
 
     is_primitive as jboolean
 }

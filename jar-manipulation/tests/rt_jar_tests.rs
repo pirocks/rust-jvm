@@ -4,8 +4,6 @@ extern crate timebomb;
 use std::path::Path;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classnames::ClassName;
-use std::sync::Arc;
-use rust_jvm_common::loading::EmptyLoader;
 
 #[test]
 //#[timeout(10000)]
@@ -21,5 +19,5 @@ pub fn can_open_rt_jar() {
 pub fn can_get_object() {
     let p = Path::new("/homes/fpn17/Desktop/jdk8u232-b09/jre/lib/rt.jar");
     let mut j = JarHandle::new(p.into()).unwrap();
-    j.lookup(&ClassName::object(), Arc::new(EmptyLoader {})).unwrap();
+    j.lookup(&ClassName::object()).unwrap();
 }

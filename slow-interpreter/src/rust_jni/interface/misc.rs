@@ -1,4 +1,3 @@
-use rust_jvm_common::unified_types::PType;
 use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object};
 use runtime_common::java_values::JavaValue;
 use jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_};
@@ -9,6 +8,7 @@ use std::ffi::CStr;
 use crate::instructions::ldc::load_class_constant_by_name;
 use crate::rust_jni::interface::util::runtime_class_from_object;
 use descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::view::ptype_view::PTypeView;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -34,7 +34,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     let state = get_state(env);
 //    frame.print_stack_trace();
     let _inited_class = check_inited_class(state, &super_name, frame.clone().into(), frame.class_pointer.loader.clone());
-    load_class_constant_by_name(state, &frame, super_name.get_referred_name());
+    load_class_constant_by_name(state, &frame, super_name.get_referred_name().clone());
     to_object(frame.pop().unwrap_object())
 }
 
@@ -58,25 +58,25 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {
         match type_ {
-            PType::ByteType => unimplemented!(),
-            PType::CharType => unimplemented!(),
-            PType::DoubleType => unimplemented!(),
-            PType::FloatType => unimplemented!(),
-            PType::IntType => unimplemented!(),
-            PType::LongType => unimplemented!(),
-            PType::Ref(_) => {
+            PTypeView::ByteType => unimplemented!(),
+            PTypeView::CharType => unimplemented!(),
+            PTypeView::DoubleType => unimplemented!(),
+            PTypeView::FloatType => unimplemented!(),
+            PTypeView::IntType => unimplemented!(),
+            PTypeView::LongType => unimplemented!(),
+            PTypeView::Ref(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
-            PType::ShortType => unimplemented!(),
-            PType::BooleanType => unimplemented!(),
-            PType::VoidType => unimplemented!(),
-            PType::TopType => unimplemented!(),
-            PType::NullType => unimplemented!(),
-            PType::Uninitialized(_) => unimplemented!(),
-            PType::UninitializedThis => unimplemented!(),
-            PType::UninitializedThisOrClass(_) => panic!()
+            PTypeView::ShortType => unimplemented!(),
+            PTypeView::BooleanType => unimplemented!(),
+            PTypeView::VoidType => unimplemented!(),
+            PTypeView::TopType => unimplemented!(),
+            PTypeView::NullType => unimplemented!(),
+            PTypeView::Uninitialized(_) => unimplemented!(),
+            PTypeView::UninitializedThis => unimplemented!(),
+            PTypeView::UninitializedThisOrClass(_) => panic!()
         }
     }
     invoke_special_impl(

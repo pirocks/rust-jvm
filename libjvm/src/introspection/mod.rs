@@ -3,7 +3,7 @@ use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame};
 use std::sync::Arc;
 use runtime_common::java_values::{Object, ArrayObject, JavaValue};
 use std::cell::RefCell;
-use rust_jvm_common::unified_types::{PType, ClassWithLoader, ReferenceType};
+use rust_jvm_common::unified_types::{PType,  ReferenceType};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_name};
@@ -16,6 +16,7 @@ use std::ffi::CStr;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
+use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 pub mod constant_pool;
 pub mod is_x;
@@ -78,7 +79,7 @@ fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, typ
         PType::Ref(ref_) => {
             match ref_ {
                 ReferenceType::Class(cl) => {
-                    load_class_constant_by_name(state, frame, cl.get_referred_name());
+                    load_class_constant_by_name(state, frame, cl.get_referred_name().clone());
                 }
                 ReferenceType::Array(sub) => {
                     frame.push(JavaValue::Object(array_of_type_class(
@@ -124,8 +125,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let field_object = frame.pop();
 
         object_array.push(field_object.clone());
-        let field_class_name = class_name(&class_obj.clone().as_ref().unwrap().classfile).get_referred_name();
-        load_class_constant_by_name(state, &frame, field_class_name);
+        let field_class_name_ = class_name(&class_obj.clone().as_ref().unwrap().classfile);
+        let field_class_name = field_class_name_.get_referred_name();
+        load_class_constant_by_name(state, &frame, field_class_name.clone());
         let parent_runtime_class = frame.pop();
         let field_name = class_obj.clone().unwrap().classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
         create_string_on_stack(state, &frame, field_name);
@@ -133,7 +135,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         let field_desc_str = class_obj.clone().unwrap().classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
         let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
-        let field_type_class = field_type_to_class(state, &frame, &field_type);
+        let field_type_class = field_type_to_class(state, &frame, &field_type.to_ptype());
 
         let modifiers = JavaValue::Int(f.access_flags as i32);
         let slot = JavaValue::Int(i as i32);
@@ -209,8 +211,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         object_array.push(constructor_object.clone());
 
         let clazz = {
-            let field_class_name = class_name(&class_obj.clone().as_ref().unwrap().classfile).get_referred_name();
-            load_class_constant_by_name(state, &frame, field_class_name);
+            let field_class_name_ = class_name(&class_obj.clone().as_ref().unwrap().classfile);
+            let field_class_name = field_class_name_.get_referred_name();
+            load_class_constant_by_name(state, &frame, field_class_name.clone());
             frame.pop()
         };
 
@@ -220,13 +223,13 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
             let parsed = parse_method_descriptor(desc_str.as_str()).unwrap();
             for param_type in parsed.parameter_types {
                 res.push(match param_type {
-                    PType::Ref(r) => {
+                    PTypeView::Ref(r) => {
                         match r {
-                            ReferenceType::Class(c) => {
-                                load_class_constant_by_name(state, &frame, c.get_referred_name());
+                            ReferenceTypeView::Class(c) => {
+                                load_class_constant_by_name(state, &frame, c.get_referred_name().clone());
                                 frame.pop()
                             }
-                            ReferenceType::Array(_) => unimplemented!()
+                            ReferenceTypeView::Array(_) => unimplemented!()
                         }
                     }
                     _ => unimplemented!()
@@ -318,7 +321,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let frame = get_frame(env);
     let state = get_state(env);
 
-    load_class_constant_by_name(state, &frame, class_name(&frame.last_call_stack.as_ref().unwrap().class_pointer.classfile).get_referred_name());
+    load_class_constant_by_name(state, &frame, class_name(&frame.last_call_stack.as_ref().unwrap().class_pointer.classfile).get_referred_name().clone());
     let jclass = frame.pop().unwrap_object();
     to_object(jclass)
 }

@@ -74,9 +74,9 @@ impl Loader for BootstrapLoader {
                 Ok(_) => {}
                 Err(_) => panic!(),
             };
-            self.loaded.write().unwrap().insert(class.clone(), classfile);
+            self.loaded.write().unwrap().insert(class.clone(), classfile.backing_class());
         }
-        Result::Ok(self.loaded.read().unwrap().get(class).unwrap().clone())
+        Result::Ok(ClassView::from(self.loaded.read().unwrap().get(class).unwrap().clone()))
     }
 
     fn name(&self) -> LoaderName {
@@ -112,9 +112,9 @@ impl Loader for BootstrapLoader {
         match res {
             Ok(c) => {
                 self.parsed.write().unwrap().insert(class_name(&c), c.clone());
-                Result::Ok(c)
+                Result::Ok(ClassView::from(c))
             }
-            Err(_) => res,
+            Err(_) => panic!(),
         }
     }
 }

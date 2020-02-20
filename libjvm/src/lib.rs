@@ -20,7 +20,7 @@ use log::trace;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_function, run_constructor};
 use slow_interpreter::instructions::ldc::{load_class_constant_by_name, create_string_on_stack};
 use slow_interpreter::instructions::invoke::{invoke_virtual_method_i, invoke_special, actually_virtual};
-use rust_jvm_common::unified_types::{PType, ClassWithLoader};
+use rust_jvm_common::unified_types::{PType};
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use slow_interpreter::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
 use std::sync::Arc;

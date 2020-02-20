@@ -27,6 +27,7 @@ use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkc
 use crate::instructions::switch::invoke_lookupswitch;
 use descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 
+
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
     state: &mut InterpreterState,
@@ -39,7 +40,7 @@ pub fn check_inited_class(
         let bl = state.bootstrap_loader.clone();
 //        current_frame.clone().map( |x|{x.print_stack_trace()});
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
-        let prepared = Arc::new(prepare_class(target_classfile.clone(), loader_arc.clone()));
+        let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
         state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
         let inited_target = initialize_class(prepared, state, current_frame);
         state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
@@ -58,9 +59,10 @@ pub fn run_function(
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
+    let class_name__ = class_name(&current_frame.class_pointer.classfile);
 
 
-    let class_name_ = class_name(&current_frame.class_pointer.classfile).get_referred_name();
+    let class_name_ = class_name__.get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
     println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
@@ -400,7 +402,7 @@ fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>
     if classfile.super_class != 0 {
         let super_name = classfile.super_class_name();
         let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone()).unwrap();
-        default_init_fields(loader_arc.clone(), object_pointer.clone(), &loaded_super, bl);
+        default_init_fields(loader_arc.clone(), object_pointer.clone(), &loaded_super.backing_class(), bl);
     }
     for field in &classfile.fields {
         if field.access_flags & ACC_STATIC == 0 {
