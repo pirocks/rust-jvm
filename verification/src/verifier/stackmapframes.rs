@@ -1,6 +1,6 @@
-use crate::verifier::{InternalFrame, get_class};
+use crate::verifier::InternalFrame;
 use crate::verifier::Frame;
-use rust_jvm_common::classfile::{MethodInfo, StackMapTable, ACC_STATIC, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
+use rust_jvm_common::classfile::{StackMapTable, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
 use classfile_parser::stack_map_table_attribute;
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;
@@ -16,7 +16,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
     let code = method_info
         .code_attribute()
         .expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
-    let parsed_descriptor = MethodDescriptor::from(method_info,get_class(vf, class));
+    let parsed_descriptor = MethodDescriptor::from(method_info);
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let this_pointer = if method_info.is_static() {
@@ -47,10 +47,10 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
             map_frame: Frame {
                 locals: expand_to_length(frame.locals.clone(), frame.max_locals as usize, PTypeView::TopType)
                     .iter()
-                    .map(|x|x.to_verification_type(&vf.bootstrap_loader))
+                    .map(|x| x.to_verification_type(&vf.bootstrap_loader))
                     .collect(),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter()
-                    .map(|x|x.to_verification_type(&vf.bootstrap_loader))
+                    .map(|x| x.to_verification_type(&vf.bootstrap_loader))
                     .collect()),
                 flag_this_uninit: false,
             },

@@ -5,7 +5,7 @@ use crate::verifier::instructions::{handlers_are_legal, FrameResult};
 use crate::verifier::instructions::merged_code_is_type_safe;
 
 use std::option::Option::Some;
-use rust_jvm_common::classfile::{InstructionInfo, Instruction, ACC_NATIVE, ACC_ABSTRACT, Code, ACC_STATIC};
+use rust_jvm_common::classfile::{InstructionInfo, Instruction, Code};
 use crate::verifier::TypeSafetyError;
 use crate::{StackMap, VerifierContext};
 use rust_jvm_common::classnames::ClassName;
@@ -314,7 +314,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, VType) {
     let classfile = get_class(vf, class);
     let method_info = &classfile.method_view_i(method.method_index as usize);
-    let method_descriptor = method_info.descriptor_str(&classfile);
+    let method_descriptor = method_info.desc_str();
     let initial_parsed_descriptor = parse_method_descriptor(method_descriptor.as_str()).unwrap();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types.clone(),

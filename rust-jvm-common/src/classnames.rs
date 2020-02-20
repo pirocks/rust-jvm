@@ -99,10 +99,10 @@ impl ClassName {
 
 
 pub fn class_name(class: &Arc<Classfile>) -> ClassName {
-    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
-        ConstantKind::Class(c) => { c }
-        _ => { panic!() }
-    };
+//    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
+//        ConstantKind::Class(c) => { c }
+//        _ => { panic!() }
+//    };
 
     unimplemented!()
     /*return ClassName::Ref(NameReference {

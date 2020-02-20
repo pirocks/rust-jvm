@@ -53,13 +53,16 @@ impl ClassView {
     pub fn methods(&self) -> MethodIterator {
         MethodIterator { backing_class: self, i: 0 }
     }
-    pub fn method_view_i(&self, i: usize) -> MethodView{
+    pub fn method_view_i(&self, i: usize) -> MethodView {
         MethodView { backing_class: self.backing_class.clone(), method_i: i }
     }
     pub fn num_methods(&self) -> usize {
         self.backing_class.methods.len()
     }
     pub fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
+        unimplemented!()
+    }
+    pub fn fields(&self) -> FieldIterator {
         unimplemented!()
     }
 }
@@ -70,6 +73,7 @@ impl HasAccessFlags for ClassView {
     }
 }
 
+pub mod field_view;
 pub mod constant_info_view;
 pub mod method_view;
 pub mod ptype_view;

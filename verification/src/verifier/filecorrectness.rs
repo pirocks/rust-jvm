@@ -415,7 +415,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
     for method in class.methods() {
         let method_name = method.name().deref();
         if &member_name == method_name {
-            let parsed_member_types = MethodDescriptor::from(method, &class);
+            let parsed_member_types = MethodDescriptor::from(&method);
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }

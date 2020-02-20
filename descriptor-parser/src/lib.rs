@@ -1,14 +1,19 @@
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classfile::{MethodInfo, Classfile};
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::view::method_view::MethodView;
 
 
 #[derive(Debug)]
 pub struct MethodDescriptor { pub parameter_types: Vec<PTypeView>, pub return_type: PTypeView }
 
 impl MethodDescriptor {
-    pub fn from(method_info: &MethodInfo, classfile: &Classfile) -> Self {
+    pub fn from_legacy(method_info: &MethodInfo, classfile: &Classfile) -> Self {
         parse_method_descriptor( method_info.descriptor_str(classfile).as_str()).unwrap()
+    }
+
+    pub fn from(method_info: &MethodView) -> Self {
+        parse_method_descriptor( method_info.desc_str().as_str()).unwrap()
     }
 }
 
