@@ -1,7 +1,6 @@
 use crate::view::{HasAccessFlags, ClassView};
 use std::sync::Arc;
-use crate::classfile::{Classfile, Code};
-use crate::string_pool::StringPoolEntry;
+use crate::classfile::{Classfile, Code, MethodInfo};
 
 pub struct MethodView {
     pub(crate) backing_class: Arc<Classfile>,
@@ -19,16 +18,20 @@ impl MethodView {
         unimplemented!()
     }
 
-    pub fn name(&self) -> Arc<StringPoolEntry> {
-        unimplemented!()
+    fn method_info(&self) -> &MethodInfo{
+        &self.backing_class.methods[self.method_i]
+    }
+
+    pub fn name(&self) -> String {
+        self.method_info().method_name(&self.backing_class)
     }
 
     pub fn desc_str(&self) -> String {
-        unimplemented!()
+        self.method_info().descriptor_str(&self.backing_class)
     }
 
     pub fn code_attribute(&self) -> Option<&Code>{
-        unimplemented!()
+        self.method_info().code_attribute()//todo get a Code view
     }
 }
 

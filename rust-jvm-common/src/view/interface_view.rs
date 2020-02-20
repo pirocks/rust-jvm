@@ -17,7 +17,7 @@ pub struct InterfaceIterator<'l> {
 
 impl InterfaceView {
     fn from(c: &ClassView, i: usize) -> InterfaceView {
-        unimplemented!()
+        InterfaceView { backing_class: c.backing_class.clone(), i }
     }
     pub fn interface_name(&self) -> String {
         self.backing_class.extract_class_from_constant_pool_name(self.backing_class.interfaces[self.i])

@@ -1,10 +1,11 @@
 use std::sync::Arc;
 use crate::view::method_view::{MethodIterator, MethodView};
-use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE};
-use crate::classnames::ClassName;
-use crate::view::constant_info_view::ConstantInfoView;
+use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind};
+use crate::classnames::{ClassName, class_name};
+use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
 use crate::view::field_view::FieldIterator;
 use crate::view::interface_view::InterfaceIterator;
+use crate::classfile::AttributeType::ConstantValue;
 
 
 pub trait HasAccessFlags {
@@ -41,7 +42,7 @@ pub struct ClassView {
 
 impl Clone for ClassView {
     fn clone(&self) -> Self {
-        unimplemented!()
+        Self { backing_class: self.backing_class.clone() }
     }
 }
 
@@ -50,10 +51,10 @@ impl ClassView {
         ClassView { backing_class: c.clone() }
     }
     pub fn name(&self) -> ClassName {
-        unimplemented!()
+        class_name(&self.backing_class)
     }
     pub fn super_name(&self) -> Option<ClassName> {
-        unimplemented!()
+        self.backing_class.super_class_name()
     }
     pub fn methods(&self) -> MethodIterator {
         MethodIterator { backing_class: self, i: 0 }
@@ -65,13 +66,41 @@ impl ClassView {
         self.backing_class.methods.len()
     }
     pub fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
-        unimplemented!()
+        let backing_class = self.backing_class.clone();
+        match &self.backing_class.constant_pool[i].kind{
+            ConstantKind::Utf8(_) => unimplemented!(),
+            ConstantKind::Integer(i) => ConstantInfoView::Integer(IntegerView {}),//todo
+            ConstantKind::Float(_) => ConstantInfoView::Float(FloatView{}),//todo
+            ConstantKind::Long(_) => ConstantInfoView::Long(LongView{}),//todo
+            ConstantKind::Double(_) => ConstantInfoView::Double(DoubleView{}),//todo
+            ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
+            ConstantKind::String(s) => ConstantInfoView::String(StringView {}),//todo
+            ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { backing_class, i }),
+            ConstantKind::Methodref(mr) => ConstantInfoView::Methodref(MethodrefView {
+                backing_class,
+                class_index: mr.class_index,
+                name_and_type_index: mr.name_and_type_index
+            }),
+            ConstantKind::InterfaceMethodref(imf) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { backing_class, i }),
+            ConstantKind::NameAndType(nt) => ConstantInfoView::NameAndType(NameAndTypeView { backing_class, i }),
+            ConstantKind::MethodHandle(_) => unimplemented!(),
+            ConstantKind::MethodType(_) => unimplemented!(),
+            ConstantKind::Dynamic(_) => unimplemented!(),
+            ConstantKind::InvokeDynamic(id) => ConstantInfoView::InvokeDynamic(InvokeDynamicView{
+                backing_class,
+                bootstrap_method_attr_index: id.bootstrap_method_attr_index,
+                name_and_type_index: id.name_and_type_index
+            }),
+            ConstantKind::Module(_) => unimplemented!(),
+            ConstantKind::Package(_) => unimplemented!(),
+            ConstantKind::InvalidConstant(_) => unimplemented!(),
+        }
     }
     pub fn fields(&self) -> FieldIterator {
         unimplemented!()
     }
     pub fn interfaces(&self) -> InterfaceIterator {
-        unimplemented!()
+        InterfaceIterator { backing_class: &self, i: 0 }
     }
     pub fn num_fields(&self) -> usize {
         self.backing_class.fields.len()

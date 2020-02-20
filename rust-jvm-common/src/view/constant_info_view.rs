@@ -29,8 +29,8 @@ pub struct DoubleView{
 
 #[derive(Debug)]
 pub struct ClassPoolElemView{
-    backing_class : Arc<Classfile>,
-    name_index : usize
+    pub(crate) backing_class : Arc<Classfile>,
+    pub(crate) name_index : usize
 }
 
 impl ClassPoolElemView{
@@ -46,8 +46,8 @@ pub struct StringView{
 
 #[derive(Debug)]
 pub struct FieldrefView{
-    backing_class : Arc<Classfile>,
-    i: usize
+    pub(crate) backing_class : Arc<Classfile>,
+    pub(crate) i: usize
 }
 impl FieldrefView {
     fn field_ref(&self) -> &Fieldref{
@@ -60,21 +60,21 @@ impl FieldrefView {
         self.backing_class.constant_pool[self.backing_class.extract_class_from_constant_pool(self.field_ref().class_index).name_index as usize].extract_string_from_utf8()
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
-        NameAndTypeView { backing_class: self.backing_class.clone(), i: self.i }
+        NameAndTypeView { backing_class: self.backing_class.clone(), i: self.field_ref().name_and_type_index as usize }
     }
 }
 
 
 #[derive(Debug)]
 pub struct MethodrefView{
-    backing_class: Arc<Classfile>,
-    class_index: CPIndex,//todo replace with one i:usize
-    name_and_type_index: CPIndex,
+    pub(crate) backing_class: Arc<Classfile>,
+    pub(crate) class_index: CPIndex,//todo replace with one i:usize
+    pub(crate) name_and_type_index: CPIndex,
 }
 
 impl MethodrefView{
     pub fn class(&self) -> ClassName{
-        ClassName::Str(self.backing_class.constant_pool[self.class_index as usize].extract_string_from_utf8())
+        ClassName::Str(self.backing_class.extract_class_from_constant_pool_name(self.class_index))
     }
     pub fn name_and_type(&self) -> NameAndTypeView{
         NameAndTypeView {
@@ -86,8 +86,8 @@ impl MethodrefView{
 
 #[derive(Debug)]
 pub struct InterfaceMethodrefView{
-    backing_class: Arc<Classfile>,
-    i : usize,
+    pub(crate) backing_class: Arc<Classfile>,
+    pub(crate) i : usize,
 }
 
 impl InterfaceMethodrefView{
@@ -109,8 +109,8 @@ impl InterfaceMethodrefView{
 
 #[derive(Debug)]
 pub struct NameAndTypeView{
-    backing_class: Arc<Classfile>,
-    i : usize,
+    pub(crate) backing_class: Arc<Classfile>,
+    pub(crate) i : usize,
 }
 
 #[derive(Debug)]
@@ -154,9 +154,9 @@ pub struct DynamicView{
 
 #[derive(Debug)]
 pub struct InvokeDynamicView{
-    backing_class: Arc<Classfile>,
-    bootstrap_method_attr_index: CPIndex,
-    name_and_type_index: CPIndex,
+    pub(crate) backing_class: Arc<Classfile>,
+    pub(crate) bootstrap_method_attr_index: CPIndex,
+    pub(crate) name_and_type_index: CPIndex,
 }
 
 impl InvokeDynamicView{
