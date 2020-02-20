@@ -6,3 +6,8 @@
 rust-jvm.iml
 resources/test/simple-java-project/simple-java-project.iml
 /resources/test/simple-java-project/.idea/
+jni-bindings/gen/
+resources/test/simple-java-project/target/
+slow-interpreter/gen/
+swipl.log
+test_/
