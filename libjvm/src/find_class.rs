@@ -2,6 +2,7 @@ use jni_bindings::{jclass, jstring, jobject, JNIEnv, jboolean};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::get_or_create_class_object;
 use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame};
+use std::ffi::{CStr, CString};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -26,97 +27,46 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char) -> jclass {
-    // need to perform not equal to 0 check
-    if *utf.offset(0) == 'f' as i8 &&
-        *utf.offset(1) == 'l' as i8 &&
-        *utf.offset(2) == 'o' as i8 &&
-        *utf.offset(3) == 'a' as i8 &&
-        *utf.offset(4) == 't' as i8 &&
-        *utf.offset(5) == 0 {
-        let state = get_state(env);
-        let frame = get_frame(env);
-        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Float"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res.into());
-    }
-    if *utf.offset(0) == 'd' as i8 &&
-        *utf.offset(1) == 'o' as i8 &&
-        *utf.offset(2) == 'u' as i8 &&
-        *utf.offset(3) == 'b' as i8 &&
-        *utf.offset(4) == 'l' as i8 &&
-        *utf.offset(5) == 'e' as i8 &&
-        *utf.offset(6) == 0 {
-        let state = get_state(env);
-        let frame = get_frame(env);
-        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Double"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res.into());
-    }
-    if *utf.offset(0) == 'i' as i8 &&
-        *utf.offset(1) == 'n' as i8 &&
-        *utf.offset(2) == 't' as i8 &&
-        *utf.offset(3) == 0 as i8 {
-        let state = get_state(env);
-        let frame = get_frame(env);
-        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Integer"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res.into());
-    }
-    if *utf.offset(0) == 'b' as i8 &&
-        *utf.offset(1) == 'o' as i8 &&
-        *utf.offset(2) == 'o' as i8 &&
-        *utf.offset(3) == 'l' as i8 &&
-        *utf.offset(4) == 'e' as i8 &&
-        *utf.offset(5) == 'a' as i8 &&
-        *utf.offset(6) == 'n' as i8 &&
-        *utf.offset(7) == 0 {
-        let state = get_state(env);
-        let frame = get_frame(env);
-        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Boolean"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res.into());
-    }
-    if *utf.offset(0) == 'c' as i8 &&
-        *utf.offset(1) == 'h' as i8 &&
-        *utf.offset(2) == 'a' as i8 &&
-        *utf.offset(3) == 'r' as i8 &&
-        *utf.offset(4) == 0 {
-        let state = get_state(env);
-        let frame = get_frame(env);
-        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Character"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res.into());
-    }
+    assert_ne!(utf, std::ptr::null());
+    let float = CString::new("float").unwrap();
+    let float_cstr = float.into_raw();
+    let double = CString::new("double").unwrap();
+    let double_cstr = double.into_raw();
+    let int = CString::new("int").unwrap();
+    let int_cstr = int.into_raw();
+    let boolean = CString::new("boolean").unwrap();
+    let boolean_cstr = boolean.into_raw();
+    let char_ = CString::new("char").unwrap();
+    let char_cstr = char_.into_raw();
+    let long = CString::new("long").unwrap();
+    let long_cstr = long.into_raw();
+    let byte = CString::new("byte").unwrap();
+    let byte_cstr = byte.into_raw();
+    let short = CString::new("short").unwrap();
+    let short_cstr = short.into_raw();
+    let name = if libc::strncmp(float_cstr,utf,libc::strlen(float_cstr) + 1) == 0{
+        ClassName::float()
+    } else if libc::strncmp(double_cstr,utf,libc::strlen(double_cstr) + 1) == 0 {
+        ClassName::double()
+    } else if libc::strncmp(int_cstr,utf,libc::strlen(int_cstr) + 1) == 0 {
+        ClassName::int()
+    } else if libc::strncmp(boolean_cstr,utf,libc::strlen(boolean_cstr) + 1) == 0 {
+        ClassName::boolean()
+    } else if libc::strncmp(char_cstr,utf,libc::strlen(char_cstr) + 1) == 0{
+        ClassName::character()
+    } else if libc::strncmp(long_cstr,utf,libc::strlen(long_cstr) + 1) == 0 {
+        ClassName::long()
+    } else if libc::strncmp(byte_cstr,utf,libc::strlen(byte_cstr) + 1) == 0 {
+        ClassName::byte()
+    } else if libc::strncmp(short_cstr,utf,libc::strlen(short_cstr) + 1) == 0 {
+        ClassName::short()
+    } else {
+        dbg!((*utf) as u8 as char);
+        unimplemented!()
+    };
 
-    if *utf.offset(0) == 'l' as i8 &&
-        *utf.offset(1) == 'o' as i8 &&
-        *utf.offset(2) == 'n' as i8 &&
-        *utf.offset(3) == 'g' as i8 &&
-        *utf.offset(4) == 0 {
-        let state = get_state(env);
-        let frame = get_frame(env);
-        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Long"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res.into());
-    }
-
-    if *utf.offset(0) == 'b' as i8 &&
-        *utf.offset(1) == 'y' as i8 &&
-        *utf.offset(2) == 't' as i8 &&
-        *utf.offset(3) == 'e' as i8 &&
-        *utf.offset(4) == 0 {
-        let state = get_state(env);
-        let frame = get_frame(env);
-        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Byte"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res.into());
-    }
-
-    if *utf.offset(0) == 's' as i8 &&
-        *utf.offset(1) == 'h' as i8 &&
-        *utf.offset(2) == 'o' as i8 &&
-        *utf.offset(3) == 'r' as i8 &&
-        *utf.offset(4) == 't' as i8 &&
-        *utf.offset(5) == 0 {
-        let state = get_state(env);
-        let frame = get_frame(env);
-        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Short"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
-        return to_object(res.into());
-    }
-
-    dbg!((*utf) as u8 as char);
-    unimplemented!()
+    let state = get_state(env);
+    let frame = get_frame(env);
+    let res = get_or_create_class_object(state, &name, frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+    return to_object(res.into());
 }

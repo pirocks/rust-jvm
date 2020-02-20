@@ -16,6 +16,7 @@ jni-bindings = {path = "../jni-bindings"}
 classfile-parser = {path = "../classfile-parser"}
 descriptor-parser = {path = "../descriptor-parser"}
 libjvm-utils = {path = "../libjvm-utils"}
+libc = "0.2.66"
 num_cpus = "1.0"
 regex = "1"
 log = "0.4"

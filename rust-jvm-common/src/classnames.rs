@@ -50,6 +50,38 @@ impl ClassName {
     pub fn throwable() -> Self {
         ClassName::new("java/lang/Throwable")
     }
+
+    pub fn float() -> Self{
+        Self::new("java/lang/Float")
+    }
+
+    pub fn double() -> Self{
+        Self::new("java/lang/Double")
+    }
+
+    pub fn int() -> Self{
+        Self::new("java/lang/Integer")
+    }
+
+    pub fn long() -> Self{
+        Self::new("java/lang/Long")
+    }
+
+    pub fn character() -> Self{
+        Self::new("java/lang/Character")
+    }
+
+    pub fn boolean() -> Self{
+        Self::new("java/lang/Boolean")
+    }
+
+    pub fn byte() -> Self{
+        Self::new("java/lang/Byte")
+    }
+
+    pub fn short() -> Self{
+        Self::new("java/lang/Short")
+    }
 }
 
 impl Hash for ClassName {

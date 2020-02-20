@@ -8,7 +8,7 @@ unsafe extern "system" fn jio_vsnprintf(
     fmt: *const ::std::os::raw::c_char,
     args: *mut __va_list_tag,
 ) -> ::std::os::raw::c_int {
-    trace!("JIO Output:");
+    println!("JIO Output:");
     vsnprintf(str, count as u64, fmt, args)
 }
 

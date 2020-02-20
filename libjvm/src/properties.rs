@@ -7,10 +7,9 @@ use descriptor_parser::parse_method_descriptor;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {
-//sun.boot.library.path
+    //todo get rid of these  hardcoded paths
     let p1 = add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/Desktop/jdk8u232-b09/jre/lib/amd64".to_string());
     let p2 = add_prop(env, p1, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string());
-//    dbg!(from_object(p2).unwrap().unwrap_normal_object().fields.borrow().deref().get("table").unwrap());
     p2
 }
 
