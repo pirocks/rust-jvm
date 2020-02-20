@@ -1,6 +1,6 @@
 use crate::view::{HasAccessFlags, ClassView};
 use std::sync::Arc;
-use crate::classfile::Classfile;
+use crate::classfile::{Classfile, Code};
 use crate::string_pool::StringPoolEntry;
 
 pub struct MethodView {
@@ -24,6 +24,10 @@ impl MethodView {
     }
 
     pub fn desc_str(&self) -> String {
+        unimplemented!()
+    }
+
+    pub fn code_attribute(&self) -> Option<&Code>{
         unimplemented!()
     }
 }

@@ -358,7 +358,8 @@ pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PTypeView, St
     let c = &classfile.constant_pool_view(cp);
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantInfoView::Methodref(m) => {
-            let class_name = m.class().get_referred_name();
+            let class_name_ = m.class();
+            let class_name = class_name_.get_referred_name().clone();
             //todo ideally for name we would return weak ref.
             let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc());
             let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
@@ -369,7 +370,8 @@ pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PTypeView, St
         }
         ConstantInfoView::InterfaceMethodref(m) => {
             //todo dup?
-            let class_name = m.class().get_referred_name();
+            let class_name_ = m.class();
+            let class_name = class_name_.get_referred_name().clone();
             let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc());
             let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
                 None => { unimplemented!() }
@@ -379,7 +381,7 @@ pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PTypeView, St
         }
         _ => unimplemented!("{:?}", c)
     };
-    (PTypeView::Ref(possibly_array_to_type(class_name)), method_name, parsed_descriptor)
+    (PTypeView::Ref(possibly_array_to_type(&class_name)), method_name, parsed_descriptor)
 }
 
 pub fn possibly_array_to_type(class_name: &String) -> ReferenceTypeView {

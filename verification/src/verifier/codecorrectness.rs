@@ -194,7 +194,7 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
 
 pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_info = &get_class(vf, class).method_view_i(method.method_index);
-    let code = method_info.code_attribute().unwrap();
+    let code = method_info.code_attribute().unwrap();//todo add CodeView
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
     let mut final_offset = 0;
@@ -390,7 +390,8 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
         //todo dup
         let classfile = &get_class(vf, method.class);
         let method_info = &classfile.method_view_i(method.method_index);
-        let method_name = method_info.name().deref();
+        let method_name_ = method_info.name();
+        let method_name = method_name_.deref();
         if method_name != "<init>" {
             return None;
         } else {
@@ -403,7 +404,8 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VType, TypeSafetyError> {
     let classfile = get_class(vf, method.class);
-    let method_name = classfile.method_view_i(method.method_index).name().deref();
+    let method_name_ = classfile.method_view_i(method.method_index).name();
+    let method_name = method_name_.deref();
     if method_name == "<init>" {
         if class.class_name == ClassName::object() {
             Result::Ok(VType::Class(ClassWithLoader { class_name: get_class(vf, class).name(), loader: class.loader.clone() }))

@@ -3,6 +3,8 @@ use crate::view::method_view::{MethodIterator, MethodView};
 use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE};
 use crate::classnames::ClassName;
 use crate::view::constant_info_view::ConstantInfoView;
+use crate::view::field_view::FieldIterator;
+use crate::view::interface_view::InterfaceIterator;
 
 
 pub trait HasAccessFlags {
@@ -65,6 +67,15 @@ impl ClassView {
     pub fn fields(&self) -> FieldIterator {
         unimplemented!()
     }
+    pub fn interfaces(&self) -> InterfaceIterator {
+        unimplemented!()
+    }
+    pub fn num_fields(&self) -> usize {
+        self.backing_class.fields.len()
+    }
+    pub fn num_interfaces(&self) -> usize {
+        self.backing_class.interfaces.len()
+    }
 }
 
 impl HasAccessFlags for ClassView {
@@ -73,6 +84,7 @@ impl HasAccessFlags for ClassView {
     }
 }
 
+pub mod interface_view;
 pub mod field_view;
 pub mod constant_info_view;
 pub mod method_view;

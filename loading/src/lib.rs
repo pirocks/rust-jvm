@@ -3,7 +3,7 @@ extern crate simple_logger;
 
 use std::sync::Arc;
 use std::fs::File;
-use rust_jvm_common::loading::{LoaderArc, Loader};
+use rust_jvm_common::loading::{LoaderArc, Loader, LoaderName};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::ClassLoadingError;
 use rust_jvm_common::classfile::Classfile;
@@ -16,9 +16,8 @@ use jar_manipulation::JarHandle;
 use verification::verify;
 use verification::VerifierContext;
 use log::trace;
-use std::fmt::{Debug, Formatter, Error};
-use std::hash::{Hasher, Hash};
-use crate::loading::{LoaderArc, ClassLoadingError, LoaderName};
+use std::fmt::Debug;
+use rust_jvm_common::view::ClassView;
 
 #[derive(Debug)]
 pub struct Classpath {
@@ -52,7 +51,7 @@ impl Loader for BootstrapLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc) -> Result<ClassView, ClassLoadingError> {
 //        if class == ClassName::object() {
 //            panic!()
 //        }
@@ -60,16 +59,16 @@ impl Loader for BootstrapLoader {
             trace!("loading {}", class.get_referred_name());
             let classfile = self.pre_load(self_arc.clone(), class)?;
             if class != &ClassName::object() {
-                if classfile.super_class == 0 {
+                if classfile.super_name() == None {
                     self.load_class(self_arc.clone(), &ClassName::object(), bl.clone())?;
                 } else {
-                    let super_class_name = classfile.super_class_name();
+                    let super_class_name = classfile.super_name();
                     self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone())?;
                 }
             }
-            for i in &classfile.interfaces {
-                let interface_name= classfile.extract_class_from_constant_pool_name(*i);
-                self.load_class(self_arc.clone(),&ClassName::Str(interface_name),bl.clone())?;
+            for i in classfile.interfaces() {
+                let interface_name = i.interface_name();
+                self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone())?;
             }
             match verify(&VerifierContext { bootstrap_loader: bl.clone() }, classfile.clone(), self_arc) {
                 Ok(_) => {}
@@ -86,7 +85,7 @@ impl Loader for BootstrapLoader {
 
     //todo hacky and janky
     // as a fix for self_arc we could wrap Arc, and have that struct impl loader
-    fn pre_load(&self, self_arc: LoaderArc, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn pre_load(&self, self_arc: LoaderArc, name: &ClassName) -> Result<ClassView, ClassLoadingError> {
         //todo assert self arc is same
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());

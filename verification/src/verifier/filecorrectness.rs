@@ -1,5 +1,4 @@
 use crate::verifier::{ClassWithLoaderMethod, get_class};
-use rust_jvm_common::classfile::{ACC_PROTECTED};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
 use crate::VerifierContext;
@@ -331,18 +330,18 @@ pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, lo
 }
 
 
-pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
+pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
     //todo check if same
     get_class(vf, method.class).method_view_i(method.method_index as usize).is_final()
 }
 
 
-pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
+pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
     //todo check if same
     get_class(vf, method.class).method_view_i(method.method_index as usize).is_static()
 }
 
-pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, class: &ClassWithLoader) -> bool {
+pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
     //todo check if method class and class same
 //    assert!(class == method.class);
     get_class(vf, method.class).method_view_i(method.method_index as usize).is_private()
@@ -367,12 +366,14 @@ pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoa
 pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, super_method_list: &Vec<ClassWithLoaderMethod>) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, method.class);
     let method_info = &method_class.method_view_i(method.method_index);
-    let method_name_ = method_info.name().deref();
+    let method_name__ = method_info.name();
+    let method_name_ = method_name__.deref();
     let descriptor_string = method_info.desc_str();
     let matching_method = super_method_list.iter().find(|x| {
         let x_method_class = get_class(vf, x.class);
         let x_method_info = &x_method_class.method_view_i(x.method_index);
-        let x_method_name = x_method_info.name().deref();
+        let x_method_name_ = x_method_info.name();
+        let x_method_name = x_method_name_.deref();
         let x_descriptor_string = x_method_info.desc_str();
         x_descriptor_string == descriptor_string && x_method_name == method_name_
     });
@@ -413,7 +414,8 @@ pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: 
 pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor) -> bool {
     let class = get_class(vf, super_);
     for method in class.methods() {
-        let method_name = method.name().deref();
+        let method_name_ = method.name();
+        let method_name = method_name_.deref();
         if &member_name == method_name {
             let parsed_member_types = MethodDescriptor::from(&method);
             let member_types = match member_descriptor {
@@ -425,10 +427,10 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
             }
         }
     }
-    for field in class.fields {
-        let field_name = class.constant_pool_view(field.name_index as usize).extract_string_from_utf8();
+    for field in class.fields() {
+        let field_name = field.field_name();
         if member_name == field_name {
-            let field_descriptor_string = class.constant_pool_view(field.descriptor_index as usize).extract_string_from_utf8();
+            let field_descriptor_string = field.field_desc();
             let parsed_member_type = match parse_field_descriptor(field_descriptor_string.as_str()) {
                 None => panic!(),
                 Some(str_) => str_,
@@ -438,11 +440,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
                 _ => panic!()
             };
             if parsed_member_type.field_type == field_type.field_type {
-                if (field.access_flags & ACC_PROTECTED) > 0 {
-                    return true;
-                } else {
-                    return false;
-                }
+                return field.is_protected();
             }
         }
     }
