@@ -6,9 +6,11 @@ use rust_jvm_common::classfile::Classfile;
 use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
 use rust_jvm_common::loading::LoaderArc;
+use rust_jvm_common::view::ClassView;
 
 pub struct RuntimeClass {
     pub classfile: Arc<Classfile>,
+    pub class_view: ClassView,
     pub loader: LoaderArc,
     pub static_vars: RefCell<HashMap<String, JavaValue>>,
 }

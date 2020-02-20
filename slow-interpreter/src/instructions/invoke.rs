@@ -392,10 +392,8 @@ pub fn run_native_method(
                     //todo actually impl these at some point
                     if mangled == "Java_sun_misc_Unsafe_compareAndSwapObject".to_string() {
                         //todo do nothing for now and see what happens
-                        //
                         Some(JavaValue::Boolean(true))
                     } else if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
-//                        frame.print_stack_trace();
                         let param0_obj = args[0].unwrap_object();
                         let _the_unsafe = param0_obj.as_ref().unwrap().unwrap_normal_object();
                         let param1_obj = args[1].unwrap_object();
@@ -419,7 +417,6 @@ pub fn run_native_method(
                             }
                         });
                         res.unwrap()
-//                        unimplemented!()
                     } else if mangled == "Java_sun_misc_Unsafe_getIntVolatile".to_string() {
                         let param1_obj = args[1].unwrap_object();
                         let unwrapped = param1_obj.unwrap();
@@ -452,15 +449,6 @@ pub fn run_native_method(
                         };
                         JavaValue::Long(res).into()
                     } else if mangled == "Java_sun_misc_Unsafe_putLong__JJ".to_string() {
-//                        let args_1_borrow = args[1].unwrap_object().unwrap();
-//                        let target_obj = args_1_borrow.unwrap_normal_object();
-//                        let classfile = &target_obj.class_pointer.classfile;
-//                        let fieldinfo_arr = &classfile.fields;
-//                        let field_info_idx = args[2].unwrap_long();
-//                        let target_fields = &mut target_obj.fields.borrow_mut();
-//                        target_fields.insert(classfile.constant_pool[fieldinfo_arr[field_info_idx as usize].name_index as usize].extract_string_from_utf8(), args[3].clone());
-//                        None
-                        frame.print_stack_trace();
                         unsafe {
                             let ptr: *mut i64 = transmute(args[1].unwrap_long());
                             let val = args[2].unwrap_long();
@@ -483,9 +471,22 @@ pub fn run_native_method(
                         let res = &temp.unwrap_array().elems.borrow()[args[2].unwrap_long() as usize];
                         res.clone().into()
                     } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapLong".to_string() {
-                        //    public final native boolean compareAndSwapLong(Object var1, long var2, long var4, long var6);
-//                        args[1].unwrap_object()
-                        unimplemented!()
+                        let param1_obj = args[1].unwrap_object();
+                        let unwrapped = param1_obj.unwrap();
+                        let target_obj = unwrapped.unwrap_normal_object();
+                        let var_offset = args[2].unwrap_long();
+                        let old = args[3].unwrap_long();
+                        let new = args[4].unwrap_long();
+                        let classfile = &target_obj.class_pointer.classfile;
+                        let field_name = classfile.constant_pool[classfile.fields[var_offset as usize].name_index as usize].extract_string_from_utf8();
+                        let mut fields = target_obj.fields.borrow_mut();
+                        let cur_val = fields.get(&field_name).unwrap().unwrap_long();
+                        if cur_val != old {
+                            JavaValue::Boolean(false)
+                        } else {
+                            fields.insert(field_name, JavaValue::Long(new));
+                            JavaValue::Boolean(true)
+                        }.into()
                     }
                     else {
 //                        frame.print_stack_trace();

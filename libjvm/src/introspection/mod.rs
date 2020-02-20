@@ -87,7 +87,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
         push_new_object(frame.clone(), &field_classfile);
         let field_object = frame.pop();
-
+        //todo so this is big and messy put I don't really see a way to simplify
         object_array.push(field_object.clone());
         let field_class_name_ = class_name(&class_obj.clone().as_ref().unwrap().classfile);
         let field_class_name = field_class_name_.get_referred_name();
@@ -118,24 +118,6 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),
         )
     });
-
-    //first arg: runtime_class
-    //second arg: name
-    //third arg: type class pointer
-    //fourth arg: access_flags
-    //fifth: put index here
-    //descriptor
-    //just put empty byte array??
-//    Field(Class<?> var1, String var2, Class<?> var3, int var4, int var5, String var6, byte[] var7) {
-//        this.clazz = var1;
-//        this.name = var2;
-//        this.type = var3;
-//        this.modifiers = var4;
-//        this.slot = var5;
-//        this.signature = var6;
-//        this.annotations = var7;
-//    }
-//    class_obj.unwrap()
 
     let res = Some(Arc::new(
         Object::Array(ArrayObject {
@@ -316,9 +298,6 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
     let obj = runtime_class_from_object(cls).unwrap();
     let full_name = class_name(&obj.classfile).get_referred_name().replace("/", ".");
-//    use regex::Regex;
-//    let rg = Regex::new("/[A-Za-z_][A-Za-z_0-9]*");//todo use a correct regex
-//    let class_name = rg.unwrap().captures(full_name.as_str()).unwrap().iter().last().unwrap().unwrap().as_str();
     new_string_with_string(env, full_name)
 }
 

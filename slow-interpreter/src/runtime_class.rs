@@ -12,6 +12,7 @@ use std::cell::RefCell;
 use runtime_common::StackEntry;
 use crate::instructions::ldc::from_constant_pool_entry;
 use descriptor_parser::parse_field_descriptor;
+use rust_jvm_common::view::ClassView;
 
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
@@ -26,6 +27,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
         }
     }
     RuntimeClass {
+        class_view: ClassView::from(classfile.clone()),
         classfile,
         loader,
         static_vars: RefCell::new(res),
