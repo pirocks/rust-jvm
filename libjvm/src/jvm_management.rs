@@ -22,7 +22,7 @@ unsafe extern "system" fn JVM_Halt(code: jint) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ActiveProcessorCount() -> jint {
-    unimplemented!()
+    num_cpus::get() as jint
 }
 
 #[no_mangle]

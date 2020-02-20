@@ -391,7 +391,7 @@ pub fn instruction_is_type_safe_dup2_x1(env: &Environment, stack_frame: &Frame) 
 }
 
 pub fn dup2_x1form_is_type_safe(env: &Environment, input_frame: OperandStack) -> Result<OperandStack,TypeSafetyError>{
-    dup2_x1form1_is_type_safe(env,input_frame.clone()).or_else(||{
+    dup2_x1form1_is_type_safe(env,input_frame.clone()).or_else(|_|{
         dup2_x1form2_is_type_safe(env,input_frame)
     })
 }

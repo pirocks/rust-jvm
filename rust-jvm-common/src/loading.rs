@@ -65,7 +65,7 @@ pub trait Loader {
 
 
     //pre loading parses the class file but does not verify
-    fn pre_load(&self, self_arc: LoaderArc, name: &ClassName) -> Result<ClassView, ClassLoadingError>;
+    fn pre_load(&self, name: &ClassName) -> Result<ClassView, ClassLoadingError>;
 }
 
 //todo Loading Constraints
@@ -93,7 +93,7 @@ impl Loader for EmptyLoader {
         unimplemented!()
     }
 
-    fn pre_load(&self, _self_arc: LoaderArc, _name: &ClassName) -> Result<ClassView, ClassLoadingError> {
+    fn pre_load(&self, _name: &ClassName) -> Result<ClassView, ClassLoadingError> {
         unimplemented!()
     }
 }

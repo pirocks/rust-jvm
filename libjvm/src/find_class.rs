@@ -94,6 +94,29 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         return to_object(res.into());
     }
 
+    if *utf.offset(0) == 'b' as i8 &&
+        *utf.offset(1) == 'y' as i8 &&
+        *utf.offset(2) == 't' as i8 &&
+        *utf.offset(3) == 'e' as i8 &&
+        *utf.offset(4) == 0 {
+        let state = get_state(env);
+        let frame = get_frame(env);
+        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Byte"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return to_object(res.into());
+    }
+
+    if *utf.offset(0) == 's' as i8 &&
+        *utf.offset(1) == 'h' as i8 &&
+        *utf.offset(2) == 'o' as i8 &&
+        *utf.offset(3) == 'r' as i8 &&
+        *utf.offset(4) == 't' as i8 &&
+        *utf.offset(5) == 0 {
+        let state = get_state(env);
+        let frame = get_frame(env);
+        let res = get_or_create_class_object(state, &ClassName::new("java/lang/Short"), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+        return to_object(res.into());
+    }
+
     dbg!((*utf) as u8 as char);
     unimplemented!()
 }

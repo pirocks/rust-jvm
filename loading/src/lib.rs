@@ -57,7 +57,7 @@ impl Loader for BootstrapLoader {
 //        }
         if !self.initiating_loader_of(class) {
             trace!("loading {}", class.get_referred_name());
-            let classfile = self.pre_load(self_arc.clone(), class)?;
+            let classfile = self.pre_load(class)?;
             if class != &ClassName::object() {
                 if classfile.super_name() == None {
                     self.load_class(self_arc.clone(), &ClassName::object(), bl.clone())?;
@@ -85,7 +85,7 @@ impl Loader for BootstrapLoader {
 
     //todo hacky and janky
     // as a fix for self_arc we could wrap Arc, and have that struct impl loader
-    fn pre_load(&self, self_arc: LoaderArc, name: &ClassName) -> Result<ClassView, ClassLoadingError> {
+    fn pre_load(&self, name: &ClassName) -> Result<ClassView, ClassLoadingError> {
         //todo assert self arc is same
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
         let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());
@@ -100,7 +100,7 @@ impl Loader for BootstrapLoader {
                 });
                 match jar_class_file {
                     None => {
-                        self.search_class_files(self_arc, name)
+                        self.search_class_files(name)
                     }
                     Some(c) => {
                         Result::Ok(c)
@@ -120,7 +120,7 @@ impl Loader for BootstrapLoader {
 }
 
 impl BootstrapLoader {
-    fn search_class_files(&self, self_arc: LoaderArc, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    fn search_class_files(&self, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         let found_class_file = self.classpath.classpath_base.iter().map(|x| {
             let mut path_buf = x.to_path_buf();
             path_buf.push(format!("{}.class", name.get_referred_name()));

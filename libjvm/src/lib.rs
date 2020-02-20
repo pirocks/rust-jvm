@@ -6,6 +6,7 @@
 extern crate log;
 extern crate simple_logger;
 extern crate regex;
+extern crate num_cpus;
 
 use std::str::from_utf8;
 use std::borrow::Borrow;

@@ -1,9 +1,9 @@
 use jni_bindings::{jobjectArray, jclass, JNIEnv, jobject, jint, jstring, jbyteArray, jboolean, JVM_ExceptionTableEntryType};
-use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame};
+use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
 use std::sync::Arc;
 use runtime_common::java_values::{Object, ArrayObject, JavaValue};
 use std::cell::RefCell;
-use rust_jvm_common::unified_types::{PType,  ReferenceType};
+use rust_jvm_common::unified_types::{PType, ReferenceType};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_name};
@@ -42,7 +42,40 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) -> jclass {
-    unimplemented!()
+    let state = get_state(env);
+    let frame = get_frame(env);
+    let object_non_null = from_object(cls).unwrap().clone();
+    let object_class = object_non_null.unwrap_normal_object().array_class_object_pointer.borrow();
+    match object_class.as_ref().unwrap() {
+        PType::ByteType => unimplemented!(),
+        PType::CharType => {
+            load_class_constant_by_name(state, &frame, "java/lang/Character".to_string());
+        }
+        PType::DoubleType => unimplemented!(),
+        PType::FloatType => unimplemented!(),
+        PType::IntType => unimplemented!(),
+        PType::LongType => unimplemented!(),
+        PType::Ref(rt) => {
+            match rt{
+                ReferenceType::Class(c) => {
+                    load_class_constant_by_name(state,&frame,c.get_referred_name().clone())
+                },
+                ReferenceType::Array(a) => {
+                    unimplemented!()
+                },
+            }
+        },
+        PType::ShortType => unimplemented!(),
+        PType::BooleanType => unimplemented!(),
+        PType::VoidType => unimplemented!(),
+        PType::TopType => unimplemented!(),
+        PType::NullType => unimplemented!(),
+        PType::Uninitialized(_) => unimplemented!(),
+        PType::UninitializedThis => unimplemented!(),
+        PType::UninitializedThisOrClass(_) => unimplemented!(),
+    };
+    to_object(frame.pop().unwrap_object())
+//    load_class_constant_by_name()//todo should be a load class
 }
 
 #[no_mangle]
@@ -100,6 +133,10 @@ fn field_type_to_class(state: &mut InterpreterState, frame: &Rc<StackEntry>, typ
         }
         PType::CharType => {
             load_class_constant_by_name(state, frame, "java/lang/Character".to_string());
+        }
+        PType::FloatType => {
+            //todo there really needs to be a unified function for this
+            load_class_constant_by_name(state, frame, "java/lang/Float".to_string());
         }
         _ => {
             dbg!(type_);

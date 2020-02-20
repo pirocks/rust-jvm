@@ -2,6 +2,7 @@ use jni_bindings::{jdouble, jboolean, JNIEnv, jclass};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
+use slow_interpreter::rust_jni::native_util::from_object;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -16,7 +17,9 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    unimplemented!()
+    let object_non_null = from_object(cls).unwrap().clone();
+    let object_class = object_non_null.unwrap_normal_object().array_class_object_pointer.borrow();
+    object_class.is_some() as jboolean
 }
 
 #[no_mangle]

@@ -49,7 +49,7 @@ pub fn loaded_class(_vf: &VerifierContext, class_name: ClassName, loader: Loader
     if loader.initiating_loader_of(&class_name) {
         Result::Ok(ClassWithLoader { class_name, loader })
     } else {
-        match loader.pre_load(loader.clone(), &class_name) {
+        match loader.pre_load( &class_name) {
             Ok(_) => Result::Ok(ClassWithLoader { class_name, loader }),
             Err(_) => unimplemented!(),
         }
