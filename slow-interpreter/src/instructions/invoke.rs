@@ -58,10 +58,11 @@ pub fn invoke_special_impl(state: &mut InterpreterState, current_frame: &Rc<Stac
 //        dbg!(target_m.code_attribute());
         run_function(state, Rc::new(next_entry));
         if state.throw.is_some() || state.terminate {
-            unimplemented!()
+            return;
         }
         if state.function_return {
             state.function_return = false;
+            return;
 //        trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
         }
     }
@@ -174,7 +175,7 @@ pub fn invoke_virtual_method_i_impl(
         };
         run_function(state, Rc::new(next_entry));
         if state.throw.is_some() || state.terminate {
-            unimplemented!();
+            return;
         }
         if state.function_return {
             state.function_return = false;

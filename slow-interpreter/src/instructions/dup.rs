@@ -39,3 +39,34 @@ pub fn dup2(current_frame: &Rc<StackEntry>) -> () {
     }
 
 }
+
+
+pub fn dup2_x1(current_frame: &Rc<StackEntry>) -> () {
+    let value1 = current_frame.pop();
+    match value1.clone() {
+        JavaValue::Long(_) | JavaValue::Double(_) => {
+            let value2 = current_frame.pop();
+            current_frame.push(value1.clone());
+            current_frame.push(value2);
+            current_frame.push(value1);
+        },
+        _ => {
+            let value2 = current_frame.pop();
+            let value3 = current_frame.pop();
+            match value2.clone(){
+                JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
+                _ => {},
+            };
+            match value3.clone(){
+                JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
+                _ => {},
+            };
+            current_frame.push(value2.clone());
+            current_frame.push(value1.clone());
+            current_frame.push(value3);
+            current_frame.push(value2.clone());
+            current_frame.push(value1.clone());
+        },
+    }
+
+}

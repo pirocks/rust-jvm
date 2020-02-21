@@ -37,8 +37,8 @@ pub struct BootstrapLoader {
 
 
 impl Loader for BootstrapLoader {
-    fn find_loaded_class(&self, name : &ClassName) -> Option<ClassView> {
-        self.loaded.read().unwrap().get(name).cloned().map(|c|ClassView::from(c))
+    fn find_loaded_class(&self, name: &ClassName) -> Option<ClassView> {
+        self.loaded.read().unwrap().get(name).cloned().map(|c| ClassView::from(c))
     }
 
     fn initiating_loader_of(&self, class: &ClassName) -> bool {
@@ -109,7 +109,12 @@ impl Loader for BootstrapLoader {
                 self.parsed.write().unwrap().insert(class_name(&c), c.clone());
                 Result::Ok(ClassView::from(c))
             }
-            Err(_) => panic!(),
+            Err(e) => {
+                dbg!(e);
+
+                dbg!(name);
+                Result::Err(ClassLoadingError::ClassNotFoundException)
+            }
         }
     }
 }

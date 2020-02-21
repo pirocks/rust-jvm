@@ -138,7 +138,7 @@ pub fn run_function(
             InstructionInfo::dup_x1 => dup_x1(&current_frame),
             InstructionInfo::dup_x2 => unimplemented!(),
             InstructionInfo::dup2 => dup2(&current_frame),
-            InstructionInfo::dup2_x1 => unimplemented!(),
+            InstructionInfo::dup2_x1 => dup2_x1(&current_frame),
             InstructionInfo::dup2_x2 => unimplemented!(),
             InstructionInfo::f2d => f2d(&current_frame),
             InstructionInfo::f2i => f2i(&current_frame),
@@ -293,7 +293,17 @@ pub fn run_function(
             InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
             InstructionInfo::nop => unimplemented!(),
             InstructionInfo::pop => { current_frame.pop(); }
-            InstructionInfo::pop2 => unimplemented!(),
+            InstructionInfo::pop2 => {
+                match current_frame.pop() {
+                    JavaValue::Long(_) | JavaValue::Double(_) => {}
+                    _ => {
+                        match current_frame.pop(){
+                            JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
+                            _ => {},
+                        };
+                    }
+                }
+            }
             InstructionInfo::putfield(cp) => putfield(state, &current_frame, cp),
             InstructionInfo::putstatic(cp) => putstatic(state, &current_frame, cp),
             InstructionInfo::ret(_) => unimplemented!(),

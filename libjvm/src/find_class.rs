@@ -10,7 +10,19 @@ use rust_jvm_common::unified_types::PType::Ref;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
-    unimplemented!()
+    let name_str = CStr::from_ptr(name).to_str().unwrap().to_string();
+    //todo duplication
+    let class_name = ClassName::Str(name_str);
+    let state = get_state(env);
+    //todo not sure if this implementation is correct
+    let loaded = state.bootstrap_loader.load_class(state.bootstrap_loader.clone(),&class_name,state.bootstrap_loader.clone());
+    match loaded{
+        Result::Err(_) => return to_object(None),
+        Result::Ok(view) => {
+            let frame = get_frame(env);
+            to_object(get_or_create_class_object(state,&ReferenceTypeView::Class(class_name),frame.clone(),state.bootstrap_loader.clone()).into())
+        },
+    }
 }
 
 #[no_mangle]
@@ -26,6 +38,7 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let name_str = jstring_to_string(name);
+    dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
     let state = get_state(env);
