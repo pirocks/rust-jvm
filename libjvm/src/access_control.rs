@@ -1,11 +1,11 @@
 use slow_interpreter::rust_jni::native_util::{to_object, from_object, get_frame, get_state};
 use jni_bindings::{jobject, jclass, JNIEnv, jboolean};
-use slow_interpreter::instructions::invoke::actually_virtual;
 use runtime_common::java_values::JavaValue;
 use rust_jvm_common::unified_types::{PType,  ReferenceType};
 use rust_jvm_common::classnames::ClassName;
 use descriptor_parser::MethodDescriptor;
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+use slow_interpreter::instructions::invoke::virtual_::actually_virtual;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {

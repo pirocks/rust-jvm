@@ -1,26 +1,18 @@
 use crate::InterpreterState;
 use std::rc::Rc;
 use verification::verifier::instructions::branches::get_method_descriptor;
-use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, InvokeInterface};
-use crate::interpreter_util::run_function;
 use std::sync::Arc;
 use rust_jvm_common::loading::LoaderArc;
-use rust_jvm_common::classfile::MethodInfo;
-use rust_jvm_common::classfile::ACC_ABSTRACT;
 use crate::interpreter_util::check_inited_class;
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::StackEntry;
 use std::cell::Ref;
-use crate::rust_jni::{call_impl, call, mangling, get_all_methods};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
-use rust_jvm_common::classnames::{class_name, ClassName};
-use std::intrinsics::transmute;
-use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use descriptor_parser::MethodDescriptor;
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::view::ClassView;
-use std::ops::Deref;
 
 pub mod special;
 

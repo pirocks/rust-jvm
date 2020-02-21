@@ -1,4 +1,3 @@
-use crate::instructions::invoke::{invoke_virtual_method_i, invoke_static_impl};
 use crate::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
 use runtime_common::java_values::JavaValue;
 use rust_jvm_common::classfile::ACC_STATIC;
@@ -10,6 +9,8 @@ use runtime_common::StackEntry;
 use log::trace;
 use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
 use rust_jvm_common::view::ptype_view::PTypeView;
+use crate::instructions::invoke::static_::invoke_static_impl;
+use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 
 #[no_mangle]
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {

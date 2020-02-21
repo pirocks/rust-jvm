@@ -1,6 +1,6 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use crate::instructions::invoke::{resolved_class, run_native_method};
+use crate::instructions::invoke::resolved_class;
 use runtime_common::java_values::{Object, JavaValue};
 use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
 use runtime_common::runtime_class::RuntimeClass;
@@ -10,6 +10,7 @@ use crate::rust_jni::get_all_methods;
 use crate::interpreter_util::{run_function, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use std::ops::Deref;
+use crate::instructions::invoke::native::run_native_method;
 
 pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, current_frame.clone(), cp) {
@@ -48,7 +49,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
         let cur_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
         let expected_name = &method_name;
         &cur_name == expected_name &&
-            expected_descriptor.parameter_types == cur_desc.parameter_types & &
+            expected_descriptor.parameter_types == cur_desc.parameter_types &&
             !cur_method_info.is_static() &&
             !cur_method_info.is_abstract()
     }).unwrap();
@@ -88,7 +89,7 @@ pub fn invoke_virtual_method_i_impl(
             pc_offset: 0.into(),
         };
         run_function(state, Rc::new(next_entry));
-        if state.throw.is_some() | | state.terminate {
+        if state.throw.is_some() || state.terminate {
             return;
         }
         if state.function_return {

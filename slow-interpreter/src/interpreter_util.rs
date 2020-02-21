@@ -8,7 +8,6 @@ use std::sync::Arc;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use rust_jvm_common::loading::LoaderArc;
 use std::rc::Rc;
-use crate::instructions::invoke::{run_invoke_static, invoke_special, invoke_virtual, invoke_interface, invoke_virtual_method_i};
 use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
 use crate::instructions::load::*;
@@ -26,6 +25,10 @@ use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
 use crate::instructions::switch::invoke_lookupswitch;
 use descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
+use crate::instructions::invoke::interface::invoke_interface;
+use crate::instructions::invoke::special::invoke_special;
+use crate::instructions::invoke::static_::run_invoke_static;
+use crate::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 
 
 //todo jni should really live in interpreter state

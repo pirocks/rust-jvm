@@ -3,7 +3,6 @@ use runtime_common::java_values::JavaValue;
 use jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_, jthrowable};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use crate::rust_jni::MethodId;
-use crate::instructions::invoke::invoke_special_impl;
 use std::ffi::CStr;
 use crate::instructions::ldc::load_class_constant_by_name;
 use crate::rust_jni::interface::util::runtime_class_from_object;
@@ -11,6 +10,7 @@ use descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 use std::intrinsics::transmute;
+use crate::instructions::invoke::special::invoke_special_impl;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo

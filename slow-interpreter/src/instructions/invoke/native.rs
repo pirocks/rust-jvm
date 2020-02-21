@@ -1,7 +1,7 @@
 use rust_jvm_common::classnames::class_name;
 use runtime_common::java_values::JavaValue;
 use std::mem::transmute;
-use crate::rust_jni::{mangling, call_impl};
+use crate::rust_jni::{mangling, call_impl, call};
 use crate::instructions::invoke::system_array_copy;
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC};
 use runtime_common::runtime_class::RuntimeClass;

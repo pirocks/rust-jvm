@@ -2,10 +2,14 @@ use crate::interpreter_util::{run_function, check_inited_class};
 use std::rc::Rc;
 use runtime_common::{StackEntry, InterpreterState};
 use crate::instructions::invoke::virtual_::setup_virtual_args;
-use crate::instructions::invoke::{run_native_method, find_target_method};
-use rust_jvm_common::classfile::ACC_NATIVE;
+use crate::instructions::invoke::find_target_method;
+use rust_jvm_common::classfile::{ACC_NATIVE, MethodInfo};
 use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
+use rust_jvm_common::view::ClassView;
+use runtime_common::runtime_class::RuntimeClass;
+use std::sync::Arc;
+use crate::instructions::invoke::native::run_native_method;
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
