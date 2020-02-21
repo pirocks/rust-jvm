@@ -1,9 +1,12 @@
 use jni_bindings::{jclass, jstring, jobject, JNIEnv, jboolean};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::get_or_create_class_object;
-use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame};
+use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
 use std::ffi::{CStr, CString};
 use rust_jvm_common::view::ptype_view::ReferenceTypeView;
+use libjvm_utils::jstring_to_string;
+use rust_jvm_common::view::ClassView;
+use rust_jvm_common::unified_types::PType::Ref;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -22,7 +25,21 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
-    unimplemented!()
+    let name_str = jstring_to_string(name);
+    //todo what if not bl
+    let class_name = ClassName::Str(name_str);
+    let state = get_state(env);
+    let loaded = state.bootstrap_loader.find_loaded_class(&class_name);
+    match loaded{
+        None => return to_object(None),
+        Some(view) => {
+            let frame = get_frame(env);
+            get_or_create_class_object(state,&ReferenceTypeView::Class(class_name),frame.clone(),state.bootstrap_loader.clone());
+            to_object(frame.pop().unwrap_object())
+        },
+    }
+
+
 }
 
 

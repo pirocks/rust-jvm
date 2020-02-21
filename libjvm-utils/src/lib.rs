@@ -8,6 +8,8 @@ use slow_interpreter::array_of_type_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::view::ptype_view::ReferenceTypeView;
+use jni_bindings::jstring;
+use slow_interpreter::rust_jni::native_util::from_object;
 
 pub fn ptype_to_class_object(state: &mut InterpreterState,frame: &Rc<StackEntry>, ptype: &PType) -> Option<Arc<Object>> {
     match ptype {
@@ -50,4 +52,17 @@ pub fn ptype_to_class_object(state: &mut InterpreterState,frame: &Rc<StackEntry>
         }
     }
     frame.pop().unwrap_object()
+}
+
+pub unsafe fn jstring_to_string(js: jstring) -> String{
+    let str_obj = from_object(js).unwrap();
+    let str_fields = str_obj.unwrap_normal_object().fields.borrow();
+    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
+    let chars = char_object.unwrap_array();
+    let borrowed_elems = chars.elems.borrow();
+    let mut res = String::new();
+    for char_ in borrowed_elems.deref() {
+        res.push(char_.unwrap_char());
+    }
+    res
 }

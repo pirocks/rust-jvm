@@ -57,6 +57,7 @@ impl Display for LoaderName {
 }
 
 pub trait Loader {
+    fn find_loaded_class(&self, name : &ClassName) -> Option<ClassView>;
     fn initiating_loader_of(&self, class: &ClassName) -> bool;
     //todo File will have to be a much more general array of bytes
     fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError>;
@@ -77,6 +78,10 @@ pub struct EmptyLoader {}
 pub type LoaderArc = Arc<dyn Loader + Sync + Send>;
 
 impl Loader for EmptyLoader {
+    fn find_loaded_class(&self, _name: &ClassName) -> Option<ClassView> {
+        unimplemented!()
+    }
+
     fn initiating_loader_of(&self, _class: &ClassName) -> bool {
         unimplemented!()
     }

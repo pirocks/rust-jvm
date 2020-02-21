@@ -10,7 +10,6 @@ use crate::rust_jni::interface::util::runtime_class_from_object;
 use descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::vtype::VType::Reference;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo

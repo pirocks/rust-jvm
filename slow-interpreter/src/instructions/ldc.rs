@@ -5,7 +5,6 @@ use runtime_common::java_values::{JavaValue, ArrayObject, Object};
 use rust_jvm_common::classnames::ClassName;
 use crate::get_or_create_class_object;
 use crate::interpreter_util::{check_inited_class, push_new_object, run_function};
-use rust_jvm_common::unified_types::PType;
 use std::sync::Arc;
 use crate::instructions::invoke::find_target_method;
 use std::mem::transmute;

@@ -4,7 +4,6 @@ use rust_jvm_common::classfile::{ConstantKind, Atype};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use runtime_common::java_values::{JavaValue, default_value};
-use rust_jvm_common::unified_types::{PType, ReferenceType};
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usize) -> () {

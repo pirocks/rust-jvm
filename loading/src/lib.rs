@@ -37,13 +37,11 @@ pub struct BootstrapLoader {
 
 
 impl Loader for BootstrapLoader {
-    fn initiating_loader_of(&self, class: &ClassName) -> bool {
-        /*{
-            self.loaded.read().unwrap().iter().for_each(|x| {
-//                dbg!(x.0);
-            });
+    fn find_loaded_class(&self, name : &ClassName) -> Option<ClassView> {
+        self.loaded.read().unwrap().get(name).cloned().map(|c|ClassView::from(c))
+    }
 
-        }*/
+    fn initiating_loader_of(&self, class: &ClassName) -> bool {
         self.loaded.read().unwrap().contains_key(class)
     }
 
@@ -52,9 +50,6 @@ impl Loader for BootstrapLoader {
     }
 
     fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc) -> Result<ClassView, ClassLoadingError> {
-//        if class == ClassName::object() {
-//            panic!()
-//        }
         if !self.initiating_loader_of(class) {
             trace!("loading {}", class.get_referred_name());
             let classfile = self.pre_load(class)?;
