@@ -153,4 +153,10 @@ impl PTypeView {
             _ => panic!()
         }
     }
+    pub fn unwrap_ref_type(&self) -> &ReferenceTypeView{
+        match self {
+            PTypeView::Ref(r) => r,
+            _ => panic!(),
+        }
+    }
 }

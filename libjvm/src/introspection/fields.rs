@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::cell::RefCell;
 use rust_jvm_common::unified_types::{PType, ReferenceType};
 use libjvm_utils::ptype_to_class_object;
+use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
@@ -29,9 +30,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let field_object = frame.pop();
         //todo so this is big and messy put I don't really see a way to simplify
         object_array.push(field_object.clone());
-        let field_class_name_ = class_name(&class_obj.clone().as_ref().unwrap().classfile);
-        let field_class_name = field_class_name_.get_referred_name();
-        load_class_constant_by_name(state, &frame, field_class_name.clone());
+        let field_class_name_ = class_obj.clone().as_ref().unwrap().class_view.name();
+        load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(field_class_name_));
         let parent_runtime_class = frame.pop();
         let field_name = class_obj.clone().unwrap().classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
         create_string_on_stack(state, &frame, field_name);
@@ -48,7 +48,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let signature_string = frame.pop();
 
         //todo impl annotations.
-        let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PType::ByteType }))));
+        let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType }))));
 
         run_constructor(
             state,
@@ -61,7 +61,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
     let res = Some(Arc::new(
         Object::Array(ArrayObject {
-            elem_type: PType::Ref(ReferenceType::Class(class_name(&field_classfile.classfile))),
+            elem_type: PTypeView::Ref(ReferenceTypeView::Class(class_name(&field_classfile.classfile))),
             elems: RefCell::new(object_array),
         })));
     to_object(res)

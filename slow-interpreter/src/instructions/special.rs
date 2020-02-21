@@ -8,8 +8,8 @@ use std::sync::Arc;
 use rust_jvm_common::classfile::Interface;
 use runtime_common::java_values::Object::{Object, Array};
 use std::ops::Deref;
-use rust_jvm_common::unified_types::PType;
 use descriptor_parser::parse_field_type;
+use rust_jvm_common::view::ptype_view::PTypeView;
 
 pub fn arraylength(current_frame: &Rc<StackEntry>) -> () {
     let array_o = current_frame.pop().unwrap_object().unwrap();
@@ -46,16 +46,16 @@ pub fn invoke_checkcast(state: &mut InterpreterState, current_frame: &Rc<StackEn
             assert!(should_be_empty.is_empty());
             let expected_type = expected_type_wrapped.unwrap_array_type();
             let cast_succeeds = match &a.elem_type {
-                PType::Ref(_) => {
+                PTypeView::Ref(_) => {
                     let actual_runtime_class = check_inited_class(state,&a.elem_type.unwrap_class_type(),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
                     let expected_runtime_class = check_inited_class(state,&expected_type.unwrap_class_type(),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
 //                    dbg!(class_name(&actual_runtime_class.classfile));
 //                    dbg!(class_name(&expected_runtime_class.classfile));
                     inherits_from(state,&actual_runtime_class,&expected_runtime_class)
                 },
-//                PType::ArrayReferenceType(_) => unimplemented!(),
+//                PTypeView::ArrayReferenceType(_) => unimplemented!(),
                 _ => {
-                    a.elem_type == expected_type.to_ptype()
+                    a.elem_type == expected_type
                 }
             };
             if cast_succeeds{

@@ -9,7 +9,7 @@ use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderArc;
 use std::error::Error;
-use rust_jvm_common::unified_types::PType;
+use rust_jvm_common::unified_types::{PType, ReferenceType};
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
 use std::collections::{HashMap, HashSet};
@@ -22,25 +22,26 @@ use rust_jvm_common::classfile::{Classfile, MethodInfo};
 use descriptor_parser::{MethodDescriptor, parse_field_type};
 use rust_jvm_common::string_pool::StringPool;
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+use std::ops::Deref;
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
-                                  class_name: &ClassName,
+                                  type_: &ReferenceTypeView,
                                   current_frame: Rc<StackEntry>,
                                   loader_arc: LoaderArc,
 ) -> Arc<Object> {
-    //todo in future this may introduce new and exciting concurrency bugs
-    if class_name.get_referred_name().starts_with('[') {
-        array_object(state, class_name, current_frame)
-    } else {
-        regular_object(state, class_name, current_frame, loader_arc)
+    match type_{
+        ReferenceTypeView::Class(class_name) => {
+            regular_object(state, class_name, current_frame, loader_arc)
+        },
+        ReferenceTypeView::Array(c) => {
+            array_object(state, c.deref(), current_frame)
+
+        },
     }
 }
 
-fn array_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>) -> Arc<Object> {
-    let referred_class_name = class_name.get_referred_name();
-    let after_parse = parse_field_type(referred_class_name.as_str()).unwrap();
-    assert!(after_parse.0.is_empty());
-    let type_for_object : PType = after_parse.1.unwrap_array_type().to_ptype();
+fn array_object(state: &mut InterpreterState, array_sub_type : & PTypeView, current_frame: Rc<StackEntry>) -> Arc<Object> {
+    let type_for_object : PType = array_sub_type.to_ptype();
     array_of_type_class(state, current_frame, &type_for_object)
 }
 

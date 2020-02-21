@@ -3,6 +3,7 @@ use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::get_or_create_class_object;
 use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame};
 use std::ffi::{CStr, CString};
+use rust_jvm_common::view::ptype_view::ReferenceTypeView;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -67,6 +68,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
 
     let state = get_state(env);
     let frame = get_frame(env);
-    let res = get_or_create_class_object(state, &name, frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+    let res = get_or_create_class_object(state, &ReferenceTypeView::Class(name), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
     return to_object(res.into());
 }

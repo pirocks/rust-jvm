@@ -2,16 +2,25 @@ use std::sync::Arc;
 use runtime_common::java_values::Object;
 use crate::get_or_create_class_object;
 use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
-use rust_jvm_common::classnames::class_name;
 use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
+use std::ops::Deref;
+use rust_jvm_common::view::ptype_view::ReferenceTypeView;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let unwrapped = from_object(obj).unwrap();
-    let obj= unwrapped.unwrap_normal_object();//todo double free hazard
     let state = get_state(env);
     let frame = get_frame(env);
-    let class_object = get_or_create_class_object(state, &class_name(&obj.class_pointer.classfile), frame, obj.class_pointer.loader.clone());
+//    let obj= unwrapped.unwrap_normal_object();//todo double free hazard
+    let class_object = match unwrapped.deref(){
+        Object::Array(a) => {
+            get_or_create_class_object(state, &ReferenceTypeView::Array(Box::new(a.elem_type.clone())), frame.clone(), frame.class_pointer.loader.clone())
+        },
+        Object::Object(o) => {
+            get_or_create_class_object(state, &ReferenceTypeView::Class(o.class_pointer.class_view.name()), frame, o.class_pointer.loader.clone())
+        },
+    };
+
     to_object(class_object.into()) as jclass
 }
 

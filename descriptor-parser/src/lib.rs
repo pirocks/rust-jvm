@@ -84,7 +84,8 @@ pub fn parse_field_type(str_: &str) -> Option<(&str, PTypeView)> {
     parse_array_type( str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
             parse_object_type( str_).or_else(|| {
-                panic!("{}", str_)
+                ("",PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(str_.to_string())))).into()//todo fallback for when parsing maformedtypes names
+//                panic!("{}", str_)
             })
         })
     })

@@ -8,7 +8,9 @@ use std::ffi::CStr;
 use crate::instructions::ldc::load_class_constant_by_name;
 use crate::rust_jni::interface::util::runtime_class_from_object;
 use descriptor_parser::parse_method_descriptor;
-use rust_jvm_common::view::ptype_view::PTypeView;
+use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::vtype::VType::Reference;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -19,7 +21,8 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let state = get_state(env);
     let frame = get_frame(env);
-    load_class_constant_by_name(state, &frame, name);
+    //todo maybe parse?
+    load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(ClassName::Str(name)));
     let obj = frame.pop().unwrap_object();
     to_object(obj)
 }
@@ -34,7 +37,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     let state = get_state(env);
 //    frame.print_stack_trace();
     let _inited_class = check_inited_class(state, &super_name, frame.clone().into(), frame.class_pointer.loader.clone());
-    load_class_constant_by_name(state, &frame, super_name.get_referred_name().clone());
+    load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(super_name));
     to_object(frame.pop().unwrap_object())
 }
 

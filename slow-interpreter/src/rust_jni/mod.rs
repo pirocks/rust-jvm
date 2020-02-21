@@ -98,7 +98,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&&env)]
     } else {
-        load_class_constant_by_name(state, &current_frame, class_name(&classfile.classfile.clone()).get_referred_name().clone());
+        load_class_constant_by_name(state, &current_frame, &ReferenceTypeView::Class(classfile.class_view.name()));
         vec![Arg::new(&&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())]
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
@@ -113,7 +113,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
             args_type.push(to_native_type(&t.to_ptype()));
             c_args.push(to_native(j.clone(), &t.to_ptype()));
         }
-    }else {
+    } else {
         for (j, t) in args.iter().zip(md.parameter_types.iter()) {
             args_type.push(to_native_type(&t.to_ptype()));
             c_args.push(to_native(j.clone(), &t.to_ptype()));

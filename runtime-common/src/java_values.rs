@@ -250,7 +250,7 @@ impl JavaValue {
 //}
 
 impl JavaValue {
-    pub fn new_vec(len: usize, val: JavaValue, elem_type: PType) -> Option<Arc<Object>> {
+    pub fn new_vec(len: usize, val: JavaValue, elem_type: PTypeView) -> Option<Arc<Object>> {
         let mut buf: Vec<JavaValue> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -303,7 +303,7 @@ impl Object {
 #[derive(Debug)]
 pub struct ArrayObject {
     pub elems: RefCell<Vec<JavaValue>>,
-    pub elem_type: PType,
+    pub elem_type: PTypeView,
 }
 
 //#[derive(Debug)]

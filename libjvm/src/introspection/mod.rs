@@ -98,7 +98,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
             true
         }
     }).for_each(|(i, m)| {
-        let class_type = PType::Ref(ReferenceType::Class(ClassName::class()));//todo this should be a global const
+        let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
 
         push_new_object(frame.clone(), &constructor_class);
         let constructor_object = frame.pop();
@@ -108,7 +108,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let clazz = {
             let field_class_name_ = class_name(&class_obj.clone().as_ref().unwrap().classfile);
             let field_class_name = field_class_name_.get_referred_name();
-            load_class_constant_by_name(state, &frame, field_class_name.clone());
+            load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(ClassName::Str(field_class_name.clone())));
             frame.pop()
         };
 
@@ -140,14 +140,14 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         };
 
         //todo impl these
-        let empty_byte_array = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PType::ByteType }))));
+        let empty_byte_array = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType }))));
 
         let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, empty_byte_array.clone(), empty_byte_array];
         run_constructor(state, frame.clone(), constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
     });
     let res = Some(Arc::new(Object::Array(ArrayObject {
         elems: RefCell::new(object_array),
-        elem_type: PType::Ref(ReferenceType::Class(class_name(&constructor_class.classfile))),
+        elem_type: PTypeView::Ref(ReferenceTypeView::Class(class_name(&constructor_class.classfile))),
     })));
     to_object(res)
 }
@@ -189,7 +189,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let frame = get_frame(env);
     let state = get_state(env);
 
-    load_class_constant_by_name(state, &frame, class_name(&frame.last_call_stack.as_ref().unwrap().class_pointer.classfile).get_referred_name().clone());
+    load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(frame.last_call_stack.as_ref().unwrap().class_pointer.class_view.name()));
     let jclass = frame.pop().unwrap_object();
     to_object(jclass)
 }
@@ -214,7 +214,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let frame = get_frame(env);
 
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    to_object(Some(get_or_create_class_object(state, &ClassName::Str(name), frame.clone(), frame.class_pointer.loader.clone())))
+    to_object(Some(get_or_create_class_object(state, &ReferenceTypeView::Class(ClassName::Str(name)), frame.clone(), frame.class_pointer.loader.clone())))
 }
 
 

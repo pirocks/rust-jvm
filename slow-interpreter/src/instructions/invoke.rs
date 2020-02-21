@@ -15,11 +15,12 @@ use std::cell::Ref;
 use crate::rust_jni::{call_impl, call, mangling, get_all_methods};
 use std::borrow::Borrow;
 use utils::lookup_method_parsed;
-use rust_jvm_common::classnames::class_name;
+use rust_jvm_common::classnames::{class_name, ClassName};
 use std::intrinsics::transmute;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::view::ClassView;
+use std::ops::Deref;
 
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
@@ -113,7 +114,16 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
         let operand_stack = current_frame.operand_stack.borrow();
         &operand_stack[operand_stack.len() - expected_descriptor.parameter_types.len() - 1].clone()
     };
-    let c = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
+    let c = match this_pointer.unwrap_object().unwrap().deref(){
+        Object::Array(_a) => {
+            //todo so spec seems vague about this, but basically assume this is an Object
+            let object_class = check_inited_class(state,&ClassName::object(),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
+            object_class.clone()
+        },
+        Object::Object(o) => {
+             o.class_pointer.clone()
+        },
+    };
     let all_methods = get_all_methods(state, current_frame.clone(), c.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, m)| {
         let cur_method_info = &c.classfile.methods[*m];
@@ -130,6 +140,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     let target_method = &final_classfile.methods[*new_i];
     let final_descriptor = parse_method_descriptor(target_method.descriptor_str(&final_classfile).as_str()).unwrap();
     invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), *new_i, target_method)
+
 }
 
 pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
