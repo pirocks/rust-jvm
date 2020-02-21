@@ -14,6 +14,7 @@ use std::rc::Rc;
 use rust_jvm_common::unified_types::PType;
 use rust_jvm_common::string_pool::StringPool;
 use rust_jvm_common::loading::LoaderArc;
+use std::time::Instant;
 
 pub mod java_values;
 pub mod runtime_class;
@@ -30,6 +31,7 @@ pub struct InterpreterState {
     //todo needs to be used for all instances of getClass
     pub jni: LibJavaLoading,
     pub string_pool: StringPool,//todo this should really be in some sort of parser/jvm state
+    pub start_instant : Instant
 }
 
 #[derive(Debug)]
