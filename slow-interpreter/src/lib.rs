@@ -4,6 +4,7 @@ extern crate log;
 extern crate simple_logger;
 extern crate libc;
 extern crate regex;
+extern crate va_list;
 
 use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;

@@ -225,7 +225,10 @@ pub fn run_function(
             InstructionInfo::imul => imul(&current_frame),
             InstructionInfo::ineg => unimplemented!(),
             InstructionInfo::instanceof(cp) => invoke_instanceof(state, &current_frame, cp),
-            InstructionInfo::invokedynamic(_) => unimplemented!(),
+            InstructionInfo::invokedynamic(_) => {
+                current_frame.print_stack_trace();
+                unimplemented!()
+            }
             InstructionInfo::invokeinterface(invoke_i) => invoke_interface(state, current_frame.clone(), invoke_i),
             InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
             InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp),
@@ -297,9 +300,9 @@ pub fn run_function(
                 match current_frame.pop() {
                     JavaValue::Long(_) | JavaValue::Double(_) => {}
                     _ => {
-                        match current_frame.pop(){
+                        match current_frame.pop() {
                             JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
-                            _ => {},
+                            _ => {}
                         };
                     }
                 }
