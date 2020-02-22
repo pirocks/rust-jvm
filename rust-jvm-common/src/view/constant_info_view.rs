@@ -1,6 +1,7 @@
 use crate::classnames::ClassName;
-use crate::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref};
+use crate::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref, BootstrapMethod};
 use std::sync::Arc;
+use crate::view::ClassView;
 
 #[derive(Debug)]
 pub struct Utf8View{
@@ -154,14 +155,17 @@ pub struct DynamicView{
 
 #[derive(Debug)]
 pub struct InvokeDynamicView{
-    pub(crate) backing_class: Arc<Classfile>,
-    pub(crate) bootstrap_method_attr_index: CPIndex,
+    pub(crate) backing_class: ClassView,
+    pub(crate) bootstrap_method_attr_index: u16,
     pub(crate) name_and_type_index: CPIndex,
 }
 
 impl InvokeDynamicView{
     pub fn name_and_type(&self) -> NameAndTypeView{
         NameAndTypeView { backing_class: self.backing_class.clone(), i: self.name_and_type_index as usize }
+    }
+    pub fn bootstrap_method_attr(&self) -> BootstrapMethodView{
+        unimplemented!()
     }
 }
 

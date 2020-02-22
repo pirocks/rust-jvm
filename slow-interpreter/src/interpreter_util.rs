@@ -29,6 +29,7 @@ use crate::instructions::invoke::interface::invoke_interface;
 use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
+use crate::instructions::invoke::dynamic::invoke_dynamic;
 
 
 //todo jni should really live in interpreter state
@@ -228,9 +229,9 @@ pub fn run_function(
             InstructionInfo::imul => imul(&current_frame),
             InstructionInfo::ineg => unimplemented!(),
             InstructionInfo::instanceof(cp) => invoke_instanceof(state, &current_frame, cp),
-            InstructionInfo::invokedynamic(_) => {
+            InstructionInfo::invokedynamic(cp) => {
                 current_frame.print_stack_trace();
-                unimplemented!()
+                invoke_dynamic(state, current_frame.clone(), cp)
             }
             InstructionInfo::invokeinterface(invoke_i) => invoke_interface(state, current_frame.clone(), invoke_i),
             InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),

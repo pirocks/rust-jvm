@@ -1,10 +1,11 @@
 use std::sync::Arc;
 use crate::view::method_view::{MethodIterator, MethodView};
-use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind};
+use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, BootstrapMethods};
 use crate::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
 use crate::view::field_view::FieldIterator;
 use crate::view::interface_view::InterfaceIterator;
+use crate::view::attribute_view::BootstrapMethodsView;
 
 
 pub trait HasAccessFlags {
@@ -86,7 +87,7 @@ impl ClassView {
             ConstantKind::MethodType(_) => unimplemented!(),
             ConstantKind::Dynamic(_) => unimplemented!(),
             ConstantKind::InvokeDynamic(id) => ConstantInfoView::InvokeDynamic(InvokeDynamicView{
-                backing_class,
+                backing_class:self.clone(),
                 bootstrap_method_attr_index: id.bootstrap_method_attr_index,
                 name_and_type_index: id.name_and_type_index
             }),
@@ -110,7 +111,12 @@ impl ClassView {
     pub fn backing_class(&self) -> Arc<Classfile>{
         self.backing_class.clone()
     }
+    pub fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
+
+    }
 }
+
+pub mod attribute_view;
 
 impl HasAccessFlags for ClassView {
     fn access_flags(&self) -> u16 {

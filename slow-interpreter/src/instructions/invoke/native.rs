@@ -2,13 +2,14 @@ use rust_jvm_common::classnames::class_name;
 use runtime_common::java_values::JavaValue;
 use std::mem::transmute;
 use crate::rust_jni::{mangling, call_impl, call};
-use crate::instructions::invoke::system_array_copy;
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use std::sync::Arc;
 use descriptor_parser::MethodDescriptor;
+use std::cell::Ref;
+use std::borrow::Borrow;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -171,4 +172,20 @@ pub fn run_native_method(
         }
     }
     println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
+}
+
+
+fn system_array_copy(args: &mut Vec<JavaValue>) -> () {
+    let src_o = args[0].clone().unwrap_object();
+    let src = src_o.as_ref().unwrap().unwrap_array();
+    let src_pos = args[1].clone().unwrap_int() as usize;
+    let src_o = args[2].clone().unwrap_object();
+    let dest = src_o.as_ref().unwrap().unwrap_array();
+    let dest_pos = args[3].clone().unwrap_int() as usize;
+    let length = args[4].clone().unwrap_int() as usize;
+    for i in 0..length {
+        let borrowed: Ref<Vec<JavaValue>> = src.elems.borrow();
+        let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
+        dest.elems.borrow_mut()[dest_pos + i] = temp;
+    }
 }

@@ -7,14 +7,31 @@ use crate::interpreter_util::check_inited_class;
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::StackEntry;
-use std::cell::Ref;
-use std::borrow::Borrow;
 use utils::lookup_method_parsed;
 use descriptor_parser::MethodDescriptor;
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::view::ClassView;
 
 pub mod special;
+pub mod native;
+pub mod interface;
+pub mod virtual_;
+pub mod static_;
+
+pub mod dynamic{
+    use runtime_common::{InterpreterState, StackEntry};
+    use std::rc::Rc;
+    use rust_jvm_common::view::constant_info_view::ConstantInfoView;
+
+    pub fn invoke_dynamic(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16){
+        match current_frame.class_pointer.class_view.constant_pool_view(cp as usize){
+            ConstantInfoView::InvokeDynamic(_) => {},
+            _ => panic!(),
+        }
+        dbg!(&current_frame.class_pointer.classfile.constant_pool[cp as usize]);
+        unimplemented!()
+    }
+}
 
 fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let classfile = &current_frame.class_pointer.classfile;
@@ -44,10 +61,6 @@ fn resolved_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, c
     (resolved_class, expected_method_name, expected_descriptor).into()
 }
 
-pub mod virtual_;
-
-pub mod static_;
-
 pub fn find_target_method(
     state: &mut InterpreterState,
     loader_arc: LoaderArc,
@@ -58,22 +71,3 @@ pub fn find_target_method(
     //todo bug need to handle super class, issue with that is need frame/state.
     lookup_method_parsed(state, target_class, expected_method_name, parsed_descriptor, &loader_arc).unwrap()
 }
-
-pub mod native;
-
-fn system_array_copy(args: &mut Vec<JavaValue>) -> () {
-    let src_o = args[0].clone().unwrap_object();
-    let src = src_o.as_ref().unwrap().unwrap_array();
-    let src_pos = args[1].clone().unwrap_int() as usize;
-    let src_o = args[2].clone().unwrap_object();
-    let dest = src_o.as_ref().unwrap().unwrap_array();
-    let dest_pos = args[3].clone().unwrap_int() as usize;
-    let length = args[4].clone().unwrap_int() as usize;
-    for i in 0..length {
-        let borrowed: Ref<Vec<JavaValue>> = src.elems.borrow();
-        let temp = (borrowed.borrow())[src_pos + i].borrow().clone();
-        dest.elems.borrow_mut()[dest_pos + i] = temp;
-    }
-}
-
-pub mod interface;
