@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use crate::view::method_view::{MethodIterator, MethodView};
-use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, BootstrapMethods};
+use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind};
 use crate::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
 use crate::view::field_view::FieldIterator;
@@ -36,6 +36,7 @@ pub trait HasAccessFlags {
     }
 }
 
+#[derive(Debug)]
 pub struct ClassView {
     backing_class: Arc<Classfile>
 }
@@ -112,7 +113,7 @@ impl ClassView {
         self.backing_class.clone()
     }
     pub fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
-
+        unimplemented!()
     }
 }
 
