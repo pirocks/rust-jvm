@@ -30,6 +30,7 @@ use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use crate::instructions::invoke::dynamic::invoke_dynamic;
+use crate::instructions::pop::{pop2, pop};
 
 
 //todo jni should really live in interpreter state
@@ -70,21 +71,14 @@ pub fn run_function(
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
     println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
-//    dbg!(format!("CALL BEGIN:{} {} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), &meth_name, method.descriptor_str(&current_frame.class_pointer.classfile),current_frame.depth()));
-//    std::io::stdout().flush().unwrap();
-//    std::io::stderr().flush().unwrap();
     assert!(!state.function_return);
     while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
             let mut context = CodeParserContext { offset: *current_frame.pc.borrow(), iter: current.iter() };
-//            current_frame.print_stack_trace();
             (parse_instruction(&mut context).unwrap().clone(), context.offset - *current_frame.pc.borrow())
         };
-        if meth_name == "replaceWith".to_string() //&& class_name(&current_frame.class_pointer.classfile) == ClassName::Str("java/util/Hashtable".to_string())
-        {}
         current_frame.pc_offset.replace(instruction_size as isize);
-//        dbg!(instruct.clone());
         match instruct {
             InstructionInfo::aaload => aaload(&current_frame),
             InstructionInfo::aastore => aastore(&current_frame),
@@ -171,10 +165,7 @@ pub fn run_function(
             InstructionInfo::fstore_2 => unimplemented!(),
             InstructionInfo::fstore_3 => unimplemented!(),
             InstructionInfo::fsub => unimplemented!(),
-            InstructionInfo::getfield(cp) => {
-//                dbg!(format!("Current Function: {} {} {}", class_name(&current_frame.class_pointer.classfile).get_referred_name(), meth_name, current_frame.depth()));
-                get_field(&current_frame, cp)
-            }
+            InstructionInfo::getfield(cp) => get_field(&current_frame, cp),
             InstructionInfo::getstatic(cp) => get_static(state, &current_frame, cp),
             InstructionInfo::goto_(target) => goto_(&current_frame, target),
             InstructionInfo::goto_w(_) => unimplemented!(),
@@ -196,10 +187,6 @@ pub fn run_function(
             InstructionInfo::iconst_4 => iconst_4(&current_frame),
             InstructionInfo::iconst_5 => iconst_5(&current_frame),
             InstructionInfo::idiv => idiv(&current_frame),
-//                {
-//                current_frame.print_stack_trace();
-//                unimplemented!()
-//            }
             InstructionInfo::if_acmpeq(offset) => if_acmpeq(&current_frame, offset),
             InstructionInfo::if_acmpne(offset) => if_acmpne(&current_frame, offset),
             InstructionInfo::if_icmpeq(offset) => if_icmpeq(&current_frame, offset),
@@ -299,18 +286,8 @@ pub fn run_function(
             InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
             InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
             InstructionInfo::nop => unimplemented!(),
-            InstructionInfo::pop => { current_frame.pop(); }
-            InstructionInfo::pop2 => {
-                match current_frame.pop() {
-                    JavaValue::Long(_) | JavaValue::Double(_) => {}
-                    _ => {
-                        match current_frame.pop() {
-                            JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
-                            _ => {}
-                        };
-                    }
-                }
-            }
+            InstructionInfo::pop => pop(&current_frame),
+            InstructionInfo::pop2 => pop2(&current_frame),
             InstructionInfo::putfield(cp) => putfield(state, &current_frame, cp),
             InstructionInfo::putstatic(cp) => putstatic(state, &current_frame, cp),
             InstructionInfo::ret(_) => unimplemented!(),
@@ -325,29 +302,23 @@ pub fn run_function(
         }
         if state.throw.is_some() {
             let throw_class = state.throw.as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
-//            dbg!(&code.exception_table);
             for excep_table in &code.exception_table {
                 if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize) {//todo exclusive
-//                    assert_ne!(excep_table.catch_type, 0);
                     if excep_table.catch_type == 0 {
                         //todo dup
                         current_frame.push(JavaValue::Object(state.throw.clone()));
                         state.throw = None;
                         current_frame.pc.replace(excep_table.handler_pc as usize);
                         println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
-//                        current_frame.print_stack_trace();
                         break;
                     } else {
                         let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
-//                        dbg!(&catch_runtime_name);
-//                        dbg!(class_name(&throw_class.classfile).get_referred_name());
                         let catch_class = check_inited_class(state, &ClassName::Str(catch_runtime_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
                         if inherits_from(state, &throw_class, &catch_class) {
                             current_frame.push(JavaValue::Object(state.throw.clone()));
                             state.throw = None;
                             current_frame.pc.replace(excep_table.handler_pc as usize);
                             println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
-//                            current_frame.print_stack_trace();
                             break;
                         }
                     }
@@ -370,28 +341,7 @@ pub fn run_function(
             current_frame.pc.replace(pc);
         }
     }
-//    if meth_name == "replaceWith".to_string() {
-//        std::io::stdout().flush().unwrap();
-//        std::io::stderr().flush().unwrap();
-////        dbg!(&current_frame.local_vars);
-////        dbg!(current_frame.last_call_stack.as_ref().map(|x| { let x1 = x.operand_stack.borrow();x1.last().map(|y|{y.clone()}).clone() }));
-//        std::io::stdout().flush().unwrap();
-//        std::io::stderr().flush().unwrap();
-//    }
     println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
-}
-
-fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
-    let object_ref = current_frame.pop();
-//    match object_ref.clone() {
-//        //todo there needs to be a unified way of doing this
-//        JavaValue::Int(_) | JavaValue::Char(_) | JavaValue::Byte(_) | JavaValue::Boolean(_) => {}
-//        _ => {
-//            dbg!(&object_ref);
-//            panic!()
-//        }
-//    }
-    current_frame.local_vars.borrow_mut()[n as usize] = JavaValue::Int(object_ref.unwrap_int());
 }
 
 

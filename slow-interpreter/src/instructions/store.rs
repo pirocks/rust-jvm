@@ -79,3 +79,9 @@ pub fn aastore(current_frame: &Rc<StackEntry>) -> () {
     }
     array_ref[index as usize] = val.clone();
 }
+
+
+pub fn istore(current_frame: &Rc<StackEntry>, n: u8) -> () {
+    let object_ref = current_frame.pop();
+    current_frame.local_vars.borrow_mut()[n as usize] = JavaValue::Int(object_ref.unwrap_int());
+}
