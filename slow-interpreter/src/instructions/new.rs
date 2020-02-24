@@ -57,6 +57,9 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
         Atype::TByte => {
             PTypeView::ByteType
         }
+        Atype::TBoolean => {
+            PTypeView::BooleanType
+        }
         _ => {
             dbg!(a_type);
             unimplemented!()

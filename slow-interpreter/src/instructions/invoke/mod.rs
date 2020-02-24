@@ -29,13 +29,13 @@ pub mod dynamic {
         let method_handle = check_inited_class(
             state,
             &ClassName::Str("java/lang/invoke/MethodHandle".to_string()),
-            current_frame.into(),
+            current_frame.clone().into(),
             current_frame.class_pointer.loader.clone(),
         );
         let method_type = check_inited_class(
             state,
             &ClassName::Str("java/lang/invoke/MethodType".to_string()),
-            current_frame.into(),
+            current_frame.clone().into(),
             current_frame.class_pointer.loader.clone(),
         );
         let invoke_dynamic_view = match current_frame.class_pointer.class_view.constant_pool_view(cp as usize) {
@@ -47,8 +47,15 @@ pub mod dynamic {
         // the bootstrap method for a dynamic call site (§4.7.23).The method handle is resolved to
         // obtain a reference to an instance of java.lang.invoke.MethodHandle (§5.4.3.5)
         let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
-        invoke_dynamic_view.bootstrap_method_attr().bootstrap_args()
-        bootstrap_method.class()
+        invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
+        let bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+        dbg!(invoke_dynamic_view.name_and_type().name());
+        dbg!(invoke_dynamic_view.name_and_type().desc());
+        dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().name_and_type());
+        dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().class());
+
+//        invoke_dynamic_view.
+
 
         dbg!(&current_frame.class_pointer.classfile.constant_pool[cp as usize]);
         unimplemented!()
