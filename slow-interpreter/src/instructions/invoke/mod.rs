@@ -18,16 +18,38 @@ pub mod interface;
 pub mod virtual_;
 pub mod static_;
 
-pub mod dynamic{
+pub mod dynamic {
     use runtime_common::{InterpreterState, StackEntry};
     use std::rc::Rc;
     use rust_jvm_common::view::constant_info_view::ConstantInfoView;
+    use crate::interpreter_util::check_inited_class;
+    use rust_jvm_common::classnames::ClassName;
 
-    pub fn invoke_dynamic(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16){
-        match current_frame.class_pointer.class_view.constant_pool_view(cp as usize){
-            ConstantInfoView::InvokeDynamic(_) => {},
+    pub fn invoke_dynamic(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
+        let method_handle = check_inited_class(
+            state,
+            &ClassName::Str("java/lang/invoke/MethodHandle".to_string()),
+            current_frame.into(),
+            current_frame.class_pointer.loader.clone(),
+        );
+        let method_type = check_inited_class(
+            state,
+            &ClassName::Str("java/lang/invoke/MethodType".to_string()),
+            current_frame.into(),
+            current_frame.class_pointer.loader.clone(),
+        );
+        let invoke_dynamic_view = match current_frame.class_pointer.class_view.constant_pool_view(cp as usize) {
+            ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
-        }
+        };
+
+        //A call site specifier gives a symbolic reference to a method handle which is to serve as
+        // the bootstrap method for a dynamic call site (§4.7.23).The method handle is resolved to
+        // obtain a reference to an instance of java.lang.invoke.MethodHandle (§5.4.3.5)
+        let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
+        invoke_dynamic_view.bootstrap_method_attr().bootstrap_args()
+        bootstrap_method.class()
+
         dbg!(&current_frame.class_pointer.classfile.constant_pool[cp as usize]);
         unimplemented!()
     }
