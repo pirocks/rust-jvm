@@ -8,7 +8,7 @@ use std::sync::Arc;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use rust_jvm_common::loading::LoaderArc;
 use std::rc::Rc;
-use runtime_common::java_values::{JavaValue, default_value, Object};
+use runtime_common::java_values::{JavaValue, default_value, Object, ArrayObject};
 use runtime_common::runtime_class::RuntimeClass;
 use crate::instructions::load::*;
 use crate::instructions::store::*;
@@ -43,7 +43,6 @@ pub fn check_inited_class(
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
         let bl = state.bootstrap_loader.clone();
-//        current_frame.clone().map( |x|{x.print_stack_trace()});
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
         let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
         state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
@@ -51,7 +50,6 @@ pub fn check_inited_class(
         state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
     }
     let res = state.initialized_classes.read().unwrap().get(class_name).unwrap().clone();
-//    dbg!(&res.static_vars.borrow().get("savedProps"));
     res
 }
 
@@ -174,7 +172,7 @@ pub fn run_function(
             InstructionInfo::i2d => i2d(&current_frame),
             InstructionInfo::i2f => i2f(&current_frame),
             InstructionInfo::i2l => i2l(&current_frame),
-            InstructionInfo::i2s => unimplemented!(),
+            InstructionInfo::i2s => i2s(&current_frame),
             InstructionInfo::iadd => iadd(&current_frame),
             InstructionInfo::iaload => iaload(&current_frame),
             InstructionInfo::iand => iand(&current_frame),
@@ -261,7 +259,7 @@ pub fn run_function(
             InstructionInfo::lmul => unimplemented!(),
             InstructionInfo::lneg => unimplemented!(),
             InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, &current_frame),
-            InstructionInfo::lor => unimplemented!(),
+            InstructionInfo::lor => lor(&current_frame),
             InstructionInfo::lrem => unimplemented!(),
             InstructionInfo::lreturn => lreturn(state, &current_frame),
             InstructionInfo::lshl => lshl(current_frame.clone()),
@@ -282,7 +280,7 @@ pub fn run_function(
                 current_frame.pop().unwrap_object().unwrap();
                 /*unimplemented for now todo*/
             }
-            InstructionInfo::multianewarray(_) => unimplemented!(),
+            InstructionInfo::multianewarray(cp) => multi_a_new_array(state, &current_frame, cp),
             InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
             InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
             InstructionInfo::nop => unimplemented!(),
@@ -343,6 +341,7 @@ pub fn run_function(
     }
     println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
 }
+
 
 
 pub fn push_new_object(current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {

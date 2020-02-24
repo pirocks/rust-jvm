@@ -1,11 +1,12 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use rust_jvm_common::classfile::{ConstantKind, Atype};
+use rust_jvm_common::classfile::{ConstantKind, Atype, MultiNewArray};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
-use runtime_common::java_values::{JavaValue, default_value};
+use runtime_common::java_values::{JavaValue, default_value, Object, ArrayObject};
 use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
-
+use std::sync::Arc;
+use std::cell::RefCell;
 pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
     let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
@@ -78,4 +79,31 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
         }
     };
     current_frame.push(JavaValue::Object(JavaValue::new_vec(count as usize, default_value(type_.clone()), type_)));
+}
+
+
+pub fn multi_a_new_array(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: MultiNewArray) -> () {
+    let dims = cp.dims;
+    let temp = current_frame.class_pointer.class_view.constant_pool_view(cp.index as usize);
+    let type_ = temp.unwrap_class();
+    let name = type_.class_name();
+    dbg!(&name);
+//    check_inited_class(state, &name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+    //todo need to start doing this at some point
+    let mut dimensions = vec![];
+    for _ in 0..dims {
+        dimensions.push(current_frame.pop().unwrap_int());
+    }
+    let mut current = JavaValue::Object(None);
+    let mut current_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str("sketch hack".to_string())));//todo fix this as a matter of urgency
+    for len in dimensions {
+        let next_type = PTypeView::Ref(ReferenceTypeView::Array(Box::new(current_type)));
+        let mut new_vec = vec![];
+        for _ in 0..len {
+            new_vec.push(current.deep_clone())
+        }
+        current = JavaValue::Object(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(new_vec), elem_type: next_type.clone() })).into());
+        current_type = next_type;
+    }
+    current_frame.push(current);
 }

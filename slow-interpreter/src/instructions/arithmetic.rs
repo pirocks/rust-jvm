@@ -134,6 +134,12 @@ pub fn ladd(current_frame: &Rc<StackEntry>) -> () {
 }
 
 
+pub fn lor(current_frame: &Rc<StackEntry>) -> () {
+    let first = current_frame.pop().unwrap_long();
+    let second = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Long(first | second));
+}
+
 pub fn lshl(current_frame: Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_long();

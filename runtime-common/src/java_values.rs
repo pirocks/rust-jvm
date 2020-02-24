@@ -7,6 +7,7 @@ use std::fmt::{Debug, Formatter, Error};
 use rust_jvm_common::classnames::class_name;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
 use rust_jvm_common::view::ptype_view::PTypeView;
+use std::ops::Deref;
 
 //#[derive(Debug)]
 pub enum JavaValue {
@@ -107,6 +108,28 @@ impl JavaValue {
                 dbg!(other);
                 None
             }
+        }
+    }
+
+    pub fn deep_clone(&self) -> Self{
+        match &self {
+            JavaValue::Long(_) => unimplemented!(),
+            JavaValue::Int(_) => unimplemented!(),
+            JavaValue::Short(_) => unimplemented!(),
+            JavaValue::Byte(_) => unimplemented!(),
+            JavaValue::Boolean(_) => unimplemented!(),
+            JavaValue::Char(_) => unimplemented!(),
+            JavaValue::Float(_) => unimplemented!(),
+            JavaValue::Double(_) => unimplemented!(),
+            JavaValue::Object(o) => {
+                JavaValue::Object(match o {
+                    None => None,
+                    Some(o) => {
+                        Arc::new(o.deref().deep_clone()).into()
+                    },
+                })
+            },
+            JavaValue::Top => unimplemented!(),
         }
     }
 }
@@ -296,6 +319,26 @@ impl Object {
         match self {
             Object::Array(a) => a,
             Object::Object(_) => panic!(),
+        }
+    }
+
+    pub fn deep_clone(&self) -> Self {
+        match &self{
+            Object::Array(a) => {
+                let sub_array = a.elems.borrow().iter().map(|x|x.deep_clone()).collect();
+                Object::Array(ArrayObject{ elems: RefCell::new(sub_array), elem_type: a.elem_type.clone() })
+            },
+            Object::Object(o) => {
+                let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s,jv)|{(s.clone(),jv.deep_clone())}).collect());
+                Object::Object(NormalObject {
+                    gc_reachable: o.gc_reachable,
+                    fields: new_fields,
+                    class_pointer: o.class_pointer.clone(),
+                    bootstrap_loader: o.bootstrap_loader,
+                    object_class_object_pointer: o.object_class_object_pointer.clone(),
+                    array_class_object_pointer: o.array_class_object_pointer.clone()
+                })
+            },
         }
     }
 }

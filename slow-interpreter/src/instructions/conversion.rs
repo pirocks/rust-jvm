@@ -7,6 +7,11 @@ pub fn i2l(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Long(int as i64));
 }
 
+pub fn i2s(current_frame: &Rc<StackEntry>) -> () {
+    let int = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Short(int as i16));
+}
+
 pub fn i2f(current_frame: &Rc<StackEntry>) -> () {
     let int = current_frame.pop().unwrap_int();
     current_frame.push(JavaValue::Float(int as f32));
