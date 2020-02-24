@@ -104,7 +104,7 @@ pub enum BootstrapArgView {
 }
 
 
-pub struct c{
+pub struct EnclosingMethodView{
     pub(crate) backing_class : ClassView ,
     pub(crate) i : usize
 }
