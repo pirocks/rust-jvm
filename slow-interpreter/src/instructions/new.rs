@@ -30,15 +30,19 @@ pub fn anewarray(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp
     match cp_entry {
         ConstantKind::Class(c) => {
             let name = ClassName::Str(constant_pool[c.name_index as usize].extract_string_from_utf8());
-            check_inited_class(state, &name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-            let t = PTypeView::Ref(ReferenceTypeView::Class(name));
-            current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(len as usize, JavaValue::Object(None), t).unwrap()).into()))
+            a_new_array_from_name(state, current_frame, len, &name)
         }
         _ => {
             dbg!(cp_entry);
             panic!()
         }
     }
+}
+
+pub fn a_new_array_from_name(state: &mut InterpreterState, current_frame: Rc<StackEntry>, len: i32, name: &ClassName) -> () {
+    check_inited_class(state, &name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+    let t = PTypeView::Ref(ReferenceTypeView::Class(name.clone()));
+    current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(len as usize, JavaValue::Object(None), t).unwrap()).into()))
 }
 
 
@@ -69,7 +73,7 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
         Atype::TDouble => {
             PTypeView::DoubleType
         }
-        Atype::TFloat =>{
+        Atype::TFloat => {
             PTypeView::FloatType
         }
     };

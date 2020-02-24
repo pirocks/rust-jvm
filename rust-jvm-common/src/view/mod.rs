@@ -116,7 +116,7 @@ impl ClassView {
         unimplemented!()
     }
     pub fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
-        self.backing_class.attributes.iter().enumerate().find(|(i,attr)|{
+        self.backing_class.attributes.iter().enumerate().find(|(_i,attr)|{
             match attr.attribute_type {
                 AttributeType::EnclosingMethod(_) => true,
                 _ => false,

@@ -1,5 +1,7 @@
 use jni_bindings::{jobject, jintArray, jclass, JNIEnv, jint, jvalue};
-use slow_interpreter::rust_jni::native_util::get_frame;
+use slow_interpreter::rust_jni::native_util::{get_frame, get_state, to_object};
+use slow_interpreter::instructions::new::a_new_array_from_name;
+use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, currClass: jclass, length: jint) -> jobject {
@@ -34,8 +36,10 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 #[no_mangle]
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
     let frame = get_frame(env);
-    frame.print_stack_trace();
-    unimplemented!()
+    let state = get_state(env);
+    let array_type_name = runtime_class_from_object(eltClass).unwrap().class_view.name();//todo how does this handle nested arrays?
+    a_new_array_from_name(state,frame.clone(),length,&array_type_name);
+    to_object(frame.pop().unwrap_object())
 }
 
 #[no_mangle]
