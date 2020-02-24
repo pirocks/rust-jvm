@@ -82,6 +82,10 @@ impl ClassName {
     pub fn short() -> Self{
         Self::new("java/lang/Short")
     }
+
+    pub fn void() -> Self{
+        Self::new("java/lang/Void")
+    }
 }
 
 impl Hash for ClassName {

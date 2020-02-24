@@ -1,4 +1,5 @@
 use jni_bindings::{jobject, jintArray, jclass, JNIEnv, jint, jvalue};
+use slow_interpreter::rust_jni::native_util::get_frame;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, currClass: jclass, length: jint) -> jobject {
@@ -32,6 +33,8 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
+    let frame = get_frame(env);
+    frame.print_stack_trace();
     unimplemented!()
 }
 

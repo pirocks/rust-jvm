@@ -75,6 +75,8 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     let byte_cstr = byte.into_raw();
     let short = CString::new("short").unwrap();
     let short_cstr = short.into_raw();
+    let void = CString::new("void").unwrap();
+    let void_cstr = void.into_raw();
     let name = if libc::strncmp(float_cstr,utf,libc::strlen(float_cstr) + 1) == 0{
         ClassName::float()
     } else if libc::strncmp(double_cstr,utf,libc::strlen(double_cstr) + 1) == 0 {
@@ -91,6 +93,8 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         ClassName::byte()
     } else if libc::strncmp(short_cstr,utf,libc::strlen(short_cstr) + 1) == 0 {
         ClassName::short()
+    }else if libc::strncmp(void_cstr,utf,libc::strlen(void_cstr) + 1) == 0 {
+        ClassName::void()
     } else {
         dbg!((*utf) as u8 as char);
         unimplemented!()

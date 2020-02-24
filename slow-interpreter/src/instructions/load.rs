@@ -55,6 +55,18 @@ pub fn fload(current_frame: &Rc<StackEntry>, n: usize) {
     current_frame.push(java_val.clone())
 }
 
+pub fn dload(current_frame: &Rc<StackEntry>, n: usize) {
+    let java_val = &current_frame.local_vars.borrow()[n];
+    match java_val {
+        JavaValue::Double(_) => {}
+        _ => {
+            dbg!(java_val);
+            panic!()
+        }
+    }
+    current_frame.push(java_val.clone())
+}
+
 
 pub fn aaload(current_frame: &Rc<StackEntry>) -> () {
     let index = current_frame.pop().unwrap_int();

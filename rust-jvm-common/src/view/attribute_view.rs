@@ -1,5 +1,5 @@
 use crate::view::ClassView;
-use crate::classfile::{AttributeType, BootstrapMethod, CPIndex};
+use crate::classfile::{AttributeType, BootstrapMethod, CPIndex, EnclosingMethod};
 use crate::view::constant_info_view::{MethodrefView, ConstantInfoView, StringView, IntegerView, LongView, FloatView, DoubleView, MethodHandleView, MethodTypeView};
 
 #[derive(Clone)]
@@ -101,4 +101,21 @@ pub enum BootstrapArgView {
     Double(DoubleView),
     MethodHandle(MethodHandleView),
     MethodType(MethodTypeView)
+}
+
+
+pub struct c{
+    pub(crate) backing_class : ClassView ,
+    pub(crate) i : usize
+}
+
+impl EnclosingMethodView{
+    fn get_raw(&self) -> &EnclosingMethod{
+        match &self.backing_class.backing_class.attributes[self.i].attribute_type{
+            AttributeType::EnclosingMethod(em) => em,
+            _ => panic!()
+        }
+    }
+
+
 }

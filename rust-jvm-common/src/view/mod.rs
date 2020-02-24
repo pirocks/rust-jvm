@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use crate::view::method_view::{MethodIterator, MethodView};
-use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind};
+use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, EnclosingMethod, AttributeType};
 use crate::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
 use crate::view::field_view::FieldIterator;
 use crate::view::interface_view::InterfaceIterator;
-use crate::view::attribute_view::BootstrapMethodsView;
+use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView};
 
 
 pub trait HasAccessFlags {
@@ -115,9 +115,15 @@ impl ClassView {
     pub fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
         unimplemented!()
     }
+    pub fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
+        self.backing_class.attributes.iter().enumerate().find(|(i,attr)|{
+            match attr.attribute_type {
+                AttributeType::EnclosingMethod(_) => true,
+                _ => false,
+            }
+        }).map(|(i,_)|{EnclosingMethodView { backing_class: ClassView::from(self.backing_class.clone()), i }})
+    }
 }
-
-pub mod attribute_view;
 
 impl HasAccessFlags for ClassView {
     fn access_flags(&self) -> u16 {
@@ -125,6 +131,7 @@ impl HasAccessFlags for ClassView {
     }
 }
 
+pub mod attribute_view;
 pub mod interface_view;
 pub mod field_view;
 pub mod constant_info_view;

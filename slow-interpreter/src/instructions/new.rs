@@ -60,9 +60,17 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
         Atype::TBoolean => {
             PTypeView::BooleanType
         }
-        _ => {
-            dbg!(a_type);
-            unimplemented!()
+        Atype::TShort => {
+            PTypeView::ShortType
+        }
+        Atype::TLong => {
+            PTypeView::LongType
+        }
+        Atype::TDouble => {
+            PTypeView::DoubleType
+        }
+        Atype::TFloat =>{
+            PTypeView::FloatType
         }
     };
     current_frame.push(JavaValue::Object(JavaValue::new_vec(count as usize, default_value(type_.clone()), type_)));
