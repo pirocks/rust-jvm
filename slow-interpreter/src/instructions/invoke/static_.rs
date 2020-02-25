@@ -40,10 +40,17 @@ pub fn invoke_static_impl(
         for _ in 0..max_locals {
             args.push(JavaValue::Top);
         }
-        for i in 0..expected_descriptor.parameter_types.len() {
-            args[i] = current_frame.pop();
+        let mut i = 0;
+        for _ in 0..expected_descriptor.parameter_types.len() {
+            let popped = current_frame.pop();
+            match &popped {
+                JavaValue::Long(_) | JavaValue::Double(_) => { i += 1 }
+                _ => {}
+            }
+            args[i] = popped;
+            i += 1;
         }
-        args[0..expected_descriptor.parameter_types.len()].reverse();
+        args[0..i].reverse();
         let next_entry = StackEntry {
             last_call_stack: Some(current_frame),
             class_pointer: target_class,

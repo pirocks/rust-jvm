@@ -25,6 +25,8 @@ pub fn iload(current_frame: &Rc<StackEntry>, n: usize) {
         JavaValue::Int(_) | JavaValue::Boolean(_) | JavaValue::Char(_) => {}
         _ => {
             dbg!(java_val);
+            current_frame.print_stack_trace();
+            dbg!(&current_frame.local_vars);
             panic!()
         }
     }
@@ -37,6 +39,8 @@ pub fn lload(current_frame: &Rc<StackEntry>, n: usize) {
         JavaValue::Long(_) => {}
         _ => {
             dbg!(java_val);
+            current_frame.print_stack_trace();
+            dbg!(&current_frame.local_vars.borrow()[1..]);
             panic!()
         }
     }
