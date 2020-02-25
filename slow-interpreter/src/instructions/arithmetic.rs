@@ -145,3 +145,10 @@ pub fn lshl(current_frame: Rc<StackEntry>) -> () {
     let value1 = current_frame.pop().unwrap_long();
     current_frame.push(JavaValue::Long(value1 << ((value2 & 0x7F) as i64)));
 }
+
+
+pub fn lshr(current_frame: Rc<StackEntry>) -> () {
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Long(value1 >> ((value2 & 0x7F) as i64)));
+}

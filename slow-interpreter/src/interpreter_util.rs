@@ -263,7 +263,7 @@ pub fn run_function(
             InstructionInfo::lrem => unimplemented!(),
             InstructionInfo::lreturn => lreturn(state, &current_frame),
             InstructionInfo::lshl => lshl(current_frame.clone()),
-            InstructionInfo::lshr => unimplemented!(),
+            InstructionInfo::lshr => lshr(current_frame.clone()),
             InstructionInfo::lstore(n) => lstore(&current_frame, n as usize),
             InstructionInfo::lstore_0 => lstore(&current_frame, 0),
             InstructionInfo::lstore_1 => lstore(&current_frame, 1),
