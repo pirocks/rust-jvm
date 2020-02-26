@@ -157,7 +157,11 @@ pub fn run_native_method(
                             fields.insert(field_name, JavaValue::Long(new));
                             JavaValue::Boolean(true)
                         }.into()
-                    } else {
+                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives"{
+                        //todo
+                        None
+                    }
+                    else {
 //                        frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
