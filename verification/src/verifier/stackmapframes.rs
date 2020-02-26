@@ -81,11 +81,14 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
         match removed {
             PTypeView::DoubleType | PTypeView::LongType => panic!(),
             PTypeView::TopType => {
-                let second_removed = frame.locals.pop().unwrap();
-                match second_removed {
-                    PTypeView::DoubleType | PTypeView::LongType => {}
-                    _ => {
-                        frame.locals.push(second_removed);
+                let second_removed_maybe = frame.locals.pop();
+                match second_removed_maybe {
+                    None => {}
+                    Some(second_removed) => {
+                        match second_removed {
+                            PTypeView::DoubleType | PTypeView::LongType => {}
+                            _ => { frame.locals.push(second_removed) }
+                        }
                     }
                 }
             }
@@ -149,7 +152,7 @@ pub fn init_frame(parameter_types: Vec<PTypeView>, this_pointer: Option<PTypeVie
             add_verification_type_to_array_convert(&mut locals, &PTypeView::UninitializedThisOrClass(t.clone().into()))
         }
     }
-    //so these parameter types come unconverted and therefore need conversion
+//so these parameter types come unconverted and therefore need conversion
     for parameter_type in parameter_types {
         add_verification_type_to_array_convert(&mut locals, &parameter_type)
     }
