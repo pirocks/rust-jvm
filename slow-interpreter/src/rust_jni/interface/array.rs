@@ -4,7 +4,8 @@ use runtime_common::java_values::{ArrayObject, Object, JavaValue};
 use std::sync::Arc;
 use crate::rust_jni::native_util::{to_object, from_object};
 use std::ops::Deref;
-use rust_jvm_common::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::PTypeView;
+
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
     let non_null_array: &Object = &from_object(array).unwrap();

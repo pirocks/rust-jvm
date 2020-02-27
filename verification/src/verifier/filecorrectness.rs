@@ -3,11 +3,16 @@ use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classnames::ClassName;
 use crate::VerifierContext;
 use std::ops::Deref;
-use descriptor_parser::{MethodDescriptor, Descriptor, parse_field_descriptor};
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::loading::{LoaderName, ClassWithLoader, LoaderArc};
-use rust_jvm_common::view::ptype_view::PTypeView;
-use rust_jvm_common::view::HasAccessFlags;
+use classfile_view::vtype::VType;
+use classfile_view::view::HasAccessFlags;
+use classfile_view::loading::*;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::descriptor_parser::*;
+
+
+
+
+
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
     return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(vf, class1, class2);

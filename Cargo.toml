@@ -18,7 +18,8 @@ runtime-common = {path = "./runtime-common"}
 utils = {path = "./utils"}
 jni-bindings = {path = "./jni-bindings"}
 jvm = {path = "./libjvm"}
-descriptor-parser = {path = "./descriptor-parser"}
+classfile-view = {path = "./classfile-view"}
+#descriptor-parser = {path = "./descriptor-parser"}
 argparse = "0.2.2"
 log = "0.4"
 simple_logger = "1.3.0"
@@ -34,6 +35,6 @@ members = ["rust-jvm-common",
            "runtime-common",
            "libjvm",
            "jni-bindings",
-           "descriptor-parser",
            "utils",
-           "libjvm-utils"]
+           "libjvm-utils",
+           "classfile-view"]

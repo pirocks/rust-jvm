@@ -8,17 +8,17 @@ use rust_jvm_common::classnames::ClassName;
 use crate::verifier::codecorrectness::can_pop;
 use crate::verifier::passes_protected_check;
 use rust_jvm_common::classfile::CPIndex;
-use crate::verifier::instructions::branches::{substitute, possibly_array_to_type};
+use crate::verifier::instructions::branches::substitute;
 use crate::OperandStack;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::target_is_type_safe;
-use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_type, parse_field_descriptor};
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::loading::ClassWithLoader;
-use rust_jvm_common::view::ptype_view::PTypeView;
-use rust_jvm_common::view::constant_info_view::ConstantInfoView;
-use rust_jvm_common::view::ClassView;
 use std::ops::Deref;
+use classfile_view::vtype::VType;
+use classfile_view::view::ClassView;
+use classfile_view::loading::ClassWithLoader;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::descriptor_parser::*;
+use classfile_view::view::constant_info_view::ConstantInfoView;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
@@ -69,8 +69,7 @@ fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> PTypeV
         }
         _ => panic!()
     };
-    let subtype = possibly_array_to_type(class_name.get_referred_name());
-    PTypeView::Ref(subtype)
+    PTypeView::Ref(class_name)
 }
 
 pub fn instruction_is_type_safe_arraylength(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -109,7 +108,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
     let result_type = match &class.constant_pool_view(index) {
         ConstantInfoView::Class(c) => {
             let name = c.class_name();
-            PTypeView::Ref(possibly_array_to_type(name.get_referred_name())).to_verification_type(&env.class_loader)
+            PTypeView::Ref(name).to_verification_type(&env.class_loader)
         }
         _ => panic!()
     };
@@ -194,7 +193,7 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: &Fr
 
 pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let classfile = get_class(&env.vf, env.method.class);
-    let expected_type = parse_field_type(classfile.constant_pool_view(cp).unwrap_class().class_name().get_referred_name().as_str()).unwrap().1;
+    let expected_type = PTypeView::Ref(classfile.constant_pool_view(cp).unwrap_class().class_name().clone());//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
     if class_dimension(env,&expected_type.to_verification_type(&env.class_loader)) != dim {
         return Result::Err(unknown_error_verifying!());
     }

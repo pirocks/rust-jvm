@@ -8,13 +8,14 @@ use crate::verifier::codecorrectness::valid_type_transition;
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::filecorrectness::is_assignable;
 use crate::OperandStack;
-use descriptor_parser::{Descriptor, MethodDescriptor, parse_method_descriptor, parse_field_descriptor};
 use std::ops::Deref;
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::loading::ClassWithLoader;
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::view::ClassView;
-use rust_jvm_common::view::constant_info_view::ConstantInfoView;
+use classfile_view::vtype::VType;
+use classfile_view::view::ClassView;
+use classfile_view::loading::ClassWithLoader;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::descriptor_parser::{parse_method_descriptor, MethodDescriptor, Descriptor, parse_field_descriptor};
+use classfile_view::view::constant_info_view::ConstantInfoView;
+
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
@@ -252,7 +253,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
                                     let method_class = get_class(&env.vf, env.method.class);
                                     match &method_class.constant_pool_view(this as usize) {
                                         ConstantInfoView::Class(c) => {
-                                            let class_name = c.class_name();
+                                            let class_name = c.class_name().unwrap_name();
                                             return Result::Ok(ClassWithLoader { class_name, loader: env.class_loader.clone() });
                                         }
                                         _ => { unimplemented!() }

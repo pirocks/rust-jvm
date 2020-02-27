@@ -3,7 +3,7 @@ use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, f
 use std::sync::Arc;
 use runtime_common::java_values::{Object, ArrayObject, JavaValue};
 use std::cell::RefCell;
-use rust_jvm_common::unified_types::{PType, ReferenceType};
+use rust_jvm_common::ptype::{PType, ReferenceType};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_name};
@@ -15,9 +15,11 @@ use std::ops::Deref;
 use std::ffi::CStr;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
-use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+
+
 use libjvm_utils::ptype_to_class_object;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::descriptor_parser::parse_method_descriptor;
 
 pub mod constant_pool;
 pub mod is_x;

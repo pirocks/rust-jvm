@@ -4,9 +4,11 @@ use rust_jvm_common::classfile::{ConstantKind, Atype, MultiNewArray};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use runtime_common::java_values::{JavaValue, default_value, Object, ArrayObject};
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+
 use std::sync::Arc;
 use std::cell::RefCell;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+
 pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
     let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
@@ -88,7 +90,8 @@ pub fn multi_a_new_array(state: &mut InterpreterState, current_frame: &Rc<StackE
     let type_ = temp.unwrap_class();
     let name = type_.class_name();
     dbg!(&name);
-//    check_inited_class(state, &name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+
+   check_inited_class(state, &name.unwrap_arrays_to_name().unwrap(), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     for _ in 0..dims {

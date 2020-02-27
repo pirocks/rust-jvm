@@ -1,4 +1,4 @@
-use crate::classfile::Classfile;
+use rust_jvm_common::classfile::Classfile;
 use std::sync::Arc;
 use crate::view::ClassView;
 

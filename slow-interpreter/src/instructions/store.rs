@@ -1,7 +1,8 @@
 use runtime_common::StackEntry;
 use std::rc::Rc;
 use runtime_common::java_values::JavaValue;
-use rust_jvm_common::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::PTypeView;
+
 
 pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {
     let object_ref = current_frame.pop();

@@ -4,12 +4,14 @@ use runtime_common::{StackEntry, InterpreterState};
 use crate::instructions::invoke::virtual_::setup_virtual_args;
 use crate::instructions::invoke::find_target_method;
 use rust_jvm_common::classfile::{ACC_NATIVE, MethodInfo};
-use descriptor_parser::MethodDescriptor;
+
 use verification::verifier::instructions::branches::get_method_descriptor;
-use rust_jvm_common::view::ClassView;
+
 use runtime_common::runtime_class::RuntimeClass;
 use std::sync::Arc;
 use crate::instructions::invoke::native::run_native_method;
+use classfile_view::view::ClassView;
+use classfile_view::view::descriptor_parser::MethodDescriptor;
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
@@ -25,7 +27,14 @@ pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntr
 //    }
 }
 
-pub fn invoke_special_impl(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, parsed_descriptor: &MethodDescriptor, target_m_i: usize, final_target_class: Arc<RuntimeClass>, target_m: &MethodInfo) -> () {
+pub fn invoke_special_impl(
+    state: &mut InterpreterState,
+    current_frame: &Rc<StackEntry>,
+    parsed_descriptor: &MethodDescriptor,
+    target_m_i: usize,
+    final_target_class: Arc<RuntimeClass>,
+    target_m: &MethodInfo
+) -> () {
     if target_m.access_flags & ACC_NATIVE > 0 {
         run_native_method(state, current_frame.clone(), final_target_class, target_m_i);
     } else {

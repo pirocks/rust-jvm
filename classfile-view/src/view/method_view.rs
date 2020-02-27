@@ -1,6 +1,6 @@
 use crate::view::{HasAccessFlags, ClassView};
 use std::sync::Arc;
-use crate::classfile::{Classfile, Code, MethodInfo};
+use rust_jvm_common::classfile::{Classfile, Code, MethodInfo};
 
 pub struct MethodView {
     pub(crate) backing_class: Arc<Classfile>,

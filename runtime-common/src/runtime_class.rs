@@ -5,8 +5,9 @@ use crate::java_values::JavaValue;
 use rust_jvm_common::classfile::Classfile;
 use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
-use rust_jvm_common::loading::LoaderArc;
-use rust_jvm_common::view::ClassView;
+use classfile_view::view::ClassView;
+use classfile_view::loading::LoaderArc;
+
 
 pub struct RuntimeClass {
     pub classfile: Arc<Classfile>,

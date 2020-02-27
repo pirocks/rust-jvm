@@ -3,10 +3,11 @@ use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::get_or_create_class_object;
 use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
 use std::ffi::{CStr, CString};
-use rust_jvm_common::view::ptype_view::ReferenceTypeView;
+
 use libjvm_utils::jstring_to_string;
-use rust_jvm_common::view::ClassView;
-use rust_jvm_common::unified_types::PType::Ref;
+
+use rust_jvm_common::ptype::PType::Ref;
+use classfile_view::view::ptype_view::ReferenceTypeView;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {

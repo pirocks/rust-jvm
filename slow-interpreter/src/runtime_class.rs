@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use rust_jvm_common::classfile::{Classfile, ACC_FINAL};
-use rust_jvm_common::loading::LoaderArc;
+
 use rust_jvm_common::classfile::ACC_STATIC;
 use std::collections::HashMap;
 use crate::InterpreterState;
@@ -11,8 +11,9 @@ use runtime_common::runtime_class::RuntimeClass;
 use std::cell::RefCell;
 use runtime_common::StackEntry;
 use crate::instructions::ldc::from_constant_pool_entry;
-use descriptor_parser::parse_field_descriptor;
-use rust_jvm_common::view::ClassView;
+use classfile_view::view::ClassView;
+use classfile_view::loading::LoaderArc;
+use classfile_view::view::descriptor_parser::parse_field_descriptor;
 
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {

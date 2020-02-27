@@ -5,11 +5,12 @@ use classfile_parser::stack_map_table_attribute;
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;
 use crate::verifier::codecorrectness::expand_to_length;
-use descriptor_parser::MethodDescriptor;
-use rust_jvm_common::loading::ClassWithLoader;
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::view::method_view::MethodView;
-use rust_jvm_common::view::HasAccessFlags;
+use classfile_view::view::HasAccessFlags;
+use classfile_view::loading::*;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::descriptor_parser::*;
+use classfile_view::view::method_view::MethodView;
+
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodView) -> Vec<StackMap> {
     let mut res = vec![];
@@ -64,7 +65,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
 pub fn handle_same_locals_1_stack_frame_extended(mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) -> () {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
-    add_verification_type_to_array_convert(&mut frame.stack, &f.stack);
+    add_verification_type_to_array_convert(&mut frame.stack, &PTypeView::from_ptype(&f.stack));
 }
 
 pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &SameFrameExtended) -> () {
@@ -101,25 +102,25 @@ pub fn handle_full_frame(frame: &mut InternalFrame, f: &FullFrame) -> () {
     frame.current_offset += f.offset_delta;
     frame.locals.clear();
     for new_local in f.locals.iter() {
-        add_verification_type_to_array_convert(&mut frame.locals, new_local);
+        add_verification_type_to_array_convert(&mut frame.locals, &PTypeView::from_ptype(new_local));
     }
 
     frame.stack.clear();
     for new_stack_member in f.stack.iter() {
-        add_verification_type_to_array_convert(&mut frame.stack, new_stack_member);
+        add_verification_type_to_array_convert(&mut frame.stack, &PTypeView::from_ptype(new_stack_member));
     }
 }
 
 pub fn handle_same_locals_1_stack(frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) -> () {
     frame.current_offset += s.offset_delta;
     frame.stack.clear();
-    add_verification_type_to_array_convert(&mut frame.stack, &s.stack);
+    add_verification_type_to_array_convert(&mut frame.stack, &PTypeView::from_ptype(&s.stack));
 }
 
 pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &AppendFrame) -> () {
     frame.current_offset += append_frame.offset_delta;
     for new_local in append_frame.locals.iter() {
-        add_verification_type_to_array_convert(&mut frame.locals, new_local)
+        add_verification_type_to_array_convert(&mut frame.locals, &PTypeView::from_ptype(new_local))
     }
     frame.stack.clear();
 }

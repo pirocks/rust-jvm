@@ -1,9 +1,9 @@
-use crate::loading::{LoaderArc, ClassWithLoader};
 use std::ops::Deref;
-use crate::classfile::UninitializedVariableInfo;
-use crate::classnames::ClassName;
+use rust_jvm_common::classfile::UninitializedVariableInfo;
+use rust_jvm_common::classnames::ClassName;
 use crate::vtype::VType;
-use crate::unified_types::{PType, ReferenceType};
+use rust_jvm_common::ptype::{PType, ReferenceType};
+use crate::loading::{LoaderArc, ClassWithLoader};
 
 
 #[derive(Debug)]
@@ -52,6 +52,26 @@ impl PTypeView {
         }
     }
 
+    pub fn from_ptype(p : &PType) -> PTypeView{
+        match p{
+            PType::ByteType => PTypeView::ByteType,
+            PType::CharType => PTypeView::CharType,
+            PType::DoubleType => PTypeView::DoubleType,
+            PType::FloatType => PTypeView::FloatType,
+            PType::IntType => PTypeView::IntType,
+            PType::LongType => PTypeView::LongType,
+            PType::Ref(r) => PTypeView::Ref(ReferenceTypeView::from_reference_type(r)),
+            PType::ShortType => PTypeView::ShortType,
+            PType::BooleanType => PTypeView::BooleanType,
+            PType::VoidType => PTypeView::VoidType,
+            PType::TopType => PTypeView::TopType,
+            PType::NullType => PTypeView::NullType,
+            PType::Uninitialized(u) => PTypeView::Uninitialized(u.clone()),
+            PType::UninitializedThis => PTypeView::UninitializedThis,
+            PType::UninitializedThisOrClass(u) => PTypeView::UninitializedThisOrClass(PTypeView::from_ptype(u.deref()).into()),
+        }
+    }
+
     pub fn to_verification_type(&self, loader: &LoaderArc) -> VType {
         match self {
             PTypeView::ByteType => VType::IntType,
@@ -93,6 +113,33 @@ impl ReferenceTypeView{
         match self{
             ReferenceTypeView::Class(c) => ReferenceType::Class(c.clone()),
             ReferenceTypeView::Array(a) => ReferenceType::Array(a.deref().to_ptype().into()),
+        }
+    }
+
+    pub fn from_reference_type(ref_ : &ReferenceType) -> ReferenceTypeView{
+        match ref_{
+            ReferenceType::Class(c) => ReferenceTypeView::Class(c.clone()),
+            ReferenceType::Array(a) => ReferenceTypeView::Array(PTypeView::from_ptype(a.deref()).into()),
+        }
+    }
+    pub fn unwrap_name(&self) -> ClassName{
+        match self {
+            ReferenceTypeView::Class(c) => c.clone(),
+            ReferenceTypeView::Array(_) => panic!(),
+        }
+    }
+
+    pub fn unwrap_arrays_to_name(&self) -> Option<ClassName> {
+        match self {
+            ReferenceTypeView::Class(c) => c.clone().into(),
+            ReferenceTypeView::Array(a) => {
+                match a.deref().try_unwrap_ref_type(){
+                    None => return None,
+                    Some(ref_) => {
+                        ref_.unwrap_arrays_to_name()
+                    },
+                }
+            },
         }
     }
 }
@@ -157,6 +204,12 @@ impl PTypeView {
         match self {
             PTypeView::Ref(r) => r,
             _ => panic!(),
+        }
+    }
+    pub fn try_unwrap_ref_type(&self) -> Option<&ReferenceTypeView>{
+        match self {
+            PTypeView::Ref(r) => r.into(),
+            _ => None,
         }
     }
 }

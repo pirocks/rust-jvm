@@ -6,9 +6,9 @@ use crate::runtime_class::prepare_class;
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::{ClassName, class_name};
-use rust_jvm_common::loading::LoaderArc;
+
 use std::rc::Rc;
-use runtime_common::java_values::{JavaValue, default_value, Object, ArrayObject};
+use runtime_common::java_values::{JavaValue, default_value, Object};
 use runtime_common::runtime_class::RuntimeClass;
 use crate::instructions::load::*;
 use crate::instructions::store::*;
@@ -24,13 +24,15 @@ use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
 use crate::instructions::switch::invoke_lookupswitch;
-use descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
+
 use crate::instructions::invoke::interface::invoke_interface;
 use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::instructions::pop::{pop2, pop};
+use classfile_view::view::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
+use classfile_view::loading::LoaderArc;
 
 
 //todo jni should really live in interpreter state

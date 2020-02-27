@@ -1,8 +1,10 @@
-use rust_jvm_common::loading::LoaderArc;
+
 use std::sync::Arc;
 use runtime_common::InterpreterState;
 use runtime_common::runtime_class::RuntimeClass;
-use descriptor_parser::MethodDescriptor;
+use classfile_view::view::descriptor_parser::MethodDescriptor;
+use classfile_view::loading::LoaderArc;
+
 
 //todo the fact that I need a loader for this is dumb
 pub fn lookup_method_parsed(state: &mut InterpreterState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {

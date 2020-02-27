@@ -2,7 +2,7 @@ use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use crate::instructions::invoke::resolved_class;
 use runtime_common::java_values::{Object, JavaValue};
-use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
+
 use runtime_common::runtime_class::RuntimeClass;
 use std::sync::Arc;
 use rust_jvm_common::classfile::{MethodInfo, ACC_NATIVE, ACC_ABSTRACT};
@@ -11,6 +11,7 @@ use crate::interpreter_util::{run_function, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use std::ops::Deref;
 use crate::instructions::invoke::native::run_native_method;
+use classfile_view::view::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, current_frame.clone(), cp) {

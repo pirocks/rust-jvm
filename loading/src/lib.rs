@@ -3,9 +3,9 @@ extern crate simple_logger;
 
 use std::sync::Arc;
 use std::fs::File;
-use rust_jvm_common::loading::{LoaderArc, Loader, LoaderName};
+
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::ClassLoadingError;
+
 use rust_jvm_common::classfile::Classfile;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -17,7 +17,9 @@ use verification::verify;
 use verification::VerifierContext;
 use log::trace;
 use std::fmt::Debug;
-use rust_jvm_common::view::ClassView;
+use classfile_view::view::ClassView;
+use classfile_view::loading::{ClassLoadingError, LoaderArc, LoaderName, Loader};
+
 
 #[derive(Debug)]
 pub struct Classpath {

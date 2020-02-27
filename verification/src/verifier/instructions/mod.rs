@@ -9,9 +9,12 @@ use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::CPIndex;
 use crate::VerifierContext;
 use crate::OperandStack;
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::loading::ClassWithLoader;
-use rust_jvm_common::view::constant_info_view::ConstantInfoView;
+use classfile_view::vtype::VType;
+use classfile_view::loading::ClassWithLoader;
+use classfile_view::view::constant_info_view::ConstantInfoView;
+
+
+
 
 pub mod loads;
 pub mod consts;

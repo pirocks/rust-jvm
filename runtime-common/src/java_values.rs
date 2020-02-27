@@ -1,13 +1,14 @@
 use crate::runtime_class::RuntimeClass;
 use std::sync::Arc;
-use rust_jvm_common::unified_types::PType;
+use rust_jvm_common::ptype::PType;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
 use rust_jvm_common::classnames::class_name;
 use rust_jvm_common::classfile::ACC_ABSTRACT;
-use rust_jvm_common::view::ptype_view::PTypeView;
+
 use std::ops::Deref;
+use classfile_view::view::ptype_view::PTypeView;
 
 //#[derive(Debug)]
 pub enum JavaValue {

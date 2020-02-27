@@ -5,7 +5,8 @@ use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
 use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
 use std::ops::Deref;
-use rust_jvm_common::view::ptype_view::ReferenceTypeView;
+use classfile_view::view::ptype_view::ReferenceTypeView;
+
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let unwrapped = from_object(obj).unwrap();

@@ -7,12 +7,11 @@ use crate::OperandStack;
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
 use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames};
-use descriptor_parser::Descriptor;
-use rust_jvm_common::loading::ClassWithLoader;
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::view::ClassView;
-use rust_jvm_common::view::ptype_view::PTypeView;
-
+use classfile_view::vtype::VType;
+use classfile_view::view::ClassView;
+use classfile_view::loading::*;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::descriptor_parser::*;
 
 macro_rules! unknown_error_verifying {
     () => {

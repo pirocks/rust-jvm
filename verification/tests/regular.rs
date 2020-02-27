@@ -16,8 +16,8 @@ use verification::VerifierContext;
 use rust_jvm_common::classnames::class_name;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::view::ClassView;
+
+
 
 //#[test]
 //#[timeout(10000)]

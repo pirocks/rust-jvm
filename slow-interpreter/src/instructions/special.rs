@@ -8,8 +8,9 @@ use std::sync::Arc;
 use rust_jvm_common::classfile::Interface;
 use runtime_common::java_values::Object::{Object, Array};
 use std::ops::Deref;
-use descriptor_parser::parse_field_type;
-use rust_jvm_common::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::descriptor_parser::parse_field_type;
+
 
 pub fn arraylength(current_frame: &Rc<StackEntry>) -> () {
     let array_o = current_frame.pop().unwrap_object().unwrap();

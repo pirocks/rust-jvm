@@ -1,5 +1,5 @@
 use crate::view::ClassView;
-use crate::classfile::{AttributeType, BootstrapMethod, CPIndex, EnclosingMethod};
+use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, EnclosingMethod};
 use crate::view::constant_info_view::{MethodrefView, ConstantInfoView, StringView, IntegerView, LongView, FloatView, DoubleView, MethodHandleView, MethodTypeView};
 
 #[derive(Clone)]

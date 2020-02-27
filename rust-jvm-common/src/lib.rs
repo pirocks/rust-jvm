@@ -1,9 +1,6 @@
 pub mod classfile;
-pub mod unified_types;
+pub mod ptype;
 pub mod classnames;
-pub mod loading;
 pub mod utils;
 pub mod test_utils;
 pub mod string_pool;
-pub mod view;
-pub mod vtype;

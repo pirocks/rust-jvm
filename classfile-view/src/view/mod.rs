@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use crate::view::method_view::{MethodIterator, MethodView};
-use crate::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType};
-use crate::classnames::{ClassName, class_name};
+use rust_jvm_common::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType};
+use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
 use crate::view::field_view::FieldIterator;
 use crate::view::interface_view::InterfaceIterator;
@@ -137,3 +137,4 @@ pub mod field_view;
 pub mod constant_info_view;
 pub mod method_view;
 pub mod ptype_view;
+pub mod descriptor_parser;

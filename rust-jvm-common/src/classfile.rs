@@ -1,6 +1,5 @@
 use std::hash::Hasher;
-use crate::unified_types::PType;
-use crate::view::ptype_view::PTypeView;
+use crate::ptype::PType;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -229,14 +228,14 @@ pub struct SameFrame {
 #[derive(Eq, PartialEq)]
 pub struct SameLocals1StackItemFrame {
     pub offset_delta: u16,
-    pub stack: PTypeView,
+    pub stack: PType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SameLocals1StackItemFrameExtended {
     pub offset_delta: u16,
-    pub stack: PTypeView,
+    pub stack: PType,
 }
 
 #[derive(Debug)]
@@ -256,7 +255,7 @@ pub struct SameFrameExtended {
 #[derive(Eq, PartialEq)]
 pub struct AppendFrame {
     pub offset_delta: u16,
-    pub locals: Vec<PTypeView>,
+    pub locals: Vec<PType>,
 }
 
 #[derive(Debug)]
@@ -264,9 +263,9 @@ pub struct AppendFrame {
 pub struct FullFrame {
     pub offset_delta: u16,
     pub number_of_locals: u16,
-    pub locals: Vec<PTypeView>,
+    pub locals: Vec<PType>,
     pub number_of_stack_items: u16,
-    pub stack: Vec<PTypeView>,
+    pub stack: Vec<PType>,
 }
 
 #[derive(Debug)]

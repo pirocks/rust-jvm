@@ -4,13 +4,15 @@ use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::interpreter_util::{push_new_object, check_inited_class, run_constructor};
 use rust_jvm_common::classnames::{ClassName, class_name};
 use slow_interpreter::instructions::ldc::{load_class_constant_by_name, create_string_on_stack};
-use descriptor_parser::parse_field_descriptor;
+
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use std::sync::Arc;
 use std::cell::RefCell;
-use rust_jvm_common::unified_types::{PType, ReferenceType};
+use rust_jvm_common::ptype::{PType, ReferenceType};
 use libjvm_utils::ptype_to_class_object;
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
+use classfile_view::view::descriptor_parser::parse_field_descriptor;
+
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {

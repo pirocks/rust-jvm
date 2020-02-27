@@ -1,7 +1,7 @@
 use jni_bindings::{JNIEnv, jobject, jobjectArray, jclass};
 use slow_interpreter::rust_jni::native_util::get_frame;
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
-use rust_jvm_common::view::attribute_view::EnclosingMethodView;
+
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 
 #[no_mangle]

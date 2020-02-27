@@ -8,9 +8,9 @@ extern crate va_list;
 
 use std::sync::{Arc, RwLock};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::loading::LoaderArc;
+
 use std::error::Error;
-use rust_jvm_common::unified_types::PType;
+use rust_jvm_common::ptype::PType;
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
 use std::collections::{HashMap, HashSet};
@@ -20,11 +20,13 @@ use runtime_common::java_values::{JavaValue, Object, NormalObject};
 use crate::interpreter_util::push_new_object;
 use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
-use descriptor_parser::MethodDescriptor;
 use rust_jvm_common::string_pool::StringPool;
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+
 use std::ops::Deref;
 use std::time::Instant;
+use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
+use classfile_view::loading::LoaderArc;
+use classfile_view::view::descriptor_parser::MethodDescriptor;
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
                                   type_: &ReferenceTypeView,

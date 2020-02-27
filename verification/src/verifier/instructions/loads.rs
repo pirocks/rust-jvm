@@ -8,9 +8,8 @@ use crate::verifier::instructions::special::array_component_type;
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::instructions::type_transition;
 use crate::verifier::instructions::stores::is_small_array;
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
-
+use classfile_view::vtype::VType;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 pub fn instruction_is_type_safe_aaload(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = nth1_operand_stack_is(2, stack_frame)?;

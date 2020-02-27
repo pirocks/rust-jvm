@@ -8,9 +8,12 @@ use crate::VerifierContext;
 use crate::verifier::codecorrectness::can_pop;
 use rust_jvm_common::classnames::ClassName;
 use crate::verifier::instructions::special::nth1_operand_stack_is;
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::loading::ClassWithLoader;
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::vtype::VType;
+use classfile_view::loading::ClassWithLoader;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+
+
+
 
 fn store_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: &Frame) -> Result<Frame, TypeSafetyError> {
     let mut next_stack = frame.stack_map.clone();

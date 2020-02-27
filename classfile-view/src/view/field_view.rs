@@ -1,4 +1,4 @@
-use crate::classfile::{Classfile, FieldInfo};
+use rust_jvm_common::classfile::{Classfile, FieldInfo};
 use std::sync::Arc;
 use crate::view::{HasAccessFlags, ClassView};
 use crate::view::constant_info_view::ConstantInfoView;

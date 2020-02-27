@@ -183,12 +183,19 @@ dependencies = [
 name = "classfile-parser"
 version = "0.1.0"
 dependencies = [
- "descriptor-parser 0.1.0",
+ "classfile-view 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ntest_timeout 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-jvm-common 0.1.0",
  "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "timebomb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "classfile-view"
+version = "0.1.0"
+dependencies = [
+ "rust-jvm-common 0.1.0",
 ]
 
 [[package]]
@@ -206,13 +213,6 @@ version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "descriptor-parser"
-version = "0.1.0"
-dependencies = [
- "rust-jvm-common 0.1.0",
 ]
 
 [[package]]
@@ -302,7 +302,7 @@ name = "jvm"
 version = "0.1.0"
 dependencies = [
  "classfile-parser 0.1.0",
- "descriptor-parser 0.1.0",
+ "classfile-view 0.1.0",
  "jni-bindings 0.1.0",
  "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",
  "libjvm-utils 0.1.0",
@@ -356,7 +356,7 @@ name = "libjvm-utils"
 version = "0.1.0"
 dependencies = [
  "classfile-parser 0.1.0",
- "descriptor-parser 0.1.0",
+ "classfile-view 0.1.0",
  "jni-bindings 0.1.0",
  "runtime-common 0.1.0",
  "rust-jvm-common 0.1.0",
@@ -377,6 +377,7 @@ name = "loading"
 version = "0.1.0"
 dependencies = [
  "classfile-parser 0.1.0",
+ "classfile-view 0.1.0",
  "jar-manipulation 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-jvm-common 0.1.0",
@@ -622,6 +623,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "runtime-common"
 version = "0.1.0"
 dependencies = [
+ "classfile-view 0.1.0",
  "libloading 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "loading 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -635,7 +637,7 @@ version = "0.1.0"
 dependencies = [
  "argparse 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "classfile-parser 0.1.0",
- "descriptor-parser 0.1.0",
+ "classfile-view 0.1.0",
  "jar-manipulation 0.1.0",
  "jni-bindings 0.1.0",
  "jvm 0.1.0",
@@ -682,7 +684,7 @@ version = "0.1.0"
 dependencies = [
  "bindgen 0.52.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "classfile-parser 0.1.0",
- "descriptor-parser 0.1.0",
+ "classfile-view 0.1.0",
  "jni-bindings 0.1.0",
  "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",
  "libffi 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -783,7 +785,7 @@ name = "utils"
 version = "0.1.0"
 dependencies = [
  "classfile-parser 0.1.0",
- "descriptor-parser 0.1.0",
+ "classfile-view 0.1.0",
  "runtime-common 0.1.0",
  "rust-jvm-common 0.1.0",
 ]
@@ -803,7 +805,7 @@ name = "verification"
 version = "0.1.0"
 dependencies = [
  "classfile-parser 0.1.0",
- "descriptor-parser 0.1.0",
+ "classfile-view 0.1.0",
  "jar-manipulation 0.1.0",
  "loading 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",

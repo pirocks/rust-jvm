@@ -7,9 +7,10 @@ use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use std::sync::Arc;
-use descriptor_parser::MethodDescriptor;
+
 use std::cell::Ref;
 use std::borrow::Borrow;
+use classfile_view::view::descriptor_parser::MethodDescriptor;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -162,7 +163,7 @@ pub fn run_native_method(
                         None
                     }
                     else {
-//                        frame.print_stack_trace();
+                       frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
                     }

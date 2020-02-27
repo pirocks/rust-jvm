@@ -1,6 +1,6 @@
 use core::fmt;
 use std::sync::Arc;
-use crate::classnames::ClassName;
+use rust_jvm_common::classnames::ClassName;
 use std::fs::File;
 use std::fmt::Display;
 use std::fmt::Debug;

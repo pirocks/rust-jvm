@@ -1,5 +1,5 @@
 use runtime_common::java_values::{Object, JavaValue};
-use rust_jvm_common::unified_types::{PType, ReferenceType};
+use rust_jvm_common::ptype::{PType, ReferenceType};
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use slow_interpreter::instructions::ldc::load_class_constant_by_name;
@@ -7,9 +7,10 @@ use std::ops::Deref;
 use slow_interpreter::array_of_type_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::view::ptype_view::ReferenceTypeView;
+
 use jni_bindings::jstring;
 use slow_interpreter::rust_jni::native_util::from_object;
+use classfile_view::view::ptype_view::ReferenceTypeView;
 
 pub fn ptype_to_class_object(state: &mut InterpreterState,frame: &Rc<StackEntry>, ptype: &PType) -> Option<Arc<Object>> {
     match ptype {

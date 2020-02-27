@@ -7,7 +7,7 @@ use runtime_common::runtime_class::RuntimeClass;
 use jni_bindings::jclass;
 use std::sync::Arc;
 use std::ops::Deref;
-use rust_jvm_common::unified_types::PType;
+use rust_jvm_common::ptype::PType;
 
 pub fn runtime_class_to_native(runtime_class : Arc<RuntimeClass>) -> Arg{
     let boxed_arc = Box::new(runtime_class);

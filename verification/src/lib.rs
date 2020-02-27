@@ -5,12 +5,12 @@ use crate::verifier::class_is_type_safe;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
-use rust_jvm_common::loading::{LoaderArc, ClassWithLoader};
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::view::ClassView;
+use classfile_view::vtype::VType;
+use classfile_view::view::ClassView;
+use classfile_view::loading::{LoaderArc, ClassWithLoader};
+
 
 pub mod verifier;
-
 
 pub fn verify(vf: &VerifierContext, to_verify: ClassView, loader: LoaderArc) -> Result<(), TypeSafetyError> {
     match class_is_type_safe(vf, &ClassWithLoader {

@@ -12,4 +12,5 @@ edition = "2018"
 rust-jvm-common = {path = "../rust-jvm-common"}
 classfile-parser = {path = "../classfile-parser"}
 runtime-common = {path = "../runtime-common"}
-descriptor-parser = {path = "../descriptor-parser"}
+classfile-view = {path = "../classfile-view"}
+#descriptor-parser = {path = "../descriptor-parser"}

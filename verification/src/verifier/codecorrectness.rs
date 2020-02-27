@@ -10,13 +10,13 @@ use crate::verifier::TypeSafetyError;
 use crate::{StackMap, VerifierContext};
 use rust_jvm_common::classnames::ClassName;
 use crate::OperandStack;
-use descriptor_parser::{parse_method_descriptor, MethodDescriptor};
-use rust_jvm_common::vtype::VType;
-use rust_jvm_common::loading::{ClassWithLoader, LoaderArc};
-use rust_jvm_common::view::constant_info_view::ConstantInfoView;
 use std::ops::Deref;
-use rust_jvm_common::view::ptype_view::PTypeView;
-use rust_jvm_common::view::HasAccessFlags;
+use classfile_view::vtype::VType;
+use classfile_view::view::{HasAccessFlags};
+use classfile_view::loading::*;
+use classfile_view::view::ptype_view::{PTypeView};
+use classfile_view::view::descriptor_parser::*;
+use classfile_view::view::constant_info_view::ConstantInfoView;
 
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
@@ -187,7 +187,7 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
                 }
                 _ => panic!()
             };
-            Some(catch_type_name)
+            Some(catch_type_name.unwrap_name())
         },
     }).collect()
 }

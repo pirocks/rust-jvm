@@ -1,5 +1,5 @@
 use crate::loading::ClassWithLoader;
-use crate::classfile::UninitializedVariableInfo;
+use rust_jvm_common::classfile::UninitializedVariableInfo;
 use crate::view::ptype_view::PTypeView;
 
 #[derive(Debug)]

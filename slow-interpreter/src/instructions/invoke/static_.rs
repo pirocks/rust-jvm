@@ -1,15 +1,17 @@
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use verification::verifier::instructions::branches::get_method_descriptor;
-use rust_jvm_common::view::ClassView;
+
 use crate::instructions::invoke::find_target_method;
 use crate::interpreter_util::{check_inited_class, run_function};
 use std::sync::Arc;
 use runtime_common::runtime_class::RuntimeClass;
-use descriptor_parser::MethodDescriptor;
+
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ACC_ABSTRACT, MethodInfo};
 use runtime_common::java_values::JavaValue;
 use crate::instructions::invoke::native::run_native_method;
+use classfile_view::view::ClassView;
+use classfile_view::view::descriptor_parser::MethodDescriptor;
 
 pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
 //todo handle monitor enter and exit

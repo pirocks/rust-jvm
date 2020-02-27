@@ -1,8 +1,10 @@
-use crate::classnames::ClassName;
-use crate::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref};
 use std::sync::Arc;
 use crate::view::ClassView;
 use crate::view::attribute_view::BootstrapMethodView;
+use crate::view::ptype_view::ReferenceTypeView;
+use crate::view::descriptor_parser::parse_field_descriptor;
 
 #[derive(Debug)]
 pub struct Utf8View{
@@ -36,8 +38,13 @@ pub struct ClassPoolElemView{
 }
 
 impl ClassPoolElemView{
-    pub fn class_name(&self) -> ClassName{
-        ClassName::Str(self.backing_class.constant_pool[self.name_index].extract_string_from_utf8())//todo should really find a way of getting this into a string pool
+    pub fn class_name(&self) -> ReferenceTypeView{
+        //todo should really find a way of getting this into a string pool
+        let name_str = self.backing_class.constant_pool[self.name_index].extract_string_from_utf8();
+
+        let type_ = parse_field_descriptor(&name_str).unwrap().field_type;
+        type_.unwrap_ref_type().clone()
+        // ClassName::Str(name_str)
     }
 }
 

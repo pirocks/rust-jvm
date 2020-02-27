@@ -1,7 +1,7 @@
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classfile::{MethodInfo, Classfile};
-use rust_jvm_common::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::view::method_view::MethodView;
+use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
+use crate::view::method_view::MethodView;
 
 
 #[derive(Debug)]
