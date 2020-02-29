@@ -1,5 +1,5 @@
-use rust_jvm_common::classnames::class_name;
-use runtime_common::java_values::JavaValue;
+use rust_jvm_common::classnames::{class_name, ClassName};
+use runtime_common::java_values::{JavaValue, NormalObject};
 use std::mem::transmute;
 use crate::rust_jni::{mangling, call_impl, call};
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC};
@@ -8,10 +8,12 @@ use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use std::cell::Ref;
-use std::borrow::Borrow;
+use std::cell::{Ref, RefCell};
+use std::borrow::{Borrow, BorrowMut};
 use classfile_view::view::descriptor_parser::MethodDescriptor;
 use utils::string_obj_to_string;
+use runtime_common::java_values::Object::Object;
+use crate::interpreter_util::check_inited_class;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -163,10 +165,27 @@ pub fn run_native_method(
                         //so as far as I can figure out we have a method name and a class
                         //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
                         // and return a brand new object
+//                        dbg!(&args[0]);
+                        dbg!(&args[1]);
                         let member_name = args[0].unwrap_object().unwrap();
-                        let class = args[1].unwrap_object().unwrap();
-                        let name = string_obj_to_string(member_name.lookup_field("name").unwrap_object());
-                        unimplemented!()
+//                        dbg!(member_name.lookup_field("clazz"));
+//                        dbg!(member_name.lookup_field("name"));
+//                        dbg!(member_name.lookup_field("type"));
+//                        dbg!(member_name.lookup_field("flags"));
+//                        let class = args[1].unwrap_object().unwrap();
+//                        let name = string_obj_to_string(member_name.lookup_field("name").unwrap_object());
+                        //todo maybe create a class for this resolution object
+                        //todo actually do whatever I'm meant to do here.
+                        let resolution_object = JavaValue::Object(Arc::new(Object(NormalObject {
+                            gc_reachable: false,
+                            fields: RefCell::new(Default::default()),
+                            class_pointer: check_inited_class(state,&ClassName::object(),frame.clone().into(),frame.class_pointer.loader.clone()),
+                            bootstrap_loader: true,
+                            object_class_object_pointer: RefCell::new(None),
+                            array_class_object_pointer: RefCell::new(None)
+                        })).into());
+                        member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), resolution_object);
+                        JavaValue::Object(member_name.into()).into()
                     } else {
                         frame.print_stack_trace();
                         dbg!(mangled);

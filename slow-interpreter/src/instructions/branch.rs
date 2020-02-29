@@ -142,15 +142,9 @@ pub fn ifeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 pub fn if_icmpgt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
-    let value2 = current_frame.pop();
-    let value1 = current_frame.pop();
-    let succeeds = match value1 {
-        JavaValue::Int(i1) => match value2 {
-            JavaValue::Int(i2) => i1 > i2,
-            _ => panic!()
-        },
-        _ => panic!()
-    };
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    let succeeds = value1 > value2;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -158,15 +152,9 @@ pub fn if_icmpgt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 
 
 pub fn if_icmplt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
-    let value2 = current_frame.pop();
-    let value1 = current_frame.pop();
-    let succeeds = match value1 {
-        JavaValue::Int(i1) => match value2 {
-            JavaValue::Int(i2) => i1 < i2,
-            _ => panic!()
-        },
-        _ => panic!()
-    };
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    let succeeds = value1 < value2;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -174,30 +162,18 @@ pub fn if_icmplt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 
 
 pub fn if_icmple(current_frame: &Rc<StackEntry>, offset: i16) -> () {
-    let value2 = current_frame.pop();
-    let value1 = current_frame.pop();
-    let succeeds = match value1 {
-        JavaValue::Int(i1) => match value2 {
-            JavaValue::Int(i2) => i1 <= i2,
-            _ => panic!()
-        },
-        _ => panic!()
-    };
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    let succeeds = value1 <= value2;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
 }
 
 pub fn if_icmpge(current_frame: &Rc<StackEntry>, offset: i16) -> () {
-    let value2 = current_frame.pop();
-    let value1 = current_frame.pop();
-    let succeeds = match value1 {
-        JavaValue::Int(i1) => match value2 {
-            JavaValue::Int(i2) => i1 >= i2,
-            _ => panic!()
-        },
-        _ => panic!()
-    };
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    let succeeds = value1 >= value2;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -205,15 +181,9 @@ pub fn if_icmpge(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 
 
 pub fn if_icmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
-    let value2 = current_frame.pop();
-    let value1 = current_frame.pop();
-    let succeeds = match value1 {
-        JavaValue::Int(i1) => match value2 {
-            JavaValue::Int(i2) => i1 != i2,
-            _ => panic!()
-        },
-        _ => panic!()
-    };
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    let succeeds = value1 != value2;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -221,15 +191,9 @@ pub fn if_icmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 
 
 pub fn if_icmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
-    let value2 = current_frame.pop();
-    let value1 = current_frame.pop();
-    let succeeds = match value1 {
-        JavaValue::Int(i1) => match value2 {
-            JavaValue::Int(i2) => i1 == i2,
-            _ => panic!()
-        },
-        _ => panic!()
-    };
+    let value2 = current_frame.pop().unwrap_int();
+    let value1 = current_frame.pop().unwrap_int();
+    let succeeds = value1 == value2;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
