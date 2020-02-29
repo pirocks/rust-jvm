@@ -18,6 +18,6 @@ pub fn tableswitch(ls: TableSwitch, frame: &Rc<StackEntry>) {
     if index < ls.low || index > ls.high{
         frame.pc_offset.replace(ls.default as isize);
     }else {
-        frame.pc_offset.replace(ls.offsets[index - ls.low]);
+        frame.pc_offset.replace(ls.offsets[(index - ls.low) as usize] as isize);
     }
 }
