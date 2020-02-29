@@ -97,6 +97,7 @@ pub fn run_function(
             InstructionInfo::astore_2 => astore(&current_frame, 2),
             InstructionInfo::astore_3 => astore(&current_frame, 3),
             InstructionInfo::athrow => {
+                println!("EXCEPTION:");
                 current_frame.print_stack_trace();
                 state.throw = current_frame.pop().unwrap_object_nonnull().into();
             }

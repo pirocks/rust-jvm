@@ -26,10 +26,13 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let class_object = runtime_class_from_object(cls);
     if class_object.is_none() {
+        dbg!(&class_object);
         return false as jboolean;
     }
     let name_ = class_name(&class_object.unwrap().classfile);
     let name = name_.get_referred_name();
+    dbg!(name);
+    dbg!(name == &"java/lang/Integer".to_string());
     let is_primitive = name == &"java/lang/Boolean".to_string() ||
         name == &"java/lang/Character".to_string() ||
         name == &"java/lang/Byte".to_string() ||
@@ -40,6 +43,9 @@ unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) ->
         name == &"java/lang/Double".to_string() ||
         name == &"java/lang/Void".to_string();
 
+    dbg!(is_primitive);
+
+    dbg!(is_primitive as jboolean);
     is_primitive as jboolean
 }
 
