@@ -77,20 +77,6 @@ pub fn call(
     if classfile.classfile.methods[method_i].is_static() {
         Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, false))
     } else {
-//        current_frame.print_stack_trace();
-//        if mangled == "Java_java_io_FileOutputStream_writeBytes".to_string() {
-//            let temp = args[1].unwrap_object().unwrap();
-//            let temp_2 = temp.unwrap_array().elems.borrow();
-//            let unwrapped = &temp_2.deref();
-////            dbg!(unwrapped);
-//            // jint off, jint len, jboolean append
-//            let off = &args[2].unwrap_int();
-////            dbg!(off);
-//            let len = &args[3].unwrap_int();
-////            dbg!(len);
-//            let append = &args[4].unwrap_int();
-////            dbg!(append);
-//        }
         Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true))
     }
 }

@@ -161,6 +161,17 @@ pub fn run_native_method(
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives"{
                         //todo
                         None
+                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
+                        //todo
+                        JavaValue::Int(0).into()
+                    }
+                    else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
+                        //todo
+                        //so as far as I can find this is undocumented.
+                        //so as far as I can figure out we have a method name and a class
+                        //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
+                        // and return a brand new object
+                        unimplemented!()
                     }
                     else {
                        frame.print_stack_trace();

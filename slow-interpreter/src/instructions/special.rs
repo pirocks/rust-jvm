@@ -50,11 +50,8 @@ pub fn invoke_checkcast(state: &mut InterpreterState, current_frame: &Rc<StackEn
                 PTypeView::Ref(_) => {
                     let actual_runtime_class = check_inited_class(state,&a.elem_type.unwrap_class_type(),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
                     let expected_runtime_class = check_inited_class(state,&expected_type.unwrap_class_type(),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
-//                    dbg!(class_name(&actual_runtime_class.classfile));
-//                    dbg!(class_name(&expected_runtime_class.classfile));
                     inherits_from(state,&actual_runtime_class,&expected_runtime_class)
                 },
-//                PTypeView::ArrayReferenceType(_) => unimplemented!(),
                 _ => {
                     a.elem_type == expected_type
                 }
