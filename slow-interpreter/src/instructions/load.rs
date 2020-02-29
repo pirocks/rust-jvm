@@ -21,15 +21,16 @@ pub fn aload(current_frame: &Rc<StackEntry>, n: usize) -> () {
 
 pub fn iload(current_frame: &Rc<StackEntry>, n: usize) {
     let java_val = &current_frame.local_vars.borrow()[n];
-    match java_val {
-        JavaValue::Int(_) | JavaValue::Boolean(_) | JavaValue::Char(_) => {}
-        _ => {
-            dbg!(java_val);
-            current_frame.print_stack_trace();
-            dbg!(&current_frame.local_vars);
-            panic!()
-        }
-    }
+    java_val.unwrap_int();
+//    match java_val {
+//        JavaValue::Int(_) | JavaValue::Boolean(_) | JavaValue::Char(_) => {}
+//        _ => {
+//            dbg!(java_val);
+//            current_frame.print_stack_trace();
+//            dbg!(&current_frame.local_vars);
+//            panic!()
+//        }
+//    }
     current_frame.push(java_val.clone())
 }
 
@@ -116,10 +117,7 @@ pub fn iaload(current_frame: &Rc<StackEntry>) -> () {
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.elems.borrow();
-    let as_int = match array_refcell[index as usize] {
-        JavaValue::Int(i) => i,
-        _ => panic!(),
-    };//.unwrap_object();
+    let as_int = array_refcell[index as usize].clone().unwrap_int();
     current_frame.push(JavaValue::Int(as_int))
 }
 

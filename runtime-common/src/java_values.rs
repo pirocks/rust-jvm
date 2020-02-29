@@ -57,6 +57,12 @@ impl JavaValue {
             JavaValue::Boolean(i) => {
                 *i as i32
             }
+            JavaValue::Char(c) => {
+                *c as i32
+            }
+            JavaValue::Short(i) => {
+                *i as i32
+            }
             _ => {
                 dbg!(self);
                 panic!()
