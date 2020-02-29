@@ -95,6 +95,20 @@ impl JavaValue {
         self.try_unwrap_object().unwrap()
     }
 
+    pub fn unwrap_object_nonnull(&self) -> Arc<Object> {
+        self.try_unwrap_object().unwrap().unwrap()
+    }
+
+    pub fn unwrap_array(&self) -> &ArrayObject {
+        match self{
+            JavaValue::Object(o) => {
+                o.as_ref().unwrap().unwrap_array()
+            },
+            _ => panic!()
+        }
+
+    }
+
 
     pub fn try_unwrap_object(&self) -> Option<Option<Arc<Object>>> {
         match self {
@@ -112,7 +126,7 @@ impl JavaValue {
         }
     }
 
-    pub fn deep_clone(&self) -> Self{
+    pub fn deep_clone(&self) -> Self {
         match &self {
             JavaValue::Long(_) => unimplemented!(),
             JavaValue::Int(_) => unimplemented!(),
@@ -127,9 +141,9 @@ impl JavaValue {
                     None => None,
                     Some(o) => {
                         Arc::new(o.deref().deep_clone()).into()
-                    },
+                    }
                 })
-            },
+            }
             JavaValue::Top => unimplemented!(),
         }
     }
@@ -281,6 +295,19 @@ impl JavaValue {
         }
         Some(Arc::new(Object::Array(ArrayObject { elems: buf.into(), elem_type })))
     }
+
+    pub fn unwrap_normal_object(&self) -> &NormalObject {
+        //todo these are longer than ideal
+        match self {
+            JavaValue::Object(ref_) => {
+                match ref_.as_ref().unwrap().deref() {
+                    Object::Array(_) => panic!(),
+                    Object::Object(o) => { o }
+                }
+            }
+            _ => panic!()
+        }
+    }
 }
 
 //impl PartialEq for VecPointer {
@@ -302,6 +329,10 @@ pub enum Object {
 }
 
 impl Object {
+    pub fn lookup_field(&self, s : &str) -> JavaValue{
+        self.unwrap_normal_object().fields.borrow().get(s).unwrap().clone()
+    }
+
     pub fn unwrap_normal_object(&self) -> &NormalObject {
         match self {
             Object::Array(_) => panic!(),
@@ -324,22 +355,22 @@ impl Object {
     }
 
     pub fn deep_clone(&self) -> Self {
-        match &self{
+        match &self {
             Object::Array(a) => {
-                let sub_array = a.elems.borrow().iter().map(|x|x.deep_clone()).collect();
-                Object::Array(ArrayObject{ elems: RefCell::new(sub_array), elem_type: a.elem_type.clone() })
-            },
+                let sub_array = a.elems.borrow().iter().map(|x| x.deep_clone()).collect();
+                Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone() })
+            }
             Object::Object(o) => {
-                let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s,jv)|{(s.clone(),jv.deep_clone())}).collect());
+                let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone()) }).collect());
                 Object::Object(NormalObject {
                     gc_reachable: o.gc_reachable,
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
                     bootstrap_loader: o.bootstrap_loader,
                     object_class_object_pointer: o.object_class_object_pointer.clone(),
-                    array_class_object_pointer: o.array_class_object_pointer.clone()
+                    array_class_object_pointer: o.array_class_object_pointer.clone(),
                 })
-            },
+            }
         }
     }
 }

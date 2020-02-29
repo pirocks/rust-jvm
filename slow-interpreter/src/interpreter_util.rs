@@ -98,7 +98,7 @@ pub fn run_function(
             InstructionInfo::astore_3 => astore(&current_frame, 3),
             InstructionInfo::athrow => {
                 current_frame.print_stack_trace();
-                state.throw = current_frame.pop().unwrap_object().unwrap().into();
+                state.throw = current_frame.pop().unwrap_object_nonnull().into();
             }
             InstructionInfo::baload => baload(&current_frame),
             InstructionInfo::bastore => bastore(&current_frame),
@@ -275,11 +275,11 @@ pub fn run_function(
             InstructionInfo::lushr => unimplemented!(),
             InstructionInfo::lxor => unimplemented!(),
             InstructionInfo::monitorenter => {
-                current_frame.pop().unwrap_object().unwrap();
+                current_frame.pop().unwrap_object_nonnull();
                 /*unimplemented for now todo*/
             }
             InstructionInfo::monitorexit => {
-                current_frame.pop().unwrap_object().unwrap();
+                current_frame.pop().unwrap_object_nonnull();
                 /*unimplemented for now todo*/
             }
             InstructionInfo::multianewarray(cp) => multi_a_new_array(state, &current_frame, cp),

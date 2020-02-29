@@ -16,7 +16,7 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
     //todo this could be replaced with string_obj_to_string, though prob wise to have some kind of streaming impl or something
     let str_obj_o = from_object(name).unwrap();
     let str_obj = str_obj_o.unwrap_normal_object();
-    let string_chars_o = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_object().unwrap();
+    let string_chars_o = str_obj_o.lookup_field("value").unwrap_object().unwrap();
     let unwrapped = string_chars_o.unwrap_array().elems.borrow();
     let char_array: &Ref<Vec<JavaValue>> = &unwrapped;
     let chars_layout = Layout::from_size_align((char_array.len() + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
@@ -68,7 +68,7 @@ pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring {
         Some(_) => {}
     };
     let str_obj = from_object(str_unsafe);
-    let char_array_ptr = str_obj.clone().unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
+    let char_array_ptr = str_obj.clone().unwrap().lookup_field("value").unwrap_object().unwrap();
     let char_array = char_array_ptr.unwrap_array().elems.borrow();
     let mut native_string = String::with_capacity(char_array.len());
     for char_ in &*char_array {
@@ -87,8 +87,7 @@ pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring {
 pub unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -> jsize {
     let str_obj = from_object(str).unwrap();
     //todo use length function.
-    let str_fields = str_obj.unwrap_normal_object().fields.borrow();
-    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
+    let char_object = str_obj.lookup_field("value").unwrap_object().unwrap();
     let chars = char_object.unwrap_array();
     let borrowed_elems = chars.elems.borrow();
     borrowed_elems.len() as i32
@@ -97,9 +96,8 @@ pub unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -
 
 pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
     let str_obj = from_object(str).unwrap();
-    let str_fields = str_obj.unwrap_normal_object().fields.borrow();
     //todo maybe use string_obj_to_string in future.
-    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
+    let char_object = str_obj.lookup_field("value").unwrap_object().unwrap();
     let chars = char_object.unwrap_array();
     let borrowed_elems = chars.elems.borrow();
     for i in 0..len {
@@ -121,7 +119,7 @@ pub unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len
 }
 
 pub unsafe extern "C" fn get_string_region(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut jchar) {
-    let temp = from_object(str).unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
+    let temp = from_object(str).unwrap().lookup_field("value").unwrap_object().unwrap();
     let char_array = &temp.unwrap_array().elems.borrow();
     let mut str_ = Vec::new();
     for char_ in char_array.iter() {

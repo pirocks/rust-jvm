@@ -33,10 +33,8 @@ pub fn lookup_method_parsed_impl(state: &mut InterpreterState, class: Arc<Runtim
 
 
 pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
-    let temp = str_obj.unwrap();
-    let str_fields = temp.unwrap_normal_object().fields.borrow();
-    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
-    let chars = char_object.unwrap_array();
+    let temp = str_obj.unwrap().lookup_field("value");
+    let chars = temp.unwrap_array();
     let borrowed_elems = chars.elems.borrow();
     let mut res = String::new();
     for char_ in borrowed_elems.deref() {

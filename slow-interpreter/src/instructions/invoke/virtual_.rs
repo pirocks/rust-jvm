@@ -108,7 +108,7 @@ pub fn actually_virtual(state: &mut InterpreterState, current_frame: Rc<StackEnt
         let operand_stack = current_frame.operand_stack.borrow();
         &operand_stack[operand_stack.len() - expected_descriptor.parameter_types.len() - 1].clone()
     };
-    let new_target_class = this_pointer.unwrap_object().unwrap().unwrap_normal_object().class_pointer.clone();
+    let new_target_class = this_pointer.unwrap_normal_object().class_pointer.clone();
     assert_eq!(new_target_class.classfile.access_flags & ACC_ABSTRACT, 0);
 //todo so this is incorrect due to subclassing of return value.
     let all_methods = get_all_methods(state, current_frame.clone(), new_target_class.clone());

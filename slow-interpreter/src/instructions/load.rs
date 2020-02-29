@@ -74,8 +74,8 @@ pub fn dload(current_frame: &Rc<StackEntry>, n: usize) {
 
 pub fn aaload(current_frame: &Rc<StackEntry>) -> () {
     let index = current_frame.pop().unwrap_int();
-    let arc = current_frame.pop().unwrap_object().unwrap();
-    let unborrowed = arc.unwrap_array();
+    let temp = current_frame.pop();
+    let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.elems.borrow();
 //    dbg!(&current_frame.operand_stack);
 //    dbg!(&current_frame.local_vars);
@@ -96,11 +96,9 @@ fn throw_array_out_of_bounds(state: &mut InterpreterState, current_frame: &Rc<St
 
 pub fn caload(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> () {
     let index = current_frame.pop().unwrap_int();
-    let arc = current_frame.pop().unwrap_object().unwrap();
-    let unborrowed = arc.unwrap_array();
+    let temp = current_frame.pop();
+    let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.elems.borrow();
-//    dbg!(&current_frame.operand_stack);
-//    dbg!(&current_frame.local_vars);
     if index < 0 || index >= array_refcell.len() as i32 {
         throw_array_out_of_bounds(state, current_frame);
         return;
@@ -115,8 +113,8 @@ pub fn caload(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> (
 
 pub fn iaload(current_frame: &Rc<StackEntry>) -> () {
     let index = current_frame.pop().unwrap_int();
-    let arc = current_frame.pop().unwrap_object().unwrap();
-    let unborrowed = arc.unwrap_array();
+    let temp = current_frame.pop();
+    let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.elems.borrow();
     let as_int = match array_refcell[index as usize] {
         JavaValue::Int(i) => i,
@@ -128,8 +126,8 @@ pub fn iaload(current_frame: &Rc<StackEntry>) -> () {
 
 pub fn baload(current_frame: &Rc<StackEntry>) -> () {
     let index = current_frame.pop().unwrap_int();
-    let arc = current_frame.pop().unwrap_object().unwrap();
-    let unborrowed = arc.unwrap_array();
+    let temp = current_frame.pop();
+    let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.elems.borrow();
     let as_byte = match array_refcell[index as usize] {
         JavaValue::Byte(i) => i,

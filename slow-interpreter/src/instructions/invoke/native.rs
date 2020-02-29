@@ -67,11 +67,10 @@ pub fn run_native_method(
                     if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
                         let param0_obj = args[0].unwrap_object();
                         let _the_unsafe = param0_obj.as_ref().unwrap().unwrap_normal_object();
-                        let param1_obj = args[1].unwrap_object();
-                        let field_obj = param1_obj.as_ref().unwrap().unwrap_normal_object();
-                        let field_name = string_obj_to_string(field_obj.fields.borrow().get("name").unwrap().unwrap_object());
-                        let borrow_3 = field_obj.fields.borrow().get("clazz").unwrap().unwrap_object().unwrap();
-                        let field_class = borrow_3.unwrap_normal_object();
+                        let param1_obj = args[1].unwrap_object().unwrap();
+                        let field_name = string_obj_to_string(param1_obj.lookup_field("name").unwrap_object());
+                        let temp = param1_obj.lookup_field("clazz");
+                        let field_class = temp.unwrap_normal_object();
                         let borrow_4 = field_class.object_class_object_pointer.borrow();
                         let field_class_classfile = borrow_4.as_ref().unwrap().classfile.clone();
                         let mut res = None;
@@ -166,7 +165,7 @@ pub fn run_native_method(
                         // and return a brand new object
                         let member_name = args[0].unwrap_object().unwrap();
                         let class = args[1].unwrap_object().unwrap();
-                        let name = string_obj_to_string(member_name.unwrap_normal_object().fields.borrow().get("name").unwrap().unwrap_object());
+                        let name = string_obj_to_string(member_name.lookup_field("name").unwrap_object());
                         unimplemented!()
                     } else {
                         frame.print_stack_trace();

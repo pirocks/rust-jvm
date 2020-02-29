@@ -31,9 +31,8 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         elems_refcell.clone()
     };
     let constructor_obj = from_object(c).unwrap();
-    let constructor_obj_fields = constructor_obj.unwrap_normal_object().fields.borrow();
-    let signature_str_obj = constructor_obj_fields.get("signature").unwrap();
-    let temp_4 = constructor_obj_fields.get("clazz").unwrap().unwrap_object().unwrap();
+    let signature_str_obj = constructor_obj.lookup_field("signature");
+    let temp_4 = constructor_obj.lookup_field("clazz").unwrap_object_nonnull();
     let temp_3 = temp_4.unwrap_normal_object().object_class_object_pointer.borrow();
     let clazz = temp_3.as_ref().unwrap().clone();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());

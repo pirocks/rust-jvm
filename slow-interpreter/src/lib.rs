@@ -108,7 +108,7 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
         }
         _ => panic!(),
     }
-    let r = object.unwrap_object().unwrap();
+    let r = object.unwrap_object_nonnull();
     r
 }
 
