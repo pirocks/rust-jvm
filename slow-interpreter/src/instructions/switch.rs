@@ -1,4 +1,4 @@
-use rust_jvm_common::classfile::LookupSwitch;
+use rust_jvm_common::classfile::{LookupSwitch, TableSwitch};
 use std::rc::Rc;
 use runtime_common::StackEntry;
 
@@ -11,4 +11,13 @@ pub fn invoke_lookupswitch(ls: &LookupSwitch, frame: &Rc<StackEntry>) {
         }
     }
     frame.pc_offset.replace(ls.default as isize);
+}
+
+pub fn tableswitch(ls: TableSwitch, frame: &Rc<StackEntry>) {
+    let index = frame.pop().unwrap_int();
+    if index < ls.low || index > ls.high{
+        frame.pc_offset.replace(ls.default as isize);
+    }else {
+        frame.pc_offset.replace(ls.offsets[index - ls.low]);
+    }
 }

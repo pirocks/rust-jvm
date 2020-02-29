@@ -23,7 +23,7 @@ use crate::instructions::ldc::{ldc_w, ldc2_w};
 use crate::instructions::dup::*;
 use crate::instructions::branch::*;
 use crate::instructions::special::{arraylength, invoke_instanceof, invoke_checkcast, inherits_from};
-use crate::instructions::switch::invoke_lookupswitch;
+use crate::instructions::switch::{invoke_lookupswitch, tableswitch};
 
 use crate::instructions::invoke::interface::invoke_interface;
 use crate::instructions::invoke::special::invoke_special;
@@ -296,7 +296,7 @@ pub fn run_function(
             InstructionInfo::sastore => unimplemented!(),
             InstructionInfo::sipush(val) => sipush(&current_frame, val),
             InstructionInfo::swap => unimplemented!(),
-            InstructionInfo::tableswitch(_) => unimplemented!(),
+            InstructionInfo::tableswitch(switch) => tableswitch(switch,&current_frame),
             InstructionInfo::wide(_) => unimplemented!(),
             InstructionInfo::EndOfCode => unimplemented!(),
         }
