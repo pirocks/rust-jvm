@@ -11,6 +11,7 @@ use rust_jvm_common::classnames::ClassName;
 use jni_bindings::jstring;
 use slow_interpreter::rust_jni::native_util::from_object;
 use classfile_view::view::ptype_view::ReferenceTypeView;
+use utils::string_obj_to_string;
 
 pub fn ptype_to_class_object(state: &mut InterpreterState,frame: &Rc<StackEntry>, ptype: &PType) -> Option<Arc<Object>> {
     match ptype {
@@ -56,14 +57,6 @@ pub fn ptype_to_class_object(state: &mut InterpreterState,frame: &Rc<StackEntry>
 }
 
 pub unsafe fn jstring_to_string(js: jstring) -> String{
-    let str_obj = from_object(js).unwrap();
-    let str_fields = str_obj.unwrap_normal_object().fields.borrow();
-    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
-    let chars = char_object.unwrap_array();
-    let borrowed_elems = chars.elems.borrow();
-    let mut res = String::new();
-    for char_ in borrowed_elems.deref() {
-        res.push(char_.unwrap_char());
-    }
-    res
+    let str_obj = from_object(js);
+    string_obj_to_string(str_obj)
 }

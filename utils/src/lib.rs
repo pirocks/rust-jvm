@@ -4,6 +4,8 @@ use runtime_common::InterpreterState;
 use runtime_common::runtime_class::RuntimeClass;
 use classfile_view::view::descriptor_parser::MethodDescriptor;
 use classfile_view::loading::LoaderArc;
+use runtime_common::java_values::Object;
+use std::ops::Deref;
 
 
 //todo the fact that I need a loader for this is dumb
@@ -29,3 +31,16 @@ pub fn lookup_method_parsed_impl(state: &mut InterpreterState, class: Arc<Runtim
     lookup_method_parsed_impl(state, super_class, name, descriptor, loader)
 }
 
+
+pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
+    let temp = str_obj.unwrap();
+    let str_fields = temp.unwrap_normal_object().fields.borrow();
+    let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
+    let chars = char_object.unwrap_array();
+    let borrowed_elems = chars.elems.borrow();
+    let mut res = String::new();
+    for char_ in borrowed_elems.deref() {
+        res.push(char_.unwrap_char());
+    }
+    res
+}

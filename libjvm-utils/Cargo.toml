@@ -14,4 +14,5 @@ slow-interpreter = {path = "../slow-interpreter"}
 jni-bindings = {path = "../jni-bindings"}
 classfile-parser = {path = "../classfile-parser"}
 classfile-view = {path = "../classfile-view"}
+utils = {path = "../utils"}
 #descriptor-parser = {path = "../descriptor-parser"}

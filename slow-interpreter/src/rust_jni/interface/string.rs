@@ -13,6 +13,7 @@ use std::sync::Arc;
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
                                              name: jstring,
                                              is_copy: *mut jboolean) -> *const c_char {
+    //todo this could be replaced with string_obj_to_string, though prob wise to have some kind of streaming impl or something
     let str_obj_o = from_object(name).unwrap();
     let str_obj = str_obj_o.unwrap_normal_object();
     let string_chars_o = str_obj.fields.borrow().get("value").unwrap().clone().unwrap_object().unwrap();
@@ -97,6 +98,7 @@ pub unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -
 pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
     let str_obj = from_object(str).unwrap();
     let str_fields = str_obj.unwrap_normal_object().fields.borrow();
+    //todo maybe use string_obj_to_string in future.
     let char_object = str_fields.get("value").unwrap().unwrap_object().unwrap();
     let chars = char_object.unwrap_array();
     let borrowed_elems = chars.elems.borrow();

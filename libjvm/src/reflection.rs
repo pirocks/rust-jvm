@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use jni_bindings::{jobject, jobjectArray, JNIEnv, jclass};
+use utils::string_obj_to_string;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {
@@ -35,12 +36,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let temp_4 = constructor_obj_fields.get("clazz").unwrap().unwrap_object().unwrap();
     let temp_3 = temp_4.unwrap_normal_object().object_class_object_pointer.borrow();
     let clazz = temp_3.as_ref().unwrap().clone();
-    let temp_2 = signature_str_obj.unwrap_object().unwrap().unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_object().unwrap();
-    let sig_chars = &temp_2.unwrap_array().borrow().elems;
-    let mut signature = String::new();
-    for char_ in sig_chars.borrow().iter() {
-        signature.push(char_.unwrap_char())
-    }
+    let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
     let state = get_state(env);
     let frame = get_frame(env);
     push_new_object(frame.clone(), &clazz);

@@ -17,6 +17,7 @@ classfile-parser = {path = "../classfile-parser"}
 classfile-view = {path = "../classfile-view"}
 #descriptor-parser = {path = "../descriptor-parser"}
 libjvm-utils = {path = "../libjvm-utils"}
+utils = {path = "../utils"}
 libc = "0.2.66"
 num_cpus = "1.0"
 regex = "1"

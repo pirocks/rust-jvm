@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::cell::Ref;
 use std::borrow::Borrow;
 use classfile_view::view::descriptor_parser::MethodDescriptor;
+use utils::string_obj_to_string;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -68,14 +69,7 @@ pub fn run_native_method(
                         let _the_unsafe = param0_obj.as_ref().unwrap().unwrap_normal_object();
                         let param1_obj = args[1].unwrap_object();
                         let field_obj = param1_obj.as_ref().unwrap().unwrap_normal_object();
-                        let borrow_1 = field_obj.fields.borrow().get("name").unwrap().unwrap_object();
-                        let name_str_obj = borrow_1.as_ref().unwrap().unwrap_normal_object();
-                        let borrow_2 = name_str_obj.fields.borrow().get("value").unwrap().unwrap_object();
-                        let name_char_array = borrow_2.as_ref().unwrap().unwrap_array().elems.borrow();
-                        let mut field_name = String::with_capacity(name_char_array.len());
-                        for char_ in &*name_char_array {
-                            field_name.push(char_.unwrap_char());
-                        }
+                        let field_name = string_obj_to_string(field_obj.fields.borrow().get("name").unwrap().unwrap_object());
                         let borrow_3 = field_obj.fields.borrow().get("clazz").unwrap().unwrap_object().unwrap();
                         let field_class = borrow_3.unwrap_normal_object();
                         let borrow_4 = field_class.object_class_object_pointer.borrow();
@@ -158,23 +152,24 @@ pub fn run_native_method(
                             fields.insert(field_name, JavaValue::Long(new));
                             JavaValue::Boolean(true)
                         }.into()
-                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives"{
+                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
                         //todo
                         None
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
                         //todo
                         JavaValue::Int(0).into()
-                    }
-                    else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
+                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
                         //todo
                         //so as far as I can find this is undocumented.
                         //so as far as I can figure out we have a method name and a class
                         //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
                         // and return a brand new object
+                        let member_name = args[0].unwrap_object().unwrap();
+                        let class = args[1].unwrap_object().unwrap();
+                        let name = string_obj_to_string(member_name.unwrap_normal_object().fields.borrow().get("name").unwrap().unwrap_object());
                         unimplemented!()
-                    }
-                    else {
-                       frame.print_stack_trace();
+                    } else {
+                        frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
                     }
