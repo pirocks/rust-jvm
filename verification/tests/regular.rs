@@ -16,7 +16,8 @@ use verification::VerifierContext;
 use rust_jvm_common::classnames::class_name;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classnames::ClassName;
-
+use classfile_view::loading::LoaderName;
+use classfile_view::view::ClassView;
 
 
 //#[test]

@@ -15,7 +15,6 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
                                              is_copy: *mut jboolean) -> *const c_char {
     //todo this could be replaced with string_obj_to_string, though prob wise to have some kind of streaming impl or something
     let str_obj_o = from_object(name).unwrap();
-    let str_obj = str_obj_o.unwrap_normal_object();
     let string_chars_o = str_obj_o.lookup_field("value").unwrap_object().unwrap();
     let unwrapped = string_chars_o.unwrap_array().elems.borrow();
     let char_array: &Ref<Vec<JavaValue>> = &unwrapped;

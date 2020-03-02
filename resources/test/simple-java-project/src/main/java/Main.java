@@ -9,7 +9,9 @@ public class Main {
 		long other = a_long_var * a_long_var_2;
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws NoSuchFieldException {
+		Main.class.getDeclaredField("a_thing");
+		System.out.println(int.class.getName());
 	    System.out.println("here");
 	    System.out.println("also here");
 	    int a_var = 0;

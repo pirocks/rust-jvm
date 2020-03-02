@@ -218,7 +218,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let frame = get_frame(env);
 
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    to_object(Some(get_or_create_class_object(state, &ReferenceTypeView::Class(ClassName::Str(name)), frame.clone(), frame.class_pointer.loader.clone())))
+    to_object(Some(get_or_create_class_object(state, &ReferenceTypeView::Class(ClassName::Str(name)), frame.clone(), frame.class_pointer.loader.clone(),None)))
 }
 
 

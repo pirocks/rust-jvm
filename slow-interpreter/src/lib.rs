@@ -27,25 +27,27 @@ use std::time::Instant;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::loading::LoaderArc;
 use classfile_view::view::descriptor_parser::MethodDescriptor;
+use crate::instructions::ldc::create_string_on_stack;
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
                                   type_: &ReferenceTypeView,
                                   current_frame: Rc<StackEntry>,
                                   loader_arc: LoaderArc,
+                                  primitive: Option<String>,
 ) -> Arc<Object> {
-    match type_{
+    match type_ {
         ReferenceTypeView::Class(class_name) => {
-            regular_object(state, class_name, current_frame, loader_arc)
-        },
+            regular_object(state, class_name, current_frame, loader_arc, primitive)
+        }
         ReferenceTypeView::Array(c) => {
+            assert!(primitive.is_none());
             array_object(state, c.deref(), current_frame)
-
-        },
+        }
     }
 }
 
-fn array_object(state: &mut InterpreterState, array_sub_type : & PTypeView, current_frame: Rc<StackEntry>) -> Arc<Object> {
-    let type_for_object : PType = array_sub_type.to_ptype();
+fn array_object(state: &mut InterpreterState, array_sub_type: &PTypeView, current_frame: Rc<StackEntry>) -> Arc<Object> {
+    let type_for_object: PType = array_sub_type.to_ptype();
     array_of_type_class(state, current_frame, &type_for_object)
 }
 
@@ -57,21 +59,29 @@ pub fn array_of_type_class(state: &mut InterpreterState, current_frame: Rc<Stack
             r.unwrap_normal_object().array_class_object_pointer.replace(type_for_object.clone().into());
             state.array_object_pool.borrow_mut().insert(type_for_object.clone(), r.clone());
             r
-        },
+        }
         Some(r) => r.clone(),
     }
 }
 
-fn regular_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>, loader_arc: LoaderArc, primitive: Option<String>) -> Arc<Object> {
     let class_for_object = check_inited_class(state, class_name, current_frame.clone().into(), loader_arc);
-    let res = state.class_object_pool.borrow().get(&class_for_object).cloned();
+    let res = if primitive.is_some() {
+        state.primitive_object_pool.borrow().get(&class_for_object).cloned()
+    } else {
+        state.class_object_pool.borrow().get(&class_for_object).cloned()
+    };
     match res {
         None => {
-            let r = create_a_class_object(state, current_frame);
+            let r = create_a_class_object(state, current_frame.clone());
             r.unwrap_normal_object().object_class_object_pointer.replace(Some(class_for_object.clone()));
             state.class_object_pool.borrow_mut().insert(class_for_object, r.clone());
+            if primitive.is_some(){
+                create_string_on_stack(state,&current_frame,primitive.unwrap());
+                r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), current_frame.pop());
+            }
             r
-        },
+        }
         Some(r) => r.clone(),
     }
 }
@@ -95,7 +105,7 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
                 class_pointer: class_loader_class.clone(),
                 bootstrap_loader: true,
                 object_class_object_pointer: RefCell::new(None),
-                array_class_object_pointer: RefCell::new(None)
+                array_class_object_pointer: RefCell::new(None),
             };
             let bootstrap_arc = Arc::new(Object::Object(boostrap_loader_object));
             let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
@@ -129,17 +139,18 @@ pub fn run(
         initialized_classes: RwLock::new(HashMap::new()),
         string_internment: RefCell::new(HashMap::new()),
         class_object_pool: RefCell::new(HashMap::new()),
+        primitive_object_pool: RefCell::new(HashMap::new()),
         array_object_pool: RefCell::new(HashMap::new()),
         jni,
         string_pool: StringPool {
             entries: HashSet::new()
         },
-        start_instant: Instant::now()
+        start_instant: Instant::now(),
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
     let mut locals = vec![];
-    for _ in 0..method_info.code_attribute().unwrap().max_locals{
+    for _ in 0..method_info.code_attribute().unwrap().max_locals {
         locals.push(JavaValue::Top);
     }
     let initialize_system_frame = StackEntry {
@@ -153,7 +164,7 @@ pub fn run(
     };
 
     run_function(&mut state, initialize_system_frame.into());
-    if state.function_return{
+    if state.function_return {
         state.function_return = false;
     }
     if state.throw.is_some() || state.terminate {

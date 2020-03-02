@@ -72,6 +72,10 @@ pub fn run_function(
     let current_depth = current_frame.depth();
     println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
     assert!(!state.function_return);
+    if meth_name == "hashPrim"{
+        dbg!(&current_frame.local_vars.borrow()[1..]);
+        dbg!(&current_frame.operand_stack.borrow());
+    }
     while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
@@ -340,6 +344,10 @@ pub fn run_function(
             }
             current_frame.pc.replace(pc);
         }
+    }
+    if meth_name == "hashPrim"{
+        dbg!(&current_frame.local_vars.borrow()[1..]);
+        dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
     }
     println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
 }

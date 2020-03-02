@@ -15,10 +15,10 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
 //    let obj= unwrapped.unwrap_normal_object();//todo double free hazard
     let class_object = match unwrapped.deref(){
         Object::Array(a) => {
-            get_or_create_class_object(state, &ReferenceTypeView::Array(Box::new(a.elem_type.clone())), frame.clone(), frame.class_pointer.loader.clone())
+            get_or_create_class_object(state, &ReferenceTypeView::Array(Box::new(a.elem_type.clone())), frame.clone(), frame.class_pointer.loader.clone(),None)
         },
         Object::Object(o) => {
-            get_or_create_class_object(state, &ReferenceTypeView::Class(o.class_pointer.class_view.name()), frame, o.class_pointer.loader.clone())
+            get_or_create_class_object(state, &ReferenceTypeView::Class(o.class_pointer.class_view.name()), frame, o.class_pointer.loader.clone(),None)
         },
     };
 

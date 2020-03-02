@@ -27,15 +27,22 @@ impl ParsingContext for FileParsingContext<'_> {
 
     fn read16(&mut self) -> u16 {
         let mut buffer = [0; 2];
-        let bytes_read = self.read.read(&mut buffer).expect(IO_ERROR_MSG);
-        assert_eq!(bytes_read, 2);
+        // let bytes_read = self.read.read(&mut buffer).expect(IO_ERROR_MSG);
+        // assert_eq!(bytes_read, 2);
+        buffer[0] = self.read8();
+        buffer[1] = self.read8();
         return u16::from_be(((buffer[1] as u16) << 8) | buffer[0] as u16);
     }
 
     fn read32(&mut self) -> u32 {
         let mut buffer = [0; 4];
-        let bytes_read = self.read.read(&mut buffer).expect(IO_ERROR_MSG);
-        assert_eq!(bytes_read, 4);
+        // let bytes_read = self.read.read(&mut buffer).expect(IO_ERROR_MSG);
+        // assert_eq!(bytes_read, 4);
+        buffer[0] = self.read8();
+        buffer[1] = self.read8();
+        buffer[2] = self.read8();
+        buffer[3] = self.read8();
+
         return u32::from_be(((buffer[0] as u32) << 0) +
             ((buffer[1] as u32) << 8) +
             ((buffer[2] as u32) << 16) +

@@ -22,7 +22,7 @@ fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<StackEnt
 }
 
 pub fn load_class_constant_by_name(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, res_class_name: &ReferenceTypeView) {
-    let object = get_or_create_class_object(state, res_class_name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+    let object = get_or_create_class_object(state, res_class_name, current_frame.clone().into(), current_frame.class_pointer.loader.clone(),None);
     current_frame.push(JavaValue::Object(object.into()));
 }
 

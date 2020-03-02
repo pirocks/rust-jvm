@@ -21,7 +21,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
         Result::Err(_) => return to_object(None),
         Result::Ok(view) => {
             let frame = get_frame(env);
-            to_object(get_or_create_class_object(state,&ReferenceTypeView::Class(class_name),frame.clone(),state.bootstrap_loader.clone()).into())
+            to_object(get_or_create_class_object(state,&ReferenceTypeView::Class(class_name),frame.clone(),state.bootstrap_loader.clone(),None).into())
         },
     }
 }
@@ -48,7 +48,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         None => return to_object(None),
         Some(view) => {
             let frame = get_frame(env);
-            get_or_create_class_object(state,&ReferenceTypeView::Class(class_name),frame.clone(),state.bootstrap_loader.clone());
+            get_or_create_class_object(state,&ReferenceTypeView::Class(class_name),frame.clone(),state.bootstrap_loader.clone(),None);
             to_object(frame.pop().unwrap_object())
         },
     }
@@ -78,24 +78,24 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     let short_cstr = short.into_raw();
     let void = CString::new("void").unwrap();
     let void_cstr = void.into_raw();
-    let name = if libc::strncmp(float_cstr,utf,libc::strlen(float_cstr) + 1) == 0{
-        ClassName::float()
+    let (class_name,as_str) = if libc::strncmp(float_cstr,utf,libc::strlen(float_cstr) + 1) == 0{
+        (ClassName::float(),"float")
     } else if libc::strncmp(double_cstr,utf,libc::strlen(double_cstr) + 1) == 0 {
-        ClassName::double()
+        (ClassName::double(),"double")
     } else if libc::strncmp(int_cstr,utf,libc::strlen(int_cstr) + 1) == 0 {
-        ClassName::int()
+        (ClassName::int(),"int")
     } else if libc::strncmp(boolean_cstr,utf,libc::strlen(boolean_cstr) + 1) == 0 {
-        ClassName::boolean()
+        (ClassName::boolean(),"boolean")
     } else if libc::strncmp(char_cstr,utf,libc::strlen(char_cstr) + 1) == 0{
-        ClassName::character()
+        (ClassName::character(),"character")
     } else if libc::strncmp(long_cstr,utf,libc::strlen(long_cstr) + 1) == 0 {
-        ClassName::long()
+        (ClassName::long(),"long")
     } else if libc::strncmp(byte_cstr,utf,libc::strlen(byte_cstr) + 1) == 0 {
-        ClassName::byte()
+        (ClassName::byte(),"byte")
     } else if libc::strncmp(short_cstr,utf,libc::strlen(short_cstr) + 1) == 0 {
-        ClassName::short()
+        (ClassName::short(),"short")
     }else if libc::strncmp(void_cstr,utf,libc::strlen(void_cstr) + 1) == 0 {
-        ClassName::void()
+        (ClassName::void(),"void")
     } else {
         dbg!((*utf) as u8 as char);
         unimplemented!()
@@ -103,6 +103,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
 
     let state = get_state(env);
     let frame = get_frame(env);
-    let res = get_or_create_class_object(state, &ReferenceTypeView::Class(name), frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+    let res = get_or_create_class_object(state, &ReferenceTypeView::Class(class_name), frame, state.bootstrap_loader.clone(),Some(as_str.to_string()));//todo what if not using bootstap loader
     return to_object(res.into());
 }

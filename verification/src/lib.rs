@@ -1,6 +1,8 @@
 extern crate log;
 extern crate simple_logger;
+extern crate elapsed;
 
+use elapsed::{measure_time, ElapsedDuration};
 use crate::verifier::class_is_type_safe;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
@@ -8,12 +10,15 @@ use std::collections::vec_deque::VecDeque;
 use classfile_view::vtype::VType;
 use classfile_view::view::ClassView;
 use classfile_view::loading::{LoaderArc, ClassWithLoader};
+use std::time::Duration;
 
 
 pub mod verifier;
 
+static mut TOTAL_VERIFICATION: Duration = Duration::from_micros(0);
+
 pub fn verify(vf: &VerifierContext, to_verify: ClassView, loader: LoaderArc) -> Result<(), TypeSafetyError> {
-    match class_is_type_safe(vf, &ClassWithLoader {
+    let (time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify.name(),
         loader,
     }) {
@@ -27,7 +32,13 @@ pub fn verify(vf: &VerifierContext, to_verify: ClassView, loader: LoaderArc) -> 
                 TypeSafetyError::NeedToLoad(_) => unimplemented!(),
             }
         }
+    });
+    unsafe {
+        TOTAL_VERIFICATION = TOTAL_VERIFICATION.checked_add(time.duration()).unwrap();
+        println!("Total: {}", ElapsedDuration::new(TOTAL_VERIFICATION));
     }
+    println!("Verification Time: {}", time);
+    res
 }
 
 #[derive(Debug)]

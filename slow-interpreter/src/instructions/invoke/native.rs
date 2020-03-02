@@ -9,7 +9,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use std::cell::{Ref, RefCell};
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::Borrow;
 use classfile_view::view::descriptor_parser::MethodDescriptor;
 use utils::string_obj_to_string;
 use runtime_common::java_values::Object::Object;

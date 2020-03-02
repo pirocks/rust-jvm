@@ -29,13 +29,13 @@ pub mod dynamic {
     use classfile_view::view::constant_info_view::ConstantInfoView;
 
     pub fn invoke_dynamic(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
-        let method_handle = check_inited_class(
+        let _method_handle = check_inited_class(
             state,
             &ClassName::Str("java/lang/invoke/MethodHandle".to_string()),
             current_frame.clone().into(),
             current_frame.class_pointer.loader.clone(),
         );
-        let method_type = check_inited_class(
+        let _method_type = check_inited_class(
             state,
             &ClassName::Str("java/lang/invoke/MethodType".to_string()),
             current_frame.clone().into(),
@@ -51,7 +51,7 @@ pub mod dynamic {
         // obtain a reference to an instance of java.lang.invoke.MethodHandle (§5.4.3.5)
         let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
         invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
-        let bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+        let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
         dbg!(invoke_dynamic_view.name_and_type().name());
         dbg!(invoke_dynamic_view.name_and_type().desc());
         dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().name_and_type());
