@@ -16,6 +16,25 @@ pub fn dup_x1(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(value1.clone());
 }
 
+pub fn dup_x2(current_frame: &Rc<StackEntry>) -> () {
+    let value1 = current_frame.pop();
+    let value2 = current_frame.pop();
+    match value2{
+        JavaValue::Long(_) | JavaValue::Double(_) => {
+            current_frame.push(value1.clone());
+            current_frame.push(value2);
+            current_frame.push(value1);
+        },
+        _ => {
+            let value3 = current_frame.pop();
+            current_frame.push(value1.clone());
+            current_frame.push(value3);
+            current_frame.push(value2);
+            current_frame.push(value1);
+        },
+    }
+}
+
 
 
 pub fn dup2(current_frame: &Rc<StackEntry>) -> () {

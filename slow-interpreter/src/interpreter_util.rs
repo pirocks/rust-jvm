@@ -139,7 +139,7 @@ pub fn run_function(
             InstructionInfo::dsub => unimplemented!(),
             InstructionInfo::dup => dup(&current_frame),
             InstructionInfo::dup_x1 => dup_x1(&current_frame),
-            InstructionInfo::dup_x2 => unimplemented!(),
+            InstructionInfo::dup_x2 => dup_x2(&current_frame),
             InstructionInfo::dup2 => dup2(&current_frame),
             InstructionInfo::dup2_x1 => dup2_x1(&current_frame),
             InstructionInfo::dup2_x2 => unimplemented!(),
