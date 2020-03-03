@@ -16,6 +16,8 @@ pub fn dup_x1(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(value1.clone());
 }
 
+//todo add impl methods on JavaValue to indicate size
+
 pub fn dup_x2(current_frame: &Rc<StackEntry>) -> () {
     let value1 = current_frame.pop();
     let value2 = current_frame.pop();

@@ -31,12 +31,12 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
 
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
-    let super_name = match runtime_class_from_object(sub).unwrap().classfile.super_class_name() {
+    let frame = get_frame(env);
+    let state = get_state(env);
+    let super_name = match runtime_class_from_object(sub,state,&frame).unwrap().classfile.super_class_name() {
         None => { return to_object(None); }
         Some(n) => n,
     };
-    let frame = get_frame(env);
-    let state = get_state(env);
 //    frame.print_stack_trace();
     let _inited_class = check_inited_class(state, &super_name, frame.clone().into(), frame.class_pointer.loader.clone());
     load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(super_name));

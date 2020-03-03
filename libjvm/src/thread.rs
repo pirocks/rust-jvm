@@ -57,9 +57,9 @@ static mut MAIN_THREAD: Option<Arc<Object>> = None;
 unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclass) -> jobject {
     match MAIN_THREAD.clone() {
         None => {
-            let runtime_thread_class = runtime_class_from_object(threadClass).unwrap();
             let state = get_state(env);
             let frame = get_frame(env);
+            let runtime_thread_class = runtime_class_from_object(threadClass, state,&frame).unwrap();
             make_thread(&runtime_thread_class, state, &frame);
             let thread_object = frame.pop().unwrap_object();
             MAIN_THREAD = thread_object.clone();

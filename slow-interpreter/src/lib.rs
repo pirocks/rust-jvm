@@ -56,7 +56,8 @@ pub fn array_of_type_class(state: &mut InterpreterState, current_frame: Rc<Stack
     match res {
         None => {
             let r = create_a_class_object(state, current_frame);
-            r.unwrap_normal_object().array_class_object_pointer.replace(type_for_object.clone().into());
+            let array_ptype_view = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::from_ptype(type_for_object).into())).into();
+            r.unwrap_normal_object().class_object_ptype.replace(array_ptype_view);
             state.array_object_pool.borrow_mut().insert(type_for_object.clone(), r.clone());
             r
         }
@@ -74,7 +75,7 @@ fn regular_object(state: &mut InterpreterState, class_name: &ClassName, current_
     match res {
         None => {
             let r = create_a_class_object(state, current_frame.clone());
-            r.unwrap_normal_object().object_class_object_pointer.replace(Some(class_for_object.clone()));
+            r.unwrap_normal_object().class_object_ptype.replace(Some(PTypeView::Ref(ReferenceTypeView::Class(class_for_object.class_view.name()))));
             state.class_object_pool.borrow_mut().insert(class_for_object, r.clone());
             if primitive.is_some(){
                 create_string_on_stack(state,&current_frame,primitive.unwrap());
@@ -104,8 +105,9 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
                 fields: RefCell::new(HashMap::new()),
                 class_pointer: class_loader_class.clone(),
                 bootstrap_loader: true,
-                object_class_object_pointer: RefCell::new(None),
-                array_class_object_pointer: RefCell::new(None),
+                // object_class_object_pointer: RefCell::new(None),
+                // array_class_object_pointer: RefCell::new(None),
+                class_object_ptype: RefCell::new(None)
             };
             let bootstrap_arc = Arc::new(Object::Object(boostrap_loader_object));
             let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());

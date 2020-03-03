@@ -86,6 +86,10 @@ impl ClassName {
     pub fn void() -> Self{
         Self::new("java/lang/Void")
     }
+
+    pub fn method_type() -> Self{
+        Self::new("java/lang/invoke/MethodType")
+    }
 }
 
 impl Hash for ClassName {

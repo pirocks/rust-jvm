@@ -32,7 +32,7 @@ use crate::rust_jni::native_util::{get_state, get_frame, from_object};
 use crate::rust_jni::interface::get_interface;
 use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_name;
-use crate::rust_jni::interface::util::runtime_class_from_object;
+use crate::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::view::descriptor_parser::MethodDescriptor;
 
@@ -166,11 +166,12 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                       n_methods: jint) -> jint {
     println!("Call to register_natives, n_methods: {}", n_methods);
     for to_register_i in 0..n_methods {
-        let jni_context = &get_state(env).jni;
+        let state = get_state(env);
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
-        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz).unwrap();
+        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz,state,&get_frame(env)).unwrap();
+        let jni_context = &state.jni;
         let classfile = &runtime_class.classfile;
         &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
             let descriptor_str = method_info.descriptor_str(classfile);
@@ -260,7 +261,8 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let state = get_state(env);
     let frame = get_frame(env);//todo leak hazard
     let class_obj: Arc<Object> = from_object(clazz).unwrap();
-    let all_methods = get_all_methods(state, frame, class_obj.unwrap_normal_object().object_class_object_pointer.borrow().as_ref().unwrap().clone());
+    let runtime_class = class_object_to_runtime_class(class_obj.unwrap_normal_object(), state, &frame);
+    let all_methods = get_all_methods(state, frame.clone(), runtime_class);
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];
         let cur_desc = method_info.descriptor_str(&c.classfile);

@@ -1,10 +1,9 @@
 use crate::runtime_class::RuntimeClass;
 use std::sync::Arc;
-use rust_jvm_common::ptype::PType;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
-use rust_jvm_common::classnames::class_name;
+use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::classfile::ACC_ABSTRACT;
 
 use std::ops::Deref;
@@ -270,8 +269,9 @@ impl JavaValue {
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
             bootstrap_loader: false,
-            object_class_object_pointer: RefCell::new(None),
-            array_class_object_pointer: RefCell::new(None),
+            // object_class_object_pointer: RefCell::new(None),
+            // array_class_object_pointer: RefCell::new(None),
+            class_object_ptype: RefCell::new(None)
         })).into()
     }
 }
@@ -373,8 +373,9 @@ impl Object {
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
                     bootstrap_loader: o.bootstrap_loader,
-                    object_class_object_pointer: o.object_class_object_pointer.clone(),
-                    array_class_object_pointer: o.array_class_object_pointer.clone(),
+                    // object_class_object_pointer: o.object_class_object_pointer.clone(),
+                    // array_class_object_pointer: o.array_class_object_pointer.clone(),
+                    class_object_ptype: RefCell::new(None)
                 })
             }
         }
@@ -394,20 +395,39 @@ pub struct NormalObject {
     pub fields: RefCell<HashMap<String, JavaValue>>,
     pub class_pointer: Arc<RuntimeClass>,
     pub bootstrap_loader: bool,
+    pub class_object_ptype: RefCell<Option<PTypeView>>
     //points to the object represented by this class object of relevant
-    pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
-    pub array_class_object_pointer: RefCell<Option<PType>>,
+    //might be simpler to ccombine these into a ptype
+    // pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
+    //todo why are these refcell?
+    // pub array_class_object_pointer: RefCell<Option<PType>>,// is type of array sub type,not including the array.
+}
+
+impl NormalObject{
+    pub fn class_object_to_ptype(&self) -> PTypeView{
+        self.class_object_ptype.borrow().clone().unwrap()
+    }
+
 }
 
 impl Debug for NormalObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "{:?}", class_name(&self.class_pointer.classfile).get_referred_name())?;
-        write!(f, "-")?;
+        if self.class_pointer.class_view.name() == ClassName::class(){
+            write!(f, "(Class Object:{:?})",self.class_object_ptype)?;
+        }
+        else if self.class_pointer.class_view.name() == ClassName::string() {
+            write!(f, "(String Object: {:?})",self.fields.borrow().get("value").unwrap().unwrap_array().elems)?;
+        } else {
+            write!(f, "{:?}", class_name(&self.class_pointer.classfile).get_referred_name())?;
+            write!(f, "-")?;
 //        write!(f, "{:?}", self.class_pointer.static_vars)?;
-        write!(f, "-")?;
-        write!(f, "{:?}", self.fields)?;
-        write!(f, "-")?;
-        write!(f, "{:?}", self.bootstrap_loader)?;
+            write!(f, "-")?;
+            write!(f, "{:?}", self.fields)?;
+            write!(f, "-")?;
+            write!(f, "{:?}", self.bootstrap_loader)?;
+        }
+
+
         Result::Ok(())
     }
 }
@@ -457,5 +477,15 @@ impl JavaValue {
                 panic!()
             }
         }
+    }
+}
+
+
+impl ArrayObject{
+    pub fn unwrap_object_array(&self) -> Vec<Option<Arc<Object>>>{
+        self.elems.borrow().iter().map(|x| {x.unwrap_object()}).collect()
+    }
+    pub fn unwrap_object_array_nonnull(&self) -> Vec<Arc<Object>>{
+        self.elems.borrow().iter().map(|x| {x.unwrap_object_nonnull()}).collect()
     }
 }

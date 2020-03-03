@@ -2,7 +2,7 @@ use jni_bindings::{jdouble, jboolean, JNIEnv, jclass};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
-use slow_interpreter::rust_jni::native_util::from_object;
+use slow_interpreter::rust_jni::native_util::{from_object, get_state, get_frame};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -12,19 +12,20 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
 //    get_frame(env).print_stack_trace();
-    (runtime_class_from_object(cls).unwrap().classfile.access_flags & ACC_INTERFACE > 0) as jboolean
+    (runtime_class_from_object(cls,get_state(env),&get_frame(env)).unwrap().classfile.access_flags & ACC_INTERFACE > 0) as jboolean
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let object_non_null = from_object(cls).unwrap().clone();
-    let object_class = object_non_null.unwrap_normal_object().array_class_object_pointer.borrow();
-    object_class.is_some() as jboolean
+    let ptype = object_non_null.unwrap_normal_object().class_object_ptype.borrow();
+    let is_array = ptype.as_ref().unwrap().unwrap_ref_type().is_array();
+    is_array as jboolean
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    let class_object = runtime_class_from_object(cls);
+    let class_object = runtime_class_from_object(cls,get_state(env),&get_frame(env));
     if class_object.is_none() {
         dbg!(&class_object);
         return false as jboolean;

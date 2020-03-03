@@ -72,8 +72,8 @@ pub fn run_function(
     let current_depth = current_frame.depth();
     println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
     assert!(!state.function_return);
-    if meth_name == "hashPrim"{
-        dbg!(&current_frame.local_vars.borrow()[1..]);
+    if &meth_name == "isStatic" && class_name_ == "java/lang/reflect/Modifier"{
+        dbg!(&current_frame.local_vars.borrow()[0..]);
         dbg!(&current_frame.operand_stack.borrow());
     }
     while !state.terminate && !state.function_return && !state.throw.is_some() {
@@ -103,7 +103,9 @@ pub fn run_function(
             InstructionInfo::athrow => {
                 println!("EXCEPTION:");
                 current_frame.print_stack_trace();
-                state.throw = current_frame.pop().unwrap_object_nonnull().into();
+                let exception_obj = current_frame.pop().unwrap_object_nonnull();
+                dbg!(exception_obj.lookup_field("detailMessage"));
+                state.throw = exception_obj.into();
             }
             InstructionInfo::baload => baload(&current_frame),
             InstructionInfo::bastore => bastore(&current_frame),
@@ -346,7 +348,7 @@ pub fn run_function(
             current_frame.pc.replace(pc);
         }
     }
-    if meth_name == "hashPrim"{
+    if meth_name == "isStatic"{
         dbg!(&current_frame.local_vars.borrow()[1..]);
         dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
     }

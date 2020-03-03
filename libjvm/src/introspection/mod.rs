@@ -13,13 +13,14 @@ use slow_interpreter::{array_of_type_class, get_or_create_class_object};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use std::ops::Deref;
 use std::ffi::CStr;
-use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
+use slow_interpreter::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 
 
 use libjvm_utils::ptype_to_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::view::descriptor_parser::parse_method_descriptor;
+use std::borrow::Borrow;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -48,13 +49,14 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let state = get_state(env);
     let frame = get_frame(env);
     let object_non_null = from_object(cls).unwrap().clone();
-    let object_class = object_non_null.unwrap_normal_object().array_class_object_pointer.borrow();
-    to_object(ptype_to_class_object(state,&frame,object_class.as_ref().unwrap()))
+    let temp = object_non_null.unwrap_normal_object().class_object_ptype.borrow();
+    let object_class = temp.as_ref().unwrap().unwrap_ref_type();
+    to_object(ptype_to_class_object(state,&frame,&object_class.unwrap_array().to_ptype()))
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -> jint {
-    runtime_class_from_object(cls).unwrap().classfile.access_flags as jint
+    runtime_class_from_object(cls,get_state(env),&get_frame(env)).unwrap().classfile.access_flags as jint
 }
 
 #[no_mangle]
@@ -85,12 +87,12 @@ const CONSTRUCTOR_SIGNATURE: &'static str = "(Ljava/lang/Class;[Ljava/lang/Class
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
-    let temp = runtime_class_from_object(ofClass).unwrap();
-    let target_classfile = &temp.classfile;
-    let constructors = target_classfile.lookup_method_name(&"<init>".to_string());
     let state = get_state(env);
     let frame = get_frame(env);
-    let class_obj = runtime_class_from_object(ofClass);
+    let temp = runtime_class_from_object(ofClass,state,&frame).unwrap();
+    let target_classfile = &temp.classfile;
+    let constructors = target_classfile.lookup_method_name(&"<init>".to_string());
+    let class_obj = runtime_class_from_object(ofClass,state,&frame);
     let loader = frame.class_pointer.loader.clone();
     let constructor_class = check_inited_class(state, &ClassName::new("java/lang/reflect/Constructor"), frame.clone().into(), loader.clone());
     let mut object_array = vec![];
@@ -158,7 +160,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
-    runtime_class_from_object(cls).unwrap().classfile.access_flags as i32
+    runtime_class_from_object(cls,get_state(env),&get_frame(env)).unwrap().classfile.access_flags as i32
 }
 
 
@@ -224,7 +226,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
-    let obj = runtime_class_from_object(cls).unwrap();
+    let obj = runtime_class_from_object(cls,get_state(env),&get_frame(env)).unwrap();
     let full_name = class_name(&obj.classfile).get_referred_name().replace("/", ".");
     new_string_with_string(env, full_name)
 }

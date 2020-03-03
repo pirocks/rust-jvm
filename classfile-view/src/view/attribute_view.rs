@@ -1,5 +1,5 @@
 use crate::view::ClassView;
-use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, EnclosingMethod};
+use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex};
 use crate::view::constant_info_view::{MethodrefView, ConstantInfoView, StringView, IntegerView, LongView, FloatView, DoubleView, MethodHandleView, MethodTypeView};
 
 #[derive(Clone)]
@@ -104,18 +104,19 @@ pub enum BootstrapArgView {
 }
 
 
+#[allow(dead_code)]
 pub struct EnclosingMethodView{
     pub(crate) backing_class : ClassView ,
     pub(crate) i : usize
 }
 
 impl EnclosingMethodView{
-    fn get_raw(&self) -> &EnclosingMethod{
-        match &self.backing_class.backing_class.attributes[self.i].attribute_type{
-            AttributeType::EnclosingMethod(em) => em,
-            _ => panic!()
-        }
-    }
+    // fn get_raw(&self) -> &EnclosingMethod{
+    //     match &self.backing_class.backing_class.attributes[self.i].attribute_type{
+    //         AttributeType::EnclosingMethod(em) => em,
+    //         _ => panic!()
+    //     }
+    // }
 
 
 }

@@ -23,8 +23,9 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                         fields: RefCell::new(o.fields.borrow().iter().map(|(k,v)|{(k.clone(),v.clone())}).collect()),
                         class_pointer: o.class_pointer.clone(),
                         bootstrap_loader: o.bootstrap_loader,
-                        object_class_object_pointer: o.object_class_object_pointer.clone(),
-                        array_class_object_pointer: o.array_class_object_pointer.clone()
+                        // object_class_object_pointer: o.object_class_object_pointer.clone(),
+                        // array_class_object_pointer: o.array_class_object_pointer.clone()
+                        class_object_ptype: RefCell::new(None)
                     })).into()
                 },
             }

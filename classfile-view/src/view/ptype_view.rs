@@ -142,6 +142,22 @@ impl ReferenceTypeView{
             },
         }
     }
+
+    pub fn unwrap_array(&self) -> PTypeView{
+        match self {
+            ReferenceTypeView::Class(_) => panic!(),
+            ReferenceTypeView::Array(a) => {
+                a.deref().clone()
+            },
+        }
+    }
+
+    pub fn is_array(&self) -> bool{
+        match self{
+            ReferenceTypeView::Class(_) => false,
+            ReferenceTypeView::Array(_) => true,
+        }
+    }
 }
 
 impl Clone for ReferenceTypeView{

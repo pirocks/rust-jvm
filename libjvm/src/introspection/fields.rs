@@ -24,7 +24,7 @@ unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) 
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let frame = get_frame(env);
     let state = get_state(env);
-    let class_obj = runtime_class_from_object(ofClass);
+    let class_obj = runtime_class_from_object(ofClass, get_state(env),&get_frame(env));
     let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     let mut object_array = vec![];
     &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
