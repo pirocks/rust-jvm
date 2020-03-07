@@ -17,6 +17,7 @@ pub struct FieldID {
 pub unsafe fn runtime_class_from_object(cls: jclass, state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Option<Arc<RuntimeClass>> {
     let object_non_null = from_object(cls).unwrap().clone();
 
+    dbg!(&object_non_null.unwrap_normal_object().class_object_ptype);
     /*if object_non_null.is_array() {
         None
     } else {*/

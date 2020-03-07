@@ -1,29 +1,28 @@
-import java.lang.reflect.Member;
-import java.util.function.DoubleToIntFunction;
-import java.util.function.ToIntFunction;
-
 public class Main {
 
-	public long a_thing = 0;
-
 	public Main() {
-		long a_long_var = 1L;
-		long a_long_var_2 = 1L;
-		long other = a_long_var * a_long_var_2;
+	}
+
+	public synchronized void test(){
+//		notifyAll();
+		System.out.println("test called from" + Thread.currentThread().getName());
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		System.out.println("test finished");
 	}
 
 	public static void main(String[] args) {
-
-		System.out.println(int.class.getName());
-	    System.out.println("here");
-	    System.out.println("also here");
-	    int a_var = 0;
-	    if(Math.random() > 0){
-			int another_var = a_var + 1;
-			char a_char_var = 'g';
-			double a_double  = a_var;
-		}else {
-	    	a_var += 1;
-		}
-    }
+		final Main main = new Main();
+		final Thread thread1 = new Thread(main::test);
+		final Thread thread2 = new Thread(main::test);
+		final Thread thread3 = new Thread(main::test);
+		final Thread thread4 = new Thread(main::test);
+		thread1.start();
+		thread2.start();
+		thread3.start();
+		thread4.start();
+	}
 }
