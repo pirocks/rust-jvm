@@ -11,11 +11,11 @@ use crate::java_values::{Object, JavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use libloading::Library;
 use std::rc::Rc;
-use rust_jvm_common::ptype::PType;
 use rust_jvm_common::string_pool::StringPool;
 
 use std::time::Instant;
 use classfile_view::loading::LoaderArc;
+use classfile_view::view::ptype_view::PTypeView;
 
 pub mod java_values;
 pub mod runtime_class;
@@ -27,13 +27,13 @@ pub struct InterpreterState {
     pub bootstrap_loader: LoaderArc,
     pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
     pub string_internment: RefCell<HashMap<String, Arc<Object>>>,
-    pub class_object_pool: RefCell<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
-    pub primitive_object_pool: RefCell<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
-    pub array_object_pool: RefCell<HashMap<PType, Arc<Object>>>,
+    pub class_object_pool: RefCell<HashMap<PTypeView, Arc<Object>>>,
+    // pub primitive_object_pool: RefCell<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
+    // pub array_object_pool: RefCell<HashMap<PType, Arc<Object>>>,
     //todo needs to be used for all instances of getClass
     pub jni: LibJavaLoading,
     pub string_pool: StringPool,//todo this should really be in some sort of parser/jvm state
-    pub start_instant : Instant
+    pub start_instant : Instant,
 }
 
 #[derive(Debug)]

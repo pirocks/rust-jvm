@@ -18,11 +18,11 @@ use classfile_view::view::descriptor_parser::{MethodDescriptor, parse_field_desc
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
     let res_class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();
     let type_ = parse_field_descriptor(&res_class_name).unwrap().field_type;
-    load_class_constant_by_name(state, current_frame, type_.unwrap_ref_type());
+    load_class_constant_by_type(state, current_frame, &type_);
 }
 
-pub fn load_class_constant_by_name(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, res_class_name: &ReferenceTypeView) {
-    let object = get_or_create_class_object(state, res_class_name, current_frame.clone().into(), current_frame.class_pointer.loader.clone(),None);
+pub fn load_class_constant_by_type(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, res_class_type: &PTypeView) {
+    let object = get_or_create_class_object(state, res_class_type, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
     current_frame.push(JavaValue::Object(object.into()));
 }
 

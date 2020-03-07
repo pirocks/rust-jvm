@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
-use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_name};
+use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
 use slow_interpreter::{array_of_type_class, get_or_create_class_object};
@@ -114,7 +114,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let clazz = {
             let field_class_name_ = class_name(&class_obj.clone().as_ref().unwrap().classfile);
             let field_class_name = field_class_name_.get_referred_name();
-            load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(ClassName::Str(field_class_name.clone())));
+            //todo this doesn't cover the full generality of this.
+            load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(field_class_name.clone()))));
             frame.pop()
         };
 
@@ -195,7 +196,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let frame = get_frame(env);
     let state = get_state(env);
 
-    load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(frame.last_call_stack.as_ref().unwrap().class_pointer.class_view.name()));
+    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(frame.last_call_stack.as_ref().unwrap().class_pointer.class_view.name())));
     let jclass = frame.pop().unwrap_object();
     to_object(jclass)
 }
@@ -220,7 +221,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let frame = get_frame(env);
 
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    to_object(Some(get_or_create_class_object(state, &ReferenceTypeView::Class(ClassName::Str(name)), frame.clone(), frame.class_pointer.loader.clone(),None)))
+    to_object(Some(get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))), frame.clone(), frame.class_pointer.loader.clone())))
 }
 
 

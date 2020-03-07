@@ -12,9 +12,10 @@ unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobj
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
+    let state = get_state(env);
     let frame = get_frame(env);
     frame.print_stack_trace();
-    let em = runtime_class_from_object(ofClass,get_state(env),&get_frame(env)).unwrap().class_view.enclosing_method_view();
+    let em = runtime_class_from_object(ofClass, state, &frame).unwrap().class_view.enclosing_method_view();
     match em {
         None => std::ptr::null_mut(),
         Some(_) => unimplemented!(),

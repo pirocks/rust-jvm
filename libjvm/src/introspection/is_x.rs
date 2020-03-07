@@ -19,7 +19,7 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let object_non_null = from_object(cls).unwrap().clone();
     let ptype = object_non_null.unwrap_normal_object().class_object_ptype.borrow();
-    let is_array = ptype.as_ref().unwrap().unwrap_ref_type().is_array();
+    let is_array = ptype.as_ref().unwrap().is_array();
     is_array as jboolean
 }
 

@@ -380,6 +380,13 @@ impl Object {
             }
         }
     }
+
+    pub fn is_array(&self) -> bool{
+        match self{
+            Object::Array(_) => true,
+            Object::Object(_) => false,
+        }
+    }
 }
 
 #[derive(Debug)]

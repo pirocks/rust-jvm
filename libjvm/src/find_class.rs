@@ -7,7 +7,7 @@ use std::ffi::{CStr, CString};
 use libjvm_utils::jstring_to_string;
 
 use rust_jvm_common::ptype::PType::Ref;
-use classfile_view::view::ptype_view::ReferenceTypeView;
+use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -21,7 +21,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
         Result::Err(_) => return to_object(None),
         Result::Ok(view) => {
             let frame = get_frame(env);
-            to_object(get_or_create_class_object(state,&ReferenceTypeView::Class(class_name),frame.clone(),state.bootstrap_loader.clone(),None).into())
+            to_object(get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame.clone(),state.bootstrap_loader.clone()).into())
         },
     }
 }
@@ -39,6 +39,7 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let name_str = jstring_to_string(name);
+    assert!(&name_str != "int");
     dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
@@ -48,7 +49,8 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         None => return to_object(None),
         Some(view) => {
             let frame = get_frame(env);
-            get_or_create_class_object(state,&ReferenceTypeView::Class(class_name),frame.clone(),state.bootstrap_loader.clone(),None);
+            //todo what if name is long/int etc.
+            get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame.clone(),state.bootstrap_loader.clone());
             to_object(frame.pop().unwrap_object())
         },
     }
@@ -78,24 +80,24 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     let short_cstr = short.into_raw();
     let void = CString::new("void").unwrap();
     let void_cstr = void.into_raw();
-    let (class_name,as_str) = if libc::strncmp(float_cstr,utf,libc::strlen(float_cstr) + 1) == 0{
-        (ClassName::float(),"float")
+    let (class_name,as_str, ptype) = if libc::strncmp(float_cstr,utf,libc::strlen(float_cstr) + 1) == 0{
+        (ClassName::float(),"float",PTypeView::FloatType)
     } else if libc::strncmp(double_cstr,utf,libc::strlen(double_cstr) + 1) == 0 {
-        (ClassName::double(),"double")
+        (ClassName::double(),"double",PTypeView::DoubleType)
     } else if libc::strncmp(int_cstr,utf,libc::strlen(int_cstr) + 1) == 0 {
-        (ClassName::int(),"int")
+        (ClassName::int(),"int",PTypeView::IntType)
     } else if libc::strncmp(boolean_cstr,utf,libc::strlen(boolean_cstr) + 1) == 0 {
-        (ClassName::boolean(),"boolean")
+        (ClassName::boolean(),"boolean",PTypeView::BooleanType)
     } else if libc::strncmp(char_cstr,utf,libc::strlen(char_cstr) + 1) == 0{
-        (ClassName::character(),"character")
+        (ClassName::character(),"character",PTypeView::CharType)
     } else if libc::strncmp(long_cstr,utf,libc::strlen(long_cstr) + 1) == 0 {
-        (ClassName::long(),"long")
+        (ClassName::long(),"long",PTypeView::LongType)
     } else if libc::strncmp(byte_cstr,utf,libc::strlen(byte_cstr) + 1) == 0 {
-        (ClassName::byte(),"byte")
+        (ClassName::byte(),"byte",PTypeView::ByteType)
     } else if libc::strncmp(short_cstr,utf,libc::strlen(short_cstr) + 1) == 0 {
-        (ClassName::short(),"short")
+        (ClassName::short(),"short",PTypeView::ShortType)
     }else if libc::strncmp(void_cstr,utf,libc::strlen(void_cstr) + 1) == 0 {
-        (ClassName::void(),"void")
+        (ClassName::void(),"void",PTypeView::VoidType)
     } else {
         dbg!((*utf) as u8 as char);
         unimplemented!()
@@ -103,6 +105,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
 
     let state = get_state(env);
     let frame = get_frame(env);
-    let res = get_or_create_class_object(state, &ReferenceTypeView::Class(class_name), frame, state.bootstrap_loader.clone(),Some(as_str.to_string()));//todo what if not using bootstap loader
+    let res = get_or_create_class_object(state, &ptype, frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+    res.unwrap_normal_object().class_object_ptype.replace(Some(ptype));
     return to_object(res.into());
 }

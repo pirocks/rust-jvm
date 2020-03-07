@@ -30,20 +30,21 @@ use classfile_view::view::descriptor_parser::MethodDescriptor;
 use crate::instructions::ldc::create_string_on_stack;
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
-                                  type_: &ReferenceTypeView,
+                                  type_: &PTypeView,
                                   current_frame: Rc<StackEntry>,
                                   loader_arc: LoaderArc,
-                                  primitive: Option<String>,
 ) -> Arc<Object> {
     match type_ {
-        ReferenceTypeView::Class(class_name) => {
-            regular_object(state, class_name, current_frame, loader_arc, primitive)
-        }
-        ReferenceTypeView::Array(c) => {
-            assert!(primitive.is_none());
-            array_object(state, c.deref(), current_frame)
-        }
+        PTypeView::Ref(t) => match t {
+            ReferenceTypeView::Array(c) => {
+                return array_object(state, c.deref(), current_frame);
+            }
+            _ => {}
+        },
+        _ => {},
     }
+
+    regular_object(state, type_, current_frame, loader_arc)
 }
 
 fn array_object(state: &mut InterpreterState, array_sub_type: &PTypeView, current_frame: Rc<StackEntry>) -> Arc<Object> {
@@ -52,33 +53,33 @@ fn array_object(state: &mut InterpreterState, array_sub_type: &PTypeView, curren
 }
 
 pub fn array_of_type_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, type_for_object: &PType) -> Arc<Object> {
-    let res = state.array_object_pool.borrow().get(&type_for_object).cloned();
+    //todo wrap in array and convert
+    let array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::from_ptype(type_for_object).into()));
+    let res = state.class_object_pool.borrow().get(&array_type).cloned();
     match res {
         None => {
             let r = create_a_class_object(state, current_frame);
-            let array_ptype_view = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::from_ptype(type_for_object).into())).into();
+            let array_ptype_view = array_type.clone().into();
             r.unwrap_normal_object().class_object_ptype.replace(array_ptype_view);
-            state.array_object_pool.borrow_mut().insert(type_for_object.clone(), r.clone());
+            state.class_object_pool.borrow_mut().insert(array_type, r.clone());
             r
         }
         Some(r) => r.clone(),
     }
 }
 
-fn regular_object(state: &mut InterpreterState, class_name: &ClassName, current_frame: Rc<StackEntry>, loader_arc: LoaderArc, primitive: Option<String>) -> Arc<Object> {
-    let class_for_object = check_inited_class(state, class_name, current_frame.clone().into(), loader_arc);
-    let res = if primitive.is_some() {
-        state.primitive_object_pool.borrow().get(&class_for_object).cloned()
-    } else {
-        state.class_object_pool.borrow().get(&class_for_object).cloned()
-    };
+fn regular_object(state: &mut InterpreterState, class_type: &PTypeView, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
+    check_inited_class(state, class_type.unwrap_type_to_name().as_ref().unwrap(), current_frame.clone().into(), loader_arc);
+    let res = state.class_object_pool.borrow().get(&class_type).cloned();
     match res {
         None => {
             let r = create_a_class_object(state, current_frame.clone());
-            r.unwrap_normal_object().class_object_ptype.replace(Some(PTypeView::Ref(ReferenceTypeView::Class(class_for_object.class_view.name()))));
-            state.class_object_pool.borrow_mut().insert(class_for_object, r.clone());
-            if primitive.is_some(){
-                create_string_on_stack(state,&current_frame,primitive.unwrap());
+            r.unwrap_normal_object().class_object_ptype.replace(Some(class_type.clone()));
+            state.class_object_pool.borrow_mut().insert(class_type.clone(), r.clone());
+            if class_type.is_primitive() {
+                //handles edge case of classes whose names do not correspond to the name of the class they represent
+                //normally names are obtained with getName0 which gets handled in libjvm.so
+                create_string_on_stack(state, &current_frame, class_type.primitive_name().to_string());
                 r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), current_frame.pop());
             }
             r
@@ -107,7 +108,7 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
                 bootstrap_loader: true,
                 // object_class_object_pointer: RefCell::new(None),
                 // array_class_object_pointer: RefCell::new(None),
-                class_object_ptype: RefCell::new(None)
+                class_object_ptype: RefCell::new(None),
             };
             let bootstrap_arc = Arc::new(Object::Object(boostrap_loader_object));
             let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
@@ -141,8 +142,6 @@ pub fn run(
         initialized_classes: RwLock::new(HashMap::new()),
         string_internment: RefCell::new(HashMap::new()),
         class_object_pool: RefCell::new(HashMap::new()),
-        primitive_object_pool: RefCell::new(HashMap::new()),
-        array_object_pool: RefCell::new(HashMap::new()),
         jni,
         string_pool: StringPool {
             entries: HashSet::new()

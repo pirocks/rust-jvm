@@ -4,7 +4,7 @@ use jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, J
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use crate::rust_jni::MethodId;
 use std::ffi::CStr;
-use crate::instructions::ldc::load_class_constant_by_name;
+use crate::instructions::ldc::load_class_constant_by_type;
 use crate::rust_jni::interface::util::runtime_class_from_object;
 
 
@@ -24,7 +24,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let state = get_state(env);
     let frame = get_frame(env);
     //todo maybe parse?
-    load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(ClassName::Str(name)));
+    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))));
     let obj = frame.pop().unwrap_object();
     to_object(obj)
 }
@@ -39,7 +39,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     };
 //    frame.print_stack_trace();
     let _inited_class = check_inited_class(state, &super_name, frame.clone().into(), frame.class_pointer.loader.clone());
-    load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(super_name));
+    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     to_object(frame.pop().unwrap_object())
 }
 

@@ -61,7 +61,7 @@ pub unsafe extern "C" fn get_static_method_id(
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = from_object(clazz).unwrap();
     //todo dup
-    let runtime_class = class_object_to_runtime_class(class_obj_o.unwrap_normal_object(),state,&frame);
+    let runtime_class = class_object_to_runtime_class(class_obj_o.unwrap_normal_object(),state,&frame).unwrap();
     let classfile = &runtime_class.classfile;
     let (method_i, method) = classfile.lookup_method(method_name, method_descriptor_str).unwrap();
     assert!(method.is_static());

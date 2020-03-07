@@ -98,6 +98,41 @@ impl PTypeView {
             }
         }
     }
+
+    pub fn is_primitive(&self) -> bool{
+        match self{
+            PTypeView::ByteType => true,
+            PTypeView::CharType => true,
+            PTypeView::DoubleType => true,
+            PTypeView::FloatType => true,
+            PTypeView::IntType => true,
+            PTypeView::LongType => true,
+            PTypeView::Ref(_) => false,
+            PTypeView::ShortType => true,
+            PTypeView::BooleanType => true,
+            PTypeView::VoidType => true,
+            PTypeView::TopType => false,
+            PTypeView::NullType => false,
+            PTypeView::Uninitialized(_) => false,
+            PTypeView::UninitializedThis => false,
+            PTypeView::UninitializedThisOrClass(_) => false,
+        }
+    }
+
+    pub fn primitive_name(&self) -> &'static str{
+        match self {
+            PTypeView::ByteType => "byte",
+            PTypeView::CharType => "char",
+            PTypeView::DoubleType => "double",
+            PTypeView::FloatType => "float",
+            PTypeView::IntType => "int",
+            PTypeView::LongType => "long",
+            PTypeView::ShortType => "short",
+            PTypeView::BooleanType => "boolean",
+            PTypeView::VoidType => "void",
+            _ => panic!(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -226,6 +261,45 @@ impl PTypeView {
         match self {
             PTypeView::Ref(r) => r.into(),
             _ => None,
+        }
+    }
+
+    pub fn unwrap_type_to_name(&self) -> Option<ClassName> {
+        match self{
+            PTypeView::ByteType => ClassName::byte().into(),
+            PTypeView::CharType => ClassName::character().into(),
+            PTypeView::DoubleType => ClassName::double().into(),
+            PTypeView::FloatType => ClassName::float().into(),
+            PTypeView::IntType => ClassName::int().into(),
+            PTypeView::LongType => ClassName::long().into(),
+            PTypeView::Ref(r) => r.unwrap_arrays_to_name(),
+            PTypeView::ShortType => ClassName::short().into(),
+            PTypeView::BooleanType => ClassName::boolean().into(),
+            PTypeView::VoidType => ClassName::void().into(),
+            _ => panic!(),
+        }
+    }
+
+    pub fn is_array(&self) -> bool{
+        match self{
+            PTypeView::ByteType => false,
+            PTypeView::CharType => false,
+            PTypeView::DoubleType => false,
+            PTypeView::FloatType => false,
+            PTypeView::IntType => false,
+            PTypeView::LongType => false,
+            PTypeView::Ref(r) => match r{
+                ReferenceTypeView::Class(_) => false,
+                ReferenceTypeView::Array(_) => true,
+            },
+            PTypeView::ShortType => false,
+            PTypeView::BooleanType => false,
+            PTypeView::VoidType => false,
+            PTypeView::TopType => false,
+            PTypeView::NullType => false,
+            PTypeView::Uninitialized(_) => false,
+            PTypeView::UninitializedThis => false,
+            PTypeView::UninitializedThisOrClass(_) => false,
         }
     }
 }

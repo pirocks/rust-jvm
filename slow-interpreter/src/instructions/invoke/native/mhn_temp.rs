@@ -10,6 +10,7 @@ use runtime_common::java_values::Object::Object;
 use rust_jvm_common::classnames::ClassName;
 use std::cell::RefCell;
 use crate::interpreter_util::check_inited_class;
+use classfile_view::view::ptype_view::PTypeView;
 
 pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -44,15 +45,17 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
 // // constructing any new objects.
 
     let type_ = type_java_value.unwrap_normal_object();
-    let (flags,_) = if type_.class_pointer.class_view.name() == ClassName::method_type(){
+    let (flags, _) = if type_.class_pointer.class_view.name() == ClassName::method_type() {
         let r_type_class = type_java_value.unwrap_object_nonnull().lookup_field("rtype").unwrap_object_nonnull();
         let param_types_class = type_java_value.unwrap_object_nonnull().lookup_field("ptypes").unwrap_array().unwrap_object_array_nonnull();
+        let r_type_as_ptype = r_type_class.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone();
+        let params_as_ptype: Vec<PTypeView> = param_types_class.iter().map(|x| { x.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone() }).collect();
 
         // private final Class<?> rtype;
         // private final Class<?>[] ptypes;
 
-        (0,0)
-    }else {
+        (0, 0)
+    } else {
         unimplemented!()
     };
 
@@ -63,7 +66,7 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
         bootstrap_loader: true,
         // object_class_object_pointer: RefCell::new(None),
         // array_class_object_pointer: RefCell::new(None),
-        class_object_ptype: RefCell::new(None)
+        class_object_ptype: RefCell::new(None),
     })).into());
     member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), resolution_object);
 // private Class<?> clazz;

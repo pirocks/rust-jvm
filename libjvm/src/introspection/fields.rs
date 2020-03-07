@@ -3,7 +3,7 @@ use slow_interpreter::rust_jni::native_util::{get_frame, get_state, to_object};
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::interpreter_util::{push_new_object, check_inited_class, run_constructor};
 use rust_jvm_common::classnames::{ClassName, class_name};
-use slow_interpreter::instructions::ldc::{load_class_constant_by_name, create_string_on_stack};
+use slow_interpreter::instructions::ldc::{load_class_constant_by_type, create_string_on_stack};
 
 use runtime_common::java_values::{JavaValue, Object, ArrayObject};
 use std::sync::Arc;
@@ -33,7 +33,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         //todo so this is big and messy put I don't really see a way to simplify
         object_array.push(field_object.clone());
         let field_class_name_ = class_obj.clone().as_ref().unwrap().class_view.name();
-        load_class_constant_by_name(state, &frame, &ReferenceTypeView::Class(field_class_name_));
+        load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
         let parent_runtime_class = frame.pop();
         let field_name = class_obj.clone().unwrap().classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
         create_string_on_stack(state, &frame, field_name);

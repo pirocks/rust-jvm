@@ -5,7 +5,7 @@ use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
 use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
 use std::ops::Deref;
-use classfile_view::view::ptype_view::ReferenceTypeView;
+use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
@@ -15,10 +15,10 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
 //    let obj= unwrapped.unwrap_normal_object();//todo double free hazard
     let class_object = match unwrapped.deref(){
         Object::Array(a) => {
-            get_or_create_class_object(state, &ReferenceTypeView::Array(Box::new(a.elem_type.clone())), frame.clone(), frame.class_pointer.loader.clone(),None)
+            get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), frame.clone(), frame.class_pointer.loader.clone())
         },
         Object::Object(o) => {
-            get_or_create_class_object(state, &ReferenceTypeView::Class(o.class_pointer.class_view.name()), frame, o.class_pointer.loader.clone(),None)
+            get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(o.class_pointer.class_view.name())), frame, o.class_pointer.loader.clone())
         },
     };
 

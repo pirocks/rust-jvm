@@ -31,7 +31,7 @@ use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jme
 use crate::rust_jni::native_util::{get_state, get_frame, from_object};
 use crate::rust_jni::interface::get_interface;
 use std::io::Error;
-use crate::instructions::ldc::load_class_constant_by_name;
+use crate::instructions::ldc::load_class_constant_by_type;
 use crate::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::view::descriptor_parser::MethodDescriptor;
@@ -91,7 +91,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&&env)]
     } else {
-        load_class_constant_by_name(state, &current_frame, &ReferenceTypeView::Class(classfile.class_view.name()));
+        load_class_constant_by_type(state, &current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.class_view.name())));
         vec![Arg::new(&&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())]
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
@@ -261,7 +261,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let state = get_state(env);
     let frame = get_frame(env);//todo leak hazard
     let class_obj: Arc<Object> = from_object(clazz).unwrap();
-    let runtime_class = class_object_to_runtime_class(class_obj.unwrap_normal_object(), state, &frame);
+    let runtime_class = class_object_to_runtime_class(class_obj.unwrap_normal_object(), state, &frame).unwrap();
     let all_methods = get_all_methods(state, frame.clone(), runtime_class);
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];

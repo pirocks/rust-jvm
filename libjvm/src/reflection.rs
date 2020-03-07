@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let temp_4 = constructor_obj.lookup_field("clazz").unwrap_object_nonnull();
     let state = get_state(env);
     let frame = get_frame(env);
-    let clazz = class_object_to_runtime_class(temp_4.unwrap_normal_object(), state, &frame);
+    let clazz = class_object_to_runtime_class(temp_4.unwrap_normal_object(), state, &frame).unwrap();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
     push_new_object(frame.clone(), &clazz);
     let obj = frame.pop();
