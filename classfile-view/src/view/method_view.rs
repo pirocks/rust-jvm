@@ -1,6 +1,7 @@
 use crate::view::{HasAccessFlags, ClassView};
 use std::sync::Arc;
 use rust_jvm_common::classfile::{Classfile, Code, MethodInfo};
+use crate::view::descriptor_parser::MethodDescriptor;
 
 pub struct MethodView {
     pub(crate) backing_class: Arc<Classfile>,
@@ -28,6 +29,10 @@ impl MethodView {
 
     pub fn desc_str(&self) -> String {
         self.method_info().descriptor_str(&self.backing_class)
+    }
+
+    pub fn desc(&self) -> MethodDescriptor {
+        MethodDescriptor::from(self)
     }
 
     pub fn code_attribute(&self) -> Option<&Code>{

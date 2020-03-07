@@ -79,6 +79,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
+    get_frame(env).print_stack_trace();
     unimplemented!()
 }
 
