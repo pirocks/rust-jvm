@@ -21,3 +21,10 @@ unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: 
         Some(_) => unimplemented!(),
     }
 }
+
+
+
+#[no_mangle]
+unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass) -> jint {
+    unimplemented!()
+}

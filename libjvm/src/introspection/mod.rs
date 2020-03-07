@@ -21,6 +21,10 @@ use libjvm_utils::ptype_to_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::view::descriptor_parser::parse_method_descriptor;
 use std::borrow::Borrow;
+use slow_interpreter::rust_jni::get_all_methods;
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
+use classfile_view::view::descriptor_parser::Descriptor::Method;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -76,89 +80,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     unimplemented!()
 }
 
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
-    get_frame(env).print_stack_trace();
-    unimplemented!()
-}
-
-
-const CONSTRUCTOR_SIGNATURE: &'static str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
-
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
-    let state = get_state(env);
-    let frame = get_frame(env);
-    let temp = runtime_class_from_object(ofClass,state,&frame).unwrap();
-    let target_classfile = &temp.classfile;
-    let constructors = target_classfile.lookup_method_name(&"<init>".to_string());
-    let class_obj = runtime_class_from_object(ofClass,state,&frame);
-    let loader = frame.class_pointer.loader.clone();
-    let constructor_class = check_inited_class(state, &ClassName::new("java/lang/reflect/Constructor"), frame.clone().into(), loader.clone());
-    let mut object_array = vec![];
-
-    constructors.clone().iter().filter(|(i, m)| {
-        if publicOnly > 0 {
-            m.access_flags & ACC_PUBLIC > 0
-        } else {
-            true
-        }
-    }).for_each(|(i, m)| {
-        let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
-
-        push_new_object(frame.clone(), &constructor_class);
-        let constructor_object = frame.pop();
-
-        object_array.push(constructor_object.clone());
-
-        let clazz = {
-            let field_class_name_ = class_name(&class_obj.clone().as_ref().unwrap().classfile);
-            let field_class_name = field_class_name_.get_referred_name();
-            //todo this doesn't cover the full generality of this.
-            load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(field_class_name.clone()))));
-            frame.pop()
-        };
-
-        let parameter_types = {
-            let mut res = vec![];
-            let desc_str = m.descriptor_str(&target_classfile);
-            let parsed = parse_method_descriptor(desc_str.as_str()).unwrap();
-            for param_type in parsed.parameter_types {
-                res.push(JavaValue::Object(ptype_to_class_object(state,&frame,&param_type.to_ptype())));
-            }
-
-            JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(res), elem_type: class_type.clone() }))))
-        };
-
-
-        let exceptionTypes = {
-            //todo not currently supported
-            assert!(m.code_attribute().unwrap().exception_table.is_empty());
-            JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: class_type.clone() }))))
-        };
-
-        let modifiers = JavaValue::Int(constructor_class.classfile.access_flags as i32);
-        //todo what does slot do?
-        let slot = JavaValue::Int(-1);
-
-        let signature = {
-            create_string_on_stack(state, &frame, m.descriptor_str(&target_classfile));
-            frame.pop()
-        };
-
-        //todo impl these
-        let empty_byte_array = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType }))));
-
-        let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, empty_byte_array.clone(), empty_byte_array];
-        run_constructor(state, frame.clone(), constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
-    });
-    let res = Some(Arc::new(Object::Array(ArrayObject {
-        elems: RefCell::new(object_array),
-        elem_type: PTypeView::Ref(ReferenceTypeView::Class(class_name(&constructor_class.classfile))),
-    })));
-    to_object(res)
-}
+pub mod get_methods;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
@@ -185,10 +107,6 @@ pub mod fields;
 pub mod methods;
 
 
-#[no_mangle]
-unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass) -> jint {
-    unimplemented!()
-}
 
 #[no_mangle]
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
