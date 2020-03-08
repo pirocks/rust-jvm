@@ -76,7 +76,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
             let rtype = method_view.desc().return_type;
             JavaValue::Object(ptype_to_class_object(state, &frame, &rtype.to_ptype()))
         };
-        let exceptionTypes = exception_types_table(&method_view);
+        let exceptionTypes = exception_types_table(state,&frame,&method_view);
         let modifiers = get_modifers(&method_view);
         //todo what does slot do?
         let slot = JavaValue::Int(-1);
@@ -96,11 +96,26 @@ fn get_signature(state: &mut InterpreterState, frame: &Rc<StackEntry>, method_vi
     frame.pop()
 }
 
-fn exception_types_table(method_view: &MethodView) -> JavaValue {
+fn exception_types_table(state: &mut InterpreterState, frame: &Rc<StackEntry>,method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
-    //todo not currently supported
-    assert!(method_view.code_attribute().map(|x|x.exception_table.is_empty()).unwrap_or_else(||true));
-    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: class_type.clone() }))))
+    let exception_table: Vec<JavaValue> = method_view.code_attribute()
+        .map(|x|&x.exception_table)
+        .unwrap_or(&vec![])
+        .iter()
+        .map(|x|x.catch_type)
+        .map(|x|if x == 0{
+            ReferenceTypeView::Class(ClassName::throwable())
+        }else {
+            method_view.classview().constant_pool_view(x as usize).unwrap_class().class_name()
+        })
+        .map(|x|{
+            PTypeView::Ref(x)
+        })
+        .map(|x|{
+            ptype_to_class_object(state, frame,&x.to_ptype()).into()
+        })
+        .collect();
+    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(exception_table), elem_type: class_type.clone() }))))
 }
 
 fn parameters_type_objects(state: &mut InterpreterState, frame: &Rc<StackEntry>, method_view: &MethodView) -> JavaValue {
@@ -157,7 +172,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         };
 
         let parameter_types = parameters_type_objects(state, &frame, &method_view);
-        let exceptionTypes = exception_types_table(&method_view);
+        let exceptionTypes = exception_types_table(state,&frame,&method_view);
         let modifiers = get_modifers(&method_view);
         //todo what does slot do?
         let slot = JavaValue::Int(-1);

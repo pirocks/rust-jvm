@@ -21,6 +21,10 @@ impl MethodView {
         MethodView { backing_class: c.backing_class.clone(), method_i: i }
     }
 
+    pub fn classview(&self) -> ClassView{
+        ClassView::from(self.backing_class.clone())
+    }
+
     fn method_info(&self) -> &MethodInfo{
         &self.backing_class.methods[self.method_i]
     }

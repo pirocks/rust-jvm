@@ -506,3 +506,9 @@ impl ArrayObject{
         self.elems.borrow().iter().map(|x| {x.unwrap_object_nonnull()}).collect()
     }
 }
+
+impl std::convert::From<Option<Arc<Object>>> for JavaValue{
+    fn from(f: Option<Arc<Object>>) -> Self {
+        JavaValue::Object(f)
+    }
+}
