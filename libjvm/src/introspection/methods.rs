@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jobject, jobjectArray, jclass};
+use jni_bindings::{JNIEnv, jobject, jobjectArray, jclass, jint};
 use slow_interpreter::rust_jni::native_util::{get_frame, get_state};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 
