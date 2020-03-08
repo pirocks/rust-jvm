@@ -7,7 +7,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::classfile::ACC_ABSTRACT;
 
 use std::ops::Deref;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::ptype_view::PTypeView;
 
 //#[derive(Debug)]
 pub enum JavaValue {

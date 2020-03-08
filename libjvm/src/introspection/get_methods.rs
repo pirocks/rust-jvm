@@ -16,18 +16,21 @@ use classfile_view::view::method_view::MethodView;
 use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
 
-const METHOD_SIGNATURE: &'static str = " (Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
+const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let state = get_state(env);
     let frame = get_frame(env);
-    let class_ptype = from_object(ofClass).unwrap().unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap();
+    let loader = frame.class_pointer.loader.clone();
+    let temp1 = from_object(ofClass).unwrap();
+    let temp2 = temp1.unwrap_normal_object().class_object_ptype.borrow();
+    let class_ptype = temp2.as_ref().unwrap();
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
     }
     let runtime_class = runtime_class_from_object(ofClass, state, &frame).unwrap();
-    let methods = get_all_methods(state, frame, runtime_class);
+    let methods = get_all_methods(state, frame.clone(), runtime_class);
     let method_class = check_inited_class(state, &ClassName::new("java/lang/reflect/Method"), frame.clone().into(), loader.clone());
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
@@ -81,11 +84,11 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         let annotations = JavaValue::empty_byte_array();
         let parameterAnnotations = JavaValue::empty_byte_array();
         let annotationDefault = JavaValue::empty_byte_array();
-        let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, annotations, parameterAnnotations,annotationDefault];
+        let full_args = vec![method_object, clazz, parameterTypes, exceptionTypes, modifiers, slot, signature, annotations, parameterAnnotations, annotationDefault];
         run_constructor(state, frame.clone(), method_class.clone(), full_args, METHOD_SIGNATURE.to_string());
         unimplemented!()
     });
-    let res = Arc::new(Object::object_array(object_array,PTypeView::Ref(ReferenceTypeView::Class(method_class.class_view.name())))).into();
+    let res = Arc::new(Object::object_array(object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.class_view.name())))).into();
     to_object(res)
 }
 
@@ -95,13 +98,14 @@ fn get_signature(state: &mut InterpreterState, frame: &Rc<StackEntry>, method_vi
 }
 
 fn exception_types_table(method_view: &MethodView) -> JavaValue {
-
+    let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     //todo not currently supported
     assert!(method_view.code_attribute().unwrap().exception_table.is_empty());
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: class_type.clone() }))))
 }
 
 fn parameters_type_objects(state: &mut InterpreterState, frame: &Rc<StackEntry>, method_view: &MethodView) -> JavaValue {
+    let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let mut res = vec![];
     let parsed = method_view.desc();
     for param_type in parsed.parameter_types {
@@ -118,7 +122,8 @@ const CONSTRUCTOR_SIGNATURE: &'static str = "(Ljava/lang/Class;[Ljava/lang/Class
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let state = get_state(env);
     let frame = get_frame(env);
-    let class_object_non_null = from_object(ofClass).unwrap().unwrap_normal_object().clone();
+    let temp1 = from_object(ofClass).unwrap();
+    let class_object_non_null = temp1.unwrap_normal_object().clone();
     let class_type = class_object_non_null.class_object_ptype.borrow().as_ref().unwrap().clone();
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
@@ -139,7 +144,6 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
             true
         }
     }).for_each(|(i, _)| {
-        let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
         push_new_object(frame.clone(), &constructor_class);
         let constructor_object = frame.pop();
         object_array.push(constructor_object.clone());
@@ -166,7 +170,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, empty_byte_array.clone(), empty_byte_array];
         run_constructor(state, frame.clone(), constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
     });
-    let res = Arc::new(Object::object_array(object_array,PTypeView::Ref(ReferenceTypeView::Class(constructor_class.class_view.name())))).into();
+    let res = Arc::new(Object::object_array(object_array, PTypeView::Ref(ReferenceTypeView::Class(constructor_class.class_view.name())))).into();
     to_object(res)
 }
 
