@@ -7,7 +7,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::classfile::ACC_ABSTRACT;
 
 use std::ops::Deref;
-use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 //#[derive(Debug)]
 pub enum JavaValue {
@@ -151,6 +151,9 @@ impl JavaValue {
             }
             JavaValue::Top => unimplemented!(),
         }
+    }
+    pub fn empty_byte_array() -> JavaValue {
+        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType }))))
     }
 }
 
@@ -386,6 +389,13 @@ impl Object {
             Object::Array(_) => true,
             Object::Object(_) => false,
         }
+    }
+
+    pub fn object_array(object_array: Vec<JavaValue>,class_type:PTypeView ) -> Object{
+        Object::Array(ArrayObject {
+            elems: RefCell::new(object_array),
+            elem_type: class_type,
+        })
     }
 }
 
