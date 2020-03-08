@@ -133,6 +133,14 @@ impl PTypeView {
             _ => panic!(),
         }
     }
+
+    pub fn object() -> Self{
+        PTypeView::Ref(ReferenceTypeView::Class(ClassName::object()))
+    }
+
+    pub fn array(of : Self) -> Self{
+        PTypeView::Ref(ReferenceTypeView::Array(of.into()))
+    }
 }
 
 #[derive(Debug)]

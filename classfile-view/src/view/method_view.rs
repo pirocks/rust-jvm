@@ -2,6 +2,8 @@ use crate::view::{HasAccessFlags, ClassView};
 use std::sync::Arc;
 use rust_jvm_common::classfile::{Classfile, Code, MethodInfo};
 use crate::view::descriptor_parser::MethodDescriptor;
+use crate::view::ptype_view::PTypeView;
+use rust_jvm_common::classnames::ClassName;
 
 pub struct MethodView {
     pub(crate) backing_class: Arc<Classfile>,
@@ -37,6 +39,21 @@ impl MethodView {
 
     pub fn code_attribute(&self) -> Option<&Code>{
         self.method_info().code_attribute()//todo get a Code view
+    }
+
+    pub fn is_signature_polymorphic(&self) -> bool{
+        // from the spec:
+        // A method is signature polymorphic if all of the following are true:
+        // •  It is declared in the java.lang.invoke.MethodHandle class.
+        // •  It has a single formal parameter of type Object[].
+        // •  It has a return type of Object.
+        // •  It has the ACC_VARARGS and ACC_NATIVE flags set.
+        ClassView::from(self.backing_class.clone()).name() == ClassName::method_handle() &&
+            self.desc().parameter_types.len()  == 1 &&
+            self.desc().parameter_types[0] == PTypeView::array(PTypeView::object()) &&
+            self.desc().return_type == PTypeView::object() &&
+            self.is_varargs() &&
+            self.is_native()
     }
 }
 

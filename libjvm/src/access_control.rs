@@ -5,7 +5,7 @@ use rust_jvm_common::ptype::{PType, ReferenceType};
 use rust_jvm_common::classnames::ClassName;
 
 
-use slow_interpreter::instructions::invoke::virtual_::actually_virtual;
+use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::view::descriptor_parser::MethodDescriptor;
 
@@ -24,7 +24,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     };
     frame.push(JavaValue::Object(action));
     //todo shouldn't this be invoke_virtual
-    actually_virtual(state, frame.clone(), expected_descriptor, &runtime_class, run_method);
+    invoke_virtual_method_i(state, frame.clone(), expected_descriptor, runtime_class.clone(), run_method_i,run_method);
     let res = frame.pop().unwrap_object();
     to_object(res)
 }

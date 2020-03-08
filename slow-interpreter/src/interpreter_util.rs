@@ -28,7 +28,7 @@ use crate::instructions::switch::{invoke_lookupswitch, tableswitch};
 use crate::instructions::invoke::interface::invoke_interface;
 use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
-use crate::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
+use crate::instructions::invoke::virtual_::{invoke_virtual_instruction, invoke_virtual_method_i};
 use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::instructions::pop::{pop2, pop};
 use classfile_view::view::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
@@ -230,7 +230,7 @@ pub fn run_function(
             InstructionInfo::invokeinterface(invoke_i) => invoke_interface(state, current_frame.clone(), invoke_i),
             InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
             InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp),
-            InstructionInfo::invokevirtual(cp) => invoke_virtual(state, current_frame.clone(), cp),
+            InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(state, current_frame.clone(), cp),
             InstructionInfo::ior => ior(&current_frame),
             InstructionInfo::irem => irem(&current_frame),
             InstructionInfo::ireturn => ireturn(state, &current_frame),
@@ -391,16 +391,14 @@ fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>
 }
 
 pub fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
-//    dbg!(&descriptor);
-//    dbg!(class_name(&target_classfile.classfile).get_referred_name());
     let (i, m) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
     let md = parse_method_descriptor(descriptor.as_str()).unwrap();
     let this_ptr = full_args[0].clone();
     let actual_args = &mut full_args[1..];
-//    actual_args.reverse();
     frame.push(this_ptr);
     for arg in actual_args {
         frame.push(arg.clone());
     }
+    //todo this should be invoke special
     invoke_virtual_method_i(state, frame, md, target_classfile.clone(), i, m);
 }

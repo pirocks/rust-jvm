@@ -410,7 +410,7 @@ pub struct NormalObject {
     pub gc_reachable: bool,
     //I guess this never changes so unneeded?
     pub fields: RefCell<HashMap<String, JavaValue>>,
-    pub class_pointer: Arc<RuntimeClass>,
+    pub class_pointer: Arc<RuntimeClass>,//todo this should just point to the actual class object.
     pub bootstrap_loader: bool,
     pub class_object_ptype: RefCell<Option<PTypeView>>
     //points to the object represented by this class object of relevant

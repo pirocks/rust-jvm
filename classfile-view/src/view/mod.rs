@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use crate::view::method_view::{MethodIterator, MethodView};
-use rust_jvm_common::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType};
+use rust_jvm_common::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType, ACC_VARARGS};
 use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
 use crate::view::field_view::FieldIterator;
@@ -18,6 +18,9 @@ pub trait HasAccessFlags {
     }
     fn is_native(&self) -> bool {
         self.access_flags() & ACC_NATIVE > 0
+    }
+    fn is_varargs(&self) -> bool {
+        self.access_flags() & ACC_VARARGS > 0
     }
     fn is_public(&self) -> bool {
         self.access_flags() & ACC_PUBLIC > 0

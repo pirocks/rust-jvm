@@ -86,16 +86,22 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
             let r_type_as_ptype = r_type_class.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone();
             let params_as_ptype: Vec<PTypeView> = param_types_class.iter().map(|x| { x.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone() }).collect();
 
-            // private final Class<?> rtype;
-            // private final Class<?>[] ptypes;
             let (resolved_method_runtime_class,resolved_i) = all_methods.iter().find(|(x,i)|{
                 let c_method  = x.class_view.method_view_i(*i);
-                // dbg!(c_method.name());
-                // dbg!(&name);
-                // dbg!(c_method.desc());
-                // dbg!(&r_type_as_ptype);
-                // dbg!(&params_as_ptype);
-                c_method.name() == name && c_method.desc().return_type == r_type_as_ptype && c_method.desc().parameter_types == params_as_ptype
+                dbg!(c_method.name());
+                dbg!(&name);
+                dbg!(c_method.desc());
+                dbg!(&r_type_as_ptype);
+                dbg!(&params_as_ptype);
+                dbg!(c_method.is_signature_polymorphic());
+                //todo need to handle signature polymorphism here and in many places
+                c_method.name() == name && if c_method.is_signature_polymorphic(){
+                    c_method.desc().parameter_types.len() == 1 &&
+                        c_method.desc().parameter_types[0] == PTypeView::array(PTypeView::object()) &&
+                        c_method.desc().return_type == PTypeView::object()
+                }else {
+                        c_method.desc().parameter_types == params_as_ptype
+                }
             }).unwrap();//todo handle not found case
             dbg!(resolved_method_runtime_class.class_view.name());
             dbg!(resolved_i);

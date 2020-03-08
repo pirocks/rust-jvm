@@ -90,6 +90,13 @@ impl ClassName {
     pub fn method_type() -> Self{
         Self::new("java/lang/invoke/MethodType")
     }
+
+    pub fn method_handle() -> Self{
+        Self::new("java/lang/invoke/MethodHandle")
+    }
+    pub fn member_name() -> Self{
+        Self::new("java/lang/invoke/MemberName")
+    }
 }
 
 impl Hash for ClassName {

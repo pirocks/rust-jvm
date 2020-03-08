@@ -84,9 +84,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         let annotations = JavaValue::empty_byte_array();
         let parameterAnnotations = JavaValue::empty_byte_array();
         let annotationDefault = JavaValue::empty_byte_array();
-        let full_args = vec![method_object, clazz, parameterTypes, exceptionTypes, modifiers, slot, signature, annotations, parameterAnnotations, annotationDefault];
+        let full_args = vec![method_object, clazz,name, parameterTypes, returnType, exceptionTypes, modifiers, slot, signature, annotations, parameterAnnotations, annotationDefault];
         run_constructor(state, frame.clone(), method_class.clone(), full_args, METHOD_SIGNATURE.to_string());
-        unimplemented!()
     });
     let res = Arc::new(Object::object_array(object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.class_view.name())))).into();
     to_object(res)
@@ -100,7 +99,7 @@ fn get_signature(state: &mut InterpreterState, frame: &Rc<StackEntry>, method_vi
 fn exception_types_table(method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     //todo not currently supported
-    assert!(method_view.code_attribute().unwrap().exception_table.is_empty());
+    assert!(method_view.code_attribute().map(|x|x.exception_table.is_empty()).unwrap_or_else(||true));
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: class_type.clone() }))))
 }
 
