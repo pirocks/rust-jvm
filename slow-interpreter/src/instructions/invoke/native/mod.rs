@@ -89,6 +89,8 @@ pub fn run_native_method(
                         MHN_getConstant()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
                         MHN_resolve(state, &frame, &mut args)
+                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init"{
+                        MHN_init(state, &frame, &mut args)
                     } else {
                         frame.print_stack_trace();
                         dbg!(mangled);

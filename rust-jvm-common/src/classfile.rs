@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use std::hash::Hasher;
 use crate::ptype::PType;
 
@@ -928,6 +930,15 @@ pub const ACC_ENUM: u16 = 0x4000;
 pub const ACC_MODULE: u16 = 0x8000;
 //}
 
+pub const REF_getField: u8                = 1;
+pub const REF_getStatic: u8               = 2;
+pub const REF_putField: u8                = 3;
+pub const REF_putStatic: u8               = 4;
+pub const REF_invokeVirtual: u8           = 5;
+pub const REF_invokeStatic: u8            = 6;
+pub const REF_invokeSpecial: u8           = 7;
+pub const REF_newInvokeSpecial: u8        = 8;
+pub const REF_invokeInterface: u8         = 9;
 
 #[derive(Debug)]
 //#[derive(Eq)]

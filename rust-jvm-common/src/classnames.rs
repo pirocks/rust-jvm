@@ -97,6 +97,9 @@ impl ClassName {
     pub fn member_name() -> Self{
         Self::new("java/lang/invoke/MemberName")
     }
+    pub fn method() -> Self {
+        Self::new("java/lang/reflect/Method")
+    }
 }
 
 impl Hash for ClassName {

@@ -165,11 +165,16 @@ impl ReferenceTypeView{
             ReferenceType::Array(a) => ReferenceTypeView::Array(PTypeView::from_ptype(a.deref()).into()),
         }
     }
-    pub fn unwrap_name(&self) -> ClassName{
+
+    pub fn try_unwrap_name(&self) -> Option<ClassName>{
         match self {
-            ReferenceTypeView::Class(c) => c.clone(),
-            ReferenceTypeView::Array(_) => panic!(),
+            ReferenceTypeView::Class(c) => c.clone().into(),
+            ReferenceTypeView::Array(_) => None,
         }
+    }
+
+    pub fn unwrap_name(&self) -> ClassName{
+        self.try_unwrap_name().unwrap()
     }
 
     pub fn unwrap_arrays_to_name(&self) -> Option<ClassName> {

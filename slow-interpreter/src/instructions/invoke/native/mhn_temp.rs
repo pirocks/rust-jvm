@@ -14,6 +14,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use crate::rust_jni::get_all_methods;
 use utils::string_obj_to_string;
 use classfile_view::view::HasAccessFlags;
+use rust_jvm_common::classfile::{REF_invokeVirtual, REF_invokeStatic, REF_invokeInterface, ACC_STATIC};
 
 pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -68,10 +69,10 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
     let is_field = flags_val & 262144 > 0;//todo these magic numbers come from MemberName(the java class where they are also magic numbers.)
     let is_method = flags_val & 65536 > 0;
     let is_constructor = flags_val & 131072 > 0;
-    if is_field{
+    if is_field {
         assert!(!is_method);
         unimplemented!()
-    }else if is_method || is_constructor{
+    } else if is_method || is_constructor {
         assert!(!is_field);
         let clazz_field = member_name.lookup_field("clazz");
         let clazz = clazz_field.unwrap_normal_object();
@@ -86,8 +87,8 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
             let r_type_as_ptype = r_type_class.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone();
             let params_as_ptype: Vec<PTypeView> = param_types_class.iter().map(|x| { x.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone() }).collect();
 
-            let (resolved_method_runtime_class,resolved_i) = all_methods.iter().find(|(x,i)|{
-                let c_method  = x.class_view.method_view_i(*i);
+            let (resolved_method_runtime_class, resolved_i) = all_methods.iter().find(|(x, i)| {
+                let c_method = x.class_view.method_view_i(*i);
                 dbg!(c_method.name());
                 dbg!(&name);
                 dbg!(c_method.desc());
@@ -95,25 +96,25 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
                 dbg!(&params_as_ptype);
                 dbg!(c_method.is_signature_polymorphic());
                 //todo need to handle signature polymorphism here and in many places
-                c_method.name() == name && if c_method.is_signature_polymorphic(){
+                c_method.name() == name && if c_method.is_signature_polymorphic() {
                     c_method.desc().parameter_types.len() == 1 &&
                         c_method.desc().parameter_types[0] == PTypeView::array(PTypeView::object()) &&
                         c_method.desc().return_type == PTypeView::object()
-                }else {
-                        c_method.desc().parameter_types == params_as_ptype
+                } else {
+                    c_method.desc().parameter_types == params_as_ptype
                 }
             }).unwrap();//todo handle not found case
             dbg!(resolved_method_runtime_class.class_view.name());
             dbg!(resolved_i);
             let correct_flags = resolved_method_runtime_class.class_view.method_view_i(*resolved_i).access_flags();
-            let new_flags  = (((flags_val as u32) /*& 0xffff*/) | (correct_flags as u32)) as i32;
+            let new_flags = (((flags_val as u32) /*& 0xffff*/) | (correct_flags as u32)) as i32;
 
             //todo do we need to update clazz?
             member_name.unwrap_normal_object().fields.borrow_mut().insert("flags".to_string(), JavaValue::Int(new_flags));
         } else {
             unimplemented!()
         }
-    }else {
+    } else {
         unimplemented!();
     }
     JavaValue::Object(member_name.into()).into()
@@ -122,4 +123,69 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
 pub fn MHN_getConstant() -> Option<JavaValue> {
 //todo
     JavaValue::Int(0).into()
+}
+
+pub const BRIDGE: i32 = 64;
+pub const VARARGS: i32 = 128;
+pub const SYNTHETIC: i32 = 4096;
+pub const ANNOTATION: i32 = 8192;
+pub const ENUM: i32 = 16384;
+pub const RECOGNIZED_MODIFIERS: i32 = 65535;
+pub const IS_METHOD: i32 = 65536;
+pub const IS_CONSTRUCTOR: i32 = 131072;
+pub const IS_FIELD: i32 = 262144;
+pub const IS_TYPE: i32 = 524288;
+pub const CALLER_SENSITIVE: i32 = 1048576;
+pub const ALL_ACCESS: i32 = 7;
+pub const ALL_KINDS: i32 = 983040;
+pub const IS_INVOCABLE: i32 = 196608;
+pub const IS_FIELD_OR_METHOD: i32 = 327680;
+pub const SEARCH_ALL_SUPERS: i32 = 3145728;
+pub const REFERENCE_KIND_SHIFT: u32 = 24;
+
+pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+    //two params, is a static function.
+    // init(MemberName mname, Object target);
+    let mname = args[0].unwrap_normal_object();
+    let target = args[1].unwrap_normal_object();
+    dbg!(target);
+    dbg!(mname);
+    dbg!(target.class_pointer.class_view.name());
+    dbg!(mname.class_pointer.class_view.name());
+    if target.class_pointer.class_view.name() == ClassName::method() {
+        let flags = mname.fields.borrow().get("flags").unwrap().unwrap_int();
+        let method_fields = target.fields.borrow();
+        let clazz = method_fields.get("clazz").unwrap();
+        mname.fields.borrow_mut().insert("clazz".to_string(),clazz.clone());
+        //todo need to resolve and then indicate the type of call
+        //static v. invoke_virtual v. interface
+        //see MethodHandles::init_method_MemberName
+        let invoke_type_flag = ((if (flags | ACC_STATIC as i32) > 0{
+            REF_invokeStatic
+        }else {
+            let class_ptye = clazz.unwrap_normal_object().class_object_ptype.borrow();
+            let class_name = class_ptye.as_ref().unwrap().unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
+            let inited_class = check_inited_class(state, &class_name, frame.clone().into(), frame.class_pointer.loader.clone());
+            if inited_class.class_view.is_interface() {
+                REF_invokeInterface
+            } else {
+                REF_invokeVirtual
+            }
+        } as u32 ) << REFERENCE_KIND_SHIFT) as i32;
+        let extra_flags = IS_METHOD | invoke_type_flag;
+
+
+        let signature = method_fields.get("signature").unwrap();
+        dbg!(signature);
+        mname.fields.borrow_mut().insert("type".to_string(),signature.clone());
+        let modifiers = method_fields.get("modifiers").unwrap().unwrap_int();
+        mname.fields.borrow_mut().insert("flags".to_string(),JavaValue::Int(flags | modifiers | extra_flags));//todo is this really correct? what if garbage in flags?
+        let name = method_fields.get("name").unwrap();
+        mname.fields.borrow_mut().insert("name".to_string(),name.clone());
+    } else {
+
+        //todo handle constructors and fields
+        unimplemented!()
+    }
+    None//this is a void method.
 }
