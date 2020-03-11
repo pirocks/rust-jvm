@@ -8,6 +8,7 @@ use std::fmt::Error;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 use crate::view::ClassView;
+use rust_jvm_common::classfile::Classfile;
 
 #[derive(Debug)]
 pub enum ClassLoadingError {
@@ -67,6 +68,7 @@ pub trait Loader {
 
     //pre loading parses the class file but does not verify
     fn pre_load(&self, name: &ClassName) -> Result<ClassView, ClassLoadingError>;
+    fn add_pre_loaded(&self,name : &ClassName, classfile: &Arc<Classfile>);
 }
 
 //todo Loading Constraints
@@ -99,6 +101,10 @@ impl Loader for EmptyLoader {
     }
 
     fn pre_load(&self, _name: &ClassName) -> Result<ClassView, ClassLoadingError> {
+        unimplemented!()
+    }
+
+    fn add_pre_loaded(&self, _name: &ClassName, _classfile: &Arc<Classfile>) {
         unimplemented!()
     }
 }

@@ -119,6 +119,10 @@ impl Loader for BootstrapLoader {
             }
         }
     }
+
+    fn add_pre_loaded(&self, name: &ClassName, classfile: &Arc<Classfile>) {
+        self.parsed.write().unwrap().insert(name.clone(),classfile.clone());
+    }
 }
 
 impl BootstrapLoader {

@@ -11,6 +11,9 @@ use classfile_view::view::descriptor_parser::MethodDescriptor;
 use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::unsafe_temp::*;
+use classfile_parser::parse_class_file;
+use verification::{verify, VerifierContext};
+use classfile_view::view::ClassView;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -91,7 +94,41 @@ pub fn run_native_method(
                         MHN_resolve(state, &frame, &mut args)
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init"{
                         MHN_init(state, &frame, &mut args)
-                    } else {
+                    } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
+                        //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
+                        shouldBeInitialized(state, &mut args)
+                    } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
+                        if shouldBeInitialized(state, &mut args).unwrap().unwrap_int() != 1 {
+                            panic!()
+                        }
+                        None
+                    } else if &mangled == "Java_sun_misc_Unsafe_defineAnonymousClass" {
+                        let _parent_class = &args[1];//todo idk what this is for which is potentially problematic
+                        let byte_array:Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8 ).collect();
+                        let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
+                        if !cp_entry_patches.is_empty() {
+                            dbg!(&cp_entry_patches);
+                            // unimplemented!()
+                        }
+
+                        // let loader = parent_class.unwrap_normal_object().class_pointer.loader.clone();//todo so we aren't meant to use any loader but verify needs something?
+                        let parsed= parse_class_file(&mut byte_array.as_slice());
+                        //todo maybe have an anon loader for this
+                        let bootstrap_loader = state.bootstrap_loader.clone();
+
+                        let vf = VerifierContext { bootstrap_loader: bootstrap_loader.clone() };
+                        let class_view = ClassView::from(parsed.clone());
+                        bootstrap_loader.add_pre_loaded(&class_view.name(),&parsed);
+                        match verify(&vf, class_view, bootstrap_loader.clone()){
+                            Ok(_) => {},
+                            Err(_) => panic!(),
+                        };
+                        // load_class_constant_by_type()
+
+                        unimplemented!();
+                    }
+
+                    else {
                         frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
@@ -107,6 +144,8 @@ pub fn run_native_method(
     }
     println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
+
+
 
 pub mod mhn_temp;
 pub mod unsafe_temp;

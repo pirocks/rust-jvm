@@ -121,4 +121,7 @@ pub fn object_field_offset(
 }
 
 
-
+pub fn shouldBeInitialized(state: &mut InterpreterState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+    let class_name_to_check = args[1].unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().unwrap_type_to_name().unwrap();
+    JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some()).into()
+}

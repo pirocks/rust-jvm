@@ -505,6 +505,10 @@ impl ArrayObject{
     pub fn unwrap_object_array_nonnull(&self) -> Vec<Arc<Object>>{
         self.elems.borrow().iter().map(|x| {x.unwrap_object_nonnull()}).collect()
     }
+    pub fn unwrap_byte_array(&self) -> Vec<i8>{//todo in future use jbyte for this kinda thing, and in all places where this is an issue
+        assert_eq!(self.elem_type, PTypeView::ByteType);
+        self.elems.borrow().iter().map(|x| {x.unwrap_int() as i8}).collect()
+    }
 }
 
 impl std::convert::From<Option<Arc<Object>>> for JavaValue{
