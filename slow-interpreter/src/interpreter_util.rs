@@ -72,13 +72,12 @@ pub fn run_function(
     let current_depth = current_frame.depth();
     println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
     assert!(!state.function_return);
-    if &meth_name == "parseSig"{
-        dbg!(&current_frame.local_vars.borrow()[0..3]);
-        dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
-    }
-    if &meth_name == "parseMethod"{
-        dbg!(&current_frame.local_vars.borrow()[0..1]);
-        dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
+    if &meth_name == "make" && &method_desc == "(Ljava/lang/invoke/MemberName;)Ljava/lang/invoke/DirectMethodHandle;"{
+        //ion resolve
+        // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("debugName"));
+        dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull());
+        // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("name"))
+        // dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
     }
     while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {
@@ -129,10 +128,10 @@ pub fn run_function(
             InstructionInfo::dconst_1 => dconst_1(&current_frame),
             InstructionInfo::ddiv => unimplemented!(),
             InstructionInfo::dload(i) => dload(&current_frame, i as usize),
-            InstructionInfo::dload_0 => dload(&current_frame,0),
-            InstructionInfo::dload_1 => dload(&current_frame,1),
-            InstructionInfo::dload_2 => dload(&current_frame,2),
-            InstructionInfo::dload_3 => dload(&current_frame,3),
+            InstructionInfo::dload_0 => dload(&current_frame, 0),
+            InstructionInfo::dload_1 => dload(&current_frame, 1),
+            InstructionInfo::dload_2 => dload(&current_frame, 2),
+            InstructionInfo::dload_3 => dload(&current_frame, 3),
             InstructionInfo::dmul => dmul(&current_frame),
             InstructionInfo::dneg => unimplemented!(),
             InstructionInfo::drem => unimplemented!(),
@@ -228,7 +227,7 @@ pub fn run_function(
             InstructionInfo::ineg => unimplemented!(),
             InstructionInfo::instanceof(cp) => invoke_instanceof(state, &current_frame, cp),
             InstructionInfo::invokedynamic(cp) => {
-                current_frame.print_stack_trace();
+                // current_frame.print_stack_trace();
                 invoke_dynamic(state, current_frame.clone(), cp)
             }
             InstructionInfo::invokeinterface(invoke_i) => invoke_interface(state, current_frame.clone(), invoke_i),
@@ -296,7 +295,7 @@ pub fn run_function(
             InstructionInfo::multianewarray(cp) => multi_a_new_array(state, &current_frame, cp),
             InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
             InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
-            InstructionInfo::nop => unimplemented!(),
+            InstructionInfo::nop => {},
             InstructionInfo::pop => pop(&current_frame),
             InstructionInfo::pop2 => pop2(&current_frame),
             InstructionInfo::putfield(cp) => putfield(state, &current_frame, cp),
@@ -307,7 +306,7 @@ pub fn run_function(
             InstructionInfo::sastore => unimplemented!(),
             InstructionInfo::sipush(val) => sipush(&current_frame, val),
             InstructionInfo::swap => unimplemented!(),
-            InstructionInfo::tableswitch(switch) => tableswitch(switch,&current_frame),
+            InstructionInfo::tableswitch(switch) => tableswitch(switch, &current_frame),
             InstructionInfo::wide(_) => unimplemented!(),
             InstructionInfo::EndOfCode => unimplemented!(),
         }
@@ -352,17 +351,11 @@ pub fn run_function(
             current_frame.pc.replace(pc);
         }
     }
-    if meth_name == "parseSig"{
-        dbg!(&current_frame.local_vars.borrow()[0..3]);
-        dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
-    }
-    if meth_name == "parseMethod"{
-        dbg!(&current_frame.local_vars.borrow()[0..1]);
-        dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
+    if &meth_name == "getMethodType"{
+        dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last().unwrap());
     }
     println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
 }
-
 
 
 pub fn push_new_object(current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {

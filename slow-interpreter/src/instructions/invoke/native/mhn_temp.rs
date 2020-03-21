@@ -86,15 +86,17 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
             let param_types_class = type_java_value.unwrap_object_nonnull().lookup_field("ptypes").unwrap_array().unwrap_object_array_nonnull();
             let r_type_as_ptype = r_type_class.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone();
             let params_as_ptype: Vec<PTypeView> = param_types_class.iter().map(|x| { x.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone() }).collect();
-
+            //todo how do the params work with static v. not static
+            frame.print_stack_trace();
             let (resolved_method_runtime_class, resolved_i) = all_methods.iter().find(|(x, i)| {
                 let c_method = x.class_view.method_view_i(*i);
                 dbg!(c_method.name());
                 dbg!(&name);
-                dbg!(c_method.desc());
-                dbg!(&r_type_as_ptype);
-                dbg!(&params_as_ptype);
-                dbg!(c_method.is_signature_polymorphic());
+                // dbg!(c_method.desc());
+                // dbg!(&r_type_as_ptype);
+                // dbg!(&params_as_ptype);
+                // dbg!(c_method.is_signature_polymorphic());
+                // frame.print_stack_trace();
                 //todo need to handle signature polymorphism here and in many places
                 c_method.name() == name && if c_method.is_signature_polymorphic() {
                     c_method.desc().parameter_types.len() == 1 &&
@@ -104,8 +106,8 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
                     c_method.desc().parameter_types == params_as_ptype
                 }
             }).unwrap();//todo handle not found case
-            dbg!(resolved_method_runtime_class.class_view.name());
-            dbg!(resolved_i);
+            // dbg!(resolved_method_runtime_class.class_view.name());
+            // dbg!(resolved_i);
             let correct_flags = resolved_method_runtime_class.class_view.method_view_i(*resolved_i).access_flags();
             let new_flags = (((flags_val as u32) /*& 0xffff*/) | (correct_flags as u32)) as i32;
 

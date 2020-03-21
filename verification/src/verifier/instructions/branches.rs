@@ -303,7 +303,8 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
 }
 
 pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf, env.method.class));
+    let method_class_view = get_class(&env.vf, env.method.class);
+    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &method_class_view);
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
@@ -315,8 +316,26 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
         .map(|x| x.clone())
         .collect();
     let return_type = &parsed_descriptor.return_type.to_verification_type(&env.class_loader);
-    let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    // dbg!(&stack_arg_list);
+    // dbg!(&operand_arg_list);
+    // dbg!(&method_name);
+    // dbg!(&_class_name);
+    if &method_name == "linkToStatic"{
+        //todo should handle polymorphism better
+        let mut next_stack_frame = stack_frame.stack_map.clone();
+        stack_arg_list.iter().for_each(|_|{
+            next_stack_frame.operand_pop();//todo do check object
+        });
+        next_stack_frame.operand_push(return_type.clone());
+        standard_exception_frame(stack_frame, Frame{
+            locals: stack_frame.locals.clone(),
+            stack_map: next_stack_frame,
+            flag_this_uninit: stack_frame.flag_this_uninit
+        })
+    }else {
+        let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
+        standard_exception_frame(stack_frame, next_frame)
+    }
 }
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {

@@ -48,6 +48,8 @@ pub fn pop_matching_list_impl(vf: &VerifierContext, pop_from: &mut OperandStack,
 pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut OperandStack, type_: &VType) -> Result<VType, TypeSafetyError> {
     if size_of(vf, type_) == 1 {
         let actual_type = operand_stack.peek();
+        // dbg!(&actual_type);
+        // dbg!(&type_);
         is_assignable(vf, &actual_type, type_)?;
         operand_stack.operand_pop();
         return Result::Ok(actual_type.clone());

@@ -14,6 +14,10 @@ use crate::instructions::invoke::native::unsafe_temp::*;
 use classfile_parser::parse_class_file;
 use verification::{verify, VerifierContext};
 use classfile_view::view::ClassView;
+use std::fs::File;
+use std::io::Write;
+use crate::instructions::ldc::load_class_constant_by_type;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -105,9 +109,11 @@ pub fn run_native_method(
                     } else if &mangled == "Java_sun_misc_Unsafe_defineAnonymousClass" {
                         let _parent_class = &args[1];//todo idk what this is for which is potentially problematic
                         let byte_array:Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8 ).collect();
+                        //todo for debug, delete later
+                        let cloned=  byte_array.clone();
                         let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
                         if !cp_entry_patches.is_empty() {
-                            dbg!(&cp_entry_patches);
+                            assert!(cp_entry_patches.iter().all(|x|x.is_none()))
                             // unimplemented!()
                         }
 
@@ -118,14 +124,15 @@ pub fn run_native_method(
 
                         let vf = VerifierContext { bootstrap_loader: bootstrap_loader.clone() };
                         let class_view = ClassView::from(parsed.clone());
+
+                        File::create(format!("{}.class",class_view.name().get_referred_name().replace("/","_"))).unwrap().write(cloned.as_slice()).unwrap();
                         bootstrap_loader.add_pre_loaded(&class_view.name(),&parsed);
-                        match verify(&vf, class_view, bootstrap_loader.clone()){
+                        match verify(&vf, class_view.clone(), bootstrap_loader.clone()){
                             Ok(_) => {},
                             Err(_) => panic!(),
                         };
-                        // load_class_constant_by_type()
-
-                        unimplemented!();
+                        load_class_constant_by_type(state,&frame,&PTypeView::Ref(ReferenceTypeView::Class(class_view.name())));
+                        frame.pop().into()
                     }
 
                     else {
