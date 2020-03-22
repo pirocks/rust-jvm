@@ -4,17 +4,23 @@
 
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use runtime_common::java_values::{JavaValue, NormalObject};
+use runtime_common::java_values::{JavaValue, NormalObject, ArrayObject};
 use std::sync::Arc;
-use runtime_common::java_values::Object::Object;
+use runtime_common::java_values::Object::{Object, Array};
 use rust_jvm_common::classnames::ClassName;
 use std::cell::RefCell;
-use crate::interpreter_util::check_inited_class;
-use classfile_view::view::ptype_view::PTypeView;
+use crate::interpreter_util::{check_inited_class, run_constructor, push_new_object};
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::rust_jni::get_all_methods;
 use utils::string_obj_to_string;
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::classfile::{REF_invokeVirtual, REF_invokeStatic, REF_invokeInterface, ACC_STATIC};
+use classfile_view::view::descriptor_parser::{parse_method_descriptor, MethodDescriptor};
+use crate::get_or_create_class_object;
+use crate::instructions::invoke::static_::invoke_static_impl;
+use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use runtime_common::runtime_class::RuntimeClass;
+use std::ops::Deref;
 
 pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -178,8 +184,12 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
 
 
         let signature = method_fields.get("signature").unwrap();
+
+
         dbg!(signature);
-        mname.fields.borrow_mut().insert("type".to_string(),signature.clone());
+        create_method_type(state,frame,&string_obj_to_string(signature.unwrap_object()));
+        mname.fields.borrow_mut().insert("type".to_string(),frame.pop());
+
         let modifiers = method_fields.get("modifiers").unwrap().unwrap_int();
         mname.fields.borrow_mut().insert("flags".to_string(),JavaValue::Int(flags | modifiers | extra_flags));//todo is this really correct? what if garbage in flags?
         let name = method_fields.get("name").unwrap();
@@ -190,4 +200,42 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
         unimplemented!()
     }
     None//this is a void method.
+}
+
+pub fn create_method_type(state: &mut InterpreterState, frame : &Rc<StackEntry>, signature : &String) {
+    //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
+    //todo need to use MethodTypeForm.findForm
+    let loader_arc = frame.class_pointer.loader.clone();
+    let method_type_class = check_inited_class(state, &ClassName::method_type(), frame.clone().into(), loader_arc.clone());
+    push_new_object(frame.clone(),&method_type_class);
+    let this = frame.pop();
+    let method_descriptor = parse_method_descriptor(signature).unwrap();
+    let rtype = JavaValue::Object(get_or_create_class_object(state,&method_descriptor.return_type,frame.clone(),loader_arc.clone()).into());
+
+    let ptypes_as_classes: Vec<JavaValue> = method_descriptor.parameter_types.iter().map(|x|{
+        get_or_create_class_object(state,&x,frame.clone(),loader_arc.clone())
+    }).map(|x|{
+        JavaValue::Object(x.into())
+    }).collect();
+    let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));
+    let ptypes = JavaValue::Object(Arc::new(Array(ArrayObject{ elems: RefCell::new(ptypes_as_classes), elem_type: class_type })).into());
+    run_constructor(state, frame.clone(), method_type_class, vec![this.clone(),rtype,ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
+    frame.push(this.clone());
+    let method_type_form_class = check_inited_class(state,&ClassName::method_type_form(),frame.clone().into(),loader_arc.clone());
+    run_static_or_virtual(state,frame,&method_type_form_class,"findForm".to_string(),"(Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodTypeForm;".to_string());
+    this.clone().unwrap_normal_object().fields.borrow_mut().insert("form".to_string(),frame.pop());
+    frame.push(this);
+}
+
+
+//todo this should go in some sort of utils
+pub fn run_static_or_virtual(state:&mut InterpreterState, frame: &Rc<StackEntry>, class: &Arc<RuntimeClass>,method_name: String, desc_str: String ){
+    let res_fun = class.classfile.lookup_method(method_name,desc_str);//todo move this into classview
+    let (i,m) = res_fun.unwrap();
+    let md = MethodDescriptor::from_legacy(m, class.classfile.deref());
+    if m.is_static(){
+        invoke_static_impl(state,frame.clone(),md,class.clone(),i,m)
+    }else {
+        invoke_virtual_method_i(state, frame.clone(), md,class.clone(),i,m);
+    }
 }

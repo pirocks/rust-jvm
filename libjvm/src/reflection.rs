@@ -6,7 +6,7 @@ use utils::string_obj_to_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use runtime_common::java_values::Object::Object;
 use std::ops::Deref;
-use libjvm_utils::run_static_or_virtual;
+use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {

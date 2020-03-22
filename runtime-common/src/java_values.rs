@@ -27,12 +27,12 @@ pub enum JavaValue {
     Top,//should never be interacted with by the bytecode
 }
 
-pub trait CycleDetectingDebug{
-    fn cycle_fmt(&self, prev: &Vec<&Arc<Object>> ,f: &mut Formatter<'_>) -> Result<(), Error>;
+pub trait CycleDetectingDebug {
+    fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error>;
 }
 
-impl CycleDetectingDebug for JavaValue{
-    fn cycle_fmt(&self, prev: &Vec<&Arc<Object>> ,f: &mut Formatter<'_>) -> Result<(), Error> {
+impl CycleDetectingDebug for JavaValue {
+    fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
         match self {
             JavaValue::Long(l) => { write!(f, "{}", l) }
             JavaValue::Int(l) => { write!(f, "{}", l) }
@@ -46,16 +46,16 @@ impl CycleDetectingDebug for JavaValue{
                 match o {
                     None => {
                         write!(f, "null", )
-                    },
+                    }
                     Some(s) => {
-                        if prev.iter().any(|above|Arc::ptr_eq(above,s)){
-                            write!(f,"<cycle>")
-                        }else {
+                        if prev.iter().any(|above| Arc::ptr_eq(above, s)) {
+                            write!(f, "<cycle>")
+                        } else {
                             let mut new = prev.clone();
                             new.push(s);
                             s.cycle_fmt(&new, f)
                         }
-                    },
+                    }
                 }
             }
             JavaValue::Top => { write!(f, "top") }
@@ -65,39 +65,38 @@ impl CycleDetectingDebug for JavaValue{
 
 impl CycleDetectingDebug for Object {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
-        match &self{
+        match &self {
             Object::Array(a) => {
-                write!(f,"[")?;
-                a.elems.borrow().iter().for_each(|x|{
-                    x.cycle_fmt(prev,f).unwrap();
-                    write!(f,",").unwrap();
+                write!(f, "[")?;
+                a.elems.borrow().iter().for_each(|x| {
+                    x.cycle_fmt(prev, f).unwrap();
+                    write!(f, ",").unwrap();
                 });
-                write!(f,"]")
-            },
+                write!(f, "]")
+            }
             Object::Object(o) => {
-                o.cycle_fmt(prev,f)
-            },
+                o.cycle_fmt(prev, f)
+            }
         }
     }
 }
 
-impl CycleDetectingDebug for NormalObject{
+impl CycleDetectingDebug for NormalObject {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
-        let o  = self;
-        if o.class_pointer.class_view.name() == ClassName::class(){
-            write!(f, "(Class Object:{:?})",o.class_object_ptype)?;
-        }
-        else if o.class_pointer.class_view.name() == ClassName::string() {
-            write!(f, "(String Object: {:?})",o.fields.borrow().get("value").unwrap().unwrap_array().elems)?;
+        let o = self;
+        if o.class_pointer.class_view.name() == ClassName::class() {
+            write!(f, "(Class Object:{:?})", o.class_object_ptype)?;
+        } else if o.class_pointer.class_view.name() == ClassName::string() {
+            write!(f, "(String Object: {:?})", o.fields.borrow().get("value").unwrap().unwrap_array().unwrap_char_array())?;
         } else {
             write!(f, "{:?}", class_name(&o.class_pointer.classfile).get_referred_name())?;
             write!(f, "-")?;
 //        write!(f, "{:?}", self.class_pointer.static_vars)?;
             write!(f, "-")?;
-            o.fields.borrow().iter().for_each(|(n,v)|{
-                write!(f,"({},",n).unwrap();
-                v.cycle_fmt(prev,f).unwrap();
-                write!(f,")\n").unwrap();
+            o.fields.borrow().iter().for_each(|(n, v)| {
+                write!(f, "({},", n).unwrap();
+                v.cycle_fmt(prev, f).unwrap();
+                write!(f, ")\n").unwrap();
             });
             write!(f, "-")?;
             write!(f, "{:?}", o.bootstrap_loader)?;
@@ -108,7 +107,7 @@ impl CycleDetectingDebug for NormalObject{
 
 impl Debug for JavaValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        self.cycle_fmt(&vec![],f)
+        self.cycle_fmt(&vec![], f)
     }
 }
 
@@ -173,13 +172,12 @@ impl JavaValue {
     }
 
     pub fn unwrap_array(&self) -> &ArrayObject {
-        match self{
+        match self {
             JavaValue::Object(o) => {
                 o.as_ref().unwrap().unwrap_array()
-            },
+            }
             _ => panic!()
         }
-
     }
 
 
@@ -232,7 +230,7 @@ impl JavaValue {
             bootstrap_loader: false,
             // object_class_object_pointer: RefCell::new(None),
             // array_class_object_pointer: RefCell::new(None),
-            class_object_ptype: RefCell::new(None)
+            class_object_ptype: RefCell::new(None),
         })).into()
     }
 
@@ -379,7 +377,7 @@ pub enum Object {
 }
 
 impl Object {
-    pub fn lookup_field(&self, s : &str) -> JavaValue{
+    pub fn lookup_field(&self, s: &str) -> JavaValue {
         self.unwrap_normal_object().fields.borrow().get(s).unwrap().clone()
     }
 
@@ -419,20 +417,20 @@ impl Object {
                     bootstrap_loader: o.bootstrap_loader,
                     // object_class_object_pointer: o.object_class_object_pointer.clone(),
                     // array_class_object_pointer: o.array_class_object_pointer.clone(),
-                    class_object_ptype: RefCell::new(None)
+                    class_object_ptype: RefCell::new(None),
                 })
             }
         }
     }
 
-    pub fn is_array(&self) -> bool{
-        match self{
+    pub fn is_array(&self) -> bool {
+        match self {
             Object::Array(_) => true,
             Object::Object(_) => false,
         }
     }
 
-    pub fn object_array(object_array: Vec<JavaValue>,class_type:PTypeView ) -> Object{
+    pub fn object_array(object_array: Vec<JavaValue>, class_type: PTypeView) -> Object {
         Object::Array(ArrayObject {
             elems: RefCell::new(object_array),
             elem_type: class_type,
@@ -451,9 +449,10 @@ pub struct NormalObject {
     pub gc_reachable: bool,
     //I guess this never changes so unneeded?
     pub fields: RefCell<HashMap<String, JavaValue>>,
-    pub class_pointer: Arc<RuntimeClass>,//todo this should just point to the actual class object.
+    pub class_pointer: Arc<RuntimeClass>,
+    //todo this should just point to the actual class object.
     pub bootstrap_loader: bool,
-    pub class_object_ptype: RefCell<Option<PTypeView>>
+    pub class_object_ptype: RefCell<Option<PTypeView>>,
     //points to the object represented by this class object of relevant
     //might be simpler to ccombine these into a ptype
     // pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
@@ -461,16 +460,15 @@ pub struct NormalObject {
     // pub array_class_object_pointer: RefCell<Option<PType>>,// is type of array sub type,not including the array.
 }
 
-impl NormalObject{
-    pub fn class_object_to_ptype(&self) -> PTypeView{
+impl NormalObject {
+    pub fn class_object_to_ptype(&self) -> PTypeView {
         self.class_object_ptype.borrow().clone().unwrap()
     }
-
 }
 
 impl Debug for NormalObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        self.cycle_fmt(&vec![],f)
+        self.cycle_fmt(&vec![], f)
     }
 }
 
@@ -495,20 +493,26 @@ pub fn default_value(type_: PTypeView) -> JavaValue {
 }
 
 
-impl ArrayObject{
-    pub fn unwrap_object_array(&self) -> Vec<Option<Arc<Object>>>{
-        self.elems.borrow().iter().map(|x| {x.unwrap_object()}).collect()
+impl ArrayObject {
+    pub fn unwrap_object_array(&self) -> Vec<Option<Arc<Object>>> {
+        self.elems.borrow().iter().map(|x| { x.unwrap_object() }).collect()
     }
-    pub fn unwrap_object_array_nonnull(&self) -> Vec<Arc<Object>>{
-        self.elems.borrow().iter().map(|x| {x.unwrap_object_nonnull()}).collect()
+    pub fn unwrap_object_array_nonnull(&self) -> Vec<Arc<Object>> {
+        self.elems.borrow().iter().map(|x| { x.unwrap_object_nonnull() }).collect()
     }
-    pub fn unwrap_byte_array(&self) -> Vec<i8>{//todo in future use jbyte for this kinda thing, and in all places where this is an issue
+    pub fn unwrap_byte_array(&self) -> Vec<i8> {//todo in future use jbyte for this kinda thing, and in all places where this is an issue
         assert_eq!(self.elem_type, PTypeView::ByteType);
-        self.elems.borrow().iter().map(|x| {x.unwrap_int() as i8}).collect()
+        self.elems.borrow().iter().map(|x| { x.unwrap_int() as i8 }).collect()
+    }
+    pub fn unwrap_char_array(&self) -> String {
+        assert_eq!(self.elem_type, PTypeView::CharType);
+        let mut res = String::new();
+        self.elems.borrow().iter().for_each(|x| { res.push(x.unwrap_int()  as u8 as char) });
+        res
     }
 }
 
-impl std::convert::From<Option<Arc<Object>>> for JavaValue{
+impl std::convert::From<Option<Arc<Object>>> for JavaValue {
     fn from(f: Option<Arc<Object>>) -> Self {
         JavaValue::Object(f)
     }

@@ -91,6 +91,10 @@ impl ClassName {
         Self::new("java/lang/invoke/MethodType")
     }
 
+    pub fn method_type_form() -> Self{
+        Self::new("java/lang/invoke/MethodTypeForm")
+    }
+
     pub fn method_handle() -> Self{
         Self::new("java/lang/invoke/MethodHandle")
     }

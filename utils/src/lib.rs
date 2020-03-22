@@ -32,6 +32,7 @@ pub fn lookup_method_parsed_impl(state: &mut InterpreterState, class: Arc<Runtim
 }
 
 
+//todo make this an impl method on Object
 pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
     let temp = str_obj.unwrap().lookup_field("value");
     let chars = temp.unwrap_array();

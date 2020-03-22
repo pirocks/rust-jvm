@@ -79,6 +79,13 @@ pub fn run_function(
         // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("name"))
         // dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
     }
+    if &meth_name == "basicType" {
+        //ion resolve
+        // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("debugName"));
+        dbg!(&current_frame.local_vars.borrow()[0]);
+        // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("name"))
+        // dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
+    }
     while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
@@ -351,7 +358,7 @@ pub fn run_function(
             current_frame.pc.replace(pc);
         }
     }
-    if &meth_name == "getMethodType"{
+    if &meth_name == "getMethodOrFieldType"{
         dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last().unwrap());
     }
     println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
