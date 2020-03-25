@@ -11,7 +11,6 @@ use jni_bindings::jstring;
 use slow_interpreter::rust_jni::native_util::from_object;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use utils::string_obj_to_string;
-use runtime_common::runtime_class::RuntimeClass;
 
 pub fn ptype_to_class_object(state: &mut InterpreterState,frame: &Rc<StackEntry>, ptype: &PType) -> Option<Arc<Object>> {
     match ptype {

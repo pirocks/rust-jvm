@@ -104,6 +104,14 @@ impl ClassName {
     pub fn method() -> Self {
         Self::new("java/lang/reflect/Method")
     }
+
+    pub fn serializable() ->  Self {
+        Self::new("java/io/Serializable")
+    }
+
+    pub fn cloneable() -> Self {
+        Self::new("java/lang/Cloneable")
+    }
 }
 
 impl Hash for ClassName {

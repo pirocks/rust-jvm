@@ -183,17 +183,19 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
         let extra_flags = IS_METHOD | invoke_type_flag;
 
 
-        let signature = method_fields.get("signature").unwrap();
+        // let signature = method_fields.get("signature").unwrap();
 
 
-        dbg!(signature);
-        create_method_type(state,frame,&string_obj_to_string(signature.unwrap_object()));
-        mname.fields.borrow_mut().insert("type".to_string(),frame.pop());
+        // dbg!(signature);
+        // create_method_type(state,frame,&string_obj_to_string(signature.unwrap_object()));
+        // mname.fields.borrow_mut().insert("type".to_string(),frame.pop());
 
         let modifiers = method_fields.get("modifiers").unwrap().unwrap_int();
         mname.fields.borrow_mut().insert("flags".to_string(),JavaValue::Int(flags | modifiers | extra_flags));//todo is this really correct? what if garbage in flags?
-        let name = method_fields.get("name").unwrap();
-        mname.fields.borrow_mut().insert("name".to_string(),name.clone());
+        // let name = method_fields.get("name").unwrap();
+        // mname.fields.borrow_mut().insert("name".to_string(),name.clone());
+        dbg!(target);
+        dbg!(&mname);
     } else {
 
         //todo handle constructors and fields
@@ -221,10 +223,10 @@ pub fn create_method_type(state: &mut InterpreterState, frame : &Rc<StackEntry>,
     let ptypes = JavaValue::Object(Arc::new(Array(ArrayObject{ elems: RefCell::new(ptypes_as_classes), elem_type: class_type })).into());
     run_constructor(state, frame.clone(), method_type_class, vec![this.clone(),rtype,ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
     frame.push(this.clone());
-    let method_type_form_class = check_inited_class(state,&ClassName::method_type_form(),frame.clone().into(),loader_arc.clone());
-    run_static_or_virtual(state,frame,&method_type_form_class,"findForm".to_string(),"(Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodTypeForm;".to_string());
-    this.clone().unwrap_normal_object().fields.borrow_mut().insert("form".to_string(),frame.pop());
-    frame.push(this);
+    // let method_type_form_class = check_inited_class(state,&ClassName::method_type_form(),frame.clone().into(),loader_arc.clone());
+    // run_static_or_virtual(state,frame,&method_type_form_class,"findForm".to_string(),"(Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodTypeForm;".to_string());
+    // this.clone().unwrap_normal_object().fields.borrow_mut().insert("form".to_string(),frame.pop());
+    // frame.push(this);
 }
 
 
