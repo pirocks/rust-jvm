@@ -2,14 +2,12 @@ use crate::{InterpreterState, StackEntry};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
 use rust_jvm_common::classfile::{InstructionInfo, ACC_STATIC, Classfile};
-use crate::runtime_class::prepare_class;
+use crate::runtime_class::{prepare_class, RuntimeClass};
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::{ClassName, class_name};
 
 use std::rc::Rc;
-use runtime_common::java_values::{JavaValue, default_value, Object};
-use runtime_common::runtime_class::RuntimeClass;
 use crate::instructions::load::*;
 use crate::instructions::store::*;
 use crate::instructions::fields::*;
@@ -33,6 +31,7 @@ use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::instructions::pop::{pop2, pop};
 use classfile_view::view::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 use classfile_view::loading::LoaderArc;
+use crate::java_values::{JavaValue, default_value, Object};
 
 
 //todo jni should really live in interpreter state

@@ -1,19 +1,47 @@
 use std::sync::Arc;
-use rust_jvm_common::classfile::{Classfile, ACC_FINAL};
-
-use rust_jvm_common::classfile::ACC_STATIC;
 use std::collections::HashMap;
-use crate::InterpreterState;
-use crate::run_function;
-use std::rc::Rc;
-use runtime_common::java_values::{default_value, JavaValue};
-use runtime_common::runtime_class::RuntimeClass;
+use std::fmt::{Formatter, Debug, Error};
+use crate::java_values::{JavaValue, default_value};
+use rust_jvm_common::classfile::{Classfile, ACC_FINAL, ACC_STATIC};
+use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
-use runtime_common::StackEntry;
-use crate::instructions::ldc::from_constant_pool_entry;
 use classfile_view::view::ClassView;
 use classfile_view::loading::LoaderArc;
+use crate::interpreter_util::run_function;
+use std::rc::Rc;
+use crate::{StackEntry, InterpreterState};
+use crate::instructions::ldc::from_constant_pool_entry;
 use classfile_view::view::descriptor_parser::parse_field_descriptor;
+
+
+pub struct RuntimeClass {
+    pub classfile: Arc<Classfile>,
+    pub class_view: ClassView,
+    pub loader: LoaderArc,
+    pub static_vars: RefCell<HashMap<String, JavaValue>>,
+}
+
+impl Debug for RuntimeClass {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "{:?}:{:?}", self.classfile, self.static_vars)
+    }
+}
+
+impl Hash for RuntimeClass {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.classfile.hash(state);
+        self.loader.name().to_string().hash(state)
+    }
+}
+
+
+impl PartialEq for RuntimeClass {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.loader, &other.loader) && self.classfile == other.classfile && self.static_vars == other.static_vars
+    }
+}
+
+impl Eq for RuntimeClass {}
 
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
@@ -35,7 +63,11 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
     }
 }
 
-pub fn initialize_class(runtime_class: Arc<RuntimeClass>, state: &mut InterpreterState, stack: Option<Rc<StackEntry>>) -> Arc<RuntimeClass> {
+pub fn initialize_class(
+    runtime_class: Arc<RuntimeClass>,
+    state: &mut InterpreterState,
+    stack: Option<Rc<StackEntry>>
+) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname

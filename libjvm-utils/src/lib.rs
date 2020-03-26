@@ -1,16 +1,15 @@
-use runtime_common::java_values::{Object, JavaValue};
 use rust_jvm_common::ptype::{PType, ReferenceType};
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use std::ops::Deref;
-use slow_interpreter::array_of_type_class;
 use std::sync::Arc;
 
 use jni_bindings::jstring;
-use slow_interpreter::rust_jni::native_util::from_object;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use utils::string_obj_to_string;
+use slow_interpreter::{InterpreterState, StackEntry, array_of_type_class};
+use slow_interpreter::java_values::{Object, JavaValue};
+use slow_interpreter::utils::string_obj_to_string;
+use slow_interpreter::instructions::ldc::load_class_constant_by_type;
+use slow_interpreter::rust_jni::native_util::from_object;
 
 pub fn ptype_to_class_object(state: &mut InterpreterState,frame: &Rc<StackEntry>, ptype: &PType) -> Option<Arc<Object>> {
     match ptype {

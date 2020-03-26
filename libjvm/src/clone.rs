@@ -1,9 +1,9 @@
 use jni_bindings::{jobject, JNIEnv};
 use slow_interpreter::rust_jni::native_util::{to_object, from_object};
 use std::sync::Arc;
-use runtime_common::java_values::{Object, ArrayObject, NormalObject};
 use std::ops::Deref;
 use std::cell::RefCell;
+use slow_interpreter::java_values::{Object, ArrayObject, NormalObject};
 
 
 #[no_mangle]

@@ -1,8 +1,8 @@
 use crate::rust_jni::native_util::{from_object, get_state, get_frame};
-use runtime_common::java_values::JavaValue;
 use jni_bindings::{jboolean, jfieldID, jobject, JNIEnv, jlong, jint, jclass};
 use std::ops::DerefMut;
 use crate::rust_jni::interface::util::{FieldID, runtime_class_from_object};
+use crate::java_values::JavaValue;
 
 pub unsafe extern "C" fn set_int_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jint) {
     let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));

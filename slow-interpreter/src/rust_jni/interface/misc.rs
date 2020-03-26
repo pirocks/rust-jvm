@@ -1,5 +1,4 @@
 use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object};
-use runtime_common::java_values::JavaValue;
 use jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_, jthrowable};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use crate::rust_jni::MethodId;
@@ -13,6 +12,7 @@ use std::intrinsics::transmute;
 use crate::instructions::invoke::special::invoke_special_impl;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::view::descriptor_parser::parse_method_descriptor;
+use crate::java_values::JavaValue;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo

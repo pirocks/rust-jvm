@@ -7,8 +7,6 @@ use log::trace;
 use libloading::Library;
 use libloading::Symbol;
 use std::sync::Arc;
-use runtime_common::runtime_class::RuntimeClass;
-use runtime_common::java_values::{JavaValue, Object};
 use std::ffi::CStr;
 use libffi::middle::Type;
 use libffi::middle::Arg;
@@ -23,7 +21,6 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use std::os::raw::{c_char, c_void};
 use std::alloc::Layout;
 use std::mem::size_of;
-use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use std::rc::Rc;
 use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
@@ -35,6 +32,9 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::view::descriptor_parser::MethodDescriptor;
+use crate::java_values::{JavaValue, Object};
+use crate::{InterpreterState, StackEntry, LibJavaLoading};
+use crate::runtime_class::RuntimeClass;
 
 
 pub mod value_conversion;

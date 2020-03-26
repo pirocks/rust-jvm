@@ -2,11 +2,10 @@ use std::borrow::Borrow;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor, check_inited_class};
 use jni_bindings::{jobject, jobjectArray, JNIEnv, jclass};
-use utils::string_obj_to_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
-use runtime_common::java_values::Object::Object;
 use std::ops::Deref;
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+use slow_interpreter::utils::string_obj_to_string;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {

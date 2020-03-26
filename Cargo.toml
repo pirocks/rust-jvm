@@ -14,12 +14,9 @@ verification = {path = "./verification"}
 loading = {path = "./loading"}
 slow-interpreter = {path = "./slow-interpreter"}
 jar-manipulation = {path = "./jar-manipulation"}
-runtime-common = {path = "./runtime-common"}
-utils = {path = "./utils"}
 jni-bindings = {path = "./jni-bindings"}
 jvm = {path = "./libjvm"}
 classfile-view = {path = "./classfile-view"}
-#descriptor-parser = {path = "./descriptor-parser"}
 argparse = "0.2.2"
 log = "0.4"
 simple_logger = "1.3.0"
@@ -32,9 +29,7 @@ members = ["rust-jvm-common",
            "slow-interpreter",
            "loading",
            "jar-manipulation",
-           "runtime-common",
            "libjvm",
            "jni-bindings",
-           "utils",
            "libjvm-utils",
            "classfile-view"]

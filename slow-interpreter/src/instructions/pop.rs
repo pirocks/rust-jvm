@@ -1,6 +1,6 @@
-use runtime_common::java_values::JavaValue;
 use std::rc::Rc;
-use runtime_common::StackEntry;
+use crate::java_values::JavaValue;
+use crate::StackEntry;
 
 pub fn pop2(current_frame: &Rc<StackEntry>) {
     match current_frame.pop() {

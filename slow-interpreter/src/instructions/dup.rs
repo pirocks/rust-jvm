@@ -1,6 +1,6 @@
 use std::rc::Rc;
-use runtime_common::StackEntry;
-use runtime_common::java_values::JavaValue;
+use crate::java_values::JavaValue;
+use crate::StackEntry;
 
 pub fn dup(current_frame: &Rc<StackEntry>) -> () {
     let val = current_frame.pop();

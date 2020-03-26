@@ -1,11 +1,11 @@
-use runtime_common::{InterpreterState, StackEntry};
 use crate::interpreter_util::check_inited_class;
 use std::rc::Rc;
 use verification::verifier::instructions::special::extract_field_descriptor;
-use runtime_common::java_values::JavaValue;
 use rust_jvm_common::classnames::ClassName;
 use classfile_view::view::ClassView;
 use classfile_view::loading::LoaderArc;
+use crate::java_values::JavaValue;
+use crate::{InterpreterState, StackEntry};
 
 
 pub fn putstatic(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {

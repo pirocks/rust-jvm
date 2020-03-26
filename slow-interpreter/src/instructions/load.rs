@@ -1,8 +1,8 @@
-use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
-use runtime_common::java_values::JavaValue;
 use crate::interpreter_util::{check_inited_class, run_constructor, push_new_object};
 use rust_jvm_common::classnames::ClassName;
+use crate::java_values::JavaValue;
+use crate::{StackEntry, InterpreterState};
 
 pub fn aload(current_frame: &Rc<StackEntry>, n: usize) -> () {
     let ref_ = current_frame.local_vars.borrow()[n].clone();

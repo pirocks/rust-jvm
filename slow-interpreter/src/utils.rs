@@ -1,10 +1,10 @@
 
 use std::sync::Arc;
-use runtime_common::InterpreterState;
-use runtime_common::runtime_class::RuntimeClass;
 use classfile_view::view::descriptor_parser::MethodDescriptor;
 use classfile_view::loading::LoaderArc;
-use runtime_common::java_values::Object;
+use crate::InterpreterState;
+use crate::runtime_class::RuntimeClass;
+use crate::java_values::Object;
 use std::ops::Deref;
 
 

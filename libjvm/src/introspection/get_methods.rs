@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::sync::Arc;
-use runtime_common::java_values::{Object, ArrayObject, JavaValue};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::rust_jni::native_util::{to_object, get_frame, get_state, from_object};
@@ -13,8 +12,9 @@ use slow_interpreter::rust_jni::get_all_methods;
 use libjvm_utils::ptype_to_class_object;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
+use slow_interpreter::java_values::{JavaValue, Object, ArrayObject};
+use slow_interpreter::{InterpreterState, StackEntry};
 
 const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 

@@ -1,6 +1,6 @@
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use runtime_common::java_values::JavaValue;
+use crate::java_values::JavaValue;
+use crate::{InterpreterState, StackEntry};
 
 pub fn freturn(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();

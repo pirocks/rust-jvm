@@ -1,8 +1,8 @@
 use std::sync::Arc;
-use runtime_common::runtime_class::RuntimeClass;
 use rust_jvm_common::classnames::class_name;
 use regex::Regex;
 use rust_jvm_common::classfile::ACC_NATIVE;
+use crate::runtime_class::RuntimeClass;
 
 pub fn mangle(classfile: Arc<RuntimeClass>, method_i: usize) -> String {
     let method = &classfile.classfile.methods[method_i];

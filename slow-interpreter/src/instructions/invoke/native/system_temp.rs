@@ -1,6 +1,6 @@
-use runtime_common::java_values::JavaValue;
 use std::cell::Ref;
 use std::borrow::Borrow;
+use crate::java_values::JavaValue;
 
 pub fn system_array_copy(args: &mut Vec<JavaValue>) -> () {
     let src_o = args[0].clone().unwrap_object();

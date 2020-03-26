@@ -1,13 +1,13 @@
-use runtime_common::java_values::{JavaValue, Object};
 use libffi::middle::Arg;
 use libffi::middle::Type;
 use crate::rust_jni::native_util::to_object;
 use std::ffi::c_void;
-use runtime_common::runtime_class::RuntimeClass;
 use jni_bindings::jclass;
 use std::sync::Arc;
 use std::ops::Deref;
 use rust_jvm_common::ptype::PType;
+use crate::runtime_class::RuntimeClass;
+use crate::java_values::{Object, JavaValue};
 
 pub fn runtime_class_to_native(runtime_class : Arc<RuntimeClass>) -> Arg{
     let boxed_arc = Box::new(runtime_class);

@@ -2,25 +2,24 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use runtime_common::java_values::{JavaValue, NormalObject, ArrayObject};
 use std::sync::Arc;
-use runtime_common::java_values::Object::{Object, Array};
 use rust_jvm_common::classnames::ClassName;
 use std::cell::RefCell;
 use crate::interpreter_util::{check_inited_class, run_constructor, push_new_object};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::rust_jni::{get_all_methods, get_all_fields};
-use utils::string_obj_to_string;
+use crate::utils::string_obj_to_string;
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::classfile::{REF_invokeVirtual, REF_invokeStatic, REF_invokeInterface, ACC_STATIC};
 use classfile_view::view::descriptor_parser::{parse_method_descriptor, MethodDescriptor};
-use crate::get_or_create_class_object;
+use crate::{get_or_create_class_object, InterpreterState, StackEntry};
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use runtime_common::runtime_class::RuntimeClass;
 use std::ops::Deref;
+use crate::java_values::{JavaValue, NormalObject, ArrayObject};
+use crate::java_values::Object::{Object, Array};
+use crate::runtime_class::RuntimeClass;
 
 pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo

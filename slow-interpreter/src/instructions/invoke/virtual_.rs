@@ -1,9 +1,5 @@
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use crate::instructions::invoke::resolved_class;
-use runtime_common::java_values::{Object, JavaValue};
-
-use runtime_common::runtime_class::RuntimeClass;
 use std::sync::Arc;
 use rust_jvm_common::classfile::{MethodInfo, ACC_NATIVE, ACC_ABSTRACT};
 use crate::rust_jni::get_all_methods;
@@ -14,6 +10,9 @@ use crate::instructions::invoke::native::run_native_method;
 use classfile_view::view::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
+use crate::java_values::{JavaValue, Object};
+use crate::{StackEntry, InterpreterState};
+use crate::runtime_class::RuntimeClass;
 
 
 /**

@@ -1,5 +1,4 @@
 use crate::interpreter_util::check_inited_class;
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use rust_jvm_common::classfile::InvokeInterface;
 use verification::verifier::instructions::branches::get_method_descriptor;
@@ -7,6 +6,7 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 use crate::instructions::invoke::virtual_::{setup_virtual_args, invoke_virtual_method_i};
 use crate::instructions::invoke::find_target_method;
 use classfile_view::view::ClassView;
+use crate::{InterpreterState, StackEntry};
 
 pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEntry>, invoke_interface: InvokeInterface) {
     invoke_interface.count;

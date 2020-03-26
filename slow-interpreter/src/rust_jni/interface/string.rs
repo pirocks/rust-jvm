@@ -1,6 +1,5 @@
 use jni_bindings::{JNIEnv, jstring, jboolean, jchar, jsize};
 use std::os::raw::c_char;
-use runtime_common::java_values::{JavaValue, Object};
 use std::cell::Ref;
 use std::alloc::Layout;
 use std::mem::{size_of, transmute};
@@ -8,6 +7,7 @@ use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object}
 use crate::instructions::ldc::create_string_on_stack;
 use std::collections::HashMap;
 use std::sync::Arc;
+use crate::java_values::{JavaValue, Object};
 
 //todo shouldn't this be handled by a registered native
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,

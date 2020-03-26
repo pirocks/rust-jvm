@@ -1,4 +1,3 @@
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va_list_tag, jboolean};
 use std::mem::transmute;
@@ -13,6 +12,7 @@ use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::exception::*;
 use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::array::*;
+use crate::{InterpreterState, StackEntry};
 
 //GetFieldID
 pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {

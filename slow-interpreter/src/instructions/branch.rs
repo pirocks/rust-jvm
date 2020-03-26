@@ -1,7 +1,7 @@
-use runtime_common::StackEntry;
 use std::rc::Rc;
-use runtime_common::java_values::JavaValue;
 use std::sync::Arc;
+use crate::java_values::JavaValue;
+use crate::StackEntry;
 
 pub fn goto_(current_frame: &Rc<StackEntry>, target: i16) {
     current_frame.pc_offset.replace(target as isize);

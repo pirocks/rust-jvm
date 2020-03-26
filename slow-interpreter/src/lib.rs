@@ -2,32 +2,115 @@
 
 extern crate log;
 extern crate simple_logger;
+extern crate libloading;
 extern crate libc;
 extern crate regex;
 extern crate va_list;
 
+use rust_jvm_common::classnames::{ClassName, class_name};
+use crate::runtime_class::RuntimeClass;
+use crate::java_values::{Object, JavaValue, NormalObject};
+use rust_jvm_common::classfile::CPIndex;
+use libloading::Library;
+use std::rc::Rc;
+use rust_jvm_common::string_pool::StringPool;
 use std::sync::{Arc, RwLock};
-use rust_jvm_common::classnames::ClassName;
-
 use std::error::Error;
 use rust_jvm_common::ptype::PType;
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 use std::cell::RefCell;
-use runtime_common::java_values::{JavaValue, Object, NormalObject};
 use crate::interpreter_util::push_new_object;
-use runtime_common::{InterpreterState, LibJavaLoading, StackEntry};
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
-use rust_jvm_common::string_pool::StringPool;
-
 use std::ops::Deref;
 use std::time::Instant;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::loading::LoaderArc;
 use classfile_view::view::descriptor_parser::MethodDescriptor;
 use crate::instructions::ldc::create_string_on_stack;
+
+
+pub mod java_values;
+pub mod runtime_class;
+pub mod java;
+pub mod utils;
+
+pub struct InterpreterState {
+    pub terminate: bool,
+    pub throw: Option<Arc<Object>>,
+    pub function_return: bool,
+    pub bootstrap_loader: LoaderArc,
+    pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
+    pub string_internment: RefCell<HashMap<String, Arc<Object>>>,
+    pub class_object_pool: RefCell<HashMap<PTypeView, Arc<Object>>>,
+    // pub primitive_object_pool: RefCell<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
+    // pub array_object_pool: RefCell<HashMap<PType, Arc<Object>>>,
+    //todo needs to be used for all instances of getClass
+    pub jni: LibJavaLoading,
+    pub string_pool: StringPool,
+    //todo this should really be in some sort of parser/jvm state
+    pub start_instant: Instant,
+    pub anon_class_counter: usize,
+}
+
+#[derive(Debug)]
+pub struct StackEntry {
+    pub last_call_stack: Option<Rc<StackEntry>>,
+    pub class_pointer: Arc<RuntimeClass>,
+    pub method_i: CPIndex,
+
+    pub local_vars: RefCell<Vec<JavaValue>>,
+    pub operand_stack: RefCell<Vec<JavaValue>>,
+    pub pc: RefCell<usize>,
+    //the pc_offset is set by every instruction. branch instructions and others may us it to jump
+    pub pc_offset: RefCell<isize>,
+}
+
+impl StackEntry {
+    pub fn pop(&self) -> JavaValue {
+        self.operand_stack.borrow_mut().pop().unwrap_or_else(|| {
+            let classfile = &self.class_pointer.classfile;
+            let method = &classfile.methods[self.method_i as usize];
+            dbg!(&method.method_name(&classfile));
+            dbg!(&method.code_attribute().unwrap().code);
+            dbg!(&self.pc);
+            panic!()
+        })
+    }
+    pub fn push(&self, j: JavaValue) {
+        self.operand_stack.borrow_mut().push(j)
+    }
+
+    pub fn depth(&self) -> usize {
+        match &self.last_call_stack {
+            None => 0,
+            Some(last) => last.depth() + 1,
+        }
+    }
+
+    pub fn print_stack_trace(&self) {
+        let class_file = &self.class_pointer.classfile;
+        let method = &class_file.methods[self.method_i as usize];
+        println!("{} {} {} {}",
+                 &class_name(class_file).get_referred_name(),
+                 method.method_name(class_file),
+                 method.descriptor_str(class_file),
+                 self.depth());
+        match &self.last_call_stack {
+            None => {}
+            Some(last) => last.print_stack_trace(),
+        }
+    }
+}
+
+
+#[derive(Debug)]
+pub struct LibJavaLoading {
+    pub lib: Library,
+    pub registered_natives: RefCell<HashMap<Arc<RuntimeClass>, RefCell<HashMap<u16, unsafe extern fn()>>>>,
+}
+
 
 pub fn get_or_create_class_object(state: &mut InterpreterState,
                                   type_: &PTypeView,
@@ -41,7 +124,7 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
             }
             _ => {}
         },
-        _ => {},
+        _ => {}
     }
 
     regular_object(state, type_, current_frame, loader_arc)
@@ -147,7 +230,7 @@ pub fn run(
             entries: HashSet::new()
         },
         start_instant: Instant::now(),
-        anon_class_counter: 0
+        anon_class_counter: 0,
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
@@ -211,5 +294,4 @@ fn locate_main_method(_bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
 
 pub mod instructions;
 pub mod interpreter_util;
-pub mod runtime_class;
 pub mod rust_jni;

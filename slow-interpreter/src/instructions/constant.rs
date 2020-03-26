@@ -1,6 +1,6 @@
-use runtime_common::StackEntry;
 use std::rc::Rc;
-use runtime_common::java_values::JavaValue;
+use crate::java_values::JavaValue;
+use crate::StackEntry;
 
 pub fn fconst_0(current_frame: &Rc<StackEntry>) {
     current_frame.push(JavaValue::Float(0.0));

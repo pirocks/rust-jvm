@@ -1,6 +1,6 @@
-use runtime_common::StackEntry;
 use std::rc::Rc;
-use runtime_common::java_values::JavaValue;
+use crate::java_values::JavaValue;
+use crate::StackEntry;
 
 pub fn i2l(current_frame: &Rc<StackEntry>) -> () {
     let int = current_frame.pop().unwrap_int();

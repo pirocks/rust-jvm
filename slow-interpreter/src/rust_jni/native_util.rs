@@ -1,11 +1,10 @@
 use std::sync::Arc;
-use runtime_common::java_values::Object;
-use crate::get_or_create_class_object;
+use crate::{get_or_create_class_object, InterpreterState, StackEntry};
 use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
-use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
 use std::ops::Deref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
+use crate::java_values::Object;
 
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {

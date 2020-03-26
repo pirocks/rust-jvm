@@ -3,12 +3,12 @@
 #![allow(non_snake_case)]
 
 //all of these functions should be implemented in libjvm
-use runtime_common::java_values::JavaValue;
 use std::mem::transmute;
-use utils::string_obj_to_string;
-use runtime_common::{InterpreterState, StackEntry};
+use crate::utils::string_obj_to_string;
 use std::rc::Rc;
 use crate::interpreter_util::check_inited_class;
+use crate::java_values::JavaValue;
+use crate::{InterpreterState, StackEntry};
 
 
 pub fn compare_and_swap_long(args: &mut Vec<JavaValue>) -> Option<JavaValue> {

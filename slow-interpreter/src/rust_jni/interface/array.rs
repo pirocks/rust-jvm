@@ -1,10 +1,10 @@
 use jni_bindings::{JNIEnv, jbyte, jsize, jbyteArray, jarray};
 use std::cell::RefCell;
-use runtime_common::java_values::{ArrayObject, Object, JavaValue};
 use std::sync::Arc;
 use crate::rust_jni::native_util::{to_object, from_object};
 use std::ops::Deref;
 use classfile_view::view::ptype_view::PTypeView;
+use crate::java_values::{JavaValue, Object, ArrayObject};
 
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {

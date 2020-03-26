@@ -1,13 +1,12 @@
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use rust_jvm_common::classfile::{ConstantKind, Atype, MultiNewArray};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
-use runtime_common::java_values::{JavaValue, default_value, Object, ArrayObject};
-
 use std::sync::Arc;
 use std::cell::RefCell;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
+use crate::{InterpreterState, StackEntry};
 
 pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;

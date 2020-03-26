@@ -1,7 +1,7 @@
-use runtime_common::StackEntry;
 use std::rc::Rc;
-use runtime_common::java_values::JavaValue;
 use classfile_view::view::ptype_view::PTypeView;
+use crate::java_values::JavaValue;
+use crate::StackEntry;
 
 
 pub fn astore(current_frame: &Rc<StackEntry>, n: usize) -> () {

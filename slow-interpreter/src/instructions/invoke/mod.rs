@@ -1,17 +1,16 @@
-use crate::InterpreterState;
+use crate::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use verification::verifier::instructions::branches::get_method_descriptor;
 use std::sync::Arc;
 
 use crate::interpreter_util::check_inited_class;
-use runtime_common::java_values::{JavaValue, Object, ArrayObject};
-use runtime_common::runtime_class::RuntimeClass;
-use runtime_common::StackEntry;
-use utils::lookup_method_parsed;
+use crate::utils::lookup_method_parsed;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::view::ClassView;
 use classfile_view::view::descriptor_parser::MethodDescriptor;
 use classfile_view::loading::LoaderArc;
+use crate::java_values::{JavaValue, Object, ArrayObject};
+use crate::runtime_class::RuntimeClass;
 
 
 pub mod special;
@@ -21,12 +20,12 @@ pub mod virtual_;
 pub mod static_;
 
 pub mod dynamic {
-    use runtime_common::{InterpreterState, StackEntry};
     use std::rc::Rc;
 
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
     use classfile_view::view::constant_info_view::ConstantInfoView;
+    use crate::{InterpreterState, StackEntry};
 
     pub fn invoke_dynamic(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
         let _method_handle = check_inited_class(

@@ -1,10 +1,10 @@
 use jni_bindings::{jobject, JNIEnv};
-use runtime_common::java_values::JavaValue;
 use slow_interpreter::instructions::ldc::create_string_on_stack;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, from_object};
 
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use classfile_view::view::descriptor_parser::parse_method_descriptor;
+use slow_interpreter::java_values::JavaValue;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {

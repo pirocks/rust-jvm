@@ -1,12 +1,12 @@
-use runtime_common::runtime_class::RuntimeClass;
 use std::sync::Arc;
 use crate::rust_jni::native_util::from_object;
 use jni_bindings::jclass;
-use runtime_common::java_values::NormalObject;
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use crate::interpreter_util::check_inited_class;
 use classfile_view::view::ptype_view::ReferenceTypeView;
+use crate::runtime_class::RuntimeClass;
+use crate::{InterpreterState, StackEntry};
+use crate::java_values::NormalObject;
 
 pub struct FieldID {
     pub class: Arc<RuntimeClass>,

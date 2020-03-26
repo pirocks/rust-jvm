@@ -6,7 +6,7 @@ pub mod method {
     }
 
     impl NormalObject{
-        pub fn cast_method_type(&self) -> Method{
+        pub fn cast_method(&self) -> Method{
             Method { normal_object: self.clone() }
         }
     }

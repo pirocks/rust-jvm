@@ -1,6 +1,6 @@
-use runtime_common::StackEntry;
 use std::rc::Rc;
-use runtime_common::java_values::JavaValue;
+use crate::java_values::JavaValue;
+use crate::StackEntry;
 
 pub fn fmul(current_frame: &Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_float();

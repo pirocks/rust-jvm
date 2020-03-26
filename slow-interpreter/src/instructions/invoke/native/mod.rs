@@ -1,9 +1,6 @@
 use rust_jvm_common::classnames::{class_name, ClassName};
-use runtime_common::java_values::{JavaValue, Object};
 use crate::rust_jni::{mangling, call_impl, call};
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ConstantInfo, ConstantKind, Class, Utf8, Classfile, InterfaceMethodref, NameAndType};
-use runtime_common::runtime_class::RuntimeClass;
-use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -16,7 +13,10 @@ use verification::{verify, VerifierContext};
 use classfile_view::view::ClassView;
 use crate::instructions::ldc::load_class_constant_by_type;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use utils::string_obj_to_string;
+use crate::utils::string_obj_to_string;
+use crate::{InterpreterState, StackEntry};
+use crate::runtime_class::RuntimeClass;
+use crate::java_values::{Object, JavaValue};
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -163,7 +163,13 @@ fn patch_all(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Ve
     unpatched.this_class = (unpatched.constant_pool.len() - 1) as u16;
 }
 
-fn patch_single(patch: &Arc<Object>, state: &mut InterpreterState, frame: &Rc<StackEntry>, unpatched: &mut Classfile, i: usize) {
+fn patch_single(
+    patch: &Arc<Object>,
+    state: &mut InterpreterState,
+    frame: &Rc<StackEntry>,
+    unpatched: &mut Classfile,
+    i: usize
+) {
     let class_name = patch.unwrap_normal_object().class_pointer.class_view.name();
 
     // Integer, Long, Float, Double: the corresponding wrapper object type from java.lang
