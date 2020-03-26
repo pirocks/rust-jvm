@@ -19,6 +19,7 @@ use classfile_view::view::ptype_view::PTypeView;
 
 pub mod java_values;
 pub mod runtime_class;
+pub mod java;
 
 pub struct InterpreterState {
     pub terminate: bool,

@@ -31,7 +31,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
     let runtime_class = runtime_class_from_object(ofClass, state, &frame).unwrap();
     let methods = get_all_methods(state, frame.clone(), runtime_class);
-    let method_class = check_inited_class(state, &ClassName::new("java/lang/reflect/Method"), frame.clone().into(), loader.clone());
+    let method_class = check_inited_class(state, &ClassName::method(), frame.clone().into(), loader.clone());
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {
@@ -85,6 +85,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         let parameterAnnotations = JavaValue::empty_byte_array();
         let annotationDefault = JavaValue::empty_byte_array();
         let full_args = vec![method_object, clazz,name, parameterTypes, returnType, exceptionTypes, modifiers, slot, signature, annotations, parameterAnnotations, annotationDefault];
+        //todo replace with wrapper object
         run_constructor(state, frame.clone(), method_class.clone(), full_args, METHOD_SIGNATURE.to_string());
     });
     let res = Arc::new(Object::object_array(object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.class_view.name())))).into();
