@@ -993,3 +993,10 @@ impl std::hash::Hash for Classfile {
         //todo attributes
     }
 }
+
+
+impl From<ConstantKind> for ConstantInfo{
+    fn from(kind: ConstantKind) -> Self {
+        Self { kind }
+    }
+}

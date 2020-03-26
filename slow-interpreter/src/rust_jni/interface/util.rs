@@ -16,17 +16,13 @@ pub struct FieldID {
 
 pub unsafe fn runtime_class_from_object(cls: jclass, state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Option<Arc<RuntimeClass>> {
     let object_non_null = from_object(cls).unwrap().clone();
-    /*if object_non_null.is_array() {
-        None
-    } else {*/
-        let runtime_class = class_object_to_runtime_class(object_non_null.unwrap_normal_object(), state, frame);
-        runtime_class.clone()
-    /*}*/
+    let runtime_class = class_object_to_runtime_class(object_non_null.unwrap_normal_object(), state, frame);
+    runtime_class.clone()
 }
 
 pub fn class_object_to_runtime_class(obj: &NormalObject, state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Option<Arc<RuntimeClass>> {
-    if obj.class_object_to_ptype().is_primitive(){
-        return None
+    if obj.class_object_to_ptype().is_primitive() {
+        return None;
     }
     match obj.class_object_to_ptype().unwrap_ref_type() {
         ReferenceTypeView::Class(class_name) => {
