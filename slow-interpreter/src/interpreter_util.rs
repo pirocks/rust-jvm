@@ -79,10 +79,10 @@ pub fn run_function(
         // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("name"))
         // dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
     }
-    if &meth_name == "resolve" && class_name_ == "java/lang/invoke/LambdaForm/NamedFunction" {
+    if &meth_name == "resolve" && class_name_ == "java/lang/invoke/MemberName$Factory" {
         //ion resolve
         // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("debugName"));
-        dbg!(&current_frame.local_vars.borrow()[0]);
+        dbg!(&current_frame.local_vars.borrow());
         // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("name"))
         // dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
     }

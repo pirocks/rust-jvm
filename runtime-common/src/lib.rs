@@ -34,6 +34,7 @@ pub struct InterpreterState {
     pub jni: LibJavaLoading,
     pub string_pool: StringPool,//todo this should really be in some sort of parser/jvm state
     pub start_instant : Instant,
+    pub anon_class_counter : usize
 }
 
 #[derive(Debug)]

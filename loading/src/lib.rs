@@ -142,7 +142,7 @@ impl BootstrapLoader {
             Some(path) => {
                 let file = File::open(path).unwrap();
                 let classfile = parse_class_file(&mut (&file).try_clone().unwrap());
-                Result::Ok(classfile)
+                Result::Ok(Arc::new(classfile))
             }
         }
     }

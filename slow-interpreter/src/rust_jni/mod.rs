@@ -216,7 +216,6 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
 
 pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
-//    dbg!(&class_name(&class.classfile).get_referred_name());
     class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
@@ -236,6 +235,29 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, clas
 
     res
 }
+
+//todo duplication with methods
+pub fn get_all_fields(state: &mut InterpreterState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+    let mut res = vec![];
+    class.classfile.fields.iter().enumerate().for_each(|(i, _)| {
+        res.push((class.clone(), i));
+    });
+    if class.classfile.super_class == 0 {
+        let object = check_inited_class(state, &ClassName::object(), frame.clone().into(), class.loader.clone());
+        object.classfile.fields.iter().enumerate().for_each(|(i, _)| {
+            res.push((object.clone(), i));
+        });
+    } else {
+        let name = class.classfile.super_class_name();
+        let super_ = check_inited_class(state, &name.unwrap(), frame.clone().into(), class.loader.clone());
+        for (c, i) in get_all_fields(state, frame, super_) {
+            res.push((c, i));//todo accidental O(n^2)
+        }
+    }
+
+    res
+}
+
 
 //for now a method id is a pair of class pointers and i.
 //turns out this is for member functions only

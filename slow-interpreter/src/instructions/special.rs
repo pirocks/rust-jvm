@@ -1,6 +1,6 @@
 use runtime_common::{StackEntry, InterpreterState};
 use std::rc::Rc;
-use runtime_common::java_values::{JavaValue, NormalObject};
+use runtime_common::java_values::JavaValue;
 use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use runtime_common::runtime_class::RuntimeClass;

@@ -60,7 +60,10 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -> jint {
-    runtime_class_from_object(cls,get_state(env),&get_frame(env)).unwrap().classfile.access_flags as jint
+    let frame = get_frame(env);
+    let state = get_state(env);
+    frame.print_stack_trace();
+    runtime_class_from_object(cls, state, &frame).unwrap().class_view.access_flags() as jint
 }
 
 #[no_mangle]

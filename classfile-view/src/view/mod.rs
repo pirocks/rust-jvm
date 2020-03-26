@@ -3,7 +3,7 @@ use crate::view::method_view::{MethodIterator, MethodView};
 use rust_jvm_common::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType, ACC_VARARGS};
 use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
-use crate::view::field_view::FieldIterator;
+use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView};
 
@@ -100,8 +100,12 @@ impl ClassView {
             ConstantKind::InvalidConstant(_) => unimplemented!(),
         }
     }
+    pub fn field(&self, i: usize) -> FieldView {
+        FieldView::from(self, i )
+    }
+
     pub fn fields(&self) -> FieldIterator {
-        unimplemented!()
+        FieldIterator { backing_class: &self, i: 0 }
     }
     pub fn interfaces(&self) -> InterfaceIterator {
         InterfaceIterator { backing_class: &self, i: 0 }

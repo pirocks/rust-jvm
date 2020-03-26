@@ -147,6 +147,7 @@ pub fn run(
             entries: HashSet::new()
         },
         start_instant: Instant::now(),
+        anon_class_counter: 0
     };
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);

@@ -320,7 +320,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
     // dbg!(&operand_arg_list);
     // dbg!(&method_name);
     // dbg!(&_class_name);
-    if &method_name == "linkToStatic"{
+    if &method_name == "linkToStatic" || &method_name == "linkToVirtual" {
         //todo should handle polymorphism better
         let mut next_stack_frame = stack_frame.stack_map.clone();
         stack_arg_list.iter().for_each(|_|{
@@ -333,6 +333,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
             flag_this_uninit: stack_frame.flag_this_uninit
         })
     }else {
+        dbg!(method_name);
         let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
         standard_exception_frame(stack_frame, next_frame)
     }

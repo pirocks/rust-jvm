@@ -1,7 +1,7 @@
 use rust_jvm_common::classnames::class_name;
 use runtime_common::java_values::JavaValue;
 use crate::rust_jni::{mangling, call_impl, call};
-use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC};
+use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ConstantInfo, ConstantKind, Class, Utf8};
 use runtime_common::runtime_class::RuntimeClass;
 use runtime_common::{InterpreterState, StackEntry};
 use std::rc::Rc;
@@ -14,8 +14,6 @@ use crate::instructions::invoke::native::unsafe_temp::*;
 use classfile_parser::parse_class_file;
 use verification::{verify, VerifierContext};
 use classfile_view::view::ClassView;
-use std::fs::File;
-use std::io::Write;
 use crate::instructions::ldc::load_class_constant_by_type;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 
@@ -71,7 +69,7 @@ pub fn run_native_method(
                     let mangled = mangling::mangle(class.clone(), method_i);
                     //todo actually impl these at some point
                     if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
-                        object_field_offset(state,&frame,&mut args)
+                        object_field_offset(state, &frame, &mut args)
                     } else if mangled == "Java_sun_misc_Unsafe_getIntVolatile".to_string() {
                         get_int_volatile(&mut args)
                     } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapInt".to_string() {
@@ -96,7 +94,7 @@ pub fn run_native_method(
                         MHN_getConstant()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
                         MHN_resolve(state, &frame, &mut args)
-                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init"{
+                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
                         MHN_init(state, &frame, &mut args)
                     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
                         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
@@ -108,34 +106,39 @@ pub fn run_native_method(
                         None
                     } else if &mangled == "Java_sun_misc_Unsafe_defineAnonymousClass" {
                         let _parent_class = &args[1];//todo idk what this is for which is potentially problematic
-                        let byte_array:Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8 ).collect();
+                        let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8).collect();
                         //todo for debug, delete later
-                        let cloned=  byte_array.clone();
+                        let cloned = byte_array.clone();
                         let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
                         if !cp_entry_patches.is_empty() {
-                            assert!(cp_entry_patches.iter().all(|x|x.is_none()))
+                            assert!(cp_entry_patches.iter().all(|x| x.is_none()))
                             // unimplemented!()
                         }
 
                         // let loader = parent_class.unwrap_normal_object().class_pointer.loader.clone();//todo so we aren't meant to use any loader but verify needs something?
-                        let parsed= parse_class_file(&mut byte_array.as_slice());
+                        let mut unpatched = parse_class_file(&mut byte_array.as_slice());
+                        let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", state.anon_class_counter);
+                        state.anon_class_counter += 1;
+                        let name_index = unpatched.constant_pool.len() as u16;
+                        unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
+                        unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
+                        unpatched.this_class = (unpatched.constant_pool.len() - 1) as u16;
+                        let parsed = Arc::new(unpatched);
                         //todo maybe have an anon loader for this
                         let bootstrap_loader = state.bootstrap_loader.clone();
 
                         let vf = VerifierContext { bootstrap_loader: bootstrap_loader.clone() };
                         let class_view = ClassView::from(parsed.clone());
 
-                        File::create(format!("{}.class",class_view.name().get_referred_name().replace("/","_"))).unwrap().write(cloned.as_slice()).unwrap();
-                        bootstrap_loader.add_pre_loaded(&class_view.name(),&parsed);
-                        match verify(&vf, class_view.clone(), bootstrap_loader.clone()){
-                            Ok(_) => {},
+                        // File::create(format!("{}.class", class_view.name().get_referred_name().replace("/", "_"))).unwrap().write(cloned.as_slice()).unwrap();
+                        bootstrap_loader.add_pre_loaded(&class_view.name(), &parsed);
+                        match verify(&vf, class_view.clone(), bootstrap_loader.clone()) {
+                            Ok(_) => {}
                             Err(_) => panic!(),
                         };
-                        load_class_constant_by_type(state,&frame,&PTypeView::Ref(ReferenceTypeView::Class(class_view.name())));
+                        load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(class_view.name())));
                         frame.pop().into()
-                    }
-
-                    else {
+                    } else {
                         frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
@@ -151,7 +154,6 @@ pub fn run_native_method(
     }
     println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
-
 
 
 pub mod mhn_temp;
