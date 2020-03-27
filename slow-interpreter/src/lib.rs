@@ -1,5 +1,4 @@
 #![feature(c_variadic)]
-
 extern crate log;
 extern crate simple_logger;
 extern crate libloading;
@@ -33,6 +32,7 @@ use descriptor_parser::MethodDescriptor;
 
 pub mod java_values;
 pub mod runtime_class;
+#[macro_use]
 pub mod java;
 pub mod utils;
 
