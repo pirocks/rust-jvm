@@ -335,7 +335,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
             flag_this_uninit: stack_frame.flag_this_uninit,
         })
     } else {
-        dbg!(method_name);
+        // dbg!(method_name);
         let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
         standard_exception_frame(stack_frame, next_frame)
     }

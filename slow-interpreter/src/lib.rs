@@ -33,6 +33,8 @@ pub mod java_values;
 pub mod runtime_class;
 #[macro_use]
 pub mod java;
+#[macro_use]
+pub mod sun;
 pub mod utils;
 
 pub struct InterpreterState {

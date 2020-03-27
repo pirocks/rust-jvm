@@ -18,9 +18,9 @@ use crate::java_values::{Object, JavaValue};
 use std::fs::File;
 use std::io::Write;
 use descriptor_parser::MethodDescriptor;
-use crate::interpreter_util::check_inited_class;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
+use crate::sun::misc::unsafe_::Unsafe;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -138,7 +138,7 @@ pub fn run_native_method(
                         let empty_string = JString::from(state, &frame, "".to_string());
                         let field = Field::init(state, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
 
-                        let mut args = vec![the_unsafe,field.java_value()];
+                        let mut args = vec![Unsafe::the_unsafe(state,&frame).java_value(),field.java_value()];
                         object_field_offset(state,&frame,&mut args)
                     } else {
                         frame.print_stack_trace();
@@ -259,7 +259,8 @@ fn patch_single(
             unimplemented!()
         }
     }*/ else {
-        assert!(class_name == ClassName::unsafe_() || class_name == ClassName::direct_method_handle());//for now keep a white list of allowed classes here until the above are properly implemented
+        // dbg!(&class_name);
+        // assert!(class_name == ClassName::unsafe_() || class_name == ClassName::direct_method_handle());//for now keep a white list of allowed classes here until the above are properly implemented
         let live_object_i = state.anon_class_live_object_ldc_pool.borrow().len();
         state.anon_class_live_object_ldc_pool.borrow_mut().push(patch.clone());
         unpatched.constant_pool[i] = ConstantKind::LiveObject(live_object_i).into();

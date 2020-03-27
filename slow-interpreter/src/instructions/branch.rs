@@ -220,6 +220,8 @@ pub fn if_acmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
+    dbg!(&value1);
+    dbg!(&value2);
     match value1 {
         JavaValue::Object(o1) => match value2 {
             JavaValue::Object(o2) => match o1 {
@@ -228,7 +230,7 @@ fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
                     Some(_) => false,
                 },
                 Some(o1_arc) => match o2 {
-                    None => true,
+                    None => false,
                     Some(o2_arc) => {
                         Arc::ptr_eq(&o1_arc, &o2_arc)
                     }
