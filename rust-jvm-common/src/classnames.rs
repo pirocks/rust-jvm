@@ -122,6 +122,10 @@ impl ClassName {
     pub fn unsafe_() -> Self {
         Self::new("sun/misc/Unsafe")
     }
+
+    pub fn field() -> Self {
+        Self::new("java/lang/reflect/Field")
+    }
 }
 
 impl Hash for ClassName {

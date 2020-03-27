@@ -19,6 +19,8 @@ use std::fs::File;
 use std::io::Write;
 use descriptor_parser::MethodDescriptor;
 use crate::interpreter_util::check_inited_class;
+use crate::java::lang::reflect::field::Field;
+use crate::java::lang::string::JString;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -130,11 +132,13 @@ pub fn run_native_method(
                         frame.pop().into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
                         let member_name = args[0].unwrap_normal_object().cast_member_name();
-                        let name = member_name.get_name(state, frame.clone()).to_rust_string();
-                        let clazz = member_name.clazz().as_type().unwrap_class_type();
+                        let name = member_name.get_name(state, frame.clone());
+                        let clazz = member_name.clazz();
                         let field_type = member_name.get_field_type(state, frame.clone());
-
-                        unimplemented!()
+                        let empty_string = JString::from(state, &frame, "".to_string());
+                        let field = Field::init(state, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
+                        let mut args = vec![field.java_value()];
+                        object_field_offset(state,&frame,&mut args)
                     } else {
                         frame.print_stack_trace();
                         dbg!(mangled);

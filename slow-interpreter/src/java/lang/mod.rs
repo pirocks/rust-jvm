@@ -61,9 +61,6 @@ pub mod class{
     use crate::java_values::{NormalObject, JavaValue};
     use classfile_view::view::ptype_view::PTypeView;
     use crate::java_values::Object::Object;
-    use std::sync::Arc;
-    #[macro_use]
-    use crate::java::*;
 
     pub struct JClass {
         normal_object: NormalObject
@@ -91,7 +88,6 @@ pub mod string {
     use crate::java_values::Object;
     use std::sync::Arc;
     use crate::java_values::JavaValue;
-    use classfile_view::view::ptype_view::PTypeView;
     use crate::instructions::ldc::create_string_on_stack;
     use crate::{InterpreterState, StackEntry};
     use std::rc::Rc;
