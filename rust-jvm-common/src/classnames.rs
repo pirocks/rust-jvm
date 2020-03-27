@@ -118,6 +118,10 @@ impl ClassName {
     pub fn cloneable() -> Self {
         Self::new("java/lang/Cloneable")
     }
+
+    pub fn unsafe_() -> Self {
+        Self::new("sun/misc/Unsafe")
+    }
 }
 
 impl Hash for ClassName {

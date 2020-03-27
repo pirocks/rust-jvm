@@ -17,6 +17,8 @@ use crate::utils::string_obj_to_string;
 use crate::{InterpreterState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::{Object, JavaValue};
+use std::fs::File;
+use std::io::Write;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -110,7 +112,7 @@ pub fn run_native_method(
                         let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8).collect();
                         //todo for debug, delete later
                         let mut unpatched = parse_class_file(&mut byte_array.as_slice());
-
+                        File::create("unpatched.class").unwrap().write(byte_array.clone().as_slice()).unwrap();
                         patch_all(state, &frame, &mut args, &mut unpatched);
                         let parsed = Arc::new(unpatched);
                         //todo maybe have an anon loader for this
@@ -119,7 +121,6 @@ pub fn run_native_method(
                         let vf = VerifierContext { bootstrap_loader: bootstrap_loader.clone() };
                         let class_view = ClassView::from(parsed.clone());
 
-                        // File::create(format!("{}.class", class_view.name().get_referred_name().replace("/", "_"))).unwrap().write(cloned.as_slice()).unwrap();
                         bootstrap_loader.add_pre_loaded(&class_view.name(), &parsed);
                         match verify(&vf, class_view.clone(), bootstrap_loader.clone()) {
                             Ok(_) => {}
@@ -219,11 +220,11 @@ fn patch_single(
                 class_i
             };
             let descriptor_i = {
-                let method_type = member_name_obj_fields.get("type").unwrap();
-                let method_type_fields = method_type.unwrap_normal_object().fields.borrow();
-                let method_descriptor_string_obj = method_type_fields.get("methodDescriptor").unwrap();
-                dbg!(&method_type_fields);
-                let method_descriptor = string_obj_to_string(method_descriptor_string_obj.unwrap_object());
+                let type_ = member_name_obj_fields.get("type").unwrap();
+                let method_type = type_.unwrap_normal_object().cast_method_type();
+                let method_descriptor = method_type.to_string(state,frame.clone()).to_rust_string();
+
+
                 let descriptor_i = unpatched.constant_pool.len();
                 unpatched.constant_pool.push(ConstantKind::Utf8(Utf8 {
                     length: method_descriptor.len() as u16,
@@ -238,11 +239,16 @@ fn patch_single(
                 descriptor_index: descriptor_i as u16,
             }).into());
 
-            ConstantKind::InterfaceMethodref(InterfaceMethodref { class_index: class_i as u16, nt_index: nt_i as u16 })
+            unpatched.constant_pool[i] = ConstantKind::InterfaceMethodref(InterfaceMethodref {
+                class_index: class_i as u16,
+                nt_index: nt_i as u16
+            }).into();
         } else {
             unimplemented!()
         }
     } else {
+        assert_eq!(class_name, ClassName::unsafe_());//for now keep a white list of allowed classes here until the above are properly implemented
+
         unimplemented!()
     };
 }

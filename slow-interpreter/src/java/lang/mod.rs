@@ -1,19 +1,4 @@
-
-
-
-pub mod method_type {
-    use crate::java_values::NormalObject;
-
-    pub struct MethodType{
-        normal_object: NormalObject
-    }
-
-    impl NormalObject{
-        pub fn cast_method_type(&self) -> MethodType{
-            MethodType { normal_object: self.clone() }
-        }
-    }
-}
+pub mod invoke;
 
 pub mod member_name {
     use crate::java_values::NormalObject;
@@ -31,21 +16,23 @@ pub mod member_name {
 
 pub mod string {
     use crate::java_values::NormalObject;
+    use crate::utils::string_obj_to_string;
+    use crate::java_values::Object::Object;
+    use std::sync::Arc;
 
-    pub struct String{
+    pub struct JString {
         normal_object: NormalObject
     }
 
     impl NormalObject{
-        pub fn cast_string(&self) -> String{
-            String { normal_object: self.clone() }
+        pub fn cast_string(&self) -> JString {
+            JString { normal_object: self.clone() }
         }
     }
 
-    impl String{
-        pub fn to_rust_string(&self) -> String{
-            unimplemented!()
-            // string_obj_to_string()
+    impl JString {
+        pub fn to_rust_string(&self) -> String {
+            string_obj_to_string(Arc::new(Object(self.normal_object.clone())).into())
         }
     }
 }
