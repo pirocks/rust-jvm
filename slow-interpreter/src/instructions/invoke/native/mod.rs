@@ -1,10 +1,9 @@
 use rust_jvm_common::classnames::{class_name, ClassName};
 use crate::rust_jni::{mangling, call_impl, call};
-use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ConstantInfo, ConstantKind, Class, Utf8, Classfile, InterfaceMethodref, NameAndType};
+use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ConstantInfo, ConstantKind, Class, Utf8, Classfile};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use classfile_view::view::descriptor_parser::MethodDescriptor;
 use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::unsafe_temp::*;
@@ -13,12 +12,13 @@ use verification::{verify, VerifierContext};
 use classfile_view::view::ClassView;
 use crate::instructions::ldc::load_class_constant_by_type;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::utils::string_obj_to_string;
 use crate::{InterpreterState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::{Object, JavaValue};
 use std::fs::File;
 use std::io::Write;
+use descriptor_parser::MethodDescriptor;
+use crate::java::lang::member_name::MemberName;
 
 pub fn run_native_method(
     state: &mut InterpreterState,
@@ -118,7 +118,7 @@ pub fn run_native_method(
                         //todo maybe have an anon loader for this
                         let bootstrap_loader = state.bootstrap_loader.clone();
 
-                        let vf = VerifierContext { bootstrap_loader: bootstrap_loader.clone() };
+                        let vf = VerifierContext { live_pool_getter: state.get_live_object_pool_getter(), bootstrap_loader: bootstrap_loader.clone() };
                         let class_view = ClassView::from(parsed.clone());
 
                         bootstrap_loader.add_pre_loaded(&class_view.name(), &parsed);
@@ -128,6 +128,11 @@ pub fn run_native_method(
                         };
                         load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(class_view.name())));
                         frame.pop().into()
+                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
+                        let member_name = args[0].unwrap_normal_object().cast_member_name();
+
+                        frame.print_stack_trace();
+                        unimplemented!()
                     } else {
                         frame.print_stack_trace();
                         dbg!(mangled);
@@ -169,7 +174,7 @@ fn patch_single(
     state: &mut InterpreterState,
     frame: &Rc<StackEntry>,
     unpatched: &mut Classfile,
-    i: usize
+    i: usize,
 ) {
     let class_name = patch.unwrap_normal_object().class_pointer.class_view.name();
 
@@ -177,7 +182,7 @@ fn patch_single(
     // Utf8: a string (must have suitable syntax if used as signature or name)
     // Class: any java.lang.Class object
     // String: any object (not just a java.lang.String)
-    // InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments
+    // InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments//nyi means not yet implemented
     dbg!(&class_name);
     let kind = if class_name == ClassName::int() ||
         class_name == ClassName::long() ||
@@ -188,7 +193,7 @@ fn patch_single(
         unimplemented!()
     } else if class_name == ClassName::class() {
         unimplemented!()
-    } else if class_name == ClassName::method_handle() || class_name == ClassName::direct_method_handle() {//todo should be using innstanceof here
+    } /*else if class_name == ClassName::method_handle() || class_name == ClassName::direct_method_handle() {//todo should be using innstanceof here
         dbg!(&unpatched.constant_pool[i]);
         dbg!(&unpatched.constant_pool.iter().enumerate().collect::<Vec<_>>());
         if class_name == ClassName::direct_method_handle() {
@@ -246,10 +251,11 @@ fn patch_single(
         } else {
             unimplemented!()
         }
-    } else {
-        assert_eq!(class_name, ClassName::unsafe_());//for now keep a white list of allowed classes here until the above are properly implemented
-
-        unimplemented!()
+    }*/ else {
+        assert!(class_name == ClassName::unsafe_() || class_name == ClassName::direct_method_handle());//for now keep a white list of allowed classes here until the above are properly implemented
+        let live_object_i = state.anon_class_live_object_ldc_pool.borrow().len();
+        state.anon_class_live_object_ldc_pool.borrow_mut().push(patch.clone());
+        unpatched.constant_pool[i] = ConstantKind::LiveObject(live_object_i).into();
     };
 }
 

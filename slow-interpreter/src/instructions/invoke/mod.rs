@@ -7,10 +7,10 @@ use crate::interpreter_util::check_inited_class;
 use crate::utils::lookup_method_parsed;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::view::ClassView;
-use classfile_view::view::descriptor_parser::MethodDescriptor;
 use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, Object, ArrayObject};
 use crate::runtime_class::RuntimeClass;
+use descriptor_parser::MethodDescriptor;
 
 
 pub mod special;

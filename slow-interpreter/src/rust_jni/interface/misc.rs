@@ -11,8 +11,8 @@ use rust_jvm_common::classnames::ClassName;
 use std::intrinsics::transmute;
 use crate::instructions::invoke::special::invoke_special_impl;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use classfile_view::view::descriptor_parser::parse_method_descriptor;
 use crate::java_values::JavaValue;
+use descriptor_parser::parse_method_descriptor;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -59,11 +59,11 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     let method_descriptor_str = method.descriptor_str(classfile);
     let _name = method.method_name(classfile);
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
-    push_new_object(frame.clone(), &method_id.class);
+    push_new_object(state,frame.clone(), &method_id.class);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {
-        match type_ {
+        match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => unimplemented!(),
             PTypeView::CharType => unimplemented!(),
             PTypeView::DoubleType => unimplemented!(),
@@ -105,11 +105,11 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     let method_descriptor_str = method.descriptor_str(classfile);
     let _name = method.method_name(classfile);
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
-    push_new_object(frame.clone(), &method_id.class);
+    push_new_object(state,frame.clone(), &method_id.class);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {
-        match type_ {
+        match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => unimplemented!(),
             PTypeView::CharType => unimplemented!(),
             PTypeView::DoubleType => unimplemented!(),

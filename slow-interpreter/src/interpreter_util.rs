@@ -29,9 +29,10 @@ use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::{invoke_virtual_instruction, invoke_virtual_method_i};
 use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::instructions::pop::{pop2, pop};
-use classfile_view::view::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, default_value, Object};
+use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
+use classfile_view::view::ptype_view::PTypeView;
 
 
 //todo jni should really live in interpreter state
@@ -44,7 +45,7 @@ pub fn check_inited_class(
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
         let bl = state.bootstrap_loader.clone();
-        let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl).unwrap();
+        let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl,state.get_live_object_pool_getter()).unwrap();
         let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
         state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
         let inited_target = initialize_class(prepared, state, current_frame);
@@ -364,19 +365,19 @@ pub fn run_function(
 }
 
 
-pub fn push_new_object(current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {
+pub fn push_new_object(state: &mut InterpreterState,current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader.clone();
     let object_pointer = JavaValue::new_object(target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
-    default_init_fields(loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
+    default_init_fields(state,loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
     current_frame.push(new_obj);
 }
 
-fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
+fn default_init_fields(state: &mut InterpreterState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
     if classfile.super_class != 0 {
         let super_name = classfile.super_class_name();
-        let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone()).unwrap();
-        default_init_fields(loader_arc.clone(), object_pointer.clone(), &loaded_super.backing_class(), bl);
+        let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(),state.get_live_object_pool_getter()).unwrap();
+        default_init_fields(state,loader_arc.clone(), object_pointer.clone(), &loaded_super.backing_class(), bl);
     }
     for field in &classfile.fields {
         if field.access_flags & ACC_STATIC == 0 {
@@ -388,7 +389,7 @@ fn default_init_fields(loader_arc: LoaderArc, object_pointer: Option<Arc<Object>
             let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
             let descriptor_str = classfile.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
             let descriptor = parse_field_descriptor(descriptor_str.as_str()).unwrap();
-            let type_ = descriptor.field_type;
+            let type_ = PTypeView::from_ptype(&descriptor.field_type);
             let val = default_value(type_);
             {
                 object_pointer.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert(name, val);

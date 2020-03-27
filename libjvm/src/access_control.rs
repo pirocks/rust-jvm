@@ -6,8 +6,8 @@ use rust_jvm_common::classnames::ClassName;
 
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::view::descriptor_parser::MethodDescriptor;
 use slow_interpreter::java_values::JavaValue;
+use descriptor_parser::MethodDescriptor;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
@@ -20,7 +20,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     let (run_method_i, run_method) = classfile.lookup_method("run".to_string(), "()Ljava/lang/Object;".to_string()).unwrap();
     let expected_descriptor = MethodDescriptor {
         parameter_types: vec![],
-        return_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())),
+        return_type: PType::Ref(ReferenceType::Class(ClassName::object())),
     };
     frame.push(JavaValue::Object(action));
     //todo shouldn't this be invoke_virtual

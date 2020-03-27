@@ -12,8 +12,7 @@ use crate::OperandStack;
 use classfile_view::vtype::VType;
 use classfile_view::loading::ClassWithLoader;
 use classfile_view::view::constant_info_view::ConstantInfoView;
-
-
+use classfile_view::view::ptype_view::PTypeView;
 
 
 pub mod loads;
@@ -533,7 +532,14 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
         ConstantInfoView::MethodType(_) => unimplemented!(),
         ConstantInfoView::Dynamic(_) => unimplemented!(),
         ConstantInfoView::InvokeDynamic(_) => unimplemented!(),
-        _ => panic!()
+        ConstantInfoView::LiveObject(idx) => {
+            let type_ = vf.live_pool_getter.elem_type(*idx);
+            PTypeView::Ref(type_).to_verification_type(&vf.bootstrap_loader.clone())
+        }
+        _ => {
+            dbg!(c);
+            panic!()
+        }
     }
 }
 

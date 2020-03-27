@@ -9,9 +9,9 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 use std::sync::Arc;
 use crate::instructions::invoke::native::run_native_method;
 use classfile_view::view::ClassView;
-use classfile_view::view::descriptor_parser::MethodDescriptor;
 use crate::{InterpreterState, StackEntry};
 use crate::runtime_class::RuntimeClass;
+use descriptor_parser::MethodDescriptor;
 
 pub fn invoke_special(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();

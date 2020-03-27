@@ -18,7 +18,7 @@ pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usi
     let target_class_name = ClassName::Str(constant_pool[class_name_index as usize].extract_string_from_utf8());
 //    dbg!(&target_class_name);
     let target_classfile = check_inited_class(state, &target_class_name, current_frame.clone().into(), loader_arc.clone());
-    push_new_object(current_frame.clone().into(), &target_classfile);
+    push_new_object(state,current_frame.clone().into(), &target_classfile);
 }
 
 

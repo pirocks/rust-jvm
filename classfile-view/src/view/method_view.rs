@@ -1,9 +1,9 @@
 use crate::view::{HasAccessFlags, ClassView};
 use std::sync::Arc;
 use rust_jvm_common::classfile::{Classfile, Code, MethodInfo};
-use crate::view::descriptor_parser::MethodDescriptor;
 use crate::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
+use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 pub struct MethodView {
     pub(crate) backing_class: Arc<Classfile>,
@@ -38,7 +38,7 @@ impl MethodView {
     }
 
     pub fn desc(&self) -> MethodDescriptor {
-        MethodDescriptor::from(self)
+        parse_method_descriptor( self.desc_str().as_str()).unwrap()
     }
 
     pub fn code_attribute(&self) -> Option<&Code>{
@@ -54,8 +54,8 @@ impl MethodView {
         // •  It has the ACC_VARARGS and ACC_NATIVE flags set.
         ClassView::from(self.backing_class.clone()).name() == ClassName::method_handle() &&
             self.desc().parameter_types.len()  == 1 &&
-            self.desc().parameter_types[0] == PTypeView::array(PTypeView::object()) &&
-            self.desc().return_type == PTypeView::object() &&
+            self.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
+            self.desc().return_type == PTypeView::object().to_ptype() &&
             self.is_varargs() &&
             self.is_native()
     }

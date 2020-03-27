@@ -7,12 +7,12 @@ use crate::interpreter_util::{run_function, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use std::ops::Deref;
 use crate::instructions::invoke::native::run_native_method;
-use classfile_view::view::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use crate::java_values::{JavaValue, Object};
 use crate::{StackEntry, InterpreterState};
 use crate::runtime_class::RuntimeClass;
+use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 
 /**
@@ -147,10 +147,10 @@ pub fn virtual_method_lookup(state: &mut InterpreterState, current_frame: &Rc<St
             !method_view.is_static() &&
             !method_view.is_abstract() &&
             if method_view.is_signature_polymorphic() {
-                method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()) &&
-                    method_view.desc().return_type == PTypeView::object() &&
+                method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
+                    method_view.desc().return_type == PTypeView::object().to_ptype() &&
                     md.parameter_types.last()
-                        .and_then(|x| x.try_unwrap_ref_type())
+                        .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().map(|x2|x2.clone()))
                         .map(|x| x.unwrap_name() == ClassName::member_name())
                         .unwrap_or(false);//todo this is currently under construction.
                 unimplemented!()

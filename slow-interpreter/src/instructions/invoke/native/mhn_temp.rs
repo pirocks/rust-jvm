@@ -12,7 +12,6 @@ use crate::rust_jni::{get_all_methods, get_all_fields};
 use crate::utils::string_obj_to_string;
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::classfile::{REF_invokeVirtual, REF_invokeStatic, REF_invokeInterface, ACC_STATIC};
-use classfile_view::view::descriptor_parser::{parse_method_descriptor, MethodDescriptor};
 use crate::{get_or_create_class_object, InterpreterState, StackEntry};
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
@@ -20,6 +19,7 @@ use std::ops::Deref;
 use crate::java_values::{JavaValue, NormalObject, ArrayObject};
 use crate::java_values::Object::{Object, Array};
 use crate::runtime_class::RuntimeClass;
+use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -118,10 +118,10 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
                 //todo need to handle signature polymorphism here and in many places
                 c_method.name() == name && if c_method.is_signature_polymorphic() {
                     c_method.desc().parameter_types.len() == 1 &&
-                        c_method.desc().parameter_types[0] == PTypeView::array(PTypeView::object()) &&
-                        c_method.desc().return_type == PTypeView::object()
+                        c_method.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
+                        c_method.desc().return_type == PTypeView::object().to_ptype()
                 } else {
-                    c_method.desc().parameter_types == params_as_ptype
+                    c_method.desc().parameter_types == params_as_ptype.iter().map(|x|x.to_ptype()).collect::<Vec<_>>()
                 }
             }).unwrap();//todo handle not found case
             let correct_flags = resolved_method_runtime_class.class_view.method_view_i(*resolved_i).access_flags();
@@ -219,13 +219,13 @@ pub fn create_method_type(state: &mut InterpreterState, frame : &Rc<StackEntry>,
     //todo need to use MethodTypeForm.findForm
     let loader_arc = frame.class_pointer.loader.clone();
     let method_type_class = check_inited_class(state, &ClassName::method_type(), frame.clone().into(), loader_arc.clone());
-    push_new_object(frame.clone(),&method_type_class);
+    push_new_object(state,frame.clone(),&method_type_class);
     let this = frame.pop();
     let method_descriptor = parse_method_descriptor(signature).unwrap();
-    let rtype = JavaValue::Object(get_or_create_class_object(state,&method_descriptor.return_type,frame.clone(),loader_arc.clone()).into());
+    let rtype = JavaValue::Object(get_or_create_class_object(state,&PTypeView::from_ptype(&method_descriptor.return_type),frame.clone(),loader_arc.clone()).into());
 
     let ptypes_as_classes: Vec<JavaValue> = method_descriptor.parameter_types.iter().map(|x|{
-        get_or_create_class_object(state,&x,frame.clone(),loader_arc.clone())
+        get_or_create_class_object(state,&PTypeView::from_ptype(&x),frame.clone(),loader_arc.clone())
     }).map(|x|{
         JavaValue::Object(x.into())
     }).collect();

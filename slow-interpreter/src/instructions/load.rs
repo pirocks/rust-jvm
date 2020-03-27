@@ -89,7 +89,7 @@ pub fn aaload(current_frame: &Rc<StackEntry>) -> () {
 
 fn throw_array_out_of_bounds(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) {
     let bounds_class = check_inited_class(state, &ClassName::new("java/lang/ArrayIndexOutOfBoundsException"), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-    push_new_object(current_frame.clone(),&bounds_class);
+    push_new_object(state,current_frame.clone(),&bounds_class);
     let obj = current_frame.pop();
     run_constructor(state,current_frame.clone(),bounds_class,vec![obj.clone()],"()V".to_string());
     state.throw = obj.unwrap_object().into();

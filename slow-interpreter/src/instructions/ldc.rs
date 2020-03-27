@@ -10,14 +10,14 @@ use std::cell::RefCell;
 use crate::rust_jni::native_util::{to_object, from_object};
 use crate::rust_jni::interface::string::intern_impl;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::view::descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use crate::java_values::{JavaValue, Object, ArrayObject};
+use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 
 
 fn load_class_constant(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, constant_pool: &Vec<ConstantInfo>, c: &Class) {
     let res_class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();
     let type_ = parse_field_descriptor(&res_class_name).unwrap().field_type;
-    load_class_constant_by_type(state, current_frame, &type_);
+    load_class_constant_by_type(state, current_frame, &PTypeView::from_ptype(&type_));
 }
 
 pub fn load_class_constant_by_type(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, res_class_type: &PTypeView) {
@@ -36,12 +36,12 @@ pub fn create_string_on_stack(state: &mut InterpreterState, current_frame: &Rc<S
     let string_class = check_inited_class(state, &java_lang_string, current_frame.clone().into(), current_loader.clone());
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x) }).collect();
-    push_new_object(current_frame.clone().into(), &string_class);
+    push_new_object(state,current_frame.clone().into(), &string_class);
     let string_object = current_frame.pop();
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(chars), elem_type: PTypeView::CharType })))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
-    let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type], return_type: PTypeView::VoidType };
+    let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(state, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry {
         last_call_stack: Some(current_frame.clone().into()),

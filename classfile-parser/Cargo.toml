@@ -18,5 +18,5 @@ simple_logger = "1.3.0"
 ntest_timeout = "0.3.0"
 timebomb = "0.1.2"
 rust-jvm-common = {path = "../rust-jvm-common"}
-classfile-view = {path = "../classfile-view"}
-#descriptor-parser = {path = "../descriptor-parser"}
+#classfile-view = {path = "../classfile-view"}
+descriptor-parser = {path = "../descriptor-parser"}

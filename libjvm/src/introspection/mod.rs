@@ -17,12 +17,10 @@ use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 
 use libjvm_utils::ptype_to_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::view::descriptor_parser::parse_method_descriptor;
 use std::borrow::Borrow;
 use slow_interpreter::rust_jni::get_all_methods;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::descriptor_parser::Descriptor::Method;
 pub mod constant_pool;
 pub mod is_x;
 pub mod index;

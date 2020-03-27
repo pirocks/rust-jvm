@@ -3,7 +3,7 @@ use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
 use crate::vtype::VType;
 use rust_jvm_common::ptype::{PType, ReferenceType};
-use crate::loading::{LoaderArc, ClassWithLoader};
+use crate::loading::{ClassWithLoader, LoaderArc};
 
 
 #[derive(Debug)]

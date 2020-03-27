@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::view::{HasAccessFlags, ClassView};
 use crate::view::constant_info_view::ConstantInfoView;
 use crate::view::ptype_view::PTypeView;
-use crate::view::descriptor_parser::parse_field_descriptor;
+use descriptor_parser::parse_field_descriptor;
 
 pub struct FieldView {
     backing_class: Arc<Classfile>,
@@ -28,7 +28,7 @@ impl FieldView {
         FieldView { backing_class: c.backing_class.clone(), i }
     }
     pub fn field_type(&self) -> PTypeView{
-        parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type
+        PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)
     }
     pub fn fields(&self) -> FieldIterator{
         unimplemented!()

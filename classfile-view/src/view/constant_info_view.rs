@@ -3,8 +3,8 @@ use rust_jvm_common::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, 
 use std::sync::Arc;
 use crate::view::ClassView;
 use crate::view::attribute_view::BootstrapMethodView;
-use crate::view::ptype_view::ReferenceTypeView;
-use crate::view::descriptor_parser::parse_field_descriptor;
+use crate::view::ptype_view::{ReferenceTypeView, PTypeView};
+use descriptor_parser::parse_field_descriptor;
 
 #[derive(Debug)]
 pub struct Utf8View{
@@ -42,7 +42,7 @@ impl ClassPoolElemView{
         //todo should really find a way of getting this into a string pool
         let name_str = self.backing_class.constant_pool[self.name_index].extract_string_from_utf8();
 
-        let type_ = parse_field_descriptor(&name_str).unwrap().field_type;
+        let type_ = PTypeView::from_ptype(&parse_field_descriptor(&name_str).unwrap().field_type);
         type_.unwrap_ref_type().clone()
         // ClassName::Str(name_str)
     }
@@ -214,7 +214,8 @@ pub enum ConstantInfoView {
     InvokeDynamic(InvokeDynamicView),
     Module(ModuleView),
     Package(PackageView),
-    InvalidConstant(InvalidConstantView)
+    InvalidConstant(InvalidConstantView),
+    LiveObject(usize)
 }
 
 impl ConstantInfoView{

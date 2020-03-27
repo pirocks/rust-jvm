@@ -98,6 +98,7 @@ impl ClassView {
             ConstantKind::Module(_) => unimplemented!(),
             ConstantKind::Package(_) => unimplemented!(),
             ConstantKind::InvalidConstant(_) => unimplemented!(),
+            ConstantKind::LiveObject(idx) => ConstantInfoView::LiveObject(*idx)
         }
     }
     pub fn field(&self, i: usize) -> FieldView {
@@ -144,4 +145,3 @@ pub mod field_view;
 pub mod constant_info_view;
 pub mod method_view;
 pub mod ptype_view;
-pub mod descriptor_parser;

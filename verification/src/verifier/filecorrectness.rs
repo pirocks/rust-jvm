@@ -7,11 +7,7 @@ use classfile_view::vtype::VType;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::loading::*;
 use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::view::descriptor_parser::*;
-
-
-
-
+use descriptor_parser::{ Descriptor, parse_field_descriptor};
 
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
@@ -422,7 +418,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
         let method_name_ = method.name();
         let method_name = method_name_.deref();
         if &member_name == method_name {
-            let parsed_member_types = MethodDescriptor::from(&method);
+            let parsed_member_types = method.desc();
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }

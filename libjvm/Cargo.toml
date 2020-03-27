@@ -14,7 +14,7 @@ slow-interpreter = {path = "../slow-interpreter"}
 jni-bindings = {path = "../jni-bindings"}
 classfile-parser = {path = "../classfile-parser"}
 classfile-view = {path = "../classfile-view"}
-#descriptor-parser = {path = "../descriptor-parser"}
+descriptor-parser = {path = "../descriptor-parser"}
 libjvm-utils = {path = "../libjvm-utils"}
 libc = "0.2.66"
 num_cpus = "1.0"

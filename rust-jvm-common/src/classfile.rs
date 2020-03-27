@@ -578,6 +578,7 @@ pub enum ConstantKind {
     Module(Module),
     Package(Package),
     InvalidConstant(InvalidConstant),
+    LiveObject(usize)//live object pool index
 }
 
 

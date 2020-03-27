@@ -10,8 +10,8 @@ use std::cell::RefCell;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use libjvm_utils::ptype_to_class_object;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use classfile_view::view::descriptor_parser::parse_field_descriptor;
 use slow_interpreter::java_values::{JavaValue, Object, ArrayObject};
+use descriptor_parser::parse_field_descriptor;
 
 
 #[no_mangle]
@@ -28,7 +28,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     let mut object_array = vec![];
     &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
-        push_new_object(frame.clone(), &field_classfile);
+        push_new_object(state,frame.clone(), &field_classfile);
         let field_object = frame.pop();
         //todo so this is big and messy put I don't really see a way to simplify
         object_array.push(field_object.clone());
@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         let field_desc_str = class_obj.clone().unwrap().classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
         let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
-        let field_type_class = ptype_to_class_object(state, &frame, &field_type.to_ptype());
+        let field_type_class = ptype_to_class_object(state, &frame, &field_type);
 
         let modifiers = JavaValue::Int(f.access_flags as i32);
         let slot = JavaValue::Int(i as i32);

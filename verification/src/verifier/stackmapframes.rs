@@ -1,5 +1,3 @@
-use crate::verifier::InternalFrame;
-use crate::verifier::Frame;
 use rust_jvm_common::classfile::{StackMapTable, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
 use classfile_parser::stack_map_table_attribute;
 use crate::{StackMap, VerifierContext};
@@ -8,8 +6,8 @@ use crate::verifier::codecorrectness::expand_to_length;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::loading::*;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::view::descriptor_parser::*;
 use classfile_view::view::method_view::MethodView;
+use crate::verifier::{Frame, InternalFrame};
 
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodView) -> Vec<StackMap> {
@@ -17,7 +15,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
     let code = method_info
         .code_attribute()
         .expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
-    let parsed_descriptor = MethodDescriptor::from(method_info);
+    let parsed_descriptor = method_info.desc();
     let empty_stack_map = StackMapTable { entries: Vec::new() };
     let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
     let this_pointer = if method_info.is_static() {
@@ -25,7 +23,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
     } else {
         Some(PTypeView::Ref(ReferenceTypeView::Class(class.class_name.clone())))
     };
-    let mut frame = init_frame(parsed_descriptor.parameter_types, this_pointer, code.max_locals);
+    let mut frame = init_frame(parsed_descriptor.parameter_types.iter().map(|x|PTypeView::from_ptype(x)).collect(), this_pointer, code.max_locals);
 
     let mut previous_frame_is_first_frame = true;
     for (_, entry) in stack_map.entries.iter().enumerate() {

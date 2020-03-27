@@ -42,7 +42,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         }
     }).for_each(|(c, i)| {
         //todo dupe?
-        push_new_object(frame.clone(), &method_class);
+        push_new_object(state,frame.clone(), &method_class);
         let method_object = frame.pop();
         object_array.push(method_object.clone());
 
@@ -74,7 +74,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         let parameterTypes = parameters_type_objects(state, &frame, &method_view);
         let returnType = {
             let rtype = method_view.desc().return_type;
-            JavaValue::Object(ptype_to_class_object(state, &frame, &rtype.to_ptype()))
+            JavaValue::Object(ptype_to_class_object(state, &frame, &rtype))
         };
         let exceptionTypes = exception_types_table(state,&frame,&method_view);
         let modifiers = get_modifers(&method_view);
@@ -124,7 +124,7 @@ fn parameters_type_objects(state: &mut InterpreterState, frame: &Rc<StackEntry>,
     let mut res = vec![];
     let parsed = method_view.desc();
     for param_type in parsed.parameter_types {
-        res.push(JavaValue::Object(ptype_to_class_object(state, &frame, &param_type.to_ptype())));
+        res.push(JavaValue::Object(ptype_to_class_object(state, &frame, &param_type)));
     }
 
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(res), elem_type: class_type.clone() }))))
@@ -159,7 +159,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
             true
         }
     }).for_each(|(i, _)| {
-        push_new_object(frame.clone(), &constructor_class);
+        push_new_object(state,frame.clone(), &constructor_class);
         let constructor_object = frame.pop();
         object_array.push(constructor_object.clone());
 

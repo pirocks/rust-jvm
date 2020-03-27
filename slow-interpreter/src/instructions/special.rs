@@ -5,11 +5,11 @@ use std::sync::Arc;
 use rust_jvm_common::classfile::Interface;
 use std::ops::Deref;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::view::descriptor_parser::parse_field_type;
 use crate::java_values::JavaValue;
 use crate::{InterpreterState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::Object::{Array, Object};
+use descriptor_parser::parse_field_type;
 
 
 pub fn arraylength(current_frame: &Rc<StackEntry>) -> () {
@@ -53,7 +53,7 @@ pub fn invoke_checkcast(state: &mut InterpreterState, current_frame: &Rc<StackEn
                     inherits_from(state,&actual_runtime_class,&expected_runtime_class)
                 },
                 _ => {
-                    a.elem_type == expected_type
+                    a.elem_type == PTypeView::from_ptype(&expected_type)
                 }
             };
             if cast_succeeds{

@@ -13,8 +13,8 @@ use classfile_view::vtype::VType;
 use classfile_view::view::ClassView;
 use classfile_view::loading::ClassWithLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::view::descriptor_parser::{parse_method_descriptor, MethodDescriptor, Descriptor, parse_field_descriptor};
 use classfile_view::view::constant_info_view::ConstantInfoView;
+use descriptor_parser::{Descriptor, MethodDescriptor, parse_method_descriptor, parse_field_descriptor};
 
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -95,11 +95,11 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
         _ => panic!()
     };
     let descriptor = parse_method_descriptor(descriptor_string.as_str()).unwrap();
-    if call_site_name == "<init>" || call_site_name == "<clinit>" {
+    if &call_site_name == "<init>" || &call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
     }
-    let operand_arg_list: Vec<VType> = descriptor.parameter_types.iter().rev().map(|x| { x.to_verification_type(&env.class_loader) }).collect();
-    let return_type = descriptor.return_type.to_verification_type(&env.class_loader);
+    let operand_arg_list: Vec<VType> = descriptor.parameter_types.iter().rev().map(|x| { PTypeView::from_ptype(&x).to_verification_type(&env.class_loader) }).collect();
+    let return_type = PTypeView::from_ptype(&descriptor.return_type).to_verification_type(&env.class_loader);
     let stack_arg_list = operand_arg_list;
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
     standard_exception_frame(stack_frame, next_frame)
@@ -118,8 +118,8 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     if method_name == "<init>" || method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
     }
-    let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x| { PTypeView::to_verification_type(x, &env.class_loader) }).collect();
-    let return_type = &descriptor.return_type.to_verification_type(&env.class_loader);
+    let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x| { PTypeView::to_verification_type(&PTypeView::from_ptype(&x), &env.class_loader) }).collect();
+    let return_type = PTypeView::from_ptype(&descriptor.return_type).to_verification_type(&env.class_loader);
     let current_loader = env.class_loader.clone();
     //todo this is almost certainly wrong.
     operand_arg_list.push(VType::Class(ClassWithLoader { class_name: ClassName::Str(method_intf_name.clone()), loader: current_loader }));
@@ -154,7 +154,7 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, stac
 }
 
 fn invoke_special_init(env: &Environment, stack_frame: &Frame, method_class_name: &ClassName, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| { x.to_verification_type(&env.class_loader) }).collect();
+    let mut stack_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| { PTypeView::from_ptype(&x).to_verification_type(&env.class_loader) }).collect();
     stack_arg_list.reverse();
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
     let locals = temp_frame.locals;
@@ -291,11 +291,13 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
         loader: current_loader.clone(),
     });
     is_assignable(&env.vf, &current_class, &method_class)?;
-    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| { x.to_verification_type(&env.class_loader) }).collect();
+    let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| {
+        PTypeView::from_ptype(x).to_verification_type(&env.class_loader)
+    }).collect();
     operand_arg_list_copy.push(current_class);
-    let return_type = &parsed_descriptor.return_type.to_verification_type(&env.class_loader);
+    let return_type = &PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);
     let next_frame = valid_type_transition(env, operand_arg_list_copy, &return_type, stack_frame)?;
-    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| { x.to_verification_type(&env.class_loader) }).collect();
+    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| { PTypeView::from_ptype(&x).to_verification_type(&env.class_loader) }).collect();
     operand_arg_list_copy2.push(method_class);
     valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(stack_frame);
@@ -308,14 +310,14 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
     if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
         unimplemented!();
     }
-    let operand_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| x.to_verification_type(&env.class_loader)).collect();
+    let operand_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| PTypeView::from_ptype(x).to_verification_type(&env.class_loader)).collect();
 
     //todo redundant?
     let stack_arg_list: Vec<_> = operand_arg_list.iter()
         .rev()
         .map(|x| x.clone())
         .collect();
-    let return_type = &parsed_descriptor.return_type.to_verification_type(&env.class_loader);
+    let return_type = PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);
     // dbg!(&stack_arg_list);
     // dbg!(&operand_arg_list);
     // dbg!(&method_name);
@@ -323,16 +325,16 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
     if &method_name == "linkToStatic" || &method_name == "linkToVirtual" {
         //todo should handle polymorphism better
         let mut next_stack_frame = stack_frame.stack_map.clone();
-        stack_arg_list.iter().for_each(|_|{
+        stack_arg_list.iter().for_each(|_| {
             next_stack_frame.operand_pop();//todo do check object
         });
         next_stack_frame.operand_push(return_type.clone());
-        standard_exception_frame(stack_frame, Frame{
+        standard_exception_frame(stack_frame, Frame {
             locals: stack_frame.locals.clone(),
             stack_map: next_stack_frame,
-            flag_this_uninit: stack_frame.flag_this_uninit
+            flag_this_uninit: stack_frame.flag_this_uninit,
         })
-    }else {
+    } else {
         dbg!(method_name);
         let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
         standard_exception_frame(stack_frame, next_frame)
@@ -353,12 +355,12 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
         _ => panic!()
     };
 
-    if /*method_name.contains("arrayOf") ||*/ method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
+    if /*method_name.contains("arrayOf") ||*/ method_name.contains("[") || &method_name == "<init>" || method_name == "<clinit>" {
         dbg!(method_name);
         unimplemented!();
     }
     // the operand_arg list is in the order displayed by the spec, e.g first elem a 0.
-    let operand_arg_list: &Vec<_> = &parsed_descriptor.parameter_types.iter().map(|x| x.to_verification_type(&env.class_loader)).collect();
+    let operand_arg_list: &Vec<_> = &parsed_descriptor.parameter_types.iter().map(|x| PTypeView::from_ptype(x).to_verification_type(&env.class_loader)).collect();
     // arg list is the reversed verison of operand_arg_list
     let arg_list: Vec<_> = operand_arg_list.iter()
         .rev()
@@ -366,7 +368,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
         .collect();
     let mut stack_arg_list: Vec<_> = arg_list.clone();
     stack_arg_list.push(method_class);
-    let return_type = &parsed_descriptor.return_type.to_verification_type(&env.class_loader);//todo what should the loader here be?
+    let return_type = PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);//todo what should the loader here be?
     let nf = valid_type_transition(env, stack_arg_list.clone(), &return_type, stack_frame)?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
     if class_name.is_some() {
@@ -411,7 +413,7 @@ pub fn possibly_array_to_type(class_name: &String) -> ReferenceTypeView {
             None => panic!(),
             Some(s) => s.field_type,
         };
-        ReferenceTypeView::Array(Box::new(class_type.unwrap_array_type()))
+        ReferenceTypeView::Array(Box::new(PTypeView::from_ptype(&class_type.unwrap_array_type())))
     } else {
         ReferenceTypeView::Class(ClassName::Str(class_name.clone()))
     }

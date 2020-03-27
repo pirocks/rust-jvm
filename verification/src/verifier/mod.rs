@@ -11,7 +11,7 @@ use classfile_view::vtype::VType;
 use classfile_view::view::ClassView;
 use classfile_view::loading::*;
 use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::view::descriptor_parser::*;
+use descriptor_parser::Descriptor;
 
 macro_rules! unknown_error_verifying {
     () => {
@@ -35,7 +35,7 @@ pub struct InternalFrame {
 pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> ClassView {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     if class.loader.initiating_loader_of(&class.class_name) {
-        match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.bootstrap_loader.clone()) {
+        match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.bootstrap_loader.clone(),verifier_context.live_pool_getter.clone()) {
             Ok(c) => c,
             Err(_) => panic!(),
         }

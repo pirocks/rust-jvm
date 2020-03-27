@@ -20,4 +20,3 @@ classfile-parser = {path = "../classfile-parser"}
 [dev-dependencies]
 ntest_timeout = "0.3.0"
 timebomb = "0.1.2"
-loading = {path = "../loading"}

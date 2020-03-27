@@ -26,9 +26,9 @@ use rust_jvm_common::classfile::{Classfile, MethodInfo};
 use std::ops::Deref;
 use std::time::Instant;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use classfile_view::loading::LoaderArc;
-use classfile_view::view::descriptor_parser::MethodDescriptor;
+use classfile_view::loading::{LoaderArc, LivePoolGetter};
 use crate::instructions::ldc::create_string_on_stack;
+use descriptor_parser::MethodDescriptor;
 
 
 pub mod java_values;
@@ -51,7 +51,27 @@ pub struct InterpreterState {
     pub string_pool: StringPool,
     //todo this should really be in some sort of parser/jvm state
     pub start_instant: Instant,
+
+    //anon classes
     pub anon_class_counter: usize,
+    pub anon_class_live_object_ldc_pool : Arc<RefCell<Vec<Arc<Object>>>>,
+}
+
+struct LivePoolGetterImpl{
+    anon_class_live_object_ldc_pool : Arc<RefCell<Vec<Arc<Object>>>>
+}
+
+impl LivePoolGetter for LivePoolGetterImpl{
+    fn elem_type(&self, idx: usize) -> ReferenceTypeView {
+        let object = &self.anon_class_live_object_ldc_pool.borrow()[idx];
+        ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.class_view.name())//todo handle arrays
+    }
+}
+
+impl InterpreterState{
+    pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter>{
+        Arc::new(LivePoolGetterImpl{ anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
+    }
 }
 
 #[derive(Debug)]
@@ -179,7 +199,7 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
     let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone().into(), current_loader.clone());
     //the above would only be required for higher jdks where a class loader object is part of Class.
     //as it stands we can just push to operand stack
-    push_new_object(current_frame.clone(), &class_class);
+    push_new_object(state,current_frame.clone(), &class_class);
     let object = current_frame.pop();
     match object.clone() {
         JavaValue::Object(o) => {
@@ -214,9 +234,6 @@ pub fn run(
     _args: Vec<String>,
     jni: LibJavaLoading,
 ) -> Result<(), Box<dyn Error>> {
-    let main = bl.clone().load_class(bl.clone(), main_class_name, bl.clone())?;
-    let main_class = prepare_class(main.clone().backing_class(), bl.clone());
-    let main_i = locate_main_method(&bl, &main.backing_class());
     let mut state = InterpreterState {
         terminate: false,
         throw: None,
@@ -231,7 +248,11 @@ pub fn run(
         },
         start_instant: Instant::now(),
         anon_class_counter: 0,
+        anon_class_live_object_ldc_pool: Arc::new(RefCell::new(vec![]))
     };
+    let main = bl.clone().load_class(bl.clone(), main_class_name, bl.clone(),state.get_live_object_pool_getter())?;
+    let main_class = prepare_class(main.clone().backing_class(), bl.clone());
+    let main_i = locate_main_method(&bl, &main.backing_class());
     let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
     let mut locals = vec![];
@@ -285,7 +306,7 @@ fn locate_main_method(_bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     let psvms = main.lookup_method_name(&"main".to_string());
     for (i, m) in psvms {
         let desc = MethodDescriptor::from_legacy(m, main);
-        if m.is_static() && desc.parameter_types == vec![string_array.clone()] && desc.return_type == PTypeView::VoidType {
+        if m.is_static() && desc.parameter_types == vec![string_array.to_ptype()] && desc.return_type == PType::VoidType {
             return i;
         }
     }
@@ -295,3 +316,4 @@ fn locate_main_method(_bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
 pub mod instructions;
 pub mod interpreter_util;
 pub mod rust_jni;
+pub mod loading;

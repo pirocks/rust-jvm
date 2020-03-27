@@ -1,25 +1,15 @@
-extern crate log;
-extern crate simple_logger;
-
-use std::sync::Arc;
-use std::fs::File;
-
-use rust_jvm_common::classnames::ClassName;
-
-use rust_jvm_common::classfile::Classfile;
-use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{RwLock, Arc};
 use std::path::Path;
-use rust_jvm_common::classnames::class_name;
+use rust_jvm_common::classnames::{ClassName, class_name};
+use std::collections::HashMap;
+use rust_jvm_common::classfile::Classfile;
 use classfile_parser::parse_class_file;
-use jar_manipulation::JarHandle;
-use verification::verify;
-use verification::VerifierContext;
-use log::trace;
-use std::fmt::Debug;
+use std::fs::File;
 use classfile_view::view::ClassView;
-use classfile_view::loading::{ClassLoadingError, LoaderArc, LoaderName, Loader};
-
+use verification::{verify, VerifierContext};
+use log::trace;
+use classfile_view::loading::{LoaderName, ClassLoadingError, Loader, LoaderArc, LivePoolGetter};
+use jar_manipulation::JarHandle;
 
 #[derive(Debug)]
 pub struct Classpath {
@@ -51,23 +41,23 @@ impl Loader for BootstrapLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc) -> Result<ClassView, ClassLoadingError> {
+    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc, live_pool_getter: Arc<dyn LivePoolGetter>) -> Result<ClassView, ClassLoadingError> {
         if !self.initiating_loader_of(class) {
             trace!("loading {}", class.get_referred_name());
             let classfile = self.pre_load(class)?;
             if class != &ClassName::object() {
                 if classfile.super_name() == None {
-                    self.load_class(self_arc.clone(), &ClassName::object(), bl.clone())?;
+                    self.load_class(self_arc.clone(), &ClassName::object(), bl.clone(),live_pool_getter.clone())?;
                 } else {
                     let super_class_name = classfile.super_name();
-                    self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone())?;
+                    self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone(),live_pool_getter.clone())?;
                 }
             }
             for i in classfile.interfaces() {
                 let interface_name = i.interface_name();
-                self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone())?;
+                self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone(),live_pool_getter.clone())?;
             }
-            match verify(&VerifierContext { bootstrap_loader: bl.clone() }, classfile.clone(), self_arc) {
+            match verify(&VerifierContext { live_pool_getter, bootstrap_loader: bl.clone() }, classfile.clone(), self_arc) {
                 Ok(_) => {}
                 Err(_) => panic!(),
             };
@@ -121,7 +111,7 @@ impl Loader for BootstrapLoader {
     }
 
     fn add_pre_loaded(&self, name: &ClassName, classfile: &Arc<Classfile>) {
-        self.parsed.write().unwrap().insert(name.clone(),classfile.clone());
+        self.parsed.write().unwrap().insert(name.clone(), classfile.clone());
     }
 }
 

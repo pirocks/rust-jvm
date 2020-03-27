@@ -11,7 +11,8 @@ use crate::interpreter_util::run_function;
 use std::rc::Rc;
 use crate::{StackEntry, InterpreterState};
 use crate::instructions::ldc::from_constant_pool_entry;
-use classfile_view::view::descriptor_parser::parse_field_descriptor;
+use descriptor_parser::parse_field_descriptor;
+use classfile_view::view::ptype_view::PTypeView;
 
 
 pub struct RuntimeClass {
@@ -51,7 +52,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
             let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
             let field_descriptor_string = classfile.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
             let parsed = parse_field_descriptor(field_descriptor_string.as_str()).unwrap();//todo we should really have two pass parsing
-            let val = default_value(parsed.field_type);
+            let val = default_value(PTypeView::from_ptype(&parsed.field_type));
             res.insert(name, val);
         }
     }

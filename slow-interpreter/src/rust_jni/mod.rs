@@ -31,10 +31,10 @@ use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use classfile_view::view::descriptor_parser::MethodDescriptor;
 use crate::java_values::{JavaValue, Object};
 use crate::{InterpreterState, StackEntry, LibJavaLoading};
 use crate::runtime_class::RuntimeClass;
+use descriptor_parser::MethodDescriptor;
 
 
 pub mod value_conversion;
@@ -102,14 +102,18 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
 //        }
 //    }
     if suppress_runtime_class {
-        for (j, t) in args.iter().zip(vec![PTypeView::Ref(ReferenceTypeView::Class(ClassName::object()))].iter().chain(md.parameter_types.iter())) {
-            args_type.push(to_native_type(&t.to_ptype()));
-            c_args.push(to_native(j.clone(), &t.to_ptype()));
+        for (j, t) in args
+            .iter()
+            .zip(vec![PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()]
+                .iter()
+                .chain(md.parameter_types.iter())) {
+            args_type.push(to_native_type(&t));
+            c_args.push(to_native(j.clone(), &t));
         }
     } else {
         for (j, t) in args.iter().zip(md.parameter_types.iter()) {
-            args_type.push(to_native_type(&t.to_ptype()));
-            c_args.push(to_native(j.clone(), &t.to_ptype()));
+            args_type.push(to_native_type(&t));
+            c_args.push(to_native(j.clone(), &t));
         }
     }
 
@@ -123,7 +127,7 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         cif.call(fn_ptr, c_args.as_slice())
     };
 //    trace!("----NATIVE EXIT ----");
-    match &md.return_type {
+    match PTypeView::from_ptype(&md.return_type) {
         PTypeView::VoidType => {
             None
         }

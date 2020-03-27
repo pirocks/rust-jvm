@@ -6,7 +6,7 @@ use crate::parsing_util::ParsingContext;
 //
 use rust_jvm_common::classfile::EnclosingMethod;
 use rust_jvm_common::ptype::{PType, ReferenceType};
-use classfile_view::view::descriptor_parser::parse_field_descriptor;
+use descriptor_parser::parse_field_descriptor;
 //
 
 pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
@@ -283,7 +283,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> PType {
             let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8();
             if type_descriptor.starts_with("[") {
                 let res_descriptor = parse_field_descriptor(type_descriptor.as_str()).unwrap();
-                res_descriptor.field_type.to_ptype()
+                res_descriptor.field_type
             } else {
                 PType::Ref(ReferenceType::Class(ClassName::Str(type_descriptor)))
             }

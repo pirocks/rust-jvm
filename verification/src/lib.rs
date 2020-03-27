@@ -9,8 +9,9 @@ use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
 use classfile_view::vtype::VType;
 use classfile_view::view::ClassView;
-use classfile_view::loading::{LoaderArc, ClassWithLoader};
+use classfile_view::loading::{LoaderArc, ClassWithLoader, LivePoolGetter};
 use std::time::Duration;
+use std::sync::Arc;
 
 
 pub mod verifier;
@@ -48,12 +49,13 @@ pub struct StackMap {
 }
 
 pub struct VerifierContext {
+    pub live_pool_getter: Arc<dyn LivePoolGetter>,
     pub bootstrap_loader: LoaderArc
 }
 
 impl Clone for VerifierContext {
     fn clone(&self) -> Self {
-        VerifierContext { bootstrap_loader: self.bootstrap_loader.clone() }
+        VerifierContext { live_pool_getter: self.live_pool_getter.clone(), bootstrap_loader: self.bootstrap_loader.clone() }
     }
 }
 

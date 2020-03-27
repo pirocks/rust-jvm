@@ -78,7 +78,7 @@ static mut SYSTEM_THREAD_GROUP: Option<Arc<Object>> = None;
 
 fn init_system_thread_group(state: &mut InterpreterState, frame: &Rc<StackEntry>) {
     let thread_group_class = check_inited_class(state, &ClassName::Str("java/lang/ThreadGroup".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
-    push_new_object(frame.clone(), &thread_group_class);
+    push_new_object(state,frame.clone(), &thread_group_class);
     let object = frame.pop();
     let (init_i, init) = thread_group_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
     let new_frame = StackEntry {
@@ -116,7 +116,7 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, state: &mut Inte
         frame.print_stack_trace();
     }
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
-    push_new_object(frame.clone(), &thread_class);
+    push_new_object(state,frame.clone(), &thread_class);
     let object = frame.pop();
     let (init_i, init) = thread_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
     let new_frame = StackEntry {

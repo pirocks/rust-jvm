@@ -1,20 +1,19 @@
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classfile::{MethodInfo, Classfile};
-use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::view::method_view::MethodView;
+use rust_jvm_common::ptype::{PType, ReferenceType};
 
 
 #[derive(Debug)]
-pub struct MethodDescriptor { pub parameter_types: Vec<PTypeView>, pub return_type: PTypeView }
+pub struct MethodDescriptor { pub parameter_types: Vec<PType>, pub return_type: PType }
 
 impl MethodDescriptor {
     pub fn from_legacy(method_info: &MethodInfo, classfile: &Classfile) -> Self {
         parse_method_descriptor( method_info.descriptor_str(classfile).as_str()).unwrap()
     }
 
-    pub fn from(method_info: &MethodView) -> Self {
+    /*pub fn from(method_info: &MethodView) -> Self {
         parse_method_descriptor( method_info.desc_str().as_str()).unwrap()
-    }
+    }*/
 }
 
 impl PartialEq for MethodDescriptor{
@@ -25,7 +24,7 @@ impl PartialEq for MethodDescriptor{
 }
 
 #[derive(Debug)]
-pub struct FieldDescriptor { pub field_type: PTypeView }
+pub struct FieldDescriptor { pub field_type: PType }
 
 
 #[derive(Debug)]
@@ -38,21 +37,21 @@ pub fn eat_one(str_: &str) -> &str {
     &str_[1..str_.len()]
 }
 
-pub fn parse_base_type(str_: &str) -> Option<(&str, PTypeView)> {
+pub fn parse_base_type(str_: &str) -> Option<(&str, PType)> {
     Some((eat_one(str_), match str_.chars().nth(0)? {
-        'B' => PTypeView::ByteType,
-        'C' => PTypeView::CharType,
-        'D' => PTypeView::DoubleType,
-        'F' => PTypeView::FloatType,
-        'I' => PTypeView::IntType,
-        'J' => PTypeView::LongType,
-        'S' => PTypeView::ShortType,
-        'Z' => PTypeView::BooleanType,
+        'B' => PType::ByteType,
+        'C' => PType::CharType,
+        'D' => PType::DoubleType,
+        'F' => PType::FloatType,
+        'I' => PType::IntType,
+        'J' => PType::LongType,
+        'S' => PType::ShortType,
+        'Z' => PType::BooleanType,
         _ => return None
     }))
 }
 
-pub fn parse_object_type(str_: &str) -> Option<(&str, PTypeView)> {
+pub fn parse_object_type(str_: &str) -> Option<(&str, PType)> {
     match str_.chars().nth(0)? {
         'L' => {
             let str_without_l = eat_one(str_);
@@ -61,7 +60,7 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, PTypeView)> {
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
             let class_name = ClassName::Str(class_name.to_string());
-            Some((remaining_to_parse, PTypeView::Ref(ReferenceTypeView::Class(class_name))))
+            Some((remaining_to_parse, PType::Ref(ReferenceType::Class(class_name))))
         }
         _ => {
             return None;
@@ -69,22 +68,22 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, PTypeView)> {
     }
 }
 
-pub fn parse_array_type(str_: &str) -> Option<(&str, PTypeView)> {
+pub fn parse_array_type(str_: &str) -> Option<(&str, PType)> {
     match str_.chars().nth(0)? {
         '[' => {
             let (remaining_to_parse, sub_type) = parse_component_type(&str_[1..str_.len()])?;
-            let array_type = PTypeView::Ref(ReferenceTypeView::Array(Box::from(sub_type)));
+            let array_type = PType::Ref(ReferenceType::Array(Box::from(sub_type)));
             Some((remaining_to_parse, array_type))
         }
         _ => None
     }
 }
 
-pub fn parse_field_type(str_: &str) -> Option<(&str, PTypeView)> {
+pub fn parse_field_type(str_: &str) -> Option<(&str, PType)> {
     parse_array_type( str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
             parse_object_type( str_).or_else(|| {
-                ("",PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(str_.to_string())))).into()//todo fallback for when parsing maformedtypes names
+                ("",PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))).into()//todo fallback for when parsing maformedtypes names
 //                panic!("{}", str_)
             })
         })
@@ -104,7 +103,7 @@ pub fn parse_field_descriptor(str_: &str) -> Option<FieldDescriptor> {
     }
 }
 
-pub fn parse_component_type(str_: &str) -> Option<(&str, PTypeView)> {
+pub fn parse_component_type(str_: &str) -> Option<(&str, PType)> {
     parse_field_type(str_)
 }
 
@@ -134,18 +133,18 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
     }
 }
 
-pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, PTypeView)> {
+pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, PType)> {
     parse_field_type( str_)
 }
 
-pub fn parse_void_descriptor(str_: &str) -> Option<(&str, PTypeView)> {
+pub fn parse_void_descriptor(str_: &str) -> Option<(&str, PType)> {
     match str_.chars().nth(0)? {
-        'V' => Some((eat_one(str_), PTypeView::VoidType)),
+        'V' => Some((eat_one(str_), PType::VoidType)),
         _ => return None
     }
 }
 
-pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PTypeView)> {
+pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PType)> {
     parse_void_descriptor(str_).or_else(|| {
         parse_field_type( str_)
     })

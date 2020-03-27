@@ -16,7 +16,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let class_name = ClassName::Str(name_str);
     let state = get_state(env);
     //todo not sure if this implementation is correct
-    let loaded = state.bootstrap_loader.load_class(state.bootstrap_loader.clone(),&class_name,state.bootstrap_loader.clone());
+    let loaded = state.bootstrap_loader.load_class(state.bootstrap_loader.clone(),&class_name,state.bootstrap_loader.clone(),state.get_live_object_pool_getter());
     match loaded{
         Result::Err(_) => return to_object(None),
         Result::Ok(view) => {

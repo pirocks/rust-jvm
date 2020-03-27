@@ -9,9 +9,7 @@ pub mod classpath_indexing;
 use log::{trace, info};
 
 use argparse::{ArgumentParser, Store, StoreTrue, List};
-use loading::Classpath;
 use std::path::Path;
-use loading::BootstrapLoader;
 use std::sync::RwLock;
 use std::collections::HashMap;
 use slow_interpreter::run;
@@ -20,11 +18,11 @@ use jar_manipulation::JarHandle;
 use std::sync::Arc;
 use slow_interpreter::rust_jni::new_java_loading;
 use classfile_view::loading::LoaderName;
+use slow_interpreter::loading::{BootstrapLoader, Classpath};
 
 
 extern crate classfile_parser;
 extern crate verification;
-extern crate loading;
 extern crate slow_interpreter;
 extern crate jar_manipulation;
 extern crate classfile_view;

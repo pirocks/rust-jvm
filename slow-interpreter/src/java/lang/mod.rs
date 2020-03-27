@@ -2,6 +2,8 @@ pub mod invoke;
 
 pub mod member_name {
     use crate::java_values::NormalObject;
+    use crate::java::lang::string::JString;
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 
     pub struct MemberName{
         normal_object: NormalObject
@@ -10,6 +12,16 @@ pub mod member_name {
     impl NormalObject{
         pub fn cast_member_name(&self) -> MemberName{
             MemberName { normal_object: self.clone() }
+        }
+    }
+
+    impl MemberName{
+        // private Class<?> clazz;
+        // private String name;
+        // private Object type;
+        // private int flags;
+        pub fn get_name() -> JString{
+            run_static_or_virtual()
         }
     }
 }

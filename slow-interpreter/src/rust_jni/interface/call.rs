@@ -5,14 +5,12 @@ use jni_bindings::{JNIEnv, jobject, jmethodID, jclass, JNINativeInterface_, jboo
 use std::ffi::VaList;
 use std::rc::Rc;
 use log::trace;
-
-
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::view::descriptor_parser::{parse_method_descriptor, MethodDescriptor};
 use crate::java_values::JavaValue;
 use crate::StackEntry;
+use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 #[no_mangle]
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
@@ -29,7 +27,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
 
     frame.push(JavaValue::Object(from_object(obj)));
     for type_ in &parsed.parameter_types {
-        match type_ {
+        match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => unimplemented!(),
             PTypeView::CharType => unimplemented!(),
             PTypeView::DoubleType => unimplemented!(),
@@ -88,7 +86,7 @@ unsafe fn push_params_onto_frame(
     parsed: &MethodDescriptor
 ) {
     for type_ in &parsed.parameter_types {
-        match type_ {
+        match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => unimplemented!(),
             PTypeView::CharType => unimplemented!(),
             PTypeView::DoubleType => unimplemented!(),

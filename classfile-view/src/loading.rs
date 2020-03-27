@@ -1,14 +1,25 @@
-use core::fmt;
+extern crate log;
+extern crate simple_logger;
+
 use std::sync::Arc;
-use rust_jvm_common::classnames::ClassName;
 use std::fs::File;
-use std::fmt::Display;
+
+use rust_jvm_common::classnames::ClassName;
+
+use rust_jvm_common::classfile::Classfile;
 use std::fmt::Debug;
+use core::fmt;
+use std::fmt::Display;
 use std::fmt::Error;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 use crate::view::ClassView;
-use rust_jvm_common::classfile::Classfile;
+use crate::view::ptype_view::ReferenceTypeView;
+
+
+pub trait LivePoolGetter{
+    fn elem_type(&self, idx: usize) -> ReferenceTypeView;
+}
 
 #[derive(Debug)]
 pub enum ClassLoadingError {
@@ -58,17 +69,17 @@ impl Display for LoaderName {
 }
 
 pub trait Loader {
-    fn find_loaded_class(&self, name : &ClassName) -> Option<ClassView>;
+    fn find_loaded_class(&self, name: &ClassName) -> Option<ClassView>;
     fn initiating_loader_of(&self, class: &ClassName) -> bool;
     //todo File will have to be a much more general array of bytes
     fn find_representation_of(&self, class: &ClassName) -> Result<File, ClassLoadingError>;
-    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc) -> Result<ClassView, ClassLoadingError>;
+    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc, live_pool_getter: Arc<dyn LivePoolGetter>) -> Result<ClassView, ClassLoadingError>;
     fn name(&self) -> LoaderName;
 
 
     //pre loading parses the class file but does not verify
     fn pre_load(&self, name: &ClassName) -> Result<ClassView, ClassLoadingError>;
-    fn add_pre_loaded(&self,name : &ClassName, classfile: &Arc<Classfile>);
+    fn add_pre_loaded(&self, name: &ClassName, classfile: &Arc<Classfile>);
 }
 
 //todo Loading Constraints
@@ -92,7 +103,7 @@ impl Loader for EmptyLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, _self_arc: LoaderArc, _class: &ClassName, _bl: LoaderArc) -> Result<ClassView, ClassLoadingError> {
+    fn load_class(&self, _self_arc: LoaderArc, _class: &ClassName, _bl: LoaderArc, _live_pool_getter: Arc<dyn LivePoolGetter>) -> Result<ClassView, ClassLoadingError> {
         unimplemented!()
     }
 
@@ -108,8 +119,6 @@ impl Loader for EmptyLoader {
         unimplemented!()
     }
 }
-
-
 
 
 pub struct ClassWithLoader {

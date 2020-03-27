@@ -1,6 +1,6 @@
-use crate::loading::ClassWithLoader;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use crate::view::ptype_view::PTypeView;
+use crate::loading::ClassWithLoader;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]

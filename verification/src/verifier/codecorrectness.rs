@@ -12,11 +12,11 @@ use rust_jvm_common::classnames::ClassName;
 use crate::OperandStack;
 use std::ops::Deref;
 use classfile_view::vtype::VType;
-use classfile_view::view::{HasAccessFlags};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::loading::*;
-use classfile_view::view::ptype_view::{PTypeView};
-use classfile_view::view::descriptor_parser::*;
+use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
+use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
@@ -325,7 +325,10 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     let this_list = method_initial_this_type(vf, class, method);
     let flag_this_uninit = flags(&this_list);
     //todo this long and frequently duped
-    let args = expand_type_list(vf, parsed_descriptor.parameter_types.iter().map(|x|x.to_verification_type(&vf.bootstrap_loader)).collect());//todo need to solve loader situation
+    let args = expand_type_list(vf, parsed_descriptor.parameter_types
+        .iter()
+        .map(|x| PTypeView::from_ptype(&x).to_verification_type(&vf.bootstrap_loader))
+        .collect());//todo need to solve loader situation
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
         this_args.push(x.clone());
@@ -334,7 +337,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = expand_to_length_verification(this_args, frame_size as usize, VType::TopType);
-    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type.to_verification_type(&vf.bootstrap_loader));
+    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.bootstrap_loader));
 }
 
 

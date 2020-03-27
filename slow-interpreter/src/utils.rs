@@ -1,11 +1,11 @@
 
 use std::sync::Arc;
-use classfile_view::view::descriptor_parser::MethodDescriptor;
 use classfile_view::loading::LoaderArc;
 use crate::InterpreterState;
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::Object;
 use std::ops::Deref;
+use descriptor_parser::MethodDescriptor;
 
 
 //todo the fact that I need a loader for this is dumb
