@@ -14,6 +14,7 @@ use slow_interpreter::java_values::{JavaValue, Object, ArrayObject};
 use descriptor_parser::parse_field_descriptor;
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
+use slow_interpreter::rust_jni::interface::string::STRING_INTERNMENT_CAMP;
 
 
 #[no_mangle]
@@ -27,8 +28,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let frame = get_frame(env);
     let state = get_state(env);
     let class_obj = runtime_class_from_object(ofClass, get_state(env),&get_frame(env));
-    let field_classfile = check_inited_class(state, &ClassName::Str("java/lang/reflect/Field".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
     let mut object_array = vec![];
+    dbg!(unsafe {&STRING_INTERNMENT_CAMP});
     &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
         //todo so this is big and messy put I don't really see a way to simplify
         let field_class_name_ = class_obj.clone().as_ref().unwrap().class_view.name();
@@ -43,9 +44,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         let modifiers = f.access_flags as i32;
         let slot = i as i32;
-        let clazz = parent_runtime_class.unwrap_normal_object().cast_class();
+        let clazz = parent_runtime_class.cast_class();
         let name = JString::from(state,&frame,field_name);
-        let type_ = field_type_class.unwrap().unwrap_normal_object().cast_class();
+        let type_ = JavaValue::Object(field_type_class).cast_class();
         let signature = JString::from(state,&frame,field_desc_str);
         let annotations_ = vec![];//todo impl annotations.
 
@@ -61,10 +62,10 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             annotations_
         ).java_value())
     });
-
+    dbg!(unsafe {&STRING_INTERNMENT_CAMP});
     let res = Some(Arc::new(
         Object::Array(ArrayObject {
-            elem_type: PTypeView::Ref(ReferenceTypeView::Class(class_name(&field_classfile.classfile))),
+            elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
             elems: RefCell::new(object_array),
         })));
     to_object(res)

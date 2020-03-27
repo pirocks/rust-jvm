@@ -1,17 +1,16 @@
 pub mod method {
-    use crate::java_values::NormalObject;
+    use crate::java_values::{JavaValue, Object};
+    use std::sync::Arc;
 
     pub struct Method{
-        normal_object: NormalObject
+        normal_object: Arc<Object>
     }
 
-    impl NormalObject{
+    impl JavaValue{
         pub fn cast_method(&self) -> Method{
-            Method { normal_object: self.clone() }
+            Method { normal_object: self.unwrap_object_nonnull() }
         }
     }
-    use crate::java_values::JavaValue;
-    use std::sync::Arc;
 
     impl Method{
         pub fn init() ->  Self{
@@ -24,27 +23,25 @@ pub mod method {
 }
 
 pub mod field {
-    use crate::java_values::{NormalObject, JavaValue, Object, ArrayObject};
+    use crate::java_values::{JavaValue, Object, ArrayObject};
     use crate::java::lang::string::JString;
     use crate::java::lang::class::JClass;
-    use jni_bindings::{jint, jbyte};
+    use jni_bindings::jint;
     use crate::{InterpreterState, StackEntry};
     use std::rc::Rc;
     use crate::interpreter_util::{push_new_object, run_constructor, check_inited_class};
-    use crate::instructions::ldc::{load_class_constant_by_type, create_string_on_stack};
-    use descriptor_parser::parse_field_descriptor;
     use std::sync::Arc;
-    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+    use classfile_view::view::ptype_view::PTypeView;
     use std::cell::RefCell;
     use rust_jvm_common::classnames::ClassName;
 
     pub struct Field{
-        normal_object : NormalObject
+        normal_object : Arc<Object>
     }
 
-    impl NormalObject{
+    impl JavaValue{
         pub fn cast_field(&self) -> Field{
-            Field { normal_object: self.clone() }
+            Field { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
@@ -69,7 +66,7 @@ pub mod field {
                 "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),
             );
             dbg!(&field_object);
-            field_object.unwrap_normal_object().cast_field()
+            field_object.cast_field()
         }
 
         as_object_or_java_value!();

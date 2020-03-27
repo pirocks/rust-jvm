@@ -230,13 +230,6 @@ fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
                 Some(o1_arc) => match o2 {
                     None => true,
                     Some(o2_arc) => {
-//                        dbg!(o1_arc
-//                            .try_unwrap_normal_object().map(|x| {
-//                            x.object_class_object_pointer.borrow().as_ref().map(|x| {
-//                                class_name(&x.classfile).get_referred_name()
-//                            })
-//                        }));
-//                        dbg!(o2_arc.try_unwrap_normal_object().map(|x| { x.object_class_object_pointer.borrow().as_ref().map(|x| { class_name(&x.classfile).get_referred_name() }) }));
                         Arc::ptr_eq(&o1_arc, &o2_arc)
                     }
                 },

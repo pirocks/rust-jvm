@@ -131,13 +131,14 @@ pub fn run_native_method(
                         load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(class_view.name())));
                         frame.pop().into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
-                        let member_name = args[0].unwrap_normal_object().cast_member_name();
+                        let member_name = args[0].cast_member_name();
                         let name = member_name.get_name(state, frame.clone());
                         let clazz = member_name.clazz();
                         let field_type = member_name.get_field_type(state, frame.clone());
                         let empty_string = JString::from(state, &frame, "".to_string());
                         let field = Field::init(state, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
-                        let mut args = vec![field.java_value()];
+
+                        let mut args = vec![the_unsafe,field.java_value()];
                         object_field_offset(state,&frame,&mut args)
                     } else {
                         frame.print_stack_trace();

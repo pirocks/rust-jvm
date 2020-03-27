@@ -518,14 +518,14 @@ impl std::convert::From<Option<Arc<Object>>> for JavaValue {
     }
 }
 
-impl Clone for NormalObject {
-    fn clone(&self) -> Self {
-        NormalObject {
-            gc_reachable: self.gc_reachable,
-            fields: self.fields.clone(),
-            class_pointer: self.class_pointer.clone(),
-            bootstrap_loader: self.bootstrap_loader,
-            class_object_ptype: self.class_object_ptype.clone()
-        }
-    }
-}
+// impl Clone for NormalObject {
+//     fn clone(&self) -> Self {
+//         NormalObject {
+//             gc_reachable: self.gc_reachable,
+//             fields: self.fields.clone(),
+//             class_pointer: self.class_pointer.clone(),
+//             bootstrap_loader: self.bootstrap_loader,
+//             class_object_ptype: self.class_object_ptype.clone()
+//         }
+//     }
+// }
