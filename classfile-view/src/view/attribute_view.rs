@@ -41,10 +41,10 @@ impl BootstrapMethodsView {
         unimplemented!()
     }
 }
-
+#[derive(Clone)]
 pub struct BootstrapMethodView {
-    backing: BootstrapMethodsView,
-    i: usize,
+    pub(crate) backing: BootstrapMethodsView,
+    pub(crate) i: usize,
 }
 
 impl BootstrapMethodView {
@@ -52,8 +52,10 @@ impl BootstrapMethodView {
         &self.backing.get_bootstrap_methods_raw()[self.i]
     }
 
-    pub fn bootstrap_method_ref(&self) -> MethodrefView {
-        let res = self.backing.backing_class.constant_pool_view(self.get_raw().bootstrap_method_ref as usize);
+    pub fn bootstrap_method_ref(&self) -> MethodHandleView {
+        let i = self.get_raw().bootstrap_method_ref;
+        dbg!(i);
+        let res = self.backing.backing_class.constant_pool_view(i as usize);
         match res {
             ConstantInfoView::Methodref(mr) => { mr }
             _ => panic!()

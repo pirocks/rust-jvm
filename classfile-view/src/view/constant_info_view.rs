@@ -1,8 +1,8 @@
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref};
+use rust_jvm_common::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref, MethodHandle, ReferenceKind};
 use std::sync::Arc;
 use crate::view::ClassView;
-use crate::view::attribute_view::BootstrapMethodsView;
+use crate::view::attribute_view::BootstrapMethodView;
 use crate::view::ptype_view::{ReferenceTypeView, PTypeView};
 use descriptor_parser::parse_field_descriptor;
 
@@ -148,7 +148,23 @@ impl NameAndTypeView{
 
 #[derive(Debug)]
 pub struct MethodHandleView{
-    //todo
+    pub(crate) backing_class: ClassView,
+    pub i : usize
+}
+
+impl MethodHandleView{
+    fn get_raw(&self) -> & MethodHandle{
+        match &self.backing_class.backing_class.constant_pool[self.i].kind{
+            ConstantKind::MethodHandle(mh) => {
+                mh
+            },
+            _ => {},
+        }
+    }
+
+    pub fn get_reference_kind(&self) -> ReferenceKind{
+        self.get_raw().reference_kind.clone()
+    }
 }
 
 #[derive(Debug)]
@@ -175,8 +191,8 @@ impl InvokeDynamicView{
             i: self.name_and_type_index as usize
         }
     }
-    pub fn bootstrap_method_attr(&self) -> BootstrapMethodsView{
-        BootstrapMethodsView { backing_class: self.backing_class.clone(), attr_i: self.bootstrap_method_attr_index as usize }
+    pub fn bootstrap_method(&self) -> BootstrapMethodView {
+        BootstrapMethodView { backing: self.backing_class.bootstrap_methods_attr(), i: self.bootstrap_method_attr_index as usize }
     }
 }
 

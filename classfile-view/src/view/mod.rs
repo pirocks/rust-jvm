@@ -5,7 +5,7 @@ use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
 use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
-use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView};
+use crate::view::attribute_view::{EnclosingMethodView, BootstrapMethodsView};
 
 
 pub trait HasAccessFlags {
@@ -121,7 +121,13 @@ impl ClassView {
         self.backing_class.clone()
     }
     pub fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
-        unimplemented!()
+        let (i,_) = self.backing_class.attributes.iter().enumerate().flat_map(|(i,x)|{
+            match &x.attribute_type{
+                AttributeType::BootstrapMethods(bm) => Some((i,bm)),
+                _ => None
+            }
+        }).next().unwrap();
+        BootstrapMethodsView{ backing_class: self.clone(), attr_i: i }
     }
     pub fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         self.backing_class.attributes.iter().enumerate().find(|(_i,attr)|{

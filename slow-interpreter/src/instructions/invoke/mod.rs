@@ -26,26 +26,55 @@ pub mod dynamic {
     use rust_jvm_common::classnames::ClassName;
     use classfile_view::view::constant_info_view::ConstantInfoView;
     use crate::{InterpreterState, StackEntry};
+    use crate::java::lang::invoke::method_handle::MethodHandle;
+    use crate::java::lang::string::JString;
+    use crate::java::lang::invoke::method_type::MethodType;
+    use crate::java::lang::class::JClass;
+    use classfile_view::view::attribute_view::BootstrapArgView;
 
-    pub fn invoke_dynamic(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
-        let method_handle = check_inited_class(
+    pub fn invoke_dynamic(state: &mut InterpreterState, frame: Rc<StackEntry>, cp: u16) {
+        let method_handle_class = check_inited_class(
             state,
             &ClassName::method_handle(),
-            current_frame.clone().into(),
-            current_frame.class_pointer.loader.clone(),
+            frame.clone().into(),
+            frame.class_pointer.loader.clone(),
         );
-        let method_type = check_inited_class(
+        let method_type_class = check_inited_class(
             state,
             &ClassName::method_type(),
-            current_frame.clone().into(),
-            current_frame.class_pointer.loader.clone(),
+            frame.clone().into(),
+            frame.class_pointer.loader.clone(),
         );
-        let invoke_dynamic_view = match current_frame.class_pointer.class_view.constant_pool_view(cp as usize) {
+        let invoke_dynamic_view = match frame.class_pointer.class_view.constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
-        current_frame.print_stack_trace();
-        panic!();
+        frame.print_stack_trace();
+        let method_handle = {
+            let methodref_view = invoke_dynamic_view.bootstrap_method().bootstrap_method_ref();
+            let lookup = MethodHandle::lookup(state, &frame);
+            let a_rando_class_object = lookup.get_class(state, frame.clone());
+            let loader = a_rando_class_object.get_class_loader(state, &frame);
+            let name = JString::from(state, &frame, methodref_view.name_and_type().name());
+            let desc = JString::from(state, &frame, methodref_view.name_and_type().desc());
+            let method_type = MethodType::from_method_descriptor_string(state, &frame, desc, loader);
+            let target_class = JClass::from_name(state, &frame, methodref_view.class());
+            lookup.find_virtual(state, &frame, target_class, name, method_type)
+        };
+        let arg_iterator = invoke_dynamic_view.bootstrap_method().bootstrap_args();
+        arg_iterator.map(|x|{
+            match x {
+                BootstrapArgView::String(_) => unimplemented!(),
+                BootstrapArgView::Class(_) => unimplemented!(),
+                BootstrapArgView::Integer(_) => unimplemented!(),
+                BootstrapArgView::Long(_) => unimplemented!(),
+                BootstrapArgView::Float(_) => unimplemented!(),
+                BootstrapArgView::Double(_) => unimplemented!(),
+                BootstrapArgView::MethodHandle(_) => unimplemented!(),
+                BootstrapArgView::MethodType(_) => unimplemented!()
+            };
+        });
+
 
         //A call site specifier gives a symbolic reference to a method handle which is to serve as
         // the bootstrap method for a dynamic call site (§4.7.23).The method handle is resolved to

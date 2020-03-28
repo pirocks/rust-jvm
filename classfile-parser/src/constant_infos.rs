@@ -1,6 +1,7 @@
 use crate::parsing_util::ParsingContext;
 use rust_jvm_common::classfile::{ConstantKind, Utf8, Integer, Float, Long, Fieldref, Methodref, MethodType, NameAndType, InterfaceMethodref, MethodHandle, InvokeDynamic, ConstantInfo, InvalidConstant, Class, String_};
 use rust_jvm_common::classfile::Double;
+use rust_jvm_common::classfile::ReferenceKind::InvokeStatic;
 
 pub(crate) fn is_utf8(utf8: &ConstantKind) -> Option<&Utf8> {
     return match utf8 {
@@ -37,7 +38,7 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo {
             for _ in 0..length {
                 buffer.push(p.read8())
             }
-            let str_ = unsafe {String::from_utf8_unchecked(buffer)};//.expect("Invalid utf8 in constant pool");
+            let str_ = unsafe { String::from_utf8_unchecked(buffer) };//.expect("Invalid utf8 in constant pool");
             ConstantKind::Utf8(Utf8 { length, string: str_ })
         }
         INTEGER_CONST_NUM => {
@@ -90,7 +91,26 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo {
             ConstantKind::NameAndType(NameAndType { name_index, descriptor_index })
         }
         METHOD_HANDLE_CONST_NUM => {
-            let reference_kind = p.read8();
+            //1 REF_getField getfield C.f:T
+            // 2 REF_getStatic getstatic C.f:T
+            // 3 REF_putField putfield C.f:T
+            // 4 REF_putStatic putstatic C.f:T
+            // 5 REF_invokeVirtual invokevirtual C.m:(A*)T
+            // 6 REF_invokeStatic invokestatic C.m:(A*)T
+            // 7 REF_invokeSpecial invokespecial C.m:(A*)T
+            // 8 REF_newInvokeSpecial new
+            // C;
+            // dup;
+            // C.<init>:(A*)V
+            // 9 REF_invokeInterface invokeinterface C.m:(A*)T
+            let reference_kind = match p.read8() {
+                6 => InvokeStatic,
+
+                u8 => {
+                    dbg!(u8);
+                    unimplemented!()
+                }
+            };
             let reference_index = p.read16();
             ConstantKind::MethodHandle(MethodHandle {
                 reference_kind,

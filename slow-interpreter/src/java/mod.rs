@@ -11,9 +11,9 @@ macro_rules! as_object_or_java_value {
             JavaValue::Object(self.object().into())
         }
 
-        pub fn to_string(&self, state: &mut InterpreterState, frame: Rc<StackEntry>) -> JString {
+        pub fn to_string(&self, state: &mut crate::InterpreterState, frame: std::rc::Rc<crate::StackEntry>) -> crate::java::lang::string::JString {
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(
+            crate::instructions::invoke::native::mhn_temp::run_static_or_virtual(
                 state,
                 &frame,
                 &self.normal_object.unwrap_normal_object().class_pointer,
@@ -21,6 +21,18 @@ macro_rules! as_object_or_java_value {
                 "()Ljava/lang/String;".to_string()
             );
             frame.pop().cast_string()
+        }
+
+        pub fn get_class(&self, state: &mut crate::InterpreterState, frame: std::rc::Rc<crate::StackEntry>) -> crate::java::lang::class::JClass {
+            frame.push(JavaValue::Object(self.normal_object.clone().into()));
+            crate::instructions::invoke::native::mhn_temp::run_static_or_virtual(
+                state,
+                &frame,
+                &self.normal_object.unwrap_normal_object().class_pointer,
+                "getClass".to_string(),
+                "()Ljava/lang/Class;".to_string()
+            );
+            frame.pop().cast_class()
         }
     };
 }

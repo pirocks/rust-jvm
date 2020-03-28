@@ -54,11 +54,15 @@ pub mod member_name {
     }
 }
 
-#[macro_use]
 pub mod class {
     use crate::java_values::{JavaValue, Object};
-    use classfile_view::view::ptype_view::PTypeView;
+    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use std::sync::Arc;
+    use crate::java::lang::class_loader::ClassLoader;
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use std::rc::Rc;
+    use crate::{StackEntry, InterpreterState, get_or_create_class_object};
+    use rust_jvm_common::classnames::ClassName;
 
     pub struct JClass {
         normal_object: Arc<Object>
@@ -75,6 +79,43 @@ pub mod class {
             self.normal_object.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone()
         }
 
+        pub fn get_class_loader(&self, state: &mut InterpreterState, frame: &Rc<StackEntry>) -> ClassLoader {
+            frame.push(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(
+                state,
+                &frame,
+                &self.normal_object.unwrap_normal_object().class_pointer,
+                "getClassLoader".to_string(),
+                "()Ljava/lang/ClassLoader;".to_string(),
+            );
+            frame.pop().cast_class_loader()
+        }
+
+        pub fn from_name(state: &mut InterpreterState, frame: &Rc<StackEntry>, name: ClassName) -> JClass{
+            let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
+            let loader_arc = frame.class_pointer.loader.clone();
+            JavaValue::Object(get_or_create_class_object(state, &type_, frame.clone(), loader_arc).into()).cast_class()
+        }
+
+        as_object_or_java_value!();
+    }
+}
+
+pub mod class_loader {
+    use std::sync::Arc;
+    use crate::java_values::{Object, JavaValue};
+
+    pub struct ClassLoader {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_class_loader(&self) -> ClassLoader {
+            ClassLoader { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl ClassLoader {
         as_object_or_java_value!();
     }
 }

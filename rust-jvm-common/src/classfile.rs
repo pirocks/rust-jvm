@@ -516,8 +516,36 @@ pub struct NameAndType {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub enum ReferenceKind{
+    //1 REF_getField getfield C.f:T
+    // 2 REF_getStatic getstatic C.f:T
+    // 3 REF_putField putfield C.f:T
+    // 4 REF_putStatic putstatic C.f:T
+    // 5 REF_invokeVirtual invokevirtual C.m:(A*)T
+    // 6 REF_invokeStatic invokestatic C.m:(A*)T
+    // 7 REF_invokeSpecial invokespecial C.m:(A*)T
+    // 8 REF_newInvokeSpecial new
+    // C;
+    // dup;
+    // C.<init>:(A*)V
+    // 9 REF_invokeInterface invokeinterface C.m:(A*)T
+    // invokespeci
+    GetField,
+    GetStatic,
+    PutField,
+    PutStatic,
+    InvokeVirtual,
+    InvokeStatic,
+    InvokeSpecial,
+    NewInvokeSpecial,
+    InvokeInterface
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct MethodHandle {
-    pub reference_kind: u8,
+    pub reference_kind: ReferenceKind,
     pub reference_index: CPIndex,
 }
 
