@@ -72,17 +72,11 @@ pub fn run_function(
     let current_depth = current_frame.depth();
     println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
     assert!(!state.function_return);
-    if &meth_name == "emitReturn"{
-        dbg!(&current_frame.local_vars.borrow()[1]);
+    if &meth_name == "isNullConversion"{
+        dbg!(&current_frame.local_vars.borrow());
     }
     if &meth_name == "emitReturnInsn" {
-        //ion resolve
-        // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("debugName"));
         dbg!(&current_frame.last_call_stack.as_ref().unwrap().local_vars.borrow()[1]);
-        // dbg!(current_frame.local_vars.borrow()[0].unwrap_normal_object().fields.borrow().get("names"));
-        // dbg!(current_frame.local_vars.borrow()[0].unwrap_normal_object().fields.borrow().get("names").unwrap().unwrap_array().elems.borrow().len());
-        // dbg!(&current_frame.local_vars.borrow()[0].unwrap_object_nonnull().lookup_field("name"))
-        // dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last());
     }
     while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {

@@ -220,8 +220,8 @@ pub fn if_acmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
-    dbg!(&value1);
-    dbg!(&value2);
+    // dbg!(&value1);
+    // dbg!(&value2);
     match value1 {
         JavaValue::Object(o1) => match value2 {
             JavaValue::Object(o2) => match o1 {

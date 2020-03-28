@@ -28,13 +28,13 @@ pub mod dynamic {
     use crate::{InterpreterState, StackEntry};
 
     pub fn invoke_dynamic(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
-        let _method_handle = check_inited_class(
+        let method_handle = check_inited_class(
             state,
             &ClassName::method_handle(),
             current_frame.clone().into(),
             current_frame.class_pointer.loader.clone(),
         );
-        let _method_type = check_inited_class(
+        let method_type = check_inited_class(
             state,
             &ClassName::method_type(),
             current_frame.clone().into(),

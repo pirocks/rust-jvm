@@ -2,7 +2,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref};
 use std::sync::Arc;
 use crate::view::ClassView;
-use crate::view::attribute_view::BootstrapMethodView;
+use crate::view::attribute_view::BootstrapMethodsView;
 use crate::view::ptype_view::{ReferenceTypeView, PTypeView};
 use descriptor_parser::parse_field_descriptor;
 
@@ -175,8 +175,8 @@ impl InvokeDynamicView{
             i: self.name_and_type_index as usize
         }
     }
-    pub fn bootstrap_method_attr(&self) -> BootstrapMethodView{
-        unimplemented!()
+    pub fn bootstrap_method_attr(&self) -> BootstrapMethodsView{
+        BootstrapMethodsView { backing_class: self.backing_class.clone(), attr_i: self.bootstrap_method_attr_index as usize }
     }
 }
 

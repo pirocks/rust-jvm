@@ -140,7 +140,15 @@ pub fn run_native_method(
 
                         let mut args = vec![Unsafe::the_unsafe(state,&frame).java_value(),field.java_value()];
                         object_field_offset(state,&frame,&mut args)
-                    } else {
+                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
+//static native int getMembers(Class<?> defc, String matchName, String matchSig,
+// //          int matchFlags, Class<?> caller, int skip, MemberName[] results);
+                        dbg!(args);
+                        //todo nyi
+                        // unimplemented!()
+                        Some(JavaValue::Int(0))
+                    }
+                    else {
                         frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
@@ -191,12 +199,17 @@ fn patch_single(
     // String: any object (not just a java.lang.String)
     // InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments//nyi means not yet implemented
     dbg!(&class_name);
-    let kind = if class_name == ClassName::int() ||
-        class_name == ClassName::long() ||
+    let kind = /*if class_name == ClassName::int() {
+        let int_val = JavaValue::Object(patch.clone().into()).cast_integer().value();
+        unpatched.constant_pool[i] = ConstantKind::Integer(Integer { bytes: int_val as u32 }).into();
+    } else*/ /*if
+    class_name == ClassName::long() ||
         class_name == ClassName::float() ||
         class_name == ClassName::double() {
+        frame.print_stack_trace();
+
         unimplemented!()
-    } else if class_name == ClassName::string() {
+    } else*/ if class_name == ClassName::string() {
         unimplemented!()
     } else if class_name == ClassName::class() {
         unimplemented!()

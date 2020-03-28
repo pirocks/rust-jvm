@@ -4,6 +4,7 @@ use rust_jvm_common::classnames::class_name;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::native_util::{from_object, get_state, get_frame};
 use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -15,8 +16,37 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
     let state = get_state(env);
     let frame = get_frame(env);
     frame.print_stack_trace();
-    let runtime_class = runtime_class_from_object(cls, state, &frame).unwrap();
-    runtime_class.class_view.is_interface() as jboolean
+    let obj = from_object(cls).unwrap().clone();
+    let normal_obj = obj.unwrap_normal_object();
+    let temp = normal_obj.class_object_ptype.borrow();
+    let type_view = temp.as_ref().unwrap();
+    (match type_view {
+        PTypeView::ByteType => false,
+        PTypeView::CharType => false,
+        PTypeView::DoubleType => false,
+        PTypeView::FloatType => false,
+        PTypeView::IntType => false,
+        PTypeView::LongType => false,
+        PTypeView::Ref(r) => {
+            match r {
+                ReferenceTypeView::Class(c) => {
+                    state.class_object_pool.borrow().get(type_view).unwrap().unwrap_normal_object().class_pointer.class_view.is_interface()
+                },
+                ReferenceTypeView::Array(a) => {
+                    false
+                },
+            }
+        },
+        PTypeView::ShortType => false,
+        PTypeView::BooleanType => false,
+        PTypeView::VoidType => false,
+        PTypeView::TopType => panic!(),
+        PTypeView::NullType => panic!(),
+        PTypeView::Uninitialized(_) => panic!(),
+        PTypeView::UninitializedThis => panic!(),
+        PTypeView::UninitializedThisOrClass(_) => panic!(),
+    }) as jboolean
+
 }
 
 #[no_mangle]

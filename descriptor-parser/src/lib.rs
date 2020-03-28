@@ -70,7 +70,14 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, PType)> {
                 PType::FloatType
             } else if class_name == "long" {
                 PType::LongType
-            } else {
+            } else if class_name == "void" {
+                PType::VoidType
+            } else if class_name == "short" {
+                PType::ShortType
+            } else if class_name == "char"{
+                PType::CharType
+            }
+            else {
                 let class_name = ClassName::Str(class_name.to_string());
                 PType::Ref(ReferenceType::Class(class_name))
             };
