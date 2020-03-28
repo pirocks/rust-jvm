@@ -3,6 +3,7 @@ use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::native_util::{from_object, get_state, get_frame};
+use classfile_view::view::HasAccessFlags;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -11,8 +12,11 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
-//    get_frame(env).print_stack_trace();
-    (runtime_class_from_object(cls,get_state(env),&get_frame(env)).unwrap().classfile.access_flags & ACC_INTERFACE > 0) as jboolean
+    let state = get_state(env);
+    let frame = get_frame(env);
+    frame.print_stack_trace();
+    let runtime_class = runtime_class_from_object(cls, state, &frame).unwrap();
+    runtime_class.class_view.is_interface() as jboolean
 }
 
 #[no_mangle]
