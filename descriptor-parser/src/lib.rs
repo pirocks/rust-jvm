@@ -59,8 +59,22 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, PType)> {
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            let class_name = ClassName::Str(class_name.to_string());
-            Some((remaining_to_parse, PType::Ref(ReferenceType::Class(class_name))))
+            //todo handle of these cases, and how do I convey these are also classes
+            let sub_type = if class_name == "int" {
+                PType::IntType
+            } else if class_name == "boolean" {
+                PType::BooleanType
+            } else if class_name == "double" {
+                PType::DoubleType
+            } else if class_name == "float" {
+                PType::FloatType
+            } else if class_name == "long" {
+                PType::LongType
+            } else {
+                let class_name = ClassName::Str(class_name.to_string());
+                PType::Ref(ReferenceType::Class(class_name))
+            };
+            Some((remaining_to_parse, sub_type))
         }
         _ => {
             return None;
