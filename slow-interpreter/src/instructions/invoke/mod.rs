@@ -44,22 +44,25 @@ pub mod dynamic {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
+        current_frame.print_stack_trace();
+        panic!();
 
         //A call site specifier gives a symbolic reference to a method handle which is to serve as
         // the bootstrap method for a dynamic call site (§4.7.23).The method handle is resolved to
         // obtain a reference to an instance of java.lang.invoke.MethodHandle (§5.4.3.5)
-        let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
-        invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
-        let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-        dbg!(invoke_dynamic_view.name_and_type().name());
-        dbg!(invoke_dynamic_view.name_and_type().desc());
-        dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().name_and_type());
-        dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().class());
+        // invoke_dynamic_view.name_and_type()
+        // let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
+        // invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
+        // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+        // dbg!(invoke_dynamic_view.name_and_type().name());
+        // dbg!(invoke_dynamic_view.name_and_type().desc());
+        // dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().name_and_type());
+        // dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().class());
 
 //        invoke_dynamic_view.
 
 
-        dbg!(&current_frame.class_pointer.classfile.constant_pool[cp as usize]);
+        // dbg!(&current_frame.class_pointer.classfile.constant_pool[cp as usize]);
         unimplemented!()
     }
 }
