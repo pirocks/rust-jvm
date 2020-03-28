@@ -2,7 +2,7 @@ use std::sync::Arc;
 use crate::view::method_view::{MethodIterator, MethodView};
 use rust_jvm_common::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType, ACC_VARARGS};
 use rust_jvm_common::classnames::{ClassName, class_name};
-use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView};
+use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView, MethodHandleView};
 use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
 use crate::view::attribute_view::{EnclosingMethodView, BootstrapMethodsView};
@@ -80,14 +80,10 @@ impl ClassView {
             ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
             ConstantKind::String(_) => ConstantInfoView::String(StringView {}),//todo
             ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { backing_class, i }),
-            ConstantKind::Methodref(mr) => ConstantInfoView::Methodref(MethodrefView {
-                backing_class,
-                class_index: mr.class_index,
-                name_and_type_index: mr.name_and_type_index
-            }),
+            ConstantKind::Methodref(_) => ConstantInfoView::Methodref(MethodrefView { backing_class, i }),
             ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { backing_class, i }),
             ConstantKind::NameAndType(_) => ConstantInfoView::NameAndType(NameAndTypeView { backing_class, i }),
-            ConstantKind::MethodHandle(_) => unimplemented!(),
+            ConstantKind::MethodHandle(_) => ConstantInfoView::MethodHandle(MethodHandleView { backing_class, i }),
             ConstantKind::MethodType(_) => unimplemented!(),
             ConstantKind::Dynamic(_) => unimplemented!(),
             ConstantKind::InvokeDynamic(id) => ConstantInfoView::InvokeDynamic(InvokeDynamicView{

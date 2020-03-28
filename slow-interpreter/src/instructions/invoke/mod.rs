@@ -24,13 +24,13 @@ pub mod dynamic {
 
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
-    use classfile_view::view::constant_info_view::ConstantInfoView;
+    use classfile_view::view::constant_info_view::{ConstantInfoView, ReferenceData, InvokeStatic};
     use crate::{InterpreterState, StackEntry};
-    use crate::java::lang::invoke::method_handle::MethodHandle;
-    use crate::java::lang::string::JString;
-    use crate::java::lang::invoke::method_type::MethodType;
-    use crate::java::lang::class::JClass;
     use classfile_view::view::attribute_view::BootstrapArgView;
+    use crate::java::lang::class::JClass;
+    use crate::java::lang::invoke::method_type::MethodType;
+    use crate::java::lang::string::JString;
+    use crate::java::lang::invoke::method_handle::MethodHandle;
 
     pub fn invoke_dynamic(state: &mut InterpreterState, frame: Rc<StackEntry>, cp: u16) {
         let method_handle_class = check_inited_class(
@@ -52,14 +52,24 @@ pub mod dynamic {
         frame.print_stack_trace();
         let method_handle = {
             let methodref_view = invoke_dynamic_view.bootstrap_method().bootstrap_method_ref();
-            let lookup = MethodHandle::lookup(state, &frame);
-            let a_rando_class_object = lookup.get_class(state, frame.clone());
-            let loader = a_rando_class_object.get_class_loader(state, &frame);
-            let name = JString::from(state, &frame, methodref_view.name_and_type().name());
-            let desc = JString::from(state, &frame, methodref_view.name_and_type().desc());
-            let method_type = MethodType::from_method_descriptor_string(state, &frame, desc, loader);
-            let target_class = JClass::from_name(state, &frame, methodref_view.class());
-            lookup.find_virtual(state, &frame, target_class, name, method_type)
+            match methodref_view.get_reference_data(){
+                ReferenceData::InvokeStatic(is) => {
+                    match is {
+                        InvokeStatic::Interface(_) => unimplemented!(),
+                        InvokeStatic::Method(mr) => {
+                            let lookup = MethodHandle::lookup(state, &frame);
+                            let a_rando_class_object = lookup.get_class(state, frame.clone());
+                            let loader = a_rando_class_object.get_class_loader(state, &frame);
+                            let name = JString::from(state, &frame, mr.name_and_type().name());
+                            let desc = JString::from(state, &frame, mr.name_and_type().desc());
+                            let method_type = MethodType::from_method_descriptor_string(state, &frame, desc, loader);
+                            let target_class = JClass::from_name(state, &frame, mr.class());
+                            lookup.find_virtual(state, &frame, target_class, name, method_type)
+                        },
+                    }
+                },
+            }
+
         };
         let arg_iterator = invoke_dynamic_view.bootstrap_method().bootstrap_args();
         arg_iterator.map(|x|{

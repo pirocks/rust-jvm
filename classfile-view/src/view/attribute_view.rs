@@ -1,6 +1,6 @@
 use crate::view::ClassView;
 use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex};
-use crate::view::constant_info_view::{MethodrefView, ConstantInfoView, StringView, IntegerView, LongView, FloatView, DoubleView, MethodHandleView, MethodTypeView};
+use crate::view::constant_info_view::{ConstantInfoView, StringView, IntegerView, LongView, FloatView, DoubleView, MethodHandleView, MethodTypeView};
 
 #[derive(Clone)]
 pub struct BootstrapMethodIterator {
@@ -57,7 +57,7 @@ impl BootstrapMethodView {
         dbg!(i);
         let res = self.backing.backing_class.constant_pool_view(i as usize);
         match res {
-            ConstantInfoView::Methodref(mr) => { mr }
+            ConstantInfoView::MethodHandle(mh) => { mh }
             _ => panic!()
         }
     }

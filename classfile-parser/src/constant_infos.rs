@@ -1,7 +1,7 @@
 use crate::parsing_util::ParsingContext;
 use rust_jvm_common::classfile::{ConstantKind, Utf8, Integer, Float, Long, Fieldref, Methodref, MethodType, NameAndType, InterfaceMethodref, MethodHandle, InvokeDynamic, ConstantInfo, InvalidConstant, Class, String_};
 use rust_jvm_common::classfile::Double;
-use rust_jvm_common::classfile::ReferenceKind::InvokeStatic;
+use rust_jvm_common::classfile::ReferenceKind::{InvokeStatic, InvokeInterface, InvokeSpecial};
 
 pub(crate) fn is_utf8(utf8: &ConstantKind) -> Option<&Utf8> {
     return match utf8 {
@@ -105,7 +105,9 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo {
             // 9 REF_invokeInterface invokeinterface C.m:(A*)T
             let reference_kind = match p.read8() {
                 6 => InvokeStatic,
-
+                7 => InvokeSpecial,
+                8 => InvokeSpecial,
+                9 => InvokeInterface,
                 u8 => {
                     dbg!(u8);
                     unimplemented!()

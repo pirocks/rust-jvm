@@ -53,8 +53,13 @@ pub mod method_handle {
 
     impl MethodHandle {
         pub fn lookup(state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Lookup {
-            let method_handle_class = check_inited_class(state, &ClassName::method_handle(), frame.clone().into(), frame.class_pointer.loader.clone());
-            run_static_or_virtual(state, frame, &method_handle_class,"lookup".to_string(),"()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
+            let method_handles_class = check_inited_class(state, &ClassName::method_handles(), frame.clone().into(), frame.class_pointer.loader.clone());
+            run_static_or_virtual(state, frame, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
+            frame.pop().cast_lookup()
+        }
+        pub fn public_lookup(state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Lookup {
+            let method_handles_class = check_inited_class(state, &ClassName::method_handles(), frame.clone().into(), frame.class_pointer.loader.clone());
+            run_static_or_virtual(state, frame, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             frame.pop().cast_lookup()
         }
 
