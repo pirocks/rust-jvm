@@ -1,4 +1,4 @@
-use rust_jvm_common::classfile::{Instruction, InstructionInfo};
+use rust_jvm_common::classfile::{Instruction, InstructionInfo, Wide};
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
@@ -53,7 +53,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dload_2 => instruction_is_type_safe_dload(2, env, stack_frame),
         InstructionInfo::dload_3 => instruction_is_type_safe_dload(3, env, stack_frame),
         InstructionInfo::dmul => instruction_is_type_safe_dadd(env, stack_frame),
-        InstructionInfo::dneg => instruction_is_type_safe_dneg(env,stack_frame),
+        InstructionInfo::dneg => instruction_is_type_safe_dneg(env, stack_frame),
         InstructionInfo::drem => { unimplemented!() }
         InstructionInfo::dreturn => instruction_is_type_safe_dreturn(env, stack_frame),
         InstructionInfo::dstore(i) => instruction_is_type_safe_dstore(*i as usize, env, stack_frame),
@@ -66,7 +66,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dup_x1 => instruction_is_type_safe_dup_x1(env, stack_frame),
         InstructionInfo::dup_x2 => instruction_is_type_safe_dup_x2(env, stack_frame),
         InstructionInfo::dup2 => instruction_is_type_safe_dup2(env, stack_frame),
-        InstructionInfo::dup2_x1 => instruction_is_type_safe_dup2_x1(env,stack_frame),
+        InstructionInfo::dup2_x1 => instruction_is_type_safe_dup2_x1(env, stack_frame),
         InstructionInfo::dup2_x2 => { unimplemented!() }
         InstructionInfo::f2d => instruction_is_type_safe_f2d(env, stack_frame),
         InstructionInfo::f2i => instruction_is_type_safe_f2i(env, stack_frame),
@@ -249,7 +249,19 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             targets.push((offset as isize + s.default as isize) as usize);
             instruction_is_type_safe_tableswitch(targets, env, stack_frame)
         }
-        InstructionInfo::wide(_) => { unimplemented!() }
+        InstructionInfo::wide(wide) => match wide {
+            Wide::Iload(_) => unimplemented!(),
+            Wide::Fload(_) => unimplemented!(),
+            Wide::Aload(_) => unimplemented!(),
+            Wide::Lload(_) => unimplemented!(),
+            Wide::Dload(_) => unimplemented!(),
+            Wide::Istore(_) => unimplemented!(),
+            Wide::Fstore(_) => unimplemented!(),
+            Wide::Astore(_) => unimplemented!(),
+            Wide::Lstore(_) => unimplemented!(),
+            Wide::Ret(_) => unimplemented!(),
+            Wide::IInc(iinc) => instruction_is_type_safe_iinc(iinc.index as usize, env, stack_frame),
+        },
         _ => unimplemented!()
     }
 }

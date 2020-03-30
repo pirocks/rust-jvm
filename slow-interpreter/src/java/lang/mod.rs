@@ -185,13 +185,9 @@ pub mod integer {
 }
 
 pub mod object {
-    use crate::utils::string_obj_to_string;
     use crate::java_values::Object;
     use std::sync::Arc;
     use crate::java_values::JavaValue;
-    use crate::instructions::ldc::create_string_on_stack;
-    use crate::{InterpreterState, StackEntry};
-    use std::rc::Rc;
 
     pub struct JObject {
         normal_object: Arc<Object>
