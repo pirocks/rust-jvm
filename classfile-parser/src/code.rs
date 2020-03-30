@@ -1,13 +1,12 @@
 use std::slice::Iter;
 use rust_jvm_common::classfile::{IInc, InvokeInterface, MultiNewArray, LookupSwitch, TableSwitch, Atype, Wide, Instruction, InstructionInfo};
-use std::collections::{HashMap, HashSet};
-use std::iter::FromIterator;
+
 
 
 fn read_iinc(c: &mut CodeParserContext) -> Option<IInc> {
     let index = read_u8(c)?;
     let const_ = read_i8(c)?;
-    return Some(IInc { index, const_ });
+    return Some(IInc { index: index as u16, const_: const_ as i16 });
 }
 
 fn read_invoke_interface(c: &mut CodeParserContext) -> Option<InvokeInterface> {
@@ -97,8 +96,6 @@ fn read_wide(c: &mut CodeParserContext) -> Option<Wide> {
             _ => panic!()
         }
     }
-    dbg!(opcode);
-    panic!()
 }
 
 
