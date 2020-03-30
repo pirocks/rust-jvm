@@ -72,12 +72,20 @@ pub fn run_function(
     let current_depth = current_frame.depth();
     println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
     assert!(!state.function_return);
-    if &meth_name == "emitImplicitConversion"{
-        dbg!(&current_frame.local_vars.borrow()[1..].iter().map(|x|x.cast_object().to_string(state,current_frame.clone()).to_rust_string()).collect::<Vec<_>>());
-    }
-    // if &meth_name == "emitReturnInsn" {
-        // dbg!(&current_frame.last_call_stack.as_ref().unwrap().local_vars.borrow()[1]);
+    // if &meth_name != "toString"{
+    /*if !state.debug_exclude {
+        state.debug_exclude = true;
+        dbg!(&current_frame.local_vars.borrow().iter().map(|x| x.cast_object().to_string(state, current_frame.clone()).to_rust_string()).collect::<Vec<_>>());
+        state.debug_exclude = false;
+    }*/
     // }
+    if &meth_name == "generateCustomizedCode" {
+        dbg!(&current_frame.local_vars.borrow()[0..1].iter().map(|x| x.cast_object().to_string(state, current_frame.clone()).to_rust_string()).collect::<Vec<_>>());
+        println!("here");
+    }
+    if &meth_name == "isNullConversion" {
+        dbg!(&current_frame.local_vars.borrow()/*.iter().map(|x| x.cast_object().to_string(state, current_frame.clone()).to_rust_string()).collect::<Vec<_>>()*/);
+    }
     while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];

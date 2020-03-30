@@ -77,7 +77,11 @@ pub fn call(
     if classfile.classfile.methods[method_i].is_static() {
         Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, false))
     } else {
-        Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true))
+        if &mangled == "Java_java_lang_Class_isAssignableFrom"{
+            Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true))
+        }else {
+            Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true))
+        }
     }
 }
 

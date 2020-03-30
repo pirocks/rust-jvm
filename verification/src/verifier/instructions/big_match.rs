@@ -2,7 +2,7 @@ use rust_jvm_common::classfile::{Instruction, InstructionInfo, Wide};
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
-use crate::verifier::instructions::{instruction_is_type_safe_dup, instruction_is_type_safe_dup_x1, instruction_is_type_safe_dup_x2, instruction_is_type_safe_i2d, instruction_is_type_safe_i2f, instruction_is_type_safe_i2l, instruction_is_type_safe_iadd, instruction_is_type_safe_iinc, instruction_is_type_safe_ineg, instruction_is_type_safe_l2i, instruction_is_type_safe_ladd, instruction_is_type_safe_lcmp, instruction_is_type_safe_ldc, instruction_is_type_safe_ldc2_w, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg, instruction_is_type_safe_lshl, instruction_is_type_safe_pop, instruction_is_type_safe_sipush, InstructionTypeSafe, instruction_is_type_safe_dup2, instruction_is_type_safe_l2f, instruction_is_type_safe_l2d, instruction_is_type_safe_pop2, instruction_is_type_safe_dup2_x1};
+use crate::verifier::instructions::{instruction_is_type_safe_dup, instruction_is_type_safe_dup_x1, instruction_is_type_safe_dup_x2, instruction_is_type_safe_i2d, instruction_is_type_safe_i2f, instruction_is_type_safe_i2l, instruction_is_type_safe_iadd, instruction_is_type_safe_iinc, instruction_is_type_safe_ineg, instruction_is_type_safe_l2i, instruction_is_type_safe_ladd, instruction_is_type_safe_lcmp, instruction_is_type_safe_ldc, instruction_is_type_safe_ldc2_w, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg, instruction_is_type_safe_lshl, instruction_is_type_safe_pop, instruction_is_type_safe_sipush, InstructionTypeSafe, instruction_is_type_safe_dup2, instruction_is_type_safe_l2f, instruction_is_type_safe_l2d, instruction_is_type_safe_pop2, instruction_is_type_safe_dup2_x1, instruction_is_type_safe_swap};
 use crate::verifier::instructions::branches::*;
 use crate::verifier::instructions::consts::*;
 use crate::verifier::instructions::float::*;
@@ -240,7 +240,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::saload => instruction_is_type_safe_saload(env, stack_frame),
         InstructionInfo::sastore => instruction_is_type_safe_sastore(env, stack_frame),
         InstructionInfo::sipush(_) => instruction_is_type_safe_sipush(env, stack_frame),
-        InstructionInfo::swap => { unimplemented!() }
+        InstructionInfo::swap => instruction_is_type_safe_swap(env,stack_frame),
         InstructionInfo::tableswitch(s) => {
             let mut targets = vec![];
             for o in &s.offsets {

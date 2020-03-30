@@ -13,6 +13,8 @@ use crate::instructions::invoke::special::invoke_special_impl;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::JavaValue;
 use descriptor_parser::parse_method_descriptor;
+use verification::verifier::filecorrectness::is_assignable;
+use verification::VerifierContext;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -44,9 +46,28 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
 }
 
 
-pub unsafe extern "C" fn is_assignable_from(_env: *mut JNIEnv, _sub: jclass, _sup: jclass) -> jboolean {
+pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
     //todo impl later
-    true as jboolean
+    let state = get_state(env);
+    let frame  = get_frame(env);
+
+    let sub_not_null = from_object(sub).unwrap();
+    let sup_not_null = from_object(sup).unwrap();
+    let sub_temp_refcell = sub_not_null.unwrap_normal_object().class_object_ptype.borrow();
+    let sup_temp_refcell = sup_not_null.unwrap_normal_object().class_object_ptype.borrow();
+
+    let sub_type = sub_temp_refcell.as_ref().unwrap();
+    let sup_type = sup_temp_refcell.as_ref().unwrap();
+
+    let loader = &frame.class_pointer.loader;
+    let sub_vtype = sub_type.to_verification_type(loader);
+    let sup_vtype = sup_type.to_verification_type(loader);
+
+
+
+    let vf = VerifierContext { live_pool_getter: state.get_live_object_pool_getter(), bootstrap_loader: state.bootstrap_loader.clone() };
+    let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_|true).unwrap_or(false);
+    res as jboolean
 }
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ::va_list::VaList) -> jobject {

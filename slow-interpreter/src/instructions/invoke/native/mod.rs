@@ -212,9 +212,9 @@ fn patch_single(
         unimplemented!()
     } else*/ if class_name == ClassName::string() {
         unimplemented!()
-    } else if class_name == ClassName::class() {
+    } /*else if class_name == ClassName::class() {
         unimplemented!()
-    } /*else if class_name == ClassName::method_handle() || class_name == ClassName::direct_method_handle() {//todo should be using innstanceof here
+    }*/ /*else if class_name == ClassName::method_handle() || class_name == ClassName::direct_method_handle() {//todo should be using innstanceof here
         dbg!(&unpatched.constant_pool[i]);
         dbg!(&unpatched.constant_pool.iter().enumerate().collect::<Vec<_>>());
         if class_name == ClassName::direct_method_handle() {

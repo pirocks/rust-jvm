@@ -645,11 +645,25 @@ pub fn instruction_is_type_safe_sipush(env: &Environment, stack_frame: &Frame) -
     type_transition(env, stack_frame, vec![], VType::IntType)
 }
 
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_swap(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
+pub fn instruction_is_type_safe_swap(env: &Environment, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = &stack_frame.locals;
+    let flags = stack_frame.flag_this_uninit;
+    let mut initial_stack_map = stack_frame.stack_map.clone();
+    let type_1 = initial_stack_map.operand_pop();
+    let type_2 = initial_stack_map.operand_pop();
+    if size_of(&env.vf,&type_1) == 1 && size_of(&env.vf,&type_2) == 2{
+        initial_stack_map.operand_push(type_1);
+        initial_stack_map.operand_push(type_2);
+        Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame: Frame {
+            locals: locals.clone(),
+            stack_map: initial_stack_map.clone(),
+            flag_this_uninit: flags
+        }, exception_frame: exception_stack_frame(stack_frame) }))
+    }else {
+        Result::Err(unknown_error_verifying!())
+    }
+}
+
 
 pub fn exception_stack_frame(f: &Frame) -> Frame {
     Frame { locals: f.locals.iter().map(|x| x.clone()).collect(), stack_map: OperandStack::empty(), flag_this_uninit: f.flag_this_uninit }

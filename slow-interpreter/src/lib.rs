@@ -59,6 +59,8 @@ pub struct InterpreterState {
     //anon classes
     pub anon_class_counter: usize,
     pub anon_class_live_object_ldc_pool : Arc<RefCell<Vec<Arc<Object>>>>,
+
+    pub debug_exclude: bool
 }
 
 struct LivePoolGetterImpl{
@@ -71,6 +73,15 @@ impl LivePoolGetter for LivePoolGetterImpl{
         ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.class_view.name())//todo handle arrays
     }
 }
+
+pub struct NoopLivePoolGetter{}
+
+impl LivePoolGetter for NoopLivePoolGetter{
+    fn elem_type(&self, idx: usize) -> ReferenceTypeView {
+        panic!()
+    }
+}
+
 
 impl InterpreterState{
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter>{
@@ -255,7 +266,8 @@ pub fn run(
         },
         start_instant: Instant::now(),
         anon_class_counter: 0,
-        anon_class_live_object_ldc_pool: Arc::new(RefCell::new(vec![]))
+        anon_class_live_object_ldc_pool: Arc::new(RefCell::new(vec![])),
+        debug_exclude: true
     };
     let main = bl.clone().load_class(bl.clone(), main_class_name, bl.clone(),state.get_live_object_pool_getter())?;
     let main_class = prepare_class(main.clone().backing_class(), bl.clone());

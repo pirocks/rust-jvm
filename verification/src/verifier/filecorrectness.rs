@@ -75,8 +75,8 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
             dbg!(&from.class_name);
             dbg!(&to.class_name);
             dbg!(&chain);
-            panic!();
-//            Result::Err(unknown_error_verifying!())
+            // panic!();
+           Result::Err(unknown_error_verifying!())
         }
         Some(c) => {
             loaded_class(vf, c.class_name.clone(), to.loader.clone())?;
@@ -177,16 +177,10 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         VType::OneWord => match to {
             VType::OneWord => Result::Ok(()),
             VType::TopType => Result::Ok(()),
-            VType::Class(c) => {
-                dbg!(c);
-                panic!()
-//                Result::Err(unknown_error_verifying!())
-            }
-            VType::IntType => {
-                panic!()
-            }
-            VType::ArrayReferenceType(_) => {
-                panic!()
+            VType::Class(_) => {
+                // dbg!(c);
+                // panic!()
+               Result::Err(unknown_error_verifying!())
             }
             _ => {
                 Result::Err(unknown_error_verifying!())
