@@ -124,6 +124,7 @@ pub fn run_native_method(
                         let class_view = ClassView::from(parsed.clone());
 
                         bootstrap_loader.add_pre_loaded(&class_view.name(), &parsed);
+                        frame.print_stack_trace();
                         match verify(&vf, class_view.clone(), bootstrap_loader.clone()) {
                             Ok(_) => {}
                             Err(_) => panic!(),

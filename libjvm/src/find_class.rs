@@ -40,7 +40,7 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let name_str = jstring_to_string(name);
     assert!(&name_str != "int");
-    dbg!(&name_str);
+    // dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
     let state = get_state(env);

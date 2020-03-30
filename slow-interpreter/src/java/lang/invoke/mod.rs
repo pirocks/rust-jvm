@@ -18,9 +18,9 @@ pub mod method_type {
     impl MethodType {
         as_object_or_java_value!();
 
-        pub fn from_method_descriptor_string(state: &mut crate::InterpreterState, frame: &std::rc::Rc<crate::StackEntry>, str : crate::java::lang::string::JString, class_loader: ClassLoader) -> MethodType{
+        pub fn from_method_descriptor_string(state: &mut crate::InterpreterState, frame: &std::rc::Rc<crate::StackEntry>, str : crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> MethodType{
             frame.push(str.java_value());
-            frame.push(class_loader.java_value());
+            frame.push(class_loader.map(|x|x.java_value()).unwrap_or(JavaValue::Object(None)));
             let method_type = check_inited_class(state,&ClassName::method_type(),frame.clone().into(),frame.class_pointer.loader.clone());
             crate::instructions::invoke::native::mhn_temp::run_static_or_virtual(state,frame, &method_type,"fromMethodDescriptorString".to_string(),"(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string());
             frame.pop().cast_method_type()

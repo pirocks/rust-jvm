@@ -29,7 +29,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let state = get_state(env);
     let class_obj = runtime_class_from_object(ofClass, get_state(env),&get_frame(env));
     let mut object_array = vec![];
-    dbg!(unsafe {&STRING_INTERNMENT_CAMP});
+    // dbg!(unsafe {&STRING_INTERNMENT_CAMP});
     &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
         //todo so this is big and messy put I don't really see a way to simplify
         let field_class_name_ = class_obj.clone().as_ref().unwrap().class_view.name();
@@ -62,7 +62,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             annotations_
         ).java_value())
     });
-    dbg!(unsafe {&STRING_INTERNMENT_CAMP});
+    // dbg!(unsafe {&STRING_INTERNMENT_CAMP});
     let res = Some(Arc::new(
         Object::Array(ArrayObject {
             elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),

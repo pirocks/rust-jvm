@@ -44,9 +44,12 @@ pub struct InterpreterState {
     pub bootstrap_loader: LoaderArc,
     pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
     pub string_internment: RefCell<HashMap<String, Arc<Object>>>,
+
+
     pub class_object_pool: RefCell<HashMap<PTypeView, Arc<Object>>>,
-    // pub primitive_object_pool: RefCell<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
-    // pub array_object_pool: RefCell<HashMap<PType, Arc<Object>>>,
+    // pub class_loader : Arc<Object>,
+    pub system_domain_loader : bool,
+
     //todo needs to be used for all instances of getClass
     pub jni: LibJavaLoading,
     pub string_pool: StringPool,
@@ -198,29 +201,31 @@ fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEn
     let current_loader = current_frame.class_pointer.loader.clone();
     let class_class = check_inited_class(state, &java_lang_class, current_frame.clone().into(), current_loader.clone());
     let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone().into(), current_loader.clone());
+    let boostrap_loader_object = Arc::new(Object::Object(NormalObject {
+        gc_reachable: true,
+        fields: RefCell::new(HashMap::new()),
+        class_pointer: class_loader_class.clone(),
+        bootstrap_loader: true,
+        // object_class_object_pointer: RefCell::new(None),
+        // array_class_object_pointer: RefCell::new(None),
+        class_object_ptype: RefCell::new(None),
+    }));
+    // state.class_loader = boostrap_loader_object;
     //the above would only be required for higher jdks where a class loader object is part of Class.
     //as it stands we can just push to operand stack
     push_new_object(state,current_frame.clone(), &class_class);
     let object = current_frame.pop();
     match object.clone() {
         JavaValue::Object(o) => {
-//            assert_eq!(&class_loader_class.classfile.access_flags & ACC_ABSTRACT, 0);
-            let boostrap_loader_object = NormalObject {
-                gc_reachable: true,
-                fields: RefCell::new(HashMap::new()),
-                class_pointer: class_loader_class.clone(),
-                bootstrap_loader: true,
-                // object_class_object_pointer: RefCell::new(None),
-                // array_class_object_pointer: RefCell::new(None),
-                class_object_ptype: RefCell::new(None),
-            };
-            let bootstrap_arc = Arc::new(Object::Object(boostrap_loader_object));
+            let bootstrap_arc = boostrap_loader_object;
             let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
             {
                 bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
                 bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
-//                o.unwrap().unwrap_object().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
-                o.unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
+                o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
+            }
+            if !state.system_domain_loader{
+                o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(),bootstrap_class_loader);
             }
         }
         _ => panic!(),
@@ -243,6 +248,7 @@ pub fn run(
         initialized_classes: RwLock::new(HashMap::new()),
         string_internment: RefCell::new(HashMap::new()),
         class_object_pool: RefCell::new(HashMap::new()),
+        system_domain_loader: true,
         jni,
         string_pool: StringPool {
             entries: HashSet::new()

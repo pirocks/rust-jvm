@@ -22,9 +22,9 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     let frame = get_frame(env);
     let state = get_state(env);
     //todo need to convert lots of these to unwrap_or_throw
-    dbg!(args0);
-    dbg!(method);
-    dbg!(obj);
+    // dbg!(args0);
+    // dbg!(method);
+    // dbg!(obj);
     assert_eq!(obj, std::ptr::null_mut());//non-static methods not supported atm.
     let method_obj = from_object(method).unwrap();
     let args_not_null = from_object(args0).unwrap();

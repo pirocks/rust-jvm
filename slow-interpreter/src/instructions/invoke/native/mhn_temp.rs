@@ -166,10 +166,10 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
     // init(MemberName mname, Object target);
     let mname = args[0].unwrap_normal_object();
     let target = args[1].unwrap_normal_object();
-    dbg!(target);
-    dbg!(mname);
-    dbg!(target.class_pointer.class_view.name());
-    dbg!(mname.class_pointer.class_view.name());
+    // dbg!(target);
+    // dbg!(mname);
+    // dbg!(target.class_pointer.class_view.name());
+    // dbg!(mname.class_pointer.class_view.name());
     if target.class_pointer.class_view.name() == ClassName::method() {
         let flags = mname.fields.borrow().get("flags").unwrap().unwrap_int();
         let method_fields = target.fields.borrow();

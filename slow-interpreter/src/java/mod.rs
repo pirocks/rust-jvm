@@ -13,25 +13,17 @@ macro_rules! as_object_or_java_value {
 
         pub fn to_string(&self, state: &mut crate::InterpreterState, frame: std::rc::Rc<crate::StackEntry>) -> crate::java::lang::string::JString {
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            crate::instructions::invoke::native::mhn_temp::run_static_or_virtual(
-                state,
-                &frame,
-                &self.normal_object.unwrap_normal_object().class_pointer,
-                "toString".to_string(),
-                "()Ljava/lang/String;".to_string()
-            );
+            crate::instructions::invoke::virtual_::invoke_virtual(
+             state,
+             frame.clone(),
+             &"toString".to_string(),
+             &descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::string()))});
             frame.pop().cast_string()
         }
 
         pub fn get_class(&self, state: &mut crate::InterpreterState, frame: std::rc::Rc<crate::StackEntry>) -> crate::java::lang::class::JClass {
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            crate::instructions::invoke::native::mhn_temp::run_static_or_virtual(
-                state,
-                &frame,
-                &self.normal_object.unwrap_normal_object().class_pointer,
-                "getClass".to_string(),
-                "()Ljava/lang/Class;".to_string()
-            );
+            crate::instructions::invoke::virtual_::invoke_virtual(state, frame.clone(),&"getClass".to_string(), &descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::class()))});
             frame.pop().cast_class()
         }
     };

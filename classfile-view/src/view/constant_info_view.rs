@@ -85,7 +85,10 @@ impl MethodrefView {
     fn get_raw(&self) -> &Methodref {
         match &self.backing_class.constant_pool[self.i].kind {
             ConstantKind::Methodref(mf) => mf,
-            _ => panic!(),
+            c => {
+                dbg!(c);
+                panic!()
+            }
         }
     }
 
@@ -190,8 +193,8 @@ impl MethodHandleView {
                 // class's or interface's method for which a method handle is to be created.
                 let reference_idx = self.get_raw().reference_index as usize;
                 let invoke_static = match &self.backing_class.constant_pool[reference_idx].kind {
-                    ConstantKind::Methodref(_) => InvokeStatic::Method(MethodrefView { backing_class: self.backing_class.clone(), i: self.i }),
-                    ConstantKind::InterfaceMethodref(_) => InvokeStatic::Interface(InterfaceMethodrefView { backing_class: self.backing_class.clone(), i: self.i }),
+                    ConstantKind::Methodref(_) => InvokeStatic::Method(MethodrefView { backing_class: self.backing_class.clone(), i: reference_idx }),
+                    ConstantKind::InterfaceMethodref(_) => InvokeStatic::Interface(InterfaceMethodrefView { backing_class: self.backing_class.clone(), i: reference_idx }),
                     ck => {
                         dbg!(ck);
                         panic!()

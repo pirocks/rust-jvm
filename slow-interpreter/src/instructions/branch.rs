@@ -96,10 +96,10 @@ pub fn ifgt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 
 pub fn ifge(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     let val = current_frame.pop();
-    let succeeds = match val {
+    let succeeds = val.unwrap_int() >= 0;/* match val {
         JavaValue::Int(i) => i >= 0,
         _ => panic!()
-    };
+    };*/
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -107,10 +107,7 @@ pub fn ifge(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 
 pub fn iflt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     let val = current_frame.pop();
-    let succeeds = match val {
-        JavaValue::Int(i) => i < 0,
-        _ => panic!()
-    };
+    let succeeds = val.unwrap_int() < 0;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }

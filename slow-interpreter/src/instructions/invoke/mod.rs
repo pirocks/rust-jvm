@@ -57,12 +57,13 @@ pub mod dynamic {
                     match is {
                         InvokeStatic::Interface(_) => unimplemented!(),
                         InvokeStatic::Method(mr) => {
-                            let lookup = MethodHandle::lookup(state, &frame);
+                            let lookup = MethodHandle::public_lookup(state, &frame);
                             let a_rando_class_object = lookup.get_class(state, frame.clone());
-                            let loader = a_rando_class_object.get_class_loader(state, &frame);
+                            // dbg!(&a_rando_class_object.clone().java_value().unwrap_normal_object().fields);
+                            // let loader = a_rando_class_object.get_class_loader(state, &frame);
                             let name = JString::from(state, &frame, mr.name_and_type().name());
                             let desc = JString::from(state, &frame, mr.name_and_type().desc());
-                            let method_type = MethodType::from_method_descriptor_string(state, &frame, desc, loader);
+                            let method_type = MethodType::from_method_descriptor_string(state, &frame, desc, None);
                             let target_class = JClass::from_name(state, &frame, mr.class());
                             lookup.find_virtual(state, &frame, target_class, name, method_type)
                         },

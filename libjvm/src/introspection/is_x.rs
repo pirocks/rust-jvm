@@ -66,8 +66,8 @@ unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) ->
     }
     let name_ = class_name(&class_object.unwrap().classfile);
     let name = name_.get_referred_name();
-    dbg!(name);
-    dbg!(name == &"java/lang/Integer".to_string());
+    // dbg!(name);
+    // dbg!(name == &"java/lang/Integer".to_string());
     let is_primitive = name == &"java/lang/Boolean".to_string() ||
         name == &"java/lang/Character".to_string() ||
         name == &"java/lang/Byte".to_string() ||

@@ -423,8 +423,8 @@ pub struct Annotation {
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
 pub struct IInc {
-    pub index: u8,
-    pub const_: i8,
+    pub index: u16,
+    pub const_: i16,
 }
 
 
@@ -708,7 +708,93 @@ pub struct TableSwitch {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct Wide {}
+pub enum Wide {
+    Iload(WideIload),
+    Fload(WideFload),
+    Aload(WideAload),
+    Lload(WideLload),
+    Dload(WideDload),
+    Istore(WideIstore),
+    Fstore(WideFstore),
+    Astore(WideAstore),
+    Lstore(WideLstore),
+    Ret(WideRet),
+    IInc(IInc)
+}
+//iload, fload, aload, lload, dload, istore, fstore, astore,
+// lstore, dstore, or ret
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideIload{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideFload{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideAload{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideLload{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideDload{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideIstore{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideFstore{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideAstore{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideLstore{
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideRet{
+
+}
+
+
 
 
 #[derive(Debug)]

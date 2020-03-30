@@ -64,6 +64,7 @@ pub mod class {
     use crate::{StackEntry, InterpreterState, get_or_create_class_object};
     use rust_jvm_common::classnames::ClassName;
 
+    #[derive(Debug, Clone)]
     pub struct JClass {
         normal_object: Arc<Object>
     }
@@ -179,6 +180,30 @@ pub mod integer {
             self.normal_object.unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_int()
         }
 
+        as_object_or_java_value!();
+    }
+}
+
+pub mod object {
+    use crate::utils::string_obj_to_string;
+    use crate::java_values::Object;
+    use std::sync::Arc;
+    use crate::java_values::JavaValue;
+    use crate::instructions::ldc::create_string_on_stack;
+    use crate::{InterpreterState, StackEntry};
+    use std::rc::Rc;
+
+    pub struct JObject {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_object(&self) -> JObject {
+            JObject { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl JObject {
         as_object_or_java_value!();
     }
 }

@@ -19,6 +19,7 @@ pub mod verifier;
 static mut TOTAL_VERIFICATION: Duration = Duration::from_micros(0);
 
 pub fn verify(vf: &VerifierContext, to_verify: ClassView, loader: LoaderArc) -> Result<(), TypeSafetyError> {
+    dbg!(to_verify.name());
     let (time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify.name(),
         loader,

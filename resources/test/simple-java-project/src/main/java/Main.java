@@ -1,5 +1,8 @@
 import sun.invoke.util.ValueConversions;
 
+import java.lang.invoke.CallSite;
+import java.lang.invoke.ConstantCallSite;
+
 public class Main {
 
 	public Main() {
@@ -17,8 +20,9 @@ public class Main {
 	}
 
 	public static void main(String[] args) {
-		final Class<ValueConversions> valueConversionsClass = ValueConversions.class;
-		ValueConversions.cast();
+		final Class<CallSite> valueConversionsClass = CallSite.class;
+		valueConversionsClass.getDeclaredMethods();
+		new ConstantCallSite(null);
 
 //		final Main main = new Main();
 //		final Thread thread1 = new Thread(main::test);

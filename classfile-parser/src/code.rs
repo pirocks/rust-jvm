@@ -1,5 +1,7 @@
 use std::slice::Iter;
 use rust_jvm_common::classfile::{IInc, InvokeInterface, MultiNewArray, LookupSwitch, TableSwitch, Atype, Wide, Instruction, InstructionInfo};
+use std::collections::{HashMap, HashSet};
+use std::iter::FromIterator;
 
 
 fn read_iinc(c: &mut CodeParserContext) -> Option<IInc> {
@@ -70,8 +72,33 @@ fn read_table_switch(c: &mut CodeParserContext) -> Option<TableSwitch> {
 }
 
 
-fn read_wide(_c: &mut CodeParserContext) -> Option<Wide> {
-    unimplemented!();
+fn read_wide(c: &mut CodeParserContext) -> Option<Wide> {
+    let opcode = read_opcode(read_u8(c)?);
+
+    if opcode == InstructionTypeNum::iinc{
+        let index = read_u16(c)?;
+        let const_ = read_i16(c)?;
+        Some(Wide::IInc(IInc { index, const_ }))
+    } else {
+        //iload, fload, aload, lload, dload, istore,
+        // fstore, astore, lstore, dstore, or ret
+        match opcode {
+            InstructionTypeNum::iload => unimplemented!(),
+            InstructionTypeNum::fload => unimplemented!(),
+            InstructionTypeNum::aload => unimplemented!(),
+            InstructionTypeNum::lload => unimplemented!(),
+            InstructionTypeNum::dload => unimplemented!(),
+            InstructionTypeNum::istore => unimplemented!(),
+            InstructionTypeNum::fstore => unimplemented!(),
+            InstructionTypeNum::astore => unimplemented!(),
+            InstructionTypeNum::lstore => unimplemented!(),
+            InstructionTypeNum::dstore => unimplemented!(),
+            InstructionTypeNum::ret => unimplemented!(),
+            _ => panic!()
+        }
+    }
+    dbg!(opcode);
+    panic!()
 }
 
 
@@ -98,7 +125,6 @@ fn read_u8(c: &mut CodeParserContext) -> Option<u8> {
 //        Some(_) => {},
 //    }
     return Some(*next?);
-
 }
 
 fn read_i8(c: &mut CodeParserContext) -> Option<i8> {
@@ -135,6 +161,7 @@ pub fn read_opcode(b: u8) -> InstructionTypeNum {
 #[allow(non_camel_case_types)]
 #[repr(u8)]
 #[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub enum InstructionTypeNum {
     aaload = 50,
     aastore = 83,
