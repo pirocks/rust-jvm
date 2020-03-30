@@ -223,7 +223,7 @@ pub fn run_function(
             InstructionInfo::iload_2 => iload(&current_frame, 2),
             InstructionInfo::iload_3 => iload(&current_frame, 3),
             InstructionInfo::imul => imul(&current_frame),
-            InstructionInfo::ineg => unimplemented!(),
+            InstructionInfo::ineg => ineg(&current_frame),
             InstructionInfo::instanceof(cp) => invoke_instanceof(state, &current_frame, cp),
             InstructionInfo::invokedynamic(cp) => {
                 // current_frame.print_stack_trace();

@@ -72,6 +72,11 @@ pub fn imul(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(JavaValue::Int((first as i64 * second as i64) as i32))
 }
 
+pub fn ineg(current_frame: &Rc<StackEntry>) -> () {
+    let first = current_frame.pop().unwrap_int();
+    current_frame.push(JavaValue::Int((0 - first as i64) as i32))
+}
+
 
 pub fn irem(current_frame: &Rc<StackEntry>) -> () {
     let value2 = current_frame.pop().unwrap_int();
