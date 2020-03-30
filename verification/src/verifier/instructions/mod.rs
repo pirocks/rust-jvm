@@ -651,7 +651,7 @@ pub fn instruction_is_type_safe_swap(env: &Environment, stack_frame: &Frame)  ->
     let mut initial_stack_map = stack_frame.stack_map.clone();
     let type_1 = initial_stack_map.operand_pop();
     let type_2 = initial_stack_map.operand_pop();
-    if size_of(&env.vf,&type_1) == 1 && size_of(&env.vf,&type_2) == 2{
+    if size_of(&env.vf,&type_1) == 1 && size_of(&env.vf,&type_2) == 1{
         initial_stack_map.operand_push(type_1);
         initial_stack_map.operand_push(type_2);
         Result::Ok(InstructionTypeSafe::Safe(ResultFrames{ next_frame: Frame {
