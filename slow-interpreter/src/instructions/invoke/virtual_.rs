@@ -19,16 +19,16 @@ use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
-pub fn invoke_virtual_instruction(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
+pub fn invoke_virtual_instruction(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16, debug: bool) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, current_frame.clone(), cp) {
         None => return,
         Some(o) => { o }
     };
-    invoke_virtual(state, current_frame, &method_name, &expected_descriptor)
+    invoke_virtual(state, current_frame, &method_name, &expected_descriptor,debug)
 }
 
-pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo) -> () {
-    invoke_virtual_method_i_impl(state, current_frame.clone(), expected_descriptor, target_class, target_method_i, target_method)
+pub fn invoke_virtual_method_i(state: &mut InterpreterState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo, debug: bool) -> () {
+    invoke_virtual_method_i_impl(state, current_frame.clone(), expected_descriptor, target_class, target_method_i, target_method, debug)
 }
 
 fn invoke_virtual_method_i_impl(
@@ -38,9 +38,10 @@ fn invoke_virtual_method_i_impl(
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
     target_method: &MethodInfo,
+    debug: bool
 ) -> () {
     if target_method.access_flags & ACC_NATIVE > 0 {
-        run_native_method(state, current_frame.clone(), target_class, target_method_i)
+        run_native_method(state, current_frame.clone(), target_class, target_method_i, debug)
     } else if target_method.access_flags & ACC_ABSTRACT == 0 {
 //todo this is wrong?
         let mut args = vec![];
@@ -95,14 +96,14 @@ pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &
 }
 
 
-pub fn invoke_virtual_unparsed(state: &mut InterpreterState, current_frame: Rc<StackEntry>, method_name: &String, desc: &String) -> () {
-    invoke_virtual(state, current_frame, method_name, &parse_method_descriptor(desc).unwrap())
+pub fn invoke_virtual_unparsed(state: &mut InterpreterState, current_frame: Rc<StackEntry>, method_name: &String, desc: &String, debug: bool) -> () {
+    invoke_virtual(state, current_frame, method_name, &parse_method_descriptor(desc).unwrap(), debug)
 }
 
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, method_name: &String, md: &MethodDescriptor) -> () {
+pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry>, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -133,7 +134,7 @@ pub fn invoke_virtual(state: &mut InterpreterState, current_frame: Rc<StackEntry
     let final_classfile = &final_target_class.classfile;
     let target_method = &final_classfile.methods[new_i];
     let final_descriptor = parse_method_descriptor(target_method.descriptor_str(&final_classfile).as_str()).unwrap();
-    invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), new_i, target_method)
+    invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), new_i, target_method, debug)
 }
 
 pub fn virtual_method_lookup(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, method_name: &String, md: &MethodDescriptor, c: Arc<RuntimeClass>) -> (Arc<RuntimeClass>, usize) {
@@ -150,13 +151,19 @@ pub fn virtual_method_lookup(state: &mut InterpreterState, current_frame: &Rc<St
                 method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
                     method_view.desc().return_type == PTypeView::object().to_ptype() &&
                     md.parameter_types.last()
-                        .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().map(|x2|x2.clone()))
+                        .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().map(|x2| x2.clone()))
                         .map(|x| x.unwrap_name() == ClassName::member_name())
                         .unwrap_or(false);//todo this is currently under construction.
                 unimplemented!()
             } else {
                 md.parameter_types == cur_desc.parameter_types //we don't check return types b/c these could be subclassed
             }
-    }).unwrap();
+    }).unwrap_or_else(|| {
+        dbg!(&current_frame.operand_stack.borrow());
+        dbg!(&current_frame.local_vars);
+        current_frame.print_stack_trace();
+        panic!()
+    }
+    );
     (final_target_class.clone(), *new_i)
 }

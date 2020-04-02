@@ -87,7 +87,16 @@ impl CycleDetectingDebug for NormalObject {
         if o.class_pointer.class_view.name() == ClassName::class() {
             write!(f, "(Class Object:{:?})", o.class_object_ptype)?;
         } else if o.class_pointer.class_view.name() == ClassName::string() {
-            write!(f, "(String Object: {:?})", o.fields.borrow().get("value").unwrap().unwrap_array().unwrap_char_array())?;
+            let fields_borrow = o.fields.borrow();
+            let value_field = fields_borrow.get("value").unwrap();
+            match &value_field.unwrap_object() {
+                None => {
+                    write!(f, "(String Object: {:?})", "weird af string obj.")?;
+                }
+                Some(_) => {
+                    write!(f, "(String Object: {:?})", value_field.unwrap_array().unwrap_char_array())?;
+                }
+            }
         } else {
             write!(f, "{:?}", class_name(&o.class_pointer.classfile).get_referred_name())?;
             write!(f, "-")?;
@@ -507,7 +516,7 @@ impl ArrayObject {
     pub fn unwrap_char_array(&self) -> String {
         assert_eq!(self.elem_type, PTypeView::CharType);
         let mut res = String::new();
-        self.elems.borrow().iter().for_each(|x| { res.push(x.unwrap_int()  as u8 as char) });
+        self.elems.borrow().iter().for_each(|x| { res.push(x.unwrap_int() as u8 as char) });
         res
     }
 }

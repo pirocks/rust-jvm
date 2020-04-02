@@ -13,13 +13,22 @@ use crate::rust_jni::interface::exception::*;
 use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::array::*;
 use crate::{InterpreterState, StackEntry};
+use std::cell::RefCell;
 
 //GetFieldID
 pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: {
-            let boxed = Box::new(frame);
+            let boxed = Box::new(frame);/*Box::new(Rc::new(StackEntry  {
+                last_call_stack: frame.clone().into(),
+                class_pointer: frame.class_pointer.clone(),
+                method_i: 0,
+                local_vars: RefCell::new(vec![]),
+                operand_stack: RefCell::new(vec![]),
+                pc: RefCell::new(0),
+                pc_offset: RefCell::new(0)
+            }));*/
             Box::into_raw(boxed) as *mut c_void
         },
         reserved2: std::ptr::null_mut(),

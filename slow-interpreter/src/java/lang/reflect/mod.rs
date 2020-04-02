@@ -65,7 +65,6 @@ pub mod field {
                 vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations],
                 "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),
             );
-            dbg!(&field_object);
             field_object.cast_field()
         }
 

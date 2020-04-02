@@ -51,7 +51,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     }
     //todo add params into operand stack;
     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
+    invoke_virtual_method_i(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method, false);
     trace!("----NATIVE ENTER ----");
     let res = frame.pop().unwrap_object();
     to_object(res)

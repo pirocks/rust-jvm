@@ -36,7 +36,7 @@ pub fn invoke_special_impl(
     target_m: &MethodInfo
 ) -> () {
     if target_m.access_flags & ACC_NATIVE > 0 {
-        run_native_method(state, current_frame.clone(), final_target_class, target_m_i);
+        run_native_method(state, current_frame.clone(), final_target_class, target_m_i, false);
     } else {
         let mut args = vec![];
 //        dbg!(method_class_name.get_referred_name());

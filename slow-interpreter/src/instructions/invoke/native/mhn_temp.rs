@@ -29,14 +29,14 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
 // and return a brand new object
 //                        dbg!(&args[0]);
 //     dbg!(&args[0].unwrap_object().unwrap().lookup_field("clazz"));
-    dbg!(&args[1]);
+//     dbg!(&args[1]);
     let member_name = args[0].unwrap_object().unwrap();
-    dbg!(member_name.lookup_field("clazz"));
-    dbg!(member_name.lookup_field("name"));
+    // dbg!(member_name.lookup_field("clazz"));
+    // dbg!(member_name.lookup_field("name"));
     // dbg!(member_name.lookup_field("type"));
     let type_java_value = member_name.lookup_field("type");
-    dbg!(&type_java_value.unwrap_normal_object().class_pointer.class_view.name()); // so this is a string before resolution?
-    dbg!(member_name.lookup_field("flags"));
+    // dbg!(&type_java_value.unwrap_normal_object().class_pointer.class_view.name()); // so this is a string before resolution?
+    // dbg!(member_name.lookup_field("flags"));
 //                        let class = args[1].unwrap_object().unwrap();
 //                        let name = string_obj_to_string(member_name.lookup_field("name").unwrap_object());
 //todo maybe create a class for this resolution object
@@ -104,6 +104,7 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
     } else if is_method || is_constructor {
         assert!(!is_constructor);//todo not implemented yet
         assert!(!is_field);
+        // frame.print_stack_trace();
         let all_methods = get_all_methods(state, frame.clone(), clazz_as_runtime_class);
         if type_.class_pointer.class_view.name() == ClassName::method_type() {
             let r_type_class = type_java_value.unwrap_object_nonnull().lookup_field("rtype").unwrap_object_nonnull();
@@ -111,24 +112,35 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
             let r_type_as_ptype = r_type_class.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone();
             let params_as_ptype: Vec<PTypeView> = param_types_class.iter().map(|x| { x.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone() }).collect();
             //todo how do the params work with static v. not static
-            let (resolved_method_runtime_class, resolved_i) = all_methods.iter().find(|(x, i)| {
+            match all_methods.iter().find(|(x, i)| {
                 let c_method = x.class_view.method_view_i(*i);
-                dbg!(c_method.name());
-                dbg!(&name);
                 //todo need to handle signature polymorphism here and in many places
                 c_method.name() == name && if c_method.is_signature_polymorphic() {
                     c_method.desc().parameter_types.len() == 1 &&
                         c_method.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
                         c_method.desc().return_type == PTypeView::object().to_ptype()
                 } else {
+                    // dbg!(c_method.name());
+                    // dbg!(&name);
+                    // dbg!(c_method.desc());
+                    // dbg!(&params_as_ptype);
+                    //
+                    // dbg!(c_method.desc().parameter_types.len());
+                    // dbg!(&params_as_ptype.len());
                     c_method.desc().parameter_types == params_as_ptype.iter().map(|x|x.to_ptype()).collect::<Vec<_>>()
                 }
-            }).unwrap();//todo handle not found case
-            let correct_flags = resolved_method_runtime_class.class_view.method_view_i(*resolved_i).access_flags();
-            let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
+            }){
+                None => {
+                    member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), JavaValue::Object(None));
+                },
+                Some((resolved_method_runtime_class, resolved_i)) => {
+                    let correct_flags = resolved_method_runtime_class.class_view.method_view_i(*resolved_i).access_flags();
+                    let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
 
-            //todo do we need to update clazz?
-            member_name.unwrap_normal_object().fields.borrow_mut().insert("flags".to_string(), JavaValue::Int(new_flags));
+                    //todo do we need to update clazz?
+                    member_name.unwrap_normal_object().fields.borrow_mut().insert("flags".to_string(), JavaValue::Int(new_flags));
+                },
+            };
         } else {
             unimplemented!()
         }
@@ -204,8 +216,8 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
         mname.fields.borrow_mut().insert("flags".to_string(),JavaValue::Int(flags | modifiers | extra_flags));//todo is this really correct? what if garbage in flags?
         // let name = method_fields.get("name").unwrap();
         // mname.fields.borrow_mut().insert("name".to_string(),name.clone());
-        dbg!(target);
-        dbg!(&mname);
+        // dbg!(target);
+        // dbg!(&mname);
     } else {
 
         //todo handle constructors and fields
@@ -248,6 +260,6 @@ pub fn run_static_or_virtual(state:&mut InterpreterState, frame: &Rc<StackEntry>
     if m.is_static(){
         invoke_static_impl(state,frame.clone(),md,class.clone(),i,m)
     }else {
-        invoke_virtual_method_i(state, frame.clone(), md,class.clone(),i,m);
+        invoke_virtual_method_i(state, frame.clone(), md,class.clone(),i,m, false);
     }
 }

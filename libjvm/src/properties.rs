@@ -30,7 +30,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jo
     frame.push(JavaValue::Object(prop_obj.clone().into()));
     frame.push(key);
     frame.push(val);
-    invoke_virtual_method_i(state, frame.clone(), md, runtime_class.clone(), *meth_i, meth);
+    invoke_virtual_method_i(state, frame.clone(), md, runtime_class.clone(), *meth_i, meth, false);
     frame.pop();
     p
 }

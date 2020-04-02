@@ -70,6 +70,6 @@ pub fn invoke_static_impl(
             return;
         }
     } else {
-        run_native_method(state, current_frame.clone(), target_class.clone(), target_method_i);
+        run_native_method(state, current_frame.clone(), target_class.clone(), target_method_i, false);
     }
 }

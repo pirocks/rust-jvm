@@ -15,7 +15,6 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let state = get_state(env);
     let frame = get_frame(env);
-    frame.print_stack_trace();
     let obj = from_object(cls).unwrap().clone();
     let normal_obj = obj.unwrap_normal_object();
     let temp = normal_obj.class_object_ptype.borrow();
@@ -61,7 +60,6 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let class_object = runtime_class_from_object(cls,get_state(env),&get_frame(env));
     if class_object.is_none() {
-        dbg!(&class_object);
         return false as jboolean;
     }
     let name_ = class_name(&class_object.unwrap().classfile);
@@ -77,10 +75,6 @@ unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) ->
         name == &"java/lang/Float".to_string() ||
         name == &"java/lang/Double".to_string() ||
         name == &"java/lang/Void".to_string();
-
-    dbg!(is_primitive);
-
-    dbg!(is_primitive as jboolean);
     is_primitive as jboolean
 }
 

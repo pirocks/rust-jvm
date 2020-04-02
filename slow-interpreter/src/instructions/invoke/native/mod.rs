@@ -27,6 +27,7 @@ pub fn run_native_method(
     frame: Rc<StackEntry>,
     class: Arc<RuntimeClass>,
     method_i: usize,
+    debug: bool,
 ) {
     //todo only works for static void methods atm
     let classfile = &class.classfile;
@@ -40,18 +41,21 @@ pub fn run_native_method(
             args.push(frame.pop());
         }
         args.reverse();
-    } else {
-        if method.access_flags & ACC_NATIVE > 0 {
-            for _ in &parsed.parameter_types {
-                args.push(frame.pop());
-            }
-            args.reverse();
-            args.insert(0, frame.pop());
-        } else {
-            panic!();
+    } else if method.access_flags & ACC_NATIVE > 0 {
+        for _ in &parsed.parameter_types {
+            args.push(frame.pop());
         }
+        args.reverse();
+        args.insert(0, frame.pop());
+    } else {
+        panic!();
     }
-    println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
+
+    if debug {
+        dbg!(&args);
+        dbg!(&frame.operand_stack);
+    }
+    // println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
     if method.method_name(classfile) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         frame.push(JavaValue::Boolean(false))
     } else if method.method_name(classfile) == "arraycopy".to_string() {
@@ -66,7 +70,7 @@ pub fn run_native_method(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().borrow();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            call_impl(state, frame.clone(), class.clone(), args, parsed, &res_fn, !method.is_static())
+            call_impl(state, frame.clone(), class.clone(), args, parsed, &res_fn, !method.is_static(), debug)
         } else {
             let res = match call(state, frame.clone(), class.clone(), method_i, args.clone(), parsed) {
                 Ok(r) => r,
@@ -124,7 +128,7 @@ pub fn run_native_method(
                         let class_view = ClassView::from(parsed.clone());
 
                         bootstrap_loader.add_pre_loaded(&class_view.name(), &parsed);
-                        frame.print_stack_trace();
+                        // frame.print_stack_trace();
                         match verify(&vf, class_view.clone(), bootstrap_loader.clone()) {
                             Ok(_) => {}
                             Err(_) => panic!(),
@@ -139,8 +143,8 @@ pub fn run_native_method(
                         let empty_string = JString::from(state, &frame, "".to_string());
                         let field = Field::init(state, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
 
-                        let mut args = vec![Unsafe::the_unsafe(state,&frame).java_value(),field.java_value()];
-                        object_field_offset(state,&frame,&mut args)
+                        let mut args = vec![Unsafe::the_unsafe(state, &frame).java_value(), field.java_value()];
+                        object_field_offset(state, &frame, &mut args)
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
 //static native int getMembers(Class<?> defc, String matchName, String matchSig,
 // //          int matchFlags, Class<?> caller, int skip, MemberName[] results);
@@ -148,8 +152,7 @@ pub fn run_native_method(
                         //todo nyi
                         // unimplemented!()
                         Some(JavaValue::Int(0))
-                    }
-                    else {
+                    } else {
                         frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
@@ -160,10 +163,16 @@ pub fn run_native_method(
         };
         match result {
             None => {}
-            Some(res) => frame.push(res),
+            Some(res) => {
+                if debug {
+                    dbg!(frame.operand_stack.borrow());
+                    dbg!(&res);
+                }
+                frame.push(res)
+            }
         }
     }
-    println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
+    // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
 fn patch_all(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
@@ -199,7 +208,7 @@ fn patch_single(
     // Class: any java.lang.Class object
     // String: any object (not just a java.lang.String)
     // InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments//nyi means not yet implemented
-    dbg!(&class_name);
+    // dbg!(&class_name);
     let kind = /*if class_name == ClassName::int() {
         let int_val = JavaValue::Object(patch.clone().into()).cast_integer().value();
         unpatched.constant_pool[i] = ConstantKind::Integer(Integer { bytes: int_val as u32 }).into();

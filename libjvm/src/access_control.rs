@@ -24,7 +24,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     };
     frame.push(JavaValue::Object(action));
     //todo shouldn't this be invoke_virtual
-    invoke_virtual_method_i(state, frame.clone(), expected_descriptor, runtime_class.clone(), run_method_i,run_method);
+    invoke_virtual_method_i(state, frame.clone(), expected_descriptor, runtime_class.clone(), run_method_i,run_method, false);
     let res = frame.pop().unwrap_object();
     to_object(res)
 }

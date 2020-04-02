@@ -70,22 +70,11 @@ pub fn run_function(
     let class_name_ = class_name__.get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
-    println!("CALL BEGIN:{} {} {} {}", &class_name_, &meth_name, method_desc, current_depth);
+    let debug = false;//current_depth == 39 && meth_name == "getSimpleName".to_string();
+    if  debug {
+        dbg!(&code.code);
+    }
     assert!(!state.function_return);
-    // if &meth_name != "toString"{
-    /*if !state.debug_exclude {
-        state.debug_exclude = true;
-        dbg!(&current_frame.local_vars.borrow().iter().map(|x| x.cast_object().to_string(state, current_frame.clone()).to_rust_string()).collect::<Vec<_>>());
-        state.debug_exclude = false;
-    }*/
-    // }
-    if &meth_name == "generateCustomizedCode" {
-        dbg!(&current_frame.local_vars.borrow()[0..1].iter().map(|x| x.cast_object().to_string(state, current_frame.clone()).to_rust_string()).collect::<Vec<_>>());
-        println!("here");
-    }
-    if &meth_name == "isNullConversion" {
-        dbg!(&current_frame.local_vars.borrow()/*.iter().map(|x| x.cast_object().to_string(state, current_frame.clone()).to_rust_string()).collect::<Vec<_>>()*/);
-    }
     while !state.terminate && !state.function_return && !state.throw.is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
@@ -93,7 +82,12 @@ pub fn run_function(
             (parse_instruction(&mut context).unwrap().clone(), context.offset - *current_frame.pc.borrow())
         };
         current_frame.pc_offset.replace(instruction_size as isize);
-        match instruct {
+        if debug {
+            dbg!(&current_frame.operand_stack);
+            dbg!(&current_frame.local_vars);
+            dbg!(&instruct);
+        }
+        match instruct.clone() {
             InstructionInfo::aaload => aaload(&current_frame),
             InstructionInfo::aastore => aastore(&current_frame),
             InstructionInfo::aconst_null => aconst_null(&current_frame),
@@ -112,7 +106,7 @@ pub fn run_function(
             InstructionInfo::astore_3 => astore(&current_frame, 3),
             InstructionInfo::athrow => {
                 println!("EXCEPTION:");
-                current_frame.print_stack_trace();
+                // current_frame.print_stack_trace();
                 let exception_obj = current_frame.pop().unwrap_object_nonnull();
                 dbg!(exception_obj.lookup_field("detailMessage"));
                 state.throw = exception_obj.into();
@@ -182,7 +176,7 @@ pub fn run_function(
             InstructionInfo::fstore_2 => unimplemented!(),
             InstructionInfo::fstore_3 => unimplemented!(),
             InstructionInfo::fsub => unimplemented!(),
-            InstructionInfo::getfield(cp) => get_field(&current_frame, cp),
+            InstructionInfo::getfield(cp) => get_field(&current_frame, cp, debug),
             InstructionInfo::getstatic(cp) => get_static(state, &current_frame, cp),
             InstructionInfo::goto_(target) => goto_(&current_frame, target),
             InstructionInfo::goto_w(_) => unimplemented!(),
@@ -240,7 +234,7 @@ pub fn run_function(
             InstructionInfo::invokeinterface(invoke_i) => invoke_interface(state, current_frame.clone(), invoke_i),
             InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
             InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp),
-            InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(state, current_frame.clone(), cp),
+            InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(state, current_frame.clone(), cp, debug),
             InstructionInfo::ior => ior(&current_frame),
             InstructionInfo::irem => irem(&current_frame),
             InstructionInfo::ireturn => ireturn(state, &current_frame),
@@ -357,11 +351,13 @@ pub fn run_function(
             }
             current_frame.pc.replace(pc);
         }
+        // last_instruct = instruct;
     }
-    if &meth_name == "getMethodOrFieldType"{
-        // dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow().last().unwrap());
-    }
-    println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
+
+    /*if &meth_name == "getSimpleName"{
+        dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow());
+    }*/
+    // println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
 }
 
 
@@ -408,5 +404,5 @@ pub fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, targ
         frame.push(arg.clone());
     }
     //todo this should be invoke special
-    invoke_virtual_method_i(state, frame, md, target_classfile.clone(), i, m);
+    invoke_virtual_method_i(state, frame, md, target_classfile.clone(), i, m, false);
 }

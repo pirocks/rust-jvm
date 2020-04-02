@@ -59,7 +59,7 @@ pub fn call(
     classfile: Arc<RuntimeClass>,
     method_i: usize,
     args: Vec<JavaValue>,
-    md: MethodDescriptor
+    md: MethodDescriptor,
 ) -> Result<Option<JavaValue>, Error> {
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let raw = {
@@ -75,31 +75,43 @@ pub fn call(
         symbol.deref().clone()
     };
     if classfile.classfile.methods[method_i].is_static() {
-        Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, false))
+        Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, false,false))
     } else {
-        if &mangled == "Java_java_lang_Class_isAssignableFrom"{
-            Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true))
-        }else {
-            Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true))
-        }
+        Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true,false))
     }
 }
 
-pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Option<JavaValue> {
+pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, debug: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
         vec![Type::pointer(), Type::pointer()]
     };
+    if debug {
+        dbg!(current_frame.operand_stack.borrow());
+        dbg!(&args);
+    }
     let env = &get_interface(state, current_frame.clone());
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&&env)]
     } else {
+        if debug {
+            dbg!(current_frame.operand_stack.borrow());
+            dbg!(&args);
+        }
         load_class_constant_by_type(state, &current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.class_view.name())));
-        vec![Arg::new(&&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())]
+        let res = vec![Arg::new(&&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
+        if debug {
+            dbg!(current_frame.operand_stack.borrow());
+            dbg!(&args);
+        }
+        res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
-//    dbg!(&args);
+   if debug {
+       dbg!(current_frame.operand_stack.borrow());
+       dbg!(&args);
+   }
 //    if args.len() > 0 {
 //        for j in &args[1..] {
 //            dbg!(j);
@@ -120,6 +132,10 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
             c_args.push(to_native(j.clone(), &t));
         }
     }
+    if debug {
+        dbg!(current_frame.operand_stack.borrow());
+        dbg!(&args);
+    }
 
 //    dbg!(&c_args);
 //    dbg!(&args_type);
@@ -130,6 +146,10 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
+    if debug {
+        dbg!(current_frame.operand_stack.borrow());
+        dbg!(&args);
+    }
 //    trace!("----NATIVE EXIT ----");
     match PTypeView::from_ptype(&md.return_type) {
         PTypeView::VoidType => {
@@ -178,7 +198,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
-        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz,state,&get_frame(env)).unwrap();
+        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz, state, &get_frame(env)).unwrap();
         let jni_context = &state.jni;
         let classfile = &runtime_class.classfile;
         &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
@@ -224,6 +244,7 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
 
 pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
+    // dbg!(&class.class_view.name());
     class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
@@ -234,10 +255,9 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, clas
         });
     } else {
         let name = class.classfile.super_class_name();
-//        dbg!(&name);
         let super_ = check_inited_class(state, &name.unwrap(), frame.clone().into(), class.loader.clone());
         for (c, i) in get_all_methods(state, frame, super_) {
-            res.push((c, i));//todo accidental O(n^2)
+            res.push((c, i));
         }
     }
 

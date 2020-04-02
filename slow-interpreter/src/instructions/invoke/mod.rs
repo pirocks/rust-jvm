@@ -49,7 +49,7 @@ pub mod dynamic {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
-        frame.print_stack_trace();
+        // frame.print_stack_trace();
         let method_handle = {
             let methodref_view = invoke_dynamic_view.bootstrap_method().bootstrap_method_ref();
             match methodref_view.get_reference_data(){
