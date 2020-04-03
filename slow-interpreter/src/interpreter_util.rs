@@ -33,6 +33,7 @@ use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, default_value, Object};
 use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
 use classfile_view::view::ptype_view::PTypeView;
+use verification::verifier::codecorrectness::frame_is_assignable;
 
 
 //todo jni should really live in interpreter state
@@ -44,6 +45,34 @@ pub fn check_inited_class(
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
+        //todo the below is jank
+        if class_name == &ClassName::raw_byte(){
+            return  check_inited_class(state,&ClassName::byte(),current_frame,loader_arc)
+        }
+        if class_name == &ClassName::raw_char(){
+            return  check_inited_class(state,&ClassName::character(),current_frame,loader_arc)
+        }
+        if class_name == &ClassName::raw_double(){
+            return  check_inited_class(state,&ClassName::double(),current_frame,loader_arc)
+        }
+        if class_name == &ClassName::raw_float(){
+            return  check_inited_class(state,&ClassName::float(),current_frame,loader_arc)
+        }
+        if class_name == &ClassName::raw_int(){
+            return  check_inited_class(state,&ClassName::int(),current_frame,loader_arc)
+        }
+        if class_name == &ClassName::raw_long(){
+            return  check_inited_class(state,&ClassName::long(),current_frame,loader_arc)
+        }
+        if class_name == &ClassName::raw_short(){
+            return  check_inited_class(state,&ClassName::short(),current_frame,loader_arc)
+        }
+        if class_name == &ClassName::raw_boolean(){
+            return  check_inited_class(state,&ClassName::boolean(),current_frame,loader_arc)
+        }
+        if class_name == &ClassName::raw_void(){
+            return  check_inited_class(state,&ClassName::void(),current_frame,loader_arc)
+        }
         let bl = state.bootstrap_loader.clone();
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl,state.get_live_object_pool_getter()).unwrap();
         let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
@@ -70,7 +99,7 @@ pub fn run_function(
     let class_name_ = class_name__.get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
-    let debug = false;//current_depth == 39 && meth_name == "getSimpleName".to_string();
+    let debug = current_depth == 28 && meth_name == "forPrimitiveType".to_string();
     if  debug {
         dbg!(&code.code);
     }
@@ -337,6 +366,7 @@ pub fn run_function(
             }
             if state.throw.is_some() {
                 //need to propogate to caller
+                current_frame.print_stack_trace();
                 break;
             }
         } else {

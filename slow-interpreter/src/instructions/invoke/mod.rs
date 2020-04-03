@@ -45,11 +45,17 @@ pub mod dynamic {
             frame.clone().into(),
             frame.class_pointer.loader.clone(),
         );
+        let call_site_class = check_inited_class(
+            state,
+            &ClassName::Str("java/lang/invoke/CallSite".to_string()),
+            frame.clone().into(),
+            frame.class_pointer.loader.clone(),
+        );
         let invoke_dynamic_view = match frame.class_pointer.class_view.constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
-        // frame.print_stack_trace();
+
         let method_handle = {
             let methodref_view = invoke_dynamic_view.bootstrap_method().bootstrap_method_ref();
             match methodref_view.get_reference_data(){

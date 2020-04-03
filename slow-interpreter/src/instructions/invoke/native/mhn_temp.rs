@@ -120,21 +120,27 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
                         c_method.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
                         c_method.desc().return_type == PTypeView::object().to_ptype()
                 } else {
-                    // dbg!(c_method.name());
-                    // dbg!(&name);
-                    // dbg!(c_method.desc());
-                    // dbg!(&params_as_ptype);
-                    //
-                    // dbg!(c_method.desc().parameter_types.len());
-                    // dbg!(&params_as_ptype.len());
+                    dbg!(c_method.name());
+                    dbg!(&name);
+                    dbg!(c_method.desc());
+                    dbg!(&params_as_ptype);
+
+                    dbg!(c_method.desc().parameter_types.len());
+                    dbg!(&params_as_ptype.len());
                     c_method.desc().parameter_types == params_as_ptype.iter().map(|x|x.to_ptype()).collect::<Vec<_>>()
                 }
             }){
                 None => {
+                    if &name == "array"{
+                        dbg!("mhn_resolve failed");
+                    }
                     member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), JavaValue::Object(None));
                 },
                 Some((resolved_method_runtime_class, resolved_i)) => {
                     let correct_flags = resolved_method_runtime_class.class_view.method_view_i(*resolved_i).access_flags();
+                    if &name == "array" {
+                        dbg!(correct_flags);
+                    }
                     let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
 
                     //todo do we need to update clazz?

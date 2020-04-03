@@ -25,12 +25,42 @@ impl PartialEq for NameReference {
 #[derive(Eq)]
 //#[derive(Hash)]
 pub enum ClassName {
-//    Ref(NameReference),
-    Str(String),//todo deprecate
-    SharedStr(Arc<StringPoolEntry>)
+    //    Ref(NameReference),
+    Str(String),
+    //todo deprecate
+    SharedStr(Arc<StringPoolEntry>),
 }
 
 impl ClassName {
+    pub fn raw_byte() -> Self {
+        ClassName::Str("byte".to_string())
+    }
+    pub fn raw_char() -> Self {
+        ClassName::Str("char".to_string())
+    }
+    pub fn raw_double() -> Self {
+        ClassName::Str("double".to_string())
+    }
+    pub fn raw_float() -> Self {
+        ClassName::Str("float".to_string())
+    }
+    pub fn raw_int() -> Self {
+        ClassName::Str("int".to_string())
+    }
+    pub fn raw_long() -> Self {
+        ClassName::Str("long".to_string())
+    }
+    pub fn raw_short() -> Self {
+        ClassName::Str("short".to_string())
+    }
+    pub fn raw_boolean() -> Self {
+        ClassName::Str("boolean".to_string())
+    }
+    pub fn raw_void() -> Self {
+        ClassName::Str("void".to_string())
+    }
+
+
     pub fn new(str_: &str) -> Self {
         ClassName::Str(str_.to_string())
     }
@@ -51,67 +81,65 @@ impl ClassName {
         ClassName::new("java/lang/Throwable")
     }
 
-    pub fn float() -> Self{
+    pub fn float() -> Self {
         Self::new("java/lang/Float")
     }
 
-    pub fn double() -> Self{
+    pub fn double() -> Self {
         Self::new("java/lang/Double")
     }
-
-    pub fn int() -> Self{
+    pub fn int() -> Self {
         Self::new("java/lang/Integer")
     }
-
-    pub fn long() -> Self{
+    pub fn long() -> Self {
         Self::new("java/lang/Long")
     }
 
-    pub fn character() -> Self{
+    pub fn character() -> Self {
         Self::new("java/lang/Character")
     }
 
-    pub fn boolean() -> Self{
+    pub fn boolean() -> Self {
         Self::new("java/lang/Boolean")
     }
 
-    pub fn byte() -> Self{
+    pub fn byte() -> Self {
         Self::new("java/lang/Byte")
     }
 
-    pub fn short() -> Self{
+    pub fn short() -> Self {
         Self::new("java/lang/Short")
     }
 
-    pub fn void() -> Self{
+    pub fn void() -> Self {
         Self::new("java/lang/Void")
     }
 
-    pub fn method_type() -> Self{
+    pub fn method_type() -> Self {
         Self::new("java/lang/invoke/MethodType")
     }
 
-    pub fn method_type_form() -> Self{
+    pub fn method_type_form() -> Self {
         Self::new("java/lang/invoke/MethodTypeForm")
     }
 
-    pub fn method_handle() -> Self{
+    pub fn method_handle() -> Self {
         Self::new("java/lang/invoke/MethodHandle")
     }
 
-    pub fn method_handles() -> Self{
+    pub fn method_handles() -> Self {
         Self::new("java/lang/invoke/MethodHandles")
     }
 
-    pub fn lookup() -> Self{
+    pub fn lookup() -> Self {
         Self::new("java/lang/invoke/MethodHandle$Lookup")
     }
 
-    pub fn direct_method_handle() -> Self{
+    pub fn direct_method_handle() -> Self {
         Self::new("java/lang/invoke/DirectMethodHandle")
     }
 
-    pub fn member_name() -> Self{
+    pub fn member_name() -> Self {
         Self::new("java/lang/invoke/MemberName")
     }
 
@@ -119,7 +147,7 @@ impl ClassName {
         Self::new("java/lang/reflect/Method")
     }
 
-    pub fn serializable() ->  Self {
+    pub fn serializable() -> Self {
         Self::new("java/io/Serializable")
     }
 

@@ -279,16 +279,16 @@ impl PTypeView {
 
     pub fn unwrap_type_to_name(&self) -> Option<ClassName> {
         match self{
-            PTypeView::ByteType => ClassName::byte().into(),
-            PTypeView::CharType => ClassName::character().into(),
-            PTypeView::DoubleType => ClassName::double().into(),
-            PTypeView::FloatType => ClassName::float().into(),
-            PTypeView::IntType => ClassName::int().into(),
-            PTypeView::LongType => ClassName::long().into(),
+            PTypeView::ByteType => ClassName::raw_byte().into(),
+            PTypeView::CharType => ClassName::raw_char().into(),
+            PTypeView::DoubleType => ClassName::raw_double().into(),
+            PTypeView::FloatType => ClassName::raw_float().into(),
+            PTypeView::IntType => ClassName::raw_int().into(),
+            PTypeView::LongType => ClassName::raw_long().into(),
             PTypeView::Ref(r) => r.unwrap_arrays_to_name(),
-            PTypeView::ShortType => ClassName::short().into(),
-            PTypeView::BooleanType => ClassName::boolean().into(),
-            PTypeView::VoidType => ClassName::void().into(),
+            PTypeView::ShortType => ClassName::raw_short().into(),
+            PTypeView::BooleanType => ClassName::raw_boolean().into(),
+            PTypeView::VoidType => ClassName::raw_void().into(),
             _ => panic!(),
         }
     }

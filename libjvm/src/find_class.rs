@@ -107,5 +107,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     let frame = get_frame(env);
     let res = get_or_create_class_object(state, &ptype, frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
     res.unwrap_normal_object().class_object_ptype.replace(Some(ptype));
+    dbg!(&res);
     return to_object(res.into());
 }

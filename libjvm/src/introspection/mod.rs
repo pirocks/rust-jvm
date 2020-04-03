@@ -65,12 +65,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
             //todo find a better way to do this
             let obj = from_object(cls).unwrap();
             let type_ = obj.unwrap_normal_object().class_object_to_ptype();
-            let name = type_.unwrap_type_to_name().unwrap();//if type_ == PTypeView::IntType {
-                // ClassName::int()
-            // }else {
-            //     dbg!(type_);
-            //     unimplemented!()
-            // };
+            let name = type_.unwrap_type_to_name().unwrap();
             let class_for_access_flags = check_inited_class(state, &name, frame.clone().into(), frame.class_pointer.loader.clone());
             (class_for_access_flags.class_view.access_flags() | ACC_ABSTRACT) as jint
         }
