@@ -76,6 +76,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
             let rtype = method_view.desc().return_type;
             JavaValue::Object(ptype_to_class_object(state, &frame, &rtype))
         };
+        dbg!(&name);
+        dbg!(&parameterTypes);
+        dbg!(&returnType);
         let exceptionTypes = exception_types_table(state,&frame,&method_view);
         let modifiers = get_modifers(&method_view);
         //todo what does slot do?

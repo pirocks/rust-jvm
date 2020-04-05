@@ -99,7 +99,8 @@ pub fn run_function(
     let class_name_ = class_name__.get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = current_frame.depth();
-    let debug = current_depth == 28 && meth_name == "forPrimitiveType".to_string();
+    // let debug = &meth_name == "getDeclaredMethod";
+    let debug = current_depth == 17 && class_name_ == "java/lang/invoke/MethodHandleImpl$Lazy" && meth_name == "<clinit>".to_string();
     if  debug {
         dbg!(&code.code);
     }
@@ -112,8 +113,8 @@ pub fn run_function(
         };
         current_frame.pc_offset.replace(instruction_size as isize);
         if debug {
-            dbg!(&current_frame.operand_stack);
-            dbg!(&current_frame.local_vars);
+            // dbg!(&current_frame.operand_stack);
+            // dbg!(&current_frame.local_vars);
             dbg!(&instruct);
         }
         match instruct.clone() {

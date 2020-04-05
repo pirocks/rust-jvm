@@ -79,6 +79,7 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
     let clazz_points_to = clazz.class_object_ptype.borrow().as_ref().unwrap().unwrap_class_type();//todo doesn't work for arrays
     let clazz_as_runtime_class = check_inited_class(state, &clazz_points_to, frame.clone().into(), frame.class_pointer.loader.clone());
     let name = string_obj_to_string(member_name.lookup_field("name").unwrap_object());
+    let debug = &name == "checkSpreadArgument";
     let type_ = type_java_value.unwrap_normal_object();
     if is_field {
         assert!(!is_method);
@@ -120,31 +121,21 @@ pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &
                         c_method.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
                         c_method.desc().return_type == PTypeView::object().to_ptype()
                 } else {
-                    dbg!(c_method.name());
-                    dbg!(&name);
-                    dbg!(c_method.desc());
-                    dbg!(&params_as_ptype);
-
-                    dbg!(c_method.desc().parameter_types.len());
-                    dbg!(&params_as_ptype.len());
-                    c_method.desc().parameter_types == params_as_ptype.iter().map(|x|x.to_ptype()).collect::<Vec<_>>()
+                    c_method.desc().parameter_types == params_as_ptype.iter().map(|x|x.to_ptype()).collect::<Vec<_>>() //todo what about overloading
                 }
             }){
                 None => {
-                    if &name == "array"{
-                        dbg!("mhn_resolve failed");
-                    }
                     member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), JavaValue::Object(None));
                 },
                 Some((resolved_method_runtime_class, resolved_i)) => {
                     let correct_flags = resolved_method_runtime_class.class_view.method_view_i(*resolved_i).access_flags();
-                    if &name == "array" {
-                        dbg!(correct_flags);
-                    }
                     let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
 
                     //todo do we need to update clazz?
                     member_name.unwrap_normal_object().fields.borrow_mut().insert("flags".to_string(), JavaValue::Int(new_flags));
+                    if debug{
+                        dbg!(&member_name);
+                    }
                 },
             };
         } else {
@@ -184,10 +175,8 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
     // init(MemberName mname, Object target);
     let mname = args[0].unwrap_normal_object();
     let target = args[1].unwrap_normal_object();
-    // dbg!(target);
-    // dbg!(mname);
-    // dbg!(target.class_pointer.class_view.name());
-    // dbg!(mname.class_pointer.class_view.name());
+    // let name = mname.fields.borrow().get("name").unwrap().unwrap_object().map(|x|JavaValue::Object(x.into()).cast_string().to_rust_string());
+    let debug = true;//name == "checkSpreadArgument".to_string().into();
     if target.class_pointer.class_view.name() == ClassName::method() {
         let flags = mname.fields.borrow().get("flags").unwrap().unwrap_int();
         let method_fields = target.fields.borrow();
@@ -222,8 +211,9 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
         mname.fields.borrow_mut().insert("flags".to_string(),JavaValue::Int(flags | modifiers | extra_flags));//todo is this really correct? what if garbage in flags?
         // let name = method_fields.get("name").unwrap();
         // mname.fields.borrow_mut().insert("name".to_string(),name.clone());
-        // dbg!(target);
-        // dbg!(&mname);
+        if(debug){
+            dbg!(mname);
+        }
     } else {
 
         //todo handle constructors and fields
@@ -243,7 +233,10 @@ pub fn create_method_type(state: &mut InterpreterState, frame : &Rc<StackEntry>,
     let rtype = JavaValue::Object(get_or_create_class_object(state,&PTypeView::from_ptype(&method_descriptor.return_type),frame.clone(),loader_arc.clone()).into());
 
     let ptypes_as_classes: Vec<JavaValue> = method_descriptor.parameter_types.iter().map(|x|{
-        get_or_create_class_object(state,&PTypeView::from_ptype(&x),frame.clone(),loader_arc.clone())
+        dbg!(x);
+        let res = get_or_create_class_object(state, &PTypeView::from_ptype(&x), frame.clone(), loader_arc.clone());
+        dbg!(&res);
+        res
     }).map(|x|{
         JavaValue::Object(x.into())
     }).collect();
