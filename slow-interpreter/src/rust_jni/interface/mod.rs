@@ -16,7 +16,7 @@ use crate::{InterpreterState, StackEntry};
 use std::cell::RefCell;
 
 //GetFieldID
-pub fn get_interface(state: &InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
+pub fn get_interface(state: &mut InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: {

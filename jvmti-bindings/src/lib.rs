@@ -4,6 +4,3 @@
 #![allow(unused)]
 
 include!(concat!("../gen", "/bindings.rs"));
-
-
-

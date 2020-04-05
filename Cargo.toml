@@ -17,6 +17,8 @@ jni-bindings = {path = "./jni-bindings"}
 jvm = {path = "./libjvm"}
 classfile-view = {path = "./classfile-view"}
 descriptor-parser = {path = "./descriptor-parser"}
+jvmti-bindings = {path = "./jvmti-bindings"}
+jvmti = {path = "./jvmti"}
 argparse = "0.2.2"
 log = "0.4"
 simple_logger = "1.3.0"
@@ -32,4 +34,6 @@ members = ["rust-jvm-common",
            "jni-bindings",
            "libjvm-utils",
            "descriptor-parser",
-           "classfile-view"]
+           "classfile-view",
+           "jvmti",
+           "jvmti-bindings"]
