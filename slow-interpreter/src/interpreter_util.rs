@@ -33,7 +33,6 @@ use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, default_value, Object};
 use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
 use classfile_view::view::ptype_view::PTypeView;
-use verification::verifier::codecorrectness::frame_is_assignable;
 
 
 //todo jni should really live in interpreter state

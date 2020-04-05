@@ -27,6 +27,7 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Instant;
+use crate::jvmti::LibJDWP;
 
 
 pub mod java_values;
@@ -250,6 +251,7 @@ pub fn run(
     bl: LoaderArc,
     _args: Vec<String>,
     jni: LibJavaLoading,
+    jdwp: LibJDWP
 ) -> Result<(), Box<dyn Error>> {
     let mut state = InterpreterState {
         terminate: false,
@@ -278,7 +280,7 @@ pub fn run(
     for _ in 0..method_info.code_attribute().unwrap().max_locals {
         locals.push(JavaValue::Top);
     }
-    let initialize_system_frame = StackEntry {
+    let initialize_system_frame = Rc::new(StackEntry {
         last_call_stack: None,
         class_pointer: system_class.clone(),
         method_i: init_system_class_i as u16,
@@ -286,9 +288,9 @@ pub fn run(
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
         pc_offset: RefCell::new(-1),
-    };
-
-    run_function(&mut state, initialize_system_frame.into());
+    });
+    jdwp.agent_load(&mut state, initialize_system_frame.clone());//todo technically this needs to before any bytecode is run.
+    run_function(&mut state, initialize_system_frame);
     if state.function_return {
         state.function_return = false;
     }
@@ -336,3 +338,5 @@ pub mod instructions;
 pub mod interpreter_util;
 pub mod rust_jni;
 pub mod loading;
+pub mod jvmti;
+pub mod invoke_interface;

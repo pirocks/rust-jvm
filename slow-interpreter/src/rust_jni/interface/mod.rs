@@ -13,7 +13,6 @@ use crate::rust_jni::interface::exception::*;
 use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::array::*;
 use crate::{InterpreterState, StackEntry};
-use std::cell::RefCell;
 
 //GetFieldID
 pub fn get_interface(state: &mut InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {

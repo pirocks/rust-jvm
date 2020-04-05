@@ -15,6 +15,7 @@ use crate::java_values::JavaValue;
 use descriptor_parser::parse_method_descriptor;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
+use crate::invoke_interface::get_invoke_interface;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -164,17 +165,12 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
 }
 
 
-pub unsafe extern "C" fn get_java_vm(_env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
-    *vm = Box::into_raw(Box::new(Box::leak(Box::new(JNIInvokeInterface_ {
-        reserved0: std::ptr::null_mut(),
-        reserved1: std::ptr::null_mut(),
-        reserved2: std::ptr::null_mut(),
-        DestroyJavaVM: None,
-        AttachCurrentThread: None,
-        DetachCurrentThread: None,
-        GetEnv: None,
-        AttachCurrentThreadAsDaemon: None,
-    }))));
+pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
+    //todo get rid of this transmute
+    let state = get_state(env);
+    let frame = get_frame(env);
+    let interface = get_invoke_interface(state,frame);
+    *vm = Box::into_raw(Box::new(transmute::<_,*mut JNIInvokeInterface_>(Box::leak(Box::new(interface)))));
     0 as jint
 }
 

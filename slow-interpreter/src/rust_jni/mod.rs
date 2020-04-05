@@ -137,8 +137,6 @@ pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cl
         dbg!(&args);
     }
 
-//    dbg!(&c_args);
-//    dbg!(&args_type);
     let cif = Cif::new(args_type.into_iter(), Type::usize());
 //todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);

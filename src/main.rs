@@ -19,6 +19,7 @@ use std::sync::Arc;
 use slow_interpreter::rust_jni::new_java_loading;
 use classfile_view::loading::LoaderName;
 use slow_interpreter::loading::{BootstrapLoader, Classpath};
+use slow_interpreter::jvmti::load_libjdwp;
 
 
 extern crate classfile_parser;
@@ -26,7 +27,6 @@ extern crate verification;
 extern crate slow_interpreter;
 extern crate jar_manipulation;
 extern crate classfile_view;
-//extern crate rust_jni;
 
 
 fn main() {
@@ -38,6 +38,7 @@ fn main() {
     let mut class_entries: Vec<String> = vec![];
     let mut args: Vec<String> = vec![];
     let mut libjava: String = "".to_string();
+    let mut libjdwp: String = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjdwp.so".to_string();
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("A jvm written partially in rust");
@@ -56,6 +57,7 @@ fn main() {
         ap.refer(&mut args)
             .add_option(&["--args"], List, "A list of args to pass to main");
         ap.refer(&mut libjava).add_option(&["--libjava"], Store, "");
+        ap.refer(&mut libjdwp).add_option(&["--libjdwp"],Store,"");
         ap.parse_args_or_exit();
     }
 
@@ -88,6 +90,7 @@ fn main() {
     trace!("Loading main class: {:?}", main_class_name);
     //todo I guess the bootstrap loader doesn't need to be Arc
     let jni = new_java_loading(libjava);
-    run(&main_class_name, Arc::new(bootstrap_loader), args, jni).unwrap();
+    let jdwp = load_libjdwp(libjdwp.as_str());
+    run(&main_class_name, Arc::new(bootstrap_loader), args, jni,jdwp ).unwrap();
 }
 

@@ -12,6 +12,7 @@ jni-bindings = {path = "../jni-bindings"}
 classfile-view = {path = "../classfile-view"}
 descriptor-parser = {path = "../descriptor-parser"}
 jar-manipulation = {path = "../jar-manipulation"}
+jvmti-bindings = {path = "../jvmti-bindings"}
 libloading = "0.5"
 log = "0.4"
 simple_logger = "1.3.0"

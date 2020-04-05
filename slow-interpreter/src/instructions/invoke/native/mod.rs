@@ -1,4 +1,4 @@
-use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::classnames::ClassName;
 use crate::rust_jni::{mangling, call_impl, call};
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ConstantInfo, ConstantKind, Class, Utf8, Classfile};
 use std::rc::Rc;

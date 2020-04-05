@@ -1,9 +1,38 @@
-use jvmti_bindings::jvmtiInterface_1_;
-use slow_interpreter::{InterpreterState, StackEntry};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError};
 use std::rc::Rc;
 use std::intrinsics::transmute;
-use std::os::raw::c_void;
+use std::os::raw::{c_void, c_char};
+use libloading::Library;
+use std::ops::Deref;
+use crate::{InterpreterState, StackEntry};
+use crate::rust_jni::interface::get_interface;
+use std::ffi::CString;
+use crate::invoke_interface::get_invoke_interface;
+use crate::jvmti::version::get_version_number;
 
+
+pub struct LibJDWP{
+    lib : Library
+}
+
+
+impl LibJDWP{
+    pub fn agent_load(&self, state: &mut InterpreterState, frame: Rc<StackEntry>) -> jvmtiError {
+        unsafe {
+            let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
+            let agent_load_fn_ptr = agent_load_symbol.deref();
+            let args = CString::new("").unwrap().as_c_str().as_ptr();//todo parse these at jvm startup
+            let interface: JNIInvokeInterface_ = get_invoke_interface(state,frame);
+            agent_load_fn_ptr(&mut (&interface as *const JNIInvokeInterface_) as *mut *const JNIInvokeInterface_, args as *mut i8, std::ptr::null_mut()) as jvmtiError
+        }
+    }
+}
+
+pub fn load_libjdwp(jdwp_path : &str) -> LibJDWP{
+    LibJDWP{
+        lib: Library::new(jdwp_path).unwrap()
+    }
+}
 
 pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>) -> jvmtiInterface_1_{
     jvmtiInterface_1_ {
@@ -97,7 +126,7 @@ pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>
         ForceEarlyReturnDouble: None,
         ForceEarlyReturnVoid: None,
         RedefineClasses: None,
-        GetVersionNumber: None,
+        GetVersionNumber: Some(get_version_number),
         GetCapabilities: None,
         GetSourceDebugExtension: None,
         IsMethodObsolete: None,
@@ -169,3 +198,4 @@ pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>
 }
 
 pub mod capabilities;
+pub mod version;
