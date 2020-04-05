@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv};
 use std::rc::Rc;
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
@@ -9,7 +9,8 @@ use crate::rust_jni::interface::get_interface;
 use std::ffi::CString;
 use crate::invoke_interface::get_invoke_interface;
 use crate::jvmti::version::get_version_number;
-
+use crate::jvmti::properties::get_system_property;
+use crate::jvmti::allocate::allocate;
 
 pub struct LibJDWP{
     lib : Library
@@ -21,9 +22,9 @@ impl LibJDWP{
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
-            let args = CString::new("").unwrap().as_c_str().as_ptr();//todo parse these at jvm startup
+            let args = CString::new("transport=dt_socket,server=y,suspend=n,address=5005").unwrap().into_raw();//todo parse these at jvm startup
             let interface: JNIInvokeInterface_ = get_invoke_interface(state,frame);
-            agent_load_fn_ptr(&mut (&interface as *const JNIInvokeInterface_) as *mut *const JNIInvokeInterface_, args as *mut i8, std::ptr::null_mut()) as jvmtiError
+            agent_load_fn_ptr(&mut (&interface as *const JNIInvokeInterface_) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError
         }
     }
 }
@@ -34,8 +35,8 @@ pub fn load_libjdwp(jdwp_path : &str) -> LibJDWP{
     }
 }
 
-pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>) -> jvmtiInterface_1_{
-    jvmtiInterface_1_ {
+pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>) -> jvmtiEnv{
+    Box::leak(jvmtiInterface_1_ {
         reserved1: unsafe {transmute(state)},
         SetEventNotificationMode: None,
         reserved3: unsafe {
@@ -84,7 +85,7 @@ pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>
         SetFieldModificationWatch: None,
         ClearFieldModificationWatch: None,
         IsModifiableClass: None,
-        Allocate: None,
+        Allocate: Some(allocate),
         Deallocate: None,
         GetClassSignature: None,
         GetClassStatus: None,
@@ -169,7 +170,7 @@ pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>
         GetErrorName: None,
         GetJLocationFormat: None,
         GetSystemProperties: None,
-        GetSystemProperty: None,
+        GetSystemProperty: Some(get_system_property),
         SetSystemProperty: None,
         GetPhase: None,
         GetCurrentThreadCpuTimerInfo: None,
@@ -194,8 +195,10 @@ pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>
         GetOwnedMonitorStackDepthInfo: None,
         GetObjectSize: None,
         GetLocalInstance: None
-    }
+    }.into()) as jvmtiEnv
 }
 
 pub mod capabilities;
 pub mod version;
+pub mod properties;
+pub mod allocate;
