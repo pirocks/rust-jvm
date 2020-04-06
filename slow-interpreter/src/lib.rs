@@ -27,7 +27,7 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Instant;
-use crate::jvmti::LibJDWP;
+use crate::jvmti::SharedLibJVMTI;
 
 
 pub mod java_values;
@@ -61,8 +61,42 @@ pub struct InterpreterState {
     pub anon_class_counter: usize,
     pub anon_class_live_object_ldc_pool : Arc<RefCell<Vec<Arc<Object>>>>,
 
-    pub debug_exclude: bool
+    pub debug_exclude: bool,
+
+    pub built_in_jdwp: Arc<SharedLibJVMTI>
+    // pub debugger_events: ManyElemDebuggerEventConsumer
 }
+
+// pub struct ManyElemDebuggerEventConsumer{
+//     elems: RefCell<Vec<Box<dyn DebuggerEventConsumer>>>
+// }
+//
+// impl ManyElemDebuggerEventConsumer{
+//     pub fn register(&self, to_register:Box<dyn DebuggerEventConsumer>){
+//         self.elems.borrow_mut().push(to_register);
+//     }
+// }
+//
+// impl DebuggerEventConsumer for ManyElemDebuggerEventConsumer{
+//
+//     unsafe fn VMInit(&self, jvmti_env: *const *const jvmtiInterface_1_, jni_env: *const *const JNINativeInterface_, thread: *mut _jobject) {
+//         for x in self.elems.borrow().iter() {
+//             x.VMInit(jvmti_env,jni_env,thread);
+//         }
+//     }
+//
+//     fn VMInit_enable(&mut self) {
+//         for x in self.elems.borrow_mut().as_mut_slice() {
+//             x.VMInit_enable()
+//         }
+//     }
+//
+//     fn VMInit_disable(&mut self) {
+//         for x in self.elems.borrow_mut().as_mut_slice() {
+//             x.VMInit_disable()
+//         }
+//     }
+// }
 
 struct LivePoolGetterImpl{
     anon_class_live_object_ldc_pool : Arc<RefCell<Vec<Arc<Object>>>>
@@ -251,7 +285,7 @@ pub fn run(
     bl: LoaderArc,
     _args: Vec<String>,
     jni: LibJavaLoading,
-    jdwp: LibJDWP
+    jdwp: SharedLibJVMTI
 ) -> Result<(), Box<dyn Error>> {
     let mut state = InterpreterState {
         terminate: false,
@@ -269,7 +303,9 @@ pub fn run(
         start_instant: Instant::now(),
         anon_class_counter: 0,
         anon_class_live_object_ldc_pool: Arc::new(RefCell::new(vec![])),
-        debug_exclude: true
+        debug_exclude: true,
+        // debugger_events: ManyElemDebuggerEventConsumer { elems: RefCell::new(vec![]) }
+        built_in_jdwp: Arc::new(jdwp)
     };
     let main = bl.clone().load_class(bl.clone(), main_class_name, bl.clone(),state.get_live_object_pool_getter())?;
     let main_class = prepare_class(main.clone().backing_class(), bl.clone());
@@ -289,7 +325,9 @@ pub fn run(
         pc: RefCell::new(0),
         pc_offset: RefCell::new(-1),
     });
-    jdwp.agent_load(&mut state, initialize_system_frame.clone());//todo technically this needs to before any bytecode is run.
+    let jdwp_copy = state.built_in_jdwp.clone();
+    jdwp_copy.agent_load(&mut state, initialize_system_frame.clone());//todo technically this needs to before any bytecode is run.
+
     run_function(&mut state, initialize_system_frame);
     if state.function_return {
         state.function_return = false;

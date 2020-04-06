@@ -211,7 +211,7 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
         mname.fields.borrow_mut().insert("flags".to_string(),JavaValue::Int(flags | modifiers | extra_flags));//todo is this really correct? what if garbage in flags?
         // let name = method_fields.get("name").unwrap();
         // mname.fields.borrow_mut().insert("name".to_string(),name.clone());
-        if(debug){
+        if debug {
             dbg!(mname);
         }
     } else {

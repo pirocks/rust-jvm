@@ -1,8 +1,7 @@
-use jvmti_bindings::{JNIInvokeInterface_, JavaVM, jint, JVMTI_VERSION_1_0, jvmtiInterface_1_, jvmtiEnv};
+use jvmti_bindings::{JNIInvokeInterface_, JavaVM, jint, JVMTI_VERSION_1_0, jvmtiEnv};
 use crate::{InterpreterState, StackEntry};
 use std::rc::Rc;
-use crate::rust_jni::interface::get_interface;
-use jni_bindings::{JNINativeInterface_, JNI_OK};
+use jni_bindings::JNI_OK;
 use std::intrinsics::transmute;
 use std::ffi::c_void;
 use crate::jvmti::get_jvmti_interface;
