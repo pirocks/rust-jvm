@@ -181,7 +181,7 @@ pub fn get_jvmti_interface(state : &mut InterpreterState, frame : Rc<StackEntry>
         GetTime: None,
         GetPotentialCapabilities: Some(capabilities::get_potential_capabilities),
         reserved141: std::ptr::null_mut(),
-        AddCapabilities: None,
+        AddCapabilities: Some(capabilities::add_capabilities),
         RelinquishCapabilities: None,
         GetAvailableProcessors: None,
         GetClassVersionNumbers: None,
