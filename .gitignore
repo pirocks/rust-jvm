@@ -11,3 +11,4 @@ resources/test/simple-java-project/target/
 slow-interpreter/gen/
 swipl.log
 test_/
+/jvmti-bindings/gen/
