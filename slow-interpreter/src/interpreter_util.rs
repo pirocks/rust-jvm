@@ -37,7 +37,7 @@ use classfile_view::view::ptype_view::PTypeView;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
-    state: &mut JVMState,
+    state: &JVMState,
     class_name: &ClassName,
     current_frame: Option<Rc<StackEntry>>,
     loader_arc: LoaderArc,

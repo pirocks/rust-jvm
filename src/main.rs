@@ -12,7 +12,7 @@ use argparse::{ArgumentParser, Store, StoreTrue, List};
 use std::path::Path;
 use std::sync::RwLock;
 use std::collections::HashMap;
-use slow_interpreter::run;
+use slow_interpreter::{run, JVMOptions};
 use rust_jvm_common::classnames::ClassName;
 use jar_manipulation::JarHandle;
 use std::sync::Arc;
@@ -57,13 +57,14 @@ fn main() {
         ap.refer(&mut args)
             .add_option(&["--args"], List, "A list of args to pass to main");
         ap.refer(&mut libjava).add_option(&["--libjava"], Store, "");
-        ap.refer(&mut libjdwp).add_option(&["--libjdwp"],Store,"");
+        ap.refer(&mut libjdwp).add_option(&["--libjdwp"], Store, "");
         ap.parse_args_or_exit();
     }
 
     if verbose {
-        info!("in verbose mode, which currently doesn't do anything, b/c I'm always verbose, since I program in java a lot.");
+        info!("in verbose mode, which currently doesn't really do anything, b/c I'm always verbose, since I program in java a lot.");
     }
+
 
     let classpath = Classpath {
         jars: jars.iter().map(|x| {
@@ -73,24 +74,9 @@ fn main() {
         }).collect(),
         classpath_base: class_entries.iter().map(|x| Path::new(x).into()).collect(),
     };
-
-    trace!("Classpath parsed and loaded");
-
-    let bootstrap_loader = BootstrapLoader {
-        loaded: RwLock::new(HashMap::new()),
-        parsed: RwLock::new(HashMap::new()),
-        name: RwLock::new(LoaderName::BootstrapLoader),
-        classpath,
-    };
-
-    trace!("Bootstrap Loader created");
-
-
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
-    trace!("Loading main class: {:?}", main_class_name);
-    //todo I guess the bootstrap loader doesn't need to be Arc
-    let jni = new_java_loading(libjava);
-    let jdwp = load_libjdwp(libjdwp.as_str());
-    run(&main_class_name, Arc::new(bootstrap_loader), args, jni,jdwp ).unwrap();
+    let jvm_options = JVMOptions::new(main_class_name, classpath, args ,libjava, libjdwp);
+
+    run(jvm_options).unwrap();
 }
 

@@ -6,29 +6,28 @@ extern crate libc;
 extern crate regex;
 extern crate va_list;
 
-use rust_jvm_common::classnames::{ClassName, class_name};
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use rust_jvm_common::ptype::PType;
-use rust_jvm_common::classfile::{Classfile, MethodInfo, CPIndex};
+use rust_jvm_common::classfile::{Classfile, MethodInfo};
 use crate::runtime_class::RuntimeClass;
-use crate::java_values::{Object, JavaValue, NormalObject};
+use crate::java_values::{Object, JavaValue};
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
-use crate::interpreter_util::push_new_object;
-use crate::instructions::ldc::create_string_on_stack;
 use libloading::Library;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use classfile_view::loading::{LoaderArc, LivePoolGetter};
+use classfile_view::loading::{LoaderArc, LivePoolGetter, Loader, LoaderName};
 use descriptor_parser::MethodDescriptor;
 use std::sync::{Arc, RwLock};
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Instant;
 use crate::jvmti::SharedLibJVMTI;
 use crate::java::lang::thread::JThread;
+use crate::stack_entry::StackEntry;
+use crate::loading::{Classpath, BootstrapLoader};
 
 
 pub mod java_values;
@@ -41,19 +40,53 @@ pub mod utils;
 
 type ThreadId = u64;
 
-pub struct JavaThread{
+pub struct JavaThread {
     java_tid: ThreadId,
     name: String,
-    call_stack : Rc<StackEntry>,
-    thread_object: JThread,
-    interpreter_state: InterpreterState
+    call_stack: Rc<StackEntry>,
+    thread_object: RefCell<Option<JThread>>,
+    //for the main thread the object may not exist for a bit,b/c the code to create that object needs to run on a thread
+    interpreter_state: InterpreterState,
 }
 
-pub struct InterpreterState{
+pub struct InterpreterState {
     pub terminate: bool,
     pub throw: Option<Arc<Object>>,
     pub function_return: bool,
 }
+
+pub struct SharedLibraryPaths {
+    libjava: String,
+    libjdwp: String,
+}
+
+pub struct JVMOptions {
+    main_class_name: ClassName,
+    classpath: Classpath,
+    args: Vec<String>,
+    shared_libs: SharedLibraryPaths,
+
+}
+
+impl JVMOptions {
+    pub fn new(main_class_name: ClassName,
+               classpath: Classpath,
+               args: Vec<String>,
+               libjava: String,
+               libjdwp: String,
+    ) -> Self {
+        Self {
+            main_class_name,
+            classpath,
+            args,
+            shared_libs: SharedLibraryPaths { libjava, libjdwp },
+        }
+    }
+}
+
+// let jni = new_java_loading(libjava);
+// let jdwp = load_libjdwp(libjdwp.as_str());
+
 
 pub struct JVMState<'vmlifetime> {
     pub bootstrap_loader: LoaderArc,
@@ -63,7 +96,7 @@ pub struct JVMState<'vmlifetime> {
     pub start_instant: Instant,
 
     pub class_object_pool: RwLock<HashMap<PTypeView, Arc<Object>>>,
-    pub system_domain_loader : bool,
+    pub system_domain_loader: bool,
 
     //todo needs to be used for all instances of getClass
     pub jni: LibJavaLoading,//todo rename to libjava
@@ -71,89 +104,41 @@ pub struct JVMState<'vmlifetime> {
 
     //anon classes
     pub anon_class_counter: RwLock<usize>,
-    pub anon_class_live_object_ldc_pool : Arc<RwLock<Vec<Arc<Object>>>>,
+    pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
 
     pub built_in_jdwp: Arc<SharedLibJVMTI>,
 
-    pub threads: Vec<JavaThread>
+    pub main_thread: RwLock<Option<JavaThread>>,
+    pub all_threads: RwLock<Vec<JavaThread>>,
+
+    pub options: JVMOptions,
 }
-
-struct LivePoolGetterImpl{
-    anon_class_live_object_ldc_pool : Arc<RwLock<Vec<Arc<Object>>>>
-}
-
-impl LivePoolGetter for LivePoolGetterImpl{
-    fn elem_type(&self, idx: usize) -> ReferenceTypeView {
-        let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
-        ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.class_view.name())//todo handle arrays
-    }
-}
-
-pub struct NoopLivePoolGetter{}
-
-impl LivePoolGetter for NoopLivePoolGetter{
-    fn elem_type(&self, idx: usize) -> ReferenceTypeView {
-        panic!()
-    }
-}
-
 
 impl JVMState {
-    pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter>{
-        Arc::new(LivePoolGetterImpl{ anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
-    }
-}
-
-#[derive(Debug)]
-pub struct StackEntry {
-    pub last_call_stack: Option<Rc<StackEntry>>,
-    pub class_pointer: Arc<RuntimeClass>,
-    pub method_i: CPIndex,
-
-    pub local_vars: RefCell<Vec<JavaValue>>,
-    pub operand_stack: RefCell<Vec<JavaValue>>,
-    pub pc: RefCell<usize>,
-    //the pc_offset is set by every instruction. branch instructions and others may us it to jump
-    pub pc_offset: RefCell<isize>,
-}
-
-impl StackEntry {
-    pub fn pop(&self) -> JavaValue {
-        self.operand_stack.borrow_mut().pop().unwrap_or_else(|| {
-            let classfile = &self.class_pointer.classfile;
-            let method = &classfile.methods[self.method_i as usize];
-            dbg!(&method.method_name(&classfile));
-            dbg!(&method.code_attribute().unwrap().code);
-            dbg!(&self.pc);
-            panic!()
-        })
-    }
-    pub fn push(&self, j: JavaValue) {
-        self.operand_stack.borrow_mut().push(j)
-    }
-
-    pub fn depth(&self) -> usize {
-        match &self.last_call_stack {
-            None => 0,
-            Some(last) => last.depth() + 1,
-        }
-    }
-
-    pub fn print_stack_trace(&self) {
-        let class_file = &self.class_pointer.classfile;
-        let method = &class_file.methods[self.method_i as usize];
-        println!("{} {} {} {}",
-                 &class_name(class_file).get_referred_name(),
-                 method.method_name(class_file),
-                 method.descriptor_str(class_file),
-                 self.depth());
-        match &self.last_call_stack {
-            None => {}
-            Some(last) => last.print_stack_trace(),
+    pub fn new(jvm_options: JVMOptions, bl: LoaderArc) -> Self {
+        Self {
+            bootstrap_loader: bl,
+            initialized_classes: RwLock::new(HashMap::new()),
+            class_object_pool: RwLock::new(HashMap::new()),
+            system_domain_loader: true,
+            jni,
+            string_pool: StringPool {
+                entries: HashSet::new()
+            },
+            start_instant: Instant::now(),
+            anon_class_live_object_ldc_pool: Arc::new(RwLock::new(vec![])),
+            built_in_jdwp: Arc::new(jdwp),
+            anon_class_counter: RwLock::new(0),
+            all_threads: vec![].into(),
+            options: jvm_options,
+            main_thread: RwLock::new(None)
         }
     }
 }
 
+struct LivePoolGetterImpl {
+    anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>
+}
 
 #[derive(Debug)]
 pub struct LibJavaLoading {
@@ -161,136 +146,74 @@ pub struct LibJavaLoading {
     pub registered_natives: RefCell<HashMap<Arc<RuntimeClass>, RefCell<HashMap<u16, unsafe extern fn()>>>>,
 }
 
-
-pub fn get_or_create_class_object(state: &mut JVMState,
-                                  type_: &PTypeView,
-                                  current_frame: Rc<StackEntry>,
-                                  loader_arc: LoaderArc,
-) -> Arc<Object> {
-    match type_ {
-        PTypeView::Ref(t) => match t {
-            ReferenceTypeView::Array(c) => {
-                return array_object(state, c.deref(), current_frame);
-            }
-            _ => {}
-        },
-        _ => {}
-    }
-
-    regular_object(state, type_, current_frame, loader_arc)
-}
-
-fn array_object(state: &mut JVMState, array_sub_type: &PTypeView, current_frame: Rc<StackEntry>) -> Arc<Object> {
-    let type_for_object: PType = array_sub_type.to_ptype();
-    array_of_type_class(state, current_frame, &type_for_object)
-}
-
-pub fn array_of_type_class(state: &mut JVMState, current_frame: Rc<StackEntry>, type_for_object: &PType) -> Arc<Object> {
-    //todo wrap in array and convert
-    let array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::from_ptype(type_for_object).into()));
-    let res = state.class_object_pool.borrow().get(&array_type).cloned();
-    match res {
-        None => {
-            let r = create_a_class_object(state, current_frame);
-            let array_ptype_view = array_type.clone().into();
-            r.unwrap_normal_object().class_object_ptype.replace(array_ptype_view);
-            state.class_object_pool.borrow_mut().insert(array_type, r.clone());
-            r
-        }
-        Some(r) => r.clone(),
+impl LivePoolGetter for LivePoolGetterImpl {
+    fn elem_type(&self, idx: usize) -> ReferenceTypeView {
+        let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
+        ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.class_view.name())//todo handle arrays
     }
 }
 
-fn regular_object(state: &mut JVMState, class_type: &PTypeView, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
-    check_inited_class(state, class_type.unwrap_type_to_name().as_ref().unwrap(), current_frame.clone().into(), loader_arc);
-    let res = state.class_object_pool.borrow().get(&class_type).cloned();
-    match res {
-        None => {
-            let r = create_a_class_object(state, current_frame.clone());
-            r.unwrap_normal_object().class_object_ptype.replace(Some(class_type.clone()));
-            state.class_object_pool.borrow_mut().insert(class_type.clone(), r.clone());
-            if class_type.is_primitive() {
-                //handles edge case of classes whose names do not correspond to the name of the class they represent
-                //normally names are obtained with getName0 which gets handled in libjvm.so
-                create_string_on_stack(state, &current_frame, class_type.primitive_name().to_string());
-                r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), current_frame.pop());
-            }
-            r
-        }
-        Some(r) => r.clone(),
+pub struct NoopLivePoolGetter {}
+
+impl LivePoolGetter for NoopLivePoolGetter {
+    fn elem_type(&self, idx: usize) -> ReferenceTypeView {
+        panic!()
     }
 }
 
-fn create_a_class_object(state: &mut JVMState, current_frame: Rc<StackEntry>) -> Arc<Object> {
-    let java_lang_class = ClassName::class();
-    let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-    let current_loader = current_frame.class_pointer.loader.clone();
-    let class_class = check_inited_class(state, &java_lang_class, current_frame.clone().into(), current_loader.clone());
-    let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_frame.clone().into(), current_loader.clone());
-    let boostrap_loader_object = Arc::new(Object::Object(NormalObject {
-        gc_reachable: true,
-        fields: RefCell::new(HashMap::new()),
-        class_pointer: class_loader_class.clone(),
-        bootstrap_loader: true,
-        // object_class_object_pointer: RefCell::new(None),
-        // array_class_object_pointer: RefCell::new(None),
-        class_object_ptype: RefCell::new(None),
-    }));
-    // state.class_loader = boostrap_loader_object;
-    //the above would only be required for higher jdks where a class loader object is part of Class.
-    //as it stands we can just push to operand stack
-    push_new_object(state,current_frame.clone(), &class_class);
-    let object = current_frame.pop();
-    match object.clone() {
-        JavaValue::Object(o) => {
-            let bootstrap_arc = boostrap_loader_object;
-            let bootstrap_class_loader = JavaValue::Object(bootstrap_arc.clone().into());
-            {
-                bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("assertionLock".to_string(), bootstrap_class_loader.clone());//itself...
-                bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
-                o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
-            }
-            if !state.system_domain_loader{
-                o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(),bootstrap_class_loader);
-            }
-        }
-        _ => panic!(),
+
+impl JVMState {
+    pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter> {
+        Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
     }
-    let r = object.unwrap_object_nonnull();
-    r
+
+    pub fn register_main_thread(&self, main_thread: JavaThread) {
+        //todo perhaps there should be a single rw lock for this
+        self.all_threads.write().unwrap().push(main_thread);
+        let mut main_thread_writer = self.main_thread.write().unwrap();
+        main_thread_writer.replace(main_thread.into());
+    }
+
+    pub fn main_thread(self) -> &JavaThread{
+        self.main_thread.read().unwrap().as_ref().unwrap()
+    }
 }
 
-pub fn run(
-    main_class_name: &ClassName,
-    bl: LoaderArc,
-    _args: Vec<String>,
-    jni: LibJavaLoading,
-    jdwp: SharedLibJVMTI
-) -> Result<(), Box<dyn Error>> {
-    let mut state = JVMState {
-        terminate: false,
-        throw: None,
-        function_return: false,
-        bootstrap_loader: bl.clone(),
-        initialized_classes: RwLock::new(HashMap::new()),
-        string_internment: RefCell::new(HashMap::new()),
-        class_object_pool: RefCell::new(HashMap::new()),
-        system_domain_loader: true,
-        jni,
-        string_pool: StringPool {
-            entries: HashSet::new()
-        },
-        start_instant: Instant::now(),
-        anon_class_counter: 0,
-        anon_class_live_object_ldc_pool: Arc::new(RefCell::new(vec![])),
-        debug_exclude: true,
-        // debugger_events: ManyElemDebuggerEventConsumer { elems: RefCell::new(vec![]) }
-        built_in_jdwp: Arc::new(jdwp)
-    };
-    let main = bl.clone().load_class(bl.clone(), main_class_name, bl.clone(),state.get_live_object_pool_getter())?;
-    let main_class = prepare_class(main.clone().backing_class(), bl.clone());
-    let main_i = locate_main_method(&bl, &main.backing_class());
-    let system_class = check_inited_class(&mut state, &ClassName::new("java/lang/System"), None, bl.clone());
+pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
+    let bootstrap_loader = Arc::new(BootstrapLoader {
+        loaded: RwLock::new(HashMap::new()),
+        parsed: RwLock::new(HashMap::new()),
+        name: RwLock::new(LoaderName::BootstrapLoader),
+        classpath,
+    });
+
+    let mut state = JVMState::new(opts, bootstrap_loader.clone());
+    jvm_run_system_init(&bl, &mut state);
+    let main_view = bootstrap_loader.clone().load_class(bootstrap_loader.clone(), main_class_name, bootstrap_loader.clone(), state.get_live_object_pool_getter())?;
+    let main_class = prepare_class(main_view.clone().backing_class(), bl.clone());
+    let main_i = locate_main_method(&bootstrap_loader, &main_view.backing_class());
+    let main_stack = Rc::new(StackEntry {
+        last_call_stack: None,
+        class_pointer: Arc::new(main_class),
+        method_i: main_i as u16,
+        local_vars: vec![].into(),//todo handle parameters, todo handle non-zero size locals
+        operand_stack: vec![].into(),
+        pc: RefCell::new(0),
+        pc_offset: 0.into(),
+    });
+
+
+
+    jdwp_copy.vm_inited(&mut state, main_stack.clone());
+        run_function(&mut state, main_stack);
+    if state.throw.is_some() || state.terminate {
+        unimplemented!()
+    }
+    Result::Ok(())
+}
+
+fn jvm_run_system_init(bl: &LoaderArc, state: &JVMState) {
+    let system_class = check_inited_class(state, &ClassName::new("java/lang/System"), None, bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
     let mut locals = vec![];
     for _ in 0..method_info.code_attribute().unwrap().max_locals {
@@ -305,9 +228,23 @@ pub fn run(
         pc: RefCell::new(0),
         pc_offset: RefCell::new(-1),
     });
-    let jdwp_copy = state.built_in_jdwp.clone();
-    jdwp_copy.agent_load(&mut state, initialize_system_frame.clone());//todo technically this needs to before any bytecode is run.
 
+
+    state.register_main_thread(JavaThread {
+        java_tid: 0,
+        name: "Main".to_string(),
+        call_stack: main_stack,
+        thread_object: RefCell::new(None),
+        interpreter_state: InterpreterState{
+            terminate: false,
+            throw: None,
+            function_return: false
+        }
+    });
+
+
+    state.built_in_jdwp.agent_load(&mut state, initialize_system_frame.clone());
+//todo technically this needs to before any bytecode is run.
     run_function(&mut state, initialize_system_frame);
     if state.function_return {
         state.function_return = false;
@@ -315,25 +252,6 @@ pub fn run(
     if state.throw.is_some() || state.terminate {
         unimplemented!()
     }
-
-//    let array_elem_type = ParsedType::Class(ClassWithLoader { class_name: ClassName::string(), loader: bl.clone() });
-    //todo use array_elem_type
-    let main_stack = Rc::new(StackEntry {
-        last_call_stack: None,
-        class_pointer: Arc::new(main_class),
-        method_i: main_i as u16,
-//            todo is that vec access safe, or does it not heap allocate?
-        local_vars: vec![].into(),//todo handle parameters, todo handle non-zero size locals
-        operand_stack: vec![].into(),
-        pc: RefCell::new(0),
-        pc_offset: 0.into(),
-    });
-    jdwp_copy.vm_inited(&mut state, main_stack.clone());
-    run_function(&mut state, main_stack);
-    if state.throw.is_some() || state.terminate {
-        unimplemented!()
-    }
-    Result::Ok(())
 }
 
 fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
@@ -360,3 +278,5 @@ pub mod rust_jni;
 pub mod loading;
 pub mod jvmti;
 pub mod invoke_interface;
+pub mod stack_entry;
+pub mod class_objects;

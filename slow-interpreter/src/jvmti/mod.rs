@@ -31,7 +31,7 @@ impl SharedLibJVMTI{
         unsafe {
             let mut interface = get_interface(state, frame.clone());
             let mut jvmti_interface = get_jvmti_interface(state, frame.clone());
-            let mut casted_jni = (&interface as *const jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_);
+            let mut casted_jni = &interface as *const jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_;
             self.VMInit(&mut jvmti_interface, &mut casted_jni, std::ptr::null_mut())}
     }
 }
