@@ -28,6 +28,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Instant;
 use crate::jvmti::SharedLibJVMTI;
+use crate::java::lang::thread::JThread;
 
 
 pub mod java_values;
@@ -38,73 +39,52 @@ pub mod java;
 pub mod sun;
 pub mod utils;
 
-pub struct InterpreterState {
+type ThreadId = u64;
+
+pub struct JavaThread{
+    java_tid: ThreadId,
+    name: String,
+    call_stack : Rc<StackEntry>,
+    thread_object: JThread,
+    interpreter_state: InterpreterState
+}
+
+pub struct InterpreterState{
     pub terminate: bool,
     pub throw: Option<Arc<Object>>,
     pub function_return: bool,
+}
+
+pub struct JVMState<'vmlifetime> {
     pub bootstrap_loader: LoaderArc,
     pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
-    pub string_internment: RefCell<HashMap<String, Arc<Object>>>,
-
-
-    pub class_object_pool: RefCell<HashMap<PTypeView, Arc<Object>>>,
-    // pub class_loader : Arc<Object>,
-    pub system_domain_loader : bool,
-
-    //todo needs to be used for all instances of getClass
-    pub jni: LibJavaLoading,
     pub string_pool: StringPool,
     //todo this should really be in some sort of parser/jvm state
     pub start_instant: Instant,
 
+    pub class_object_pool: RwLock<HashMap<PTypeView, Arc<Object>>>,
+    pub system_domain_loader : bool,
+
+    //todo needs to be used for all instances of getClass
+    pub jni: LibJavaLoading,//todo rename to libjava
+
+
     //anon classes
-    pub anon_class_counter: usize,
-    pub anon_class_live_object_ldc_pool : Arc<RefCell<Vec<Arc<Object>>>>,
+    pub anon_class_counter: RwLock<usize>,
+    pub anon_class_live_object_ldc_pool : Arc<RwLock<Vec<Arc<Object>>>>,
 
-    pub debug_exclude: bool,
+    pub built_in_jdwp: Arc<SharedLibJVMTI>,
 
-    pub built_in_jdwp: Arc<SharedLibJVMTI>
-    // pub debugger_events: ManyElemDebuggerEventConsumer
+    pub threads: Vec<JavaThread>
 }
 
-// pub struct ManyElemDebuggerEventConsumer{
-//     elems: RefCell<Vec<Box<dyn DebuggerEventConsumer>>>
-// }
-//
-// impl ManyElemDebuggerEventConsumer{
-//     pub fn register(&self, to_register:Box<dyn DebuggerEventConsumer>){
-//         self.elems.borrow_mut().push(to_register);
-//     }
-// }
-//
-// impl DebuggerEventConsumer for ManyElemDebuggerEventConsumer{
-//
-//     unsafe fn VMInit(&self, jvmti_env: *const *const jvmtiInterface_1_, jni_env: *const *const JNINativeInterface_, thread: *mut _jobject) {
-//         for x in self.elems.borrow().iter() {
-//             x.VMInit(jvmti_env,jni_env,thread);
-//         }
-//     }
-//
-//     fn VMInit_enable(&mut self) {
-//         for x in self.elems.borrow_mut().as_mut_slice() {
-//             x.VMInit_enable()
-//         }
-//     }
-//
-//     fn VMInit_disable(&mut self) {
-//         for x in self.elems.borrow_mut().as_mut_slice() {
-//             x.VMInit_disable()
-//         }
-//     }
-// }
-
 struct LivePoolGetterImpl{
-    anon_class_live_object_ldc_pool : Arc<RefCell<Vec<Arc<Object>>>>
+    anon_class_live_object_ldc_pool : Arc<RwLock<Vec<Arc<Object>>>>
 }
 
 impl LivePoolGetter for LivePoolGetterImpl{
     fn elem_type(&self, idx: usize) -> ReferenceTypeView {
-        let object = &self.anon_class_live_object_ldc_pool.borrow()[idx];
+        let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
         ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.class_view.name())//todo handle arrays
     }
 }
@@ -118,7 +98,7 @@ impl LivePoolGetter for NoopLivePoolGetter{
 }
 
 
-impl InterpreterState{
+impl JVMState {
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter>{
         Arc::new(LivePoolGetterImpl{ anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
     }
@@ -182,7 +162,7 @@ pub struct LibJavaLoading {
 }
 
 
-pub fn get_or_create_class_object(state: &mut InterpreterState,
+pub fn get_or_create_class_object(state: &mut JVMState,
                                   type_: &PTypeView,
                                   current_frame: Rc<StackEntry>,
                                   loader_arc: LoaderArc,
@@ -200,12 +180,12 @@ pub fn get_or_create_class_object(state: &mut InterpreterState,
     regular_object(state, type_, current_frame, loader_arc)
 }
 
-fn array_object(state: &mut InterpreterState, array_sub_type: &PTypeView, current_frame: Rc<StackEntry>) -> Arc<Object> {
+fn array_object(state: &mut JVMState, array_sub_type: &PTypeView, current_frame: Rc<StackEntry>) -> Arc<Object> {
     let type_for_object: PType = array_sub_type.to_ptype();
     array_of_type_class(state, current_frame, &type_for_object)
 }
 
-pub fn array_of_type_class(state: &mut InterpreterState, current_frame: Rc<StackEntry>, type_for_object: &PType) -> Arc<Object> {
+pub fn array_of_type_class(state: &mut JVMState, current_frame: Rc<StackEntry>, type_for_object: &PType) -> Arc<Object> {
     //todo wrap in array and convert
     let array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::from_ptype(type_for_object).into()));
     let res = state.class_object_pool.borrow().get(&array_type).cloned();
@@ -221,7 +201,7 @@ pub fn array_of_type_class(state: &mut InterpreterState, current_frame: Rc<Stack
     }
 }
 
-fn regular_object(state: &mut InterpreterState, class_type: &PTypeView, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_object(state: &mut JVMState, class_type: &PTypeView, current_frame: Rc<StackEntry>, loader_arc: LoaderArc) -> Arc<Object> {
     check_inited_class(state, class_type.unwrap_type_to_name().as_ref().unwrap(), current_frame.clone().into(), loader_arc);
     let res = state.class_object_pool.borrow().get(&class_type).cloned();
     match res {
@@ -241,7 +221,7 @@ fn regular_object(state: &mut InterpreterState, class_type: &PTypeView, current_
     }
 }
 
-fn create_a_class_object(state: &mut InterpreterState, current_frame: Rc<StackEntry>) -> Arc<Object> {
+fn create_a_class_object(state: &mut JVMState, current_frame: Rc<StackEntry>) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
     let current_loader = current_frame.class_pointer.loader.clone();
@@ -287,7 +267,7 @@ pub fn run(
     jni: LibJavaLoading,
     jdwp: SharedLibJVMTI
 ) -> Result<(), Box<dyn Error>> {
-    let mut state = InterpreterState {
+    let mut state = JVMState {
         terminate: false,
         throw: None,
         function_return: false,
@@ -335,9 +315,10 @@ pub fn run(
     if state.throw.is_some() || state.terminate {
         unimplemented!()
     }
+
 //    let array_elem_type = ParsedType::Class(ClassWithLoader { class_name: ClassName::string(), loader: bl.clone() });
     //todo use array_elem_type
-    let main_stack = StackEntry {
+    let main_stack = Rc::new(StackEntry {
         last_call_stack: None,
         class_pointer: Arc::new(main_class),
         method_i: main_i as u16,
@@ -346,8 +327,9 @@ pub fn run(
         operand_stack: vec![].into(),
         pc: RefCell::new(0),
         pc_offset: 0.into(),
-    };
-    run_function(&mut state, Rc::new(main_stack));
+    });
+    jdwp_copy.vm_inited(&mut state, main_stack.clone());
+    run_function(&mut state, main_stack);
     if state.throw.is_some() || state.terminate {
         unimplemented!()
     }

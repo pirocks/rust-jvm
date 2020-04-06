@@ -8,11 +8,11 @@ use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ACC_ABSTRACT, MethodInf
 use crate::instructions::invoke::native::run_native_method;
 use classfile_view::view::ClassView;
 use crate::java_values::JavaValue;
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 
-pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) {
+pub fn run_invoke_static(state: &mut JVMState, current_frame: Rc<StackEntry>, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let classfile = &current_frame.class_pointer.classfile;
@@ -26,7 +26,7 @@ pub fn run_invoke_static(state: &mut InterpreterState, current_frame: Rc<StackEn
 }
 
 pub fn invoke_static_impl(
-    state: &mut InterpreterState,
+    state: &mut JVMState,
     current_frame: Rc<StackEntry>,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,

@@ -18,7 +18,7 @@ pub mod method_type {
     impl MethodType {
         as_object_or_java_value!();
 
-        pub fn from_method_descriptor_string(state: &mut crate::InterpreterState, frame: &std::rc::Rc<crate::StackEntry>, str : crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> MethodType{
+        pub fn from_method_descriptor_string(state: &mut crate::JVMState, frame: &std::rc::Rc<crate::StackEntry>, str : crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> MethodType{
             frame.push(str.java_value());
             frame.push(class_loader.map(|x|x.java_value()).unwrap_or(JavaValue::Object(None)));
             let method_type = check_inited_class(state,&ClassName::method_type(),frame.clone().into(),frame.class_pointer.loader.clone());
@@ -31,7 +31,7 @@ pub mod method_type {
 
 pub mod method_handle {
     use crate::java_values::{JavaValue, Object};
-    use crate::{InterpreterState, StackEntry};
+    use crate::{JVMState, StackEntry};
     use std::rc::Rc;
     use crate::java::lang::string::JString;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
@@ -52,12 +52,12 @@ pub mod method_handle {
     }
 
     impl MethodHandle {
-        pub fn lookup(state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Lookup {
+        pub fn lookup(state: &mut JVMState, frame: &Rc<StackEntry>) -> Lookup {
             let method_handles_class = check_inited_class(state, &ClassName::method_handles(), frame.clone().into(), frame.class_pointer.loader.clone());
             run_static_or_virtual(state, frame, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             frame.pop().cast_lookup()
         }
-        pub fn public_lookup(state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Lookup {
+        pub fn public_lookup(state: &mut JVMState, frame: &Rc<StackEntry>) -> Lookup {
             let method_handles_class = check_inited_class(state, &ClassName::method_handles(), frame.clone().into(), frame.class_pointer.loader.clone());
             run_static_or_virtual(state, frame, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             frame.pop().cast_lookup()
@@ -78,7 +78,7 @@ pub mod method_handle {
     }
 
     impl Lookup {
-        pub fn find_virtual(&self,state: &mut InterpreterState, frame: &Rc<StackEntry>, obj: JClass, name: JString, mt: MethodType) -> MethodHandle{
+        pub fn find_virtual(&self, state: &mut JVMState, frame: &Rc<StackEntry>, obj: JClass, name: JString, mt: MethodType) -> MethodHandle{
             let lookup_class = check_inited_class(state,&ClassName::lookup(), frame.clone().into(),frame.class_pointer.loader.clone());
             frame.push(self.clone().java_value());
             frame.push(obj.java_value());

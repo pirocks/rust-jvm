@@ -6,9 +6,9 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 use crate::instructions::invoke::virtual_::{setup_virtual_args, invoke_virtual_method_i};
 use crate::instructions::invoke::find_target_method;
 use classfile_view::view::ClassView;
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 
-pub fn invoke_interface(state: &mut InterpreterState, current_frame: Rc<StackEntry>, invoke_interface: InvokeInterface) {
+pub fn invoke_interface(state: &mut JVMState, current_frame: Rc<StackEntry>, invoke_interface: InvokeInterface) {
     invoke_interface.count;
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;

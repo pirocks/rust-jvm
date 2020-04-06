@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::interpreter_util::check_inited_class;
 use classfile_view::view::ptype_view::ReferenceTypeView;
 use crate::runtime_class::RuntimeClass;
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 use crate::java_values::NormalObject;
 
 pub struct FieldID {
@@ -14,13 +14,13 @@ pub struct FieldID {
 }
 
 
-pub unsafe fn runtime_class_from_object(cls: jclass, state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Option<Arc<RuntimeClass>> {
+pub unsafe fn runtime_class_from_object(cls: jclass, state: &mut JVMState, frame: &Rc<StackEntry>) -> Option<Arc<RuntimeClass>> {
     let object_non_null = from_object(cls).unwrap().clone();
     let runtime_class = class_object_to_runtime_class(object_non_null.unwrap_normal_object(), state, frame);
     runtime_class.clone()
 }
 
-pub fn class_object_to_runtime_class(obj: &NormalObject, state: &mut InterpreterState, frame: &Rc<StackEntry>) -> Option<Arc<RuntimeClass>> {
+pub fn class_object_to_runtime_class(obj: &NormalObject, state: &mut JVMState, frame: &Rc<StackEntry>) -> Option<Arc<RuntimeClass>> {
     if obj.class_object_to_ptype().is_primitive() {
         return None;
     }

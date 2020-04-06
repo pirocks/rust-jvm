@@ -4,7 +4,7 @@ use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
 use std::ops::Deref;
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 use std::ffi::CString;
 use crate::invoke_interface::get_invoke_interface;
 use crate::jvmti::version::get_version_number;
@@ -14,6 +14,7 @@ use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities};
 use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
 use std::sync::Arc;
 use std::cell::RefCell;
+use crate::rust_jni::interface::get_interface;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -23,6 +24,16 @@ pub struct SharedLibJVMTI {
     vm_death_enabled: RefCell<bool>,
     exception_callback: RefCell<jvmtiEventException>,
     exception_enabled: RefCell<bool>
+}
+
+impl SharedLibJVMTI{
+    pub fn vm_inited(&self, state: &mut JVMState, frame: Rc<StackEntry>){
+        unsafe {
+            let mut interface = get_interface(state, frame.clone());
+            let mut jvmti_interface = get_jvmti_interface(state, frame.clone());
+            let mut casted_jni = (&interface as *const jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_);
+            self.VMInit(&mut jvmti_interface, &mut casted_jni, std::ptr::null_mut())}
+    }
 }
 
 pub trait DebuggerEventConsumer {
@@ -88,7 +99,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 }
 
 impl SharedLibJVMTI {
-    pub fn agent_load(&self, state: &mut InterpreterState, frame: Rc<StackEntry>) -> jvmtiError {
+    pub fn agent_load(&self, state: &mut JVMState, frame: Rc<StackEntry>) -> jvmtiError {
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
@@ -111,11 +122,11 @@ pub fn load_libjdwp(jdwp_path: &str) -> SharedLibJVMTI {
     }
 }
 
-pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterState {
+pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l mut JVMState {
     transmute((**env).reserved1)
 }
 
-pub fn get_jvmti_interface(state: &mut InterpreterState, frame: Rc<StackEntry>) -> jvmtiEnv {
+pub fn get_jvmti_interface(state: &mut JVMState, frame: Rc<StackEntry>) -> jvmtiEnv {
     Box::leak(jvmtiInterface_1_ {
         reserved1: unsafe { transmute(state) },
         SetEventNotificationMode: Some(set_event_notification_mode),
@@ -150,7 +161,7 @@ pub fn get_jvmti_interface(state: &mut InterpreterState, frame: Rc<StackEntry>) 
         SetLocalLong: None,
         SetLocalFloat: None,
         SetLocalDouble: None,
-        CreateRawMonitor: None,
+        CreateRawMonitor: Some(),
         DestroyRawMonitor: None,
         RawMonitorEnter: None,
         RawMonitorExit: None,

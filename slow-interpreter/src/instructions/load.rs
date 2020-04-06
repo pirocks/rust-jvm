@@ -2,7 +2,7 @@ use std::rc::Rc;
 use crate::interpreter_util::{check_inited_class, run_constructor, push_new_object};
 use rust_jvm_common::classnames::ClassName;
 use crate::java_values::JavaValue;
-use crate::{StackEntry, InterpreterState};
+use crate::{StackEntry, JVMState};
 
 pub fn aload(current_frame: &Rc<StackEntry>, n: usize) -> () {
     let ref_ = current_frame.local_vars.borrow()[n].clone();
@@ -87,7 +87,7 @@ pub fn aaload(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) {
+fn throw_array_out_of_bounds(state: &mut JVMState, current_frame: &Rc<StackEntry>) {
     let bounds_class = check_inited_class(state, &ClassName::new("java/lang/ArrayIndexOutOfBoundsException"), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
     push_new_object(state,current_frame.clone(),&bounds_class);
     let obj = current_frame.pop();
@@ -95,7 +95,7 @@ fn throw_array_out_of_bounds(state: &mut InterpreterState, current_frame: &Rc<St
     state.throw = obj.unwrap_object().into();
 }
 
-pub fn caload(state: &mut InterpreterState, current_frame: &Rc<StackEntry>) -> () {
+pub fn caload(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::{get_or_create_class_object, InterpreterState, StackEntry};
+use crate::{get_or_create_class_object, JVMState, StackEntry};
 use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
 use std::rc::Rc;
 use std::ops::Deref;
@@ -29,8 +29,8 @@ pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<StackEntry> {
     res.clone()
 }
 
-pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterState {
-    &mut (*((**env).reserved0 as *mut InterpreterState))
+pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut JVMState {
+    &mut (*((**env).reserved0 as *mut JVMState))
 }
 
 pub unsafe extern "C" fn to_object(obj: Option<Arc<Object>>) -> jobject {

@@ -6,9 +6,9 @@ use std::sync::Arc;
 use std::cell::RefCell;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 
-pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usize) -> () {
+pub fn new(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
     let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
     let class_name_index = match &constant_pool[cp as usize].kind {
@@ -22,7 +22,7 @@ pub fn new(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: usi
 }
 
 
-pub fn anewarray(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp: u16) -> () {
+pub fn anewarray(state: &mut JVMState, current_frame: Rc<StackEntry>, cp: u16) -> () {
     let len = match current_frame.pop() {
         JavaValue::Int(i) => i,
         _ => panic!()
@@ -41,7 +41,7 @@ pub fn anewarray(state: &mut InterpreterState, current_frame: Rc<StackEntry>, cp
     }
 }
 
-pub fn a_new_array_from_name(state: &mut InterpreterState, current_frame: Rc<StackEntry>, len: i32, name: &ClassName) -> () {
+pub fn a_new_array_from_name(state: &mut JVMState, current_frame: Rc<StackEntry>, len: i32, name: &ClassName) -> () {
     check_inited_class(state, &name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
     let t = PTypeView::Ref(ReferenceTypeView::Class(name.clone()));
     current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(len as usize, JavaValue::Object(None), t).unwrap()).into()))
@@ -83,7 +83,7 @@ pub fn newarray(current_frame: &Rc<StackEntry>, a_type: Atype) -> () {
 }
 
 
-pub fn multi_a_new_array(state: &mut InterpreterState, current_frame: &Rc<StackEntry>, cp: MultiNewArray) -> () {
+pub fn multi_a_new_array(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: MultiNewArray) -> () {
     let dims = cp.dims;
     let temp = current_frame.class_pointer.class_view.constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class();

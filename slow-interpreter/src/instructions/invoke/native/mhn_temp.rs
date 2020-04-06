@@ -12,7 +12,7 @@ use crate::rust_jni::{get_all_methods, get_all_fields};
 use crate::utils::string_obj_to_string;
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::classfile::{REF_invokeVirtual, REF_invokeStatic, REF_invokeInterface, ACC_STATIC};
-use crate::{get_or_create_class_object, InterpreterState, StackEntry};
+use crate::{get_or_create_class_object, JVMState, StackEntry};
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use std::ops::Deref;
@@ -21,7 +21,7 @@ use crate::java_values::Object::{Object, Array};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
-pub fn MHN_resolve(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_resolve(state: &mut JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
 //so as far as I can find this is undocumented.
 //so as far as I can figure out we have a method name and a class
@@ -170,7 +170,7 @@ pub const IS_FIELD_OR_METHOD: i32 = 327680;
 pub const SEARCH_ALL_SUPERS: i32 = 3145728;
 pub const REFERENCE_KIND_SHIFT: u32 = 24;
 
-pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_init(state: &mut JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
     // init(MemberName mname, Object target);
     let mname = args[0].unwrap_normal_object();
@@ -222,7 +222,7 @@ pub fn MHN_init(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut
     None//this is a void method.
 }
 
-pub fn create_method_type(state: &mut InterpreterState, frame : &Rc<StackEntry>, signature : &String) {
+pub fn create_method_type(state: &mut JVMState, frame : &Rc<StackEntry>, signature : &String) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
     let loader_arc = frame.class_pointer.loader.clone();
@@ -252,7 +252,7 @@ pub fn create_method_type(state: &mut InterpreterState, frame : &Rc<StackEntry>,
 
 
 //todo this should go in some sort of utils
-pub fn run_static_or_virtual(state:&mut InterpreterState, frame: &Rc<StackEntry>, class: &Arc<RuntimeClass>,method_name: String, desc_str: String ){
+pub fn run_static_or_virtual(state:&mut JVMState, frame: &Rc<StackEntry>, class: &Arc<RuntimeClass>, method_name: String, desc_str: String ){
     let res_fun = class.classfile.lookup_method(method_name,desc_str);//todo move this into classview
     let (i,m) = res_fun.unwrap();
     let md = MethodDescriptor::from_legacy(m, class.classfile.deref());

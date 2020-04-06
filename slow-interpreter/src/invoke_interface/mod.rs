@@ -1,12 +1,12 @@
 use jvmti_bindings::{JNIInvokeInterface_, JavaVM, jint, JVMTI_VERSION_1_0, jvmtiEnv};
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 use std::rc::Rc;
 use jni_bindings::JNI_OK;
 use std::intrinsics::transmute;
 use std::ffi::c_void;
 use crate::jvmti::get_jvmti_interface;
 
-pub fn get_invoke_interface(state: &mut InterpreterState, frame: Rc<StackEntry>) -> JNIInvokeInterface_ {
+pub fn get_invoke_interface(state: &mut JVMState, frame: Rc<StackEntry>) -> JNIInvokeInterface_ {
     JNIInvokeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: Box::into_raw(Box::new(frame)) as *mut c_void,
@@ -19,7 +19,7 @@ pub fn get_invoke_interface(state: &mut InterpreterState, frame: Rc<StackEntry>)
     }
 }
 
-pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l mut InterpreterState {
+pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l mut JVMState {
     transmute((**vm).reserved0)
 }
 

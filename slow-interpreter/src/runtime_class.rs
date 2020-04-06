@@ -9,7 +9,7 @@ use classfile_view::view::ClassView;
 use classfile_view::loading::LoaderArc;
 use crate::interpreter_util::run_function;
 use std::rc::Rc;
-use crate::{StackEntry, InterpreterState};
+use crate::{StackEntry, JVMState};
 use crate::instructions::ldc::from_constant_pool_entry;
 use descriptor_parser::parse_field_descriptor;
 use classfile_view::view::ptype_view::PTypeView;
@@ -66,7 +66,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
 
 pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
-    state: &mut InterpreterState,
+    state: &mut JVMState,
     stack: Option<Rc<StackEntry>>
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first

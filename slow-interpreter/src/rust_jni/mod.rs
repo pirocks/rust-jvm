@@ -32,7 +32,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::{JavaValue, Object};
-use crate::{InterpreterState, StackEntry, LibJavaLoading};
+use crate::{JVMState, StackEntry, LibJavaLoading};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 
@@ -54,7 +54,7 @@ pub fn new_java_loading(path: String) -> LibJavaLoading {
 
 
 pub fn call(
-    state: &mut InterpreterState,
+    state: &mut JVMState,
     current_frame: Rc<StackEntry>,
     classfile: Arc<RuntimeClass>,
     method_i: usize,
@@ -81,7 +81,7 @@ pub fn call(
     }
 }
 
-pub fn call_impl(state: &mut InterpreterState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, debug: bool) -> Option<JavaValue> {
+pub fn call_impl(state: &mut JVMState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, debug: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
@@ -240,7 +240,7 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
-pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_methods(state: &mut JVMState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     // dbg!(&class.class_view.name());
     class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
@@ -263,7 +263,7 @@ pub fn get_all_methods(state: &mut InterpreterState, frame: Rc<StackEntry>, clas
 }
 
 //todo duplication with methods
-pub fn get_all_fields(state: &mut InterpreterState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_fields(state: &mut JVMState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     class.classfile.fields.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));

@@ -12,10 +12,10 @@ use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::exception::*;
 use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::array::*;
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 
 //GetFieldID
-pub fn get_interface(state: &mut InterpreterState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
+pub fn get_interface(state: &mut JVMState, frame: Rc<StackEntry>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: {

@@ -8,7 +8,7 @@ use crate::utils::string_obj_to_string;
 use std::rc::Rc;
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 
 
 pub fn compare_and_swap_long(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
@@ -98,7 +98,7 @@ pub fn get_int_volatile(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 }
 
 pub fn object_field_offset(
-    state:&mut InterpreterState,
+    state:&mut JVMState,
     frame: &Rc<StackEntry>,
     args: &mut Vec<JavaValue>
 ) -> Option<JavaValue> {
@@ -121,7 +121,7 @@ pub fn object_field_offset(
 }
 
 
-pub fn shouldBeInitialized(state: &mut InterpreterState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn shouldBeInitialized(state: &mut JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let class_name_to_check = args[1].unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().unwrap_type_to_name().unwrap();
     JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some()).into()
 }

@@ -12,7 +12,7 @@ use verification::{verify, VerifierContext};
 use classfile_view::view::ClassView;
 use crate::instructions::ldc::load_class_constant_by_type;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::{Object, JavaValue};
 use std::fs::File;
@@ -23,7 +23,7 @@ use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;
 
 pub fn run_native_method(
-    state: &mut InterpreterState,
+    state: &mut JVMState,
     frame: Rc<StackEntry>,
     class: Arc<RuntimeClass>,
     method_i: usize,
@@ -175,7 +175,7 @@ pub fn run_native_method(
     // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
-fn patch_all(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
+fn patch_all(state: &mut JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| {
@@ -196,7 +196,7 @@ fn patch_all(state: &mut InterpreterState, frame: &Rc<StackEntry>, args: &mut Ve
 
 fn patch_single(
     patch: &Arc<Object>,
-    state: &mut InterpreterState,
+    state: &mut JVMState,
     frame: &Rc<StackEntry>,
     unpatched: &mut Classfile,
     i: usize,

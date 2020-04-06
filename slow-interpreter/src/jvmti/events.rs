@@ -26,6 +26,14 @@ pub unsafe extern "C" fn set_event_notification_mode(
             }
             jvmtiError_JVMTI_ERROR_NONE
         }
+        58 => {//jvmtiEvent_JVMTI_EVENT_EXCEPTION
+            match mode {
+                0 => jdwp_copy.deref().Exception_disable(),
+                1 => jdwp_copy.deref().Exception_enable(),
+                _ => unimplemented!()
+            }
+            jvmtiError_JVMTI_ERROR_NONE
+        }
         _ => {
             dbg!(event_type);
             unimplemented!();
@@ -34,6 +42,7 @@ pub unsafe extern "C" fn set_event_notification_mode(
 }
 
 
+#[allow(non_snake_case)]
 pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *const jvmtiEventCallbacks, size_of_callbacks: jint) -> jvmtiError {
     let state = get_state(env);
     let mut callback_copy = jvmtiEventCallbacks{
@@ -191,15 +200,6 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         unimplemented!()
     }
     if MonitorContendedEntered.is_some(){
-        unimplemented!()
-    }
-    if reserved77.is_some(){
-        unimplemented!()
-    }
-    if reserved78.is_some(){
-        unimplemented!()
-    }
-    if reserved79.is_some(){
         unimplemented!()
     }
     if ResourceExhausted.is_some(){

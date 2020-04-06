@@ -1,4 +1,4 @@
-use crate::{InterpreterState, StackEntry};
+use crate::{JVMState, StackEntry};
 use classfile_parser::code::CodeParserContext;
 use classfile_parser::code::parse_instruction;
 use rust_jvm_common::classfile::{InstructionInfo, ACC_STATIC, Classfile};
@@ -37,7 +37,7 @@ use classfile_view::view::ptype_view::PTypeView;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
-    state: &mut InterpreterState,
+    state: &mut JVMState,
     class_name: &ClassName,
     current_frame: Option<Rc<StackEntry>>,
     loader_arc: LoaderArc,
@@ -85,7 +85,7 @@ pub fn check_inited_class(
 
 
 pub fn run_function(
-    state: &mut InterpreterState,
+    state: &mut JVMState,
     current_frame: Rc<StackEntry>,
 ) {
     let methods = &current_frame.class_pointer.classfile.methods;
@@ -391,7 +391,7 @@ pub fn run_function(
 }
 
 
-pub fn push_new_object(state: &mut InterpreterState,current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {
+pub fn push_new_object(state: &mut JVMState, current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader.clone();
     let object_pointer = JavaValue::new_object(target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
@@ -399,7 +399,7 @@ pub fn push_new_object(state: &mut InterpreterState,current_frame: Rc<StackEntry
     current_frame.push(new_obj);
 }
 
-fn default_init_fields(state: &mut InterpreterState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
+fn default_init_fields(state: &mut JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
     if classfile.super_class != 0 {
         let super_name = classfile.super_class_name();
         let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(),state.get_live_object_pool_getter()).unwrap();
@@ -424,7 +424,7 @@ fn default_init_fields(state: &mut InterpreterState, loader_arc: LoaderArc, obje
     }
 }
 
-pub fn run_constructor(state: &mut InterpreterState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
+pub fn run_constructor(state: &mut JVMState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
     let (i, m) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
     let md = parse_method_descriptor(descriptor.as_str()).unwrap();
     let this_ptr = full_args[0].clone();
