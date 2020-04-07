@@ -32,7 +32,7 @@ pub mod dynamic {
     use crate::java::lang::string::JString;
     use crate::java::lang::invoke::method_handle::MethodHandle;
 
-    pub fn invoke_dynamic(state: &mut JVMState, frame: Rc<StackEntry>, cp: u16) {
+    pub fn invoke_dynamic(state: & JVMState, frame: Rc<StackEntry>, cp: u16) {
         let method_handle_class = check_inited_class(
             state,
             &ClassName::method_handle(),
@@ -113,7 +113,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(state: &mut JVMState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+fn resolved_class(state: & JVMState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(classfile.clone()));
@@ -142,7 +142,7 @@ fn resolved_class(state: &mut JVMState, current_frame: Rc<StackEntry>, cp: u16) 
 }
 
 pub fn find_target_method(
-    state: &mut JVMState,
+    state: & JVMState,
     loader_arc: LoaderArc,
     expected_method_name: String,
     parsed_descriptor: &MethodDescriptor,

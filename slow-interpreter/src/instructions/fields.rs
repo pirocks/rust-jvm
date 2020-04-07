@@ -8,7 +8,7 @@ use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry};
 
 
-pub fn putstatic(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
+pub fn putstatic(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
@@ -18,7 +18,7 @@ pub fn putstatic(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16) 
     target_classfile.static_vars.borrow_mut().insert(field_name, field_value);
 }
 
-pub fn putfield(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
+pub fn putfield(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
@@ -39,7 +39,7 @@ pub fn putfield(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16) -
     }
 }
 
-pub fn get_static(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
+pub fn get_static(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     //todo make sure class pointer is updated correctly
 
     let classfile = &current_frame.class_pointer.classfile;
@@ -52,7 +52,7 @@ pub fn get_static(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16)
     get_static_impl(state, current_frame, cp,  loader_arc, &field_class_name, &field_name);
 }
 
-fn get_static_impl(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &String) {
+fn get_static_impl(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &String) {
     let target_classfile = check_inited_class(state, &field_class_name, current_frame.clone().into(), loader_arc.clone());
 //    current_frame.print_stack_trace();
     let temp = target_classfile.static_vars.borrow();

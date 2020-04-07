@@ -8,7 +8,7 @@ use crate::instructions::invoke::find_target_method;
 use classfile_view::view::ClassView;
 use crate::{JVMState, StackEntry};
 
-pub fn invoke_interface(state: &mut JVMState, current_frame: Rc<StackEntry>, invoke_interface: InvokeInterface) {
+pub fn invoke_interface(state: & JVMState, current_frame: Rc<StackEntry>, invoke_interface: InvokeInterface) {
     invoke_interface.count;
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;

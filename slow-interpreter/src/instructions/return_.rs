@@ -2,7 +2,7 @@ use std::rc::Rc;
 use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry};
 
-pub fn freturn(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
+pub fn freturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
     state.function_return = true;
     match res {
@@ -12,7 +12,7 @@ pub fn freturn(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
     current_frame.last_call_stack.as_ref().unwrap().push(res);
 }
 
-pub fn dreturn(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
+pub fn dreturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
     state.function_return = true;
     match res {
@@ -23,19 +23,19 @@ pub fn dreturn(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
 }
 
 
-pub fn areturn(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
+pub fn areturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
     state.function_return = true;
     current_frame.last_call_stack.as_ref().unwrap().push(res);
 }
 
 
-pub fn return_(state: &mut JVMState) {
+pub fn return_(state: & JVMState) {
     state.function_return = true;
 }
 
 
-pub fn ireturn(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
+pub fn ireturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
     state.function_return = true;
     match res {
@@ -50,7 +50,7 @@ pub fn ireturn(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
 }
 
 
-pub fn lreturn(state: &mut JVMState, current_frame: &Rc<StackEntry>) -> () {
+pub fn lreturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
     state.function_return = true;
     match res {

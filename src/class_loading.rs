@@ -23,7 +23,7 @@
 //use rust_jvm_common::utils::get_super_class_name;
 
 //
-//pub fn load_class(jvm_state: &mut JVMState, loader: LoaderArc, to_load: ClassEntry, only_verify: bool) {
+//pub fn load_class(jvm_state: & JVMState, loader: LoaderArc, to_load: ClassEntry, only_verify: bool) {
 //    trace!("Starting loading for {}", &to_load);
 //    if jvm_state.using_bootstrap_loader {
 //        bootstrap_load(jvm_state, loader, &to_load, only_verify);
@@ -32,11 +32,11 @@
 //    }
 //}
 //
-//fn bootstrap_load(jvm_state: &mut JVMState, loader: LoaderArc, to_load: &ClassEntry, only_verify: bool) {
+//fn bootstrap_load(jvm_state: & JVMState, loader: LoaderArc, to_load: &ClassEntry, only_verify: bool) {
 //    bootstrap_load_impl(jvm_state, loader, to_load, only_verify, &mut HashMap::new());
 //}
 //
-//fn bootstrap_load_impl(jvm_state: &mut JVMState, loader: LoaderArc, to_load: &ClassEntry, only_verify: bool, loading: &mut HashMap<ClassEntry, Arc<Classfile>>) {
+//fn bootstrap_load_impl(jvm_state: & JVMState, loader: LoaderArc, to_load: &ClassEntry, only_verify: bool, loading: &mut HashMap<ClassEntry, Arc<Classfile>>) {
 //    if jvm_state.loaders[&BOOTSTRAP_LOADER_NAME.to_string()].loaded.read().unwrap().contains_key(&to_load) ||
 //        loading.contains_key(to_load) {
 //        //so technically here we would need to throw a linkage error or similar
@@ -111,7 +111,7 @@
 ////    panic!();
 ////}
 //
-////fn load_verified_class(classes: &mut JVMState, loader: &mut Loader, class: Arc<Classfile>) {
+////fn load_verified_class(classes: & JVMState, loader: &mut Loader, class: Arc<Classfile>) {
 ////    let entry = class_entry(&class);
 ////    let after_obtaining_clinit: fn(&MethodInfo) -> () = |m| { unimplemented!()/*run_static_method_no_args(&class, m)*/ };
 ////    clinit(&class, &after_obtaining_clinit);

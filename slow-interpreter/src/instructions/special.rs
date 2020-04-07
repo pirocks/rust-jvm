@@ -19,7 +19,7 @@ pub fn arraylength(current_frame: &Rc<StackEntry>) -> () {
 }
 
 
-pub fn invoke_checkcast(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16) {
+pub fn invoke_checkcast(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Object(possibly_null));
@@ -68,7 +68,7 @@ pub fn invoke_checkcast(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp
 }
 
 
-pub fn invoke_instanceof(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16) {
+pub fn invoke_instanceof(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Int(0));
@@ -113,7 +113,7 @@ pub fn invoke_instanceof(state: &mut JVMState, current_frame: &Rc<StackEntry>, c
     }
 }
 
-fn runtime_super_class(state: &mut JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
+fn runtime_super_class(state: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.classfile.has_super_class() {
         Some(check_inited_class(state, &inherits.classfile.super_class_name().unwrap(), None, inherits.loader.clone()))
     } else {
@@ -122,13 +122,13 @@ fn runtime_super_class(state: &mut JVMState, inherits: &Arc<RuntimeClass>) -> Op
 }
 
 
-fn runtime_interface_class(state: &mut JVMState, class_: &Arc<RuntimeClass>, i: Interface) -> Arc<RuntimeClass> {
+fn runtime_interface_class(state: & JVMState, class_: &Arc<RuntimeClass>, i: Interface) -> Arc<RuntimeClass> {
     let intf_name = class_.classfile.extract_class_from_constant_pool_name(i);
     check_inited_class(state, &ClassName::Str(intf_name), None, class_.loader.clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from(state: &mut JVMState, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
+pub fn inherits_from(state: & JVMState, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
     if class_name(&inherits.classfile) == class_name(&parent.classfile){
         return true;
     }

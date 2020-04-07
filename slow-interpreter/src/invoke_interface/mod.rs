@@ -6,7 +6,7 @@ use std::intrinsics::transmute;
 use std::ffi::c_void;
 use crate::jvmti::get_jvmti_interface;
 
-pub fn get_invoke_interface(state: &mut JVMState, frame: Rc<StackEntry>) -> JNIInvokeInterface_ {
+pub fn get_invoke_interface(state: & JVMState, frame: Rc<StackEntry>) -> JNIInvokeInterface_ {
     JNIInvokeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: Box::into_raw(Box::new(frame)) as *mut c_void,
@@ -19,7 +19,7 @@ pub fn get_invoke_interface(state: &mut JVMState, frame: Rc<StackEntry>) -> JNII
     }
 }
 
-pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l mut JVMState {
+pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState<'l> {
     transmute((**vm).reserved0)
 }
 

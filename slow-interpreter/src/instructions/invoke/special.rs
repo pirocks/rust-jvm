@@ -13,7 +13,7 @@ use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 
-pub fn invoke_special(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
+pub fn invoke_special(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(current_frame.class_pointer.classfile.clone()));
     let method_class_name = method_class_type.unwrap_class_type();
@@ -28,7 +28,7 @@ pub fn invoke_special(state: &mut JVMState, current_frame: &Rc<StackEntry>, cp: 
 }
 
 pub fn invoke_special_impl(
-    state: &mut JVMState,
+    state: & JVMState,
     current_frame: &Rc<StackEntry>,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,

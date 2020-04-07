@@ -1,10 +1,11 @@
 use std::sync::Arc;
-use crate::{get_or_create_class_object, JVMState, StackEntry};
+use crate::{JVMState, StackEntry};
 use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
 use std::rc::Rc;
 use std::ops::Deref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::Object;
+use crate::class_objects::get_or_create_class_object;
 
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
@@ -29,8 +30,8 @@ pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<StackEntry> {
     res.clone()
 }
 
-pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l mut JVMState {
-    &mut (*((**env).reserved0 as *mut JVMState))
+pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l JVMState<'l> {
+    &(*((**env).reserved0 as *const JVMState))
 }
 
 pub unsafe extern "C" fn to_object(obj: Option<Arc<Object>>) -> jobject {

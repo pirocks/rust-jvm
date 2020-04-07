@@ -10,7 +10,7 @@ use slow_interpreter::utils::string_obj_to_string;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::rust_jni::native_util::from_object;
 
-pub fn ptype_to_class_object(state: &mut JVMState, frame: &Rc<StackEntry>, ptype: &PType) -> Option<Arc<Object>> {
+pub fn ptype_to_class_object(state: & JVMState, frame: &Rc<StackEntry>, ptype: &PType) -> Option<Arc<Object>> {
     // dbg!(ptype);
     load_class_constant_by_type(state, frame, &PTypeView::from_ptype(ptype));
     let res = frame.pop().unwrap_object();

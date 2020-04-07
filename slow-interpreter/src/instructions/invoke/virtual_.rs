@@ -19,7 +19,7 @@ use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
-pub fn invoke_virtual_instruction(state: &mut JVMState, current_frame: Rc<StackEntry>, cp: u16, debug: bool) {
+pub fn invoke_virtual_instruction(state: & JVMState, current_frame: Rc<StackEntry>, cp: u16, debug: bool) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, current_frame.clone(), cp) {
         None => return,
         Some(o) => { o }
@@ -27,12 +27,12 @@ pub fn invoke_virtual_instruction(state: &mut JVMState, current_frame: Rc<StackE
     invoke_virtual(state, current_frame, &method_name, &expected_descriptor,debug)
 }
 
-pub fn invoke_virtual_method_i(state: &mut JVMState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo, debug: bool) -> () {
+pub fn invoke_virtual_method_i(state: & JVMState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo, debug: bool) -> () {
     invoke_virtual_method_i_impl(state, current_frame.clone(), expected_descriptor, target_class, target_method_i, target_method, debug)
 }
 
 fn invoke_virtual_method_i_impl(
-    state: &mut JVMState,
+    state: & JVMState,
     current_frame: Rc<StackEntry>,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
@@ -96,14 +96,14 @@ pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &
 }
 
 
-pub fn invoke_virtual_unparsed(state: &mut JVMState, current_frame: Rc<StackEntry>, method_name: &String, desc: &String, debug: bool) -> () {
+pub fn invoke_virtual_unparsed(state: & JVMState, current_frame: Rc<StackEntry>, method_name: &String, desc: &String, debug: bool) -> () {
     invoke_virtual(state, current_frame, method_name, &parse_method_descriptor(desc).unwrap(), debug)
 }
 
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(state: &mut JVMState, current_frame: Rc<StackEntry>, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
+pub fn invoke_virtual(state: & JVMState, current_frame: Rc<StackEntry>, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -137,7 +137,7 @@ pub fn invoke_virtual(state: &mut JVMState, current_frame: Rc<StackEntry>, metho
     invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), new_i, target_method, debug)
 }
 
-pub fn virtual_method_lookup(state: &mut JVMState, current_frame: &Rc<StackEntry>, method_name: &String, md: &MethodDescriptor, c: Arc<RuntimeClass>) -> (Arc<RuntimeClass>, usize) {
+pub fn virtual_method_lookup(state: & JVMState, current_frame: &Rc<StackEntry>, method_name: &String, md: &MethodDescriptor, c: Arc<RuntimeClass>) -> (Arc<RuntimeClass>, usize) {
     let all_methods = get_all_methods(state, current_frame.clone(), c.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let method_view = c.class_view.method_view_i(*i);

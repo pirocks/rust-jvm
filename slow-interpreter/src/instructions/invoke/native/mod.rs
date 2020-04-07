@@ -23,7 +23,7 @@ use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;
 
 pub fn run_native_method(
-    state: &mut JVMState,
+    state: & JVMState,
     frame: Rc<StackEntry>,
     class: Arc<RuntimeClass>,
     method_i: usize,
@@ -175,7 +175,7 @@ pub fn run_native_method(
     // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
-fn patch_all(state: &mut JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
+fn patch_all(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| {
@@ -196,7 +196,7 @@ fn patch_all(state: &mut JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaVa
 
 fn patch_single(
     patch: &Arc<Object>,
-    state: &mut JVMState,
+    state: & JVMState,
     frame: &Rc<StackEntry>,
     unpatched: &mut Classfile,
     i: usize,

@@ -95,12 +95,12 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     to_object(res)
 }
 
-fn get_signature(state: &mut JVMState, frame: &Rc<StackEntry>, method_view: MethodView) -> JavaValue {
+fn get_signature(state: & JVMState, frame: &Rc<StackEntry>, method_view: MethodView) -> JavaValue {
     create_string_on_stack(state, &frame, method_view.desc_str());
     frame.pop()
 }
 
-fn exception_types_table(state: &mut JVMState, frame: &Rc<StackEntry>, method_view: &MethodView) -> JavaValue {
+fn exception_types_table(state: & JVMState, frame: &Rc<StackEntry>, method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let exception_table: Vec<JavaValue> = method_view.code_attribute()
         .map(|x|&x.exception_table)
@@ -122,7 +122,7 @@ fn exception_types_table(state: &mut JVMState, frame: &Rc<StackEntry>, method_vi
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(exception_table), elem_type: class_type.clone() }))))
 }
 
-fn parameters_type_objects(state: &mut JVMState, frame: &Rc<StackEntry>, method_view: &MethodView) -> JavaValue {
+fn parameters_type_objects(state: & JVMState, frame: &Rc<StackEntry>, method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let mut res = vec![];
     let parsed = method_view.desc();

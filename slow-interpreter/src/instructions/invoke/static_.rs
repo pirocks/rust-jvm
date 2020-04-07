@@ -12,7 +12,7 @@ use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 
-pub fn run_invoke_static(state: &mut JVMState, current_frame: Rc<StackEntry>, cp: u16) {
+pub fn run_invoke_static(state: & JVMState, current_frame: Rc<StackEntry>, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let classfile = &current_frame.class_pointer.classfile;
@@ -26,7 +26,7 @@ pub fn run_invoke_static(state: &mut JVMState, current_frame: Rc<StackEntry>, cp
 }
 
 pub fn invoke_static_impl(
-    state: &mut JVMState,
+    state: & JVMState,
     current_frame: Rc<StackEntry>,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,

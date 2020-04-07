@@ -66,7 +66,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
 
 pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
-    state: &mut JVMState,
+    state: & JVMState,
     stack: Option<Rc<StackEntry>>
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first

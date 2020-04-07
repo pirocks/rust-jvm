@@ -4,7 +4,7 @@ use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
 use std::ops::Deref;
-use crate::{JVMState, StackEntry};
+use crate::{JVMState, StackEntry, JavaThread};
 use std::ffi::CString;
 use crate::invoke_interface::get_invoke_interface;
 use crate::jvmti::version::get_version_number;
@@ -27,9 +27,9 @@ pub struct SharedLibJVMTI {
 }
 
 impl SharedLibJVMTI{
-    pub fn vm_inited(&self, state: &mut JVMState, frame: Rc<StackEntry>){
+    pub fn vm_inited(&self, state: & JVMState, frame: Rc<StackEntry>){
         unsafe {
-            let mut interface = get_interface(state, frame.clone());
+            let mut interface = get_interface(state);
             let mut jvmti_interface = get_jvmti_interface(state, frame.clone());
             let mut casted_jni = &interface as *const jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_;
             self.VMInit(&mut jvmti_interface, &mut casted_jni, std::ptr::null_mut())}
@@ -99,35 +99,42 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 }
 
 impl SharedLibJVMTI {
-    pub fn agent_load(&self, state: &mut JVMState, frame: Rc<StackEntry>) -> jvmtiError {
+    pub fn agent_load(&self, thread: &JavaThread) -> jvmtiError {
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
             let args = CString::new("transport=dt_socket,server=y,suspend=n,address=5005").unwrap().into_raw();//todo parse these at jvm startup
-            let interface: JNIInvokeInterface_ = get_invoke_interface(state, frame);
+            let interface: JNIInvokeInterface_ = get_invoke_interface(unimplemented!(),unimplemented!());
             agent_load_fn_ptr(&mut (&interface as *const JNIInvokeInterface_) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError
         }
     }
 }
 
-pub fn load_libjdwp(jdwp_path: &str) -> SharedLibJVMTI {
-    SharedLibJVMTI {
-        lib: Arc::new(Library::new(jdwp_path).unwrap()),
-        vm_init_callback: RefCell::new(None),
-        vm_init_enabled: RefCell::new(false),
-        vm_death_callback: RefCell::new(None),
-        vm_death_enabled: RefCell::new(false),
-        exception_callback: RefCell::new(None),
-        exception_enabled: RefCell::new(false)
+impl SharedLibJVMTI {
+    pub fn load_libjdwp(jdwp_path: &str) -> SharedLibJVMTI {
+        SharedLibJVMTI {
+            lib: Arc::new(Library::new(jdwp_path).unwrap()),
+            vm_init_callback: RefCell::new(None),
+            vm_init_enabled: RefCell::new(false),
+            vm_death_callback: RefCell::new(None),
+            vm_death_enabled: RefCell::new(false),
+            exception_callback: RefCell::new(None),
+            exception_enabled: RefCell::new(false)
+        }
     }
 }
 
-pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l mut JVMState {
+pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l JVMState<'l> {
     transmute((**env).reserved1)
 }
 
-pub fn get_jvmti_interface(state: &mut JVMState, frame: Rc<StackEntry>) -> jvmtiEnv {
-    Box::leak(jvmtiInterface_1_ {
+thread_local! {
+    static JVMTI_Interface: RefCell<Option<JNINativeInterface_>> = RefCell::new(None);
+}
+
+
+pub fn get_jvmti_interface(state: & JVMState, thread: JavaThread) -> jvmtiEnv {
+    jvmtiInterface_1_ {
         reserved1: unsafe { transmute(state) },
         SetEventNotificationMode: Some(set_event_notification_mode),
         reserved3: {
@@ -161,7 +168,7 @@ pub fn get_jvmti_interface(state: &mut JVMState, frame: Rc<StackEntry>) -> jvmti
         SetLocalLong: None,
         SetLocalFloat: None,
         SetLocalDouble: None,
-        CreateRawMonitor: Some(),
+        CreateRawMonitor: None,
         DestroyRawMonitor: None,
         RawMonitorEnter: None,
         RawMonitorExit: None,
@@ -286,7 +293,7 @@ pub fn get_jvmti_interface(state: &mut JVMState, frame: Rc<StackEntry>) -> jvmti
         GetOwnedMonitorStackDepthInfo: None,
         GetObjectSize: None,
         GetLocalInstance: None,
-    }.into()) as jvmtiEnv
+    }
 }
 
 pub mod capabilities;

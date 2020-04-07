@@ -9,7 +9,7 @@ use descriptor_parser::MethodDescriptor;
 
 
 //todo the fact that I need a loader for this is dumb
-pub fn lookup_method_parsed(state: &mut JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed(state: & JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
     let res = lookup_method_parsed_impl(state, class, name, descriptor, loader);
     match res {
         None => None,
@@ -19,7 +19,7 @@ pub fn lookup_method_parsed(state: &mut JVMState, class: Arc<RuntimeClass>, name
     }
 }
 
-pub fn lookup_method_parsed_impl(state: &mut JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed_impl(state: & JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
     for (i, m) in &class.classfile.lookup_method_name(&name) {
         let current: MethodDescriptor = MethodDescriptor::from_legacy(&m, &class.classfile);
         if current.parameter_types.iter().zip(descriptor.parameter_types.iter()).all(|(l, r)| l == r) &&
