@@ -29,7 +29,7 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
         PTypeView::Ref(r) => {
             match r {
                 ReferenceTypeView::Class(c) => {
-                    state.class_object_pool.borrow().get(type_view).unwrap().unwrap_normal_object().class_pointer.class_view.is_interface()
+                    state.class_object_pool.write().unwrap().get(type_view).unwrap().unwrap_normal_object().class_pointer.class_view.is_interface()
                 },
                 ReferenceTypeView::Array(a) => {
                     false

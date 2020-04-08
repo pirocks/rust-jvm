@@ -4,11 +4,12 @@ use std::sync::Arc;
 
 use jni_bindings::jstring;
 use classfile_view::view::ptype_view::PTypeView;
-use slow_interpreter::{JVMState, StackEntry};
+use slow_interpreter::JVMState;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::utils::string_obj_to_string;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::rust_jni::native_util::from_object;
+use slow_interpreter::stack_entry::StackEntry;
 
 pub fn ptype_to_class_object(state: & JVMState, frame: &Rc<StackEntry>, ptype: &PType) -> Option<Arc<Object>> {
     // dbg!(ptype);

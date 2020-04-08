@@ -3,13 +3,12 @@ use crate::{JVMState, StackEntry};
 use std::rc::Rc;
 use jni_bindings::JNI_OK;
 use std::intrinsics::transmute;
-use std::ffi::c_void;
 use crate::jvmti::get_jvmti_interface;
 
-pub fn get_invoke_interface(state: & JVMState, frame: Rc<StackEntry>) -> JNIInvokeInterface_ {
+pub fn get_invoke_interface(state: &JVMState) -> JNIInvokeInterface_ {
     JNIInvokeInterface_ {
         reserved0: unsafe { transmute(state) },
-        reserved1: Box::into_raw(Box::new(frame)) as *mut c_void,
+        reserved1: std::ptr::null_mut(),
         reserved2: std::ptr::null_mut(),
         DestroyJavaVM: None,
         AttachCurrentThread: None,
@@ -19,7 +18,7 @@ pub fn get_invoke_interface(state: & JVMState, frame: Rc<StackEntry>) -> JNIInvo
     }
 }
 
-pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState<'l> {
+pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState/*<'l>*/ {
     transmute((**vm).reserved0)
 }
 
@@ -32,6 +31,6 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
     let state = get_state_invoke_interface(vm);
     let frame = get_frame_invoke_interface(vm);
     assert_eq!(version, JVMTI_VERSION_1_0 as i32);
-    *(penv as *mut *mut jvmtiEnv)  = Box::leak((get_jvmti_interface(state, frame)).into()) as *mut jvmtiEnv ;
+    *(penv as *mut *mut jvmtiEnv) = Box::leak((get_jvmti_interface(state)).into()) as *mut jvmtiEnv;
     JNI_OK as i32
 }

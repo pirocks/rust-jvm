@@ -13,7 +13,7 @@ use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 
-pub fn invoke_special(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
+pub fn invoke_special(state: &JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(current_frame.class_pointer.classfile.clone()));
     let method_class_name = method_class_type.unwrap_class_type();
@@ -28,19 +28,17 @@ pub fn invoke_special(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16
 }
 
 pub fn invoke_special_impl(
-    state: & JVMState,
+    state: &JVMState,
     current_frame: &Rc<StackEntry>,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,
     final_target_class: Arc<RuntimeClass>,
-    target_m: &MethodInfo
+    target_m: &MethodInfo,
 ) -> () {
     if target_m.access_flags & ACC_NATIVE > 0 {
         run_native_method(state, current_frame.clone(), final_target_class, target_m_i, false);
     } else {
         let mut args = vec![];
-//        dbg!(method_class_name.get_referred_name());
-//        dbg!(&method_name);
         let max_locals = target_m.code_attribute().unwrap().max_locals;
         setup_virtual_args(current_frame, &parsed_descriptor, &mut args, max_locals);
         let next_entry = StackEntry {
@@ -52,15 +50,15 @@ pub fn invoke_special_impl(
             pc: 0.into(),
             pc_offset: 0.into(),
         };
-//        dbg!(target_m.code_attribute());
         run_function(state, Rc::new(next_entry));
-        if state.throw.is_some() || state.terminate {
+        let interpreter_state = &state.get_current_thread().interpreter_state;
+        if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
             return;
         }
-        if state.function_return {
-            state.function_return = false;
+        if *interpreter_state.function_return.borrow() {
+            interpreter_state.function_return.replace(false);
+            // trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
             return;
-//        trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
         }
     }
 }

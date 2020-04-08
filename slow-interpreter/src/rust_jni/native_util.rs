@@ -30,7 +30,7 @@ pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<StackEntry> {
     res.clone()
 }
 
-pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l JVMState<'l> {
+pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l JVMState/*<'l>*/ {
     &(*((**env).reserved0 as *const JVMState))
 }
 

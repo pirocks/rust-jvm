@@ -14,7 +14,8 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use std::rc::Rc;
 use slow_interpreter::java_values::{JavaValue, Object, ArrayObject};
-use slow_interpreter::{JVMState, StackEntry};
+use slow_interpreter::JVMState;
+use slow_interpreter::stack_entry::StackEntry;
 
 const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 

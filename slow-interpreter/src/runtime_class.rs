@@ -66,7 +66,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
 
 pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
-    state: & JVMState,
+    jvm: & JVMState,
     stack: Option<Rc<StackEntry>>
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
@@ -83,7 +83,7 @@ pub fn initialize_class(
                 };
                 let constant_pool = &classfile.constant_pool;
                 let x = &constant_pool[value_i as usize];
-                let constant_value = from_constant_pool_entry(constant_pool,x,state,stack.clone());
+                let constant_value = from_constant_pool_entry(constant_pool, x, jvm, stack.clone());
                 let name = constant_pool[field.name_index as usize].extract_string_from_utf8();
                 runtime_class.static_vars.borrow_mut().insert(name, constant_value);
             }
@@ -115,13 +115,13 @@ pub fn initialize_class(
         pc: 0.into(),
         pc_offset: 0.into(),
     };
-    run_function(state, Rc::new(new_stack));
-    if state.throw.is_some() || state.terminate {
+    run_function(jvm, Rc::new(new_stack));
+    if jvm.get_current_thread().interpreter_state.throw.borrow().is_some() || *jvm.get_current_thread().interpreter_state.terminate.borrow() {
         unimplemented!()
         //need to clear status after
     }
-    if state.function_return {
-        state.function_return = false;
+    if *jvm.get_current_thread().interpreter_state.function_return.borrow() {
+        *jvm.get_current_thread().interpreter_state.function_return.borrow_mut() = false;
         return class_arc;
     }
     panic!()

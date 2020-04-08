@@ -58,11 +58,12 @@ fn invoke_virtual_method_i_impl(
             pc_offset: 0.into(),
         };
         run_function(state, Rc::new(next_entry));
-        if state.throw.is_some() || state.terminate {
+        let interpreter_state = &state.get_current_thread().interpreter_state;
+        if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
             return;
         }
-        if state.function_return {
-            state.function_return = false;
+        if *interpreter_state.function_return.borrow() {
+            interpreter_state.function_return.replace(false);
             return;
         }
     } else {

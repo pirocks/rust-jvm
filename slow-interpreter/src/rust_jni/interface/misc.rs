@@ -168,14 +168,13 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
 pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
     //todo get rid of this transmute
     let state = get_state(env);
-    let frame = get_frame(env);
-    let interface = get_invoke_interface(state,frame);
-    *vm = Box::into_raw(Box::new(transmute::<_,*mut JNIInvokeInterface_>(Box::leak(Box::new(interface)))));
+    let interface = get_invoke_interface(state);
+    *vm = Box::into_raw(Box::new(transmute::<_,*mut JNIInvokeInterface_>(Box::leak(Box::new(interface)))));//todo do something about this leak
     0 as jint
 }
 
 pub(crate) unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint{
     let state = get_state(env);
-    state.throw = from_object(obj);
+    state.get_current_thread().interpreter_state.throw.replace(from_object(obj));
     0 as jint
 }

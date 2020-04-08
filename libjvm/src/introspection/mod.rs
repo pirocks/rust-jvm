@@ -7,7 +7,6 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use std::rc::Rc;
-use slow_interpreter::{array_of_type_class, get_or_create_class_object};
 use rust_jvm_common::classfile::{ACC_PUBLIC, ACC_ABSTRACT};
 use std::ops::Deref;
 use std::ffi::CStr;
@@ -21,6 +20,8 @@ use std::borrow::Borrow;
 use slow_interpreter::rust_jni::get_all_methods;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use slow_interpreter::class_objects::get_or_create_class_object;
+
 pub mod constant_pool;
 pub mod is_x;
 pub mod index;

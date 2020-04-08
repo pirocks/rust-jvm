@@ -33,6 +33,7 @@ use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, default_value, Object};
 use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
 use classfile_view::view::ptype_view::PTypeView;
+use std::ops::Deref;
 
 
 //todo jni should really live in interpreter state
@@ -45,35 +46,35 @@ pub fn check_inited_class(
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
         //todo the below is jank
-        if class_name == &ClassName::raw_byte(){
-            return  check_inited_class(state,&ClassName::byte(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_byte() {
+            return check_inited_class(state, &ClassName::byte(), current_frame, loader_arc);
         }
-        if class_name == &ClassName::raw_char(){
-            return  check_inited_class(state,&ClassName::character(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_char() {
+            return check_inited_class(state, &ClassName::character(), current_frame, loader_arc);
         }
-        if class_name == &ClassName::raw_double(){
-            return  check_inited_class(state,&ClassName::double(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_double() {
+            return check_inited_class(state, &ClassName::double(), current_frame, loader_arc);
         }
-        if class_name == &ClassName::raw_float(){
-            return  check_inited_class(state,&ClassName::float(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_float() {
+            return check_inited_class(state, &ClassName::float(), current_frame, loader_arc);
         }
-        if class_name == &ClassName::raw_int(){
-            return  check_inited_class(state,&ClassName::int(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_int() {
+            return check_inited_class(state, &ClassName::int(), current_frame, loader_arc);
         }
-        if class_name == &ClassName::raw_long(){
-            return  check_inited_class(state,&ClassName::long(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_long() {
+            return check_inited_class(state, &ClassName::long(), current_frame, loader_arc);
         }
-        if class_name == &ClassName::raw_short(){
-            return  check_inited_class(state,&ClassName::short(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_short() {
+            return check_inited_class(state, &ClassName::short(), current_frame, loader_arc);
         }
-        if class_name == &ClassName::raw_boolean(){
-            return  check_inited_class(state,&ClassName::boolean(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_boolean() {
+            return check_inited_class(state, &ClassName::boolean(), current_frame, loader_arc);
         }
-        if class_name == &ClassName::raw_void(){
-            return  check_inited_class(state,&ClassName::void(),current_frame,loader_arc)
+        if class_name == &ClassName::raw_void() {
+            return check_inited_class(state, &ClassName::void(), current_frame, loader_arc);
         }
         let bl = state.bootstrap_loader.clone();
-        let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl,state.get_live_object_pool_getter()).unwrap();
+        let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, state.get_live_object_pool_getter()).unwrap();
         let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
         state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
         let inited_target = initialize_class(prepared, state, current_frame);
@@ -85,7 +86,7 @@ pub fn check_inited_class(
 
 
 pub fn run_function(
-    state: & JVMState,
+    jvm: &JVMState,
     current_frame: Rc<StackEntry>,
 ) {
     let methods = &current_frame.class_pointer.classfile.methods;
@@ -100,11 +101,12 @@ pub fn run_function(
     let current_depth = current_frame.depth();
     // let debug = &meth_name == "getDeclaredMethod";
     let debug = current_depth == 17 && class_name_ == "java/lang/invoke/MethodHandleImpl$Lazy" && meth_name == "<clinit>".to_string();
-    if  debug {
+    if debug {
         dbg!(&code.code);
     }
-    assert!(!state.function_return);
-    while !state.terminate && !state.function_return && !state.throw.is_some() {
+    let interpreter_state = &jvm.get_current_thread().interpreter_state;
+    assert!(!*interpreter_state.function_return.borrow());
+    while !*interpreter_state.terminate.borrow() && !*interpreter_state.function_return.borrow() && !interpreter_state.throw.borrow().is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
             let mut context = CodeParserContext { offset: *current_frame.pc.borrow(), iter: current.iter() };
@@ -125,8 +127,8 @@ pub fn run_function(
             InstructionInfo::aload_1 => aload(&current_frame, 1),
             InstructionInfo::aload_2 => aload(&current_frame, 2),
             InstructionInfo::aload_3 => aload(&current_frame, 3),
-            InstructionInfo::anewarray(cp) => anewarray(state, current_frame.clone(), cp),
-            InstructionInfo::areturn => areturn(state, &current_frame),
+            InstructionInfo::anewarray(cp) => anewarray(jvm, current_frame.clone(), cp),
+            InstructionInfo::areturn => areturn(jvm, &current_frame),
             InstructionInfo::arraylength => arraylength(&current_frame),
             InstructionInfo::astore(n) => astore(&current_frame, n as usize),
             InstructionInfo::astore_0 => astore(&current_frame, 0),
@@ -135,17 +137,16 @@ pub fn run_function(
             InstructionInfo::astore_3 => astore(&current_frame, 3),
             InstructionInfo::athrow => {
                 println!("EXCEPTION:");
-                // current_frame.print_stack_trace();
                 let exception_obj = current_frame.pop().unwrap_object_nonnull();
                 dbg!(exception_obj.lookup_field("detailMessage"));
-                state.throw = exception_obj.into();
+                interpreter_state.throw.replace(exception_obj.into());
             }
             InstructionInfo::baload => baload(&current_frame),
             InstructionInfo::bastore => bastore(&current_frame),
             InstructionInfo::bipush(b) => bipush(&current_frame, b),
-            InstructionInfo::caload => caload(state, &current_frame),
+            InstructionInfo::caload => caload(jvm, &current_frame),
             InstructionInfo::castore => castore(&current_frame),
-            InstructionInfo::checkcast(cp) => invoke_checkcast(state, &current_frame, cp),
+            InstructionInfo::checkcast(cp) => invoke_checkcast(jvm, &current_frame, cp),
             InstructionInfo::d2f => unimplemented!(),
             InstructionInfo::d2i => d2i(&current_frame),
             InstructionInfo::d2l => d2l(&current_frame),
@@ -165,7 +166,7 @@ pub fn run_function(
             InstructionInfo::dmul => dmul(&current_frame),
             InstructionInfo::dneg => unimplemented!(),
             InstructionInfo::drem => unimplemented!(),
-            InstructionInfo::dreturn => dreturn(state, &current_frame),
+            InstructionInfo::dreturn => dreturn(jvm, &current_frame),
             InstructionInfo::dstore(i) => dstore(&current_frame, i as usize),
             InstructionInfo::dstore_0 => dstore(&current_frame, 0 as usize),
             InstructionInfo::dstore_1 => dstore(&current_frame, 1 as usize),
@@ -198,7 +199,7 @@ pub fn run_function(
             InstructionInfo::fmul => fmul(&current_frame),
             InstructionInfo::fneg => unimplemented!(),
             InstructionInfo::frem => unimplemented!(),
-            InstructionInfo::freturn => freturn(state, &current_frame),
+            InstructionInfo::freturn => freturn(jvm, &current_frame),
             InstructionInfo::fstore(_) => unimplemented!(),
             InstructionInfo::fstore_0 => unimplemented!(),
             InstructionInfo::fstore_1 => unimplemented!(),
@@ -206,7 +207,7 @@ pub fn run_function(
             InstructionInfo::fstore_3 => unimplemented!(),
             InstructionInfo::fsub => unimplemented!(),
             InstructionInfo::getfield(cp) => get_field(&current_frame, cp, debug),
-            InstructionInfo::getstatic(cp) => get_static(state, &current_frame, cp),
+            InstructionInfo::getstatic(cp) => get_static(jvm, &current_frame, cp),
             InstructionInfo::goto_(target) => goto_(&current_frame, target),
             InstructionInfo::goto_w(_) => unimplemented!(),
             InstructionInfo::i2b => i2b(&current_frame),
@@ -255,18 +256,18 @@ pub fn run_function(
             InstructionInfo::iload_3 => iload(&current_frame, 3),
             InstructionInfo::imul => imul(&current_frame),
             InstructionInfo::ineg => ineg(&current_frame),
-            InstructionInfo::instanceof(cp) => invoke_instanceof(state, &current_frame, cp),
+            InstructionInfo::instanceof(cp) => invoke_instanceof(jvm, &current_frame, cp),
             InstructionInfo::invokedynamic(cp) => {
                 // current_frame.print_stack_trace();
-                invoke_dynamic(state, current_frame.clone(), cp)
+                invoke_dynamic(jvm, current_frame.clone(), cp)
             }
-            InstructionInfo::invokeinterface(invoke_i) => invoke_interface(state, current_frame.clone(), invoke_i),
-            InstructionInfo::invokespecial(cp) => invoke_special(state, &current_frame, cp),
-            InstructionInfo::invokestatic(cp) => run_invoke_static(state, current_frame.clone(), cp),
-            InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(state, current_frame.clone(), cp, debug),
+            InstructionInfo::invokeinterface(invoke_i) => invoke_interface(jvm, current_frame.clone(), invoke_i),
+            InstructionInfo::invokespecial(cp) => invoke_special(jvm, &current_frame, cp),
+            InstructionInfo::invokestatic(cp) => run_invoke_static(jvm, current_frame.clone(), cp),
+            InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(jvm, current_frame.clone(), cp, debug),
             InstructionInfo::ior => ior(&current_frame),
             InstructionInfo::irem => irem(&current_frame),
-            InstructionInfo::ireturn => ireturn(state, &current_frame),
+            InstructionInfo::ireturn => ireturn(jvm, &current_frame),
             InstructionInfo::ishl => ishl(&current_frame),
             InstructionInfo::ishr => ishr(&current_frame),
             InstructionInfo::istore(n) => istore(&current_frame, n),
@@ -289,8 +290,8 @@ pub fn run_function(
             InstructionInfo::lcmp => lcmp(&current_frame),
             InstructionInfo::lconst_0 => lconst(&current_frame, 0),
             InstructionInfo::lconst_1 => lconst(&current_frame, 1),
-            InstructionInfo::ldc(cp) => ldc_w(state, current_frame.clone(), cp as u16),
-            InstructionInfo::ldc_w(cp) => ldc_w(state, current_frame.clone(), cp),
+            InstructionInfo::ldc(cp) => ldc_w(jvm, current_frame.clone(), cp as u16),
+            InstructionInfo::ldc_w(cp) => ldc_w(jvm, current_frame.clone(), cp),
             InstructionInfo::ldc2_w(cp) => ldc2_w(current_frame.clone(), cp),
             InstructionInfo::ldiv => unimplemented!(),
             InstructionInfo::lload(i) => lload(&current_frame, i as usize),
@@ -303,7 +304,7 @@ pub fn run_function(
             InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, &current_frame),
             InstructionInfo::lor => lor(&current_frame),
             InstructionInfo::lrem => unimplemented!(),
-            InstructionInfo::lreturn => lreturn(state, &current_frame),
+            InstructionInfo::lreturn => lreturn(jvm, &current_frame),
             InstructionInfo::lshl => lshl(current_frame.clone()),
             InstructionInfo::lshr => lshr(current_frame.clone()),
             InstructionInfo::lstore(n) => lstore(&current_frame, n as usize),
@@ -322,16 +323,16 @@ pub fn run_function(
                 current_frame.pop().unwrap_object_nonnull();
                 /*unimplemented for now todo*/
             }
-            InstructionInfo::multianewarray(cp) => multi_a_new_array(state, &current_frame, cp),
-            InstructionInfo::new(cp) => new(state, &current_frame, cp as usize),
+            InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, &current_frame, cp),
+            InstructionInfo::new(cp) => new(jvm, &current_frame, cp as usize),
             InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
-            InstructionInfo::nop => {},
+            InstructionInfo::nop => {}
             InstructionInfo::pop => pop(&current_frame),
             InstructionInfo::pop2 => pop2(&current_frame),
-            InstructionInfo::putfield(cp) => putfield(state, &current_frame, cp),
-            InstructionInfo::putstatic(cp) => putstatic(state, &current_frame, cp),
+            InstructionInfo::putfield(cp) => putfield(jvm, &current_frame, cp),
+            InstructionInfo::putstatic(cp) => putstatic(jvm, &current_frame, cp),
             InstructionInfo::ret(_) => unimplemented!(),
-            InstructionInfo::return_ => return_(state),
+            InstructionInfo::return_ => return_(jvm),
             InstructionInfo::saload => unimplemented!(),
             InstructionInfo::sastore => unimplemented!(),
             InstructionInfo::sipush(val) => sipush(&current_frame, val),
@@ -340,23 +341,23 @@ pub fn run_function(
             InstructionInfo::wide(_) => unimplemented!(),
             InstructionInfo::EndOfCode => unimplemented!(),
         }
-        if state.throw.is_some() {
-            let throw_class = state.throw.as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
+        if interpreter_state.throw.borrow().is_some() {
+            let throw_class = interpreter_state.throw.borrow().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             for excep_table in &code.exception_table {
                 if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize) {//todo exclusive
                     if excep_table.catch_type == 0 {
                         //todo dup
-                        current_frame.push(JavaValue::Object(state.throw.clone()));
-                        state.throw = None;
+                        current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
+                        interpreter_state.throw.replace(None);
                         current_frame.pc.replace(excep_table.handler_pc as usize);
                         println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
                         break;
                     } else {
                         let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
-                        let catch_class = check_inited_class(state, &ClassName::Str(catch_runtime_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-                        if inherits_from(state, &throw_class, &catch_class) {
-                            current_frame.push(JavaValue::Object(state.throw.clone()));
-                            state.throw = None;
+                        let catch_class = check_inited_class(jvm, &ClassName::Str(catch_runtime_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+                        if inherits_from(jvm, &throw_class, &catch_class) {
+                            current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
+                            interpreter_state.throw.replace(None);
                             current_frame.pc.replace(excep_table.handler_pc as usize);
                             println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
                             break;
@@ -364,7 +365,7 @@ pub fn run_function(
                     }
                 }
             }
-            if state.throw.is_some() {
+            if interpreter_state.throw.borrow().is_some() {
                 //need to propogate to caller
                 current_frame.print_stack_trace();
                 break;
@@ -391,19 +392,19 @@ pub fn run_function(
 }
 
 
-pub fn push_new_object(state: & JVMState, current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {
+pub fn push_new_object(state: &JVMState, current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader.clone();
     let object_pointer = JavaValue::new_object(target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
-    default_init_fields(state,loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
+    default_init_fields(state, loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
     current_frame.push(new_obj);
 }
 
-fn default_init_fields(state: & JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
+fn default_init_fields(state: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
     if classfile.super_class != 0 {
         let super_name = classfile.super_class_name();
-        let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(),state.get_live_object_pool_getter()).unwrap();
-        default_init_fields(state,loader_arc.clone(), object_pointer.clone(), &loaded_super.backing_class(), bl);
+        let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(), state.get_live_object_pool_getter()).unwrap();
+        default_init_fields(state, loader_arc.clone(), object_pointer.clone(), &loaded_super.backing_class(), bl);
     }
     for field in &classfile.fields {
         if field.access_flags & ACC_STATIC == 0 {
@@ -424,7 +425,7 @@ fn default_init_fields(state: & JVMState, loader_arc: LoaderArc, object_pointer:
     }
 }
 
-pub fn run_constructor(state: & JVMState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
+pub fn run_constructor(state: &JVMState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
     let (i, m) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
     let md = parse_method_descriptor(descriptor.as_str()).unwrap();
     let this_ptr = full_args[0].clone();

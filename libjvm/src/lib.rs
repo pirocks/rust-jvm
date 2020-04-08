@@ -12,7 +12,6 @@ extern crate libc;
 use std::str::from_utf8;
 use std::borrow::Borrow;
 use rust_jvm_common::classnames::{ClassName, class_name};
-use slow_interpreter::{get_or_create_class_object, array_of_type_class};
 use std::rc::Rc;
 use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};

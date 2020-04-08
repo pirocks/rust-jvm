@@ -4,7 +4,7 @@ use crate::{JVMState, StackEntry};
 
 pub fn freturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
-    state.function_return = true;
+    state.get_current_thread().interpreter_state.function_return.replace(true);
     match res {
         JavaValue::Float(_) => {}
         _ => panic!()
@@ -14,7 +14,7 @@ pub fn freturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
 
 pub fn dreturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
-    state.function_return = true;
+    state.get_current_thread().interpreter_state.function_return.replace(true);
     match res {
         JavaValue::Double(_) => {}
         _ => panic!()
@@ -25,19 +25,19 @@ pub fn dreturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
 
 pub fn areturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
-    state.function_return = true;
+    state.get_current_thread().interpreter_state.function_return.replace(true);
     current_frame.last_call_stack.as_ref().unwrap().push(res);
 }
 
 
 pub fn return_(state: & JVMState) {
-    state.function_return = true;
+    state.get_current_thread().interpreter_state.function_return.replace(true);
 }
 
 
 pub fn ireturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
-    state.function_return = true;
+    state.get_current_thread().interpreter_state.function_return.replace(true);
     match res {
         JavaValue::Int(_) => {}
         JavaValue::Short(_) => {}
@@ -52,7 +52,7 @@ pub fn ireturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
 
 pub fn lreturn(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
     let res = current_frame.pop();
-    state.function_return = true;
+    state.get_current_thread().interpreter_state.function_return.replace(true);
     match res {
         JavaValue::Long(_) => {}
         _ => {

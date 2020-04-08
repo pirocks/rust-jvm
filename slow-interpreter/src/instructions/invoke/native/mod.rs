@@ -21,6 +21,8 @@ use descriptor_parser::MethodDescriptor;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;
+use std::borrow::Borrow;
+use std::sync::atomic::Ordering;
 
 pub fn run_native_method(
     state: & JVMState,
@@ -186,8 +188,7 @@ fn patch_all(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue
             }
         }
     });
-    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", state.anon_class_counter);
-    state.anon_class_counter += 1;
+    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", state.anon_class_counter.fetch_add(1,Ordering::SeqCst));
     let name_index = unpatched.constant_pool.len() as u16;
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
@@ -284,8 +285,9 @@ fn patch_single(
     }*/ else {
         // dbg!(&class_name);
         // assert!(class_name == ClassName::unsafe_() || class_name == ClassName::direct_method_handle());//for now keep a white list of allowed classes here until the above are properly implemented
-        let live_object_i = state.anon_class_live_object_ldc_pool.borrow().len();
-        state.anon_class_live_object_ldc_pool.borrow_mut().push(patch.clone());
+        let mut anon_class_write_guard = state.anon_class_live_object_ldc_pool.write().unwrap();
+        let live_object_i = anon_class_write_guard.len();
+        anon_class_write_guard.push(patch.clone());
         unpatched.constant_pool[i] = ConstantKind::LiveObject(live_object_i).into();
     };
 }

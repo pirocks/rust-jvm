@@ -16,10 +16,8 @@ use slow_interpreter::{run, JVMOptions};
 use rust_jvm_common::classnames::ClassName;
 use jar_manipulation::JarHandle;
 use std::sync::Arc;
-use slow_interpreter::rust_jni::new_java_loading;
 use classfile_view::loading::LoaderName;
 use slow_interpreter::loading::{BootstrapLoader, Classpath};
-use slow_interpreter::jvmti::load_libjdwp;
 
 
 extern crate classfile_parser;
