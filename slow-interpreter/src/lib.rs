@@ -10,7 +10,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use rust_jvm_common::ptype::PType;
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
-use crate::runtime_class::RuntimeClass;
+use crate::runtime_class::{RuntimeClass, initialize_class};
 use crate::java_values::{Object, JavaValue};
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::{run_function, check_inited_class};
@@ -31,6 +31,7 @@ use crate::loading::{Classpath, BootstrapLoader};
 use std::borrow::Borrow;
 use std::ops::Deref;
 use crate::stack_entry::StackEntry;
+use verification::verifier::codecorrectness::MergedCodeInstruction::StackMap;
 
 
 pub mod java_values;
@@ -132,7 +133,7 @@ impl/*<'vmlife>*/ JVMState/*<'vmlife>*/ {
 
     pub fn set_current_thread(&self,java_thread: Arc<JavaThread/*<'vmlife>*/>){
         //todo handle
-        JVMState::current_java_thread.with(|_|RefCell::new(None)).replace(java_thread.into());
+        JVMState::current_java_thread.with(|x|x.replace(java_thread.into()));
     }
 
     pub fn get_current_thread(&self) -> Arc<JavaThread>{
@@ -201,7 +202,7 @@ impl/*<'jvmlife>*/ JVMState/*<'jvmlife>*/ {
         Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
     }
 
-    pub fn register_main_thread(&/*'jvmlife*/ self, main_thread: Arc<JavaThread/*<'jvmlife>*/>) {
+    pub fn register_main_thread(&self, main_thread: Arc<JavaThread>) {
         //todo perhaps there should be a single rw lock for this
         self.all_threads.write().unwrap().push(main_thread.clone());
         let mut main_thread_writer = self.main_thread.write().unwrap();
@@ -246,10 +247,21 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
 
 fn jvm_run_system_init(jvm: &JVMState) {
     let bl = &jvm.bootstrap_loader;
+    let bootstrap_system_class_view = bl.load_class(bl.clone(),&ClassName::system(),bl.clone(),jvm.get_live_object_pool_getter()).unwrap();
+    let bootstrap_system_class = Arc::new(prepare_class(bootstrap_system_class_view.backing_class(), bl.clone()));
+    let bootstrap_frame = Rc::new(StackEntry{
+        last_call_stack: None,
+        class_pointer: bootstrap_system_class,
+        method_i: 0,
+        local_vars: RefCell::new(vec![]),
+        operand_stack: RefCell::new(vec![]),
+        pc: RefCell::new(0),
+        pc_offset: RefCell::new(0)
+    });
     jvm.register_main_thread(Arc::new(JavaThread {
         java_tid: 0,
         name: "Main".to_string(),
-        call_stack: initialize_system_frame.clone(),
+        call_stack: bootstrap_frame,
         thread_object: RefCell::new(None),
         interpreter_state: InterpreterState{
             terminate: RefCell::new(false),
@@ -257,7 +269,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
             function_return: RefCell::new(false)
         }
     }));
-    let system_class = check_inited_class(jvm, &ClassName::new("java/lang/System"), jvm.get_current_thread().call_stack.clone(), bl.clone());
+    let system_class = check_inited_class(jvm, &ClassName::system(), jvm.get_current_thread().call_stack.clone(), bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
     let mut locals = vec![];
     for _ in 0..method_info.code_attribute().unwrap().max_locals {

@@ -91,14 +91,14 @@ pub fn call_impl(state: & JVMState, current_frame: Rc<StackEntry>, classfile: Ar
     };
     let env = &get_interface(state);
     let mut c_args = if suppress_runtime_class {
-        vec![Arg::new(&&env)]
+        vec![Arg::new(&env)]
     } else {
         if debug {
             dbg!(current_frame.operand_stack.borrow());
             dbg!(&args);
         }
         load_class_constant_by_type(state, &current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.class_view.name())));
-        let res = vec![Arg::new(&&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
+        let res = vec![Arg::new(&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
         res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>

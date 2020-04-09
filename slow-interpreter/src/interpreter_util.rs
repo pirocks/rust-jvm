@@ -40,7 +40,7 @@ use std::ops::Deref;
 pub fn check_inited_class(
     state: &JVMState,
     class_name: &ClassName,
-    current_frame: Option<Rc<StackEntry>>,
+    current_frame: Rc<StackEntry>,
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization

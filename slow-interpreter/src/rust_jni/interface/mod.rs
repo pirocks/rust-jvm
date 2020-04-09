@@ -22,15 +22,21 @@ thread_local! {
 
 //GetFieldID
 pub fn get_interface(state: &JVMState) -> *const JNINativeInterface_ {
-    JNI_Interface.with(|refcell| (match refcell.borrow().as_ref(){
-        None => {
-            let new = get_interface_impl(state);
-            refcell.replace(new.into());
-            let new_borrow = refcell.borrow();
-            new_borrow.as_ref().unwrap() as *const JNINativeInterface_
-        },
-        Some(interface) => interface as *const JNINativeInterface_,
-    }))
+    JNI_Interface.with(|refcell|{
+        {
+            let first_borrow = refcell.borrow();
+            (match first_borrow.as_ref() {
+                None => {}
+                Some(interface) => {
+                    return interface as *const JNINativeInterface_;
+                }
+            })
+        }
+        let new = get_interface_impl(state);
+        refcell.replace(new.into());
+        let new_borrow = refcell.borrow();
+        new_borrow.as_ref().unwrap() as *const JNINativeInterface_
+    })
 }
 
 fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {

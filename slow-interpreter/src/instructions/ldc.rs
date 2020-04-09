@@ -107,7 +107,7 @@ pub fn ldc_w(state: & JVMState, current_frame: Rc<StackEntry>, cp: u16) -> () {
     }
 }
 
-pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantInfo, state: & JVMState, stack: Option<Rc<StackEntry>>) -> JavaValue {
+pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantInfo, state: & JVMState, stack: Rc<StackEntry>) -> JavaValue {
     match &c.kind {
         ConstantKind::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
         ConstantKind::Float(f) => JavaValue::Float(unsafe { transmute(f.bytes) }),
@@ -122,8 +122,8 @@ pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantI
             transmute(high | low)
         }),
         ConstantKind::String(s) => {
-            load_string_constant(state, &stack.clone().unwrap(), constant_pool, s);
-            stack.unwrap().pop()
+            load_string_constant(state, &stack, constant_pool, s);
+            stack.pop()
         }
         _ => panic!()
     }

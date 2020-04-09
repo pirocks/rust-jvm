@@ -66,8 +66,8 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
 
 pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
-    jvm: & JVMState,
-    stack: Option<Rc<StackEntry>>
+    jvm: &JVMState,
+    stack: Rc<StackEntry>,
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -94,7 +94,7 @@ pub fn initialize_class(
     let classfile = &class_arc.classfile;
     let lookup_res = classfile.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
-    let (clinit_i, clinit) = match lookup_res.iter().nth(0){
+    let (clinit_i, clinit) = match lookup_res.iter().nth(0) {
         None => return class_arc,
         Some(x) => x,
     };
@@ -102,12 +102,12 @@ pub fn initialize_class(
 
     let mut locals = vec![];
     let locals_n = clinit.code_attribute().unwrap().max_locals;
-    for _ in 0..locals_n{
+    for _ in 0..locals_n {
         locals.push(JavaValue::Top);
     }
 
     let new_stack = StackEntry {
-        last_call_stack: stack,
+        last_call_stack: stack.into(),
         class_pointer: class_arc.clone(),
         method_i: *clinit_i as u16,
         local_vars: locals.into(),

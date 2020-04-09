@@ -174,6 +174,10 @@ impl ClassName {
     pub fn field() -> Self {
         Self::new("java/lang/reflect/Field")
     }
+
+    pub fn system() -> Self {
+        Self::new("java/lang/System")
+    }
 }
 
 impl Hash for ClassName {
