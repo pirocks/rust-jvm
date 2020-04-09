@@ -23,8 +23,7 @@ pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState/*<
 }
 
 pub unsafe fn get_frame_invoke_interface(vm: *mut JavaVM) -> Rc<StackEntry> {
-    let res = ((**vm).reserved1 as *mut Rc<StackEntry>).as_ref().unwrap();// ptr::as_ref
-    res.clone()
+    get_state_invoke_interface(vm).get_current_thread().call_stack.clone()
 }
 
 pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw::c_void, version: jint) -> jint {
