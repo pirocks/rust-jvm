@@ -26,8 +26,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
 }
 
 pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<StackEntry> {
-    let res = ((**env).reserved1 as *mut Rc<StackEntry>).as_ref().unwrap();// ptr::as_ref
-    res.clone()
+    get_state(env).get_current_thread().call_stack.clone()
 }
 
 pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l JVMState/*<'l>*/ {
