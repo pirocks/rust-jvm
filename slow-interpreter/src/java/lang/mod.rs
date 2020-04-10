@@ -210,6 +210,7 @@ pub mod thread {
     use std::sync::Arc;
     use crate::java_values::JavaValue;
 
+    #[derive(Debug)]
     pub struct JThread {
         normal_object: Arc<Object>
     }

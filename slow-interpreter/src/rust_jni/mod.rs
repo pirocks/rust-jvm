@@ -83,21 +83,17 @@ pub fn call(
     }
 }
 
-pub fn call_impl(state: & JVMState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, debug: bool) -> Option<JavaValue> {
+pub fn call_impl(jvm: & JVMState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, debug: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
         vec![Type::pointer(), Type::pointer()]
     };
-    let env = &get_interface(state);
+    let env = &get_interface(jvm);
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        if debug {
-            dbg!(current_frame.operand_stack.borrow());
-            dbg!(&args);
-        }
-        load_class_constant_by_type(state, &current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.class_view.name())));
+        load_class_constant_by_type(jvm, &current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.class_view.name())));
         let res = vec![Arg::new(&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
         res
     };
@@ -120,15 +116,11 @@ pub fn call_impl(state: & JVMState, current_frame: Rc<StackEntry>, classfile: Ar
     let cif = Cif::new(args_type.into_iter(), Type::usize());
 //todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
-//    trace!("----NATIVE ENTER----");
+   trace!("----NATIVE ENTER----");
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
-    if debug {
-        dbg!(current_frame.operand_stack.borrow());
-        dbg!(&args);
-    }
-//    trace!("----NATIVE EXIT ----");
+   trace!("----NATIVE EXIT ----");
     match PTypeView::from_ptype(&md.return_type) {
         PTypeView::VoidType => {
             None
@@ -171,8 +163,9 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                       methods: *const JNINativeMethod,
                                       n_methods: jint) -> jint {
     println!("Call to register_natives, n_methods: {}", n_methods);
+    let state = get_state(env);
+    dbg!(state.get_current_thread());
     for to_register_i in 0..n_methods {
-        let state = get_state(env);
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();

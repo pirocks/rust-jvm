@@ -28,6 +28,7 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
     if is_copy != std::ptr::null_mut() {
         unimplemented!()
     }
+    dbg!(get_state(_env).get_current_thread());
     return res;
 }
 

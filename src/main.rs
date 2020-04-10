@@ -11,13 +11,10 @@ use log::{trace, info};
 use argparse::{ArgumentParser, Store, StoreTrue, List};
 use std::path::Path;
 use std::sync::RwLock;
-use std::collections::HashMap;
 use slow_interpreter::{run, JVMOptions};
 use rust_jvm_common::classnames::ClassName;
 use jar_manipulation::JarHandle;
-use std::sync::Arc;
-use classfile_view::loading::LoaderName;
-use slow_interpreter::loading::{BootstrapLoader, Classpath};
+use slow_interpreter::loading::Classpath;
 
 
 extern crate classfile_parser;

@@ -35,6 +35,7 @@ impl SharedLibJVMTI{
     }
 }
 
+#[allow(non_snake_case)]
 pub trait DebuggerEventConsumer {
     unsafe fn VMInit(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
 
@@ -53,6 +54,7 @@ pub trait DebuggerEventConsumer {
     fn Exception_disable(&self);
 }
 
+#[allow(non_snake_case)]
 impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn VMInit(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
         if *self.vm_init_enabled.borrow() {
