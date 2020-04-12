@@ -51,7 +51,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
     }
     //todo add params into operand stack;
     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method, false);
+    invoke_virtual_method_i(state, parsed, method_id.class.clone(), method_id.method_i, method, false);
     trace!("----NATIVE ENTER ----");
     let res = frame.pop().unwrap_object();
     to_object(res)
@@ -63,7 +63,7 @@ pub unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: j
     to_object(res)
 }
 
-pub unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, l: &mut VaList) -> Rc<StackEntry> {
+pub unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, l: &mut VaList) -> &StackEntry {
     let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
     let state = get_state(env);
     let frame = get_frame(env);
@@ -75,14 +75,14 @@ pub unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod
 //todo dup
     push_params_onto_frame(l, &frame, &parsed);
     trace!("----NATIVE EXIT ----");
-    invoke_static_impl(state, frame.clone(), parsed, method_id.class.clone(), method_id.method_i, method);
+    invoke_static_impl(state, parsed, method_id.class.clone(), method_id.method_i, method);
     trace!("----NATIVE ENTER----");
     frame
 }
 
 unsafe fn push_params_onto_frame(
     l: &mut VaList,
-    frame: &Rc<StackEntry>,
+    frame: &StackEntry,
     parsed: &MethodDescriptor
 ) {
     for type_ in &parsed.parameter_types {

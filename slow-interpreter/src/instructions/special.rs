@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::{ClassName, class_name};
 use std::sync::Arc;
@@ -12,14 +11,14 @@ use crate::java_values::Object::{Array, Object};
 use descriptor_parser::parse_field_type;
 
 
-pub fn arraylength(current_frame: &Rc<StackEntry>) -> () {
+pub fn arraylength(current_frame: & StackEntry) -> () {
     let array_o = current_frame.pop().unwrap_object().unwrap();
     let array = array_o.unwrap_array();
     current_frame.push(JavaValue::Int(array.elems.borrow().len() as i32));
 }
 
 
-pub fn invoke_checkcast(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) {
+pub fn invoke_checkcast(state: & JVMState, current_frame: & StackEntry, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Object(possibly_null));
@@ -30,7 +29,7 @@ pub fn invoke_checkcast(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u
         Object(o) => {
             let classfile = &current_frame.class_pointer.classfile;
             let instance_of_class_name = classfile.extract_class_from_constant_pool_name(cp);
-            let instanceof_class = check_inited_class(state, &ClassName::Str(instance_of_class_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+            let instanceof_class = check_inited_class(state, &ClassName::Str(instance_of_class_name), current_frame.class_pointer.loader.clone());
             let object_class = o.class_pointer.clone();
             if inherits_from(state, &object_class, &instanceof_class) {
                 current_frame.push(JavaValue::Object(object.clone().into()));
@@ -48,8 +47,8 @@ pub fn invoke_checkcast(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u
             let expected_type = expected_type_wrapped.unwrap_array_type();
             let cast_succeeds = match &a.elem_type {
                 PTypeView::Ref(_) => {
-                    let actual_runtime_class = check_inited_class(state,&a.elem_type.unwrap_class_type(),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
-                    let expected_runtime_class = check_inited_class(state,&expected_type.unwrap_class_type(),current_frame.clone().into(),current_frame.class_pointer.loader.clone());
+                    let actual_runtime_class = check_inited_class(state,&a.elem_type.unwrap_class_type(),current_current_frame.class_pointer.loader.clone());
+                    let expected_runtime_class = check_inited_class(state,&expected_type.unwrap_class_type(),current_frame.class_pointer.loader.clone());
                     inherits_from(state,&actual_runtime_class,&expected_runtime_class)
                 },
                 _ => {
@@ -68,7 +67,7 @@ pub fn invoke_checkcast(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u
 }
 
 
-pub fn invoke_instanceof(state: & JVMState, current_frame: &Rc<StackEntry>, cp: u16) {
+pub fn invoke_instanceof(state: & JVMState, current_frame: & StackEntry, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Int(0));
@@ -99,7 +98,7 @@ pub fn invoke_instanceof(state: & JVMState, current_frame: &Rc<StackEntry>, cp: 
         Object(object) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
-                    let instanceof_class = check_inited_class(state, &instance_of_class_name, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+                    let instanceof_class = check_inited_class(state, &instance_of_class_name,  current_frame.class_pointer.loader.clone());
                     let object_class = object.class_pointer.clone();
                     if inherits_from(state, &object_class, &instanceof_class) {
                         current_frame.push(JavaValue::Int(1))

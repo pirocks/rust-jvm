@@ -57,7 +57,7 @@ impl LibJavaLoading {
 
 pub fn call(
     state: & JVMState,
-    current_frame: Rc<StackEntry>,
+    current_frame: &StackEntry,
     classfile: Arc<RuntimeClass>,
     method_i: usize,
     args: Vec<JavaValue>,
@@ -83,7 +83,7 @@ pub fn call(
     }
 }
 
-pub fn call_impl(jvm: & JVMState, current_frame: Rc<StackEntry>, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, debug: bool) -> Option<JavaValue> {
+pub fn call_impl(jvm: & JVMState, current_frame: &StackEntry, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, debug: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
@@ -213,20 +213,20 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
-pub fn get_all_methods(state: & JVMState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_methods(state: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     // dbg!(&class.class_view.name());
     class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
     if class.classfile.super_class == 0 {
-        let object = check_inited_class(state, &ClassName::object(), frame.clone().into(), class.loader.clone());
+        let object = check_inited_class(state, &ClassName::object(),  class.loader.clone());
         object.classfile.methods.iter().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.classfile.super_class_name();
-        let super_ = check_inited_class(state, &name.unwrap(), frame.clone().into(), class.loader.clone());
+        let super_ = check_inited_class(state, &name.unwrap(),  class.loader.clone());
         for (c, i) in get_all_methods(state, frame, super_) {
             res.push((c, i));
         }
@@ -236,19 +236,19 @@ pub fn get_all_methods(state: & JVMState, frame: Rc<StackEntry>, class: Arc<Runt
 }
 
 //todo duplication with methods
-pub fn get_all_fields(state: & JVMState, frame: Rc<StackEntry>, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_fields(state: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     class.classfile.fields.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
     if class.classfile.super_class == 0 {
-        let object = check_inited_class(state, &ClassName::object(), frame.clone().into(), class.loader.clone());
+        let object = check_inited_class(state, &ClassName::object(),  class.loader.clone());
         object.classfile.fields.iter().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.classfile.super_class_name();
-        let super_ = check_inited_class(state, &name.unwrap(), frame.clone().into(), class.loader.clone());
+        let super_ = check_inited_class(state, &name.unwrap(),  class.loader.clone());
         for (c, i) in get_all_fields(state, frame, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }

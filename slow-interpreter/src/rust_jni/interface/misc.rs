@@ -41,7 +41,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
 //    frame.print_stack_trace();
-    let _inited_class = check_inited_class(state, &super_name, frame.clone().into(), frame.class_pointer.loader.clone());
+    let _inited_class = check_inited_class(state, &super_name, frame.class_pointer.loader.clone());
     load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     to_object(frame.pop().unwrap_object())
 }
@@ -75,13 +75,13 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     //todo dup
     let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame = state.get_current_frame();
     let classfile = &method_id.class.classfile;
     let method = &classfile.methods[method_id.method_i];
     let method_descriptor_str = method.descriptor_str(classfile);
     let _name = method.method_name(classfile);
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
-    push_new_object(state,frame.clone(), &method_id.class);
+    push_new_object(state,frame, &method_id.class);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {

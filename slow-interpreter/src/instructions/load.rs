@@ -1,10 +1,9 @@
-use std::rc::Rc;
 use crate::interpreter_util::{check_inited_class, run_constructor, push_new_object};
 use rust_jvm_common::classnames::ClassName;
 use crate::java_values::JavaValue;
 use crate::{StackEntry, JVMState};
 
-pub fn aload(current_frame: &Rc<StackEntry>, n: usize) -> () {
+pub fn aload(current_frame: & StackEntry, n: usize) -> () {
     let ref_ = current_frame.local_vars.borrow()[n].clone();
     match ref_.clone() {
         JavaValue::Object(_) => {}
@@ -19,7 +18,7 @@ pub fn aload(current_frame: &Rc<StackEntry>, n: usize) -> () {
     current_frame.push(ref_);
 }
 
-pub fn iload(current_frame: &Rc<StackEntry>, n: usize) {
+pub fn iload(current_frame: & StackEntry, n: usize) {
     let java_val = &current_frame.local_vars.borrow()[n];
     java_val.unwrap_int();
 //    match java_val {
@@ -34,7 +33,7 @@ pub fn iload(current_frame: &Rc<StackEntry>, n: usize) {
     current_frame.push(java_val.clone())
 }
 
-pub fn lload(current_frame: &Rc<StackEntry>, n: usize) {
+pub fn lload(current_frame: & StackEntry, n: usize) {
     let java_val = &current_frame.local_vars.borrow()[n];
     match java_val {
         JavaValue::Long(_) => {}
@@ -48,7 +47,7 @@ pub fn lload(current_frame: &Rc<StackEntry>, n: usize) {
     current_frame.push(java_val.clone())
 }
 
-pub fn fload(current_frame: &Rc<StackEntry>, n: usize) {
+pub fn fload(current_frame: & StackEntry, n: usize) {
     let java_val = &current_frame.local_vars.borrow()[n];
     match java_val {
         JavaValue::Float(_) => {}
@@ -60,7 +59,7 @@ pub fn fload(current_frame: &Rc<StackEntry>, n: usize) {
     current_frame.push(java_val.clone())
 }
 
-pub fn dload(current_frame: &Rc<StackEntry>, n: usize) {
+pub fn dload(current_frame: & StackEntry, n: usize) {
     let java_val = &current_frame.local_vars.borrow()[n];
     match java_val {
         JavaValue::Double(_) => {}
@@ -73,7 +72,7 @@ pub fn dload(current_frame: &Rc<StackEntry>, n: usize) {
 }
 
 
-pub fn aaload(current_frame: &Rc<StackEntry>) -> () {
+pub fn aaload(current_frame: &StackEntry) -> () {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -87,15 +86,19 @@ pub fn aaload(current_frame: &Rc<StackEntry>) -> () {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds(state: & JVMState, current_frame: &Rc<StackEntry>) {
-    let bounds_class = check_inited_class(state, &ClassName::new("java/lang/ArrayIndexOutOfBoundsException"), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
-    push_new_object(state,current_frame.clone(),&bounds_class);
+fn throw_array_out_of_bounds(state: & JVMState, current_frame: & StackEntry) {
+    let bounds_class = check_inited_class(
+        state,
+        &ClassName::new("java/lang/ArrayIndexOutOfBoundsException"),
+        current_frame.class_pointer.loader.clone()
+    );
+    push_new_object(state,current_frame,&bounds_class);
     let obj = current_frame.pop();
-    run_constructor(state,current_frame.clone(),bounds_class,vec![obj.clone()],"()V".to_string());
+    run_constructor(state,current_frame, bounds_class,vec![obj.clone()],"()V".to_string());
     state.get_current_thread().interpreter_state.throw.replace(obj.unwrap_object().into());
 }
 
-pub fn caload(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
+pub fn caload(state: & JVMState, current_frame: & StackEntry) -> () {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -112,7 +115,7 @@ pub fn caload(state: & JVMState, current_frame: &Rc<StackEntry>) -> () {
 }
 
 
-pub fn iaload(current_frame: &Rc<StackEntry>) -> () {
+pub fn iaload(current_frame: & StackEntry) -> () {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -122,7 +125,7 @@ pub fn iaload(current_frame: &Rc<StackEntry>) -> () {
 }
 
 
-pub fn baload(current_frame: &Rc<StackEntry>) -> () {
+pub fn baload(current_frame: & StackEntry) -> () {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();

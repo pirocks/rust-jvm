@@ -32,23 +32,20 @@ pub mod dynamic {
     use crate::java::lang::string::JString;
     use crate::java::lang::invoke::method_handle::MethodHandle;
 
-    pub fn invoke_dynamic(state: & JVMState, frame: Rc<StackEntry>, cp: u16) {
+    pub fn invoke_dynamic(state: & JVMState, frame: &StackEntry, cp: u16) {
         let method_handle_class = check_inited_class(
             state,
             &ClassName::method_handle(),
-            frame.clone().into(),
             frame.class_pointer.loader.clone(),
         );
         let method_type_class = check_inited_class(
             state,
             &ClassName::method_type(),
-            frame.clone().into(),
             frame.class_pointer.loader.clone(),
         );
         let call_site_class = check_inited_class(
             state,
             &ClassName::Str("java/lang/invoke/CallSite".to_string()),
-            frame.clone().into(),
             frame.class_pointer.loader.clone(),
         );
         let invoke_dynamic_view = match frame.class_pointer.class_view.constant_pool_view(cp as usize) {
@@ -99,7 +96,7 @@ pub mod dynamic {
         // invoke_dynamic_view.name_and_type()
         // let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
         // invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
-        // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+        // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_ current_frame.class_pointer.loader.clone());
         // dbg!(invoke_dynamic_view.name_and_type().name());
         // dbg!(invoke_dynamic_view.name_and_type().desc());
         // dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().name_and_type());
@@ -113,7 +110,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(state: & JVMState, current_frame: Rc<StackEntry>, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+fn resolved_class(state: & JVMState, current_frame: &StackEntry, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(classfile.clone()));
@@ -137,7 +134,11 @@ fn resolved_class(state: & JVMState, current_frame: Rc<StackEntry>, cp: u16) -> 
         _ => panic!()
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
-    let resolved_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
+    let resolved_class = check_inited_class(
+        state,
+        &class_name_,
+        loader_arc.clone()
+    );
     (resolved_class, expected_method_name, expected_descriptor).into()
 }
 

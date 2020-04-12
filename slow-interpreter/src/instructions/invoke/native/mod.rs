@@ -26,7 +26,7 @@ use std::sync::atomic::Ordering;
 
 pub fn run_native_method(
     state: & JVMState,
-    frame: Rc<StackEntry>,
+    frame: &StackEntry,
     class: Arc<RuntimeClass>,
     method_i: usize,
     debug: bool,
@@ -139,7 +139,7 @@ pub fn run_native_method(
                         frame.pop().into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
                         let member_name = args[0].cast_member_name();
-                        let name = member_name.get_name(state, frame.clone());
+                        let name = member_name.get_name(state, frame);
                         let clazz = member_name.clazz();
                         let field_type = member_name.get_field_type(state, frame.clone());
                         let empty_string = JString::from(state, &frame, "".to_string());
@@ -177,7 +177,7 @@ pub fn run_native_method(
     // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
-fn patch_all(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
+fn patch_all(state: & JVMState, frame: & StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| {
@@ -198,7 +198,7 @@ fn patch_all(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue
 fn patch_single(
     patch: &Arc<Object>,
     state: & JVMState,
-    frame: &Rc<StackEntry>,
+    frame: & StackEntry,
     unpatched: &mut Classfile,
     i: usize,
 ) {

@@ -1,54 +1,53 @@
-use std::rc::Rc;
 use std::sync::Arc;
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
-pub fn goto_(current_frame: &Rc<StackEntry>, target: i16) {
+pub fn goto_(current_frame: & StackEntry, target: i16) {
     current_frame.pc_offset.replace(target as isize);
 }
 
 //todo why are these consts in branch?
-pub fn iconst_5(current_frame: &Rc<StackEntry>) -> () {
+pub fn iconst_5(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Int(5))
 }
 
-pub fn iconst_4(current_frame: &Rc<StackEntry>) -> () {
+pub fn iconst_4(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Int(4))
 }
 
-pub fn iconst_3(current_frame: &Rc<StackEntry>) -> () {
+pub fn iconst_3(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Int(3))
 }
 
-pub fn iconst_2(current_frame: &Rc<StackEntry>) -> () {
+pub fn iconst_2(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Int(2))
 }
 
-pub fn iconst_1(current_frame: &Rc<StackEntry>) -> () {
+pub fn iconst_1(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Int(1))
 }
 
-pub fn iconst_0(current_frame: &Rc<StackEntry>) -> () {
+pub fn iconst_0(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Int(0))
 }
 
-pub fn dconst_1(current_frame: &Rc<StackEntry>) -> () {
+pub fn dconst_1(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Double(1.0))
 }
 
-pub fn dconst_0(current_frame: &Rc<StackEntry>) -> () {
+pub fn dconst_0(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Double(0.0))
 }
 
-pub fn iconst_m1(current_frame: &Rc<StackEntry>) -> () {
+pub fn iconst_m1(current_frame: & StackEntry) -> () {
     current_frame.push(JavaValue::Int(-1))
 }
 
-pub fn lconst(current_frame: &Rc<StackEntry>, i: i64) -> () {
+pub fn lconst(current_frame: & StackEntry, i: i64) -> () {
     current_frame.push(JavaValue::Long(i))
 }
 
-pub fn ifnull(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn ifnull(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
     let succeeds = match val {
         JavaValue::Object(o) => o.is_none(),
@@ -59,7 +58,7 @@ pub fn ifnull(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn ifnonnull(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn ifnonnull(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
     let succeeds = match val {
         JavaValue::Object(o) => o.is_some(),
@@ -70,7 +69,7 @@ pub fn ifnonnull(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn ifle(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn ifle(current_frame: & StackEntry, offset: i16) -> () {
     //todo dup
     let val = current_frame.pop();
     let succeeds = match val {
@@ -82,7 +81,7 @@ pub fn ifle(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn ifgt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn ifgt(current_frame: & StackEntry, offset: i16) -> () {
     //todo dup
     let val = current_frame.pop();
     let succeeds = match val {
@@ -94,7 +93,7 @@ pub fn ifgt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn ifge(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn ifge(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
     let succeeds = val.unwrap_int() >= 0;/* match val {
         JavaValue::Int(i) => i >= 0,
@@ -105,7 +104,7 @@ pub fn ifge(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn iflt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn iflt(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
     let succeeds = val.unwrap_int() < 0;
     if succeeds {
@@ -113,7 +112,7 @@ pub fn iflt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn ifne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn ifne(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
     let succeeds = match val {
         JavaValue::Int(i) => i != 0,
@@ -125,7 +124,7 @@ pub fn ifne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn ifeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn ifeq(current_frame: & StackEntry, offset: i16) -> () {
     //todo dup
     let val = current_frame.pop();
     // dbg!(&val);
@@ -139,7 +138,7 @@ pub fn ifeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn if_icmpgt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn if_icmpgt(current_frame: & StackEntry, offset: i16) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 > value2;
@@ -149,7 +148,7 @@ pub fn if_icmpgt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
-pub fn if_icmplt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn if_icmplt(current_frame: & StackEntry, offset: i16) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 < value2;
@@ -159,7 +158,7 @@ pub fn if_icmplt(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
-pub fn if_icmple(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn if_icmple(current_frame: & StackEntry, offset: i16) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 <= value2;
@@ -168,7 +167,7 @@ pub fn if_icmple(current_frame: &Rc<StackEntry>, offset: i16) -> () {
     }
 }
 
-pub fn if_icmpge(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn if_icmpge(current_frame: & StackEntry, offset: i16) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 >= value2;
@@ -178,7 +177,7 @@ pub fn if_icmpge(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
-pub fn if_icmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn if_icmpne(current_frame: & StackEntry, offset: i16) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 != value2;
@@ -188,7 +187,7 @@ pub fn if_icmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
-pub fn if_icmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn if_icmpeq(current_frame: & StackEntry, offset: i16) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 == value2;
@@ -198,7 +197,7 @@ pub fn if_icmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
-pub fn if_acmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn if_acmpne(current_frame: & StackEntry, offset: i16) -> () {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
     let succeeds = !equal_ref(value2, value1);
@@ -208,7 +207,7 @@ pub fn if_acmpne(current_frame: &Rc<StackEntry>, offset: i16) -> () {
 }
 
 
-pub fn if_acmpeq(current_frame: &Rc<StackEntry>, offset: i16) -> () {
+pub fn if_acmpeq(current_frame: & StackEntry, offset: i16) -> () {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
     let succeeds = equal_ref(value2, value1);

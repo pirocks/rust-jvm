@@ -8,14 +8,14 @@ use crate::instructions::invoke::find_target_method;
 use classfile_view::view::ClassView;
 use crate::{JVMState, StackEntry};
 
-pub fn invoke_interface(state: & JVMState, current_frame: Rc<StackEntry>, invoke_interface: InvokeInterface) {
+pub fn invoke_interface(state: & JVMState, current_frame: &StackEntry, invoke_interface: InvokeInterface) {
     invoke_interface.count;
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &ClassView::from(classfile.clone()));
     let class_name_ = class_name_type.unwrap_class_type();
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
-    let _target_class = check_inited_class(state, &class_name_, current_frame.clone().into(), loader_arc.clone());
+    let _target_class = check_inited_class(state, &class_name_,  loader_arc.clone());
     let mut args = vec![];
     let checkpoint = current_frame.operand_stack.borrow().clone();
     setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);

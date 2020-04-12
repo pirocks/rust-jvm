@@ -52,8 +52,7 @@ pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::
 
 pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jstring {
     let state = get_state(env);
-    let frame = get_frame(env);
-    create_string_on_stack(state, &frame, owned_str);
+    create_string_on_stack(state, owned_str);
     let string = frame.pop().unwrap_object();
     assert!(!string.is_none());
     to_object(string)

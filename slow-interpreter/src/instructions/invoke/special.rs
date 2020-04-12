@@ -13,12 +13,16 @@ use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 
-pub fn invoke_special(state: &JVMState, current_frame: &Rc<StackEntry>, cp: u16) -> () {
+pub fn invoke_special(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(current_frame.class_pointer.classfile.clone()));
     let method_class_name = method_class_type.unwrap_class_type();
 //    trace!("Call:{} {}", method_class_name.get_referred_name(), method_name.clone());
-    let target_class = check_inited_class(state, &method_class_name, current_frame.clone().into(), loader_arc.clone());
+    let target_class = check_inited_class(
+        state,
+        &method_class_name,
+        loader_arc.clone()
+    );
     let (target_m_i, final_target_class) = find_target_method(state, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
     let target_m = &final_target_class.classfile.methods[target_m_i];
     invoke_special_impl(state, current_frame, &parsed_descriptor, target_m_i, final_target_class.clone(), target_m);
@@ -28,15 +32,15 @@ pub fn invoke_special(state: &JVMState, current_frame: &Rc<StackEntry>, cp: u16)
 }
 
 pub fn invoke_special_impl(
-    state: &JVMState,
-    current_frame: &Rc<StackEntry>,
+    jvm: &JVMState,
+    current_frame: &StackEntry,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,
     final_target_class: Arc<RuntimeClass>,
     target_m: &MethodInfo,
 ) -> () {
     if target_m.access_flags & ACC_NATIVE > 0 {
-        run_native_method(state, current_frame.clone(), final_target_class, target_m_i, false);
+        run_native_method(jvm, current_frame.clone(), final_target_class, target_m_i, false);
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;
@@ -50,8 +54,10 @@ pub fn invoke_special_impl(
             pc: 0.into(),
             pc_offset: 0.into(),
         };
-        run_function(state, Rc::new(next_entry));
-        let interpreter_state = &state.get_current_thread().interpreter_state;
+        jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
+        run_function(jvm);
+        jvm.get_current_thread().call_stack.borrow_mut().pop();
+        let interpreter_state = &jvm.get_current_thread().interpreter_state;
         if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
             return;
         }

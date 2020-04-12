@@ -67,7 +67,6 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
 pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
     jvm: &JVMState,
-    stack: Rc<StackEntry>,
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -83,7 +82,7 @@ pub fn initialize_class(
                 };
                 let constant_pool = &classfile.constant_pool;
                 let x = &constant_pool[value_i as usize];
-                let constant_value = from_constant_pool_entry(constant_pool, x, jvm, stack.clone());
+                let constant_value = from_constant_pool_entry(constant_pool, x, jvm);
                 let name = constant_pool[field.name_index as usize].extract_string_from_utf8();
                 runtime_class.static_vars.borrow_mut().insert(name, constant_value);
             }
@@ -107,7 +106,6 @@ pub fn initialize_class(
     }
 
     let new_stack = StackEntry {
-        last_call_stack: stack.into(),
         class_pointer: class_arc.clone(),
         method_i: *clinit_i as u16,
         local_vars: locals.into(),
@@ -115,7 +113,9 @@ pub fn initialize_class(
         pc: 0.into(),
         pc_offset: 0.into(),
     };
-    run_function(jvm, Rc::new(new_stack));
+    jvm.get_current_thread().call_stack.borrow_mut().push(new_stack);
+    run_function(jvm);
+    jvm.get_current_thread().call_stack.borrow_mut().pop();
     if jvm.get_current_thread().interpreter_state.throw.borrow().is_some() || *jvm.get_current_thread().interpreter_state.terminate.borrow() {
         unimplemented!()
         //need to clear status after

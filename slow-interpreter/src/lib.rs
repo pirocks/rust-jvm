@@ -30,9 +30,7 @@ use crate::jvmti::SharedLibJVMTI;
 use crate::java::lang::thread::JThread;
 use crate::loading::{Classpath, BootstrapLoader};
 use std::borrow::Borrow;
-use std::ops::Deref;
 use crate::stack_entry::StackEntry;
-use verification::verifier::codecorrectness::MergedCodeInstruction::StackMap;
 use std::thread::LocalKey;
 
 
@@ -104,7 +102,7 @@ impl JVMOptions {
 // let jdwp = load_libjdwp(libjdwp.as_str());
 
 
-pub struct JVMState/*<'vmlife>*/ {
+pub struct JVMState {
     pub bootstrap_loader: LoaderArc,
     pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
     pub string_pool: StringPool,
@@ -142,6 +140,10 @@ impl JVMState {
 
     pub fn get_current_thread(&self) -> Arc<JavaThread> {
         self.current_java_thread.with(|thread_refcell| thread_refcell.borrow().as_ref().unwrap().clone())
+    }
+
+    pub fn get_current_frame(&self) -> &StackEntry{
+        self.get_current_thread().call_stack.borrow().last().unwrap()
     }
 
     pub fn new(jvm_options: JVMOptions) -> Self {
@@ -242,7 +244,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
 
 
     jvm.built_in_jdwp.vm_inited(&jvm);
-    run_function(&jvm, main_thread.call_stack.clone());
+    run_function(&jvm);
     if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
         unimplemented!()
     }
@@ -253,19 +255,18 @@ fn jvm_run_system_init(jvm: &JVMState) {
     let bl = &jvm.bootstrap_loader;
     let bootstrap_system_class_view = bl.load_class(bl.clone(), &ClassName::system(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
     let bootstrap_system_class = Arc::new(prepare_class(bootstrap_system_class_view.backing_class(), bl.clone()));
-    let bootstrap_frame = Rc::new(StackEntry {
-        last_call_stack: None,
+    let bootstrap_frame = StackEntry {
         class_pointer: bootstrap_system_class,
         method_i: 0,
         local_vars: RefCell::new(vec![]),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
         pc_offset: RefCell::new(0),
-    });
+    };
     jvm.register_main_thread(Arc::new(JavaThread {
         java_tid: 0,
         name: "Main".to_string(),
-        call_stack: bootstrap_frame,
+        call_stack: RefCell::new(vec![bootstrap_frame]),
         thread_object: RefCell::new(None),
         interpreter_state: InterpreterState {
             terminate: RefCell::new(false),
@@ -273,26 +274,24 @@ fn jvm_run_system_init(jvm: &JVMState) {
             function_return: RefCell::new(false),
         },
     }));
-    let system_class = check_inited_class(jvm, &ClassName::system(), jvm.get_current_thread().call_stack.clone(), bl.clone());
+    let system_class = check_inited_class(jvm, &ClassName::system(), bl.clone());
     let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
     let mut locals = vec![];
     for _ in 0..method_info.code_attribute().unwrap().max_locals {
         locals.push(JavaValue::Top);
     }
-    let initialize_system_frame = Rc::new(StackEntry {
-        last_call_stack: None,
+    let initialize_system_frame = StackEntry {
         class_pointer: system_class.clone(),
         method_i: init_system_class_i as u16,
         local_vars: RefCell::new(locals),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
         pc_offset: RefCell::new(-1),
-    });
-
-
+    };
+    jvm.get_current_thread().call_stack.replace(vec![initialize_system_frame]);
     jvm.built_in_jdwp.agent_load(jvm, &jvm.main_thread());
 //todo technically this needs to before any bytecode is run.
-    run_function(&jvm, initialize_system_frame);
+    run_function(&jvm);
     if *jvm.main_thread().interpreter_state.function_return.borrow() {
         jvm.main_thread().interpreter_state.function_return.replace(false);
     }

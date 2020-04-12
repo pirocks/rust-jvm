@@ -25,12 +25,12 @@ pub fn get_interface(state: &JVMState) -> *const JNINativeInterface_ {
     JNI_Interface.with(|refcell|{
         {
             let first_borrow = refcell.borrow();
-            (match first_borrow.as_ref() {
+            match first_borrow.as_ref() {
                 None => {}
                 Some(interface) => {
                     return interface as *const JNINativeInterface_;
                 }
-            })
+            }
         }
         let new = get_interface_impl(state);
         refcell.replace(new.into());

@@ -19,7 +19,7 @@ use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
-pub fn invoke_virtual_instruction(state: & JVMState, current_frame: Rc<StackEntry>, cp: u16, debug: bool) {
+pub fn invoke_virtual_instruction(state: & JVMState, current_frame: &StackEntry, cp: u16, debug: bool) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, current_frame.clone(), cp) {
         None => return,
         Some(o) => { o }
@@ -27,13 +27,12 @@ pub fn invoke_virtual_instruction(state: & JVMState, current_frame: Rc<StackEntr
     invoke_virtual(state, current_frame, &method_name, &expected_descriptor,debug)
 }
 
-pub fn invoke_virtual_method_i(state: & JVMState, current_frame: Rc<StackEntry>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo, debug: bool) -> () {
-    invoke_virtual_method_i_impl(state, current_frame.clone(), expected_descriptor, target_class, target_method_i, target_method, debug)
+pub fn invoke_virtual_method_i(state: & JVMState, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodInfo, debug: bool) -> () {
+    invoke_virtual_method_i_impl(state, expected_descriptor, target_class, target_method_i, target_method, debug)
 }
 
 fn invoke_virtual_method_i_impl(
-    state: & JVMState,
-    current_frame: Rc<StackEntry>,
+    jvm: & JVMState,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
@@ -41,7 +40,7 @@ fn invoke_virtual_method_i_impl(
     debug: bool
 ) -> () {
     if target_method.access_flags & ACC_NATIVE > 0 {
-        run_native_method(state, current_frame.clone(), target_class, target_method_i, debug)
+        run_native_method(jvm, current_frame.clone(), target_class, target_method_i, debug)
     } else if target_method.access_flags & ACC_ABSTRACT == 0 {
 //todo this is wrong?
         let mut args = vec![];
@@ -49,7 +48,6 @@ fn invoke_virtual_method_i_impl(
 
         setup_virtual_args(&current_frame, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry {
-            last_call_stack: Some(current_frame),
             class_pointer: target_class.clone(),
             method_i: target_method_i as u16,
             local_vars: args.into(),
@@ -57,8 +55,10 @@ fn invoke_virtual_method_i_impl(
             pc: 0.into(),
             pc_offset: 0.into(),
         };
-        run_function(state, Rc::new(next_entry));
-        let interpreter_state = &state.get_current_thread().interpreter_state;
+        jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
+        run_function(jvm);
+        jvm.get_current_thread().call_stack.borrow_mut().pop();
+        let interpreter_state = &jvm.get_current_thread().interpreter_state;
         if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
             return;
         }
@@ -71,7 +71,7 @@ fn invoke_virtual_method_i_impl(
     }
 }
 
-pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
+pub fn setup_virtual_args(current_frame: &StackEntry, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
     }
@@ -97,14 +97,14 @@ pub fn setup_virtual_args(current_frame: &Rc<StackEntry>, expected_descriptor: &
 }
 
 
-pub fn invoke_virtual_unparsed(state: & JVMState, current_frame: Rc<StackEntry>, method_name: &String, desc: &String, debug: bool) -> () {
+pub fn invoke_virtual_unparsed(state: & JVMState, current_frame: &StackEntry, method_name: &String, desc: &String, debug: bool) -> () {
     invoke_virtual(state, current_frame, method_name, &parse_method_descriptor(desc).unwrap(), debug)
 }
 
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(state: & JVMState, current_frame: Rc<StackEntry>, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
+pub fn invoke_virtual(state: & JVMState, current_frame: &StackEntry, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -123,7 +123,11 @@ pub fn invoke_virtual(state: & JVMState, current_frame: Rc<StackEntry>, method_n
     let c = match this_pointer.unwrap_object().unwrap().deref() {
         Object::Array(_a) => {
 //todo so spec seems vague about this, but basically assume this is an Object
-            let object_class = check_inited_class(state, &ClassName::object(), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+            let object_class = check_inited_class(
+                state,
+                &ClassName::object(),
+                current_frame.class_pointer.loader.clone()
+            );
             object_class.clone()
         }
         Object::Object(o) => {
@@ -138,7 +142,7 @@ pub fn invoke_virtual(state: & JVMState, current_frame: Rc<StackEntry>, method_n
     invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), new_i, target_method, debug)
 }
 
-pub fn virtual_method_lookup(state: & JVMState, current_frame: &Rc<StackEntry>, method_name: &String, md: &MethodDescriptor, c: Arc<RuntimeClass>) -> (Arc<RuntimeClass>, usize) {
+pub fn virtual_method_lookup(state: & JVMState, current_frame: &StackEntry, method_name: &String, md: &MethodDescriptor, c: Arc<RuntimeClass>) -> (Arc<RuntimeClass>, usize) {
     let all_methods = get_all_methods(state, current_frame.clone(), c.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let method_view = c.class_view.method_view_i(*i);

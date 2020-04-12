@@ -22,13 +22,9 @@ pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState/*<
     transmute((**vm).reserved0)
 }
 
-pub unsafe fn get_frame_invoke_interface(vm: *mut JavaVM) -> Rc<StackEntry> {
-    get_state_invoke_interface(vm).get_current_thread().call_stack.clone()
-}
 
 pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw::c_void, version: jint) -> jint {
     let state = get_state_invoke_interface(vm);
-    let frame = get_frame_invoke_interface(vm);
     assert_eq!(version, JVMTI_VERSION_1_0 as i32);
     *(penv as *mut *mut jvmtiEnv) = Box::leak((get_jvmti_interface(state)).into()) as *mut jvmtiEnv;
     JNI_OK as i32

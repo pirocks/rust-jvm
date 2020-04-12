@@ -12,22 +12,25 @@ use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 
-pub fn run_invoke_static(state: & JVMState, current_frame: Rc<StackEntry>, cp: u16) {
+pub fn run_invoke_static(state: & JVMState, current_frame: &StackEntry, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(classfile.clone()));
     let class_name = class_name_type.unwrap_class_type();
-    let target_class = check_inited_class(state, &class_name, current_frame.clone().into(), loader_arc.clone());
+    let target_class = check_inited_class(
+        state,
+        &class_name,
+        loader_arc.clone()
+    );
     let (target_method_i, final_target_method) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
     invoke_static_impl(state, current_frame, expected_descriptor, final_target_method.clone(), target_method_i, &final_target_method.classfile.methods[target_method_i]);
 }
 
 pub fn invoke_static_impl(
-    state: & JVMState,
-    current_frame: Rc<StackEntry>,
+    jvm: & JVMState,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
@@ -61,8 +64,10 @@ pub fn invoke_static_impl(
             pc: 0.into(),
             pc_offset: 0.into(),
         };
-        run_function(state, Rc::new(next_entry));
-        let interpreter_state = &state.get_current_thread().interpreter_state;
+        jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
+        run_function(jvm);
+        jvm.get_current_thread().call_stack.borrow_mut().pop();
+        let interpreter_state = &jvm.get_current_thread().interpreter_state;
         if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
             return;
         }
@@ -71,6 +76,6 @@ pub fn invoke_static_impl(
             return;
         }
     } else {
-        run_native_method(state, current_frame.clone(), target_class.clone(), target_method_i, false);
+        run_native_method(jvm, current_frame.clone(), target_class.clone(), target_method_i, false);
     }
 }

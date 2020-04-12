@@ -22,7 +22,7 @@ use crate::runtime_class::RuntimeClass;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use crate::class_objects::get_or_create_class_object;
 
-pub fn MHN_resolve(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_resolve(state: & JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
 //so as far as I can find this is undocumented.
 //so as far as I can figure out we have a method name and a class
@@ -59,7 +59,7 @@ pub fn MHN_resolve(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<Jav
     let resolution_object = JavaValue::Object(Arc::new(Object(NormalObject {
         gc_reachable: false,
         fields: RefCell::new(Default::default()),
-        class_pointer: check_inited_class(state, &ClassName::object(), frame.clone().into(), frame.class_pointer.loader.clone()),
+        class_pointer: check_inited_class(state, &ClassName::object(), frame.class_pointer.loader.clone()),
         bootstrap_loader: true,
         class_object_ptype: RefCell::new(None),
     })).into());
@@ -78,7 +78,7 @@ pub fn MHN_resolve(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<Jav
     let clazz_field = member_name.lookup_field("clazz");
     let clazz = clazz_field.unwrap_normal_object();
     let clazz_points_to = clazz.class_object_ptype.borrow().as_ref().unwrap().unwrap_class_type();//todo doesn't work for arrays
-    let clazz_as_runtime_class = check_inited_class(state, &clazz_points_to, frame.clone().into(), frame.class_pointer.loader.clone());
+    let clazz_as_runtime_class = check_inited_class(state, &clazz_points_to, frame.class_pointer.loader.clone());
     let name = string_obj_to_string(member_name.lookup_field("name").unwrap_object());
     let debug = &name == "checkSpreadArgument";
     let type_ = type_java_value.unwrap_normal_object();
@@ -171,7 +171,7 @@ pub const IS_FIELD_OR_METHOD: i32 = 327680;
 pub const SEARCH_ALL_SUPERS: i32 = 3145728;
 pub const REFERENCE_KIND_SHIFT: u32 = 24;
 
-pub fn MHN_init(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_init(state: & JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
     // init(MemberName mname, Object target);
     let mname = args[0].unwrap_normal_object();
@@ -191,7 +191,7 @@ pub fn MHN_init(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaVa
         }else {
             let class_ptye = clazz.unwrap_normal_object().class_object_ptype.borrow();
             let class_name = class_ptye.as_ref().unwrap().unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-            let inited_class = check_inited_class(state, &class_name, frame.clone().into(), frame.class_pointer.loader.clone());
+            let inited_class = check_inited_class(state, &class_name, frame.class_pointer.loader.clone());
             if inited_class.class_view.is_interface() {
                 REF_invokeInterface
             } else {
@@ -223,12 +223,12 @@ pub fn MHN_init(state: & JVMState, frame: &Rc<StackEntry>, args: &mut Vec<JavaVa
     None//this is a void method.
 }
 
-pub fn create_method_type(state: & JVMState, frame : &Rc<StackEntry>, signature : &String) {
+pub fn create_method_type(state: & JVMState, frame : &StackEntry, signature : &String) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
     let loader_arc = frame.class_pointer.loader.clone();
-    let method_type_class = check_inited_class(state, &ClassName::method_type(), frame.clone().into(), loader_arc.clone());
-    push_new_object(state,frame.clone(),&method_type_class);
+    let method_type_class = check_inited_class(state, &ClassName::method_type(), loader_arc.clone());
+    push_new_object(state,frame,&method_type_class);
     let this = frame.pop();
     let method_descriptor = parse_method_descriptor(signature).unwrap();
     let rtype = JavaValue::Object(get_or_create_class_object(state,&PTypeView::from_ptype(&method_descriptor.return_type),frame.clone(),loader_arc.clone()).into());
@@ -241,9 +241,9 @@ pub fn create_method_type(state: & JVMState, frame : &Rc<StackEntry>, signature 
     }).collect();
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));
     let ptypes = JavaValue::Object(Arc::new(Array(ArrayObject{ elems: RefCell::new(ptypes_as_classes), elem_type: class_type })).into());
-    run_constructor(state, frame.clone(), method_type_class, vec![this.clone(),rtype,ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
+    run_constructor(state, frame, method_type_class, vec![this.clone(),rtype,ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
     frame.push(this.clone());
-    // let method_type_form_class = check_inited_class(state,&ClassName::method_type_form(),frame.clone().into(),loader_arc.clone());
+    // let method_type_form_class = check_inited_class(state,&ClassName::method_type_form(),loader_arc.clone());
     // run_static_or_virtual(state,frame,&method_type_form_class,"findForm".to_string(),"(Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodTypeForm;".to_string());
     // this.clone().unwrap_normal_object().fields.borrow_mut().insert("form".to_string(),frame.pop());
     // frame.push(this);
@@ -251,13 +251,13 @@ pub fn create_method_type(state: & JVMState, frame : &Rc<StackEntry>, signature 
 
 
 //todo this should go in some sort of utils
-pub fn run_static_or_virtual(state:& JVMState, frame: &Rc<StackEntry>, class: &Arc<RuntimeClass>, method_name: String, desc_str: String ){
+pub fn run_static_or_virtual(state:& JVMState, class: &Arc<RuntimeClass>, method_name: String, desc_str: String ){
     let res_fun = class.classfile.lookup_method(method_name,desc_str);//todo move this into classview
     let (i,m) = res_fun.unwrap();
     let md = MethodDescriptor::from_legacy(m, class.classfile.deref());
     if m.is_static(){
-        invoke_static_impl(state,frame.clone(),md,class.clone(),i,m)
+        invoke_static_impl(state,md,class.clone(),i,m)
     }else {
-        invoke_virtual_method_i(state, frame.clone(), md,class.clone(),i,m, false);
+        invoke_virtual_method_i(state,  md,class.clone(),i,m, false);
     }
 }

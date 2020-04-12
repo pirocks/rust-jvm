@@ -40,44 +40,43 @@ use std::ops::Deref;
 pub fn check_inited_class(
     state: &JVMState,
     class_name: &ClassName,
-    current_frame: Rc<StackEntry>,
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
     if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
         //todo the below is jank
         if class_name == &ClassName::raw_byte() {
-            return check_inited_class(state, &ClassName::byte(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::byte(), loader_arc);
         }
         if class_name == &ClassName::raw_char() {
-            return check_inited_class(state, &ClassName::character(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::character(), loader_arc);
         }
         if class_name == &ClassName::raw_double() {
-            return check_inited_class(state, &ClassName::double(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::double(), loader_arc);
         }
         if class_name == &ClassName::raw_float() {
-            return check_inited_class(state, &ClassName::float(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::float(), loader_arc);
         }
         if class_name == &ClassName::raw_int() {
-            return check_inited_class(state, &ClassName::int(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::int(), loader_arc);
         }
         if class_name == &ClassName::raw_long() {
-            return check_inited_class(state, &ClassName::long(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::long(), loader_arc);
         }
         if class_name == &ClassName::raw_short() {
-            return check_inited_class(state, &ClassName::short(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::short(), loader_arc);
         }
         if class_name == &ClassName::raw_boolean() {
-            return check_inited_class(state, &ClassName::boolean(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::boolean(), loader_arc);
         }
         if class_name == &ClassName::raw_void() {
-            return check_inited_class(state, &ClassName::void(), current_frame, loader_arc);
+            return check_inited_class(state, &ClassName::void(), loader_arc);
         }
         let bl = state.bootstrap_loader.clone();
         let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, state.get_live_object_pool_getter()).unwrap();
         let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
         state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
-        let inited_target = initialize_class(prepared, state, current_frame);
+        let inited_target = initialize_class(prepared, state);
         state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
     }
     let res = state.initialized_classes.read().unwrap().get(class_name).unwrap().clone();
@@ -86,9 +85,10 @@ pub fn check_inited_class(
 
 
 pub fn run_function(
-    jvm: &JVMState,
-    current_frame: Rc<StackEntry>,
+    jvm: &JVMState
 ) {
+    let current_thread = jvm.get_current_thread();
+    let current_frame = current_thread.call_stack.borrow().last().unwrap();
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
@@ -290,9 +290,9 @@ pub fn run_function(
             InstructionInfo::lcmp => lcmp(&current_frame),
             InstructionInfo::lconst_0 => lconst(&current_frame, 0),
             InstructionInfo::lconst_1 => lconst(&current_frame, 1),
-            InstructionInfo::ldc(cp) => ldc_w(jvm, current_frame.clone(), cp as u16),
-            InstructionInfo::ldc_w(cp) => ldc_w(jvm, current_frame.clone(), cp),
-            InstructionInfo::ldc2_w(cp) => ldc2_w(current_frame.clone(), cp),
+            InstructionInfo::ldc(cp) => ldc_w(jvm, current_frame, cp as u16),
+            InstructionInfo::ldc_w(cp) => ldc_w(jvm, current_frame, cp),
+            InstructionInfo::ldc2_w(cp) => ldc2_w(current_frame, cp),
             InstructionInfo::ldiv => unimplemented!(),
             InstructionInfo::lload(i) => lload(&current_frame, i as usize),
             InstructionInfo::lload_0 => lload(&current_frame, 0),
@@ -354,7 +354,7 @@ pub fn run_function(
                         break;
                     } else {
                         let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
-                        let catch_class = check_inited_class(jvm, &ClassName::Str(catch_runtime_name), current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+                        let catch_class = check_inited_class(jvm, &ClassName::Str(catch_runtime_name), current_frame.class_pointer.loader.clone());
                         if inherits_from(jvm, &throw_class, &catch_class) {
                             current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
                             interpreter_state.throw.replace(None);
@@ -392,7 +392,7 @@ pub fn run_function(
 }
 
 
-pub fn push_new_object(state: &JVMState, current_frame: Rc<StackEntry>, target_classfile: &Arc<RuntimeClass>) {
+pub fn push_new_object(state: &JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader.clone();
     let object_pointer = JavaValue::new_object(target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
@@ -425,7 +425,7 @@ fn default_init_fields(state: &JVMState, loader_arc: LoaderArc, object_pointer: 
     }
 }
 
-pub fn run_constructor(state: &JVMState, frame: Rc<StackEntry>, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
+pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
     let (i, m) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
     let md = parse_method_descriptor(descriptor.as_str()).unwrap();
     let this_ptr = full_args[0].clone();
@@ -435,5 +435,5 @@ pub fn run_constructor(state: &JVMState, frame: Rc<StackEntry>, target_classfile
         frame.push(arg.clone());
     }
     //todo this should be invoke special
-    invoke_virtual_method_i(state, frame, md, target_classfile.clone(), i, m, false);
+    invoke_virtual_method_i(state, md, target_classfile.clone(), i, m, false);
 }

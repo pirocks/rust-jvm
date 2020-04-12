@@ -32,7 +32,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
     let runtime_class = runtime_class_from_object(ofClass, state, &frame).unwrap();
     let methods = get_all_methods(state, frame.clone(), runtime_class);
-    let method_class = check_inited_class(state, &ClassName::method(), frame.clone().into(), loader.clone());
+    let method_class = check_inited_class(state, &ClassName::method(), loader.clone());
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {
@@ -96,12 +96,12 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     to_object(res)
 }
 
-fn get_signature(state: & JVMState, frame: &Rc<StackEntry>, method_view: MethodView) -> JavaValue {
+fn get_signature(state: & JVMState, frame: &StackEntry, method_view: MethodView) -> JavaValue {
     create_string_on_stack(state, &frame, method_view.desc_str());
     frame.pop()
 }
 
-fn exception_types_table(state: & JVMState, frame: &Rc<StackEntry>, method_view: &MethodView) -> JavaValue {
+fn exception_types_table(state: & JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let exception_table: Vec<JavaValue> = method_view.code_attribute()
         .map(|x|&x.exception_table)
@@ -123,7 +123,7 @@ fn exception_types_table(state: & JVMState, frame: &Rc<StackEntry>, method_view:
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(exception_table), elem_type: class_type.clone() }))))
 }
 
-fn parameters_type_objects(state: & JVMState, frame: &Rc<StackEntry>, method_view: &MethodView) -> JavaValue {
+fn parameters_type_objects(state: & JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let mut res = vec![];
     let parsed = method_view.desc();
@@ -153,7 +153,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     let constructors = target_classfile.lookup_method_name(&"<init>".to_string());
     let class_obj = runtime_class_from_object(ofClass, state, &frame);
     let loader = frame.class_pointer.loader.clone();
-    let constructor_class = check_inited_class(state, &ClassName::new("java/lang/reflect/Constructor"), frame.clone().into(), loader.clone());
+    let constructor_class = check_inited_class(state, &ClassName::new("java/lang/reflect/Constructor"), loader.clone());
     let mut object_array = vec![];
 
     constructors.clone().iter().filter(|(i, m)| {

@@ -78,8 +78,8 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 
 static mut SYSTEM_THREAD_GROUP: Option<Arc<Object>> = None;
 
-fn init_system_thread_group(jvm: &JVMState, frame: &Rc<StackEntry>) {
-    let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
+fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
+    let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()),  frame.class_pointer.loader.clone());
     push_new_object(jvm, frame.clone(), &thread_group_class);
     let object = frame.pop();
     let (init_i, init) = thread_group_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
@@ -103,7 +103,7 @@ fn init_system_thread_group(jvm: &JVMState, frame: &Rc<StackEntry>) {
     }
 }
 
-unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, frame: &Rc<StackEntry>) {
+unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, frame: &StackEntry) {
     //todo refactor this at some point
     //first create thread group
     let thread_group_object = match SYSTEM_THREAD_GROUP.clone() {
@@ -115,7 +115,7 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
     };
 
 
-    let thread_class = check_inited_class(jvm, &ClassName::Str("java/lang/Thread".to_string()), frame.clone().into(), frame.class_pointer.loader.clone());
+    let thread_class = check_inited_class(jvm, &ClassName::Str("java/lang/Thread".to_string()),  frame.class_pointer.loader.clone());
     if !Arc::ptr_eq(&thread_class, &runtime_thread_class) {
         frame.print_stack_trace();
     }

@@ -8,7 +8,7 @@ use rust_jvm_common::classnames::class_name;
 
 #[derive(Debug)]
 pub struct StackEntry {
-    pub last_call_stack: Option<Rc<StackEntry>>,
+    // pub last_call_stack: Option<&StackEntry>,
     pub class_pointer: Arc<RuntimeClass>,
     pub method_i: CPIndex,
 
@@ -34,14 +34,14 @@ impl StackEntry {
         self.operand_stack.borrow_mut().push(j)
     }
 
-    pub fn depth(&self) -> usize {
+   /* pub fn depth(&self) -> usize {
         match &self.last_call_stack {
             None => 0,
             Some(last) => last.depth() + 1,
         }
-    }
+    }*/
 
-    pub fn print_stack_trace(&self) {
+    /*pub fn print_stack_trace(&self) {
         let class_file = &self.class_pointer.classfile;
         let method = &class_file.methods[self.method_i as usize];
         println!("{} {} {} {}",
@@ -53,6 +53,6 @@ impl StackEntry {
             None => {}
             Some(last) => last.print_stack_trace(),
         }
-    }
+    }*/
 }
 
