@@ -130,12 +130,12 @@ pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l JVMState/*<'l>*/ {
 }
 
 thread_local! {
-    static JVMTI_Interface: RefCell<Option<jvmtiInterface_1_>> = RefCell::new(None);
+    static JVMTI_INTERFACE: RefCell<Option<jvmtiInterface_1_>> = RefCell::new(None);
 }
 
 
 pub fn get_jvmti_interface(state: & JVMState) -> jvmtiEnv {
-    let current = JVMTI_Interface.with(|_|RefCell::new(None));
+    let current = JVMTI_INTERFACE.with(|_|RefCell::new(None));
     if current.borrow().is_none(){
         current.borrow_mut().replace(jvmtiInterface_1_ {
             reserved1: unsafe { transmute(state) },

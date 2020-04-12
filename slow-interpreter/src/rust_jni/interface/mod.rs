@@ -16,12 +16,12 @@ use std::cell::RefCell;
 
 //todo this should be in state impl
 thread_local! {
-    static JNI_Interface: RefCell<Option<JNINativeInterface_>> = RefCell::new(None);
+    static JNI_INTERFACE: RefCell<Option<JNINativeInterface_>> = RefCell::new(None);
 }
 
 //GetFieldID
 pub fn get_interface(state: &JVMState) -> *const JNINativeInterface_ {
-    JNI_Interface.with(|refcell|{
+    JNI_INTERFACE.with(|refcell|{
         {
             let first_borrow = refcell.borrow();
             match first_borrow.as_ref() {
