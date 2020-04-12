@@ -21,7 +21,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use std::os::raw::{c_char, c_void};
 use std::alloc::Layout;
 use std::mem::size_of;
-use std::rc::Rc;
+
 use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
 use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
@@ -280,16 +280,15 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     }
 
     let state = get_state(env);
-    let frame = get_frame(env);//todo leak hazard
+    let frame_temp = get_frame(env);
+    let frame = frame_temp.deref();
     let class_obj: Arc<Object> = from_object(clazz).unwrap();
     let runtime_class = class_object_to_runtime_class(class_obj.unwrap_normal_object(), state, &frame).unwrap();
-    let all_methods = get_all_methods(state, frame.clone(), runtime_class);
+    let all_methods = get_all_methods(state, frame, runtime_class);
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_info = &c.classfile.methods[*i];
         let cur_desc = method_info.descriptor_str(&c.classfile);
         let cur_method_name = method_info.method_name(&c.classfile);
-//        dbg!(&method_name);
-//        dbg!(&cur_method_name);
         cur_method_name == method_name &&
             method_descriptor_str == cur_desc
     }).unwrap();

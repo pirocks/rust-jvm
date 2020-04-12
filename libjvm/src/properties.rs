@@ -17,9 +17,9 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jobject {
     let frame = get_frame(env);
     let state = get_state(env);
-    create_string_on_stack(state, &frame, key);
+    create_string_on_stack(state, key);
     let key = frame.pop();
-    create_string_on_stack(state, &frame, val);
+    create_string_on_stack(state, val);
     let val = frame.pop();
     let prop_obj = from_object(p).unwrap();
     let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
@@ -30,7 +30,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jo
     frame.push(JavaValue::Object(prop_obj.clone().into()));
     frame.push(key);
     frame.push(val);
-    invoke_virtual_method_i(state, frame.clone(), md, runtime_class.clone(), *meth_i, meth, false);
+    invoke_virtual_method_i(state,  md, runtime_class.clone(), *meth_i, meth, false);
     frame.pop();
     p
 }

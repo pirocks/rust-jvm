@@ -1,4 +1,4 @@
-use std::rc::Rc;
+
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::instructions::invoke::find_target_method;
@@ -11,6 +11,7 @@ use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
+use std::ops::Deref;
 
 pub fn run_invoke_static(state: & JVMState, current_frame: &StackEntry, cp: u16) {
 //todo handle monitor enter and exit
@@ -26,7 +27,7 @@ pub fn run_invoke_static(state: & JVMState, current_frame: &StackEntry, cp: u16)
     );
     let (target_method_i, final_target_method) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
-    invoke_static_impl(state, current_frame, expected_descriptor, final_target_method.clone(), target_method_i, &final_target_method.classfile.methods[target_method_i]);
+    invoke_static_impl(state, expected_descriptor, final_target_method.clone(), target_method_i, &final_target_method.classfile.methods[target_method_i]);
 }
 
 pub fn invoke_static_impl(
@@ -37,6 +38,8 @@ pub fn invoke_static_impl(
     target_method: &MethodInfo,
 ) -> () {
     let mut args = vec![];
+    let frame_temp = jvm.get_current_frame();
+    let current_frame = frame_temp.deref();
     if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
@@ -56,14 +59,13 @@ pub fn invoke_static_impl(
         }
         args[0..i].reverse();
         let next_entry = StackEntry {
-            last_call_stack: Some(current_frame),
             class_pointer: target_class,
             method_i: target_method_i as u16,
             local_vars: args.clone().into(),
             operand_stack: vec![].into(),
             pc: 0.into(),
             pc_offset: 0.into(),
-        };
+        }.into();
         jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
         run_function(jvm);
         jvm.get_current_thread().call_stack.borrow_mut().pop();
@@ -76,6 +78,6 @@ pub fn invoke_static_impl(
             return;
         }
     } else {
-        run_native_method(jvm, current_frame.clone(), target_class.clone(), target_method_i, false);
+        run_native_method(jvm, current_frame, target_class.clone(), target_method_i, false);
     }
 }

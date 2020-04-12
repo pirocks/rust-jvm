@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use crate::rust_jni::native_util::from_object;
 use jni_bindings::jclass;
-use std::rc::Rc;
+
 use crate::interpreter_util::check_inited_class;
 use classfile_view::view::ptype_view::ReferenceTypeView;
 use crate::runtime_class::RuntimeClass;

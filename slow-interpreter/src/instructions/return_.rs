@@ -1,4 +1,4 @@
-use std::rc::Rc;
+
 use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry};
 
@@ -9,7 +9,7 @@ pub fn freturn(state: & JVMState, current_frame: &StackEntry) -> () {
         JavaValue::Float(_) => {}
         _ => panic!()
     }
-    current_frame.last_call_stack.as_ref().unwrap().push(res);
+    state.get_previous_frame().push(res);
 }
 
 pub fn dreturn(state: & JVMState, current_frame: &StackEntry) -> () {
@@ -19,14 +19,14 @@ pub fn dreturn(state: & JVMState, current_frame: &StackEntry) -> () {
         JavaValue::Double(_) => {}
         _ => panic!()
     }
-    current_frame.last_call_stack.as_ref().unwrap().push(res);
+    state.get_previous_frame().push(res);
 }
 
 
 pub fn areturn(state: & JVMState, current_frame: &StackEntry) -> () {
     let res = current_frame.pop();
     state.get_current_thread().interpreter_state.function_return.replace(true);
-    current_frame.last_call_stack.as_ref().unwrap().push(res);
+    state.get_previous_frame().push(res);
 }
 
 
@@ -46,7 +46,7 @@ pub fn ireturn(state: & JVMState, current_frame: &StackEntry) -> () {
         JavaValue::Char(_) => {}
         _ => panic!()
     }
-    current_frame.last_call_stack.as_ref().unwrap().push(res);
+    state.get_previous_frame().push(res);
 }
 
 
@@ -56,11 +56,11 @@ pub fn lreturn(state: & JVMState, current_frame: &StackEntry) -> () {
     match res {
         JavaValue::Long(_) => {}
         _ => {
-            current_frame.print_stack_trace();
+            // current_frame.print_stack_trace();
             dbg!(res);
             panic!()
         }
     }
-    current_frame.last_call_stack.as_ref().unwrap().push(res);
+    state.get_previous_frame().push(res);
 }
 

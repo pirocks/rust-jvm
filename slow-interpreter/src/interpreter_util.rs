@@ -7,7 +7,7 @@ use crate::runtime_class::initialize_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::{ClassName, class_name};
 
-use std::rc::Rc;
+
 use crate::instructions::load::*;
 use crate::instructions::store::*;
 use crate::instructions::fields::*;
@@ -88,7 +88,8 @@ pub fn run_function(
     jvm: &JVMState
 ) {
     let current_thread = jvm.get_current_thread();
-    let current_frame = current_thread.call_stack.borrow().last().unwrap();
+    let frame_temp = current_thread.get_current_frame();
+    let current_frame = frame_temp.deref();
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
     let code = method.code_attribute().unwrap();
@@ -98,9 +99,9 @@ pub fn run_function(
 
     let class_name_ = class_name__.get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
-    let current_depth = current_frame.depth();
+    // let current_depth = current_frame.depth();
     // let debug = &meth_name == "getDeclaredMethod";
-    let debug = current_depth == 17 && class_name_ == "java/lang/invoke/MethodHandleImpl$Lazy" && meth_name == "<clinit>".to_string();
+    let debug = /*current_depth == 17 && */class_name_ == "java/lang/invoke/MethodHandleImpl$Lazy" && meth_name == "<clinit>".to_string();
     if debug {
         dbg!(&code.code);
     }
@@ -127,7 +128,7 @@ pub fn run_function(
             InstructionInfo::aload_1 => aload(&current_frame, 1),
             InstructionInfo::aload_2 => aload(&current_frame, 2),
             InstructionInfo::aload_3 => aload(&current_frame, 3),
-            InstructionInfo::anewarray(cp) => anewarray(jvm, current_frame.clone(), cp),
+            InstructionInfo::anewarray(cp) => anewarray(jvm, &current_frame, cp),
             InstructionInfo::areturn => areturn(jvm, &current_frame),
             InstructionInfo::arraylength => arraylength(&current_frame),
             InstructionInfo::astore(n) => astore(&current_frame, n as usize),
@@ -259,12 +260,12 @@ pub fn run_function(
             InstructionInfo::instanceof(cp) => invoke_instanceof(jvm, &current_frame, cp),
             InstructionInfo::invokedynamic(cp) => {
                 // current_frame.print_stack_trace();
-                invoke_dynamic(jvm, current_frame.clone(), cp)
+                invoke_dynamic(jvm, current_frame, cp)
             }
-            InstructionInfo::invokeinterface(invoke_i) => invoke_interface(jvm, current_frame.clone(), invoke_i),
+            InstructionInfo::invokeinterface(invoke_i) => invoke_interface(jvm, current_frame, invoke_i),
             InstructionInfo::invokespecial(cp) => invoke_special(jvm, &current_frame, cp),
-            InstructionInfo::invokestatic(cp) => run_invoke_static(jvm, current_frame.clone(), cp),
-            InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(jvm, current_frame.clone(), cp, debug),
+            InstructionInfo::invokestatic(cp) => run_invoke_static(jvm, current_frame, cp),
+            InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(jvm, current_frame, cp, debug),
             InstructionInfo::ior => ior(&current_frame),
             InstructionInfo::irem => irem(&current_frame),
             InstructionInfo::ireturn => ireturn(jvm, &current_frame),
@@ -285,7 +286,7 @@ pub fn run_function(
             InstructionInfo::l2i => l2i(&current_frame),
             InstructionInfo::ladd => ladd(&current_frame),
             InstructionInfo::laload => unimplemented!(),
-            InstructionInfo::land => land(current_frame.clone()),
+            InstructionInfo::land => land(current_frame),
             InstructionInfo::lastore => unimplemented!(),
             InstructionInfo::lcmp => lcmp(&current_frame),
             InstructionInfo::lconst_0 => lconst(&current_frame, 0),
@@ -305,8 +306,8 @@ pub fn run_function(
             InstructionInfo::lor => lor(&current_frame),
             InstructionInfo::lrem => unimplemented!(),
             InstructionInfo::lreturn => lreturn(jvm, &current_frame),
-            InstructionInfo::lshl => lshl(current_frame.clone()),
-            InstructionInfo::lshr => lshr(current_frame.clone()),
+            InstructionInfo::lshl => lshl(current_frame),
+            InstructionInfo::lshr => lshr(current_frame),
             InstructionInfo::lstore(n) => lstore(&current_frame, n as usize),
             InstructionInfo::lstore_0 => lstore(&current_frame, 0),
             InstructionInfo::lstore_1 => lstore(&current_frame, 1),
@@ -367,7 +368,7 @@ pub fn run_function(
             }
             if interpreter_state.throw.borrow().is_some() {
                 //need to propogate to caller
-                current_frame.print_stack_trace();
+                // current_frame.print_stack_trace();
                 break;
             }
         } else {

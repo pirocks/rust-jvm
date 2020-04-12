@@ -1,4 +1,4 @@
-use std::rc::Rc;
+
 use crate::instructions::invoke::resolved_class;
 use std::sync::Arc;
 use rust_jvm_common::classfile::{MethodInfo, ACC_NATIVE, ACC_ABSTRACT};
@@ -39,14 +39,15 @@ fn invoke_virtual_method_i_impl(
     target_method: &MethodInfo,
     debug: bool
 ) -> () {
+    let frame_temp = jvm.get_current_frame();
+    let current_frame = frame_temp.deref();
     if target_method.access_flags & ACC_NATIVE > 0 {
-        run_native_method(jvm, current_frame.clone(), target_class, target_method_i, debug)
+        run_native_method(jvm, current_frame, target_class, target_method_i, debug)
     } else if target_method.access_flags & ACC_ABSTRACT == 0 {
 //todo this is wrong?
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-
-        setup_virtual_args(&current_frame, &expected_descriptor, &mut args, max_locals);
+        setup_virtual_args(current_frame, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry {
             class_pointer: target_class.clone(),
             method_i: target_method_i as u16,
@@ -54,7 +55,7 @@ fn invoke_virtual_method_i_impl(
             operand_stack: vec![].into(),
             pc: 0.into(),
             pc_offset: 0.into(),
-        };
+        }.into();
         jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
         run_function(jvm);
         jvm.get_current_thread().call_stack.borrow_mut().pop();
@@ -139,7 +140,7 @@ pub fn invoke_virtual(state: & JVMState, current_frame: &StackEntry, method_name
     let final_classfile = &final_target_class.classfile;
     let target_method = &final_classfile.methods[new_i];
     let final_descriptor = parse_method_descriptor(target_method.descriptor_str(&final_classfile).as_str()).unwrap();
-    invoke_virtual_method_i(state, current_frame.clone(), final_descriptor, final_target_class.clone(), new_i, target_method, debug)
+    invoke_virtual_method_i(state,  final_descriptor, final_target_class.clone(), new_i, target_method, debug)
 }
 
 pub fn virtual_method_lookup(state: & JVMState, current_frame: &StackEntry, method_name: &String, md: &MethodDescriptor, c: Arc<RuntimeClass>) -> (Arc<RuntimeClass>, usize) {
@@ -166,7 +167,7 @@ pub fn virtual_method_lookup(state: & JVMState, current_frame: &StackEntry, meth
     }).unwrap_or_else(|| {
         dbg!(&current_frame.operand_stack.borrow());
         dbg!(&current_frame.local_vars);
-        current_frame.print_stack_trace();
+        // current_frame.print_stack_trace();
         panic!()
     }
     );

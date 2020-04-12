@@ -39,7 +39,7 @@ pub fn lload(current_frame: & StackEntry, n: usize) {
         JavaValue::Long(_) => {}
         _ => {
             dbg!(java_val);
-            current_frame.print_stack_trace();
+            // current_frame.print_stack_trace();
             dbg!(&current_frame.local_vars.borrow()[1..]);
             panic!()
         }

@@ -2,7 +2,7 @@ pub mod unsafe_ {
     use crate::java_values::{Object, JavaValue};
     use std::sync::Arc;
     use crate::{JVMState, StackEntry};
-    use std::rc::Rc;
+
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
 

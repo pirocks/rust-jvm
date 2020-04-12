@@ -1,5 +1,5 @@
 use rust_jvm_common::classfile::{LookupSwitch, TableSwitch};
-use std::rc::Rc;
+
 use crate::StackEntry;
 
 pub fn invoke_lookupswitch(ls: &LookupSwitch, frame: &StackEntry) {

@@ -12,7 +12,7 @@ extern crate libc;
 use std::str::from_utf8;
 use std::borrow::Borrow;
 use rust_jvm_common::classnames::{ClassName, class_name};
-use std::rc::Rc;
+
 use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH, JavaVM, JNI_VERSION_1_8};

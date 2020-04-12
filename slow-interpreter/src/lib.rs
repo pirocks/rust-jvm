@@ -24,14 +24,13 @@ use std::sync::atomic::AtomicUsize;
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::Instant;
 use crate::jvmti::SharedLibJVMTI;
 use crate::java::lang::thread::JThread;
 use crate::loading::{Classpath, BootstrapLoader};
-use std::borrow::Borrow;
 use crate::stack_entry::StackEntry;
 use std::thread::LocalKey;
+use std::rc::Rc;
 
 
 pub mod java_values;
@@ -46,19 +45,21 @@ type ThreadId = u64;
 
 #[derive(Debug)]
 pub struct JavaThread {
-    // pub jvm_pointer : &'vmlife JVMState<'vmlife>,
     java_tid: ThreadId,
     name: String,
-    call_stack: RefCell<Vec<StackEntry>>,
+    pub call_stack: RefCell<Vec<Rc<StackEntry>>>,
     thread_object: RefCell<Option<JThread>>,
     //for the main thread the object may not exist for a bit,b/c the code to create that object needs to run on a thread
     //todo maybe this shouldn't be private?
     pub interpreter_state: InterpreterState,
 }
 
-impl JavaThread/*<'_>*/ {
-    fn raw_thread(&self) -> *const Self {
+impl JavaThread {
+    /*fn raw_thread(&self) -> *const Self {
         self as *const Self
+    }*/
+    pub fn get_current_frame(&self) -> Rc<StackEntry> {
+        self.call_stack.borrow().last().unwrap().clone()
     }
 }
 
@@ -142,8 +143,16 @@ impl JVMState {
         self.current_java_thread.with(|thread_refcell| thread_refcell.borrow().as_ref().unwrap().clone())
     }
 
-    pub fn get_current_frame(&self) -> &StackEntry{
-        self.get_current_thread().call_stack.borrow().last().unwrap()
+    pub fn get_current_frame(&self) -> Rc<StackEntry> {
+        let current_thread = self.get_current_thread();
+        let temp = current_thread.call_stack.borrow();
+        temp.last().unwrap().clone()
+    }
+
+    pub fn get_previous_frame(&self) -> Rc<StackEntry> {
+        let thread = self.get_current_thread();
+        let call_stack = thread.call_stack.borrow();
+        call_stack.get(call_stack.len() - 2).unwrap().clone()
     }
 
     pub fn new(jvm_options: JVMOptions) -> Self {
@@ -266,7 +275,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
     jvm.register_main_thread(Arc::new(JavaThread {
         java_tid: 0,
         name: "Main".to_string(),
-        call_stack: RefCell::new(vec![bootstrap_frame]),
+        call_stack: RefCell::new(vec![Rc::new(bootstrap_frame)]),
         thread_object: RefCell::new(None),
         interpreter_state: InterpreterState {
             terminate: RefCell::new(false),
@@ -288,7 +297,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
         pc: RefCell::new(0),
         pc_offset: RefCell::new(-1),
     };
-    jvm.get_current_thread().call_stack.replace(vec![initialize_system_frame]);
+    jvm.get_current_thread().call_stack.replace(vec![Rc::new(initialize_system_frame)]);
     jvm.built_in_jdwp.agent_load(jvm, &jvm.main_thread());
 //todo technically this needs to before any bytecode is run.
     run_function(&jvm);

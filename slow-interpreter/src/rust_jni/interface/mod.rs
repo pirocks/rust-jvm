@@ -13,7 +13,6 @@ use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::array::*;
 use crate::JVMState;
 use std::cell::RefCell;
-use std::borrow::Borrow;
 
 //todo this should be in state impl
 thread_local! {

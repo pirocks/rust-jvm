@@ -3,7 +3,7 @@ use rust_jvm_common::classfile::ACC_STATIC;
 use crate::rust_jni::MethodId;
 use jni_bindings::{JNIEnv, jobject, jmethodID, jclass, JNINativeInterface_, jboolean};
 use std::ffi::VaList;
-use std::rc::Rc;
+
 use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
@@ -11,6 +11,8 @@ use classfile_view::view::ptype_view::PTypeView;
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use std::ops::Deref;
+use std::rc::Rc;
 
 #[no_mangle]
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
@@ -63,10 +65,11 @@ pub unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: j
     to_object(res)
 }
 
-pub unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, l: &mut VaList) -> &StackEntry {
+pub unsafe fn call_static_method_v<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, l: &mut VaList) -> Rc<StackEntry> {
     let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame_rc = get_frame(env);
+    let frame = frame_rc.deref();
     let classfile = &method_id.class.classfile;
     let method = &classfile.methods[method_id.method_i];
     let method_descriptor_str = method.descriptor_str(classfile);
@@ -77,7 +80,7 @@ pub unsafe fn call_static_method_v(env: *mut *const JNINativeInterface_, jmethod
     trace!("----NATIVE EXIT ----");
     invoke_static_impl(state, parsed, method_id.class.clone(), method_id.method_i, method);
     trace!("----NATIVE ENTER----");
-    frame
+    frame_rc
 }
 
 unsafe fn push_params_onto_frame(

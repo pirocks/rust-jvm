@@ -1,21 +1,22 @@
 use std::sync::Arc;
 use crate::{JVMState, StackEntry};
 use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
-use std::rc::Rc;
+
 use std::ops::Deref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::Object;
 use crate::class_objects::get_or_create_class_object;
+use std::rc::Rc;
 
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let unwrapped = from_object(obj).unwrap();
     let state = get_state(env);
-    let frame = get_frame(env);
-//    let obj= unwrapped.unwrap_normal_object();//todo double free hazard
+    let frame_temp = get_frame(env);
+    let frame = frame_temp.deref();
     let class_object = match unwrapped.deref(){
         Object::Array(a) => {
-            get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), frame.clone(), frame.class_pointer.loader.clone())
+            get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), frame, frame.class_pointer.loader.clone())
         },
         Object::Object(o) => {
             get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(o.class_pointer.class_view.name())), frame, o.class_pointer.loader.clone())
@@ -25,11 +26,11 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     to_object(class_object.into()) as jclass
 }
 
-pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> &StackEntry {
+pub unsafe extern "C" fn get_frame(env: *mut JNIEnv) -> Rc<StackEntry> {
     get_state(env).get_current_frame()
 }
 
-pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l JVMState/*<'l>*/ {
+pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l JVMState {
     &(*((**env).reserved0 as *const JVMState))
 }
 

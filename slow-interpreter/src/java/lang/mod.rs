@@ -5,7 +5,7 @@ pub mod member_name {
     use crate::java::lang::string::JString;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::{JVMState, StackEntry};
-    use std::rc::Rc;
+
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
     use std::sync::Arc;
@@ -60,7 +60,7 @@ pub mod class {
     use std::sync::Arc;
     use crate::java::lang::class_loader::ClassLoader;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-    use std::rc::Rc;
+
     use crate::{StackEntry, JVMState};
     use rust_jvm_common::classnames::ClassName;
     use crate::class_objects::get_or_create_class_object;
@@ -128,7 +128,7 @@ pub mod string {
     use crate::java_values::JavaValue;
     use crate::instructions::ldc::create_string_on_stack;
     use crate::{JVMState, StackEntry};
-    use std::rc::Rc;
+
 
     pub struct JString {
         normal_object: Arc<Object>
@@ -146,7 +146,7 @@ pub mod string {
         }
 
         pub fn from(state: & JVMState, current_frame: &StackEntry, rust_str: String) -> JString {
-            create_string_on_stack(state, current_frame, rust_str);
+            create_string_on_stack(state,  rust_str);
             current_frame.pop().cast_string()
         }
 
@@ -157,7 +157,7 @@ pub mod string {
 pub mod integer {
     use jni_bindings::jint;
     use crate::{JVMState, StackEntry};
-    use std::rc::Rc;
+
     use crate::java_values::{JavaValue, Object};
     use std::sync::Arc;
 

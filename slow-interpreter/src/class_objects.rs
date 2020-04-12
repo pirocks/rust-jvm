@@ -4,7 +4,7 @@ use crate::java_values::{Object, NormalObject, JavaValue};
 use std::sync::Arc;
 use classfile_view::loading::LoaderArc;
 use crate::stack_entry::StackEntry;
-use std::rc::Rc;
+
 use rust_jvm_common::ptype::PType;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::instructions::ldc::create_string_on_stack;

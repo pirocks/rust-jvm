@@ -35,7 +35,7 @@ pub fn invoke_checkcast(state: & JVMState, current_frame: & StackEntry, cp: u16)
                 current_frame.push(JavaValue::Object(object.clone().into()));
                 return;
             } else {
-                current_frame.print_stack_trace();
+                // current_frame.print_stack_trace();
                 unimplemented!()
             }
         },
@@ -47,7 +47,7 @@ pub fn invoke_checkcast(state: & JVMState, current_frame: & StackEntry, cp: u16)
             let expected_type = expected_type_wrapped.unwrap_array_type();
             let cast_succeeds = match &a.elem_type {
                 PTypeView::Ref(_) => {
-                    let actual_runtime_class = check_inited_class(state,&a.elem_type.unwrap_class_type(),current_current_frame.class_pointer.loader.clone());
+                    let actual_runtime_class = check_inited_class(state,&a.elem_type.unwrap_class_type(),current_frame.class_pointer.loader.clone());
                     let expected_runtime_class = check_inited_class(state,&expected_type.unwrap_class_type(),current_frame.class_pointer.loader.clone());
                     inherits_from(state,&actual_runtime_class,&expected_runtime_class)
                 },
@@ -114,7 +114,7 @@ pub fn invoke_instanceof(state: & JVMState, current_frame: & StackEntry, cp: u16
 
 fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.classfile.has_super_class() {
-        Some(check_inited_class(jvm, &inherits.classfile.super_class_name().unwrap(), jvm.get_current_thread().call_stack.clone(), inherits.loader.clone()))
+        Some(check_inited_class(jvm, &inherits.classfile.super_class_name().unwrap(), inherits.loader.clone()))
     } else {
         None
     }
@@ -123,7 +123,7 @@ fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<
 
 fn runtime_interface_class(jvm: & JVMState, class_: &Arc<RuntimeClass>, i: Interface) -> Arc<RuntimeClass> {
     let intf_name = class_.classfile.extract_class_from_constant_pool_name(i);
-    check_inited_class(jvm, &ClassName::Str(intf_name), jvm.get_current_thread().call_stack.clone(), class_.loader.clone())
+    check_inited_class(jvm, &ClassName::Str(intf_name),  class_.loader.clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>

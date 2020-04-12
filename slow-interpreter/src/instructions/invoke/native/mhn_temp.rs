@@ -2,7 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use std::rc::Rc;
+
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
 use std::cell::RefCell;

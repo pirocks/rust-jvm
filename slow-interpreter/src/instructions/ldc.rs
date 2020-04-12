@@ -1,4 +1,4 @@
-use std::rc::Rc;
+
 use rust_jvm_common::classfile::{ConstantInfo, Class, String_, ConstantKind};
 use rust_jvm_common::classnames::ClassName;
 use crate::{StackEntry, JVMState};
@@ -13,6 +13,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use crate::class_objects::get_or_create_class_object;
+use std::ops::Deref;
 
 
 fn load_class_constant(state: & JVMState, current_frame: &StackEntry, constant_pool: &Vec<ConstantInfo>, c: &Class) {
@@ -33,7 +34,8 @@ fn load_string_constant(state: & JVMState, constant_pool: &Vec<ConstantInfo>, s:
 
 pub fn create_string_on_stack(state: & JVMState, res_string: String) {
     let java_lang_string = ClassName::string();
-    let current_frame = state.get_current_frame();
+    let frame_temp = state.get_current_frame();
+    let current_frame = frame_temp.deref();
     let current_loader = current_frame.class_pointer.loader.clone();
     let string_class = check_inited_class(
         state,
@@ -56,7 +58,7 @@ pub fn create_string_on_stack(state: & JVMState, res_string: String) {
         operand_stack: vec![].into(),
         pc: 0.into(),
         pc_offset: 0.into(),
-    };
+    }.into();
     state.get_current_thread().call_stack.borrow_mut().push(next_entry);
     run_function(state);
     state.get_current_thread().call_stack.borrow_mut().pop();
@@ -96,7 +98,7 @@ pub fn ldc_w(state: & JVMState, current_frame: &StackEntry, cp: u16) -> () {
     let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
     let pool_entry = &constant_pool[cp as usize];
     match &pool_entry.kind {
-        ConstantKind::String(s) => load_string_constant(state, &current_frame, &constant_pool, &s),
+        ConstantKind::String(s) => load_string_constant(state,  &constant_pool, &s),
         ConstantKind::Class(c) => load_class_constant(state, &current_frame, constant_pool, &c),
         ConstantKind::Float(f) => {
             let float: f32 = unsafe { transmute(f.bytes) };
@@ -113,7 +115,7 @@ pub fn ldc_w(state: & JVMState, current_frame: &StackEntry, cp: u16) -> () {
     }
 }
 
-pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantInfo, state: & JVMState) -> JavaValue {
+pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantInfo, jvm: & JVMState) -> JavaValue {
     match &c.kind {
         ConstantKind::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
         ConstantKind::Float(f) => JavaValue::Float(unsafe { transmute(f.bytes) }),
@@ -128,8 +130,9 @@ pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantI
             transmute(high | low)
         }),
         ConstantKind::String(s) => {
-            load_string_constant(state, constant_pool, s);
-            stack.pop()
+            load_string_constant(jvm, constant_pool, s);
+            let frame = jvm.get_current_frame();
+            frame.pop()
         }
         _ => panic!()
     }

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+
 use rust_jvm_common::classfile::{ConstantKind, Atype, MultiNewArray};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;

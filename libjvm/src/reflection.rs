@@ -19,7 +19,8 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
-    let frame = get_frame(env);
+    let frame_temp = get_frame(env);
+    let frame = frame_temp.deref();
     let state = get_state(env);
     //todo need to convert lots of these to unwrap_or_throw
     // dbg!(args0);
@@ -47,7 +48,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         frame.push(arg.clone());
     }
 
-    run_static_or_virtual(state,&frame,&target_runtime_class,method_name,signature);
+    run_static_or_virtual(state,&target_runtime_class,method_name,signature);
     to_object(frame.pop().unwrap_object())
 }
 
@@ -65,7 +66,8 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let signature_str_obj = constructor_obj.lookup_field("signature");
     let temp_4 = constructor_obj.lookup_field("clazz").unwrap_object_nonnull();
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame_temp = get_frame(env);
+    let frame = frame_temp.deref();
     let clazz = class_object_to_runtime_class(temp_4.unwrap_normal_object(), state, &frame).unwrap();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
     push_new_object(state,frame.clone(), &clazz);

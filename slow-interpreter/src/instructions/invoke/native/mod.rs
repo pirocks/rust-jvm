@@ -1,7 +1,7 @@
 use rust_jvm_common::classnames::ClassName;
 use crate::rust_jni::{mangling, call_impl, call};
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ConstantInfo, ConstantKind, Class, Utf8, Classfile};
-use std::rc::Rc;
+
 use std::sync::Arc;
 
 use crate::instructions::invoke::native::system_temp::system_array_copy;
@@ -21,7 +21,6 @@ use descriptor_parser::MethodDescriptor;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;
-use std::borrow::Borrow;
 use std::sync::atomic::Ordering;
 
 pub fn run_native_method(
@@ -155,7 +154,7 @@ pub fn run_native_method(
                         // unimplemented!()
                         Some(JavaValue::Int(0))
                     } else {
-                        frame.print_stack_trace();
+                        // frame.print_stack_trace();
                         dbg!(mangled);
                         panic!()
                     }

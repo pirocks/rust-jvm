@@ -1,5 +1,5 @@
 use crate::interpreter_util::{run_function, check_inited_class};
-use std::rc::Rc;
+
 use crate::instructions::invoke::virtual_::setup_virtual_args;
 use crate::instructions::invoke::find_target_method;
 use rust_jvm_common::classfile::{ACC_NATIVE, MethodInfo};
@@ -46,14 +46,13 @@ pub fn invoke_special_impl(
         let max_locals = target_m.code_attribute().unwrap().max_locals;
         setup_virtual_args(current_frame, &parsed_descriptor, &mut args, max_locals);
         let next_entry = StackEntry {
-            last_call_stack: Some(current_frame.clone()),
             class_pointer: final_target_class.clone(),
             method_i: target_m_i as u16,
             local_vars: args.into(),
             operand_stack: vec![].into(),
             pc: 0.into(),
             pc_offset: 0.into(),
-        };
+        }.into();
         jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
         run_function(jvm);
         jvm.get_current_thread().call_stack.borrow_mut().pop();

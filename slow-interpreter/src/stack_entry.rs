@@ -1,10 +1,9 @@
 use rust_jvm_common::classfile::CPIndex;
 use std::sync::Arc;
 use crate::runtime_class::RuntimeClass;
-use std::rc::Rc;
+
 use crate::java_values::JavaValue;
 use std::cell::RefCell;
-use rust_jvm_common::classnames::class_name;
 
 #[derive(Debug)]
 pub struct StackEntry {
@@ -33,6 +32,8 @@ impl StackEntry {
     pub fn push(&self, j: JavaValue) {
         self.operand_stack.borrow_mut().push(j)
     }
+
+
 
    /* pub fn depth(&self) -> usize {
         match &self.last_call_stack {

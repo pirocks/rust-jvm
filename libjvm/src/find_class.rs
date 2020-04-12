@@ -8,6 +8,7 @@ use libjvm_utils::jstring_to_string;
 use rust_jvm_common::ptype::PType::Ref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use slow_interpreter::class_objects::get_or_create_class_object;
+use std::ops::Deref;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -20,8 +21,9 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     match loaded{
         Result::Err(_) => return to_object(None),
         Result::Ok(view) => {
-            let frame = get_frame(env);
-            to_object(get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame.clone(),state.bootstrap_loader.clone()).into())
+            let frame_temp = get_frame(env);
+            let frame = frame_temp.deref();
+            to_object(get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,state.bootstrap_loader.clone()).into())
         },
     }
 }
@@ -48,9 +50,10 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     match loaded{
         None => return to_object(None),
         Some(view) => {
-            let frame = get_frame(env);
+            let frame_temp = get_frame(env);
+            let frame = frame_temp.deref();
             //todo what if name is long/int etc.
-            get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame.clone(),state.bootstrap_loader.clone());
+            get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,state.bootstrap_loader.clone());
             to_object(frame.pop().unwrap_object())
         },
     }
@@ -104,7 +107,8 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     };
 
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame_temp = get_frame(env);
+    let frame = frame_temp.deref();
     let res = get_or_create_class_object(state, &ptype, frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
     res.unwrap_normal_object().class_object_ptype.replace(Some(ptype));
     dbg!(&res);

@@ -28,7 +28,7 @@ pub mod field {
     use crate::java::lang::class::JClass;
     use jni_bindings::jint;
     use crate::{JVMState, StackEntry};
-    use std::rc::Rc;
+
     use crate::interpreter_util::{push_new_object, run_constructor, check_inited_class};
     use std::sync::Arc;
     use classfile_view::view::ptype_view::PTypeView;

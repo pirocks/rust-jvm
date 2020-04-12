@@ -1,5 +1,5 @@
 use crate::{JVMState, StackEntry};
-use std::rc::Rc;
+
 use verification::verifier::instructions::branches::get_method_descriptor;
 use std::sync::Arc;
 
@@ -20,7 +20,7 @@ pub mod virtual_;
 pub mod static_;
 
 pub mod dynamic {
-    use std::rc::Rc;
+
 
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;

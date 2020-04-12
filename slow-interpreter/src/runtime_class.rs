@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use classfile_view::view::ClassView;
 use classfile_view::loading::LoaderArc;
 use crate::interpreter_util::run_function;
-use std::rc::Rc;
+
 use crate::{StackEntry, JVMState};
 use crate::instructions::ldc::from_constant_pool_entry;
 use descriptor_parser::parse_field_descriptor;
@@ -112,7 +112,7 @@ pub fn initialize_class(
         operand_stack: vec![].into(),
         pc: 0.into(),
         pc_offset: 0.into(),
-    };
+    }.into();
     jvm.get_current_thread().call_stack.borrow_mut().push(new_stack);
     run_function(jvm);
     jvm.get_current_thread().call_stack.borrow_mut().pop();

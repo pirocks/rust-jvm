@@ -6,7 +6,7 @@ use rust_jvm_common::ptype::{PType, ReferenceType};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
-use std::rc::Rc;
+
 use rust_jvm_common::classfile::{ACC_PUBLIC, ACC_ABSTRACT};
 use std::ops::Deref;
 use std::ffi::CStr;
@@ -127,7 +127,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let frame = get_frame(env);
     let state = get_state(env);
 
-    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(frame.last_call_stack.as_ref().unwrap().class_pointer.class_view.name())));
+    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(frame.class_pointer.class_view.name())));
     let jclass = frame.pop().unwrap_object();
     to_object(jclass)
 }
@@ -148,10 +148,11 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     caller: jclass,
 ) -> jclass {
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame_temp = get_frame(env);
+    let frame = frame_temp.deref();
 
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    to_object(Some(get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))), frame.clone(), frame.class_pointer.loader.clone())))
+    to_object(Some(get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))), frame, frame.class_pointer.loader.clone())))
 }
 
 

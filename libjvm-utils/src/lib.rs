@@ -1,5 +1,5 @@
 use rust_jvm_common::ptype::PType;
-use std::rc::Rc;
+
 use std::sync::Arc;
 
 use jni_bindings::jstring;

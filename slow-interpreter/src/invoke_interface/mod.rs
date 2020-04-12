@@ -1,6 +1,6 @@
 use jvmti_bindings::{JNIInvokeInterface_, JavaVM, jint, JVMTI_VERSION_1_0, jvmtiEnv};
-use crate::{JVMState, StackEntry};
-use std::rc::Rc;
+use crate::JVMState;
+
 use jni_bindings::JNI_OK;
 use std::intrinsics::transmute;
 use crate::jvmti::get_jvmti_interface;

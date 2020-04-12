@@ -5,7 +5,7 @@
 //all of these functions should be implemented in libjvm
 use std::mem::transmute;
 use crate::utils::string_obj_to_string;
-use std::rc::Rc;
+
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry};

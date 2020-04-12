@@ -1,5 +1,5 @@
 use slow_interpreter::interpreter_util::{run_function, push_new_object, check_inited_class};
-use std::rc::Rc;
+
 use std::cell::RefCell;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
@@ -11,6 +11,7 @@ use slow_interpreter::JVMState;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::stack_entry::StackEntry;
 use std::ops::Deref;
+use std::rc::Rc;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -84,7 +85,6 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
     let object = frame.pop();
     let (init_i, init) = thread_group_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
     let new_frame = StackEntry {
-        last_call_stack: frame.clone().into(),
         class_pointer: thread_group_class.clone(),
         method_i: init_i as u16,
         local_vars: RefCell::new(vec![object.clone()]),
@@ -93,7 +93,9 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
         pc_offset: RefCell::new(0),
     };
     unsafe { SYSTEM_THREAD_GROUP = object.unwrap_object(); }
-    run_function(jvm, Rc::new(new_frame));
+    jvm.get_current_thread().call_stack.borrow_mut().push(Rc::new(new_frame));
+    run_function(jvm);
+    jvm.get_current_thread().call_stack.borrow_mut().pop().unwrap();
     let interpreter_state = &jvm.get_current_thread().interpreter_state;
     if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
         unimplemented!()
@@ -116,15 +118,14 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
 
 
     let thread_class = check_inited_class(jvm, &ClassName::Str("java/lang/Thread".to_string()),  frame.class_pointer.loader.clone());
-    if !Arc::ptr_eq(&thread_class, &runtime_thread_class) {
-        frame.print_stack_trace();
-    }
+    // if !Arc::ptr_eq(&thread_class, &runtime_thread_class) {
+        // frame.print_stack_trace();
+    // }
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     push_new_object(jvm, frame.clone(), &thread_class);
     let object = frame.pop();
     let (init_i, init) = thread_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
     let new_frame = StackEntry {
-        last_call_stack: frame.clone().into(),
         class_pointer: thread_class.clone(),
         method_i: init_i as u16,
         local_vars: RefCell::new(vec![object.clone()]),
@@ -137,7 +138,9 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
     //for some reason the constructor doesn't handle priority.
     let NORM_PRIORITY = 5;
     MAIN_THREAD.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert("priority".to_string(), JavaValue::Int(NORM_PRIORITY));
-    run_function(jvm, Rc::new(new_frame));
+    jvm.get_current_thread().call_stack.borrow_mut().push(Rc::new(new_frame));
+    run_function(jvm);
+    jvm.get_current_thread().call_stack.borrow_mut().pop();
     frame.push(JavaValue::Object(MAIN_THREAD.clone()));
     let interpreter_state = &jvm.get_current_thread().interpreter_state;
     if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
