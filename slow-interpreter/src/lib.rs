@@ -6,6 +6,8 @@ extern crate libloading;
 extern crate libc;
 extern crate regex;
 extern crate va_list;
+extern crate lock_api;
+extern crate parking_lot;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
@@ -335,3 +337,4 @@ pub mod jvmti;
 pub mod invoke_interface;
 pub mod stack_entry;
 pub mod class_objects;
+pub mod monitor;

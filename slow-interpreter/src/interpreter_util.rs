@@ -317,11 +317,11 @@ pub fn run_function(
             InstructionInfo::lushr => unimplemented!(),
             InstructionInfo::lxor => unimplemented!(),
             InstructionInfo::monitorenter => {
-                current_frame.pop().unwrap_object_nonnull();
+                current_frame.pop().unwrap_object_nonnull().monitor_lock();
                 /*unimplemented for now todo*/
             }
             InstructionInfo::monitorexit => {
-                current_frame.pop().unwrap_object_nonnull();
+                current_frame.pop().unwrap_object_nonnull().monitor_unlock();
                 /*unimplemented for now todo*/
             }
             InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, &current_frame, cp),

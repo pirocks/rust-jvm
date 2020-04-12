@@ -17,6 +17,7 @@ use slow_interpreter::java_values::{JavaValue, Object, ArrayObject};
 use slow_interpreter::JVMState;
 use slow_interpreter::stack_entry::StackEntry;
 use std::ops::Deref;
+use slow_interpreter::monitor::Monitor;
 
 const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 
@@ -122,7 +123,7 @@ fn exception_types_table(state: & JVMState, frame: &StackEntry, method_view: &Me
             ptype_to_class_object(state, frame,&x.to_ptype()).into()
         })
         .collect();
-    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(exception_table), elem_type: class_type.clone() }))))
+    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(exception_table), elem_type: class_type.clone(), monitor: Monitor::new() }))))
 }
 
 fn parameters_type_objects(state: & JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
@@ -133,7 +134,7 @@ fn parameters_type_objects(state: & JVMState, frame: &StackEntry, method_view: &
         res.push(JavaValue::Object(ptype_to_class_object(state, &frame, &param_type)));
     }
 
-    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(res), elem_type: class_type.clone() }))))
+    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(res), elem_type: class_type.clone(), monitor: Monitor::new() }))))
 }
 
 

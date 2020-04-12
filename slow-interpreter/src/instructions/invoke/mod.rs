@@ -11,6 +11,7 @@ use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, Object, ArrayObject};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
+use crate::monitor::Monitor;
 
 
 pub mod special;
@@ -123,7 +124,7 @@ fn resolved_class(state: & JVMState, current_frame: &StackEntry, cp: u16) -> Opt
                         //todo replace with proper native impl
                         let temp = current_frame.pop().unwrap_object().unwrap();
                         let to_clone_array = temp.unwrap_array();
-                        current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: to_clone_array.elems.clone(), elem_type: to_clone_array.elem_type.clone() })))));
+                        current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: to_clone_array.elems.clone(), elem_type: to_clone_array.elem_type.clone(), monitor: Monitor::new() })))));
                         return None;
                     } else {
                         unimplemented!();

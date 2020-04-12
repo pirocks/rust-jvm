@@ -127,7 +127,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let frame = get_frame(env);
     let state = get_state(env);
 
-    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(frame.class_pointer.class_view.name())));
+    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(state.get_previous_frame().class_pointer.class_view.name())));
     let jclass = frame.pop().unwrap_object();
     to_object(jclass)
 }

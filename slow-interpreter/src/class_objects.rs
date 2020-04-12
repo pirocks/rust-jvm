@@ -12,6 +12,7 @@ use rust_jvm_common::classnames::ClassName;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
+use crate::monitor::Monitor;
 
 //todo do something about this class object crap
 pub fn get_or_create_class_object(state: & JVMState,
@@ -81,6 +82,7 @@ fn create_a_class_object(state: & JVMState, current_frame: &StackEntry) -> Arc<O
     let class_class = check_inited_class(state, &java_lang_class, current_loader.clone());
     let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_loader.clone());
     let boostrap_loader_object = Arc::new(Object::Object(NormalObject {
+        monitor: Monitor::new(),
         gc_reachable: true,
         fields: RefCell::new(HashMap::new()),
         class_pointer: class_loader_class.clone(),

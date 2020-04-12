@@ -14,6 +14,7 @@ use crate::java_values::{JavaValue, Object, ArrayObject};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use crate::class_objects::get_or_create_class_object;
 use std::ops::Deref;
+use crate::monitor::Monitor;
 
 
 fn load_class_constant(state: & JVMState, current_frame: &StackEntry, constant_pool: &Vec<ConstantInfo>, c: &Class) {
@@ -47,7 +48,7 @@ pub fn create_string_on_stack(state: & JVMState, res_string: String) {
     push_new_object(state,current_frame, &string_class);//todo what if stack overflows here?
     let string_object = current_frame.pop();
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(chars), elem_type: PTypeView::CharType })))));
+    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(chars), elem_type: PTypeView::CharType, monitor: Monitor::new() })))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(state, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);

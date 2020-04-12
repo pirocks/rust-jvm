@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
 use crate::{JVMState, StackEntry};
+use crate::monitor::Monitor;
 
 pub fn new(state: & JVMState, current_frame: & StackEntry, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
@@ -112,7 +113,7 @@ pub fn multi_a_new_array(state: & JVMState, current_frame: & StackEntry, cp: Mul
         for _ in 0..len {
             new_vec.push(current.deep_clone())
         }
-        current = JavaValue::Object(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(new_vec), elem_type: next_type.clone() })).into());
+        current = JavaValue::Object(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(new_vec), elem_type: next_type.clone(), monitor: Monitor::new() })).into());
         current_type = next_type;
     }
     current_frame.push(current);

@@ -5,6 +5,7 @@ use crate::rust_jni::native_util::{to_object, from_object};
 use std::ops::Deref;
 use classfile_view::view::ptype_view::PTypeView;
 use crate::java_values::{JavaValue, Object, ArrayObject};
+use crate::monitor::Monitor;
 
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
@@ -38,7 +39,7 @@ pub unsafe extern "C" fn new_byte_array(_env: *mut JNIEnv, len: jsize) -> jbyteA
     for _ in 0..len {
         the_vec.push(JavaValue::Byte(0))
     }
-    to_object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(the_vec), elem_type: PTypeView::ByteType }))))
+    to_object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(the_vec), elem_type: PTypeView::ByteType, monitor: Monitor::new() }))))
 }
 
 

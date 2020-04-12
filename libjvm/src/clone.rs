@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::ops::Deref;
 use std::cell::RefCell;
 use slow_interpreter::java_values::{Object, ArrayObject, NormalObject};
+use slow_interpreter::monitor::Monitor;
 
 
 #[no_mangle]
@@ -15,10 +16,11 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
             match o.deref() {
                 Object::Array(a) => {
                     let cloned_arr : Vec<_>= a.elems.borrow().iter().cloned().collect();
-                    Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(cloned_arr), elem_type: a.elem_type.clone() })))
+                    Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(cloned_arr), elem_type: a.elem_type.clone(), monitor: Monitor::new() })))
                 },
                 Object::Object(o) => {
                     Arc::new(Object::Object(NormalObject {
+                        monitor: Monitor::new(),
                         gc_reachable: o.gc_reachable,
                         fields: RefCell::new(o.fields.borrow().iter().map(|(k,v)|{(k.clone(),v.clone())}).collect()),
                         class_pointer: o.class_pointer.clone(),

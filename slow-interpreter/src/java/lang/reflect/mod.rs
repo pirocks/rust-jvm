@@ -34,6 +34,7 @@ pub mod field {
     use classfile_view::view::ptype_view::PTypeView;
     use std::cell::RefCell;
     use rust_jvm_common::classnames::ClassName;
+    use crate::monitor::Monitor;
 
     pub struct Field{
         normal_object : Arc<Object>
@@ -56,7 +57,7 @@ pub mod field {
             let slot = JavaValue::Int(slot);
 
             //todo impl annotations.
-            let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(annotations), elem_type: PTypeView::ByteType }))));
+            let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(annotations), elem_type: PTypeView::ByteType, monitor: Monitor::new() }))));
 
             run_constructor(
                 state,

@@ -8,6 +8,7 @@ use rust_jvm_common::classfile::ACC_ABSTRACT;
 
 use std::ops::Deref;
 use classfile_view::view::ptype_view::PTypeView;
+use crate::monitor::Monitor;
 
 //#[derive(Debug)]
 pub enum JavaValue {
@@ -228,11 +229,12 @@ impl JavaValue {
         }
     }
     pub fn empty_byte_array() -> JavaValue {
-        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType }))))
+        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType, monitor: Monitor::new() }))))
     }
     pub fn new_object(runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
         assert_eq!(runtime_class.classfile.access_flags & ACC_ABSTRACT, 0);
         Arc::new(Object::Object(NormalObject {
+            monitor: Monitor::new(),
             gc_reachable: true,
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
@@ -248,7 +250,7 @@ impl JavaValue {
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Some(Arc::new(Object::Array(ArrayObject { elems: buf.into(), elem_type })))
+        Some(Arc::new(Object::Array(ArrayObject { elems: buf.into(), elem_type, monitor: Monitor::new() })))
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {
@@ -415,11 +417,12 @@ impl Object {
         match &self {
             Object::Array(a) => {
                 let sub_array = a.elems.borrow().iter().map(|x| x.deep_clone()).collect();
-                Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone() })
+                Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: Monitor::new() })
             }
             Object::Object(o) => {
                 let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone()) }).collect());
                 Object::Object(NormalObject {
+                    monitor: Monitor::new(),
                     gc_reachable: o.gc_reachable,
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
@@ -443,7 +446,23 @@ impl Object {
         Object::Array(ArrayObject {
             elems: RefCell::new(object_array),
             elem_type: class_type,
+            monitor: Monitor::new()
         })
+    }
+
+    fn monitor(&self) -> &Monitor{
+        match self{
+            Object::Array(a) => &a.monitor,
+            Object::Object(o) => &o.monitor,
+        }
+    }
+
+    pub fn monitor_unlock(&self){
+        self.monitor().unlock();
+    }
+
+    pub fn monitor_lock(&self){
+        self.monitor().lock();
     }
 }
 
@@ -451,10 +470,12 @@ impl Object {
 pub struct ArrayObject {
     pub elems: RefCell<Vec<JavaValue>>,
     pub elem_type: PTypeView,
+    pub monitor : Monitor
 }
 
 //#[derive(Debug)]
 pub struct NormalObject {
+    pub monitor : Monitor,
     pub gc_reachable: bool,
     //I guess this never changes so unneeded?
     pub fields: RefCell<HashMap<String, JavaValue>>,

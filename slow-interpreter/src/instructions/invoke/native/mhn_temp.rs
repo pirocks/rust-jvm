@@ -21,6 +21,7 @@ use crate::java_values::Object::{Object, Array};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use crate::class_objects::get_or_create_class_object;
+use crate::monitor::Monitor;
 
 pub fn MHN_resolve(state: & JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -57,6 +58,7 @@ pub fn MHN_resolve(state: & JVMState, frame: &StackEntry, args: &mut Vec<JavaVal
 
 
     let resolution_object = JavaValue::Object(Arc::new(Object(NormalObject {
+        monitor: Monitor::new(),
         gc_reachable: false,
         fields: RefCell::new(Default::default()),
         class_pointer: check_inited_class(state, &ClassName::object(), frame.class_pointer.loader.clone()),
@@ -240,7 +242,7 @@ pub fn create_method_type(state: & JVMState, frame : &StackEntry, signature : &S
         JavaValue::Object(x.into())
     }).collect();
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));
-    let ptypes = JavaValue::Object(Arc::new(Array(ArrayObject{ elems: RefCell::new(ptypes_as_classes), elem_type: class_type })).into());
+    let ptypes = JavaValue::Object(Arc::new(Array(ArrayObject{ elems: RefCell::new(ptypes_as_classes), elem_type: class_type, monitor: Monitor::new() })).into());
     run_constructor(state, frame, method_type_class, vec![this.clone(),rtype,ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
     frame.push(this.clone());
     // let method_type_form_class = check_inited_class(state,&ClassName::method_type_form(),loader_arc.clone());
