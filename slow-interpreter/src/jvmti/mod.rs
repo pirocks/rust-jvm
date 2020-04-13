@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jclass};
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
@@ -18,6 +18,10 @@ use crate::jvmti::monitor::create_raw_monitor;
 use crate::jvmti::threads::get_top_thread_groups;
 use crate::rust_jni::MethodId;
 use rust_jvm_common::classfile::Code;
+use crate::class_objects::get_or_create_class_object;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use crate::rust_jni::value_conversion::to_native;
+use crate::rust_jni::native_util::to_object;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -235,7 +239,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetBytecodes: None,
         IsMethodNative: None,
         IsMethodSynthetic: None,
-        GetLoadedClasses: None,
+        GetLoadedClasses: Some(get_loaded_classes),
         GetClassLoaderClasses: None,
         PopFrame: None,
         ForceEarlyReturnObject: None,
@@ -316,8 +320,24 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
+unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError{
+    let state =  get_state(env);
+    let frame =  state.get_current_frame();
+    let mut res_vec = vec![];
+    //todo what about int.class and other primitive classes
+    state.initialized_classes.read().unwrap().iter().for_each(|(_,runtime_class)|{
+        let name = runtime_class.class_view.name();
+        let class_object = get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(name)), frame.deref(), runtime_class.loader.clone());
+        res_vec.push(to_object(class_object.into()))
+    });
+    class_count_ptr.write(res_vec.len() as i32);
+    classes_ptr.write(transmute(res_vec.as_mut_ptr()));
+    Vec::leak(res_vec);//todo leaking
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
 unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError{
-    let method_id = (method_id as *mut MethodId).as_ref().unwrap();
+    let method_id = (method as *mut MethodId).as_ref().unwrap();
     match method_id.class.class_view.method_view_i(method_id.method_i).code_attribute(){
         None => {
             start_location_ptr.write(-1);
