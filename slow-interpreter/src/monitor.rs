@@ -1,9 +1,10 @@
-use parking_lot::{RawFairMutex, const_fair_mutex};
+use parking_lot::RawFairMutex;
 use lock_api::{RawMutex, Mutex};
 
 #[derive(Debug)]
 pub struct Monitor {
-    mutex: Mutex<RawFairMutex, i32>,
+    pub mutex: Mutex<RawFairMutex, i32>,
+    pub monitor_i : usize
 }
 
 impl Monitor {
@@ -13,11 +14,5 @@ impl Monitor {
 
     pub fn unlock(&self) {
         unsafe { self.mutex.raw().unlock(); }//todo maybe find something better than force_unlock
-    }
-
-    pub fn new() -> Self {
-        Self {
-            mutex: const_fair_mutex(0)
-        }
     }
 }

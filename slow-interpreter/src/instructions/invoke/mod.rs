@@ -11,7 +11,6 @@ use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, Object, ArrayObject};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
-use crate::monitor::Monitor;
 
 
 pub mod special;
@@ -111,7 +110,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(state: & JVMState, current_frame: &StackEntry, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+fn resolved_class(jvm: & JVMState, current_frame: &StackEntry, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let classfile = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader;
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(classfile.clone()));
@@ -124,7 +123,11 @@ fn resolved_class(state: & JVMState, current_frame: &StackEntry, cp: u16) -> Opt
                         //todo replace with proper native impl
                         let temp = current_frame.pop().unwrap_object().unwrap();
                         let to_clone_array = temp.unwrap_array();
-                        current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: to_clone_array.elems.clone(), elem_type: to_clone_array.elem_type.clone(), monitor: Monitor::new() })))));
+                        current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
+                            elems: to_clone_array.elems.clone(),
+                            elem_type: to_clone_array.elem_type.clone(),
+                            monitor: jvm.new_monitor()
+                        })))));
                         return None;
                     } else {
                         unimplemented!();
@@ -136,7 +139,7 @@ fn resolved_class(state: & JVMState, current_frame: &StackEntry, cp: u16) -> Opt
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let resolved_class = check_inited_class(
-        state,
+        jvm,
         &class_name_,
         loader_arc.clone()
     );

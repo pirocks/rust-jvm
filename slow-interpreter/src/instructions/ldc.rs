@@ -1,4 +1,3 @@
-
 use rust_jvm_common::classfile::{ConstantInfo, Class, String_, ConstantKind};
 use rust_jvm_common::classnames::ClassName;
 use crate::{StackEntry, JVMState};
@@ -14,44 +13,47 @@ use crate::java_values::{JavaValue, Object, ArrayObject};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use crate::class_objects::get_or_create_class_object;
 use std::ops::Deref;
-use crate::monitor::Monitor;
 
 
-fn load_class_constant(state: & JVMState, current_frame: &StackEntry, constant_pool: &Vec<ConstantInfo>, c: &Class) {
+fn load_class_constant(state: &JVMState, current_frame: &StackEntry, constant_pool: &Vec<ConstantInfo>, c: &Class) {
     let res_class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();
     let type_ = parse_field_descriptor(&res_class_name).unwrap().field_type;
     load_class_constant_by_type(state, current_frame, &PTypeView::from_ptype(&type_));
 }
 
-pub fn load_class_constant_by_type(state: & JVMState, current_frame: &StackEntry, res_class_type: &PTypeView) {
+pub fn load_class_constant_by_type(state: &JVMState, current_frame: &StackEntry, res_class_type: &PTypeView) {
     let object = get_or_create_class_object(state, res_class_type, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
     current_frame.push(JavaValue::Object(object.into()));
 }
 
-fn load_string_constant(state: & JVMState, constant_pool: &Vec<ConstantInfo>, s: &String_) {
+fn load_string_constant(state: &JVMState, constant_pool: &Vec<ConstantInfo>, s: &String_) {
     let res_string = constant_pool[s.string_index as usize].extract_string_from_utf8();
     create_string_on_stack(state, res_string);
 }
 
-pub fn create_string_on_stack(state: & JVMState, res_string: String) {
+pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
     let java_lang_string = ClassName::string();
-    let frame_temp = state.get_current_frame();
+    let frame_temp = jvm.get_current_frame();
     let current_frame = frame_temp.deref();
     let current_loader = current_frame.class_pointer.loader.clone();
     let string_class = check_inited_class(
-        state,
+        jvm,
         &java_lang_string,
-        current_loader.clone()
+        current_loader.clone(),
     );
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x) }).collect();
-    push_new_object(state,current_frame, &string_class);//todo what if stack overflows here?
+    push_new_object(jvm, current_frame, &string_class);//todo what if stack overflows here?
     let string_object = current_frame.pop();
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(chars), elem_type: PTypeView::CharType, monitor: Monitor::new() })))));
+    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
+        elems: RefCell::new(chars),
+        elem_type: PTypeView::CharType,
+        monitor: jvm.new_monitor(),
+    })))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
-    let (constructor_i, final_target_class) = find_target_method(state, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
+    let (constructor_i, final_target_class) = find_target_method(jvm, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry {
         class_pointer: final_target_class,
         method_i: constructor_i as u16,
@@ -60,10 +62,10 @@ pub fn create_string_on_stack(state: & JVMState, res_string: String) {
         pc: 0.into(),
         pc_offset: 0.into(),
     }.into();
-    state.get_current_thread().call_stack.borrow_mut().push(next_entry);
-    run_function(state);
-    state.get_current_thread().call_stack.borrow_mut().pop();
-    let interpreter_state = &state.get_current_thread().interpreter_state;
+    jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
+    run_function(jvm);
+    jvm.get_current_thread().call_stack.borrow_mut().pop();
+    let interpreter_state = &jvm.get_current_thread().interpreter_state;
     if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
         unimplemented!()
     }
@@ -95,11 +97,11 @@ pub fn ldc2_w(current_frame: &StackEntry, cp: u16) -> () {
 }
 
 
-pub fn ldc_w(state: & JVMState, current_frame: &StackEntry, cp: u16) -> () {
+pub fn ldc_w(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
     let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
     let pool_entry = &constant_pool[cp as usize];
     match &pool_entry.kind {
-        ConstantKind::String(s) => load_string_constant(state,  &constant_pool, &s),
+        ConstantKind::String(s) => load_string_constant(state, &constant_pool, &s),
         ConstantKind::Class(c) => load_class_constant(state, &current_frame, constant_pool, &c),
         ConstantKind::Float(f) => {
             let float: f32 = unsafe { transmute(f.bytes) };
@@ -116,7 +118,7 @@ pub fn ldc_w(state: & JVMState, current_frame: &StackEntry, cp: u16) -> () {
     }
 }
 
-pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantInfo, jvm: & JVMState) -> JavaValue {
+pub fn from_constant_pool_entry(constant_pool: &Vec<ConstantInfo>, c: &ConstantInfo, jvm: &JVMState) -> JavaValue {
     match &c.kind {
         ConstantKind::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
         ConstantKind::Float(f) => JavaValue::Float(unsafe { transmute(f.bytes) }),

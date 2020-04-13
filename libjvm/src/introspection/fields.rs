@@ -27,32 +27,32 @@ unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let frame = get_frame(env);
-    let state = get_state(env);
+    let jvm = get_state(env);
     let class_obj = runtime_class_from_object(ofClass, get_state(env),&get_frame(env));
     let mut object_array = vec![];
     // dbg!(unsafe {&STRING_INTERNMENT_CAMP});
     &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
         //todo so this is big and messy put I don't really see a way to simplify
         let field_class_name_ = class_obj.clone().as_ref().unwrap().class_view.name();
-        load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
+        load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
         let parent_runtime_class = frame.pop();
 
         let field_name = class_obj.clone().unwrap().classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
 
         let field_desc_str = class_obj.clone().unwrap().classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
         let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
-        let field_type_class = ptype_to_class_object(state, &frame, &field_type);
+        let field_type_class = ptype_to_class_object(jvm, &frame, &field_type);
 
         let modifiers = f.access_flags as i32;
         let slot = i as i32;
         let clazz = parent_runtime_class.cast_class();
-        let name = JString::from(state,&frame,field_name);
+        let name = JString::from(jvm, &frame, field_name);
         let type_ = JavaValue::Object(field_type_class).cast_class();
-        let signature = JString::from(state,&frame,field_desc_str);
+        let signature = JString::from(jvm, &frame, field_desc_str);
         let annotations_ = vec![];//todo impl annotations.
 
         object_array.push(Field::init(
-            state,
+            jvm,
             &frame,
             clazz,
             name,
@@ -68,7 +68,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         Object::Array(ArrayObject {
             elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
             elems: RefCell::new(object_array),
-            monitor: Monitor::new()
+            monitor: jvm.new_monitor()
         })));
     to_object(res)
 }

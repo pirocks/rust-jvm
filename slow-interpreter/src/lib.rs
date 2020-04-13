@@ -33,6 +33,8 @@ use crate::loading::{Classpath, BootstrapLoader};
 use crate::stack_entry::StackEntry;
 use std::thread::LocalKey;
 use std::rc::Rc;
+use crate::monitor::Monitor;
+use parking_lot::const_fair_mutex;
 
 
 pub mod java_values;
@@ -129,6 +131,8 @@ pub struct JVMState {
     pub all_threads: RwLock<Vec<Arc<JavaThread/*<'vmlife>*/>>>,
     pub main_class_name: ClassName,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
+
+    monitors: RwLock<Vec<Arc<Monitor>>>
 }
 
 
@@ -185,7 +189,16 @@ impl JVMState {
             main_thread: RwLock::new(None),
             main_class_name,
             current_java_thread: &CURRENT_JAVA_THREAD,
+            monitors: RwLock::new(vec![])
         }
+    }
+
+    pub fn new_monitor(&self) -> Arc<Monitor>{
+        let mut monitor_guard = self.monitors.write().unwrap();
+        let index = monitor_guard.len();
+        let res = Arc::new(Monitor { mutex: const_fair_mutex(0), monitor_i: index });
+        monitor_guard.push(res.clone());
+        res
     }
 }
 

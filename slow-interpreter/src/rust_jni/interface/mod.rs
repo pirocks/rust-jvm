@@ -1,8 +1,8 @@
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va_list_tag, jboolean};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va_list_tag, jboolean, jint, JNI_OK};
 use std::mem::transmute;
 use std::ffi::c_void;
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id};
-use crate::rust_jni::native_util::get_object_class;
+use crate::rust_jni::native_util::{get_object_class, get_frame};
 use crate::rust_jni::interface::string::*;
 use crate::rust_jni::interface::call::*;
 use crate::rust_jni::interface::misc::*;
@@ -13,6 +13,7 @@ use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::array::*;
 use crate::JVMState;
 use std::cell::RefCell;
+use crate::java_values::JavaValue;
 
 //todo this should be in state impl
 thread_local! {
@@ -21,7 +22,7 @@ thread_local! {
 
 //GetFieldID
 pub fn get_interface(state: &JVMState) -> *const JNINativeInterface_ {
-    JNI_INTERFACE.with(|refcell|{
+    JNI_INTERFACE.with(|refcell| {
         {
             let first_borrow = refcell.borrow();
             match first_borrow.as_ref() {
@@ -59,7 +60,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         ExceptionDescribe: None,
         ExceptionClear: None,
         FatalError: None,
-        PushLocalFrame: None,
+        PushLocalFrame: Some(push_local_frame),
         PopLocalFrame: None,
         NewGlobalRef: Some(new_global_ref),
         DeleteGlobalRef: None,
@@ -274,6 +275,14 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         GetDirectBufferCapacity: None,
         GetObjectRefType: None,
     }
+}
+
+unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint {
+    let frame = get_frame(env);
+    for _ in 0..(capacity - frame.local_vars.borrow_mut().len() as i32){
+        frame.local_vars.borrow_mut().push(JavaValue::Top);
+    }
+    JNI_OK
 }
 
 pub mod call;

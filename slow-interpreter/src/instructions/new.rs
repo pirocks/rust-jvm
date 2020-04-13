@@ -1,4 +1,3 @@
-
 use rust_jvm_common::classfile::{ConstantKind, Atype, MultiNewArray};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
@@ -7,9 +6,8 @@ use std::cell::RefCell;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
 use crate::{JVMState, StackEntry};
-use crate::monitor::Monitor;
 
-pub fn new(state: & JVMState, current_frame: & StackEntry, cp: usize) -> () {
+pub fn new(state: &JVMState, current_frame: &StackEntry, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader;
     let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
     let class_name_index = match &constant_pool[cp as usize].kind {
@@ -21,13 +19,13 @@ pub fn new(state: & JVMState, current_frame: & StackEntry, cp: usize) -> () {
     let target_classfile = check_inited_class(
         state,
         &target_class_name,
-        loader_arc.clone()
+        loader_arc.clone(),
     );
-    push_new_object(state,current_frame, &target_classfile);
+    push_new_object(state, current_frame, &target_classfile);
 }
 
 
-pub fn anewarray(state: & JVMState, current_frame: &StackEntry, cp: u16) -> () {
+pub fn anewarray(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
     let len = match current_frame.pop() {
         JavaValue::Int(i) => i,
         _ => panic!()
@@ -46,18 +44,18 @@ pub fn anewarray(state: & JVMState, current_frame: &StackEntry, cp: u16) -> () {
     }
 }
 
-pub fn a_new_array_from_name(state: & JVMState, current_frame: &StackEntry, len: i32, name: &ClassName) -> () {
+pub fn a_new_array_from_name(jvm: &JVMState, current_frame: &StackEntry, len: i32, name: &ClassName) -> () {
     check_inited_class(
-        state,
+        jvm,
         &name,
-        current_frame.class_pointer.loader.clone()
+        current_frame.class_pointer.loader.clone(),
     );
     let t = PTypeView::Ref(ReferenceTypeView::Class(name.clone()));
-    current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(len as usize, JavaValue::Object(None), t).unwrap()).into()))
+    current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(jvm, len as usize, JavaValue::Object(None), t).unwrap()).into()))
 }
 
 
-pub fn newarray(current_frame: & StackEntry, a_type: Atype) -> () {
+pub fn newarray(jvm: &JVMState, current_frame: &StackEntry, a_type: Atype) -> () {
     let count = match current_frame.pop() {
         JavaValue::Int(i) => { i }
         _ => panic!()
@@ -88,18 +86,18 @@ pub fn newarray(current_frame: & StackEntry, a_type: Atype) -> () {
             PTypeView::FloatType
         }
     };
-    current_frame.push(JavaValue::Object(JavaValue::new_vec(count as usize, default_value(type_.clone()), type_)));
+    current_frame.push(JavaValue::Object(JavaValue::new_vec(jvm, count as usize, default_value(type_.clone()), type_)));
 }
 
 
-pub fn multi_a_new_array(state: & JVMState, current_frame: & StackEntry, cp: MultiNewArray) -> () {
+pub fn multi_a_new_array(jvm: &JVMState, current_frame: &StackEntry, cp: MultiNewArray) -> () {
     let dims = cp.dims;
     let temp = current_frame.class_pointer.class_view.constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class();
     let name = type_.class_name();
     dbg!(&name);
 
-   check_inited_class(state, &name.unwrap_arrays_to_name().unwrap(),  current_frame.class_pointer.loader.clone());
+    check_inited_class(jvm, &name.unwrap_arrays_to_name().unwrap(), current_frame.class_pointer.loader.clone());
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     for _ in 0..dims {
@@ -111,9 +109,13 @@ pub fn multi_a_new_array(state: & JVMState, current_frame: & StackEntry, cp: Mul
         let next_type = PTypeView::Ref(ReferenceTypeView::Array(Box::new(current_type)));
         let mut new_vec = vec![];
         for _ in 0..len {
-            new_vec.push(current.deep_clone())
+            new_vec.push(current.deep_clone(jvm))
         }
-        current = JavaValue::Object(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(new_vec), elem_type: next_type.clone(), monitor: Monitor::new() })).into());
+        current = JavaValue::Object(Arc::new(Object::Array(ArrayObject {
+            elems: RefCell::new(new_vec),
+            elem_type: next_type.clone(),
+            monitor: jvm.new_monitor(),
+        })).into());
         current_type = next_type;
     }
     current_frame.push(current);

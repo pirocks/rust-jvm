@@ -1,6 +1,12 @@
-use jvmti_bindings::{jvmtiEnv, jrawMonitorID, jvmtiError};
+use jvmti_bindings::{jvmtiEnv, jrawMonitorID, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use std::os::raw::c_char;
+use crate::jvmti::get_state;
+use std::intrinsics::transmute;
 
 pub unsafe extern "C" fn create_raw_monitor(env: *mut jvmtiEnv, name: *const c_char, monitor_ptr: *mut jrawMonitorID) -> jvmtiError{
-    unimplemented!()
+    let jvm = get_state(env);
+    //todo handle name
+    let res_monitor = jvm.new_monitor();
+    monitor_ptr.write(transmute(res_monitor.monitor_i));//todo check that this is acceptable
+    jvmtiError_JVMTI_ERROR_NONE
 }

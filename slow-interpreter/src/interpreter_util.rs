@@ -326,7 +326,7 @@ pub fn run_function(
             }
             InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, &current_frame, cp),
             InstructionInfo::new(cp) => new(jvm, &current_frame, cp as usize),
-            InstructionInfo::newarray(a_type) => newarray(&current_frame, a_type),
+            InstructionInfo::newarray(a_type) => newarray(jvm, &current_frame, a_type),
             InstructionInfo::nop => {}
             InstructionInfo::pop => pop(&current_frame),
             InstructionInfo::pop2 => pop2(&current_frame),
@@ -393,11 +393,11 @@ pub fn run_function(
 }
 
 
-pub fn push_new_object(state: &JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>) {
+pub fn push_new_object(jvm: &JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>) {
     let loader_arc = &current_frame.class_pointer.loader.clone();
-    let object_pointer = JavaValue::new_object(target_classfile.clone());
+    let object_pointer = JavaValue::new_object(jvm, target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
-    default_init_fields(state, loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
+    default_init_fields(jvm, loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
     current_frame.push(new_obj);
 }
 

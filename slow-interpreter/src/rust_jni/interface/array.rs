@@ -1,11 +1,10 @@
 use jni_bindings::{JNIEnv, jbyte, jsize, jbyteArray, jarray};
 use std::cell::RefCell;
 use std::sync::Arc;
-use crate::rust_jni::native_util::{to_object, from_object};
+use crate::rust_jni::native_util::{to_object, from_object, get_state};
 use std::ops::Deref;
 use classfile_view::view::ptype_view::PTypeView;
 use crate::java_values::{JavaValue, Object, ArrayObject};
-use crate::monitor::Monitor;
 
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
@@ -34,12 +33,17 @@ pub unsafe extern "C" fn get_byte_array_region(_env: *mut JNIEnv, array: jbyteAr
 }
 
 
-pub unsafe extern "C" fn new_byte_array(_env: *mut JNIEnv, len: jsize) -> jbyteArray {
+pub unsafe extern "C" fn new_byte_array(env: *mut JNIEnv, len: jsize) -> jbyteArray {
+    let jvm = get_state(env);
     let mut the_vec = vec![];
     for _ in 0..len {
         the_vec.push(JavaValue::Byte(0))
     }
-    to_object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(the_vec), elem_type: PTypeView::ByteType, monitor: Monitor::new() }))))
+    to_object(Some(Arc::new(Object::Array(ArrayObject {
+        elems: RefCell::new(the_vec),
+        elem_type: PTypeView::ByteType,
+        monitor: jvm.new_monitor()
+    }))))
 }
 
 

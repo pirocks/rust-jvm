@@ -15,30 +15,30 @@ use std::ops::Deref;
 use crate::monitor::Monitor;
 
 //todo do something about this class object crap
-pub fn get_or_create_class_object(state: & JVMState,
-                              type_: &PTypeView,
-                              current_frame: &StackEntry,
-                              loader_arc: LoaderArc,
+pub fn get_or_create_class_object(state: &JVMState,
+                                  type_: &PTypeView,
+                                  current_frame: &StackEntry,
+                                  loader_arc: LoaderArc,
 ) -> Arc<Object> {
-match type_ {
-    PTypeView::Ref(t) => match t {
-        ReferenceTypeView::Array(c) => {
-            return array_object(state, c.deref(), current_frame);
-        }
+    match type_ {
+        PTypeView::Ref(t) => match t {
+            ReferenceTypeView::Array(c) => {
+                return array_object(state, c.deref(), current_frame);
+            }
+            _ => {}
+        },
         _ => {}
-    },
-    _ => {}
+    }
+
+    regular_object(state, type_, current_frame, loader_arc)
 }
 
-regular_object(state, type_, current_frame, loader_arc)
-}
-
-fn array_object(state: & JVMState, array_sub_type: &PTypeView, current_frame: &StackEntry) -> Arc<Object> {
+fn array_object(state: &JVMState, array_sub_type: &PTypeView, current_frame: &StackEntry) -> Arc<Object> {
     let type_for_object: PType = array_sub_type.to_ptype();
     array_of_type_class(state, current_frame, &type_for_object)
 }
 
-pub fn array_of_type_class(state: & JVMState, current_frame: &StackEntry, type_for_object: &PType) -> Arc<Object> {
+pub fn array_of_type_class(state: &JVMState, current_frame: &StackEntry, type_for_object: &PType) -> Arc<Object> {
     //todo wrap in array and convert
     let array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::from_ptype(type_for_object).into()));
     let res = state.class_object_pool.read().unwrap().get(&array_type).cloned();
@@ -54,7 +54,7 @@ pub fn array_of_type_class(state: & JVMState, current_frame: &StackEntry, type_f
     }
 }
 
-fn regular_object(state: & JVMState, class_type: &PTypeView, current_frame: &StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_object(state: &JVMState, class_type: &PTypeView, current_frame: &StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
     check_inited_class(state, class_type.unwrap_type_to_name().as_ref().unwrap(), loader_arc);
     let res = state.class_object_pool.read().unwrap().get(&class_type).cloned();
     match res {
@@ -66,7 +66,7 @@ fn regular_object(state: & JVMState, class_type: &PTypeView, current_frame: &Sta
             if class_type.is_primitive() {
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
-                create_string_on_stack(state,  class_type.primitive_name().to_string());
+                create_string_on_stack(state, class_type.primitive_name().to_string());
                 r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), current_frame.pop());
             }
             r
@@ -75,14 +75,14 @@ fn regular_object(state: & JVMState, class_type: &PTypeView, current_frame: &Sta
     }
 }
 
-fn create_a_class_object(state: & JVMState, current_frame: &StackEntry) -> Arc<Object> {
+fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
     let current_loader = current_frame.class_pointer.loader.clone();
-    let class_class = check_inited_class(state, &java_lang_class, current_loader.clone());
-    let class_loader_class = check_inited_class(state, &java_lang_class_loader, current_loader.clone());
+    let class_class = check_inited_class(jvm, &java_lang_class, current_loader.clone());
+    let class_loader_class = check_inited_class(jvm, &java_lang_class_loader, current_loader.clone());
     let boostrap_loader_object = Arc::new(Object::Object(NormalObject {
-        monitor: Monitor::new(),
+        monitor: jvm.new_monitor(),
         gc_reachable: true,
         fields: RefCell::new(HashMap::new()),
         class_pointer: class_loader_class.clone(),
@@ -94,7 +94,7 @@ fn create_a_class_object(state: & JVMState, current_frame: &StackEntry) -> Arc<O
     // state.class_loader = boostrap_loader_object;
     //the above would only be required for higher jdks where a class loader object is part of Class.
     //as it stands we can just push to operand stack
-    push_new_object(state, current_frame, &class_class);
+    push_new_object(jvm, current_frame, &class_class);
     let object = current_frame.pop();
     match object.clone() {
         JavaValue::Object(o) => {
@@ -105,7 +105,7 @@ fn create_a_class_object(state: & JVMState, current_frame: &StackEntry) -> Arc<O
                 bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
                 o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
             }
-            if !state.system_domain_loader {
+            if !jvm.system_domain_loader {
                 o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), bootstrap_class_loader);
             }
         }
