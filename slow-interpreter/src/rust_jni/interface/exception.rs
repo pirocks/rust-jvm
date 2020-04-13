@@ -1,5 +1,5 @@
 use jni_bindings::{jthrowable, JNIEnv};
-use crate::rust_jni::native_util::{get_frame, get_state};
+use crate::rust_jni::native_util::get_state;
 
 pub unsafe extern "C" fn exception_occured(_env: *mut JNIEnv) -> jthrowable {
     //exceptions don't happen yet todo

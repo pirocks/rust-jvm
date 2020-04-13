@@ -2,7 +2,7 @@ use crate::rust_jni::native_util::{to_object, get_state, get_frame, from_object}
 use rust_jvm_common::classfile::ACC_STATIC;
 use crate::rust_jni::MethodId;
 use jni_bindings::{JNIEnv, jobject, jmethodID, jclass, JNINativeInterface_, jboolean};
-use std::ffi::VaList;
+use std::ffi::{VaList, VaListImpl, c_void};
 
 use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -60,12 +60,12 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
 }
 
 pub unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: VaList) -> jobject {
-    let frame = call_static_method_v(env, jmethod_id, &mut l);
+    let frame = call_static_method_impl(env, jmethod_id, VarargProvider::VaList(&mut l));
     let res = frame.pop().unwrap_object();
     to_object(res)
 }
 
-pub unsafe fn call_static_method_v<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, l: &mut VaList) -> Rc<StackEntry> {
+pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
     let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
     let state = get_state(env);
     let frame_rc = get_frame(env);
@@ -76,7 +76,7 @@ pub unsafe fn call_static_method_v<'l>(env: *mut *const JNINativeInterface_, jme
     let _name = method.method_name(classfile);
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
 //todo dup
-    push_params_onto_frame(l, &frame, &parsed);
+    push_params_onto_frame(&mut l, &frame, &parsed);
     trace!("----NATIVE EXIT ----");
     invoke_static_impl(state, parsed, method_id.class.clone(), method_id.method_i, method);
     trace!("----NATIVE ENTER----");
@@ -84,7 +84,7 @@ pub unsafe fn call_static_method_v<'l>(env: *mut *const JNINativeInterface_, jme
 }
 
 unsafe fn push_params_onto_frame(
-    l: &mut VaList,
+    l: &mut VarargProvider,
     frame: &StackEntry,
     parsed: &MethodDescriptor
 ) {
@@ -98,7 +98,7 @@ unsafe fn push_params_onto_frame(
             PTypeView::LongType => unimplemented!(),
             PTypeView::Ref(_) => {
                 //todo dup with other line
-                let native_object: jobject = l.arg();
+                let native_object: jobject = l.arg() as jobject;
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
@@ -115,7 +115,27 @@ unsafe fn push_params_onto_frame(
 }
 
 pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jboolean {
-    call_static_method_v(env, method_id, &mut l);
+    call_static_method_impl(env, method_id, VarargProvider::VaList(&mut l));
     let res = get_frame(env).pop();
     res.unwrap_int() as jboolean
+}
+
+pub unsafe extern "C" fn call_static_object_method(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: ...) -> jobject{
+    call_static_method_impl(env, method_id, VarargProvider::Dots(&mut l));
+    let res = get_frame(env).pop();
+    to_object(res.unwrap_object())
+}
+
+pub enum VarargProvider<'l,'l2,'l3>{
+    Dots(&'l mut VaListImpl<'l2>),
+    VaList(&'l mut VaList<'l2,'l3>)
+}
+
+impl VarargProvider<'_,'_,'_>{
+    pub unsafe fn arg/*<T: core::ffi::sealed_trait::VaArgSafe>*/(&mut self) -> *mut c_void{
+        match self{
+            VarargProvider::Dots(l) => l.arg(),
+            VarargProvider::VaList(l) => l.arg(),
+        }
+    }
 }

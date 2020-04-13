@@ -43,7 +43,7 @@ pub unsafe extern "C" fn set_event_notification_mode(
 
 
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *const jvmtiEventCallbacks, size_of_callbacks: jint) -> jvmtiError {
+pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *const jvmtiEventCallbacks, _size_of_callbacks: jint) -> jvmtiError {
     //todo use size_of_callbacks ?
     let state = get_state(env);
     let mut callback_copy = jvmtiEventCallbacks{

@@ -12,7 +12,6 @@ use rust_jvm_common::classnames::ClassName;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
-use crate::monitor::Monitor;
 
 //todo do something about this class object crap
 pub fn get_or_create_class_object(state: &JVMState,

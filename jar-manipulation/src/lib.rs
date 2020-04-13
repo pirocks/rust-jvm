@@ -15,6 +15,18 @@ pub struct JarHandle {
     pub zip_archive: ZipArchive<File>,//todo what if loaded from something other than file?
 }
 
+impl Clone for JarHandle{
+    fn clone(&self) -> Self {
+        let f = File::open(&self.path).unwrap();
+        let zip_archive = zip::ZipArchive::new(f).unwrap();
+        Self
+        {
+            path: self.path.clone(),
+            zip_archive
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct NoClassFoundInJarError {}
 

@@ -1,5 +1,6 @@
 #![feature(c_variadic)]
 #![feature(thread_local)]
+#![feature(vec_leak)]
 extern crate log;
 extern crate simple_logger;
 extern crate libloading;
@@ -132,7 +133,11 @@ pub struct JVMState {
     pub main_class_name: ClassName,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
 
-    monitors: RwLock<Vec<Arc<Monitor>>>
+    pub system_thread_group: RwLock<Option<Arc<Object>>>,
+
+    monitors: RwLock<Vec<Arc<Monitor>>>,
+
+    pub  classpath: Arc<Classpath>
 }
 
 
@@ -164,11 +169,12 @@ impl JVMState {
     pub fn new(jvm_options: JVMOptions) -> Self {
         let JVMOptions { main_class_name, classpath, args, shared_libs } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
+        let classpath_arc = Arc::new(classpath);
         let bootstrap_loader = Arc::new(BootstrapLoader {
             loaded: RwLock::new(HashMap::new()),
             parsed: RwLock::new(HashMap::new()),
             name: RwLock::new(LoaderName::BootstrapLoader),
-            classpath,
+            classpath: classpath_arc.clone()
         });
 
 
@@ -189,7 +195,9 @@ impl JVMState {
             main_thread: RwLock::new(None),
             main_class_name,
             current_java_thread: &CURRENT_JAVA_THREAD,
-            monitors: RwLock::new(vec![])
+            system_thread_group: RwLock::new(None),
+            monitors: RwLock::new(vec![]),
+            classpath: classpath_arc
         }
     }
 

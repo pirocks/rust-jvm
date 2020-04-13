@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jthreadGroup};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY};
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
@@ -15,6 +15,7 @@ use std::sync::Arc;
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::create_raw_monitor;
+use crate::jvmti::threads::get_top_thread_groups;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -281,7 +282,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetExtensionFunctions: None,
         GetExtensionEvents: None,
         SetExtensionEventCallback: None,
-        DisposeEnvironment: None,
+        DisposeEnvironment: Some(dispose_environment),
         GetErrorName: None,
         GetJLocationFormat: None,
         GetSystemProperties: None,
@@ -311,6 +312,10 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetObjectSize: None,
         GetLocalInstance: None,
     }
+}
+
+unsafe extern "C" fn dispose_environment(_env: *mut jvmtiEnv) -> jvmtiError{
+    jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
 
 pub mod threads;

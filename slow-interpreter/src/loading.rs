@@ -18,13 +18,26 @@ pub struct Classpath {
     pub classpath_base: Vec<Box<Path>>,
 }
 
+impl Classpath{
+    pub fn classpath_string(&self) -> String{
+        let mut res = String::new();
+        for p in &self.classpath_base {
+            res.push_str(format!("{}:", p.to_str().unwrap()).as_str());
+        }
+        for jar in &self.jars {
+            res.push_str(format!("{}:", jar.read().unwrap().path.to_str().unwrap()).as_str());
+        }
+        res
+    }
+}
+
 #[derive(Debug)]
 pub struct BootstrapLoader {
     pub loaded: RwLock<HashMap<ClassName, Arc<Classfile>>>,
     pub parsed: RwLock<HashMap<ClassName, Arc<Classfile>>>,
     pub name: RwLock<LoaderName>,
     //for now the classpath is immutable so no locks are needed.
-    pub classpath: Classpath,
+    pub classpath: Arc<Classpath>,
 }
 
 

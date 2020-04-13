@@ -157,7 +157,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         SetFloatField: None,
         SetDoubleField: None,
         GetStaticMethodID: Some(get_static_method_id),
-        CallStaticObjectMethod: None,
+        CallStaticObjectMethod: Some(unsafe {transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject>(call_static_object_method as *mut c_void)}),
         CallStaticObjectMethodV: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, args: *mut __va_list_tag) -> jobject>(call_static_object_method_v as *mut c_void) }),
         CallStaticObjectMethodA: None,
         CallStaticBooleanMethod: None,
@@ -283,19 +283,21 @@ unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint 
     // let frame = get_frame(env);
     let state = get_state(env);
     let frame = get_frame(env);
-    let thread = state.get_current_thread().call_stack.borrow_mut().push(Rc::new(StackEntry{
+    let mut new_local_vars = vec![];
+    for i in 0..capacity{
+        match frame.local_vars.borrow().get(i as usize){
+            None => new_local_vars.push(JavaValue::Top),
+            Some(jv) => new_local_vars.push(jv.clone()),
+        }
+    }
+    state.get_current_thread().call_stack.borrow_mut().push(Rc::new(StackEntry{
         class_pointer: frame.class_pointer.clone(),
-        method_i: frame.method_i,
-        local_vars: RefCell::new(vec![]),
+        method_i: std::u16::MAX,
+        local_vars: RefCell::new(new_local_vars),
         operand_stack: RefCell::new(vec![]),
-        pc: RefCell::new(0),
-        pc_offset: RefCell::new(0)
+        pc: RefCell::new(std::usize::MAX),
+        pc_offset: RefCell::new(std::isize::MAX)
     }));
-    unimplemented!()
-    // let mut local_var_guard = frame.local_vars.borrow_mut();
-    // for _ in 0..(capacity - local_var_guard.len() as i32){
-    //     local_var_guard.push(JavaValue::Top);
-    // }
     JNI_OK as i32
 }
 

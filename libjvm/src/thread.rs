@@ -77,7 +77,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 }
 
 
-static mut SYSTEM_THREAD_GROUP: Option<Arc<Object>> = None;
+// static mut SYSTEM_THREAD_GROUP: Option<Arc<Object>> = None;
 
 fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
     let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()),  frame.class_pointer.loader.clone());
@@ -92,7 +92,8 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
         pc: RefCell::new(0),
         pc_offset: RefCell::new(0),
     };
-    unsafe { SYSTEM_THREAD_GROUP = object.unwrap_object(); }
+    jvm.system_thread_group.write().unwrap().replace(object.unwrap_object().unwrap());
+    // unsafe { SYSTEM_THREAD_GROUP = object.unwrap_object(); }
     jvm.get_current_thread().call_stack.borrow_mut().push(Rc::new(new_frame));
     run_function(jvm);
     jvm.get_current_thread().call_stack.borrow_mut().pop().unwrap();
@@ -108,12 +109,14 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
 unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, frame: &StackEntry) {
     //todo refactor this at some point
     //first create thread group
-    let thread_group_object = match SYSTEM_THREAD_GROUP.clone() {
+    let match_guard = jvm.system_thread_group.read().unwrap();
+    let thread_group_object = match match_guard.clone() {
         None => {
+            std::mem::drop(match_guard);
             init_system_thread_group(jvm, frame);
-            SYSTEM_THREAD_GROUP.clone()
+            jvm.system_thread_group.read().unwrap().clone()
         }
-        Some(_) => SYSTEM_THREAD_GROUP.clone(),
+        Some(_) => jvm.system_thread_group.read().unwrap().clone(),
     };
 
 
