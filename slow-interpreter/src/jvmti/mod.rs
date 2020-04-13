@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE};
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
@@ -16,6 +16,8 @@ use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::create_raw_monitor;
 use crate::jvmti::threads::get_top_thread_groups;
+use crate::rust_jni::MethodId;
+use rust_jvm_common::classfile::Code;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -226,7 +228,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetMaxLocals: None,
         GetArgumentsSize: None,
         GetLineNumberTable: None,
-        GetMethodLocation: None,
+        GetMethodLocation: Some(get_method_location),
         GetLocalVariableTable: None,
         SetNativeMethodPrefix: None,
         SetNativeMethodPrefixes: None,
@@ -314,12 +316,26 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
+unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError{
+    let method_id = (method_id as *mut MethodId).as_ref().unwrap();
+    match method_id.class.class_view.method_view_i(method_id.method_i).code_attribute(){
+        None => {
+            start_location_ptr.write(-1);
+            end_location_ptr.write(-1);
+        },
+        Some(code) => {
+            start_location_ptr.write(0);
+            end_location_ptr.write((code.code.len() - 1) as i64);
+        },
+    };
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
 unsafe extern "C" fn dispose_environment(_env: *mut jvmtiEnv) -> jvmtiError{
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
 
 pub mod threads;
-
 pub mod monitor;
 pub mod capabilities;
 pub mod version;
