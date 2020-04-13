@@ -2,7 +2,7 @@ use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va
 use std::mem::transmute;
 use std::ffi::c_void;
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id};
-use crate::rust_jni::native_util::{get_object_class, get_frame};
+use crate::rust_jni::native_util::{get_object_class, get_frame, get_state};
 use crate::rust_jni::interface::string::*;
 use crate::rust_jni::interface::call::*;
 use crate::rust_jni::interface::misc::*;
@@ -14,6 +14,8 @@ use crate::rust_jni::interface::array::*;
 use crate::JVMState;
 use std::cell::RefCell;
 use crate::java_values::JavaValue;
+use std::rc::Rc;
+use crate::stack_entry::StackEntry;
 
 //todo this should be in state impl
 thread_local! {
@@ -58,7 +60,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         ThrowNew: None,
         ExceptionOccurred: Some(exception_occured),
         ExceptionDescribe: None,
-        ExceptionClear: None,
+        ExceptionClear: Some(exception_clear),
         FatalError: None,
         PushLocalFrame: Some(push_local_frame),
         PopLocalFrame: None,
@@ -278,11 +280,23 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
 }
 
 unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint {
+    // let frame = get_frame(env);
+    let state = get_state(env);
     let frame = get_frame(env);
-    for _ in 0..(capacity - frame.local_vars.borrow_mut().len() as i32){
-        frame.local_vars.borrow_mut().push(JavaValue::Top);
-    }
-    JNI_OK
+    let thread = state.get_current_thread().call_stack.borrow_mut().push(Rc::new(StackEntry{
+        class_pointer: frame.class_pointer.clone(),
+        method_i: frame.method_i,
+        local_vars: RefCell::new(vec![]),
+        operand_stack: RefCell::new(vec![]),
+        pc: RefCell::new(0),
+        pc_offset: RefCell::new(0)
+    }));
+    unimplemented!()
+    // let mut local_var_guard = frame.local_vars.borrow_mut();
+    // for _ in 0..(capacity - local_var_guard.len() as i32){
+    //     local_var_guard.push(JavaValue::Top);
+    // }
+    JNI_OK as i32
 }
 
 pub mod call;

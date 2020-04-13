@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jthreadGroup};
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
@@ -167,7 +167,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetOwnedMonitorInfo: None,
         GetCurrentContendedMonitor: None,
         RunAgentThread: None,
-        GetTopThreadGroups: None,
+        GetTopThreadGroups: Some(get_top_thread_groups),
         GetThreadGroupInfo: None,
         GetThreadGroupChildren: None,
         GetFrameCount: None,
@@ -312,6 +312,8 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetLocalInstance: None,
     }
 }
+
+pub mod threads;
 
 pub mod monitor;
 pub mod capabilities;

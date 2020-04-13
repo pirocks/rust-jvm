@@ -107,7 +107,7 @@ pub unsafe extern "C" fn get_potential_capabilities(env: *mut jvmtiEnv, capabili
 }
 
 pub unsafe extern "C" fn add_capabilities(
-    env: *mut jvmtiEnv,
+    _env: *mut jvmtiEnv,
     capabilities_ptr: *const jvmtiCapabilities,
 ) -> jvmtiError {
     if (*capabilities_ptr).can_generate_field_modification_events() > 0 ||

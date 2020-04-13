@@ -44,6 +44,7 @@ pub unsafe extern "C" fn set_event_notification_mode(
 
 #[allow(non_snake_case)]
 pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *const jvmtiEventCallbacks, size_of_callbacks: jint) -> jvmtiError {
+    //todo use size_of_callbacks ?
     let state = get_state(env);
     let mut callback_copy = jvmtiEventCallbacks{
         VMInit: None,
@@ -212,6 +213,9 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         unimplemented!()
     }
     if ObjectFree.is_some(){
+        unimplemented!()
+    }
+    if VMObjectAlloc.is_some(){
         unimplemented!()
     }
     jvmtiError_JVMTI_ERROR_NONE
