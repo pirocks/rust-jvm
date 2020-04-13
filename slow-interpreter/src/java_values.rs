@@ -179,7 +179,9 @@ impl JavaValue {
     }
 
     pub fn unwrap_object_nonnull(&self) -> Arc<Object> {
-        self.try_unwrap_object().unwrap().unwrap()
+        self.try_unwrap_object()
+            .unwrap()
+            .unwrap()
     }
 
     pub fn unwrap_array(&self) -> &ArrayObject {

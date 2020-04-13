@@ -50,15 +50,15 @@ unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props:
 
     let sun_java_command = JString::from(state, frame.deref(), "sun.java.command".to_string());
     let sun_java_command_val = JString::from(state, frame.deref(), "command line not currently compatible todo".to_string());
-    Properties::set_property(state, frame.deref(), sun_java_command, sun_java_command_val);
+    props.set_property(state, frame.deref(), sun_java_command, sun_java_command_val);
 
     let sun_java_command = JString::from(state, frame.deref(), "sun.jvm.flags".to_string());
     let sun_java_command_val = JString::from(state, frame.deref(), "command line not currently compatible todo".to_string());
-    Properties::set_property(state, frame.deref(), sun_java_command, sun_java_command_val);
+    props.set_property(state, frame.deref(), sun_java_command, sun_java_command_val);
 
     let sun_java_command = JString::from(state, frame.deref(), "sun.jvm.args".to_string());
     let sun_java_command_val = JString::from(state, frame.deref(), "command line not currently compatible todo".to_string());
-    Properties::set_property(state, frame.deref(), sun_java_command, sun_java_command_val);
+    props.set_property(state, frame.deref(), sun_java_command, sun_java_command_val);
 
     agent_props
 }

@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use crate::java_values::JavaValue;
 use std::rc::Rc;
 use crate::stack_entry::StackEntry;
+use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
 
 //todo this should be in state impl
 thread_local! {
@@ -63,7 +64,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         ExceptionClear: Some(exception_clear),
         FatalError: None,
         PushLocalFrame: Some(push_local_frame),
-        PopLocalFrame: None,
+        PopLocalFrame: Some(pop_local_frame),
         NewGlobalRef: Some(new_global_ref),
         DeleteGlobalRef: None,
         DeleteLocalRef: Some(delete_local_ref),
@@ -279,28 +280,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
     }
 }
 
-unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint {
-    // let frame = get_frame(env);
-    let state = get_state(env);
-    let frame = get_frame(env);
-    let mut new_local_vars = vec![];
-    for i in 0..capacity{
-        match frame.local_vars.borrow().get(i as usize){
-            None => new_local_vars.push(JavaValue::Top),
-            Some(jv) => new_local_vars.push(jv.clone()),
-        }
-    }
-    state.get_current_thread().call_stack.borrow_mut().push(Rc::new(StackEntry{
-        class_pointer: frame.class_pointer.clone(),
-        method_i: std::u16::MAX,
-        local_vars: RefCell::new(new_local_vars),
-        operand_stack: RefCell::new(vec![]),
-        pc: RefCell::new(std::usize::MAX),
-        pc_offset: RefCell::new(std::isize::MAX)
-    }));
-    JNI_OK as i32
-}
-
+pub mod local_frame;
 pub mod call;
 pub mod array;
 pub mod global_ref;
