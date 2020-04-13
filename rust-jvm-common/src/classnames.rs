@@ -159,6 +159,10 @@ impl ClassName {
         Self::new("java/lang/reflect/Method")
     }
 
+    pub fn system() -> Self {
+        Self::new("java/lang/System")
+    }
+
     pub fn serializable() -> Self {
         Self::new("java/io/Serializable")
     }
@@ -175,8 +179,8 @@ impl ClassName {
         Self::new("java/lang/reflect/Field")
     }
 
-    pub fn system() -> Self {
-        Self::new("java/lang/System")
+    pub fn properties() -> Self {
+        Self::new("java/util/Properties")
     }
 }
 
