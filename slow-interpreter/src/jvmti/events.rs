@@ -58,6 +58,14 @@ pub unsafe extern "C" fn set_event_notification_mode(
             }
             jvmtiError_JVMTI_ERROR_NONE
         }
+        82 => {//jvmtiEvent_JVMTI_EVENT_GARBAGE_COLLECTION_FINISH
+            match mode {
+                0 => jdwp_copy.deref().GarbageCollectionFinish_disable(),
+                1 => jdwp_copy.deref().GarbageCollectionFinish_enable(),
+                _ => unimplemented!()
+            }
+            jvmtiError_JVMTI_ERROR_NONE
+        }
         _ => {
             dbg!(event_type);
             unimplemented!();

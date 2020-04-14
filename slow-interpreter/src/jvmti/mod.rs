@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jclass, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiStartFunction, jvmtiEventThreadStart, jvmtiEventThreadEnd, jvmtiEventClassPrepare};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jclass, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiStartFunction, jvmtiEventThreadStart, jvmtiEventThreadEnd, jvmtiEventClassPrepare, jvmtiEventGarbageCollectionFinish};
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
@@ -35,7 +35,8 @@ pub struct SharedLibJVMTI {
     thread_end_enabled: RwLock<bool>,
     class_prepare_callback: RwLock<jvmtiEventClassPrepare>,
     class_prepare_enabled: RwLock<bool>,
-
+    garbage_collection_finish_callback: RwLock<jvmtiEventGarbageCollectionFinish>,
+    garbage_collection_finish_enabled : RwLock<bool>
 }
 
 impl SharedLibJVMTI {
@@ -82,6 +83,12 @@ pub trait DebuggerEventConsumer {
 
     fn ClassPrepare_enable(&self);
     fn ClassPrepare_disable(&self);
+
+
+    unsafe fn GarbageCollectionFinish( jvmti_env : * mut jvmtiEnv );
+    fn GarbageCollectionFinish_enable(&self);
+    fn GarbageCollectionFinish_disable(&self);
+
 }
 
 #[allow(non_snake_case)]
@@ -163,6 +170,18 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     fn ClassPrepare_disable(&self) {
         *self.class_prepare_enabled.write().unwrap() = false;
     }
+
+    unsafe fn GarbageCollectionFinish(jvmti_env: *mut *const jvmtiInterface_1_) {
+        unimplemented!()
+    }
+
+    fn GarbageCollectionFinish_enable(&self) {
+        *self.garbage_collection_finish_enabled.write().unwrap() = true;
+    }
+
+    fn GarbageCollectionFinish_disable(&self) {
+        *self.garbage_collection_finish_enabled.write().unwrap() = false;
+    }
 }
 
 impl SharedLibJVMTI {
@@ -192,7 +211,9 @@ impl SharedLibJVMTI {
             thread_end_callback: Default::default(),
             thread_end_enabled: Default::default(),
             class_prepare_callback: Default::default(),
-            class_prepare_enabled: Default::default()
+            class_prepare_enabled: Default::default(),
+            garbage_collection_finish_callback: Default::default(),
+            garbage_collection_finish_enabled: Default::default()
         }
     }
 }
