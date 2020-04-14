@@ -461,7 +461,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         //unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, arg: *mut ::std::os::raw::c_void)
         jvm.set_current_thread(Arc::new(JavaThread{
             java_tid: 1,
-            name: "agent thread".to_string(),
+            // name: "agent thread".to_string(),
             call_stack: RefCell::new(vec![Rc::new(StackEntry{
                 class_pointer: system_class.clone(),
                 method_i: std::u16::MAX,

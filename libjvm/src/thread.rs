@@ -1,22 +1,61 @@
 use slow_interpreter::interpreter_util::{run_function, push_new_object, check_inited_class};
 
 use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, RwLockWriteGuard};
 use rust_jvm_common::classnames::ClassName;
 use jni_bindings::{JNIEnv, jclass, jobject, jlong, jint, jboolean, jobjectArray, jstring, jintArray};
-use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object};
+use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::java_values::{JavaValue, Object};
-use slow_interpreter::JVMState;
+use slow_interpreter::{JVMState, JavaThread, InterpreterState};
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::stack_entry::StackEntry;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::collections::hash_map::RandomState;
+use std::collections::HashMap;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
 //    assert!(Arc::ptr_eq(MAIN_THREAD.as_ref().unwrap(),&from_object(thread).unwrap()));//todo why does this not pass?
-    MAIN_ALIVE = true
+    let jvm = get_state(env);
+    let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
+    let tid = thread_object.tid();
+    let mut all_threads_guard = jvm.alive_threads.write().unwrap();
+    if all_threads_guard.contains_key(&tid) {
+        //todo for now we ignore this, but irl we should only ignore this for main thread
+    } else {
+        let frame = get_frame(env);
+        let thread_class = check_inited_class(jvm,&ClassName::thread(),frame.class_pointer.loader.clone());
+
+        let thread_from_rust = Arc::new(JavaThread {
+            java_tid: tid,
+            call_stack: RefCell::new(vec![]),
+            thread_object: RefCell::new(thread_object.into()),
+            interpreter_state: InterpreterState {
+                terminate: RefCell::new(false),
+                throw: RefCell::new(None),
+                function_return: RefCell::new(false),
+            },
+        });
+        all_threads_guard.insert(tid, thread_from_rust.clone());
+        std::thread::spawn(move||{
+            let new_thread_frame = Rc::new(StackEntry{
+                class_pointer: thread_class.clone(),
+                method_i: std::u16::MAX,
+                local_vars: RefCell::new(vec![]),
+                operand_stack: RefCell::new(vec![]),
+                pc: RefCell::new(std::usize::MAX),
+                pc_offset: RefCell::new(-1)
+            });
+            jvm.set_current_thread(thread_from_rust.clone());
+            thread_from_rust.call_stack.borrow_mut().push(new_thread_frame.clone());
+            thread_from_rust.thread_object.borrow().as_ref().unwrap().run(jvm,&new_thread_frame);
+            thread_from_rust.call_stack.borrow_mut().pop();
+
+        });
+
+    }
 }
 
 #[no_mangle]
@@ -26,7 +65,11 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -> jboolean {
-    MAIN_ALIVE as jboolean // todo we don't do threads atm.
+    let jvm = get_state(env);
+    let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
+    let tid = thread_object.tid();
+    let mut alive = jvm.alive_threads.read().unwrap().contains_key(&tid);
+    alive as jboolean
 }
 
 #[no_mangle]
@@ -80,7 +123,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 // static mut SYSTEM_THREAD_GROUP: Option<Arc<Object>> = None;
 
 fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
-    let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()),  frame.class_pointer.loader.clone());
+    let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()), frame.class_pointer.loader.clone());
     push_new_object(jvm, frame.clone(), &thread_group_class);
     let object = frame.pop();
     let (init_i, init) = thread_group_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
@@ -120,9 +163,9 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
     };
 
 
-    let thread_class = check_inited_class(jvm, &ClassName::Str("java/lang/Thread".to_string()),  frame.class_pointer.loader.clone());
+    let thread_class = check_inited_class(jvm, &ClassName::Str("java/lang/Thread".to_string()), frame.class_pointer.loader.clone());
     // if !Arc::ptr_eq(&thread_class, &runtime_thread_class) {
-        // frame.print_stack_trace();
+    // frame.print_stack_trace();
     // }
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     push_new_object(jvm, frame.clone(), &thread_class);
@@ -153,9 +196,6 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
         interpreter_state.function_return.replace(false);
     }
 }
-
-//todo this should prob go in InterperteerState or similar
-static mut MAIN_ALIVE: bool = false;
 
 
 #[no_mangle]

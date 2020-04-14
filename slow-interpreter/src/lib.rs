@@ -47,14 +47,13 @@ pub mod java;
 pub mod sun;
 pub mod utils;
 
-type ThreadId = u64;
+type ThreadId = i64;
 
 #[derive(Debug)]
 pub struct JavaThread {
-    java_tid: ThreadId,
-    name: String,
+    pub java_tid: ThreadId,
     pub call_stack: RefCell<Vec<Rc<StackEntry>>>,
-    thread_object: RefCell<Option<JThread>>,
+    pub thread_object: RefCell<Option<JThread>>,
     //for the main thread the object may not exist for a bit,b/c the code to create that object needs to run on a thread
     //todo maybe this shouldn't be private?
     pub interpreter_state: InterpreterState,
@@ -66,9 +65,6 @@ unsafe impl Send for JavaThread {}
 unsafe impl Sync for JavaThread {}
 
 impl JavaThread {
-    /*fn raw_thread(&self) -> *const Self {
-        self as *const Self
-    }*/
     pub fn get_current_frame(&self) -> Rc<StackEntry> {
         self.call_stack.borrow().last().unwrap().clone()
     }
@@ -134,8 +130,8 @@ pub struct JVMState {
 
     pub built_in_jdwp: Arc<SharedLibJVMTI>,
 
-    main_thread: RwLock<Option<Arc<JavaThread/*<'vmlife>*/>>>,
-    pub all_threads: RwLock<Vec<Arc<JavaThread/*<'vmlife>*/>>>,
+    main_thread: RwLock<Option<Arc<JavaThread>>>,
+    pub alive_threads: RwLock<HashMap<ThreadId,Arc<JavaThread>>>,
     pub main_class_name: ClassName,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
 
@@ -208,7 +204,7 @@ impl JVMState {
             anon_class_live_object_ldc_pool: Arc::new(RwLock::new(vec![])),
             built_in_jdwp: Arc::new(SharedLibJVMTI::load_libjdwp(libjdwp.as_str())),
             anon_class_counter: AtomicUsize::new(0),
-            all_threads: vec![].into(),
+            alive_threads: RwLock::new(HashMap::new()),
             main_thread: RwLock::new(None),
             main_class_name,
             current_java_thread: &CURRENT_JAVA_THREAD,
@@ -261,7 +257,7 @@ impl /*<'jvmlife>*/ JVMState/*<'jvmlife>*/ {
 
     pub fn register_main_thread(&self, main_thread: Arc<JavaThread>) {
         //todo perhaps there should be a single rw lock for this
-        self.all_threads.write().unwrap().push(main_thread.clone());
+        // self.alive_threads.write().unwrap().insert(,main_thread.clone());
         let mut main_thread_writer = self.main_thread.write().unwrap();
         main_thread_writer.replace(main_thread.clone().into());
         self.set_current_thread(main_thread);
@@ -315,7 +311,6 @@ fn jvm_run_system_init(jvm: &JVMState) {
     };
     jvm.register_main_thread(Arc::new(JavaThread {
         java_tid: 0,
-        name: "Main".to_string(),
         call_stack: RefCell::new(vec![Rc::new(bootstrap_frame)]),
         thread_object: RefCell::new(None),
         interpreter_state: InterpreterState {

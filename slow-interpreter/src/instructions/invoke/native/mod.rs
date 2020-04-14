@@ -28,7 +28,7 @@ pub fn run_native_method(
     frame: &StackEntry,
     class: Arc<RuntimeClass>,
     method_i: usize,
-    debug: bool,
+    _debug: bool,
 ) {
     //todo only works for static void methods atm
     let classfile = &class.classfile;
@@ -52,14 +52,16 @@ pub fn run_native_method(
         panic!();
     }
 
-    if debug {
+    if _debug {
         dbg!(&args);
         dbg!(&frame.operand_stack);
     }
     // println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
-    if method.method_name(classfile) == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
+    let meth_name = method.method_name(classfile);
+    let debug = meth_name.contains("isAlive");
+    if meth_name == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         frame.push(JavaValue::Boolean(false))
-    } else if method.method_name(classfile) == "arraycopy".to_string() {
+    } else if meth_name == "arraycopy".to_string() {
         system_array_copy(&mut args)
     } else {
         let result = if state.jni.registered_natives.read().unwrap().contains_key(&class) &&

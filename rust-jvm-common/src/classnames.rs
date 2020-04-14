@@ -182,6 +182,11 @@ impl ClassName {
     pub fn properties() -> Self {
         Self::new("java/util/Properties")
     }
+
+    pub fn thread() -> Self {
+        Self::new("java/lang/Thread")
+    }
+
 }
 
 impl Hash for ClassName {

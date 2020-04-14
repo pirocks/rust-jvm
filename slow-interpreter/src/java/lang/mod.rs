@@ -209,6 +209,11 @@ pub mod thread {
     use crate::java_values::Object;
     use std::sync::Arc;
     use crate::java_values::JavaValue;
+    use crate::JVMState;
+    use crate::stack_entry::StackEntry;
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::interpreter_util::check_inited_class;
+    use rust_jvm_common::classnames::ClassName;
 
     #[derive(Debug)]
     pub struct JThread {
@@ -222,6 +227,17 @@ pub mod thread {
     }
 
     impl JThread {
+        pub fn tid(&self)-> i64{
+            self.normal_object.unwrap_normal_object().fields.borrow().get("tid").unwrap().unwrap_long()
+        }
+
+        pub fn run(&self, jvm : &JVMState, frame: &StackEntry){
+            let thread_class = check_inited_class(jvm,&ClassName::thread(),frame.class_pointer.loader.clone());
+            frame.push(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm,&thread_class,"run".to_string(),"()V".to_string());
+
+        }
+
         as_object_or_java_value!();
     }
 }
