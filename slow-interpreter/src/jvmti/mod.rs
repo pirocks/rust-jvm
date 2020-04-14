@@ -14,7 +14,7 @@ use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
 use std::sync::Arc;
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
-use crate::jvmti::monitor::create_raw_monitor;
+use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter};
 use crate::jvmti::threads::get_top_thread_groups;
 use crate::rust_jni::MethodId;
 use rust_jvm_common::classfile::Code;
