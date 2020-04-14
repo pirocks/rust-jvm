@@ -1,8 +1,8 @@
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va_list_tag, jboolean};
+use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va_list_tag, jboolean, JNI_FALSE, JNI_TRUE};
 use std::mem::transmute;
 use std::ffi::c_void;
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id};
-use crate::rust_jni::native_util::get_object_class;
+use crate::rust_jni::native_util::{get_object_class, from_object};
 use crate::rust_jni::interface::string::*;
 use crate::rust_jni::interface::call::*;
 use crate::rust_jni::interface::misc::*;
@@ -14,6 +14,8 @@ use crate::rust_jni::interface::array::*;
 use crate::JVMState;
 use std::cell::RefCell;
 use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
+use std::sync::Arc;
+use crate::java_values::Object;
 
 //todo this should be in state impl
 thread_local! {
@@ -65,7 +67,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         NewGlobalRef: Some(new_global_ref),
         DeleteGlobalRef: None,
         DeleteLocalRef: Some(delete_local_ref),
-        IsSameObject: None,
+        IsSameObject: Some(is_same_object),
         NewLocalRef: None,
         EnsureLocalCapacity: Some(ensure_local_capacity),
         AllocObject: None,
@@ -275,6 +277,25 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         GetDirectBufferCapacity: None,
         GetObjectRefType: None,
     }
+}
+
+pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean{
+    let _1 = from_object(obj1);
+    let _2 = from_object(obj2);
+    (match _1 {
+        None => {
+            match _2 {
+                None => JNI_TRUE,
+                Some(_) => JNI_FALSE,
+            }
+        },
+        Some(_1_) => {
+            match _2 {
+                None => JNI_FALSE,
+                Some(_2_) => Arc::ptr_eq(&_1_, &_2_) as u32,
+            }
+        },
+    }) as u8
 }
 
 
