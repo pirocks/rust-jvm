@@ -194,7 +194,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         SetLocalDouble: None,
         CreateRawMonitor: Some(create_raw_monitor),
         DestroyRawMonitor: None,
-        RawMonitorEnter: None,
+        RawMonitorEnter: Some(raw_monitor_enter),
         RawMonitorExit: None,
         RawMonitorWait: None,
         RawMonitorNotify: None,

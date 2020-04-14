@@ -103,7 +103,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         CallDoubleMethod: None,
         CallDoubleMethodV: None,
         CallDoubleMethodA: None,
-        CallVoidMethod: None,
+        CallVoidMethod: Some(call_void_method),
         CallVoidMethodV: None,
         CallVoidMethodA: None,
         CallNonvirtualObjectMethod: None,
@@ -277,6 +277,8 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         GetObjectRefType: None,
     }
 }
+
+
 
 pub mod local_frame;
 pub mod call;

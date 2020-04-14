@@ -10,3 +10,10 @@ pub unsafe extern "C" fn create_raw_monitor(env: *mut jvmtiEnv, name: *const c_c
     monitor_ptr.write(transmute(res_monitor.monitor_i));//todo check that this is acceptable
     jvmtiError_JVMTI_ERROR_NONE
 }
+
+pub unsafe extern "C" fn raw_monitor_enter(env: *mut jvmtiEnv, monitor: jrawMonitorID) -> jvmtiError{
+    let jvm = get_state(env);
+    let monitor  = &jvm.monitors.read().unwrap()[monitor as usize];
+    monitor.mutex.lock();
+    jvmtiError_JVMTI_ERROR_NONE
+}
