@@ -17,3 +17,10 @@ pub unsafe extern "C" fn raw_monitor_enter(env: *mut jvmtiEnv, monitor: jrawMoni
     monitor.lock();
     jvmtiError_JVMTI_ERROR_NONE
 }
+
+pub unsafe extern "C" fn raw_monitor_exit(env: *mut jvmtiEnv, monitor: jrawMonitorID) -> jvmtiError{
+    let jvm = get_state(env);
+    let monitor  = &jvm.monitors.read().unwrap()[monitor as usize];
+    monitor.unlock();
+    jvmtiError_JVMTI_ERROR_NONE
+}

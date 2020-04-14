@@ -14,7 +14,7 @@ use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
 use std::sync::Arc;
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
-use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter};
+use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit};
 use crate::jvmti::threads::get_top_thread_groups;
 use crate::rust_jni::MethodId;
 use rust_jvm_common::classfile::Code;
@@ -195,7 +195,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         CreateRawMonitor: Some(create_raw_monitor),
         DestroyRawMonitor: None,
         RawMonitorEnter: Some(raw_monitor_enter),
-        RawMonitorExit: None,
+        RawMonitorExit: Some(raw_monitor_exit),
         RawMonitorWait: None,
         RawMonitorNotify: None,
         RawMonitorNotifyAll: None,
