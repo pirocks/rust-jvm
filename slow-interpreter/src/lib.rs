@@ -59,7 +59,9 @@ pub struct JavaThread {
     //todo maybe this shouldn't be private?
     pub interpreter_state: InterpreterState,
 }
-
+//todo is this correct?
+unsafe impl Send for JavaThread{}
+unsafe impl Sync for JavaThread{}
 impl JavaThread {
     /*fn raw_thread(&self) -> *const Self {
         self as *const Self
@@ -221,7 +223,7 @@ struct LivePoolGetterImpl {
 #[derive(Debug)]
 pub struct LibJavaLoading {
     pub lib: Library,
-    pub registered_natives: RefCell<HashMap<Arc<RuntimeClass>, RefCell<HashMap<u16, unsafe extern fn()>>>>,
+    pub registered_natives: RwLock<HashMap<Arc<RuntimeClass>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
 }
 
 impl LivePoolGetter for LivePoolGetterImpl {

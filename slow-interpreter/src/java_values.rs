@@ -390,6 +390,9 @@ pub enum Object {
     Object(NormalObject),
 }
 
+unsafe impl Send for Object{}
+unsafe impl Sync for Object{}
+
 impl Object {
     pub fn lookup_field(&self, s: &str) -> JavaValue {
         self.unwrap_normal_object().fields.borrow().get(s).unwrap().clone()

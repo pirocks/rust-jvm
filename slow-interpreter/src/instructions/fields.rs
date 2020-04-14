@@ -14,7 +14,7 @@ pub fn putstatic(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () 
     let target_classfile = check_inited_class(state, &field_class_name,  loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
     let field_value = stack.pop().unwrap();
-    target_classfile.static_vars.borrow_mut().insert(field_name, field_value);
+    target_classfile.static_vars.write().unwrap().insert(field_name, field_value);
 }
 
 pub fn putfield(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
@@ -54,7 +54,7 @@ pub fn get_static(state: & JVMState, current_frame: & StackEntry, cp: u16) -> ()
 fn get_static_impl(state: & JVMState, current_frame: & StackEntry, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &String) {
     let target_classfile = check_inited_class(state, &field_class_name,  loader_arc.clone());
 //    current_frame.print_stack_trace();
-    let temp = target_classfile.static_vars.borrow();
+    let temp = target_classfile.static_vars.read().unwrap();
     let attempted_get = temp.get(field_name);
     let field_value = match attempted_get {
         None => {

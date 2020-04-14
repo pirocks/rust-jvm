@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jclass, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiStartFunction};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jclass, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiStartFunction, jvmtiEventThreadStart, jvmtiEventThreadEnd, jvmtiEventClassPrepare};
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
@@ -11,26 +11,31 @@ use crate::jvmti::properties::get_system_property;
 use crate::jvmti::allocate::{allocate, deallocate};
 use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities};
 use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit};
 use crate::jvmti::threads::get_top_thread_groups;
 use crate::rust_jni::MethodId;
-use rust_jvm_common::classfile::Code;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::rust_jni::value_conversion::to_native;
 use crate::rust_jni::native_util::to_object;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
-    vm_init_callback: RefCell<jvmtiEventVMInit>,
-    vm_init_enabled: RefCell<bool>,
-    vm_death_callback: RefCell<jvmtiEventVMDeath>,
-    vm_death_enabled: RefCell<bool>,
-    exception_callback: RefCell<jvmtiEventException>,
-    exception_enabled: RefCell<bool>
+    vm_init_callback: RwLock<jvmtiEventVMInit>,
+    vm_init_enabled: RwLock<bool>,
+    vm_death_callback: RwLock<jvmtiEventVMDeath>,
+    vm_death_enabled: RwLock<bool>,
+    exception_callback: RwLock<jvmtiEventException>,
+    exception_enabled: RwLock<bool>,
+    thread_start_callback: RwLock<jvmtiEventThreadStart>,
+    thread_start_enabled: RwLock<bool>,
+    thread_end_callback: RwLock<jvmtiEventThreadEnd>,
+    thread_end_enabled: RwLock<bool>,
+    class_prepare_callback: RwLock<jvmtiEventClassPrepare>,
+    class_prepare_enabled: RwLock<bool>,
+
 }
 
 impl SharedLibJVMTI{
@@ -60,50 +65,85 @@ pub trait DebuggerEventConsumer {
 
     fn Exception_enable(&self);
     fn Exception_disable(&self);
+
+    unsafe fn ThreadStart(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
+
+    fn ThreadStart_enable(&self);
+    fn ThreadStart_disable(&self);
+
+
+    unsafe fn ThreadEnd(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
+
+    fn ThreadEnd_enable(&self);
+    fn ThreadEnd_disable(&self);
 }
 
 #[allow(non_snake_case)]
 impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn VMInit(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
-        if *self.vm_init_enabled.borrow() {
-            self.vm_init_callback.borrow().as_ref().unwrap()(jvmti_env, jni_env, thread);
+        if *self.vm_init_enabled.read().unwrap() {
+            self.vm_init_callback.read().unwrap().as_ref().unwrap()(jvmti_env, jni_env, thread);
         }
     }
 
     fn VMInit_enable(&self) {
-        self.vm_init_enabled.replace(true);
+        *self.vm_init_enabled.write().unwrap() = true;
     }
 
     fn VMInit_disable(&self) {
-        self.vm_init_enabled.replace(false);
+        *self.vm_init_enabled.write().unwrap() = false;
     }
 
     unsafe fn VMDeath(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_) {
-        if *self.vm_death_enabled.borrow() {
-            (self.vm_death_callback.borrow().as_ref().unwrap())(jvmti_env, jni_env);
+        if *self.vm_death_enabled.read().unwrap() {
+            (self.vm_death_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env);
         }
     }
 
     fn VMDeath_enable(&self) {
-        self.vm_death_enabled.replace(true);
+        *self.vm_death_enabled.write().unwrap() = true;
     }
 
     fn VMDeath_disable(&self) {
-        self.vm_death_enabled.replace(false);
+        *self.vm_death_enabled.write().unwrap() = false;
     }
 
     unsafe fn Exception(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, method: *mut _jmethodID, location: i64, exception: *mut _jobject, catch_method: *mut _jmethodID, catch_location: i64) {
-        if *self.exception_enabled.borrow() {
-            (self.exception_callback.borrow().as_ref().unwrap())(jvmti_env, jni_env,thread,method,location,exception,catch_method,catch_location);
+        if *self.exception_enabled.read().unwrap() {
+            (self.exception_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env,thread,method,location,exception,catch_method,catch_location);
         }
     }
 
     fn Exception_enable(&self) {
-        self.exception_enabled.replace(true);
+        *self.exception_enabled.write().unwrap() = true;
     }
 
     fn Exception_disable(&self) {
-        self.exception_enabled.replace(false);
+        *self.exception_enabled.write().unwrap() = false;
+    }
+
+    unsafe fn ThreadStart(jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
+        unimplemented!()
+    }
+
+    fn ThreadStart_enable(&self) {
+        *self.thread_start_enabled.write().unwrap() = true;
+    }
+
+    fn ThreadStart_disable(&self) {
+        *self.thread_start_enabled.write().unwrap() = false;
+    }
+
+    unsafe fn ThreadEnd(jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: jthread) {
+        unimplemented!()
+    }
+
+    fn ThreadEnd_enable(&self) {
+        *self.thread_start_enabled.write().unwrap() = true;
+    }
+
+    fn ThreadEnd_disable(&self) {
+        *self.thread_start_enabled.write().unwrap() = false;
     }
 }
 
@@ -123,12 +163,16 @@ impl SharedLibJVMTI {
     pub fn load_libjdwp(jdwp_path: &str) -> SharedLibJVMTI {
         SharedLibJVMTI {
             lib: Arc::new(Library::new(jdwp_path).unwrap()),
-            vm_init_callback: RefCell::new(None),
-            vm_init_enabled: RefCell::new(false),
-            vm_death_callback: RefCell::new(None),
-            vm_death_enabled: RefCell::new(false),
-            exception_callback: RefCell::new(None),
-            exception_enabled: RefCell::new(false)
+            vm_init_callback: RwLock::new(None),
+            vm_init_enabled: RwLock::new(false),
+            vm_death_callback: RwLock::new(None),
+            vm_death_enabled: RwLock::new(false),
+            exception_callback: RwLock::new(None),
+            exception_enabled: RwLock::new(false),
+            thread_start_callback: RwLock::new(None),
+            thread_start_enabled: RwLock::new(false),
+            thread_end_callback: Default::default(),
+            thread_end_enabled: Default::default()
         }
     }
 }
@@ -320,8 +364,26 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
+struct ThreadArgWrapper{
+    proc_: jvmtiStartFunction,
+    arg: *const ::std::os::raw::c_void
+}
+
+unsafe impl Send for ThreadArgWrapper{}
+unsafe impl Sync for ThreadArgWrapper{}
+
 pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError{
-    unimplemented!()
+    let jvm = get_state(env);
+    let args = ThreadArgWrapper{ proc_, arg };
+    //TODO ADD THREAD TO JVM STATE STRUCT
+    std::thread::spawn(move||{
+        //unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, arg: *mut ::std::os::raw::c_void)
+        let mut jvmti = get_jvmti_interface(jvm);
+        let mut jni_env = get_interface(jvm);
+        let ThreadArgWrapper { proc_, arg } = args;
+        proc_.unwrap()(&mut jvmti,transmute(&mut jni_env),arg as *mut c_void)
+    });
+    jvmtiError_JVMTI_ERROR_NONE
 }
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError{

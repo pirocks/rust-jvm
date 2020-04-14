@@ -6,7 +6,7 @@ extern crate simple_logger;
 use log::trace;
 use libloading::Library;
 use libloading::Symbol;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::ffi::CStr;
 use libffi::middle::Type;
 use libffi::middle::Arg;
@@ -14,7 +14,6 @@ use std::mem::transmute;
 use std::ops::Deref;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::{class_name, ClassName};
@@ -49,7 +48,7 @@ impl LibJavaLoading {
 //    let lib = Library::from(loaded);
         LibJavaLoading {
             lib,
-            registered_natives: RefCell::new(HashMap::new()),
+            registered_natives: RwLock::new(HashMap::new()),
         }
     }
 }
@@ -186,19 +185,19 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
 
 
 fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass>, method_i: usize) -> () {
-    if jni_context.registered_natives.borrow().contains_key(runtime_class) {
+    if jni_context.registered_natives.read().unwrap().contains_key(runtime_class) {
         unsafe {
             jni_context.registered_natives
-                .borrow()
+                .read().unwrap()
                 .get(runtime_class)
                 .unwrap()
-                .borrow_mut()
+                .write().unwrap()
                 .insert(method_i as CPIndex, transmute(method.fnPtr));
         }
     } else {
         let mut map = HashMap::new();
         map.insert(method_i as CPIndex, unsafe { transmute(method.fnPtr) });
-        jni_context.registered_natives.borrow_mut().insert(runtime_class.clone(), RefCell::new(map));
+        jni_context.registered_natives.write().unwrap().insert(runtime_class.clone(), RwLock::new(map));
     }
 }
 

@@ -5,5 +5,6 @@
 
 include!(concat!("../gen", "/bindings.rs"));
 
-
+unsafe impl Send for JNIInvokeInterface_{}
+unsafe impl Sync for JNIInvokeInterface_{}
 

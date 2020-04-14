@@ -9,7 +9,7 @@ pub unsafe extern "C" fn allocate(env: *mut jvmtiEnv, size: jlong, mem_ptr: *mut
     }
 }
 
-pub unsafe extern "C" fn deallocate(env: *mut jvmtiEnv, mem: *mut ::std::os::raw::c_uchar) -> jvmtiError{
+pub unsafe extern "C" fn deallocate(_env: *mut jvmtiEnv, _mem: *mut ::std::os::raw::c_uchar) -> jvmtiError{
     jvmtiError_JVMTI_ERROR_NONE//todo currently leaks a lot
 }
 

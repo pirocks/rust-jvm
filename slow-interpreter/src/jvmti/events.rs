@@ -34,6 +34,30 @@ pub unsafe extern "C" fn set_event_notification_mode(
             }
             jvmtiError_JVMTI_ERROR_NONE
         }
+        52 => {//jvmtiEvent_JVMTI_EVENT_THREAD_START
+            match mode {
+                0 => jdwp_copy.deref().ThreadStart_disable(),
+                1 => jdwp_copy.deref().ThreadStart_enable(),
+                _ => unimplemented!()
+            }
+            jvmtiError_JVMTI_ERROR_NONE
+        }
+        53 => {//jvmtiEvent_JVMTI_EVENT_THREAD_END
+            match mode {
+                0 => jdwp_copy.deref().ThreadEnd_disable(),
+                1 => jdwp_copy.deref().ThreadEnd_enable(),
+                _ => unimplemented!()
+            }
+            jvmtiError_JVMTI_ERROR_NONE
+        }
+        56 => {//jvmtiEvent_JVMTI_EVENT_CLASS_PREPARE
+            match mode {
+                0 => jdwp_copy.deref().ThreadEnd_disable(),
+                1 => jdwp_copy.deref().ThreadEnd_enable(),
+                _ => unimplemented!()
+            }
+            jvmtiError_JVMTI_ERROR_NONE
+        }
         _ => {
             dbg!(event_type);
             unimplemented!();
@@ -123,10 +147,10 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
     } = callback_copy;
 
     if VMInit.is_some(){
-        state.built_in_jdwp.vm_init_callback.replace(VMInit);
+        *state.built_in_jdwp.vm_init_callback.write().unwrap() = VMInit;
     }
     if VMDeath.is_some(){
-        state.built_in_jdwp.vm_death_callback.replace(VMDeath);
+        *state.built_in_jdwp.vm_death_callback.write().unwrap() = VMDeath;
     }
     if ThreadStart.is_some(){
         unimplemented!()
@@ -147,7 +171,7 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         unimplemented!()
     }
     if Exception.is_some(){
-        state.built_in_jdwp.exception_callback.replace(Exception);
+        *state.built_in_jdwp.exception_callback.write().unwrap() = Exception;
     }
     if ExceptionCatch.is_some(){
         unimplemented!()

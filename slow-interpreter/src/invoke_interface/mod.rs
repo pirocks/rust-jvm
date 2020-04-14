@@ -1,10 +1,9 @@
-use jvmti_bindings::{JNIInvokeInterface_, JavaVM, jint, JVMTI_VERSION_1_0, jvmtiEnv, jniNativeInterface, JVMTI_VERSION_1_2};
+use jvmti_bindings::{JNIInvokeInterface_, JavaVM, jint, JVMTI_VERSION_1_0, jvmtiEnv,  JVMTI_VERSION_1_2};
 use crate::JVMState;
 
 use jni_bindings::{JNI_OK, JNINativeInterface_};
 use std::intrinsics::transmute;
 use crate::jvmti::get_jvmti_interface;
-use std::ffi::c_void;
 use crate::rust_jni::interface::get_interface;
 
 
@@ -14,7 +13,7 @@ pub fn get_invoke_interface(state: &JVMState) -> *const JNIInvokeInterface_ {
         None => {
             std::mem::drop(read_guard);
             state.invoke_interface.write().unwrap().replace(unsafe {transmute::<_,jni_bindings::JNIInvokeInterface_>(JNIInvokeInterface_ {
-                reserved0: unsafe { transmute(state) },
+                reserved0:  transmute(state) ,
                 reserved1: std::ptr::null_mut(),
                 reserved2: std::ptr::null_mut(),
                 DestroyJavaVM: None,

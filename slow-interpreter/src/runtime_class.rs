@@ -1,10 +1,9 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 use std::fmt::{Formatter, Debug, Error};
 use crate::java_values::{JavaValue, default_value};
 use rust_jvm_common::classfile::{Classfile, ACC_FINAL, ACC_STATIC};
 use std::hash::{Hash, Hasher};
-use std::cell::RefCell;
 use classfile_view::view::ClassView;
 use classfile_view::loading::LoaderArc;
 use crate::interpreter_util::run_function;
@@ -19,7 +18,7 @@ pub struct RuntimeClass {
     pub classfile: Arc<Classfile>,
     pub class_view: ClassView,
     pub loader: LoaderArc,
-    pub static_vars: RefCell<HashMap<String, JavaValue>>,
+    pub static_vars: RwLock<HashMap<String, JavaValue>>,
 }
 
 impl Debug for RuntimeClass {
@@ -38,7 +37,7 @@ impl Hash for RuntimeClass {
 
 impl PartialEq for RuntimeClass {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.loader, &other.loader) && self.classfile == other.classfile && self.static_vars == other.static_vars
+        Arc::ptr_eq(&self.loader, &other.loader) && self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
     }
 }
 
@@ -60,7 +59,7 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
         class_view: ClassView::from(classfile.clone()),
         classfile,
         loader,
-        static_vars: RefCell::new(res),
+        static_vars: RwLock::new(res),
     }
 }
 
@@ -84,7 +83,7 @@ pub fn initialize_class(
                 let x = &constant_pool[value_i as usize];
                 let constant_value = from_constant_pool_entry(constant_pool, x, jvm);
                 let name = constant_pool[field.name_index as usize].extract_string_from_utf8();
-                runtime_class.static_vars.borrow_mut().insert(name, constant_value);
+                runtime_class.static_vars.write().unwrap().insert(name, constant_value);
             }
         }
     }

@@ -34,7 +34,7 @@ pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass
     let classfile = &field_id.class.classfile;
     let field_name = classfile.constant_pool[classfile.fields[field_id.field_i].name_index as usize].extract_string_from_utf8();
     let static_class = runtime_class_from_object(clazz,state,&frame).unwrap();
-    static_class.static_vars.borrow_mut().insert(field_name, JavaValue::Object(value));
+    static_class.static_vars.write().unwrap().insert(field_name, JavaValue::Object(value));
 }
 
 
