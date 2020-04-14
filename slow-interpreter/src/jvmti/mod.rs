@@ -12,9 +12,9 @@ use crate::jvmti::allocate::{allocate, deallocate};
 use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities};
 use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
 use std::sync::{Arc, RwLock};
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use crate::rust_jni::interface::get_interface;
-use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait};
+use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads};
 use crate::rust_jni::MethodId;
 use crate::class_objects::get_or_create_class_object;
@@ -41,22 +41,22 @@ pub struct SharedLibJVMTI {
     class_prepare_callback: RwLock<jvmtiEventClassPrepare>,
     class_prepare_enabled: RwLock<bool>,
     garbage_collection_finish_callback: RwLock<jvmtiEventGarbageCollectionFinish>,
-    garbage_collection_finish_enabled : RwLock<bool>,
+    garbage_collection_finish_enabled: RwLock<bool>,
 
-    class_load_callback : RwLock<jvmtiEventClassLoad>,
+    class_load_callback: RwLock<jvmtiEventClassLoad>,
 
-    exception_catch_callback : RwLock<jvmtiEventExceptionCatch>,
-    single_step_callback : RwLock<jvmtiEventSingleStep>,
-    frame_pop_callback : RwLock<jvmtiEventFramePop>,
-    breakpoint_callback : RwLock<jvmtiEventBreakpoint>,
-    field_access_callback : RwLock<jvmtiEventFieldAccess>,
-    field_modification_callback : RwLock<jvmtiEventFieldModification>,
-    method_entry_callback : RwLock<jvmtiEventMethodEntry>,
-    method_exit_callback : RwLock<jvmtiEventMethodExit>,
-    monitor_wait_callback : RwLock<jvmtiEventMonitorWait>,
-    monitor_waited_callback : RwLock<jvmtiEventMonitorWaited>,
-    monitor_conteded_enter_callback : RwLock<jvmtiEventMonitorContendedEnter>,
-    monitor_conteded_entered_callback : RwLock<jvmtiEventMonitorContendedEntered>,
+    exception_catch_callback: RwLock<jvmtiEventExceptionCatch>,
+    single_step_callback: RwLock<jvmtiEventSingleStep>,
+    frame_pop_callback: RwLock<jvmtiEventFramePop>,
+    breakpoint_callback: RwLock<jvmtiEventBreakpoint>,
+    field_access_callback: RwLock<jvmtiEventFieldAccess>,
+    field_modification_callback: RwLock<jvmtiEventFieldModification>,
+    method_entry_callback: RwLock<jvmtiEventMethodEntry>,
+    method_exit_callback: RwLock<jvmtiEventMethodExit>,
+    monitor_wait_callback: RwLock<jvmtiEventMonitorWait>,
+    monitor_waited_callback: RwLock<jvmtiEventMonitorWaited>,
+    monitor_conteded_enter_callback: RwLock<jvmtiEventMonitorContendedEnter>,
+    monitor_conteded_entered_callback: RwLock<jvmtiEventMonitorContendedEntered>,
 }
 
 impl SharedLibJVMTI {
@@ -105,10 +105,9 @@ pub trait DebuggerEventConsumer {
     fn ClassPrepare_disable(&self);
 
 
-    unsafe fn GarbageCollectionFinish( jvmti_env : * mut jvmtiEnv );
+    unsafe fn GarbageCollectionFinish(jvmti_env: *mut jvmtiEnv);
     fn GarbageCollectionFinish_enable(&self);
     fn GarbageCollectionFinish_disable(&self);
-
 }
 
 #[allow(non_snake_case)]
@@ -249,7 +248,7 @@ impl SharedLibJVMTI {
             monitor_wait_callback: Default::default(),
             monitor_waited_callback: Default::default(),
             monitor_conteded_enter_callback: Default::default(),
-            monitor_conteded_entered_callback: Default::default()
+            monitor_conteded_entered_callback: Default::default(),
         }
     }
 }
@@ -319,7 +318,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         RawMonitorExit: Some(raw_monitor_exit),
         RawMonitorWait: Some(raw_monitor_wait),
         RawMonitorNotify: None,
-        RawMonitorNotifyAll: None,
+        RawMonitorNotifyAll: Some(raw_monitor_notify_all),
         SetBreakpoint: None,
         ClearBreakpoint: None,
         reserved40: std::ptr::null_mut(),
@@ -385,7 +384,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetAllStackTraces: None,
         GetThreadListStackTraces: None,
         GetThreadLocalStorage: Some(get_thread_local_storage),
-        SetThreadLocalStorage: None,
+        SetThreadLocalStorage: Some(set_thread_local_storage),
         GetStackTrace: None,
         reserved105: std::ptr::null_mut(),
         GetTag: None,
@@ -441,10 +440,19 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
-pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError{
+pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.jvmti_thread_local_storage.with(|tls_ptr|{
+    jvm.jvmti_thread_local_storage.with(|tls_ptr| {
         data_ptr.write(*tls_ptr.borrow());
+    });
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data: *const ::std::os::raw::c_void) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.jvmti_thread_local_storage.with(|tls_ptr| {
+        let mut ref_mut: RefMut<*mut c_void> = tls_ptr.borrow_mut();
+        *ref_mut = data as *mut c_void;
     });
     jvmtiError_JVMTI_ERROR_NONE
 }
@@ -452,7 +460,7 @@ pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jt
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
     arg: *const ::std::os::raw::c_void,
-    thread: *mut _jobject
+    thread: *mut _jobject,
 }
 
 unsafe impl Send for ThreadArgWrapper {}
@@ -461,31 +469,31 @@ unsafe impl Sync for ThreadArgWrapper {}
 
 pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
     let jvm = get_state(env);
-    let args = ThreadArgWrapper { proc_, arg , thread};
-    let system_class = check_inited_class(jvm,&ClassName::system(),jvm.bootstrap_loader.clone());
-    //TODO ADD THREAD TO JVM STATE STRUCT
+    let args = ThreadArgWrapper { proc_, arg, thread };
+    let system_class = check_inited_class(jvm, &ClassName::system(), jvm.bootstrap_loader.clone());
+//TODO ADD THREAD TO JVM STATE STRUCT
     std::thread::spawn(move || {
         let ThreadArgWrapper { proc_, arg, thread } = args;
-        //unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, arg: *mut ::std::os::raw::c_void)
+//unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, arg: *mut ::std::os::raw::c_void)
         let agent_thread = Arc::new(JavaThread {
             java_tid: 1,
-            // name: "agent thread".to_string(),
+// name: "agent thread".to_string(),
             call_stack: RefCell::new(vec![Rc::new(StackEntry {
                 class_pointer: system_class.clone(),
                 method_i: std::u16::MAX,
                 local_vars: RefCell::new(vec![]),
                 operand_stack: RefCell::new(vec![]),
                 pc: RefCell::new(std::usize::MAX),
-                pc_offset: RefCell::new(-1)
+                pc_offset: RefCell::new(-1),
             })]),
             thread_object: RefCell::new(JavaValue::Object(from_object(transmute(thread))).cast_thread().into()),
             interpreter_state: InterpreterState {
                 terminate: RefCell::new(false),
                 throw: RefCell::new(None),
-                function_return: RefCell::new(false)
-            }
+                function_return: RefCell::new(false),
+            },
         });
-        jvm.alive_threads.write().unwrap().insert(agent_thread.java_tid,agent_thread.clone());//todo needs to be done via constructor
+        jvm.alive_threads.write().unwrap().insert(agent_thread.java_tid, agent_thread.clone());//todo needs to be done via constructor
         jvm.set_current_thread(agent_thread.clone());
         let mut jvmti = get_jvmti_interface(jvm);
         let mut jni_env = get_interface(jvm);
@@ -496,7 +504,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     status_ptr.write(JVMTI_CLASS_STATUS_INITIALIZED as i32);
-    //todo handle primitive classes
+//todo handle primitive classes
     jvmtiError_JVMTI_ERROR_NONE
 }
 
@@ -504,7 +512,7 @@ unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mu
     let state = get_state(env);
     let frame = state.get_current_frame();
     let mut res_vec = vec![];
-    //todo what about int.class and other primitive classes
+//todo what about int.class and other primitive classes
     state.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
         let name = runtime_class.class_view.name();
         let class_object = get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(name)), frame.deref(), runtime_class.loader.clone());

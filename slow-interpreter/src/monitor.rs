@@ -22,4 +22,8 @@ impl Monitor {
     pub fn wait(&self) {
         self.condvar.wait(self.condvar_mutex.lock().unwrap()).unwrap();
     }
+
+    pub fn notify_all(&self) {
+        self.condvar.notify_all();
+    }
 }
