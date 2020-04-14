@@ -384,7 +384,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         reserved99: std::ptr::null_mut(),
         GetAllStackTraces: None,
         GetThreadListStackTraces: None,
-        GetThreadLocalStorage: None,
+        GetThreadLocalStorage: Some(get_thread_local_storage),
         SetThreadLocalStorage: None,
         GetStackTrace: None,
         reserved105: std::ptr::null_mut(),
@@ -439,6 +439,14 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetObjectSize: None,
         GetLocalInstance: None,
     }
+}
+
+pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError{
+    let jvm = get_state(env);
+    jvm.jvmti_thread_local_storage.with(|tls_ptr|{
+        data_ptr.write(*tls_ptr.borrow());
+    });
+    jvmtiError_JVMTI_ERROR_NONE
 }
 
 struct ThreadArgWrapper {

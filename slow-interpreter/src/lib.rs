@@ -37,6 +37,7 @@ use std::rc::Rc;
 use crate::monitor::Monitor;
 use parking_lot::const_fair_mutex;
 use jni_bindings::JNIInvokeInterface_;
+use std::ffi::c_void;
 
 
 pub mod java_values;
@@ -142,8 +143,14 @@ pub struct JVMState {
     pub  classpath: Arc<Classpath>,
 
     invoke_interface: RwLock<Option<JNIInvokeInterface_>>,
+
+    jvmti_thread_local_storage: &'static LocalKey<RefCell<*mut c_void>>
 }
 
+
+thread_local! {
+        static JVMTI_TLS: RefCell<*mut c_void> = RefCell::new(std::ptr::null_mut());
+    }
 
 thread_local! {
         static CURRENT_JAVA_THREAD: RefCell<Option<Arc<JavaThread>>> = RefCell::new(None);
@@ -212,6 +219,7 @@ impl JVMState {
             monitors: RwLock::new(vec![]),
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
+            jvmti_thread_local_storage: &JVMTI_TLS
         }
     }
 
