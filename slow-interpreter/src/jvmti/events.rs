@@ -116,7 +116,6 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         VMObjectAlloc: None
     };
     libc::memcpy(&mut callback_copy as *mut jvmtiEventCallbacks as *mut libc::c_void,callbacks as *const libc::c_void,size_of::<jvmtiEventCallbacks>());
-    dbg!(callback_copy);
     let jvmtiEventCallbacks {
         VMInit,
         VMDeath,

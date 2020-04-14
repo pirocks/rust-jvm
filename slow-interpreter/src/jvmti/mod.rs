@@ -467,10 +467,10 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
     std::thread::spawn(move || {
         let ThreadArgWrapper { proc_, arg, thread } = args;
         //unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, arg: *mut ::std::os::raw::c_void)
-        jvm.set_current_thread(Arc::new(JavaThread{
+        let agent_thread = Arc::new(JavaThread {
             java_tid: 1,
             // name: "agent thread".to_string(),
-            call_stack: RefCell::new(vec![Rc::new(StackEntry{
+            call_stack: RefCell::new(vec![Rc::new(StackEntry {
                 class_pointer: system_class.clone(),
                 method_i: std::u16::MAX,
                 local_vars: RefCell::new(vec![]),
@@ -484,7 +484,9 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
                 throw: RefCell::new(None),
                 function_return: RefCell::new(false)
             }
-        }));
+        });
+        jvm.alive_threads.write().unwrap().insert(agent_thread.java_tid,agent_thread.clone());//todo needs to be done via constructor
+        jvm.set_current_thread(agent_thread.clone());
         let mut jvmti = get_jvmti_interface(jvm);
         let mut jni_env = get_interface(jvm);
         proc_.unwrap()(&mut jvmti, transmute(&mut jni_env), arg as *mut c_void)

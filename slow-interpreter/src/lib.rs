@@ -38,6 +38,7 @@ use crate::monitor::Monitor;
 use parking_lot::const_fair_mutex;
 use jni_bindings::JNIInvokeInterface_;
 use std::ffi::c_void;
+use lock_api::ReentrantMutex;
 
 
 pub mod java_values;
@@ -226,7 +227,7 @@ impl JVMState {
     pub fn new_monitor(&self) -> Arc<Monitor> {
         let mut monitor_guard = self.monitors.write().unwrap();
         let index = monitor_guard.len();
-        let res = Arc::new(Monitor { mutex: const_fair_mutex(0), monitor_i: index, condvar: Condvar::new(), condvar_mutex: Mutex::new(()) });
+        let res = Arc::new(Monitor { mutex: ReentrantMutex::new(()), monitor_i: index, condvar: Condvar::new(), condvar_mutex: Mutex::new(()) });
         monitor_guard.push(res.clone());
         res
     }

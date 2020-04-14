@@ -1,22 +1,22 @@
-use parking_lot::RawFairMutex;
-use lock_api::{RawMutex, Mutex};
+use parking_lot::{RawFairMutex, RawThreadId};
+use lock_api::{RawMutex, Mutex, ReentrantMutex, GetThreadId};
 use std::sync::Condvar;
 
 #[derive(Debug)]
 pub struct Monitor {
-    pub mutex: Mutex<RawFairMutex, i32>,
-    pub monitor_i : usize,
+    pub mutex: ReentrantMutex<RawFairMutex, RawThreadId, ()>,//todo should prob check w/ java thread
+    pub monitor_i: usize,
     pub condvar: Condvar,
-    pub condvar_mutex : std::sync::Mutex<()>
+    pub condvar_mutex: std::sync::Mutex<()>,
 }
 
 impl Monitor {
     pub fn lock(&self) {
-        unsafe { self.mutex.raw().lock(); }
+        unsafe { std::mem::forget(self.mutex.lock()); }
     }
 
     pub fn unlock(&self) {
-        unsafe { self.mutex.raw().unlock(); }//todo maybe find something better than force_unlock
+        unsafe { self.mutex.force_unlock_fair(); }//todo maybe find something better than force_unlock
     }
 
     pub fn wait(&self) {
