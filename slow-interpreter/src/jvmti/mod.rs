@@ -8,7 +8,7 @@ use std::ffi::CString;
 use crate::invoke_interface::get_invoke_interface;
 use crate::jvmti::version::get_version_number;
 use crate::jvmti::properties::get_system_property;
-use crate::jvmti::allocate::allocate;
+use crate::jvmti::allocate::{allocate, deallocate};
 use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities};
 use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
 use std::sync::Arc;
@@ -113,8 +113,8 @@ impl SharedLibJVMTI {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
             let args = CString::new("transport=dt_socket,server=y,suspend=n,address=5005").unwrap().into_raw();//todo parse these at jvm startup
-            let interface: JNIInvokeInterface_ = get_invoke_interface(state);
-            agent_load_fn_ptr(&mut (&interface as *const JNIInvokeInterface_) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError
+            let interface: *const JNIInvokeInterface_ = get_invoke_interface(state);
+            agent_load_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError//todo leak
         }
     }
 }
@@ -208,7 +208,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         ClearFieldModificationWatch: None,
         IsModifiableClass: None,
         Allocate: Some(allocate),
-        Deallocate: None,
+        Deallocate: Some(deallocate),
         GetClassSignature: None,
         GetClassStatus: Some(get_class_status),
         GetSourceFileName: None,
@@ -319,6 +319,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetLocalInstance: None,
     }
 }
+
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError{
     status_ptr.write(JVMTI_CLASS_STATUS_INITIALIZED as i32);

@@ -36,6 +36,7 @@ use std::thread::LocalKey;
 use std::rc::Rc;
 use crate::monitor::Monitor;
 use parking_lot::const_fair_mutex;
+use jni_bindings::JNIInvokeInterface_;
 
 
 pub mod java_values;
@@ -137,7 +138,9 @@ pub struct JVMState {
 
     monitors: RwLock<Vec<Arc<Monitor>>>,
 
-    pub  classpath: Arc<Classpath>
+    pub  classpath: Arc<Classpath>,
+
+    invoke_interface : RwLock<Option<JNIInvokeInterface_>>
 }
 
 
@@ -197,7 +200,8 @@ impl JVMState {
             current_java_thread: &CURRENT_JAVA_THREAD,
             system_thread_group: RwLock::new(None),
             monitors: RwLock::new(vec![]),
-            classpath: classpath_arc
+            classpath: classpath_arc,
+            invoke_interface: RwLock::new(None)
         }
     }
 

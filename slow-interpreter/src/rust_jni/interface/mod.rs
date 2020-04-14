@@ -14,8 +14,6 @@ use crate::rust_jni::interface::array::*;
 use crate::JVMState;
 use std::cell::RefCell;
 use crate::java_values::JavaValue;
-use std::rc::Rc;
-use crate::stack_entry::StackEntry;
 use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
 
 //todo this should be in state impl

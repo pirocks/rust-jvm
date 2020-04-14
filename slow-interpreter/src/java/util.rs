@@ -7,7 +7,6 @@ pub mod properties {
     use crate::JVMState;
     use crate::java::lang::string::JString;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-    use crate::java::lang::object::JObject;
 
     pub struct Properties {
         normal_object: Arc<Object>
