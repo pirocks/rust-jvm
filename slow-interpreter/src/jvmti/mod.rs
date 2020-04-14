@@ -3,7 +3,7 @@ use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
 use std::ops::Deref;
-use crate::{JVMState, JavaThread};
+use crate::{JVMState, JavaThread, InterpreterState};
 use std::ffi::CString;
 use crate::invoke_interface::get_invoke_interface;
 use crate::jvmti::version::get_version_number;
@@ -19,7 +19,12 @@ use crate::jvmti::threads::get_top_thread_groups;
 use crate::rust_jni::MethodId;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::rust_jni::native_util::to_object;
+use crate::rust_jni::native_util::{to_object, from_object};
+use crate::java_values::JavaValue;
+use crate::interpreter_util::check_inited_class;
+use rust_jvm_common::classnames::ClassName;
+use crate::stack_entry::StackEntry;
+use std::rc::Rc;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -281,7 +286,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         DestroyRawMonitor: None,
         RawMonitorEnter: Some(raw_monitor_enter),
         RawMonitorExit: Some(raw_monitor_exit),
-        RawMonitorWait: None,
+        RawMonitorWait: Some(raw_monitor_wait),
         RawMonitorNotify: None,
         RawMonitorNotifyAll: None,
         SetBreakpoint: None,
@@ -408,6 +413,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
     arg: *const ::std::os::raw::c_void,
+    thread: *mut _jobject
 }
 
 unsafe impl Send for ThreadArgWrapper {}
@@ -416,13 +422,32 @@ unsafe impl Sync for ThreadArgWrapper {}
 
 pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
     let jvm = get_state(env);
-    let args = ThreadArgWrapper { proc_, arg };
+    let args = ThreadArgWrapper { proc_, arg , thread};
+    let system_class = check_inited_class(jvm,&ClassName::system(),jvm.bootstrap_loader.clone());
     //TODO ADD THREAD TO JVM STATE STRUCT
     std::thread::spawn(move || {
+        let ThreadArgWrapper { proc_, arg, thread } = args;
         //unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, arg: *mut ::std::os::raw::c_void)
+        jvm.set_current_thread(Arc::new(JavaThread{
+            java_tid: 1,
+            name: "agent thread".to_string(),
+            call_stack: RefCell::new(vec![Rc::new(StackEntry{
+                class_pointer: system_class.clone(),
+                method_i: std::u16::MAX,
+                local_vars: RefCell::new(vec![]),
+                operand_stack: RefCell::new(vec![]),
+                pc: RefCell::new(std::usize::MAX),
+                pc_offset: RefCell::new(-1)
+            })]),
+            thread_object: RefCell::new(JavaValue::Object(from_object(transmute(thread))).cast_thread().into()),
+            interpreter_state: InterpreterState {
+                terminate: RefCell::new(false),
+                throw: RefCell::new(None),
+                function_return: RefCell::new(false)
+            }
+        }));
         let mut jvmti = get_jvmti_interface(jvm);
         let mut jni_env = get_interface(jvm);
-        let ThreadArgWrapper { proc_, arg } = args;
         proc_.unwrap()(&mut jvmti, transmute(&mut jni_env), arg as *mut c_void)
     });
     jvmtiError_JVMTI_ERROR_NONE

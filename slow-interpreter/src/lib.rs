@@ -59,9 +59,12 @@ pub struct JavaThread {
     //todo maybe this shouldn't be private?
     pub interpreter_state: InterpreterState,
 }
+
 //todo is this correct?
-unsafe impl Send for JavaThread{}
-unsafe impl Sync for JavaThread{}
+unsafe impl Send for JavaThread {}
+
+unsafe impl Sync for JavaThread {}
+
 impl JavaThread {
     /*fn raw_thread(&self) -> *const Self {
         self as *const Self
@@ -142,7 +145,7 @@ pub struct JVMState {
 
     pub  classpath: Arc<Classpath>,
 
-    invoke_interface : RwLock<Option<JNIInvokeInterface_>>
+    invoke_interface: RwLock<Option<JNIInvokeInterface_>>,
 }
 
 
@@ -156,7 +159,16 @@ impl JVMState {
     }
 
     pub fn get_current_thread(&self) -> Arc<JavaThread> {
-        self.current_java_thread.with(|thread_refcell| thread_refcell.borrow().as_ref().unwrap().clone())
+        self.current_java_thread.with(|thread_refcell| {
+            /*let first_guard = thread_refcell.borrow();
+            match first_guard.as_ref(){
+                None => {
+                    std::mem::drop(first_guard);
+                },
+                Some(_) => {},
+            }*/
+            thread_refcell.borrow().as_ref().unwrap().clone()
+        })
     }
 
     pub fn get_current_frame(&self) -> Rc<StackEntry> {
@@ -179,7 +191,7 @@ impl JVMState {
             loaded: RwLock::new(HashMap::new()),
             parsed: RwLock::new(HashMap::new()),
             name: RwLock::new(LoaderName::BootstrapLoader),
-            classpath: classpath_arc.clone()
+            classpath: classpath_arc.clone(),
         });
 
 
@@ -203,11 +215,11 @@ impl JVMState {
             system_thread_group: RwLock::new(None),
             monitors: RwLock::new(vec![]),
             classpath: classpath_arc,
-            invoke_interface: RwLock::new(None)
+            invoke_interface: RwLock::new(None),
         }
     }
 
-    pub fn new_monitor(&self) -> Arc<Monitor>{
+    pub fn new_monitor(&self) -> Arc<Monitor> {
         let mut monitor_guard = self.monitors.write().unwrap();
         let index = monitor_guard.len();
         let res = Arc::new(Monitor { mutex: const_fair_mutex(0), monitor_i: index });
