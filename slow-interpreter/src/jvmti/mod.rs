@@ -15,7 +15,7 @@ use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait};
-use crate::jvmti::threads::get_top_thread_groups;
+use crate::jvmti::threads::{get_top_thread_groups, get_all_threads};
 use crate::rust_jni::MethodId;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -286,7 +286,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         reserved1: unsafe { transmute(state) },
         SetEventNotificationMode: Some(set_event_notification_mode),
         reserved3: std::ptr::null_mut(),
-        GetAllThreads: None,
+        GetAllThreads: Some(get_all_threads),
         SuspendThread: None,
         ResumeThread: None,
         StopThread: None,

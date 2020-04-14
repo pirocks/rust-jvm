@@ -215,7 +215,7 @@ pub mod thread {
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
 
-    #[derive(Debug)]
+    #[derive(Debug,Clone)]
     pub struct JThread {
         normal_object: Arc<Object>
     }

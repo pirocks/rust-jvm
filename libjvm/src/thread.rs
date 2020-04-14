@@ -220,7 +220,7 @@ unsafe extern "system" fn JVM_DumpAllStacks(env: *mut JNIEnv, unused: jclass) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, dummy: jclass) -> jobjectArray {
-    unimplemented!()
+    unimplemented!()//todo already mostly implemented as part of jvmti
 }
 
 #[no_mangle]
