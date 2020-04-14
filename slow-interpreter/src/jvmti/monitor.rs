@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jrawMonitorID, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_bindings::{jvmtiEnv, jrawMonitorID, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jlong};
 use std::os::raw::c_char;
 use crate::jvmti::get_state;
 use std::intrinsics::transmute;
@@ -22,5 +22,12 @@ pub unsafe extern "C" fn raw_monitor_exit(env: *mut jvmtiEnv, monitor: jrawMonit
     let jvm = get_state(env);
     let monitor  = &jvm.monitors.read().unwrap()[monitor as usize];
     monitor.unlock();
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+pub unsafe extern "C" fn raw_monitor_wait(env: *mut jvmtiEnv, monitor: jrawMonitorID, millis: jlong) -> jvmtiError{
+    let jvm = get_state(env);
+    let monitor  = &jvm.monitors.read().unwrap()[monitor as usize];
+    monitor.wait();
     jvmtiError_JVMTI_ERROR_NONE
 }

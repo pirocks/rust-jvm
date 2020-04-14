@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jclass, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiStartFunction, jvmtiEventThreadStart, jvmtiEventThreadEnd, jvmtiEventClassPrepare, jvmtiEventGarbageCollectionFinish};
+use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jclass, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiStartFunction, jvmtiEventThreadStart, jvmtiEventThreadEnd, jvmtiEventClassPrepare, jvmtiEventGarbageCollectionFinish, jvmtiEventClassLoad, jvmtiEventExceptionCatch, jvmtiEventSingleStep, jvmtiEventFramePop, jvmtiEventBreakpoint, jvmtiEventFieldAccess, jvmtiEventFieldModification, jvmtiEventMethodEntry, jvmtiEventMethodExit, jvmtiEventMonitorWait, jvmtiEventMonitorWaited, jvmtiEventMonitorContendedEnter, jvmtiEventMonitorContendedEntered};
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
@@ -14,7 +14,7 @@ use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
 use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
-use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit};
+use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait};
 use crate::jvmti::threads::get_top_thread_groups;
 use crate::rust_jni::MethodId;
 use crate::class_objects::get_or_create_class_object;
@@ -41,7 +41,22 @@ pub struct SharedLibJVMTI {
     class_prepare_callback: RwLock<jvmtiEventClassPrepare>,
     class_prepare_enabled: RwLock<bool>,
     garbage_collection_finish_callback: RwLock<jvmtiEventGarbageCollectionFinish>,
-    garbage_collection_finish_enabled : RwLock<bool>
+    garbage_collection_finish_enabled : RwLock<bool>,
+
+    class_load_callback : RwLock<jvmtiEventClassLoad>,
+
+    exception_catch_callback : RwLock<jvmtiEventExceptionCatch>,
+    single_step_callback : RwLock<jvmtiEventSingleStep>,
+    frame_pop_callback : RwLock<jvmtiEventFramePop>,
+    breakpoint_callback : RwLock<jvmtiEventBreakpoint>,
+    field_access_callback : RwLock<jvmtiEventFieldAccess>,
+    field_modification_callback : RwLock<jvmtiEventFieldModification>,
+    method_entry_callback : RwLock<jvmtiEventMethodEntry>,
+    method_exit_callback : RwLock<jvmtiEventMethodExit>,
+    monitor_wait_callback : RwLock<jvmtiEventMonitorWait>,
+    monitor_waited_callback : RwLock<jvmtiEventMonitorWaited>,
+    monitor_conteded_enter_callback : RwLock<jvmtiEventMonitorContendedEnter>,
+    monitor_conteded_entered_callback : RwLock<jvmtiEventMonitorContendedEntered>,
 }
 
 impl SharedLibJVMTI {
@@ -100,7 +115,10 @@ pub trait DebuggerEventConsumer {
 impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn VMInit(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
         if *self.vm_init_enabled.read().unwrap() {
-            self.vm_init_callback.read().unwrap().as_ref().unwrap()(jvmti_env, jni_env, thread);
+            let guard = self.vm_init_callback.read().unwrap();
+            let f_pointer = *guard.as_ref().unwrap();
+            std::mem::drop(guard);
+            f_pointer(jvmti_env, jni_env, thread);
         }
     }
 
@@ -218,7 +236,20 @@ impl SharedLibJVMTI {
             class_prepare_callback: Default::default(),
             class_prepare_enabled: Default::default(),
             garbage_collection_finish_callback: Default::default(),
-            garbage_collection_finish_enabled: Default::default()
+            garbage_collection_finish_enabled: Default::default(),
+            class_load_callback: Default::default(),
+            exception_catch_callback: Default::default(),
+            single_step_callback: Default::default(),
+            frame_pop_callback: Default::default(),
+            breakpoint_callback: Default::default(),
+            field_access_callback: Default::default(),
+            field_modification_callback: Default::default(),
+            method_entry_callback: Default::default(),
+            method_exit_callback: Default::default(),
+            monitor_wait_callback: Default::default(),
+            monitor_waited_callback: Default::default(),
+            monitor_conteded_enter_callback: Default::default(),
+            monitor_conteded_entered_callback: Default::default()
         }
     }
 }

@@ -22,7 +22,7 @@ use libloading::Library;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::loading::{LoaderArc, LivePoolGetter, LoaderName};
 use descriptor_parser::MethodDescriptor;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Condvar, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
@@ -222,7 +222,7 @@ impl JVMState {
     pub fn new_monitor(&self) -> Arc<Monitor> {
         let mut monitor_guard = self.monitors.write().unwrap();
         let index = monitor_guard.len();
-        let res = Arc::new(Monitor { mutex: const_fair_mutex(0), monitor_i: index });
+        let res = Arc::new(Monitor { mutex: const_fair_mutex(0), monitor_i: index, condvar: Condvar::new(), condvar_mutex: Mutex::new(()) });
         monitor_guard.push(res.clone());
         res
     }

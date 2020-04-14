@@ -116,6 +116,7 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         VMObjectAlloc: None
     };
     libc::memcpy(&mut callback_copy as *mut jvmtiEventCallbacks as *mut libc::c_void,callbacks as *const libc::c_void,size_of::<jvmtiEventCallbacks>());
+    dbg!(callback_copy);
     let jvmtiEventCallbacks {
         VMInit,
         VMDeath,
@@ -161,19 +162,19 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         *state.built_in_jdwp.vm_death_callback.write().unwrap() = VMDeath;
     }
     if ThreadStart.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.thread_start_callback.write().unwrap() = ThreadStart;
     }
     if ThreadEnd.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.thread_end_callback.write().unwrap() = ThreadEnd;
     }
     if ClassFileLoadHook.is_some(){
         unimplemented!()
     }
     if ClassLoad.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.class_load_callback.write().unwrap() = ClassLoad;
     }
     if ClassPrepare.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.class_prepare_callback.write().unwrap() = ClassPrepare;
     }
     if VMStart.is_some(){
         unimplemented!()
@@ -182,28 +183,28 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         *state.built_in_jdwp.exception_callback.write().unwrap() = Exception;
     }
     if ExceptionCatch.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.exception_catch_callback.write().unwrap() = ExceptionCatch;
     }
     if SingleStep.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.single_step_callback.write().unwrap() = SingleStep;
     }
     if FramePop.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.frame_pop_callback.write().unwrap() = FramePop;
     }
     if Breakpoint.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.breakpoint_callback.write().unwrap() = Breakpoint;
     }
     if FieldAccess.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.field_access_callback.write().unwrap() = FieldAccess;
     }
     if FieldModification.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.field_modification_callback.write().unwrap() = FieldModification;
     }
     if MethodEntry.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.method_entry_callback.write().unwrap() = MethodEntry;
     }
     if MethodExit.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.method_exit_callback.write().unwrap() = MethodExit;
     }
     if NativeMethodBind.is_some(){
         unimplemented!()
@@ -224,16 +225,16 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         unimplemented!()
     }
     if MonitorWait.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.monitor_wait_callback.write().unwrap() = MonitorWait;
     }
     if MonitorWaited.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.monitor_waited_callback.write().unwrap() = MonitorWaited;
     }
     if MonitorContendedEnter.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.monitor_conteded_enter_callback.write().unwrap() = MonitorContendedEnter;
     }
     if MonitorContendedEntered.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.monitor_conteded_entered_callback.write().unwrap() = MonitorContendedEntered;
     }
     if ResourceExhausted.is_some(){
         unimplemented!()
@@ -242,7 +243,7 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         unimplemented!()
     }
     if GarbageCollectionFinish.is_some(){
-        unimplemented!()
+        *state.built_in_jdwp.garbage_collection_finish_callback.write().unwrap() = GarbageCollectionFinish;
     }
     if ObjectFree.is_some(){
         unimplemented!()

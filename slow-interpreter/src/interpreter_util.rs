@@ -138,6 +138,8 @@ pub fn run_function(
             InstructionInfo::astore_3 => astore(&current_frame, 3),
             InstructionInfo::athrow => {
                 println!("EXCEPTION:");
+                dbg!(&meth_name);
+                dbg!(&class_name_);
                 let exception_obj = current_frame.pop().unwrap_object_nonnull();
                 dbg!(exception_obj.lookup_field("detailMessage"));
                 interpreter_state.throw.replace(exception_obj.into());
