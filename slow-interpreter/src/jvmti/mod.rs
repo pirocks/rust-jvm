@@ -25,6 +25,10 @@ use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::ClassName;
 use crate::stack_entry::StackEntry;
 use std::rc::Rc;
+use crate::jvmti::thread_local_storage::get_thread_local_storage;
+use crate::jvmti::tags::get_tag;
+use crate::jvmti::agent::run_agent_thread;
+use crate::jvmti::classes::get_class_status;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -391,7 +395,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         SetThreadLocalStorage: Some(set_thread_local_storage),
         GetStackTrace: None,
         reserved105: std::ptr::null_mut(),
-        GetTag: None,
+        GetTag: Some(get_tag),
         SetTag: None,
         ForceGarbageCollection: None,
         IterateOverObjectsReachableFromObject: None,
@@ -444,90 +448,6 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
-pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
-    let jvm = get_state(env);
-    jvm.jvmti_thread_local_storage.with(|tls_ptr| {
-        data_ptr.write(*tls_ptr.borrow());
-    });
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
-unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data: *const ::std::os::raw::c_void) -> jvmtiError {
-    let jvm = get_state(env);
-    jvm.jvmti_thread_local_storage.with(|tls_ptr| {
-        let mut ref_mut: RefMut<*mut c_void> = tls_ptr.borrow_mut();
-        *ref_mut = data as *mut c_void;
-    });
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
-struct ThreadArgWrapper {
-    proc_: jvmtiStartFunction,
-    arg: *const ::std::os::raw::c_void,
-    thread: *mut _jobject,
-}
-
-unsafe impl Send for ThreadArgWrapper {}
-
-unsafe impl Sync for ThreadArgWrapper {}
-
-pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
-    let jvm = get_state(env);
-    let args = ThreadArgWrapper { proc_, arg, thread };
-    let system_class = check_inited_class(jvm, &ClassName::system(), jvm.bootstrap_loader.clone());
-//TODO ADD THREAD TO JVM STATE STRUCT
-    std::thread::spawn(move || {
-        let ThreadArgWrapper { proc_, arg, thread } = args;
-//unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, arg: *mut ::std::os::raw::c_void)
-        let agent_thread = Arc::new(JavaThread {
-            java_tid: 1,
-// name: "agent thread".to_string(),
-            call_stack: RefCell::new(vec![Rc::new(StackEntry {
-                class_pointer: system_class.clone(),
-                method_i: std::u16::MAX,
-                local_vars: RefCell::new(vec![]),
-                operand_stack: RefCell::new(vec![]),
-                pc: RefCell::new(std::usize::MAX),
-                pc_offset: RefCell::new(-1),
-            })]),
-            thread_object: RefCell::new(JavaValue::Object(from_object(transmute(thread))).cast_thread().into()),
-            interpreter_state: InterpreterState {
-                terminate: RefCell::new(false),
-                throw: RefCell::new(None),
-                function_return: RefCell::new(false),
-            },
-        });
-        jvm.alive_threads.write().unwrap().insert(agent_thread.java_tid, agent_thread.clone());//todo needs to be done via constructor
-        jvm.set_current_thread(agent_thread.clone());
-        let mut jvmti = get_jvmti_interface(jvm);
-        let mut jni_env = get_interface(jvm);
-        proc_.unwrap()(&mut jvmti, transmute(&mut jni_env), arg as *mut c_void)
-    });
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
-pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
-    status_ptr.write(JVMTI_CLASS_STATUS_INITIALIZED as i32);
-//todo handle primitive classes
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
-unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
-    let state = get_state(env);
-    let frame = state.get_current_frame();
-    let mut res_vec = vec![];
-//todo what about int.class and other primitive classes
-    state.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
-        let name = runtime_class.class_view.name();
-        let class_object = get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(name)), frame.deref(), runtime_class.loader.clone());
-        res_vec.push(to_object(class_object.into()))
-    });
-    class_count_ptr.write(res_vec.len() as i32);
-    classes_ptr.write(transmute(res_vec.as_mut_ptr()));
-    Vec::leak(res_vec);//todo leaking
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
 unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
     let method_id = (method as *mut MethodId).as_ref().unwrap();
     match method_id.class.class_view.method_view_i(method_id.method_i).code_attribute() {
@@ -546,7 +466,10 @@ unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, 
 unsafe extern "C" fn dispose_environment(_env: *mut jvmtiEnv) -> jvmtiError {
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
-
+pub mod thread_local_storage;
+pub mod agent;
+pub mod classes;
+pub mod tags;
 pub mod threads;
 pub mod monitor;
 pub mod capabilities;
