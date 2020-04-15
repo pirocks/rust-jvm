@@ -42,13 +42,14 @@ pub struct SharedLibJVMTI {
     class_prepare_enabled: RwLock<bool>,
     garbage_collection_finish_callback: RwLock<jvmtiEventGarbageCollectionFinish>,
     garbage_collection_finish_enabled: RwLock<bool>,
+    breakpoint_callback: RwLock<jvmtiEventBreakpoint>,
+    breakpoint_enabled: RwLock<bool>,
 
     class_load_callback: RwLock<jvmtiEventClassLoad>,
 
     exception_catch_callback: RwLock<jvmtiEventExceptionCatch>,
     single_step_callback: RwLock<jvmtiEventSingleStep>,
     frame_pop_callback: RwLock<jvmtiEventFramePop>,
-    breakpoint_callback: RwLock<jvmtiEventBreakpoint>,
     field_access_callback: RwLock<jvmtiEventFieldAccess>,
     field_modification_callback: RwLock<jvmtiEventFieldModification>,
     method_entry_callback: RwLock<jvmtiEventMethodEntry>,
@@ -112,6 +113,11 @@ pub trait DebuggerEventConsumer {
     unsafe fn GarbageCollectionFinish(jvmti_env: *mut jvmtiEnv);
     fn GarbageCollectionFinish_enable(&self);
     fn GarbageCollectionFinish_disable(&self);
+
+
+    unsafe fn Breakpoint(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation);
+    fn Breakpoint_enable(&self);
+    fn Breakpoint_disable(&self);
 }
 
 #[allow(non_snake_case)]
@@ -208,6 +214,18 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     fn GarbageCollectionFinish_disable(&self) {
         *self.garbage_collection_finish_enabled.write().unwrap() = false;
     }
+
+    unsafe fn Breakpoint(jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, method: *mut _jmethodID, location: i64) {
+        unimplemented!()
+    }
+
+    fn Breakpoint_enable(&self) {
+        *self.breakpoint_enabled.write().unwrap() = true;
+    }
+
+    fn Breakpoint_disable(&self) {
+        *self.breakpoint_enabled.write().unwrap() = false;
+    }
 }
 
 impl SharedLibJVMTI {
@@ -253,6 +271,7 @@ impl SharedLibJVMTI {
             monitor_waited_callback: Default::default(),
             monitor_conteded_enter_callback: Default::default(),
             monitor_conteded_entered_callback: Default::default(),
+            breakpoint_enabled: Default::default()
         }
     }
 }

@@ -34,6 +34,8 @@ use crate::java_values::{JavaValue, default_value, Object};
 use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
 use classfile_view::view::ptype_view::PTypeView;
 use std::ops::Deref;
+use crate::rust_jni::MethodId;
+use std::collections::HashSet;
 
 
 //todo jni should really live in interpreter state
@@ -107,18 +109,28 @@ pub fn run_function(
     }
     let interpreter_state = &jvm.get_current_thread().interpreter_state;
     assert!(!*interpreter_state.function_return.borrow());
+    let method_id = MethodId { class: current_frame.class_pointer.clone(), method_i: current_frame.method_i as usize };
+    let breakpoint_indices = jvm.jvmti_state.break_points
+        .read().unwrap()
+        .get(&method_id)
+        .and_then(|breakpoints| {
+            breakpoints.read().unwrap()
+                .iter().map(|x|*x)
+                .collect::<HashSet<_>>()
+                .into()
+        });
     while !*interpreter_state.terminate.borrow() && !*interpreter_state.function_return.borrow() && !interpreter_state.throw.borrow().is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
             let mut context = CodeParserContext { offset: *current_frame.pc.borrow(), iter: current.iter() };
             (parse_instruction(&mut context).unwrap().clone(), context.offset - *current_frame.pc.borrow())
         };
-        current_frame.pc_offset.replace(instruction_size as isize);
-        if debug {
-            // dbg!(&current_frame.operand_stack);
-            // dbg!(&current_frame.local_vars);
-            dbg!(&instruct);
+        if breakpoint_indices.as_ref()
+            .map(|bps| bps.contains(&(*current_frame.pc.borrow() as isize)))
+            .unwrap_or(false) {
+            unimplemented!();
         }
+        current_frame.pc_offset.replace(instruction_size as isize);
         match instruct.clone() {
             InstructionInfo::aaload => aaload(&current_frame),
             InstructionInfo::aastore => aastore(&current_frame),

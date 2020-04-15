@@ -9,6 +9,7 @@ extern crate regex;
 extern crate va_list;
 extern crate lock_api;
 extern crate parking_lot;
+extern crate futures_intrusive;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
@@ -238,14 +239,13 @@ impl JVMState {
     pub fn new_monitor(&self, name: String) -> Arc<Monitor> {
         let mut monitor_guard = self.thread_state.monitors.write().unwrap();
         let index = monitor_guard.len();
-        let res = Arc::new(Monitor { mutex: ReentrantMutex::new(()), monitor_i: index, condvar: Condvar::new(), condvar_mutex: Mutex::new(()), name });
+        let res = Arc::new(Monitor::new(name,index));
         monitor_guard.push(res.clone());
         res
     }
 }
 
 
-type MethodIndex = u16;
 type CodeIndex = isize;
 pub struct JVMTIState {
     pub built_in_jdwp: Arc<SharedLibJVMTI>,

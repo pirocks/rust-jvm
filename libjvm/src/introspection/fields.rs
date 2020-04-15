@@ -63,7 +63,6 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             annotations_
         ).java_value())
     });
-    // dbg!(unsafe {&STRING_INTERNMENT_CAMP});
     let res = Some(Arc::new(
         Object::Array(ArrayObject {
             elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),

@@ -3,6 +3,7 @@ use crate::jvmti::{get_state, DebuggerEventConsumer};
 use jni_bindings::jint;
 use std::mem::size_of;
 use std::ops::Deref;
+use std::hint::unreachable_unchecked;
 
 
 pub unsafe extern "C" fn set_event_notification_mode(
@@ -62,6 +63,14 @@ pub unsafe extern "C" fn set_event_notification_mode(
             match mode {
                 0 => jdwp_copy.deref().GarbageCollectionFinish_disable(),
                 1 => jdwp_copy.deref().GarbageCollectionFinish_enable(),
+                _ => unimplemented!()
+            }
+            jvmtiError_JVMTI_ERROR_NONE
+        }
+        62 => {//jvmtiEvent_JVMTI_EVENT_BREAKPOINT
+            match mode{
+                0 => jdwp_copy.deref().Breakpoint_disable(),
+                1 => jdwp_copy.deref().Breakpoint_enable(),
                 _ => unimplemented!()
             }
             jvmtiError_JVMTI_ERROR_NONE
