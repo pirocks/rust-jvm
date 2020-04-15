@@ -12,7 +12,7 @@ pub struct Monitor {
 
 impl Monitor {
     pub fn lock(&self) {
-        unsafe { std::mem::forget(self.mutex.lock()); }
+         std::mem::forget(self.mutex.lock());
     }
 
     pub fn unlock(&self) {

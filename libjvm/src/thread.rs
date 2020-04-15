@@ -96,7 +96,7 @@ unsafe extern "system" fn JVM_Yield(env: *mut JNIEnv, threadClass: jclass) {
 unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, threadClass: jclass, millis: jlong) {
     unimplemented!()
 }
-
+//todo get rid of this jankyness
 static mut MAIN_THREAD: Option<Arc<Object>> = None;
 
 #[no_mangle]
@@ -109,6 +109,8 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
             make_thread(&runtime_thread_class, state, &frame);
             let thread_object = frame.pop().unwrap_object();
             MAIN_THREAD = thread_object.clone();
+            //todo get rid of that jankyness as well:
+            state.main_thread().thread_object.borrow_mut().replace(JavaValue::Object(MAIN_THREAD.clone()).cast_thread().into());
             to_object(thread_object)
         }
         Some(_) => {

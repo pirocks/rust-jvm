@@ -65,7 +65,11 @@ impl SharedLibJVMTI {
             let interface = get_interface(state);
             let mut jvmti_interface = get_jvmti_interface(state);
             let mut casted_jni = interface as *const jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_;
-            self.VMInit(&mut jvmti_interface, &mut casted_jni, std::ptr::null_mut())
+            let main_thread_guard = state.main_thread.read().unwrap();
+            let main_thread_nonnull = main_thread_guard.as_ref().unwrap();
+            let thread_object_borrow = main_thread_nonnull.thread_object.borrow();
+            let main_thread_object = thread_object_borrow.as_ref().unwrap().clone().object();
+            self.VMInit(&mut jvmti_interface, &mut casted_jni, transmute(to_object(main_thread_object.into())))
         }
     }
 }

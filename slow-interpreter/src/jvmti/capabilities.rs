@@ -14,7 +14,7 @@ use jvmti_bindings::{jvmtiEnv, jvmtiCapabilities, jvmtiError, jvmtiError_JVMTI_E
 // can_tag_objects                         = 1
 
 
-pub unsafe extern "C" fn get_potential_capabilities(env: *mut jvmtiEnv, capabilities_ptr: *mut jvmtiCapabilities) -> jvmtiError {
+pub unsafe extern "C" fn get_potential_capabilities(_env: *mut jvmtiEnv, capabilities_ptr: *mut jvmtiCapabilities) -> jvmtiError {
     //    unsigned int can_tag_objects : 1;
     (*capabilities_ptr).set_can_tag_objects(1);
     //     unsigned int can_generate_field_modification_events : 1;
