@@ -49,7 +49,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
                 function_return: RefCell::new(false),
             },
         });
-        jvm.alive_threads.write().unwrap().insert(agent_thread.java_tid, agent_thread.clone());//todo needs to be done via constructor
+        jvm.thread_state.alive_threads.write().unwrap().insert(agent_thread.java_tid, agent_thread.clone());//todo needs to be done via constructor
         jvm.set_current_thread(agent_thread.clone());
         let mut jvmti = get_jvmti_interface(jvm);
         let mut jni_env = get_interface(jvm);

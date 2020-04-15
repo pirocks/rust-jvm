@@ -12,7 +12,7 @@ pub unsafe extern "C" fn set_event_notification_mode(
     event_thread: jthread,
     ...) -> jvmtiError {
     let state = get_state(env);
-    let jdwp_copy = state.built_in_jdwp.clone();
+    let jdwp_copy = state.jvmti_state.built_in_jdwp.clone();
     match event_type {
         51 => {//jvmtiEvent_JVMTI_EVENT_VM_DEATH
             //todo, for now we do nothing b/c its not like this vm is ever going to die in a non-crash manner
@@ -155,55 +155,55 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
     } = callback_copy;
 
     if VMInit.is_some(){
-        *state.built_in_jdwp.vm_init_callback.write().unwrap() = VMInit;
+        *state.jvmti_state.built_in_jdwp.vm_init_callback.write().unwrap() = VMInit;
     }
     if VMDeath.is_some(){
-        *state.built_in_jdwp.vm_death_callback.write().unwrap() = VMDeath;
+        *state.jvmti_state.built_in_jdwp.vm_death_callback.write().unwrap() = VMDeath;
     }
     if ThreadStart.is_some(){
-        *state.built_in_jdwp.thread_start_callback.write().unwrap() = ThreadStart;
+        *state.jvmti_state.built_in_jdwp.thread_start_callback.write().unwrap() = ThreadStart;
     }
     if ThreadEnd.is_some(){
-        *state.built_in_jdwp.thread_end_callback.write().unwrap() = ThreadEnd;
+        *state.jvmti_state.built_in_jdwp.thread_end_callback.write().unwrap() = ThreadEnd;
     }
     if ClassFileLoadHook.is_some(){
         unimplemented!()
     }
     if ClassLoad.is_some(){
-        *state.built_in_jdwp.class_load_callback.write().unwrap() = ClassLoad;
+        *state.jvmti_state.built_in_jdwp.class_load_callback.write().unwrap() = ClassLoad;
     }
     if ClassPrepare.is_some(){
-        *state.built_in_jdwp.class_prepare_callback.write().unwrap() = ClassPrepare;
+        *state.jvmti_state.built_in_jdwp.class_prepare_callback.write().unwrap() = ClassPrepare;
     }
     if VMStart.is_some(){
         unimplemented!()
     }
     if Exception.is_some(){
-        *state.built_in_jdwp.exception_callback.write().unwrap() = Exception;
+        *state.jvmti_state.built_in_jdwp.exception_callback.write().unwrap() = Exception;
     }
     if ExceptionCatch.is_some(){
-        *state.built_in_jdwp.exception_catch_callback.write().unwrap() = ExceptionCatch;
+        *state.jvmti_state.built_in_jdwp.exception_catch_callback.write().unwrap() = ExceptionCatch;
     }
     if SingleStep.is_some(){
-        *state.built_in_jdwp.single_step_callback.write().unwrap() = SingleStep;
+        *state.jvmti_state.built_in_jdwp.single_step_callback.write().unwrap() = SingleStep;
     }
     if FramePop.is_some(){
-        *state.built_in_jdwp.frame_pop_callback.write().unwrap() = FramePop;
+        *state.jvmti_state.built_in_jdwp.frame_pop_callback.write().unwrap() = FramePop;
     }
     if Breakpoint.is_some(){
-        *state.built_in_jdwp.breakpoint_callback.write().unwrap() = Breakpoint;
+        *state.jvmti_state.built_in_jdwp.breakpoint_callback.write().unwrap() = Breakpoint;
     }
     if FieldAccess.is_some(){
-        *state.built_in_jdwp.field_access_callback.write().unwrap() = FieldAccess;
+        *state.jvmti_state.built_in_jdwp.field_access_callback.write().unwrap() = FieldAccess;
     }
     if FieldModification.is_some(){
-        *state.built_in_jdwp.field_modification_callback.write().unwrap() = FieldModification;
+        *state.jvmti_state.built_in_jdwp.field_modification_callback.write().unwrap() = FieldModification;
     }
     if MethodEntry.is_some(){
-        *state.built_in_jdwp.method_entry_callback.write().unwrap() = MethodEntry;
+        *state.jvmti_state.built_in_jdwp.method_entry_callback.write().unwrap() = MethodEntry;
     }
     if MethodExit.is_some(){
-        *state.built_in_jdwp.method_exit_callback.write().unwrap() = MethodExit;
+        *state.jvmti_state.built_in_jdwp.method_exit_callback.write().unwrap() = MethodExit;
     }
     if NativeMethodBind.is_some(){
         unimplemented!()
@@ -224,16 +224,16 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         unimplemented!()
     }
     if MonitorWait.is_some(){
-        *state.built_in_jdwp.monitor_wait_callback.write().unwrap() = MonitorWait;
+        *state.jvmti_state.built_in_jdwp.monitor_wait_callback.write().unwrap() = MonitorWait;
     }
     if MonitorWaited.is_some(){
-        *state.built_in_jdwp.monitor_waited_callback.write().unwrap() = MonitorWaited;
+        *state.jvmti_state.built_in_jdwp.monitor_waited_callback.write().unwrap() = MonitorWaited;
     }
     if MonitorContendedEnter.is_some(){
-        *state.built_in_jdwp.monitor_conteded_enter_callback.write().unwrap() = MonitorContendedEnter;
+        *state.jvmti_state.built_in_jdwp.monitor_conteded_enter_callback.write().unwrap() = MonitorContendedEnter;
     }
     if MonitorContendedEntered.is_some(){
-        *state.built_in_jdwp.monitor_conteded_entered_callback.write().unwrap() = MonitorContendedEntered;
+        *state.jvmti_state.built_in_jdwp.monitor_conteded_entered_callback.write().unwrap() = MonitorContendedEntered;
     }
     if ResourceExhausted.is_some(){
         unimplemented!()
@@ -242,7 +242,7 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         unimplemented!()
     }
     if GarbageCollectionFinish.is_some(){
-        *state.built_in_jdwp.garbage_collection_finish_callback.write().unwrap() = GarbageCollectionFinish;
+        *state.jvmti_state.built_in_jdwp.garbage_collection_finish_callback.write().unwrap() = GarbageCollectionFinish;
     }
     if ObjectFree.is_some(){
         unimplemented!()

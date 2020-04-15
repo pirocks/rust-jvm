@@ -42,7 +42,7 @@ pub unsafe extern "C" fn new_byte_array(env: *mut JNIEnv, len: jsize) -> jbyteAr
     to_object(Some(Arc::new(Object::Array(ArrayObject {
         elems: RefCell::new(the_vec),
         elem_type: PTypeView::ByteType,
-        monitor: jvm.new_monitor()
+        monitor: jvm.new_monitor("monitor for jni created byte array".to_string())
     }))))
 }
 

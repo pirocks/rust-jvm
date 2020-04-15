@@ -232,12 +232,12 @@ impl JavaValue {
         }
     }
     pub fn empty_byte_array(jvm: &JVMState) -> JavaValue {
-        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType, monitor: jvm.new_monitor() }))))
+        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType, monitor: jvm.new_monitor("".to_string()) }))))
     }
     pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
         assert_eq!(runtime_class.classfile.access_flags & ACC_ABSTRACT, 0);
         Arc::new(Object::Object(NormalObject {
-            monitor: jvm.new_monitor(),
+            monitor: jvm.new_monitor("".to_string()),
             gc_reachable: true,
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
@@ -253,7 +253,7 @@ impl JavaValue {
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Some(Arc::new(Object::Array(ArrayObject { elems: buf.into(), elem_type, monitor: jvm.new_monitor() })))
+        Some(Arc::new(Object::Array(ArrayObject { elems: buf.into(), elem_type, monitor: jvm.new_monitor("".to_string()) })))
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {
@@ -423,12 +423,12 @@ impl Object {
         match &self {
             Object::Array(a) => {
                 let sub_array = a.elems.borrow().iter().map(|x| x.deep_clone(jvm )).collect();
-                Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.new_monitor() })
+                Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.new_monitor("".to_string()) })
             }
             Object::Object(o) => {
                 let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
                 Object::Object(NormalObject {
-                    monitor: jvm.new_monitor(),
+                    monitor: jvm.new_monitor("".to_string()),
                     gc_reachable: o.gc_reachable,
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
@@ -452,7 +452,7 @@ impl Object {
         Object::Array(ArrayObject {
             elems: RefCell::new(object_array),
             elem_type: class_type,
-            monitor: jvm.new_monitor(),
+            monitor: jvm.new_monitor("".to_string()),
         })
     }
 

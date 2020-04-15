@@ -295,6 +295,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     transmute(res)
 }
 
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub struct MethodId {
     pub class: Arc<RuntimeClass>,
     pub method_i: usize,

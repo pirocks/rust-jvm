@@ -1,9 +1,9 @@
-use jvmti_bindings::{jvmtiInterface_1_, JavaVM, jint, JNIInvokeInterface_, jvmtiError, jvmtiEnv, jthread, JNIEnv, JNINativeInterface_, _jobject, jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jlocation, jmethodID, jobject, _jmethodID, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jclass, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiStartFunction, jvmtiEventThreadStart, jvmtiEventThreadEnd, jvmtiEventClassPrepare, jvmtiEventGarbageCollectionFinish, jvmtiEventClassLoad, jvmtiEventExceptionCatch, jvmtiEventSingleStep, jvmtiEventFramePop, jvmtiEventBreakpoint, jvmtiEventFieldAccess, jvmtiEventFieldModification, jvmtiEventMethodEntry, jvmtiEventMethodExit, jvmtiEventMonitorWait, jvmtiEventMonitorWaited, jvmtiEventMonitorContendedEnter, jvmtiEventMonitorContendedEntered};
+use jvmti_bindings::*;
 use std::intrinsics::transmute;
 use std::os::raw::{c_void, c_char};
 use libloading::Library;
 use std::ops::Deref;
-use crate::{JVMState, JavaThread, InterpreterState};
+use crate::{JVMState, JavaThread};
 use std::ffi::CString;
 use crate::invoke_interface::get_invoke_interface;
 use crate::jvmti::version::get_version_number;
@@ -12,23 +12,19 @@ use crate::jvmti::allocate::{allocate, deallocate};
 use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities};
 use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
 use std::sync::{Arc, RwLock};
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
-use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all};
+use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads};
 use crate::rust_jni::MethodId;
-use crate::class_objects::get_or_create_class_object;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::rust_jni::native_util::{to_object, from_object};
-use crate::java_values::JavaValue;
-use crate::interpreter_util::check_inited_class;
-use rust_jvm_common::classnames::ClassName;
-use crate::stack_entry::StackEntry;
-use std::rc::Rc;
+use crate::rust_jni::native_util::to_object;
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
 use crate::jvmti::agent::*;
 use crate::jvmti::classes::*;
+use std::collections::hash_map::RandomState;
+use std::collections::HashSet;
+use std::iter::FromIterator;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -69,7 +65,7 @@ impl SharedLibJVMTI {
             let interface = get_interface(state);
             let mut jvmti_interface = get_jvmti_interface(state);
             let mut casted_jni = interface as *const jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_;
-            let main_thread_guard = state.main_thread.read().unwrap();
+            let main_thread_guard = state.thread_state.main_thread.read().unwrap();
             let main_thread_nonnull = main_thread_guard.as_ref().unwrap();
             let thread_object_borrow = main_thread_nonnull.thread_object.borrow();
             let main_thread_object = thread_object_borrow.as_ref().unwrap().clone().object();
@@ -327,7 +323,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         RawMonitorWait: Some(raw_monitor_wait),
         RawMonitorNotify: Some(raw_monitor_notify),
         RawMonitorNotifyAll: Some(raw_monitor_notify_all),
-        SetBreakpoint: None,
+        SetBreakpoint: Some(set_breakpoint),
         ClearBreakpoint: None,
         reserved40: std::ptr::null_mut(),
         SetFieldAccessWatch: None,
@@ -448,7 +444,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
-unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
+pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
     let method_id = (method as *mut MethodId).as_ref().unwrap();
     match method_id.class.class_view.method_view_i(method_id.method_i).code_attribute() {
         None => {
@@ -463,9 +459,25 @@ unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, 
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-unsafe extern "C" fn dispose_environment(_env: *mut jvmtiEnv) -> jvmtiError {
+pub unsafe extern "C" fn dispose_environment(_env: *mut jvmtiEnv) -> jvmtiError {
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
+
+pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError{
+    let jvm = get_state(env);
+    let method_id = (method as *mut MethodId).as_ref().unwrap();
+    let mut breakpoint_guard = jvm.jvmti_state.break_points.write().unwrap();
+    match breakpoint_guard.get(method_id){
+        None => {
+            breakpoint_guard.insert(method_id.clone(),RwLock::new(HashSet::from_iter(vec![location as isize].iter().cloned())));
+        },
+        Some(breakpoints) => {
+            breakpoints.write().unwrap().insert(location as isize);//todo should I cast here?
+        },
+    }
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
 pub mod thread_local_storage;
 pub mod agent;
 pub mod classes;

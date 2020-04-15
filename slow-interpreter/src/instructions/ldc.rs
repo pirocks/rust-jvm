@@ -49,7 +49,7 @@ pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
         elems: RefCell::new(chars),
         elem_type: PTypeView::CharType,
-        monitor: jvm.new_monitor(),
+        monitor: jvm.new_monitor("monitor for a string".to_string()),
     })))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };

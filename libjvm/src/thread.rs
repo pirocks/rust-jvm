@@ -21,7 +21,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
     let tid = thread_object.tid();
-    let mut all_threads_guard = jvm.alive_threads.write().unwrap();
+    let mut all_threads_guard = jvm.thread_state.alive_threads.write().unwrap();
     if all_threads_guard.contains_key(&tid) {
         //todo for now we ignore this, but irl we should only ignore this for main thread
     } else {
@@ -68,7 +68,7 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     let jvm = get_state(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
     let tid = thread_object.tid();
-    let mut alive = jvm.alive_threads.read().unwrap().contains_key(&tid);
+    let mut alive = jvm.thread_state.alive_threads.read().unwrap().contains_key(&tid);
     alive as jboolean
 }
 
@@ -137,7 +137,7 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
         pc: RefCell::new(0),
         pc_offset: RefCell::new(0),
     };
-    jvm.system_thread_group.write().unwrap().replace(object.unwrap_object().unwrap());
+    jvm.thread_state.system_thread_group.write().unwrap().replace(object.unwrap_object().unwrap());
     // unsafe { SYSTEM_THREAD_GROUP = object.unwrap_object(); }
     jvm.get_current_thread().call_stack.borrow_mut().push(Rc::new(new_frame));
     run_function(jvm);
@@ -154,14 +154,14 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
 unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, frame: &StackEntry) {
     //todo refactor this at some point
     //first create thread group
-    let match_guard = jvm.system_thread_group.read().unwrap();
+    let match_guard = jvm.thread_state.system_thread_group.read().unwrap();
     let thread_group_object = match match_guard.clone() {
         None => {
             std::mem::drop(match_guard);
             init_system_thread_group(jvm, frame);
-            jvm.system_thread_group.read().unwrap().clone()
+            jvm.thread_state.system_thread_group.read().unwrap().clone()
         }
-        Some(_) => jvm.system_thread_group.read().unwrap().clone(),
+        Some(_) => jvm.thread_state.system_thread_group.read().unwrap().clone(),
     };
 
 

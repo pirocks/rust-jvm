@@ -15,7 +15,6 @@ use crate::JVMState;
 use std::cell::RefCell;
 use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
 use std::sync::Arc;
-use crate::java_values::Object;
 
 //todo this should be in state impl
 thread_local! {

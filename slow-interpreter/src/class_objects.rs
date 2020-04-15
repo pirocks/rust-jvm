@@ -81,7 +81,7 @@ fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry) -> Arc<Obje
     let class_class = check_inited_class(jvm, &java_lang_class, current_loader.clone());
     let class_loader_class = check_inited_class(jvm, &java_lang_class_loader, current_loader.clone());
     let boostrap_loader_object = Arc::new(Object::Object(NormalObject {
-        monitor: jvm.new_monitor(),
+        monitor: jvm.new_monitor("bootstrap loader object monitor".to_string()),
         gc_reachable: true,
         fields: RefCell::new(HashMap::new()),
         class_pointer: class_loader_class.clone(),

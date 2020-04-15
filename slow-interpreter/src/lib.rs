@@ -35,10 +35,11 @@ use crate::stack_entry::StackEntry;
 use std::thread::LocalKey;
 use std::rc::Rc;
 use crate::monitor::Monitor;
-use parking_lot::const_fair_mutex;
 use jni_bindings::JNIInvokeInterface_;
 use std::ffi::c_void;
 use lock_api::ReentrantMutex;
+use jvmti_bindings::jrawMonitorID;
+use crate::rust_jni::MethodId;
 
 
 pub mod java_values;
@@ -114,40 +115,45 @@ impl JVMOptions {
 
 pub struct JVMState {
     pub bootstrap_loader: LoaderArc,
-    pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
-    pub string_pool: StringPool,
-    //todo this should really be in some sort of parser/jvm state
-    pub start_instant: Instant,
-
-    pub class_object_pool: RwLock<HashMap<PTypeView, Arc<Object>>>,
     pub system_domain_loader: bool,
-
+    pub string_pool: StringPool,
+    pub start_instant: Instant,
     //todo needs to be used for all instances of getClass
     pub jni: LibJavaLoading,//todo rename to libjava
 
 
+    pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
+    pub class_object_pool: RwLock<HashMap<PTypeView, Arc<Object>>>,
     //anon classes
     pub anon_class_counter: AtomicUsize,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
 
-    pub built_in_jdwp: Arc<SharedLibJVMTI>,
-
-    main_thread: RwLock<Option<Arc<JavaThread>>>,
-    pub alive_threads: RwLock<HashMap<ThreadId,Arc<JavaThread>>>,
     pub main_class_name: ClassName,
-    current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
-
-    pub system_thread_group: RwLock<Option<Arc<Object>>>,
-
-    monitors: RwLock<Vec<Arc<Monitor>>>,
 
     pub  classpath: Arc<Classpath>,
-
     invoke_interface: RwLock<Option<JNIInvokeInterface_>>,
 
-    jvmti_thread_local_storage: &'static LocalKey<RefCell<*mut c_void>>
+    pub jvmti_state: JVMTIState,
+    pub thread_state: ThreadState,
 }
 
+
+pub struct ThreadState {
+    main_thread: RwLock<Option<Arc<JavaThread>>>,
+    pub alive_threads: RwLock<HashMap<ThreadId, Arc<JavaThread>>>,
+    current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
+    pub system_thread_group: RwLock<Option<Arc<Object>>>,
+    monitors: RwLock<Vec<Arc<Monitor>>>,
+}
+
+impl ThreadState{
+    pub fn get_monitor(&self,monitor: jrawMonitorID)-> Arc<Monitor>{
+        let monitors_read_guard = self.monitors.read().unwrap();
+        let monitor = monitors_read_guard[monitor as usize].clone();
+        std::mem::drop(monitors_read_guard);
+        monitor
+    }
+}
 
 thread_local! {
         static JVMTI_TLS: RefCell<*mut c_void> = RefCell::new(std::ptr::null_mut());
@@ -159,11 +165,11 @@ thread_local! {
 
 impl JVMState {
     pub fn set_current_thread(&self, java_thread: Arc<JavaThread>) {
-        self.current_java_thread.with(|x| x.replace(java_thread.into()));
+        self.thread_state.current_java_thread.with(|x| x.replace(java_thread.into()));
     }
 
     pub fn get_current_thread(&self) -> Arc<JavaThread> {
-        self.current_java_thread.with(|thread_refcell| {
+        self.thread_state.current_java_thread.with(|thread_refcell| {
             /*let first_guard = thread_refcell.borrow();
             match first_guard.as_ref(){
                 None => {
@@ -210,27 +216,41 @@ impl JVMState {
             },
             start_instant: Instant::now(),
             anon_class_live_object_ldc_pool: Arc::new(RwLock::new(vec![])),
-            built_in_jdwp: Arc::new(SharedLibJVMTI::load_libjdwp(libjdwp.as_str())),
             anon_class_counter: AtomicUsize::new(0),
-            alive_threads: RwLock::new(HashMap::new()),
-            main_thread: RwLock::new(None),
             main_class_name,
-            current_java_thread: &CURRENT_JAVA_THREAD,
-            system_thread_group: RwLock::new(None),
-            monitors: RwLock::new(vec![]),
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
-            jvmti_thread_local_storage: &JVMTI_TLS
+            jvmti_state: JVMTIState {
+                built_in_jdwp: Arc::new(SharedLibJVMTI::load_libjdwp(libjdwp.as_str())),
+                jvmti_thread_local_storage: &JVMTI_TLS,
+                break_points: RwLock::new(HashMap::new())
+            },
+            thread_state: ThreadState {
+                alive_threads: RwLock::new(HashMap::new()),
+                main_thread: RwLock::new(None),
+                current_java_thread: &CURRENT_JAVA_THREAD,
+                system_thread_group: RwLock::new(None),
+                monitors: RwLock::new(vec![]),
+            },
         }
     }
 
-    pub fn new_monitor(&self) -> Arc<Monitor> {
-        let mut monitor_guard = self.monitors.write().unwrap();
+    pub fn new_monitor(&self, name: String) -> Arc<Monitor> {
+        let mut monitor_guard = self.thread_state.monitors.write().unwrap();
         let index = monitor_guard.len();
-        let res = Arc::new(Monitor { mutex: ReentrantMutex::new(()), monitor_i: index, condvar: Condvar::new(), condvar_mutex: Mutex::new(()) });
+        let res = Arc::new(Monitor { mutex: ReentrantMutex::new(()), monitor_i: index, condvar: Condvar::new(), condvar_mutex: Mutex::new(()), name });
         monitor_guard.push(res.clone());
         res
     }
+}
+
+
+type MethodIndex = u16;
+type CodeIndex = isize;
+pub struct JVMTIState {
+    pub built_in_jdwp: Arc<SharedLibJVMTI>,
+    jvmti_thread_local_storage: &'static LocalKey<RefCell<*mut c_void>>,
+    pub break_points: RwLock<HashMap<MethodId,RwLock<HashSet<CodeIndex>>>>
 }
 
 struct LivePoolGetterImpl {
@@ -259,7 +279,7 @@ impl LivePoolGetter for NoopLivePoolGetter {
 }
 
 
-impl /*<'jvmlife>*/ JVMState/*<'jvmlife>*/ {
+impl JVMState {
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter> {
         Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
     }
@@ -267,13 +287,13 @@ impl /*<'jvmlife>*/ JVMState/*<'jvmlife>*/ {
     pub fn register_main_thread(&self, main_thread: Arc<JavaThread>) {
         //todo perhaps there should be a single rw lock for this
         // self.alive_threads.write().unwrap().insert(,main_thread.clone());
-        let mut main_thread_writer = self.main_thread.write().unwrap();
+        let mut main_thread_writer = self.thread_state.main_thread.write().unwrap();
         main_thread_writer.replace(main_thread.clone().into());
         self.set_current_thread(main_thread);
     }
 
     pub fn main_thread(&self) -> Arc<JavaThread> {
-        let read_guard = self.main_thread.read().unwrap();
+        let read_guard = self.thread_state.main_thread.read().unwrap();
         read_guard.as_ref().unwrap().clone()
     }
 }
@@ -298,7 +318,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     });*/
 
 
-    jvm.built_in_jdwp.vm_inited(&jvm);
+    jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
     run_function(&jvm);
     if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
         unimplemented!()
@@ -343,7 +363,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
         pc_offset: RefCell::new(-1),
     };
     jvm.get_current_thread().call_stack.replace(vec![Rc::new(initialize_system_frame)]);
-    jvm.built_in_jdwp.agent_load(jvm, &jvm.main_thread());
+    jvm.jvmti_state.built_in_jdwp.agent_load(jvm, &jvm.main_thread());
 //todo technically this needs to before any bytecode is run.
     run_function(&jvm);
     if *jvm.main_thread().interpreter_state.function_return.borrow() {

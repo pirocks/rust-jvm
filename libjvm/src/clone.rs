@@ -20,12 +20,12 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                     Some(Arc::new(Object::Array(ArrayObject {
                         elems: RefCell::new(cloned_arr),
                         elem_type: a.elem_type.clone(),
-                        monitor: jvm.new_monitor()
+                        monitor: jvm.new_monitor("".to_string())
                     })))
                 },
                 Object::Object(o) => {
                     Arc::new(Object::Object(NormalObject {
-                        monitor: jvm.new_monitor(),
+                        monitor: jvm.new_monitor("".to_string()),
                         gc_reachable: o.gc_reachable,
                         fields: RefCell::new(o.fields.borrow().iter().map(|(k,v)|{(k.clone(),v.clone())}).collect()),
                         class_pointer: o.class_pointer.clone(),
