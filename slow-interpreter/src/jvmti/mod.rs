@@ -25,10 +25,10 @@ use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::ClassName;
 use crate::stack_entry::StackEntry;
 use std::rc::Rc;
-use crate::jvmti::thread_local_storage::get_thread_local_storage;
-use crate::jvmti::tags::get_tag;
-use crate::jvmti::agent::run_agent_thread;
-use crate::jvmti::classes::get_class_status;
+use crate::jvmti::thread_local_storage::*;
+use crate::jvmti::tags::*;
+use crate::jvmti::agent::*;
+use crate::jvmti::classes::*;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,

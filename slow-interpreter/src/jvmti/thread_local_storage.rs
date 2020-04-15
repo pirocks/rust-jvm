@@ -11,7 +11,7 @@ pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jt
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data: *const ::std::os::raw::c_void) -> jvmtiError {
+pub unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data: *const ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
     jvm.jvmti_thread_local_storage.with(|tls_ptr| {
         let mut ref_mut: RefMut<*mut c_void> = tls_ptr.borrow_mut();

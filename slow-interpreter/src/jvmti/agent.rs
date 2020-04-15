@@ -1,5 +1,5 @@
 use jvmti_bindings::{jvmtiEnv, jthread, jvmtiStartFunction, jint, jvmtiError, _jobject, jvmtiError_JVMTI_ERROR_NONE};
-use crate::jvmti::{ThreadArgWrapper, get_state, get_jvmti_interface};
+use crate::jvmti::{get_state, get_jvmti_interface};
 use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::ClassName;
 use crate::{JavaThread, InterpreterState};
