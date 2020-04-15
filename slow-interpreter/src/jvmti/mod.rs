@@ -325,7 +325,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         RawMonitorEnter: Some(raw_monitor_enter),
         RawMonitorExit: Some(raw_monitor_exit),
         RawMonitorWait: Some(raw_monitor_wait),
-        RawMonitorNotify: None,
+        RawMonitorNotify: Some(raw_monitor_notify),
         RawMonitorNotifyAll: Some(raw_monitor_notify_all),
         SetBreakpoint: None,
         ClearBreakpoint: None,

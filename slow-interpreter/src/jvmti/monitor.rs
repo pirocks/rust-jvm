@@ -45,3 +45,13 @@ pub unsafe extern "C" fn raw_monitor_notify_all(env: *mut jvmtiEnv, monitor: jra
     monitor.notify_all();
     jvmtiError_JVMTI_ERROR_NONE
 }
+
+
+pub unsafe extern "C" fn raw_monitor_notify(env: *mut jvmtiEnv, monitor: jrawMonitorID) -> jvmtiError{
+    let jvm = get_state(env);
+    let monitors_read_guard = jvm.monitors.read().unwrap();
+    let monitor = monitors_read_guard[monitor as usize].clone();
+    std::mem::drop(monitors_read_guard);
+    monitor.notify();
+    jvmtiError_JVMTI_ERROR_NONE
+}

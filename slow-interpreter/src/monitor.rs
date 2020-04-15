@@ -26,4 +26,8 @@ impl Monitor {
     pub fn notify_all(&self) {
         self.condvar.notify_all();
     }
+
+    pub fn notify(&self) {
+        self.condvar.notify_one();
+    }
 }
