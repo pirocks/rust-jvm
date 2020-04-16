@@ -15,7 +15,7 @@ use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
-use crate::jvmti::threads::{get_top_thread_groups, get_all_threads};
+use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info};
 use crate::rust_jni::MethodId;
 use crate::rust_jni::native_util::to_object;
 use crate::jvmti::thread_local_storage::*;
@@ -312,7 +312,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         ResumeThread: None,
         StopThread: None,
         InterruptThread: None,
-        GetThreadInfo: None,
+        GetThreadInfo: Some(get_thread_info),
         GetOwnedMonitorInfo: None,
         GetCurrentContendedMonitor: None,
         RunAgentThread: Some(run_agent_thread),

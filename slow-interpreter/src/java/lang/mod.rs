@@ -214,6 +214,7 @@ pub mod thread {
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
+    use crate::java::lang::string::JString;
 
     #[derive(Debug,Clone)]
     pub struct JThread {
@@ -236,6 +237,18 @@ pub mod thread {
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm,&thread_class,"run".to_string(),"()V".to_string());
 
+        }
+
+        pub fn name(&self) -> JString{
+            self.normal_object.lookup_field("name").cast_string()
+        }
+
+        pub fn priority(&self) -> i32{
+            self.normal_object.lookup_field("priority").unwrap_int()
+        }
+
+        pub fn daemon(&self) -> bool{
+            self.normal_object.lookup_field("daemon").unwrap_int() != 0
         }
 
         as_object_or_java_value!();
