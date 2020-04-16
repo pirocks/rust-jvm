@@ -6,7 +6,7 @@ extern crate rust_jvm_common;
 pub mod class_loading;
 pub mod classpath_indexing;
 
-use log::{trace, info};
+use log::info;
 
 use argparse::{ArgumentParser, Store, StoreTrue, List};
 use std::path::Path;

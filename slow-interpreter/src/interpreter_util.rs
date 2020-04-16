@@ -115,7 +115,7 @@ pub fn run_function(
         .get(&method_id)
         .and_then(|breakpoints| {
             breakpoints.read().unwrap()
-                .iter().map(|x|*x)
+                .iter().map(|x| *x)
                 .collect::<HashSet<_>>()
                 .into()
         });
@@ -123,7 +123,19 @@ pub fn run_function(
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
             let mut context = CodeParserContext { offset: *current_frame.pc.borrow(), iter: current.iter() };
-            (parse_instruction(&mut context).unwrap().clone(), context.offset - *current_frame.pc.borrow())
+            let parsedq = parse_instruction(&mut context);
+            match &parsedq {
+                None => {
+                    dbg!(&context.offset);
+                    dbg!(&meth_name);
+                    dbg!(class_name_);
+                    dbg!(&code.code_raw);
+                    dbg!(&code.code);
+                    panic!();
+                }
+                Some(_) => {}
+            };
+            (parsedq.unwrap().clone(), context.offset - *current_frame.pc.borrow())
         };
         if breakpoint_indices.as_ref()
             .map(|bps| bps.contains(&(*current_frame.pc.borrow() as isize)))
@@ -396,6 +408,7 @@ pub fn run_function(
                 pc -= (-offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
             }
             current_frame.pc.replace(pc);
+            dbg!(current_frame.pc.borrow());
         }
         // last_instruct = instruct;
     }

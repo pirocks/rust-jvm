@@ -23,7 +23,6 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
         res_vec.push(to_object(class_object.into()))
     });
     class_count_ptr.write(res_vec.len() as i32);
-    classes_ptr.write(transmute(res_vec.as_mut_ptr()));
-    Vec::leak(res_vec);//todo leaking
+    classes_ptr.write(transmute(Vec::leak(res_vec).as_mut_ptr())); //todo leaking
     jvmtiError_JVMTI_ERROR_NONE
 }

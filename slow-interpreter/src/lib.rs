@@ -307,18 +307,19 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let main_thread = jvm.main_thread();
 
 
-    /*let main_stack = Rc::new(StackEntry {
-        last_call_stack: None,
+
+
+
+    jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
+    let main_stack = Rc::new(StackEntry {
         class_pointer: Arc::new(main_class),
         method_i: main_i as u16,
         local_vars: vec![].into(),//todo handle parameters, todo handle non-zero size locals
         operand_stack: vec![].into(),
         pc: RefCell::new(0),
         pc_offset: 0.into(),
-    });*/
-
-
-    jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
+    });
+    jvm.main_thread().call_stack.replace(vec![main_stack]);
     run_function(&jvm);
     if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
         unimplemented!()

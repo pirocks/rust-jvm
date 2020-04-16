@@ -1,6 +1,6 @@
-use parking_lot::{RawFairMutex, RawThreadId, FairMutex};
+use parking_lot::{RawFairMutex, RawThreadId, FairMutex, const_fair_mutex};
 use lock_api::{ReentrantMutex, GetThreadId, RawMutex};
-use std::sync::{Condvar, RwLock, Mutex};
+use std::sync::{Condvar, RwLock, Mutex, MutexGuard};
 use std::time::Duration;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -15,7 +15,7 @@ pub struct OwningThreadAndCount{
 
 pub struct Monitor {
     pub owned: RwLock<OwningThreadAndCount>,
-    pub mutex: RawFairMutex,
+    pub mutex: FairMutex<()>,
     pub monitor_i: usize,
     pub condvar: Condvar,
     pub condvar_mutex: std::sync::Mutex<()>,
@@ -32,7 +32,7 @@ impl Monitor {
     pub fn new(name : String, i: usize) -> Self{
         Self{
             owned: RwLock::new(OwningThreadAndCount{ owner: 0, count: 0 }),
-            mutex: RawFairMutex::INIT,
+            mutex: const_fair_mutex(()),
             monitor_i: i,
             condvar: Condvar::new(),
             condvar_mutex: Mutex::new(()),
@@ -45,13 +45,14 @@ impl Monitor {
     }
 
     pub fn lock(&self) {
-        println!("Monitor lock:{}, thread:{}",self.name, self.get_thread());
+        println!("Monitor lock:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
         let mut current_owners_guard = self.owned.write().unwrap();
         if current_owners_guard.owner == self.get_thread(){
             current_owners_guard.count += 1;
         }else {
+            assert_eq!(current_owners_guard.count, 0);
             std::mem::drop(current_owners_guard);//todo I don;t think there should be two guards here
-            self.mutex.lock();
+            std::mem::forget(self.mutex.lock());
             let mut new_guard = self.owned.write().unwrap();
             new_guard.count = 1;
             new_guard.owner = self.get_thread();
@@ -59,33 +60,43 @@ impl Monitor {
     }
 
     pub fn unlock(&self) {
-        println!("Monitor unlock:{}, thread:{}",self.name, self.get_thread());
+        println!("Monitor unlock:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
         let mut current_owners_guard = self.owned.write().unwrap();
         assert_eq!(current_owners_guard.owner,self.get_thread());
         current_owners_guard.count -= 1;
         if current_owners_guard.count == 0 {
-            self.mutex.unlock();
+            current_owners_guard.owner = 0;
+            unsafe {self.mutex.force_unlock_fair();}
         }
     }
 
     pub fn wait(&self, millis: i64) {
-        println!("Monitor wait:{}, thread:{}",self.name, self.get_thread());
-        self.owned.write().unwrap().owner = 0;
-        self.mutex.unlock();
+        println!("Monitor wait:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
+        let mut guard = self.owned.write().unwrap();
+        let count = guard.count;
+        guard.count = 0;
+        guard.owner = 0;
+        let guard1 = self.condvar_mutex.lock().unwrap();
+        unsafe {self.mutex.force_unlock_fair();}
+        std::mem::drop(guard);
         if millis < 0 {
-            self.condvar.wait(self.condvar_mutex.lock().unwrap()).unwrap();
+            self.condvar.wait(guard1).unwrap();
         } else {
-            self.condvar.wait_timeout(self.condvar_mutex.lock().unwrap(), Duration::from_millis(millis as u64)).unwrap();
+            self.condvar.wait_timeout(guard1, Duration::from_millis(millis as u64)).unwrap();
         }
+        std::mem::forget(self.mutex.lock());
+        let mut write_guard = self.owned.write().unwrap();
+        write_guard.owner = self.get_thread();
+        write_guard.count = count;
     }
 
     pub fn notify_all(&self) {
-        println!("Monitor notify all:{}, thread:{}",self.name, self.get_thread());
+        println!("Monitor notify all:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
         self.condvar.notify_all();
     }
 
     pub fn notify(&self) {
-        println!("Monitor notify:{}, thread:{}",self.name, self.get_thread());
+        println!("Monitor notify:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
         self.condvar.notify_one();
     }
 }
