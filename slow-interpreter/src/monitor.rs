@@ -1,10 +1,7 @@
-use parking_lot::{RawFairMutex, RawThreadId, FairMutex, const_fair_mutex};
-use lock_api::{ReentrantMutex, GetThreadId, RawMutex};
-use std::sync::{Condvar, RwLock, Mutex, MutexGuard};
+use parking_lot::{RawThreadId, FairMutex, const_fair_mutex};
+use lock_api::{GetThreadId, RawMutex};
+use std::sync::{Condvar, RwLock, Mutex};
 use std::time::Duration;
-use std::cell::RefCell;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use futures_intrusive::sync::Semaphore;
 use std::fmt::{Debug, Formatter, Error};
 
 #[derive(Debug)]
@@ -50,10 +47,10 @@ impl Monitor {
         if current_owners_guard.owner == self.get_thread(){
             current_owners_guard.count += 1;
         }else {
-            assert_eq!(current_owners_guard.count, 0);
             std::mem::drop(current_owners_guard);//todo I don;t think there should be two guards here
             std::mem::forget(self.mutex.lock());
             let mut new_guard = self.owned.write().unwrap();
+            assert_eq!(new_guard.count, 0);
             new_guard.count = 1;
             new_guard.owner = self.get_thread();
         }

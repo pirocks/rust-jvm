@@ -22,7 +22,6 @@ use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
 use crate::jvmti::agent::*;
 use crate::jvmti::classes::*;
-use std::collections::hash_map::RandomState;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -393,7 +392,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         ForceEarlyReturnVoid: None,
         RedefineClasses: None,
         GetVersionNumber: Some(get_version_number),
-        GetCapabilities: None,
+        GetCapabilities: Some(get_capabilities),
         GetSourceDebugExtension: None,
         IsMethodObsolete: None,
         SuspendThreadList: None,
@@ -411,7 +410,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetStackTrace: None,
         reserved105: std::ptr::null_mut(),
         GetTag: Some(get_tag),
-        SetTag: None,
+        SetTag: Some(set_tag),
         ForceGarbageCollection: None,
         IterateOverObjectsReachableFromObject: None,
         IterateOverReachableObjects: None,

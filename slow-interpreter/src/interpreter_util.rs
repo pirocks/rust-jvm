@@ -408,7 +408,7 @@ pub fn run_function(
                 pc -= (-offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
             }
             current_frame.pc.replace(pc);
-            dbg!(current_frame.pc.borrow());
+            // dbg!(current_frame.pc.borrow());
         }
         // last_instruct = instruct;
     }

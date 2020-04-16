@@ -23,7 +23,7 @@ use libloading::Library;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::loading::{LoaderArc, LivePoolGetter, LoaderName};
 use descriptor_parser::MethodDescriptor;
-use std::sync::{Arc, RwLock, Condvar, Mutex};
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicUsize;
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
@@ -36,10 +36,9 @@ use crate::stack_entry::StackEntry;
 use std::thread::LocalKey;
 use std::rc::Rc;
 use crate::monitor::Monitor;
-use jni_bindings::JNIInvokeInterface_;
+use jni_bindings::{JNIInvokeInterface_, jobject};
 use std::ffi::c_void;
-use lock_api::ReentrantMutex;
-use jvmti_bindings::jrawMonitorID;
+use jvmti_bindings::{jrawMonitorID, jlong};
 use crate::rust_jni::MethodId;
 
 
@@ -224,7 +223,8 @@ impl JVMState {
             jvmti_state: JVMTIState {
                 built_in_jdwp: Arc::new(SharedLibJVMTI::load_libjdwp(libjdwp.as_str())),
                 jvmti_thread_local_storage: &JVMTI_TLS,
-                break_points: RwLock::new(HashMap::new())
+                break_points: RwLock::new(HashMap::new()),
+                tags: RwLock::new(HashMap::new())
             },
             thread_state: ThreadState {
                 alive_threads: RwLock::new(HashMap::new()),
@@ -247,10 +247,12 @@ impl JVMState {
 
 
 type CodeIndex = isize;
+type TransmutedObjectPointer = usize;
 pub struct JVMTIState {
     pub built_in_jdwp: Arc<SharedLibJVMTI>,
     jvmti_thread_local_storage: &'static LocalKey<RefCell<*mut c_void>>,
-    pub break_points: RwLock<HashMap<MethodId,RwLock<HashSet<CodeIndex>>>>
+    pub break_points: RwLock<HashMap<MethodId,RwLock<HashSet<CodeIndex>>>>,
+    pub tags: RwLock<HashMap<TransmutedObjectPointer,jlong>>
 }
 
 struct LivePoolGetterImpl {

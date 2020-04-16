@@ -3,7 +3,6 @@ use crate::jvmti::{get_state, DebuggerEventConsumer};
 use jni_bindings::jint;
 use std::mem::size_of;
 use std::ops::Deref;
-use std::hint::unreachable_unchecked;
 
 
 pub unsafe extern "C" fn set_event_notification_mode(
