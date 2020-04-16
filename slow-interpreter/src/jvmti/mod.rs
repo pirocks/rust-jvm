@@ -9,7 +9,7 @@ use crate::invoke_interface::get_invoke_interface;
 use crate::jvmti::version::get_version_number;
 use crate::jvmti::properties::get_system_property;
 use crate::jvmti::allocate::{allocate, deallocate};
-use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities};
+use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities, get_capabilities};
 use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
 use std::sync::{Arc, RwLock};
 use std::cell::RefCell;

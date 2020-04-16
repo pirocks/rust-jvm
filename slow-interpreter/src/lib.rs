@@ -36,7 +36,7 @@ use crate::stack_entry::StackEntry;
 use std::thread::LocalKey;
 use std::rc::Rc;
 use crate::monitor::Monitor;
-use jni_bindings::{JNIInvokeInterface_, jobject};
+use jni_bindings::{JNIInvokeInterface_};
 use std::ffi::c_void;
 use jvmti_bindings::{jrawMonitorID, jlong};
 use crate::rust_jni::MethodId;

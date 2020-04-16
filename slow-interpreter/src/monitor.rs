@@ -42,7 +42,7 @@ impl Monitor {
     }
 
     pub fn lock(&self) {
-        println!("Monitor lock:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
+        println!("Monitor lock:{}/{}, thread:{}",self.name,self.monitor_i, std::thread::current().name().unwrap_or("unknown"));
         let mut current_owners_guard = self.owned.write().unwrap();
         if current_owners_guard.owner == self.get_thread(){
             current_owners_guard.count += 1;
@@ -57,7 +57,7 @@ impl Monitor {
     }
 
     pub fn unlock(&self) {
-        println!("Monitor unlock:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
+        println!("Monitor unlock:{}/{}, thread:{}",self.name,self.monitor_i, std::thread::current().name().unwrap_or("unknown"));
         let mut current_owners_guard = self.owned.write().unwrap();
         assert_eq!(current_owners_guard.owner,self.get_thread());
         current_owners_guard.count -= 1;

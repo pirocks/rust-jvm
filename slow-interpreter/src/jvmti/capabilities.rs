@@ -1,4 +1,6 @@
 use jvmti_bindings::{jvmtiEnv, jvmtiCapabilities, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY};
+use std::os::raw::c_void;
+use std::mem::{size_of, transmute};
 
 // can_access_local_variables              = 1
 // can_generate_single_step_events         = 1
@@ -140,4 +142,34 @@ pub unsafe extern "C" fn add_capabilities(
     } else {
         jvmtiError_JVMTI_ERROR_NONE
     }
+}
+// can_access_local_variables              = 1
+// can_generate_single_step_events         = 1
+// can_generate_exception_events           = 1
+// can_generate_frame_pop_events           = 1
+// can_generate_breakpoint_events          = 1
+// can_suspend                             = 1
+// can_generate_method_entry_events        = 1
+// can_generate_method_exit_events         = 1
+// can_generate_garbage_collection_events  = 1
+// can_maintain_original_method_order      = 1
+// can_generate_monitor_events             = 1
+// can_tag_objects                         = 1
+pub unsafe extern "C" fn get_capabilities(env: *mut jvmtiEnv, capabilities_ptr: *mut jvmtiCapabilities) -> jvmtiError{
+    libc::memset(capabilities_ptr as *mut c_void,0,size_of::<jvmtiCapabilities>());
+    let mut_borrow: &mut jvmtiCapabilities = transmute(capabilities_ptr);//todo what is the correct way to do this?
+    mut_borrow.set_can_access_local_variables(1);
+    mut_borrow.set_can_generate_single_step_events(1);
+    mut_borrow.set_can_generate_exception_events(1);
+    mut_borrow.set_can_generate_frame_pop_events(1);
+    mut_borrow.set_can_generate_breakpoint_events(1);
+    mut_borrow.set_can_suspend(1);
+    mut_borrow.set_can_generate_method_entry_events(1);
+    mut_borrow.set_can_generate_method_exit_events(1);
+    mut_borrow.set_can_generate_garbage_collection_events(1);
+    mut_borrow.set_can_maintain_original_method_order(1);
+    mut_borrow.set_can_generate_monitor_events(1);
+    mut_borrow.set_can_tag_objects(1);
+    jvmtiError_JVMTI_ERROR_NONE
+
 }

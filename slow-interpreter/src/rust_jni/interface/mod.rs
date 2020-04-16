@@ -15,6 +15,9 @@ use crate::JVMState;
 use std::cell::RefCell;
 use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
 use std::sync::Arc;
+use crate::rust_jni::interface::local_ref::new_local_ref;
+use crate::jvmti::get_state;
+use crate::rust_jni::interface::instance_of::is_instance_of;
 
 //todo this should be in state impl
 thread_local! {
@@ -67,14 +70,14 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         DeleteGlobalRef: None,
         DeleteLocalRef: Some(delete_local_ref),
         IsSameObject: Some(is_same_object),
-        NewLocalRef: None,
+        NewLocalRef: Some(new_local_ref),
         EnsureLocalCapacity: Some(ensure_local_capacity),
         AllocObject: None,
         NewObject: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject>(new_object as *mut c_void) }),
         NewObjectV: Some(unsafe { transmute(new_object_v as *mut c_void) }),
         NewObjectA: None,
         GetObjectClass: Some(get_object_class),
-        IsInstanceOf: None,
+        IsInstanceOf: Some(is_instance_of),
         GetMethodID: Some(get_method_id),
         CallObjectMethod: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject>(call_object_method as *mut c_void) }),
         CallObjectMethodV: None,
@@ -156,7 +159,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         SetFloatField: None,
         SetDoubleField: None,
         GetStaticMethodID: Some(get_static_method_id),
-        CallStaticObjectMethod: Some(unsafe {transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject>(call_static_object_method as *mut c_void)}),
+        CallStaticObjectMethod: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject>(call_static_object_method as *mut c_void) }),
         CallStaticObjectMethodV: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, args: *mut __va_list_tag) -> jobject>(call_static_object_method_v as *mut c_void) }),
         CallStaticObjectMethodA: None,
         CallStaticBooleanMethod: None,
@@ -278,7 +281,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
     }
 }
 
-pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean{
+pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
     let _1 = from_object(obj1);
     let _2 = from_object(obj2);
     (match _1 {
@@ -287,17 +290,43 @@ pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: j
                 None => JNI_TRUE,
                 Some(_) => JNI_FALSE,
             }
-        },
+        }
         Some(_1_) => {
             match _2 {
                 None => JNI_FALSE,
                 Some(_2_) => Arc::ptr_eq(&_1_, &_2_) as u32,
             }
-        },
+        }
     }) as u8
 }
 
+pub mod instance_of {
+    use jni_bindings::{JNIEnv, jobject, jclass, jboolean};
+    use crate::rust_jni::native_util::{get_state, from_object, get_frame};
+    use crate::instructions::special::instance_of_impl;
+    use std::ops::Deref;
 
+    pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
+        let jvm = get_state(env);
+        let java_obj = from_object(obj);
+        let class_object = from_object(clazz);
+        let type_ = class_object.unwrap().unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone().unwrap_ref_type().clone();
+        let frame = get_frame(env);
+        instance_of_impl(jvm, frame.deref(), java_obj.unwrap(), type_);
+        (frame.pop().unwrap_int() != 0) as jboolean
+    }
+}
+
+pub mod local_ref {
+    use jni_bindings::{JNIEnv, jobject};
+    use crate::rust_jni::native_util::from_object;
+    use std::sync::Arc;
+
+    pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobject {
+        std::mem::forget(from_object(ref_).unwrap());
+        ref_
+    }
+}
 
 pub mod local_frame;
 pub mod call;

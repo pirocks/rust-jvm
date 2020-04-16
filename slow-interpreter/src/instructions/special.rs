@@ -8,6 +8,7 @@ use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::Object::{Array, Object};
+use crate::java_values;
 use descriptor_parser::parse_field_type;
 
 
@@ -77,19 +78,23 @@ pub fn invoke_instanceof(state: & JVMState, current_frame: & StackEntry, cp: u16
     let classfile = &current_frame.class_pointer.class_view;
     let instance_of_class_type = classfile.constant_pool_view(cp as usize).unwrap_class().class_name();
     // assert!(instance_of_class_type.try_unwrap_name().is_none());
-    match unwrapped.deref(){
+    instance_of_impl(state, current_frame, unwrapped, instance_of_class_type);
+}
+
+pub fn instance_of_impl(state: &JVMState, current_frame: &StackEntry, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
+    let x = match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
                     if instance_of_class_name == ClassName::serializable() ||
-                        instance_of_class_name == ClassName::cloneable(){
+                        instance_of_class_name == ClassName::cloneable() {
                         unimplemented!()//todo need to handle serializable and the like
-                    }else {
+                    } else {
                         current_frame.push(JavaValue::Int(0))
                     }
                 },
                 ReferenceTypeView::Array(a) => {
-                    if a.deref() == &array.elem_type{
+                    if a.deref() == &array.elem_type {
                         current_frame.push(JavaValue::Int(1))
                     }
                 },
@@ -98,7 +103,7 @@ pub fn invoke_instanceof(state: & JVMState, current_frame: & StackEntry, cp: u16
         Object(object) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
-                    let instanceof_class = check_inited_class(state, &instance_of_class_name,  current_frame.class_pointer.loader.clone());
+                    let instanceof_class = check_inited_class(state, &instance_of_class_name, current_frame.class_pointer.loader.clone());
                     let object_class = object.class_pointer.clone();
                     if inherits_from(state, &object_class, &instanceof_class) {
                         current_frame.push(JavaValue::Int(1))
@@ -109,7 +114,7 @@ pub fn invoke_instanceof(state: & JVMState, current_frame: & StackEntry, cp: u16
                 ReferenceTypeView::Array(_) => current_frame.push(JavaValue::Int(0)),
             }
         },
-    }
+    };
 }
 
 fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
