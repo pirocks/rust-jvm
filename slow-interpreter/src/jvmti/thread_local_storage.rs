@@ -5,6 +5,7 @@ use std::os::raw::c_void;
 
 pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
+    //todo this is wrong b/c it ignores thread
     jvm.jvmti_state.jvmti_thread_local_storage.with(|tls_ptr| {
         data_ptr.write(*tls_ptr.borrow());
     });

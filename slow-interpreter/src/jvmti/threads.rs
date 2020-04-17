@@ -2,7 +2,6 @@ use jvmti_bindings::{jvmtiEnv, jint, jthreadGroup, jvmtiError, jvmtiError_JVMTI_
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::{to_object, from_object};
 use std::intrinsics::transmute;
-use jni_bindings::JAVA_THREAD_STATE_BLOCKED;
 use crate::java_values::JavaValue;
 use classfile_view::view::ptype_view::PTypeView;
 use std::ffi::CString;

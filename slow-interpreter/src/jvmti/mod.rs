@@ -17,13 +17,18 @@ use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info};
 use crate::rust_jni::MethodId;
-use crate::rust_jni::native_util::to_object;
+use crate::rust_jni::native_util::{to_object, get_frame};
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
 use crate::jvmti::agent::*;
 use crate::jvmti::classes::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
+use crate::java::lang::thread::JThread;
+use crate::java_values::JavaValue::Boolean;
+use rust_jvm_common::classnames::ClassName;
+use crate::class_objects::get_or_create_class_object;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -72,6 +77,31 @@ impl SharedLibJVMTI {
             self.VMInit(&mut jvmti_interface, &mut casted_jni, transmute(to_object(main_thread_object.into())))
         }
     }
+    pub fn thread_start(&self, jvm: &JVMState, thread: JThread) {
+        unsafe {
+            let obj = to_object(thread.object().into());
+            let jvmti = get_jvmti_interface(jvm);
+            let jni = get_interface(jvm);
+            self.ThreadStart(Box::leak(Box::new(jvmti)), Box::leak(Box::new(transmute(jni))), transmute(obj));
+        }
+    }
+
+    pub fn class_prepare(&self, jvm: &JVMState, class: &ClassName) {
+        unsafe {
+            if *self.class_prepare_enabled.read().unwrap() {
+                let thread_obj = to_object(jvm.get_current_thread().thread_object.borrow().clone().unwrap().object().into());
+                let jvmti = get_jvmti_interface(jvm);
+                let jni = get_interface(jvm);
+                let class_obj = get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class.clone())), jvm.get_current_frame().deref(), jvm.bootstrap_loader.clone());
+                self.ClassPrepare(
+                    Box::leak(Box::new(jvmti)),
+                    Box::leak(Box::new(transmute(jni))),
+                    transmute(thread_obj),
+                    transmute(to_object(class_obj.into()))
+                )//todo are these leaks needed
+            }
+        }
+    }
 }
 
 #[allow(non_snake_case)]
@@ -86,13 +116,12 @@ pub trait DebuggerEventConsumer {
     fn VMDeath_enable(&self);
     fn VMDeath_disable(&self);
 
-    //unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation, exception: jobject, catch_method: jmethodID, catch_location: jlocation)
     unsafe fn Exception(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation, exception: jobject, catch_method: jmethodID, catch_location: jlocation);
 
     fn Exception_enable(&self);
     fn Exception_disable(&self);
 
-    unsafe fn ThreadStart(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
+    unsafe fn ThreadStart(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
 
     fn ThreadStart_enable(&self);
     fn ThreadStart_disable(&self);
@@ -103,7 +132,7 @@ pub trait DebuggerEventConsumer {
     fn ThreadEnd_enable(&self);
     fn ThreadEnd_disable(&self);
 
-    unsafe fn ClassPrepare(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, klass: jclass);
+    unsafe fn ClassPrepare(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, klass: jclass);
 
     fn ClassPrepare_enable(&self);
     fn ClassPrepare_disable(&self);
@@ -166,8 +195,10 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.exception_enabled.write().unwrap() = false;
     }
 
-    unsafe fn ThreadStart(jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
-        unimplemented!()
+    unsafe fn ThreadStart(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
+        if *self.thread_start_enabled.read().unwrap() {
+            (self.thread_start_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread);
+        }
     }
 
     fn ThreadStart_enable(&self) {
@@ -190,8 +221,10 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.thread_start_enabled.write().unwrap() = false;
     }
 
-    unsafe fn ClassPrepare(jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, klass: *mut _jobject) {
-        unimplemented!()
+    unsafe fn ClassPrepare(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, klass: *mut _jobject) {
+        if *self.class_prepare_enabled.read().unwrap(){
+            (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread,klass);
+        }
     }
 
     fn ClassPrepare_enable(&self) {
@@ -270,7 +303,7 @@ impl SharedLibJVMTI {
             monitor_waited_callback: Default::default(),
             monitor_conteded_enter_callback: Default::default(),
             monitor_conteded_entered_callback: Default::default(),
-            breakpoint_enabled: Default::default()
+            breakpoint_enabled: Default::default(),
         }
     }
 }
@@ -481,17 +514,18 @@ pub unsafe extern "C" fn dispose_environment(_env: *mut jvmtiEnv) -> jvmtiError 
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
 
-pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError{
+pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);
     let method_id = (method as *mut MethodId).as_ref().unwrap();
+    dbg!(&method_id);
     let mut breakpoint_guard = jvm.jvmti_state.break_points.write().unwrap();
-    match breakpoint_guard.get(method_id){
+    match breakpoint_guard.get(method_id) {
         None => {
-            breakpoint_guard.insert(method_id.clone(),RwLock::new(HashSet::from_iter(vec![location as isize].iter().cloned())));
-        },
+            breakpoint_guard.insert(method_id.clone(), RwLock::new(HashSet::from_iter(vec![location as isize].iter().cloned())));
+        }
         Some(breakpoints) => {
             breakpoints.write().unwrap().insert(location as isize);//todo should I cast here?
-        },
+        }
     }
     jvmtiError_JVMTI_ERROR_NONE
 }

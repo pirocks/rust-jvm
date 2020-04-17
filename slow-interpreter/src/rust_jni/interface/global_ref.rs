@@ -26,3 +26,8 @@ pub unsafe extern "C" fn new_weak_global_ref(env: *mut JNIEnv, lobj: jobject) ->
     }
     to_object(obj)
 }
+
+
+pub unsafe extern "C" fn delete_global_ref(env: *mut JNIEnv, gref: jobject){
+    //todo not implemented for now
+}

@@ -1,5 +1,5 @@
 use parking_lot::{RawThreadId, FairMutex, const_fair_mutex};
-use lock_api::{GetThreadId, RawMutex};
+use lock_api::{GetThreadId};
 use std::sync::{Condvar, RwLock, Mutex};
 use std::time::Duration;
 use std::fmt::{Debug, Formatter, Error};

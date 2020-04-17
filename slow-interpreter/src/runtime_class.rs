@@ -23,7 +23,7 @@ pub struct RuntimeClass {
 
 impl Debug for RuntimeClass {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "{:?}:{:?}", self.classfile, self.static_vars)
+        write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
     }
 }
 

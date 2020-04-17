@@ -67,7 +67,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         PushLocalFrame: Some(push_local_frame),
         PopLocalFrame: Some(pop_local_frame),
         NewGlobalRef: Some(new_global_ref),
-        DeleteGlobalRef: None,
+        DeleteGlobalRef: Some(delete_global_ref),
         DeleteLocalRef: Some(delete_local_ref),
         IsSameObject: Some(is_same_object),
         NewLocalRef: Some(new_local_ref),
@@ -320,7 +320,6 @@ pub mod instance_of {
 pub mod local_ref {
     use jni_bindings::{JNIEnv, jobject};
     use crate::rust_jni::native_util::from_object;
-    use std::sync::Arc;
 
     pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobject {
         std::mem::forget(from_object(ref_).unwrap());

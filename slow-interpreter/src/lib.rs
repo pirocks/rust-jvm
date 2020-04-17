@@ -29,7 +29,7 @@ use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::time::Instant;
-use crate::jvmti::SharedLibJVMTI;
+use crate::jvmti::{SharedLibJVMTI, DebuggerEventConsumer};
 use crate::java::lang::thread::JThread;
 use crate::loading::{Classpath, BootstrapLoader};
 use crate::stack_entry::StackEntry;
@@ -322,6 +322,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
         pc_offset: 0.into(),
     });
     jvm.main_thread().call_stack.replace(vec![main_stack]);
+    jvm.jvmti_state.built_in_jdwp.thread_start(&jvm,jvm.main_thread().thread_object.borrow().clone().unwrap());
     run_function(&jvm);
     if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
         unimplemented!()

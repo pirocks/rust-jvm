@@ -40,48 +40,50 @@ use std::collections::HashSet;
 
 //todo jni should really live in interpreter state
 pub fn check_inited_class(
-    state: &JVMState,
+    jvm: &JVMState,
     class_name: &ClassName,
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
-    if !state.initialized_classes.read().unwrap().contains_key(&class_name) {
+    if !jvm.initialized_classes.read().unwrap().contains_key(&class_name) {
         //todo the below is jank
         if class_name == &ClassName::raw_byte() {
-            return check_inited_class(state, &ClassName::byte(), loader_arc);
+            return check_inited_class(jvm, &ClassName::byte(), loader_arc);
         }
         if class_name == &ClassName::raw_char() {
-            return check_inited_class(state, &ClassName::character(), loader_arc);
+            return check_inited_class(jvm, &ClassName::character(), loader_arc);
         }
         if class_name == &ClassName::raw_double() {
-            return check_inited_class(state, &ClassName::double(), loader_arc);
+            return check_inited_class(jvm, &ClassName::double(), loader_arc);
         }
         if class_name == &ClassName::raw_float() {
-            return check_inited_class(state, &ClassName::float(), loader_arc);
+            return check_inited_class(jvm, &ClassName::float(), loader_arc);
         }
         if class_name == &ClassName::raw_int() {
-            return check_inited_class(state, &ClassName::int(), loader_arc);
+            return check_inited_class(jvm, &ClassName::int(), loader_arc);
         }
         if class_name == &ClassName::raw_long() {
-            return check_inited_class(state, &ClassName::long(), loader_arc);
+            return check_inited_class(jvm, &ClassName::long(), loader_arc);
         }
         if class_name == &ClassName::raw_short() {
-            return check_inited_class(state, &ClassName::short(), loader_arc);
+            return check_inited_class(jvm, &ClassName::short(), loader_arc);
         }
         if class_name == &ClassName::raw_boolean() {
-            return check_inited_class(state, &ClassName::boolean(), loader_arc);
+            return check_inited_class(jvm, &ClassName::boolean(), loader_arc);
         }
         if class_name == &ClassName::raw_void() {
-            return check_inited_class(state, &ClassName::void(), loader_arc);
+            return check_inited_class(jvm, &ClassName::void(), loader_arc);
         }
-        let bl = state.bootstrap_loader.clone();
-        let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, state.get_live_object_pool_getter()).unwrap();
+        let bl = jvm.bootstrap_loader.clone();
+        let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, jvm.get_live_object_pool_getter()).unwrap();
+
         let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
-        state.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
-        let inited_target = initialize_class(prepared, state);
-        state.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
+        jvm.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
+        let inited_target = initialize_class(prepared, jvm);
+        jvm.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
+        jvm.jvmti_state.built_in_jdwp.class_prepare(jvm,class_name)
     }
-    let res = state.initialized_classes.read().unwrap().get(class_name).unwrap().clone();
+    let res = jvm.initialized_classes.read().unwrap().get(class_name).unwrap().clone();
     res
 }
 

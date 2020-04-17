@@ -34,6 +34,7 @@ use crate::java_values::{JavaValue, Object};
 use crate::{JVMState, StackEntry, LibJavaLoading};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
+use std::fmt::{Debug, Formatter};
 
 
 pub mod value_conversion;
@@ -299,6 +300,13 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
 pub struct MethodId {
     pub class: Arc<RuntimeClass>,
     pub method_i: usize,
+}
+
+impl Debug for MethodId{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(),std::fmt::Error> {
+        let method_view = self.class.class_view.method_view_i(self.method_i);
+        write!(f, "{:?} {} {}",self.class.class_view.name(), method_view.name(),method_view.desc_str())
+    }
 }
 
 pub mod native_util;
