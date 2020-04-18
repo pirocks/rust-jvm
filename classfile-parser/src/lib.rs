@@ -8,6 +8,8 @@ use crate::constant_infos::parse_constant_infos;
 use crate::parsing_util::ParsingContext;
 use crate::parsing_util::FileParsingContext;
 use std::io::{Read, BufReader};
+use core::ffi::c_void::__variant1;
+use crate::parse_validation::validate_parsed;
 
 
 pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
@@ -79,7 +81,7 @@ pub fn parse_class_file(read: &mut dyn Read) -> Classfile {
 
 fn parse_from_context(p: &mut dyn ParsingContext) -> Classfile {
     let magic: u32 = p.read32();
-    assert_eq!(magic, EXPECTED_CLASSFILE_MAGIC);
+    // assert_eq!(magic, EXPECTED_CLASSFILE_MAGIC);
     let minor_version: u16 = p.read16();
     let major_version: u16 = p.read16();
     let constant_pool_count: u16 = p.read16();
@@ -96,7 +98,7 @@ fn parse_from_context(p: &mut dyn ParsingContext) -> Classfile {
     let methods = parse_methods(p, methods_count);
     let attributes_count = p.read16();
     let attributes = parse_attributes(p, attributes_count);
-    let res = Classfile {
+    let mut res = Classfile {
         magic,
         minor_version,
         major_version,
@@ -109,5 +111,8 @@ fn parse_from_context(p: &mut dyn ParsingContext) -> Classfile {
         methods,
         attributes,
     };
+    validate_parsed(&mut res);
     return res;
 }
+
+pub mod parse_validation;

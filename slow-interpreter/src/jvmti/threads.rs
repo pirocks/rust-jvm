@@ -40,3 +40,8 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     (*info_ptr).priority = thread_object.priority();
     jvmtiError_JVMTI_ERROR_NONE
 }
+
+unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, thread_state_ptr: *mut jint) -> jvmtiError{
+    unimplemented!();
+    jvmtiError_JVMTI_ERROR_NONE
+}

@@ -3,11 +3,9 @@ use crate::constant_infos::is_utf8;
 use crate::code::parse_code_raw;
 use rust_jvm_common::classnames::ClassName;
 use crate::parsing_util::ParsingContext;
-//
 use rust_jvm_common::classfile::EnclosingMethod;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use descriptor_parser::parse_field_descriptor;
-//
 
 pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
     let attribute_name_index = p.read16();
