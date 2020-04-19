@@ -1,8 +1,8 @@
-use parking_lot::{RawThreadId, FairMutex, const_fair_mutex};
-use lock_api::{GetThreadId};
+use parking_lot::{FairMutex, const_fair_mutex};
 use std::sync::{Condvar, RwLock, Mutex};
 use std::time::Duration;
 use std::fmt::{Debug, Formatter, Error};
+use crate::JVMState;
 
 #[derive(Debug)]
 pub struct OwningThreadAndCount{
@@ -37,14 +37,10 @@ impl Monitor {
         }
     }
 
-    fn get_thread(&self)-> usize{
-        RawThreadId{}.nonzero_thread_id().get()
-    }
-
-    pub fn lock(&self) {
-        println!("Monitor lock:{}/{}, thread:{}",self.name,self.monitor_i, std::thread::current().name().unwrap_or("unknown"));
+    pub fn lock(&self, jvm : &JVMState) {
+        println!("Monitor lock:{}/{}, thread:{} {}",self.name,self.monitor_i, std::thread::current().name().unwrap_or("unknown"),Monitor::get_tid(jvm));
         let mut current_owners_guard = self.owned.write().unwrap();
-        if current_owners_guard.owner == self.get_thread(){
+        if current_owners_guard.owner == Monitor::get_tid(jvm){
             current_owners_guard.count += 1;
         }else {
             std::mem::drop(current_owners_guard);//todo I don;t think there should be two guards here
@@ -52,14 +48,14 @@ impl Monitor {
             let mut new_guard = self.owned.write().unwrap();
             assert_eq!(new_guard.count, 0);
             new_guard.count = 1;
-            new_guard.owner = self.get_thread();
+            new_guard.owner = Monitor::get_tid(jvm);
         }
     }
 
-    pub fn unlock(&self) {
-        println!("Monitor unlock:{}/{}, thread:{}",self.name,self.monitor_i, std::thread::current().name().unwrap_or("unknown"));
+    pub fn unlock(&self, jvm : &JVMState) {
+        println!("Monitor unlock:{}/{}, thread:{} {}",self.name,self.monitor_i, std::thread::current().name().unwrap_or("unknown"),Monitor::get_tid(jvm));
         let mut current_owners_guard = self.owned.write().unwrap();
-        assert_eq!(current_owners_guard.owner,self.get_thread());
+        assert_eq!(current_owners_guard.owner,Monitor::get_tid(jvm));
         current_owners_guard.count -= 1;
         if current_owners_guard.count == 0 {
             current_owners_guard.owner = 0;
@@ -67,7 +63,7 @@ impl Monitor {
         }
     }
 
-    pub fn wait(&self, millis: i64) {
+    pub fn wait(&self, millis: i64, jvm : &JVMState) {
         println!("Monitor wait:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
         let mut guard = self.owned.write().unwrap();
         let count = guard.count;
@@ -83,16 +79,20 @@ impl Monitor {
         }
         std::mem::forget(self.mutex.lock());
         let mut write_guard = self.owned.write().unwrap();
-        write_guard.owner = self.get_thread();
+        write_guard.owner = Monitor::get_tid(jvm);
         write_guard.count = count;
     }
 
-    pub fn notify_all(&self) {
+    fn get_tid(jvm: &JVMState) -> usize {
+        jvm.get_current_thread().java_tid as usize
+    }
+
+    pub fn notify_all(&self, jvm : &JVMState) {
         println!("Monitor notify all:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
         self.condvar.notify_all();
     }
 
-    pub fn notify(&self) {
+    pub fn notify(&self, jvm : &JVMState) {
         println!("Monitor notify:{}, thread:{}",self.name, std::thread::current().name().unwrap_or("unknown"));
         self.condvar.notify_one();
     }

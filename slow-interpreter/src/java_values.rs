@@ -463,12 +463,12 @@ impl Object {
         }
     }
 
-    pub fn monitor_unlock(&self) {
-        self.monitor().unlock();
+    pub fn monitor_unlock(&self, jvm :  &JVMState) {
+        self.monitor().unlock(jvm);
     }
 
-    pub fn monitor_lock(&self) {
-        self.monitor().lock();
+    pub fn monitor_lock(&self, jvm :  &JVMState) {
+        self.monitor().lock(jvm);
     }
 }
 

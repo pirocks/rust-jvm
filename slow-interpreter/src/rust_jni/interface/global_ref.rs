@@ -16,7 +16,7 @@ pub unsafe extern "C" fn delete_local_ref(_env: *mut JNIEnv, _obj: jobject) {
     //todo no gc, just leak
 }
 
-pub unsafe extern "C" fn new_weak_global_ref(env: *mut JNIEnv, lobj: jobject) -> jweak{
+pub unsafe extern "C" fn new_weak_global_ref(_env: *mut JNIEnv, lobj: jobject) -> jweak{
     let obj = from_object(lobj);
     match &obj {
         None => {}

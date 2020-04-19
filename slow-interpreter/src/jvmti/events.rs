@@ -9,7 +9,7 @@ pub unsafe extern "C" fn set_event_notification_mode(
     env: *mut jvmtiEnv,
     mode: jvmtiEventMode,
     event_type: jvmtiEvent,
-    event_thread: jthread,
+    _event_thread: jthread,//todo handle event_thread
     ...) -> jvmtiError {
     let state = get_state(env);
     let jdwp_copy = state.jvmti_state.built_in_jdwp.clone();

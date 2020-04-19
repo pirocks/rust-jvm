@@ -155,7 +155,7 @@ pub unsafe extern "C" fn add_capabilities(
 // can_maintain_original_method_order      = 1
 // can_generate_monitor_events             = 1
 // can_tag_objects                         = 1
-pub unsafe extern "C" fn get_capabilities(env: *mut jvmtiEnv, capabilities_ptr: *mut jvmtiCapabilities) -> jvmtiError{
+pub unsafe extern "C" fn get_capabilities(_env: *mut jvmtiEnv, capabilities_ptr: *mut jvmtiCapabilities) -> jvmtiError{
     libc::memset(capabilities_ptr as *mut c_void,0,size_of::<jvmtiCapabilities>());
     let mut_borrow: &mut jvmtiCapabilities = transmute(capabilities_ptr);//todo what is the correct way to do this?
     mut_borrow.set_can_access_local_variables(1);

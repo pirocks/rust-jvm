@@ -68,7 +68,7 @@ fn get_static_impl(state: & JVMState, current_frame: & StackEntry, cp: u16, load
     stack.push(field_value);
 }
 
-pub fn get_field(current_frame: & StackEntry, cp: u16, debug: bool) -> () {
+pub fn get_field(current_frame: & StackEntry, cp: u16, _debug: bool) -> () {
     let classfile = &current_frame.class_pointer.classfile;
     let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
     let object_ref = current_frame.pop();

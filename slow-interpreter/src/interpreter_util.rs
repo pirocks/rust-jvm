@@ -32,10 +32,12 @@ use crate::instructions::pop::{pop2, pop};
 use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, default_value, Object};
 use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
-use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use std::ops::Deref;
 use crate::rust_jni::MethodId;
 use std::collections::HashSet;
+use jni_bindings::JVM_ACC_SYNCHRONIZED;
+use crate::class_objects::get_or_create_class_object;
 
 
 //todo jni should really live in interpreter state
@@ -81,7 +83,7 @@ pub fn check_inited_class(
         jvm.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
         let inited_target = initialize_class(prepared, jvm);
         jvm.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
-        jvm.jvmti_state.built_in_jdwp.class_prepare(jvm,class_name)
+        jvm.jvmti_state.built_in_jdwp.class_prepare(jvm, class_name)
     }
     let res = jvm.initialized_classes.read().unwrap().get(class_name).unwrap().clone();
     res
@@ -96,19 +98,20 @@ pub fn run_function(
     let current_frame = frame_temp.deref();
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
+    let synchronized = method.access_flags & JVM_ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
     let class_name__ = class_name(&current_frame.class_pointer.classfile);
 
-
-    let class_name_ = class_name__.get_referred_name();
-    let _method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
-    // let current_depth = current_frame.depth();
+    // let class_name_ = class_name__.clone().get_referred_name();
+    let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
+    let current_depth = jvm.get_current_thread().call_stack.borrow().len();
+    println!("CALL BEGIN:{:?} {} {} {} {}", &class_name__, &meth_name, method_desc, current_depth, jvm.get_current_thread().java_tid);
     // let debug = &meth_name == "getDeclaredMethod";
-    let debug = /*current_depth == 17 && */class_name_ == "java/lang/invoke/MethodHandleImpl$Lazy" && meth_name == "<clinit>".to_string();
-    if debug {
-        dbg!(&code.code);
-    }
+    let debug = /*current_depth == 17 && *//*class_name_ == "java/lang/invoke/MethodHandleImpl$Lazy" &&*/ meth_name == "<clinit>".to_string();
+    // if debug {
+    //     dbg!(&code.code);
+    // }
     let interpreter_state = &jvm.get_current_thread().interpreter_state;
     assert!(!*interpreter_state.function_return.borrow());
     let method_id = MethodId { class: current_frame.class_pointer.clone(), method_i: current_frame.method_i as usize };
@@ -121,6 +124,24 @@ pub fn run_function(
                 .collect::<HashSet<_>>()
                 .into()
         });
+    //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
+    let monitor = if synchronized {
+        let monitor = if method.is_static() {
+            let class_object = get_or_create_class_object(
+                jvm,
+                &PTypeView::Ref(ReferenceTypeView::Class(class_name__.clone())),
+                current_frame,
+                current_frame.class_pointer.loader.clone()
+            );
+            class_object.unwrap_normal_object().monitor.clone()
+        } else {
+            current_frame.local_vars.borrow()[0].unwrap_normal_object().monitor.clone()
+        };
+        monitor.lock(jvm);
+        monitor.into()
+    } else {
+        None
+    };
     while !*interpreter_state.terminate.borrow() && !*interpreter_state.function_return.borrow() && !interpreter_state.throw.borrow().is_some() {
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
@@ -130,7 +151,7 @@ pub fn run_function(
                 None => {
                     dbg!(&context.offset);
                     dbg!(&meth_name);
-                    dbg!(class_name_);
+                    // dbg!(class_name_);
                     dbg!(&code.code_raw);
                     dbg!(&code.code);
                     panic!();
@@ -165,7 +186,7 @@ pub fn run_function(
             InstructionInfo::athrow => {
                 println!("EXCEPTION:");
                 dbg!(&meth_name);
-                dbg!(&class_name_);
+                // dbg!(&class_name_);
                 let exception_obj = current_frame.pop().unwrap_object_nonnull();
                 dbg!(exception_obj.lookup_field("detailMessage"));
                 interpreter_state.throw.replace(exception_obj.into());
@@ -345,11 +366,11 @@ pub fn run_function(
             InstructionInfo::lushr => unimplemented!(),
             InstructionInfo::lxor => unimplemented!(),
             InstructionInfo::monitorenter => {
-                current_frame.pop().unwrap_object_nonnull().monitor_lock();
+                current_frame.pop().unwrap_object_nonnull().monitor_lock(jvm);
                 /*unimplemented for now todo*/
             }
             InstructionInfo::monitorexit => {
-                current_frame.pop().unwrap_object_nonnull().monitor_unlock();
+                current_frame.pop().unwrap_object_nonnull().monitor_unlock(jvm);
                 /*unimplemented for now todo*/
             }
             InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, &current_frame, cp),
@@ -414,11 +435,14 @@ pub fn run_function(
         }
         // last_instruct = instruct;
     }
+    if synchronized {
+        monitor.unwrap().unlock(jvm);
+    }
 
     /*if &meth_name == "getSimpleName"{
         dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow());
     }*/
-    // println!("CALL END:{} {} {}", &class_name_, meth_name, current_depth);
+    println!("CALL END:{:?} {} {} {}", &class_name__, meth_name, current_depth, jvm.get_current_thread().java_tid);
 }
 
 

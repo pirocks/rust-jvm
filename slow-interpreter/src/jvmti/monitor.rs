@@ -16,28 +16,28 @@ pub unsafe extern "C" fn create_raw_monitor(env: *mut jvmtiEnv, name: *const c_c
 pub unsafe extern "C" fn raw_monitor_enter(env: *mut jvmtiEnv, monitor_id: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
     let monitor = jvm.thread_state.get_monitor(monitor_id);
-    monitor.lock();
+    monitor.lock(jvm);
     jvmtiError_JVMTI_ERROR_NONE
 }
 
 pub unsafe extern "C" fn raw_monitor_exit(env: *mut jvmtiEnv, monitor_id: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
     let monitor = jvm.thread_state.get_monitor(monitor_id);
-    monitor.unlock();
+    monitor.unlock(jvm);
     jvmtiError_JVMTI_ERROR_NONE
 }
 
 pub unsafe extern "C" fn raw_monitor_wait(env: *mut jvmtiEnv, monitor_id: jrawMonitorID, millis: jlong) -> jvmtiError {
     let jvm = get_state(env);
     let monitor = jvm.thread_state.get_monitor(monitor_id);
-    monitor.wait(millis);
+    monitor.wait(millis,jvm);
     jvmtiError_JVMTI_ERROR_NONE
 }
 
 pub unsafe extern "C" fn raw_monitor_notify_all(env: *mut jvmtiEnv, monitor_id: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
     let monitor = jvm.thread_state.get_monitor(monitor_id);
-    monitor.notify_all();
+    monitor.notify_all(jvm);
     jvmtiError_JVMTI_ERROR_NONE
 }
 
@@ -45,6 +45,6 @@ pub unsafe extern "C" fn raw_monitor_notify_all(env: *mut jvmtiEnv, monitor_id: 
 pub unsafe extern "C" fn raw_monitor_notify(env: *mut jvmtiEnv, monitor_id: jrawMonitorID) -> jvmtiError{
     let jvm = get_state(env);
     let monitor = jvm.thread_state.get_monitor(monitor_id);
-    monitor.notify();
+    monitor.notify(jvm);
     jvmtiError_JVMTI_ERROR_NONE
 }
