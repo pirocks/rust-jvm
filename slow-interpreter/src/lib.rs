@@ -29,7 +29,7 @@ use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::time::Instant;
-use crate::jvmti::{SharedLibJVMTI, DebuggerEventConsumer};
+use crate::jvmti::SharedLibJVMTI;
 use crate::java::lang::thread::JThread;
 use crate::loading::{Classpath, BootstrapLoader};
 use crate::stack_entry::StackEntry;
@@ -194,7 +194,7 @@ impl JVMState {
     }
 
     pub fn new(jvm_options: JVMOptions) -> Self {
-        let JVMOptions { main_class_name, classpath, args, shared_libs } = jvm_options;
+        let JVMOptions { main_class_name, classpath, args: _, shared_libs } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
         let bootstrap_loader = Arc::new(BootstrapLoader {
@@ -275,7 +275,7 @@ impl LivePoolGetter for LivePoolGetterImpl {
 pub struct NoopLivePoolGetter {}
 
 impl LivePoolGetter for NoopLivePoolGetter {
-    fn elem_type(&self, idx: usize) -> ReferenceTypeView {
+    fn elem_type(&self, _idx: usize) -> ReferenceTypeView {
         panic!()
     }
 }

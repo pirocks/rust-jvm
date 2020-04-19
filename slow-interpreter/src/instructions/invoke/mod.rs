@@ -33,17 +33,17 @@ pub mod dynamic {
     use crate::java::lang::invoke::method_handle::MethodHandle;
 
     pub fn invoke_dynamic(state: & JVMState, frame: &StackEntry, cp: u16) {
-        let method_handle_class = check_inited_class(
+        let _method_handle_class = check_inited_class(
             state,
             &ClassName::method_handle(),
             frame.class_pointer.loader.clone(),
         );
-        let method_type_class = check_inited_class(
+        let _method_type_class = check_inited_class(
             state,
             &ClassName::method_type(),
             frame.class_pointer.loader.clone(),
         );
-        let call_site_class = check_inited_class(
+        let _call_site_class = check_inited_class(
             state,
             &ClassName::Str("java/lang/invoke/CallSite".to_string()),
             frame.class_pointer.loader.clone(),
@@ -53,7 +53,7 @@ pub mod dynamic {
             _ => panic!(),
         };
 
-        let method_handle = {
+        let _method_handle = {
             let methodref_view = invoke_dynamic_view.bootstrap_method().bootstrap_method_ref();
             match methodref_view.get_reference_data(){
                 ReferenceData::InvokeStatic(is) => {
@@ -61,7 +61,7 @@ pub mod dynamic {
                         InvokeStatic::Interface(_) => unimplemented!(),
                         InvokeStatic::Method(mr) => {
                             let lookup = MethodHandle::public_lookup(state, &frame);
-                            let a_rando_class_object = lookup.get_class(state, frame.clone());
+                            // let _a_rando_class_object = lookup.get_class(state, frame.clone());
                             // dbg!(&a_rando_class_object.clone().java_value().unwrap_normal_object().fields);
                             // let loader = a_rando_class_object.get_class_loader(state, &frame);
                             let name = JString::from(state, &frame, mr.name_and_type().name());

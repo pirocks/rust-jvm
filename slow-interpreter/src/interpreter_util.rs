@@ -102,7 +102,7 @@ pub fn run_function(
 
 
     let class_name_ = class_name__.get_referred_name();
-    let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
+    let _method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     // let current_depth = current_frame.depth();
     // let debug = &meth_name == "getDeclaredMethod";
     let debug = /*current_depth == 17 && */class_name_ == "java/lang/invoke/MethodHandleImpl$Lazy" && meth_name == "<clinit>".to_string();

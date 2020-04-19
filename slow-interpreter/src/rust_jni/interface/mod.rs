@@ -16,7 +16,6 @@ use std::cell::RefCell;
 use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
 use std::sync::Arc;
 use crate::rust_jni::interface::local_ref::new_local_ref;
-use crate::jvmti::get_state;
 use crate::rust_jni::interface::instance_of::is_instance_of;
 
 //todo this should be in state impl
@@ -281,7 +280,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
     }
 }
 
-pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
+pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
     let _1 = from_object(obj1);
     let _2 = from_object(obj2);
     (match _1 {
@@ -321,7 +320,8 @@ pub mod local_ref {
     use jni_bindings::{JNIEnv, jobject};
     use crate::rust_jni::native_util::from_object;
 
-    pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobject {
+    pub unsafe extern "C" fn new_local_ref(_env: *mut JNIEnv, ref_: jobject) -> jobject {
+        //todo blocking on actually having gc
         std::mem::forget(from_object(ref_).unwrap());
         ref_
     }

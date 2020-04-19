@@ -8,8 +8,6 @@ use crate::constant_infos::parse_constant_infos;
 use crate::parsing_util::ParsingContext;
 use crate::parsing_util::FileParsingContext;
 use std::io::{Read, BufReader};
-use core::ffi::c_void::__variant1;
-use crate::parse_validation::validate_parsed;
 
 
 pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
@@ -111,7 +109,7 @@ fn parse_from_context(p: &mut dyn ParsingContext) -> Classfile {
         methods,
         attributes,
     };
-    validate_parsed(&mut res);
+    // validate_parsed(&mut res);
     return res;
 }
 

@@ -41,7 +41,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, thread_state_ptr: *mut jint) -> jvmtiError{
+unsafe extern "C" fn get_thread_state(_env: *mut jvmtiEnv, _thread: jthread, _thread_state_ptr: *mut jint) -> jvmtiError{
     unimplemented!();
-    jvmtiError_JVMTI_ERROR_NONE
+    // jvmtiError_JVMTI_ERROR_NONE
 }

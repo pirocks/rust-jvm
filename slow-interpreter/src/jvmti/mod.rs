@@ -17,7 +17,7 @@ use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info};
 use crate::rust_jni::MethodId;
-use crate::rust_jni::native_util::{to_object, get_frame};
+use crate::rust_jni::native_util::to_object;
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
 use crate::jvmti::agent::*;
@@ -25,7 +25,6 @@ use crate::jvmti::classes::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use crate::java::lang::thread::JThread;
-use crate::java_values::JavaValue::Boolean;
 use rust_jvm_common::classnames::ClassName;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -209,7 +208,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.thread_start_enabled.write().unwrap() = false;
     }
 
-    unsafe fn ThreadEnd(jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: jthread) {
+    unsafe fn ThreadEnd(_jvmti_env: *mut *const jvmtiInterface_1_, _jni_env: *mut *const JNINativeInterface_, _thread: jthread) {
         unimplemented!()
     }
 
@@ -235,7 +234,8 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.class_prepare_enabled.write().unwrap() = false;
     }
 
-    unsafe fn GarbageCollectionFinish(jvmti_env: *mut *const jvmtiInterface_1_) {
+    unsafe fn GarbageCollectionFinish(_jvmti_env: *mut *const jvmtiInterface_1_) {
+        //todo blocking on having a garbage collector
         unimplemented!()
     }
 
@@ -247,7 +247,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.garbage_collection_finish_enabled.write().unwrap() = false;
     }
 
-    unsafe fn Breakpoint(jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, method: *mut _jmethodID, location: i64) {
+    unsafe fn Breakpoint(_jvmti_env: *mut *const jvmtiInterface_1_, _jni_env: *mut *const JNINativeInterface_, _thread: *mut _jobject, _method: *mut _jmethodID, _location: i64) {
         unimplemented!()
     }
 
@@ -261,7 +261,8 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 }
 
 impl SharedLibJVMTI {
-    pub fn agent_load(&self, state: &JVMState, thread: &JavaThread) -> jvmtiError {
+    pub fn agent_load(&self, state: &JVMState, _thread: &JavaThread) -> jvmtiError {
+        //todo why is thread relevant/unused here
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
@@ -495,7 +496,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
-pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
+pub unsafe extern "C" fn get_method_location(_env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
     let method_id = (method as *mut MethodId).as_ref().unwrap();
     match method_id.class.class_view.method_view_i(method_id.method_i).code_attribute() {
         None => {

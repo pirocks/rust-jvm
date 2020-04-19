@@ -199,7 +199,7 @@ fn patch_all(state: & JVMState, frame: & StackEntry, args: &mut Vec<JavaValue>, 
 fn patch_single(
     patch: &Arc<Object>,
     state: & JVMState,
-    frame: & StackEntry,
+    _frame: & StackEntry,
     unpatched: &mut Classfile,
     i: usize,
 ) {
@@ -211,7 +211,7 @@ fn patch_single(
     // String: any object (not just a java.lang.String)
     // InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments//nyi means not yet implemented
     // dbg!(&class_name);
-    let kind = /*if class_name == ClassName::int() {
+    let _kind = /*if class_name == ClassName::int() {
         let int_val = JavaValue::Object(patch.clone().into()).cast_integer().value();
         unpatched.constant_pool[i] = ConstantKind::Integer(Integer { bytes: int_val as u32 }).into();
     } else*/ /*if

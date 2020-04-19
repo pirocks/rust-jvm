@@ -23,7 +23,8 @@ unsafe impl Send for ThreadArgWrapper {}
 
 unsafe impl Sync for ThreadArgWrapper {}
 
-pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
+pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, _priority: jint) -> jvmtiError {
+    //todo implement thread priority
     let jvm = get_state(env);
     let args = ThreadArgWrapper { proc_, arg, thread };
     let system_class = check_inited_class(jvm, &ClassName::system(), jvm.bootstrap_loader.clone());

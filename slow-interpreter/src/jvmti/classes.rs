@@ -6,8 +6,9 @@ use crate::class_objects::get_or_create_class_object;
 use crate::rust_jni::native_util::to_object;
 use std::ops::Deref;
 
-pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
+pub unsafe extern "C" fn get_class_status(_env: *mut jvmtiEnv, _klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     status_ptr.write(JVMTI_CLASS_STATUS_INITIALIZED as i32);
+    //todo actually implement this
 //todo handle primitive classes
     jvmtiError_JVMTI_ERROR_NONE
 }

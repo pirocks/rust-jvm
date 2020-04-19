@@ -173,7 +173,7 @@ pub mod integer {
     }
 
     impl Integer {
-        pub fn from(state: &JVMState, current_frame: &StackEntry, i: jint) -> Integer {
+        pub fn from(_state: &JVMState, _current_frame: &StackEntry, _i: jint) -> Integer {
             unimplemented!()
         }
 

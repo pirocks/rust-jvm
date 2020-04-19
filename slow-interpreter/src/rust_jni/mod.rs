@@ -83,7 +83,7 @@ pub fn call(
     }
 }
 
-pub fn call_impl(jvm: & JVMState, current_frame: &StackEntry, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, debug: bool) -> Option<JavaValue> {
+pub fn call_impl(jvm: & JVMState, current_frame: &StackEntry, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, _debug: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {

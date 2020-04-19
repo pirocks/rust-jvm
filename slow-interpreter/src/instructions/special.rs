@@ -82,7 +82,7 @@ pub fn invoke_instanceof(state: & JVMState, current_frame: & StackEntry, cp: u16
 }
 
 pub fn instance_of_impl(state: &JVMState, current_frame: &StackEntry, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
-    let x = match unwrapped.deref() {
+    match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {

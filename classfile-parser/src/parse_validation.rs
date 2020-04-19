@@ -1,9 +1,7 @@
-use rust_jvm_common::classfile::{Classfile, FieldInfo, ConstantInfo, ConstantKind, String_, Class, NameAndType, Utf8, Fieldref, ACC_INTERFACE, ACC_ABSTRACT, ACC_ANNOTATION, ACC_FINAL, ACC_SUPER, ACC_ENUM, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_VOLATILE, MethodInfo, AttributeInfo, AttributeType};
-use rust_jvm_common::classfile::AttributeType::Exceptions;
+use rust_jvm_common::classfile::{Classfile, FieldInfo, ConstantInfo, ConstantKind, String_, Class, NameAndType, Utf8, Fieldref, ACC_INTERFACE, ACC_ABSTRACT, ACC_ANNOTATION, ACC_FINAL, ACC_SUPER, ACC_ENUM, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_VOLATILE, MethodInfo, AttributeInfo, AttributeType, InterfaceMethodref, Methodref};
 use crate::EXPECTED_CLASSFILE_MAGIC;
 use std::ops::Range;
 use std::collections::HashMap;
-use rust_jvm_common::classfile::InstructionInfo::return_;
 
 pub const MAX_ARRAY_DIMENSIONS: usize = 255;
 
@@ -29,12 +27,14 @@ pub enum ClassfileError {
     FinalAndAbstractAreIncompatible,
     PublicPrivateProtectedIncompatible,
     FinalAndVolatileIncompatible,
+    ExpectedClassEntry,
+    InvalidConstant,
 }
 
-pub enum AttributeEnclosingType{
+pub enum AttributeEnclosingType {
     Method,
     Class,
-    Field
+    Field,
 }
 
 
@@ -83,14 +83,14 @@ impl ValidatorSettings {
             // be set except ACC_ANNOTATION . However, such a class file must not have both
             // its ACC_FINAL and ACC_ABSTRACT flags set (JLS §8.1.1.2).
             if c.access_flags & ACC_ANNOTATION > 0 {
-                Result::Err(ClassfileError::AnnotationClassWhichIsNotAnInterface)
+                return Result::Err(ClassfileError::AnnotationClassWhichIsNotAnInterface);
             }
             if (c.access_flags & ACC_FINAL > 0) && (c.access_flags & ACC_ABSTRACT > 0) {
-                Result::Err(ClassfileError::FinalAndAbstractAreIncompatible)
+                return Result::Err(ClassfileError::FinalAndAbstractAreIncompatible);
             }
         }
-        self.index_check(c.this_class, c);
-        self.index_check(c.super_class, c);
+        self.index_check(c.this_class, c)?;
+        self.index_check(c.super_class, c)?;
         for interface in &c.interfaces {
             self.is_class_check(*interface, c)?;
         }
@@ -101,7 +101,7 @@ impl ValidatorSettings {
             self.validate_method_info(f, c)?;
         }
         for attr in &c.attributes {
-            self.validate_attribute(attr,c,&AttributeEnclosingType::Class)?;
+            self.validate_attribute(attr, c, &AttributeEnclosingType::Class)?;
         }
         Result::Ok(())
     }
@@ -114,24 +114,24 @@ impl ValidatorSettings {
     }
 
     //todo duplication here clean up with a macro or something?
-    pub fn is_utf8_check(&self, cpi: u16, c: &Classfile) -> Result<&Utf8, ClassfileError> {
-        self.index_check(cpi, c);
+    pub fn is_utf8_check<'l>(&self, cpi: u16, c: &'l Classfile) -> Result<&'l Utf8, ClassfileError> {
+        self.index_check(cpi, c)?;
         match &c.constant_pool[cpi as usize].kind {
             ConstantKind::Utf8(utf8) => Result::Ok(utf8),
             _ => Result::Err(ClassfileError::ExpectedUtf8CPEntry)
         }
     }
 
-    pub fn is_class_check(&self, cpi: u16, c: &Classfile) -> Result<&Class, ClassfileError> {
-        self.index_check(cpi, c);
+    pub fn is_class_check<'l>(&self, cpi: u16, c: &'l Classfile) -> Result<&'l Class, ClassfileError> {
+        self.index_check(cpi, c)?;
         match &c.constant_pool[cpi as usize].kind {
             ConstantKind::Class(class) => Result::Ok(class),
             _ => Result::Err(ClassfileError::ExpectedClassEntry)
         }
     }
 
-    pub fn is_name_and_type_check(&self, cpi: u16, c: &Classfile) -> Result<&NameAndType, ClassfileError> {
-        self.index_check(cpi, c);
+    pub fn is_name_and_type_check<'l>(&self, cpi: u16, c: &'l Classfile) -> Result<&'l NameAndType, ClassfileError> {
+        self.index_check(cpi, c)?;
         match &c.constant_pool[cpi as usize].kind {
             ConstantKind::NameAndType(nt) => Result::Ok(nt),
             _ => Result::Err(ClassfileError::ExpectedUtf8CPEntry)
@@ -154,15 +154,13 @@ impl ValidatorSettings {
             ConstantKind::Class(class_info) => self.validate_class_info(&c, &class_info)?,
             ConstantKind::String(string) => self.validate_string(c, string)?,
             ConstantKind::Fieldref(fr) => self.validate_field_ref(c, fr)?,
-            ConstantKind::Methodref(mr) => self.validate_method_ref(c)?,
-            ConstantKind::InterfaceMethodref(imr) => self.validate_interface_method_ref(c)?,
+            ConstantKind::Methodref(mr) => self.validate_method_ref(c, mr)?,
+            ConstantKind::InterfaceMethodref(imr) => self.validate_interface_method_ref(c, imr)?,
             ConstantKind::NameAndType(nt) => self.validate_name_and_type(c, nt)?,
-            ConstantKind::MethodHandle(mh) => {
+            ConstantKind::MethodHandle(_mh) => {
                 //todo part of invoke_dynamic, which is a work in progress
             }
-            ConstantKind::MethodType(mt) => {
-                self.is_utf8_check(mt.descriptor_index, c)
-            }
+            ConstantKind::MethodType(mt) => { self.is_utf8_check(mt.descriptor_index, c)?; }
             ConstantKind::Dynamic(_) => {
                 //todo part of java9+, which is currently beyond the scope of this project
             }
@@ -186,31 +184,36 @@ impl ValidatorSettings {
         Result::Ok(())
     }
 
-    pub fn validate_string(&self, c: &Classfile, string: &String_) {
-        self.is_utf8_check(string.string_index, c);
+    pub fn validate_string(&self, c: &Classfile, string: &String_) -> Result<(), ClassfileError> {
+        self.is_utf8_check(string.string_index, c)?;
+        Result::Ok(())
     }
 
-    pub fn validate_name_and_type(&self, c: &Classfile, nt: &NameAndType) {
-        self.is_utf8_check(nt.name_index, c);
+    pub fn validate_name_and_type(&self, c: &Classfile, nt: &NameAndType) -> Result<(), ClassfileError> {
+        self.is_utf8_check(nt.name_index, c)?;
         // descriptor validation happens in a separate crate used by validator/class view
-        self.is_utf8_check(nt.descriptor_index, c);
+        self.is_utf8_check(nt.descriptor_index, c)?;
+        Result::Ok(())
     }
 
-    pub fn validate_interface_method_ref(&self, c: &Classfile) {
+    pub fn validate_interface_method_ref(&self, c: &Classfile, fr: &InterfaceMethodref) -> Result<(), ClassfileError> {
         //the spec says that some further validation should be performed to prevent imr calls
         // on <clinit>. This is currently the responsibility of the class verifier.
-        self.is_class_check(fr.class_index, c);
-        self.is_name_and_type_check(fr.name_and_type_index, c);
+        self.is_class_check(fr.class_index, c)?;
+        self.is_name_and_type_check(fr.nt_index, c)?;
+        Result::Ok(())
     }
 
-    pub fn validate_method_ref(&self, c: &Classfile) {
-        self.is_class_check(fr.class_index, c);
-        self.is_name_and_type_check(fr.name_and_type_index, c);
+    pub fn validate_method_ref(&self, c: &Classfile, fr: &Methodref) -> Result<(), ClassfileError> {
+        self.is_class_check(fr.class_index, c)?;
+        self.is_name_and_type_check(fr.name_and_type_index, c)?;
+        Result::Ok(())
     }
 
-    pub fn validate_field_ref(&self, c: &Classfile, fr: &Fieldref) {
-        self.is_class_check(fr.class_index, c);
-        self.is_name_and_type_check(fr.name_and_type_index, c);
+    pub fn validate_field_ref(&self, c: &Classfile, fr: &Fieldref) -> Result<(), ClassfileError> {
+        self.is_class_check(fr.class_index, c)?;
+        self.is_name_and_type_check(fr.name_and_type_index, c)?;
+        Result::Ok(())
     }
 
     pub fn validate_class_info(&self, c: &Classfile, class_info: &Class) -> Result<(), ClassfileError> {
@@ -220,7 +223,7 @@ impl ValidatorSettings {
         // constant_pool table. The constant_pool entry at that index must be a
         // CONSTANT_Utf8_info structure (§4.4.7) representing a valid binary class or
         // interface name encoded in internal form (§4.2.1).
-        match &c.constant_pool[class_info.name_index as usize].extract_string_from_utf8() {
+        match &c.constant_pool[class_info.name_index as usize].kind {
             ConstantKind::Utf8(utf8) => {
                 //todo validate the utf8 before use
                 let name_string = &utf8.string;
@@ -244,7 +247,7 @@ impl ValidatorSettings {
         //from the spec:
         // An array type descriptor is valid only if it represents 255 or fewer dimensions.
 
-        if name.chars().filter(|c| c == '[').count() > MAX_ARRAY_DIMENSIONS {
+        if name.chars().filter(|c| *c == '[').count() > MAX_ARRAY_DIMENSIONS {
             return Result::Err(ClassfileError::TooManyArrayDimensionsInName);
         }
         Result::Ok(())
@@ -270,7 +273,7 @@ impl ValidatorSettings {
         self.is_utf8_check(f.descriptor_index, c)?;
         self.is_utf8_check(f.name_index, c)?;
         for attribute in &f.attributes {
-            self.validate_attribute(attribute, c, &AttributeEnclosingType::Field);
+            self.validate_attribute(attribute, c, &AttributeEnclosingType::Field)?;
         }
         Result::Ok(())
     }
@@ -280,32 +283,30 @@ impl ValidatorSettings {
         //Methods of classes may have any of the flags in Table 4.6-A set. However,
         // each method of a class may have at most one of its ACC_PUBLIC , ACC_PRIVATE ,
         // and ACC_PROTECTED flags set (JLS §8.4.3).
-        let public = f.access_flags & ACC_PUBLIC > 0;
-        let private = f.access_flags & ACC_PRIVATE > 0;
-        let protected = f.access_flags & ACC_PROTECTED > 0;
+        let public = m.access_flags & ACC_PUBLIC > 0;
+        let private = m.access_flags & ACC_PRIVATE > 0;
+        let protected = m.access_flags & ACC_PROTECTED > 0;
         if (public && private) || (private && protected) || (public && protected) || (!public && !private && !protected) {
             return Result::Err(ClassfileError::PublicPrivateProtectedIncompatible);
         }
         //there are number of other constraints on method access_flags, these should be handled by classfile verifier.
-        self.is_utf8_check(m.name_index,c);
-        self.is_utf8_check(m.descriptor_index,c);
+        self.is_utf8_check(m.name_index, c)?;
+        self.is_utf8_check(m.descriptor_index, c)?;
         for attr in &m.attributes {
-            self.validate_attribute(attr,c,&AttributeEnclosingType::Method);
+            self.validate_attribute(attr, c, &AttributeEnclosingType::Method)?;
         }
         Result::Ok(())
     }
 
 
-
     pub fn validate_attribute(&self, a: &AttributeInfo, c: &Classfile, attr: &AttributeEnclosingType) -> Result<(), ClassfileError> {
-
-
-        match &a.attribute_type{
+        //todo finish up attribute validation implementation
+        match &a.attribute_type {
             AttributeType::SourceFile(_) |
             AttributeType::SourceDebugExtension(_) |
             AttributeType::LineNumberTable(_) |
             AttributeType::LocalVariableTable(_) |
-            AttributeType::LocalVariableTypeTable(_)|
+            AttributeType::LocalVariableTypeTable(_) |
             AttributeType::Deprecated(_) => {
                 //from spec:
                 //Six attributes are not critical to correct interpretation of the class file by either
@@ -319,30 +320,26 @@ impl ValidatorSettings {
                 // • Deprecated
                 // in other words we don't validate or use these for now. todo
             }
-            AttributeType::InnerClasses(inner_classes) => {
-
-            }
-            AttributeType::EnclosingMethod(_) => {},
-            AttributeType::BootstrapMethods(_) => {},
-            AttributeType::Module(_) => {},
-            AttributeType::NestHost(_) => {},
-            AttributeType::NestMembers(_) => {},
-            AttributeType::ConstantValue(cv) => {
-
-            },
-            AttributeType::Code(_) => {},
-            AttributeType::Exceptions(_) => {},
-            AttributeType::RuntimeVisibleParameterAnnotations(_) => {},
-            AttributeType::RuntimeInvisibleParameterAnnotations(_) => {},
-            AttributeType::AnnotationDefault(_) => {},
-            AttributeType::MethodParameters(_) => {},
-            AttributeType::Synthetic(_) => {},
-            AttributeType::Signature(_) => {},
-            AttributeType::RuntimeVisibleAnnotations(_) => {},
-            AttributeType::RuntimeInvisibleAnnotations(_) => {},
-            AttributeType::StackMapTable(_) => {},
-            AttributeType::RuntimeVisibleTypeAnnotations(_) => {},
-            AttributeType::RuntimeInvisibleTypeAnnotations(_) => {},
+            AttributeType::InnerClasses(_) => {}
+            AttributeType::EnclosingMethod(_) => {}
+            AttributeType::BootstrapMethods(_) => {}
+            AttributeType::Module(_) => {}
+            AttributeType::NestHost(_) => {}
+            AttributeType::NestMembers(_) => {}
+            AttributeType::ConstantValue(cv) => {}
+            AttributeType::Code(_) => {}
+            AttributeType::Exceptions(_) => {}
+            AttributeType::RuntimeVisibleParameterAnnotations(_) => {}
+            AttributeType::RuntimeInvisibleParameterAnnotations(_) => {}
+            AttributeType::AnnotationDefault(_) => {}
+            AttributeType::MethodParameters(_) => {}
+            AttributeType::Synthetic(_) => {}
+            AttributeType::Signature(_) => {}
+            AttributeType::RuntimeVisibleAnnotations(_) => {}
+            AttributeType::RuntimeInvisibleAnnotations(_) => {}
+            AttributeType::StackMapTable(_) => {}
+            AttributeType::RuntimeVisibleTypeAnnotations(_) => {}
+            AttributeType::RuntimeInvisibleTypeAnnotations(_) => {}
         }
         Result::Ok(())
     }

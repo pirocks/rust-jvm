@@ -3,7 +3,7 @@ use crate::jvmti::get_state;
 use std::cell::RefMut;
 use std::os::raw::c_void;
 
-pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
+pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, _thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
     //todo this is wrong b/c it ignores thread
     jvm.jvmti_state.jvmti_thread_local_storage.with(|tls_ptr| {
@@ -12,7 +12,7 @@ pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jt
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-pub unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data: *const ::std::os::raw::c_void) -> jvmtiError {
+pub unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, _thread: jthread, data: *const ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
     jvm.jvmti_state.jvmti_thread_local_storage.with(|tls_ptr| {
         let mut ref_mut: RefMut<*mut c_void> = tls_ptr.borrow_mut();
