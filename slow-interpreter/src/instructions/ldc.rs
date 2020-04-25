@@ -1,7 +1,7 @@
 use rust_jvm_common::classfile::{ConstantInfo, Class, String_, ConstantKind};
 use rust_jvm_common::classnames::ClassName;
 use crate::{StackEntry, JVMState};
-use crate::interpreter_util::{check_inited_class, push_new_object, run_function};
+use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::sync::Arc;
 use crate::instructions::invoke::find_target_method;
 use std::mem::transmute;
@@ -13,6 +13,7 @@ use crate::java_values::{JavaValue, Object, ArrayObject};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use crate::class_objects::get_or_create_class_object;
 use std::ops::Deref;
+use crate::interpreter::run_function;
 
 
 fn load_class_constant(state: &JVMState, current_frame: &StackEntry, constant_pool: &Vec<ConstantInfo>, c: &Class) {

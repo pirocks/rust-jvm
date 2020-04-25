@@ -2,7 +2,7 @@
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::instructions::invoke::find_target_method;
-use crate::interpreter_util::{check_inited_class, run_function};
+use crate::interpreter_util::check_inited_class;
 use std::sync::Arc;
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ACC_ABSTRACT, MethodInfo};
 use crate::instructions::invoke::native::run_native_method;
@@ -12,6 +12,7 @@ use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 use std::ops::Deref;
+use crate::interpreter::run_function;
 
 pub fn run_invoke_static(state: & JVMState, current_frame: &StackEntry, cp: u16) {
 //todo handle monitor enter and exit

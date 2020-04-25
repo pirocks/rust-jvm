@@ -3,7 +3,7 @@ use crate::instructions::invoke::resolved_class;
 use std::sync::Arc;
 use rust_jvm_common::classfile::{MethodInfo, ACC_NATIVE, ACC_ABSTRACT};
 use crate::rust_jni::get_all_methods;
-use crate::interpreter_util::{run_function, check_inited_class};
+use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::ClassName;
 use std::ops::Deref;
 use crate::instructions::invoke::native::run_native_method;
@@ -13,6 +13,7 @@ use crate::java_values::{JavaValue, Object};
 use crate::{StackEntry, JVMState};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use crate::interpreter::run_function;
 
 
 /**

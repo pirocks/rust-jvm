@@ -6,12 +6,12 @@ use rust_jvm_common::classfile::{Classfile, ACC_FINAL, ACC_STATIC};
 use std::hash::{Hash, Hasher};
 use classfile_view::view::ClassView;
 use classfile_view::loading::LoaderArc;
-use crate::interpreter_util::run_function;
 
 use crate::{StackEntry, JVMState};
 use crate::instructions::ldc::from_constant_pool_entry;
 use descriptor_parser::parse_field_descriptor;
 use classfile_view::view::ptype_view::PTypeView;
+use crate::interpreter::run_function;
 
 
 pub struct RuntimeClass {

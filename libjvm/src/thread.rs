@@ -1,4 +1,4 @@
-use slow_interpreter::interpreter_util::{run_function, push_new_object, check_inited_class};
+use slow_interpreter::interpreter_util::{push_new_object, check_inited_class};
 
 use std::cell::RefCell;
 use std::sync::{Arc, RwLockWriteGuard, RwLock};
@@ -15,6 +15,7 @@ use std::rc::Rc;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use parking_lot::Mutex;
+use slow_interpreter::interpreter::run_function;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {

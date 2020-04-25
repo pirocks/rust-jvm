@@ -17,7 +17,7 @@ use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH, JavaVM, JNI_VERSION_1_8};
 use log::trace;
-use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_function, run_constructor};
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::instructions::ldc::{load_class_constant_by_type, create_string_on_stack};
 use rust_jvm_common::ptype::PType;
 use slow_interpreter::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};

@@ -1,4 +1,4 @@
-use crate::interpreter_util::{run_function, check_inited_class};
+use crate::interpreter_util::check_inited_class;
 
 use crate::instructions::invoke::virtual_::setup_virtual_args;
 use crate::instructions::invoke::find_target_method;
@@ -12,6 +12,7 @@ use classfile_view::view::ClassView;
 use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
+use crate::interpreter::run_function;
 
 pub fn invoke_special(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader.clone();
