@@ -10,14 +10,14 @@ pub trait ParsingContext {
     fn constant_pool_borrow(&self) -> &Vec<ConstantInfo>;
 }
 
-pub(crate) struct FileParsingContext<'l> {
+pub(crate) struct ReadParsingContext<'l> {
     pub(crate) read: &'l mut dyn Read,
     pub(crate) constant_pool: Option<Vec<ConstantInfo>>,
 }
 
 const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";
 
-impl ParsingContext for FileParsingContext<'_> {
+impl ParsingContext for ReadParsingContext<'_> {
     fn read8(&mut self) -> u8 {
         let mut buffer = [0; 1];
         let bytes_read = self.read.read(&mut buffer).expect(IO_ERROR_MSG);

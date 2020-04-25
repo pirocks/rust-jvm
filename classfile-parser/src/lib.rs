@@ -6,7 +6,7 @@ use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo,
 use crate::attribute_infos::parse_attributes;
 use crate::constant_infos::parse_constant_infos;
 use crate::parsing_util::ParsingContext;
-use crate::parsing_util::FileParsingContext;
+use crate::parsing_util::ReadParsingContext;
 use std::io::{Read, BufReader};
 
 
@@ -71,7 +71,7 @@ pub fn parse_methods(p: &mut dyn ParsingContext, methods_count: u16) -> Vec<Meth
 }
 
 pub fn parse_class_file(read: &mut dyn Read) -> Classfile {
-    let mut p = FileParsingContext { constant_pool: None, read: &mut BufReader::new(read) };
+    let mut p = ReadParsingContext { constant_pool: None, read: &mut BufReader::new(read) };
     let mut class_file = parse_from_context(&mut p);
     class_file.constant_pool = p.constant_pool();//todo to avoid this yuckiness two pass parsing could be used
     class_file
