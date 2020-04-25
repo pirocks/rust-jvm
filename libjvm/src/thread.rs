@@ -1,19 +1,20 @@
 use slow_interpreter::interpreter_util::{run_function, push_new_object, check_inited_class};
 
 use std::cell::RefCell;
-use std::sync::{Arc, RwLockWriteGuard};
+use std::sync::{Arc, RwLockWriteGuard, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use jni_bindings::{JNIEnv, jclass, jobject, jlong, jint, jboolean, jobjectArray, jstring, jintArray};
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::java_values::{JavaValue, Object};
-use slow_interpreter::{JVMState, JavaThread, InterpreterState};
+use slow_interpreter::{JVMState, JavaThread, InterpreterState, SuspendedStatus};
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::stack_entry::StackEntry;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
+use parking_lot::Mutex;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -21,6 +22,8 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
     let tid = thread_object.tid();
+    dbg!("start");
+    dbg!(thread_object.name().to_rust_string());
     let mut all_threads_guard = jvm.thread_state.alive_threads.write().unwrap();
     if all_threads_guard.contains_key(&tid) {
         //todo for now we ignore this, but irl we should only ignore this for main thread
@@ -36,6 +39,10 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
                 terminate: RefCell::new(false),
                 throw: RefCell::new(None),
                 function_return: RefCell::new(false),
+                suspended: RwLock::new(SuspendedStatus{
+                    suspended: false,
+                    suspended_lock: Mutex::new(())
+                })
             },
         });
         all_threads_guard.insert(tid, thread_from_rust.clone());
@@ -68,7 +75,10 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     let jvm = get_state(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
     let tid = thread_object.tid();
-    let mut alive = jvm.thread_state.alive_threads.read().unwrap().contains_key(&tid);
+    let mut alive = jvm.thread_state.alive_threads.read().unwrap().get(&tid)
+        //todo this is jank.
+        .map(|thread|!thread.interpreter_state.suspended.read().unwrap().suspended)
+        .unwrap_or(false);
     alive as jboolean
 }
 

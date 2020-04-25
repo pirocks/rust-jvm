@@ -4,7 +4,7 @@ use crate::rust_jni::MethodId;
 use jni_bindings::{JNIEnv, jobject, jmethodID, jclass, JNINativeInterface_, jboolean};
 use std::ffi::{VaList, VaListImpl, c_void};
 
-use log::trace;
+// use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use classfile_view::view::ptype_view::PTypeView;
@@ -60,9 +60,9 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
         }
     }
 //todo add params into operand stack;
-    trace!("----NATIVE EXIT ----");
+//     trace!("----NATIVE EXIT ----");
     invoke_virtual_method_i(state, parsed, method_id.class.clone(), method_id.method_i, method, false);
-    trace!("----NATIVE ENTER ----");
+    // trace!("----NATIVE ENTER ----");
     frame
 }
 
@@ -84,9 +84,9 @@ pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, 
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
 //todo dup
     push_params_onto_frame(&mut l, &frame, &parsed);
-    trace!("----NATIVE EXIT ----");
+    // trace!("----NATIVE EXIT ----");
     invoke_static_impl(state, parsed, method_id.class.clone(), method_id.method_i, method);
-    trace!("----NATIVE ENTER----");
+    // trace!("----NATIVE ENTER----");
     frame_rc
 }
 

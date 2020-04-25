@@ -106,7 +106,7 @@ pub fn run_function(
     // let class_name_ = class_name__.clone().get_referred_name();
     let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
     let current_depth = jvm.get_current_thread().call_stack.borrow().len();
-    println!("CALL BEGIN:{:?} {} {} {} {}", &class_name__, &meth_name, method_desc, current_depth, jvm.get_current_thread().java_tid);
+    // println!("CALL BEGIN:{:?} {} {} {} {}", &class_name__, &meth_name, method_desc, current_depth, jvm.get_current_thread().java_tid);
     // let debug = &meth_name == "getDeclaredMethod";
     let debug = /*current_depth == 17 && *//*class_name_ == "java/lang/invoke/MethodHandleImpl$Lazy" &&*/ meth_name == "<clinit>".to_string();
     // if debug {
@@ -115,15 +115,16 @@ pub fn run_function(
     let interpreter_state = &jvm.get_current_thread().interpreter_state;
     assert!(!*interpreter_state.function_return.borrow());
     let method_id = MethodId { class: current_frame.class_pointer.clone(), method_i: current_frame.method_i as usize };
-    let breakpoint_indices = jvm.jvmti_state.break_points
-        .read().unwrap()
+    let breakpoint_guard = jvm.jvmti_state.break_points.read().unwrap();
+    let breakpoint_indices = breakpoint_guard
         .get(&method_id)
         .and_then(|breakpoints| {
-            breakpoints.read().unwrap()
+            breakpoints
                 .iter().map(|x| *x)
                 .collect::<HashSet<_>>()
                 .into()
         });
+    std::mem::drop(breakpoint_guard);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = if synchronized {
         let monitor = if method.is_static() {
@@ -143,6 +144,7 @@ pub fn run_function(
         None
     };
     while !*interpreter_state.terminate.borrow() && !*interpreter_state.function_return.borrow() && !interpreter_state.throw.borrow().is_some() {
+        std::mem::drop(interpreter_state.suspended.read().unwrap().suspended_lock.lock());//so this will block when threads are suspended
         let (instruct, instruction_size) = {
             let current = &code.code_raw[*current_frame.pc.borrow()..];
             let mut context = CodeParserContext { offset: *current_frame.pc.borrow(), iter: current.iter() };
@@ -442,7 +444,7 @@ pub fn run_function(
     /*if &meth_name == "getSimpleName"{
         dbg!(&current_frame.last_call_stack.as_ref().unwrap().operand_stack.borrow());
     }*/
-    println!("CALL END:{:?} {} {} {}", &class_name__, meth_name, current_depth, jvm.get_current_thread().java_tid);
+    // println!("CALL END:{:?} {} {} {}", &class_name__, meth_name, current_depth, jvm.get_current_thread().java_tid);
 }
 
 

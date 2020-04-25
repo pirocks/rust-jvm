@@ -299,7 +299,7 @@ impl ValidatorSettings {
     }
 
 
-    pub fn validate_attribute(&self, a: &AttributeInfo, c: &Classfile, attr: &AttributeEnclosingType) -> Result<(), ClassfileError> {
+    pub fn validate_attribute(&self, a: &AttributeInfo, _c: &Classfile, _attr: &AttributeEnclosingType) -> Result<(), ClassfileError> {
         //todo finish up attribute validation implementation
         match &a.attribute_type {
             AttributeType::SourceFile(_) |
@@ -326,7 +326,7 @@ impl ValidatorSettings {
             AttributeType::Module(_) => {}
             AttributeType::NestHost(_) => {}
             AttributeType::NestMembers(_) => {}
-            AttributeType::ConstantValue(cv) => {}
+            AttributeType::ConstantValue(_cv) => {}
             AttributeType::Code(_) => {}
             AttributeType::Exceptions(_) => {}
             AttributeType::RuntimeVisibleParameterAnnotations(_) => {}

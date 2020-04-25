@@ -53,8 +53,8 @@ pub fn run_native_method(
     }
 
     if _debug {
-        dbg!(&args);
-        dbg!(&frame.operand_stack);
+        // dbg!(&args);
+        // dbg!(&frame.operand_stack);
     }
     // println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
     let meth_name = method.method_name(classfile);

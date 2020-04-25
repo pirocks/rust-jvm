@@ -1,6 +1,7 @@
 #![feature(c_variadic)]
 #![feature(thread_local)]
 #![feature(vec_leak)]
+#![feature(box_syntax)]
 extern crate log;
 extern crate simple_logger;
 extern crate libloading;
@@ -28,7 +29,7 @@ use std::sync::atomic::AtomicUsize;
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
-use std::time::Instant;
+use std::time::{Instant, Duration};
 use crate::jvmti::SharedLibJVMTI;
 use crate::java::lang::thread::JThread;
 use crate::loading::{Classpath, BootstrapLoader};
@@ -36,10 +37,12 @@ use crate::stack_entry::StackEntry;
 use std::thread::LocalKey;
 use std::rc::Rc;
 use crate::monitor::Monitor;
-use jni_bindings::{JNIInvokeInterface_};
+use jni_bindings::JNIInvokeInterface_;
 use std::ffi::c_void;
 use jvmti_bindings::{jrawMonitorID, jlong};
 use crate::rust_jni::MethodId;
+use lock_api::Mutex;
+use parking_lot::RawMutex;
 
 
 pub mod java_values;
@@ -77,7 +80,15 @@ impl JavaThread {
 pub struct InterpreterState {
     pub terminate: RefCell<bool>,
     pub throw: RefCell<Option<Arc<Object>>>,
-    pub function_return: RefCell<bool>,
+    pub function_return: RefCell<bool>,//todo find some way of clarifying these can only be acessed from one thread
+    pub suspended: std::sync::RwLock<SuspendedStatus>
+}
+
+#[derive(Debug)]
+pub struct SuspendedStatus{
+    pub suspended : bool,
+    pub suspended_lock: Mutex<RawMutex,()>,
+    // pub suspend_critical_section_lock: Mutex<RawMutex,()>
 }
 
 pub struct SharedLibraryPaths {
@@ -146,8 +157,8 @@ pub struct ThreadState {
     monitors: RwLock<Vec<Arc<Monitor>>>,
 }
 
-impl ThreadState{
-    pub fn get_monitor(&self,monitor: jrawMonitorID)-> Arc<Monitor>{
+impl ThreadState {
+    pub fn get_monitor(&self, monitor: jrawMonitorID) -> Arc<Monitor> {
         let monitors_read_guard = self.monitors.read().unwrap();
         let monitor = monitors_read_guard[monitor as usize].clone();
         std::mem::drop(monitors_read_guard);
@@ -224,7 +235,7 @@ impl JVMState {
                 built_in_jdwp: Arc::new(SharedLibJVMTI::load_libjdwp(libjdwp.as_str())),
                 jvmti_thread_local_storage: &JVMTI_TLS,
                 break_points: RwLock::new(HashMap::new()),
-                tags: RwLock::new(HashMap::new())
+                tags: RwLock::new(HashMap::new()),
             },
             thread_state: ThreadState {
                 alive_threads: RwLock::new(HashMap::new()),
@@ -239,7 +250,7 @@ impl JVMState {
     pub fn new_monitor(&self, name: String) -> Arc<Monitor> {
         let mut monitor_guard = self.thread_state.monitors.write().unwrap();
         let index = monitor_guard.len();
-        let res = Arc::new(Monitor::new(name,index));
+        let res = Arc::new(Monitor::new(name, index));
         monitor_guard.push(res.clone());
         res
     }
@@ -248,11 +259,12 @@ impl JVMState {
 
 type CodeIndex = isize;
 type TransmutedObjectPointer = usize;
+
 pub struct JVMTIState {
     pub built_in_jdwp: Arc<SharedLibJVMTI>,
     jvmti_thread_local_storage: &'static LocalKey<RefCell<*mut c_void>>,
-    pub break_points: RwLock<HashMap<MethodId,RwLock<HashSet<CodeIndex>>>>,
-    pub tags: RwLock<HashMap<TransmutedObjectPointer,jlong>>
+    pub break_points: RwLock<HashMap<MethodId, HashSet<CodeIndex>>>,
+    pub tags: RwLock<HashMap<TransmutedObjectPointer, jlong>>,
 }
 
 struct LivePoolGetterImpl {
@@ -288,7 +300,7 @@ impl JVMState {
 
     pub fn register_main_thread(&self, main_thread: Arc<JavaThread>) {
         //todo perhaps there should be a single rw lock for this
-        // self.alive_threads.write().unwrap().insert(,main_thread.clone());
+        self.thread_state.alive_threads.write().unwrap().insert(1,main_thread.clone());
         let mut main_thread_writer = self.thread_state.main_thread.write().unwrap();
         main_thread_writer.replace(main_thread.clone().into());
         self.set_current_thread(main_thread);
@@ -307,10 +319,9 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let main_class = prepare_class(main_view.clone().backing_class(), jvm.bootstrap_loader.clone());
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.main_thread();
-
-
-
-
+    assert!(Arc::ptr_eq(&jvm.get_current_thread(),&main_thread));
+    dbg!(main_thread.thread_object.borrow().as_ref().unwrap().name().to_rust_string());
+    dbg!(main_thread.thread_object.borrow().as_ref().unwrap().tid());
 
     jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
     let main_stack = Rc::new(StackEntry {
@@ -322,7 +333,22 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
         pc_offset: 0.into(),
     });
     jvm.main_thread().call_stack.replace(vec![main_stack]);
-    jvm.jvmti_state.built_in_jdwp.thread_start(&jvm,jvm.main_thread().thread_object.borrow().clone().unwrap());
+    jvm.jvmti_state.built_in_jdwp.thread_start(&jvm, jvm.main_thread().thread_object.borrow().clone().unwrap());
+    //trigger breakpoint on thread.resume for debuggers that rely on that:
+
+    let thread_class = check_inited_class(&jvm, &ClassName::thread(), jvm.bootstrap_loader.clone());
+    let method_i = thread_class.classfile.lookup_method("resume".to_string(), "()V".to_string()).unwrap().0;
+    let thread_resume_id = MethodId { class: thread_class, method_i };
+    let breakpoints = jvm.jvmti_state.break_points.read().unwrap();
+    let breakpoint_offsets = breakpoints.get(&thread_resume_id);
+    std::mem::drop(breakpoint_offsets
+        .map(|x| x.iter().for_each(|i| {
+            //todo handle this breakpoint the usual way
+            jvm.jvmti_state.built_in_jdwp.breakpoint(&jvm,thread_resume_id.clone(),*i);
+        })));
+    std::mem::drop(breakpoints);
+    std::thread::sleep(Duration::new(2,0));
+    jvm.jvmti_state.built_in_jdwp.breakpoint(&jvm,thread_resume_id.clone(),0);
     run_function(&jvm);
     if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
         unimplemented!()
@@ -350,6 +376,10 @@ fn jvm_run_system_init(jvm: &JVMState) {
             terminate: RefCell::new(false),
             throw: RefCell::new(None),
             function_return: RefCell::new(false),
+            suspended: RwLock::new(SuspendedStatus{
+                suspended: false,
+                suspended_lock: Mutex::new(())
+            })
         },
     }));
     let system_class = check_inited_class(jvm, &ClassName::system(), bl.clone());

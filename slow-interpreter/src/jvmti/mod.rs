@@ -15,7 +15,7 @@ use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
-use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info};
+use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread};
 use crate::rust_jni::MethodId;
 use crate::rust_jni::native_util::to_object;
 use crate::jvmti::thread_local_storage::*;
@@ -101,6 +101,22 @@ impl SharedLibJVMTI {
             }
         }
     }
+
+    pub fn breakpoint(&self, jvm: &JVMState, method: MethodId, location: isize){
+        unsafe {
+            let thread = to_object(jvm.get_current_thread().thread_object.borrow().as_ref().unwrap().clone().object().into());
+            let jvmti = box get_jvmti_interface(jvm);
+            let jni = box transmute(get_interface(jvm));
+            let native_method_id = box method;//todo leaks here , use a vtable based methodId
+            self.Breakpoint(
+                Box::leak(jvmti),
+                Box::leak(jni),
+                transmute(thread),
+                transmute(Box::leak(native_method_id)),
+                location as i64
+            )
+        }
+    }
 }
 
 #[allow(non_snake_case)]
@@ -142,7 +158,7 @@ pub trait DebuggerEventConsumer {
     fn GarbageCollectionFinish_disable(&self);
 
 
-    unsafe fn Breakpoint(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation);
+    unsafe fn Breakpoint(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation);
     fn Breakpoint_enable(&self);
     fn Breakpoint_disable(&self);
 }
@@ -247,8 +263,10 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.garbage_collection_finish_enabled.write().unwrap() = false;
     }
 
-    unsafe fn Breakpoint(_jvmti_env: *mut *const jvmtiInterface_1_, _jni_env: *mut *const JNINativeInterface_, _thread: *mut _jobject, _method: *mut _jmethodID, _location: i64) {
-        unimplemented!()
+    unsafe fn Breakpoint(&self,jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, method: *mut _jmethodID, location: i64) {
+        if *self.breakpoint_enabled.read().unwrap(){
+            (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env,jni_env,thread,method,location);
+        }
     }
 
     fn Breakpoint_enable(&self) {
@@ -266,7 +284,7 @@ impl SharedLibJVMTI {
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
-            let args = CString::new("transport=dt_socket,server=y,suspend=n,address=5005").unwrap().into_raw();//todo parse these at jvm startup
+            let args = CString::new("transport=dt_socket,server=y,suspend=y,address=5005").unwrap().into_raw();//todo parse these at jvm startup
             let interface: *const JNIInvokeInterface_ = get_invoke_interface(state);
             agent_load_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError//todo leak
         }
@@ -342,7 +360,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         SetEventNotificationMode: Some(set_event_notification_mode),
         reserved3: std::ptr::null_mut(),
         GetAllThreads: Some(get_all_threads),
-        SuspendThread: None,
+        SuspendThread: Some(suspend_thread),
         ResumeThread: None,
         StopThread: None,
         InterruptThread: None,
@@ -429,7 +447,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetCapabilities: Some(get_capabilities),
         GetSourceDebugExtension: None,
         IsMethodObsolete: None,
-        SuspendThreadList: None,
+        SuspendThreadList: Some(suspend_thread_list),
         ResumeThreadList: None,
         reserved94: std::ptr::null_mut(),
         reserved95: std::ptr::null_mut(),
@@ -520,12 +538,12 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
     let method_id = (method as *mut MethodId).as_ref().unwrap();
     dbg!(&method_id);
     let mut breakpoint_guard = jvm.jvmti_state.break_points.write().unwrap();
-    match breakpoint_guard.get(method_id) {
+    match breakpoint_guard.get_mut(method_id) {
         None => {
-            breakpoint_guard.insert(method_id.clone(), RwLock::new(HashSet::from_iter(vec![location as isize].iter().cloned())));
+            breakpoint_guard.insert(method_id.clone(), HashSet::from_iter(vec![location as isize].iter().cloned()));
         }
         Some(breakpoints) => {
-            breakpoints.write().unwrap().insert(location as isize);//todo should I cast here?
+            breakpoints.insert(location as isize);//todo should I cast here?
         }
     }
     jvmtiError_JVMTI_ERROR_NONE

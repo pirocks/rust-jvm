@@ -116,11 +116,11 @@ pub fn call_impl(jvm: & JVMState, current_frame: &StackEntry, classfile: Arc<Run
     let cif = Cif::new(args_type.into_iter(), Type::usize());
 //todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
-   trace!("----NATIVE ENTER----");
+   // trace!("----NATIVE ENTER----");
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
-   trace!("----NATIVE EXIT ----");
+   // trace!("----NATIVE EXIT ----");
     match PTypeView::from_ptype(&md.return_type) {
         PTypeView::VoidType => {
             None
