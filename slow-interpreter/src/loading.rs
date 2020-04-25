@@ -56,7 +56,7 @@ impl Loader for BootstrapLoader {
 
     fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc, live_pool_getter: Arc<dyn LivePoolGetter>) -> Result<ClassView, ClassLoadingError> {
         if !self.initiating_loader_of(class) {
-            trace!("loading {}", class.get_referred_name());
+            // trace!("loading {}", class.get_referred_name());
             let classfile = self.pre_load(class)?;
             if class != &ClassName::object() {
                 if classfile.super_name() == None {

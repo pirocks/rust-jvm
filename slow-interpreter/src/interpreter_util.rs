@@ -108,6 +108,7 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
                 return check_inited_class(jvm, &ClassName::void(), loader_arc);
             }
             let bl = jvm.bootstrap_loader.clone();
+            jvm.tracing.trace_class_loads(&class_name);
             let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, jvm.get_live_object_pool_getter()).unwrap();
 
             let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));

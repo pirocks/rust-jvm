@@ -163,20 +163,20 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                       methods: *const JNINativeMethod,
                                       n_methods: jint) -> jint {
     println!("Call to register_natives, n_methods: {}", n_methods);
-    let state = get_state(env);
+    let jvm = get_state(env);
     // dbg!(state.get_current_thread());
     for to_register_i in 0..n_methods {
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
-        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz, state, &get_frame(env)).unwrap();
-        let jni_context = &state.jni;
+        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz, jvm, &get_frame(env)).unwrap();
+        let jni_context = &jvm.jni;
         let classfile = &runtime_class.classfile;
         &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
             let descriptor_str = method_info.descriptor_str(classfile);
             let current_name = method_info.method_name(classfile);
             if current_name == expected_name && descriptor == descriptor_str {
-                println!("Registering method:{},{},{}", class_name(classfile).get_referred_name(), expected_name, descriptor_str);
+                jvm.tracing.trace_jni_register(&class_name(classfile),expected_name.as_str());
                 register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
             }
         });

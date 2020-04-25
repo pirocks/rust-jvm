@@ -35,6 +35,8 @@ pub struct InternalFrame {
 pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> ClassView {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     if class.loader.initiating_loader_of(&class.class_name) {
+        // verifier_context.jvm
+        //todo maybe trace load here
         match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.bootstrap_loader.clone(),verifier_context.live_pool_getter.clone()) {
             Ok(c) => c,
             Err(_) => panic!(),

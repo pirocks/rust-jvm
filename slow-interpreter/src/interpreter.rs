@@ -138,7 +138,13 @@ fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &Stri
 
 }
 
-fn monitor_for_function(jvm: &JVMState, current_frame: &StackEntry, method: &MethodInfo, synchronized: bool, class_name__: &ClassName) -> Option<Arc<Monitor>>{
+fn monitor_for_function(
+    jvm: &JVMState,
+    current_frame: &StackEntry,
+    method: &MethodInfo,
+    synchronized: bool,
+    class_name__: &ClassName
+) -> Option<Arc<Monitor>>{
      if synchronized {
         let monitor = if method.is_static() {
             let class_object = get_or_create_class_object(
