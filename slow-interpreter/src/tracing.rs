@@ -23,9 +23,9 @@ impl TracingSettings {
         TracingSettings {
             trace_function_end: false,
             trace_function_start: false,
-            trace_jni_register: true,
-            trace_jni_dynamic_link: true,
-            trace_class_loads: true,
+            trace_jni_register: false,
+            trace_jni_dynamic_link: false,
+            trace_class_loads: false,
             trace_jdwp_events: true,
             trace_jdwp_function_enter: true,
             trace_jdwp_function_exit: true,//todo parse this from options in future
@@ -88,6 +88,30 @@ impl TracingSettings {
     pub fn trace_monitor_notify_all(&self, m: &Monitor) {
         if self.trace_monitor_notify_all {
             println!("Monitor notify all:{}, thread:{}", m.name, std::thread::current().name().unwrap_or("unknown"));
+        }
+    }
+
+    pub fn trace_jdwp_function_enter(&self, jvm: &JVMState, function_name: &str) {
+        if self.trace_jdwp_function_enter{
+            let current_thread = std::thread::current();
+            let vm_life = if jvm.vm_live() {
+                current_thread.name().unwrap_or("unknown thread")
+            }else {
+                "VM not live"
+            };
+            println!("JVMTI [{}] {} {{",vm_life, function_name);
+        }
+    }
+
+    pub fn trace_jdwp_function_exit(&self, jvm: &JVMState, function_name: &str) {
+        if self.trace_jdwp_function_enter{
+            let current_thread = std::thread::current();
+            let vm_life = if jvm.vm_live() {
+                current_thread.name().unwrap_or("unknown thread")
+            }else {
+                "VM not live"
+            };
+            println!("JVMTI [{}] {} }}",vm_life, function_name);
         }
     }
 }

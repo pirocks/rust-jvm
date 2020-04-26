@@ -27,12 +27,12 @@ unsafe impl Sync for ThreadArgWrapper {}
 pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, _priority: jint) -> jvmtiError {
     //todo implement thread priority
     let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm,"RunAgentThread");
     let args = ThreadArgWrapper { proc_, arg, thread };
     let system_class = check_inited_class(jvm, &ClassName::system(), jvm.bootstrap_loader.clone());
 //TODO ADD THREAD TO JVM STATE STRUCT
     std::thread::spawn(move || {
         let ThreadArgWrapper { proc_, arg, thread } = args;
-//unsafe extern "C" fn(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, arg: *mut ::std::os::raw::c_void)
         let thread_object = JavaValue::Object(from_object(transmute(thread))).cast_thread();
         let agent_thread = Arc::new(JavaThread {
             java_tid: thread_object.tid(),
@@ -65,5 +65,6 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         let mut jni_env = get_interface(jvm);
         proc_.unwrap()(&mut jvmti, transmute(&mut jni_env), arg as *mut c_void)
     });
+    jvm.tracing.trace_jdwp_function_exit(jvm,"RunAgentThread");
     jvmtiError_JVMTI_ERROR_NONE
 }

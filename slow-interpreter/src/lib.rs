@@ -151,6 +151,7 @@ pub struct JVMState {
     pub jvmti_state: JVMTIState,
     pub thread_state: ThreadState,
     pub tracing: TracingSettings,
+    live: RwLock<bool>,
 }
 
 
@@ -243,6 +244,7 @@ impl JVMState {
                 monitors: RwLock::new(vec![]),
             },
             tracing: TracingSettings::new(),
+            live: RwLock::new(false),
         }
     }
 
@@ -293,6 +295,10 @@ impl LivePoolGetter for NoopLivePoolGetter {
 
 
 impl JVMState {
+    pub fn vm_live(&self) -> bool {
+        *self.live.read().unwrap()
+    }
+
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter> {
         Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
     }
@@ -406,6 +412,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
     if jvm.main_thread().interpreter_state.throw.borrow().is_some() || *jvm.main_thread().interpreter_state.terminate.borrow() {
         unimplemented!()
     }
+    *jvm.live.write().unwrap() = true;
 }
 
 fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {

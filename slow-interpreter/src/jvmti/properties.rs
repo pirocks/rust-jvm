@@ -7,7 +7,8 @@ pub unsafe extern "C" fn get_system_property(
     property: *const ::std::os::raw::c_char,
     value_ptr: *mut *mut ::std::os::raw::c_char
 ) -> jvmtiError{
-
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm,"GetSystemProperty");
     let property_name = CStr::from_ptr(property).to_str().unwrap();
 
     //apparently different from System.getProperty()?
@@ -37,6 +38,6 @@ pub unsafe extern "C" fn get_system_property(
         return jvmtiError_JVMTI_ERROR_NONE//todo duplication
     }
 
-
+    jvm.tracing.trace_jdwp_function_exit(jvm,"GetSystemProperty");
     jvmtiError_JVMTI_ERROR_NOT_AVAILABLE
 }

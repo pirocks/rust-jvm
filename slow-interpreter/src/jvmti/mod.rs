@@ -335,6 +335,13 @@ thread_local! {
     static JVMTI_INTERFACE: RefCell<Option<jvmtiInterface_1_>> = RefCell::new(None);
 }
 
+/*macro_rules! jvmti_entry {
+    (name: ident, impl_function : expr) => {
+
+    };
+}*/
+
+/*static SetEventNotificationMode_ : unsafe extern "C" fn(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError = set_event_notification_mode;*/
 
 pub fn get_jvmti_interface(state: &JVMState) -> jvmtiEnv {
     JVMTI_INTERFACE.with(|refcell| {
@@ -514,7 +521,9 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
-pub unsafe extern "C" fn get_method_location(_env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
+pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm,"GetMethodLocation");
     let method_id = (method as *mut MethodId).as_ref().unwrap();
     match method_id.class.class_view.method_view_i(method_id.method_i).code_attribute() {
         None => {
@@ -526,15 +535,20 @@ pub unsafe extern "C" fn get_method_location(_env: *mut jvmtiEnv, method: jmetho
             end_location_ptr.write((code.code.len() - 1) as i64);
         }
     };
+    jvm.tracing.trace_jdwp_function_enter(jvm,"GetMethodLocation");
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-pub unsafe extern "C" fn dispose_environment(_env: *mut jvmtiEnv) -> jvmtiError {
+pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm,"DisposeEnvironment");
+    jvm.tracing.trace_jdwp_function_exit(jvm,"DisposeEnvironment");
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
 
 pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm,"SetBreakpoint");
     let method_id = (method as *mut MethodId).as_ref().unwrap();
     dbg!(&method_id);
     let mut breakpoint_guard = jvm.jvmti_state.break_points.write().unwrap();
@@ -546,6 +560,7 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
             breakpoints.insert(location as isize);//todo should I cast here?
         }
     }
+    jvm.tracing.trace_jdwp_function_exit(jvm,"SetBreakpoint");
     jvmtiError_JVMTI_ERROR_NONE
 }
 

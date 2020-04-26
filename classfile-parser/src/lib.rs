@@ -96,7 +96,7 @@ fn parse_from_context(p: &mut dyn ParsingContext) -> Classfile {
     let methods = parse_methods(p, methods_count);
     let attributes_count = p.read16();
     let attributes = parse_attributes(p, attributes_count);
-    let mut res = Classfile {
+    let res = Classfile {
         magic,
         minor_version,
         major_version,
