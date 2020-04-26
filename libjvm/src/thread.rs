@@ -23,8 +23,8 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
     let tid = thread_object.tid();
-    dbg!("start");
-    dbg!(thread_object.name().to_rust_string());
+    // dbg!("start");
+    // dbg!(thread_object.name().to_rust_string());
     let mut all_threads_guard = jvm.thread_state.alive_threads.write().unwrap();
     if all_threads_guard.contains_key(&tid) {
         //todo for now we ignore this, but irl we should only ignore this for main thread

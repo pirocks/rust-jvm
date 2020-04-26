@@ -10,7 +10,6 @@ use std::collections::vec_deque::VecDeque;
 use classfile_view::vtype::VType;
 use classfile_view::view::ClassView;
 use classfile_view::loading::{LoaderArc, ClassWithLoader, LivePoolGetter};
-use std::time::Duration;
 use std::sync::Arc;
 
 

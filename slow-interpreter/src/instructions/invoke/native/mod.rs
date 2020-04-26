@@ -58,7 +58,7 @@ pub fn run_native_method(
     }
     // println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
     let meth_name = method.method_name(classfile);
-    let debug = meth_name.contains("isAlive");
+    let debug = false;//meth_name.contains("isAlive");
     if meth_name == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         frame.push(JavaValue::Boolean(false))
     } else if meth_name == "arraycopy".to_string() {

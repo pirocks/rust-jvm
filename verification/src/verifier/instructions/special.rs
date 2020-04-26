@@ -153,7 +153,6 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
     let _popped_frame = can_pop(&env.vf, stack_frame, vec![field_type.clone()])?;
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), stack_frame)?;
     let current_loader = env.class_loader.clone();
-//    dbg!(&stack_frame);
     let next_frame = can_pop(&env.vf, stack_frame, vec![field_type, VType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     standard_exception_frame(stack_frame, next_frame)
 }
@@ -173,7 +172,7 @@ pub fn extract_field_descriptor(cp: CPIndex, class: ClassView) -> (ClassName, St
         }
     };
     let field_class_name = ClassName::Str(class_index);
-    let (field_name, descriptor_string) = (name_and_type_index.name(), name_and_type_index.desc());
+    let (field_name, descriptor_string) = (name_and_type_index.name(), name_and_type_index.desc_str());
     let field_descriptor = parse_field_descriptor(descriptor_string.as_ref()).unwrap();
     (field_class_name, field_name, field_descriptor)
 }

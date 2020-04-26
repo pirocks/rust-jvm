@@ -12,7 +12,6 @@ use std::intrinsics::transmute;
 use crate::instructions::invoke::special::invoke_special_impl;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::JavaValue;
-use descriptor_parser::parse_method_descriptor;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
 use crate::invoke_interface::get_invoke_interface;
@@ -78,11 +77,10 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     let state = get_state(env);
     let frame_temp = state.get_current_frame();
     let frame = frame_temp.deref();
-    let classfile = &method_id.class.classfile;
-    let method = &classfile.methods[method_id.method_i];
-    let method_descriptor_str = method.descriptor_str(classfile);
-    let _name = method.method_name(classfile);
-    let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
+    let classview = &method_id.class.class_view;
+    let method = &classview.method_view_i(method_id.method_i);
+    let _name = method.name();
+    let parsed = method.desc();
     push_new_object(state,frame, &method_id.class);
     let obj = frame.pop();
     frame.push(obj.clone());
@@ -115,7 +113,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
         &parsed,
         method_id.method_i,
         method_id.class.clone(),
-        &classfile.methods[method_id.method_i],
+        &classview.method_view_i(method_id.method_i),
     );
     to_object(obj.unwrap_object())
 }
@@ -125,11 +123,10 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     let state = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
-    let classfile = &method_id.class.classfile;
-    let method = &classfile.methods[method_id.method_i];
-    let method_descriptor_str = method.descriptor_str(classfile);
-    let _name = method.method_name(classfile);
-    let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
+    let classview = &method_id.class.class_view;
+    let method = &classview.method_view_i(method_id.method_i);
+    let _name = method.name();
+    let parsed = method.desc();
     push_new_object(state,frame.clone(), &method_id.class);
     let obj = frame.pop();
     frame.push(obj.clone());
@@ -162,7 +159,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
         &parsed,
         method_id.method_i,
         method_id.class.clone(),
-        &classfile.methods[method_id.method_i],
+        &classview.method_view_i(method_id.method_i),
     );
     to_object(obj.unwrap_object())
 }

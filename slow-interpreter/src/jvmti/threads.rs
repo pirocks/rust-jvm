@@ -27,8 +27,8 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         /*.chain(vec![/*chain(vec![jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())*/jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())*/
         .map(|v| {
             let thread_object_arc = v.thread_object.borrow().as_ref().unwrap().clone();
-            dbg!(thread_object_arc.tid());
-            dbg!(thread_object_arc.name().to_rust_string());
+            // dbg!(thread_object_arc.tid());
+            // dbg!(thread_object_arc.name().to_rust_string());
             res_ptr.push(to_object(thread_object_arc.object().into()));
         }).collect::<Vec<()>>());
     threads_count_ptr.write(res_ptr.len() as i32);

@@ -16,7 +16,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::loading::*;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
-use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use descriptor_parser::MethodDescriptor;
 
 //todo this is responsible for 8 to 9% of total init time.
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
@@ -316,9 +316,8 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
 
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, VType) {
     let classfile = get_class(vf, class);
-    let method_info = &classfile.method_view_i(method.method_index as usize);
-    let method_descriptor = method_info.desc_str();
-    let initial_parsed_descriptor = parse_method_descriptor(method_descriptor.as_str()).unwrap();
+    let method_view = &classfile.method_view_i(method.method_index as usize);
+    let initial_parsed_descriptor = method_view.desc();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types.clone(),
         return_type: initial_parsed_descriptor.return_type.clone(),

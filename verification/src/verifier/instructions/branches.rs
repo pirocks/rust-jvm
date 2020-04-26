@@ -14,7 +14,7 @@ use classfile_view::view::ClassView;
 use classfile_view::loading::ClassWithLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::view::constant_info_view::ConstantInfoView;
-use descriptor_parser::{Descriptor, MethodDescriptor, parse_method_descriptor, parse_field_descriptor};
+use descriptor_parser::{Descriptor, MethodDescriptor, parse_field_descriptor};
 
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -88,13 +88,12 @@ pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stac
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.class);
-    let (call_site_name, descriptor_string) = match &method_class.constant_pool_view(cp) {
+    let (call_site_name, descriptor) = match &method_class.constant_pool_view(cp) {
         ConstantInfoView::InvokeDynamic(i) => {
-            (i.name_and_type().name(), i.name_and_type().desc())
+            (i.name_and_type().name(), i.name_and_type().desc_method())
         }
         _ => panic!()
     };
-    let descriptor = parse_method_descriptor(descriptor_string.as_str()).unwrap();
     if &call_site_name == "<init>" || &call_site_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
     }
@@ -107,15 +106,14 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
 
 pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.class);
-    let ((method_name, descriptor_string), class_index) = match &method_class.constant_pool_view(cp) {
+    let ((method_name, descriptor), class_index) = match &method_class.constant_pool_view(cp) {
         ConstantInfoView::InterfaceMethodref(i) => {
-            ((i.name_and_type().name(), i.name_and_type().desc()), i.class())
+            ((i.name_and_type().name(), i.name_and_type().desc_method()), i.class())
         }
         _ => panic!()
     };
     let method_intf_name = class_index.get_referred_name();
-    let descriptor = parse_method_descriptor(descriptor_string.as_str()).unwrap();
-    if method_name == "<init>" || method_name == "<clinit>" {
+    if &method_name == "<init>" || &method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
     }
     let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x| { PTypeView::to_verification_type(&PTypeView::from_ptype(&x), &env.class_loader) }).collect();
@@ -145,7 +143,7 @@ pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, stac
         PTypeView::Ref(ReferenceTypeView::Class(c)) => c,
         _ => panic!()
     };
-    if method_name == "<init>" {
+    if &method_name == "<init>" {
         invoke_special_init(&env, stack_frame, &method_class_name, &parsed_descriptor)
     } else {
         invoke_special_not_init(env, stack_frame, method_class_name.get_referred_name(), method_name, &parsed_descriptor)
@@ -276,7 +274,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
 }
 
 fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_name: &String, method_name: String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    if method_name == "<clinit>" {
+    if &method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string()));
     }
     let current_class_name = env.method.class.class_name.clone();
@@ -306,7 +304,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: &Frame, method_class_
 pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class_view = get_class(&env.vf, env.method.class);
     let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &method_class_view);
-    if method_name.contains("arrayOf") || method_name.contains("[") || method_name == "<init>" || method_name == "<clinit>" {
+    if method_name.contains("arrayOf") || method_name.contains("[") || &method_name == "<init>" || &method_name == "<clinit>" {
         unimplemented!();
     }
     let operand_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| PTypeView::from_ptype(x).to_verification_type(&env.class_loader)).collect();
@@ -354,7 +352,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
         _ => panic!()
     };
 
-    if /*method_name.contains("arrayOf") ||*/ method_name.contains("[") || &method_name == "<init>" || method_name == "<clinit>" {
+    if /*method_name.contains("arrayOf") ||*/ method_name.contains("[") || &method_name == "<init>" || &method_name == "<clinit>" {
         dbg!(method_name);
         unimplemented!();
     }
@@ -383,23 +381,15 @@ pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PTypeView, St
             let class_name_ = m.class();
             let class_name = class_name_.get_referred_name().clone();
             //todo ideally for name we would return weak ref.
-            let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc());
-            let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
-                None => { unimplemented!() }
-                Some(pd) => { pd }
-            };
-            (class_name, method_name, parsed_descriptor)
+            let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc_method());
+            (class_name, method_name, descriptor)
         }
         ConstantInfoView::InterfaceMethodref(m) => {
             //todo dup?
             let class_name_ = m.class();
             let class_name = class_name_.get_referred_name().clone();
-            let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc());
-            let parsed_descriptor = match parse_method_descriptor(descriptor.as_str()) {
-                None => { unimplemented!() }
-                Some(pd) => { pd }
-            };
-            (class_name, method_name, parsed_descriptor)
+            let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc_method());
+            (class_name, method_name, descriptor)
         }
         _ => unimplemented!("{:?}", c)
     };

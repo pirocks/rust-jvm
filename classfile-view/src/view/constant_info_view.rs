@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::view::ClassView;
 use crate::view::attribute_view::BootstrapMethodView;
 use crate::view::ptype_view::{ReferenceTypeView, PTypeView};
-use descriptor_parser::parse_field_descriptor;
+use descriptor_parser::{parse_field_descriptor, parse_method_descriptor, MethodDescriptor};
 
 #[derive(Debug)]
 pub struct Utf8View {
@@ -151,9 +151,12 @@ impl NameAndTypeView {
     pub fn name(&self) -> String {
         self.backing_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8()
     }
-    pub fn desc(&self) -> String {
+    pub fn desc_str(&self) -> String{
+        self.backing_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8()
+    }
+    pub fn desc_method(&self) -> MethodDescriptor {
         let desc_str = self.backing_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8();
-        desc_str//in future parse
+        parse_method_descriptor(desc_str.as_str()).unwrap()//in future parse
     }
 }
 
