@@ -6,7 +6,7 @@ use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
 use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, default_value, Object};
-use descriptor_parser::{parse_method_descriptor, parse_field_descriptor};
+use descriptor_parser::{parse_field_descriptor};
 use classfile_view::view::ptype_view::PTypeView;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 
@@ -58,17 +58,18 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
         }
     }
 
-    pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, mut full_args: Vec<JavaValue>, descriptor: String) {
-        let (i, m) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
-        let md = parse_method_descriptor(descriptor.as_str()).unwrap();
+    pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
+        let (i, _) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
+        let method_view = target_classfile.class_view.method_view_i(i);
+        let md = method_view.desc();
         let this_ptr = full_args[0].clone();
-        let actual_args = &mut full_args[1..];
+        let actual_args = &full_args[1..];
         frame.push(this_ptr);
         for arg in actual_args {
             frame.push(arg.clone());
         }
         //todo this should be invoke special
-        invoke_virtual_method_i(state, md, target_classfile.clone(), i, m, false);
+        invoke_virtual_method_i(state, md, target_classfile.clone(), i, &method_view, false);
     }
 
 

@@ -7,7 +7,6 @@ use classfile_parser::parse_class_file;
 use std::fs::File;
 use classfile_view::view::ClassView;
 use verification::{verify, VerifierContext};
-use log::trace;
 use classfile_view::loading::{LoaderName, ClassLoadingError, Loader, LoaderArc, LivePoolGetter};
 use jar_manipulation::JarHandle;
 

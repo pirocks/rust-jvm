@@ -15,7 +15,7 @@ extern crate futures_intrusive;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use rust_jvm_common::ptype::PType;
-use rust_jvm_common::classfile::{Classfile, MethodInfo};
+use rust_jvm_common::classfile::Classfile;
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::{Object, JavaValue};
 use crate::runtime_class::prepare_class;

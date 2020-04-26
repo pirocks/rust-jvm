@@ -1,5 +1,4 @@
 use crate::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
-use rust_jvm_common::classfile::ACC_STATIC;
 use crate::rust_jni::MethodId;
 use jni_bindings::{JNIEnv, jobject, jmethodID, jclass, JNINativeInterface_, jboolean};
 use std::ffi::{VaList, VaListImpl, c_void};
@@ -13,6 +12,7 @@ use crate::StackEntry;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use std::ops::Deref;
 use std::rc::Rc;
+use classfile_view::view::HasAccessFlags;
 
 #[no_mangle]
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
@@ -24,15 +24,14 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
 
 unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
     let method_id = (method_id as *mut MethodId).as_ref().unwrap();
-    let classfile = method_id.class.classfile.clone();
-    let method = &classfile.methods[method_id.method_i];
-    if method.access_flags & ACC_STATIC > 0 {
+    let classview = method_id.class.class_view.clone();
+    let method = &classview.method_view_i(method_id.method_i);
+    if method.is_static() {
         unimplemented!()
     }
     let state = get_state(env);
     let frame = get_frame(env);
-    let exp_descriptor_str = method.descriptor_str(&classfile);
-    let parsed = parse_method_descriptor(exp_descriptor_str.as_str()).unwrap();
+    let parsed = method.desc();
     frame.push(JavaValue::Object(from_object(obj)));
     for type_ in &parsed.parameter_types {
         match PTypeView::from_ptype(type_) {
@@ -61,7 +60,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     }
 //todo add params into operand stack;
 //     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i(state, parsed, method_id.class.clone(), method_id.method_i, method, false);
+    invoke_virtual_method_i(state, parsed, method_id.class.clone(), method_id.method_i, &method, false);
     // trace!("----NATIVE ENTER ----");
     frame
 }

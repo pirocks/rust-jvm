@@ -6,7 +6,6 @@ use crate::runtime_class::RuntimeClass;
 use crate::java_values::Object;
 use std::ops::Deref;
 use descriptor_parser::MethodDescriptor;
-use classfile_view::view::method_view::MethodView;
 
 
 //todo the fact that I need a loader for this is dumb

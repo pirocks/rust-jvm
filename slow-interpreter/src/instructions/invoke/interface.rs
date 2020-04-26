@@ -25,5 +25,5 @@ pub fn invoke_interface(state: & JVMState, current_frame: &StackEntry, invoke_in
     let target_class = this_pointer.class_pointer.clone();
     let (target_method_i, final_target_class) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
-    invoke_virtual_method_i(state, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.classfile.methods[target_method_i],false);
+    invoke_virtual_method_i(state, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.class_view.method_view_i(target_method_i),false);
 }

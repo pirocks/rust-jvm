@@ -15,11 +15,10 @@ use rust_jvm_common::classfile::{REF_invokeVirtual, REF_invokeStatic, REF_invoke
 use crate::{JVMState, StackEntry};
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use std::ops::Deref;
 use crate::java_values::{JavaValue, NormalObject, ArrayObject};
 use crate::java_values::Object::{Object, Array};
 use crate::runtime_class::RuntimeClass;
-use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use descriptor_parser::{parse_method_descriptor};
 use crate::class_objects::get_or_create_class_object;
 
 pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
@@ -258,10 +257,11 @@ pub fn create_method_type(jvm: &JVMState, frame: &StackEntry, signature: &String
 pub fn run_static_or_virtual(state: &JVMState, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
     let res_fun = class.classfile.lookup_method(method_name, desc_str);//todo move this into classview
     let (i, m) = res_fun.unwrap();
-    let md = MethodDescriptor::from_legacy(m, class.classfile.deref());
+    let method_view = class.class_view.method_view_i(i);
+    let md = method_view.desc();
     if m.is_static() {
         invoke_static_impl(state, md, class.clone(), i, m)
     } else {
-        invoke_virtual_method_i(state, md, class.clone(), i, m, false);
+        invoke_virtual_method_i(state, md, class.clone(), i, &method_view, false);
     }
 }
