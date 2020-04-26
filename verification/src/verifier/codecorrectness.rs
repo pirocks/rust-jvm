@@ -18,7 +18,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
-
+//todo this is responsible for 8 to 9% of total init time.
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
     let input_operand_stack = &input_frame.stack_map;
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
@@ -30,6 +30,7 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VTy
     }
 }
 
+//todo 10% of total init time.
 pub fn pop_matching_list(vf: &VerifierContext, pop_from: &OperandStack, pop: Vec<VType>) -> Result<OperandStack, TypeSafetyError> {
     let result = pop_matching_list_impl(vf, &mut pop_from.clone(), pop.as_slice());
     return result;
@@ -44,7 +45,7 @@ pub fn pop_matching_list_impl(vf: &VerifierContext, pop_from: &mut OperandStack,
         return pop_matching_list_impl(vf, pop_from, &pop[1..]);
     }
 }
-
+//todo 7.52% of total init time
 pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut OperandStack, type_: &VType) -> Result<VType, TypeSafetyError> {
     if size_of(vf, type_) == 1 {
         let actual_type = operand_stack.peek();

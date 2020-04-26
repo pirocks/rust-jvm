@@ -33,11 +33,11 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
         current_frame.push(new_obj);
     }
 
-    fn default_init_fields(state: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
+    fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
         if classfile.super_class != 0 {
             let super_name = classfile.super_class_name();
-            let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(), state.get_live_object_pool_getter()).unwrap();
-            default_init_fields(state, loader_arc.clone(), object_pointer.clone(), &loaded_super.backing_class(), bl);
+            let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
+            default_init_fields(jvm, loader_arc.clone(), object_pointer.clone(), &loaded_super.backing_class(), bl);
         }
         for field in &classfile.fields {
             if field.access_flags & ACC_STATIC == 0 {

@@ -318,8 +318,8 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.main_thread();
     assert!(Arc::ptr_eq(&jvm.get_current_thread(), &main_thread));
-    dbg!(main_thread.thread_object.borrow().as_ref().unwrap().name().to_rust_string());
-    dbg!(main_thread.thread_object.borrow().as_ref().unwrap().tid());
+    // dbg!(main_thread.thread_object.borrow().as_ref().unwrap().name().to_rust_string());
+    // dbg!(main_thread.thread_object.borrow().as_ref().unwrap().tid());
 
     jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
     let main_stack = Rc::new(StackEntry {

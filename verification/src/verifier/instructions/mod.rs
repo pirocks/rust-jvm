@@ -181,8 +181,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 //todo how does bootstrap loader from throwable make its way into this
                 //todo why do I take the class name when I already know it
-                let class_name = get_class(&env.vf, &exception_class).name().clone();
-                is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name, loader: env.class_loader.clone() }),
+                is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name.clone(), loader: env.class_loader.clone() }),
                               &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.bootstrap_loader.clone() }))
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))

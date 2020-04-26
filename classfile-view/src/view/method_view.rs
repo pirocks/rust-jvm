@@ -25,7 +25,8 @@ impl MethodView {
         ClassView::from(self.backing_class.clone())
     }
 
-    fn method_info(&self) -> &MethodInfo{
+    //todo shouldn't be public but needs to be
+    pub fn method_info(&self) -> &MethodInfo{
         &self.backing_class.methods[self.method_i]
     }
 
@@ -58,6 +59,11 @@ impl MethodView {
             self.desc().return_type == PTypeView::object().to_ptype() &&
             self.is_varargs() &&
             self.is_native()
+    }
+
+    //todo this shouldn't be public but needs to be atm.
+    pub fn method_i(&self)-> usize {
+        self.method_i
     }
 }
 

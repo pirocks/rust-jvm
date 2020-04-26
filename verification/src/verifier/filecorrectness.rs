@@ -364,6 +364,7 @@ pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoade
     let method_name__ = method_info.name();
     let method_name_ = method_name__.deref();
     let descriptor_string = method_info.desc_str();
+    //todo this stuff needs indexing. The below is guilty of 3% total init time.
     let matching_method = super_method_list.iter().find(|x| {
         let x_method_class = get_class(vf, x.class);
         let x_method_info = &x_method_class.method_view_i(x.method_index);

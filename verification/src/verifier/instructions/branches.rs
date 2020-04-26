@@ -121,7 +121,6 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x| { PTypeView::to_verification_type(&PTypeView::from_ptype(&x), &env.class_loader) }).collect();
     let return_type = PTypeView::from_ptype(&descriptor.return_type).to_verification_type(&env.class_loader);
     let current_loader = env.class_loader.clone();
-    //todo this is almost certainly wrong.
     operand_arg_list.push(VType::Class(ClassWithLoader { class_name: ClassName::Str(method_intf_name.clone()), loader: current_loader }));
     let stack_arg_list = operand_arg_list;
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;

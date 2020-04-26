@@ -7,7 +7,7 @@ use crate::verifier::class_is_type_safe;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
-use classfile_view::vtype::VType;
+use classfile_view::vtype::{VType, VCLONE_COUNT};
 use classfile_view::view::ClassView;
 use classfile_view::loading::{LoaderArc, ClassWithLoader, LivePoolGetter};
 use std::time::Duration;
@@ -16,10 +16,10 @@ use std::sync::Arc;
 
 pub mod verifier;
 
-static mut TOTAL_VERIFICATION: Duration = Duration::from_micros(0);
+// static mut TOTAL_VERIFICATION: Duration = Duration::from_micros(0);
 
 pub fn verify(vf: &VerifierContext, to_verify: ClassView, loader: LoaderArc) -> Result<(), TypeSafetyError> {
-    let (time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
+    let (_time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify.name(),
         loader,
     }) {
@@ -34,11 +34,12 @@ pub fn verify(vf: &VerifierContext, to_verify: ClassView, loader: LoaderArc) -> 
             }
         }
     });
-    unsafe {
+    /*unsafe {
         TOTAL_VERIFICATION = TOTAL_VERIFICATION.checked_add(time.duration()).unwrap();
         println!("Total: {}", ElapsedDuration::new(TOTAL_VERIFICATION));
+        println!("Vtype clone Count: {}", VCLONE_COUNT);
     }
-    println!("Verification Time: {}", time);
+    println!("Verification Time: {}", time);*/
     res
 }
 

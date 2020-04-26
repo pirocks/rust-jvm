@@ -29,9 +29,11 @@ pub enum VType {
     UninitializedEmpty,
 }
 
+pub static mut VCLONE_COUNT: usize = 0;
 
 impl Clone for VType {
     fn clone(&self) -> Self {
+        unsafe { VCLONE_COUNT += 1;}
         match self {
             VType::DoubleType => VType::DoubleType,
             VType::FloatType => VType::FloatType,
