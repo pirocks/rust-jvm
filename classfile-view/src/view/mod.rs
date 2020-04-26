@@ -8,7 +8,6 @@ use crate::view::interface_view::InterfaceIterator;
 use crate::view::attribute_view::{EnclosingMethodView, BootstrapMethodsView};
 use std::collections::HashMap;
 use descriptor_parser::MethodDescriptor;
-use std::cell::RefCell;
 use std::iter::FromIterator;
 
 

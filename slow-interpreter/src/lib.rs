@@ -45,6 +45,7 @@ use lock_api::Mutex;
 use parking_lot::RawMutex;
 use crate::tracing::TracingSettings;
 use crate::interpreter::run_function;
+use classfile_view::view::method_view::MethodView;
 
 
 pub mod java_values;
@@ -382,14 +383,14 @@ fn jvm_run_system_init(jvm: &JVMState) {
         },
     }));
     let system_class = check_inited_class(jvm, &ClassName::system(), bl.clone());
-    let (init_system_class_i, method_info) = locate_init_system_class(&system_class.classfile);
+    let init_method_view = locate_init_system_class(&system_class);
     let mut locals = vec![];
-    for _ in 0..method_info.code_attribute().unwrap().max_locals {
+    for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
         locals.push(JavaValue::Top);
     }
     let initialize_system_frame = StackEntry {
         class_pointer: system_class.clone(),
-        method_i: init_system_class_i as u16,
+        method_i: init_method_view.method_i() as u16,
         local_vars: RefCell::new(locals),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
@@ -407,8 +408,9 @@ fn jvm_run_system_init(jvm: &JVMState) {
     }
 }
 
-fn locate_init_system_class(system: &Arc<Classfile>) -> (usize, &MethodInfo) {
-    system.lookup_method_name(&"initializeSystemClass".to_string()).iter().nth(0).unwrap().clone()
+fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {
+    let method_views = system.class_view.method_index().lookup_method_name(&"initializeSystemClass".to_string()).unwrap();
+    method_views.first().unwrap().clone()
 }
 
 fn locate_main_method(_bl: &LoaderArc, main: &Arc<Classfile>) -> usize {

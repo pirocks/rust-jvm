@@ -10,6 +10,15 @@ pub struct MethodView {
     pub(crate) method_i: usize,
 }
 
+impl Clone for MethodView{
+    fn clone(&self) -> Self {
+        Self {
+            backing_class: self.backing_class.clone(),
+            method_i: self.method_i
+        }
+    }
+}
+
 impl HasAccessFlags for MethodView {
     fn access_flags(&self) -> u16 {
         self.backing_class.methods[self.method_i].access_flags

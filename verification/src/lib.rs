@@ -2,12 +2,12 @@ extern crate log;
 extern crate simple_logger;
 extern crate elapsed;
 
-use elapsed::{measure_time, ElapsedDuration};
+use elapsed::measure_time;
 use crate::verifier::class_is_type_safe;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
 use std::collections::vec_deque::VecDeque;
-use classfile_view::vtype::{VType, VCLONE_COUNT};
+use classfile_view::vtype::VType;
 use classfile_view::view::ClassView;
 use classfile_view::loading::{LoaderArc, ClassWithLoader, LivePoolGetter};
 use std::time::Duration;
