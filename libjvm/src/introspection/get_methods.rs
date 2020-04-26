@@ -84,7 +84,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         let modifiers = get_modifers(&method_view);
         //todo what does slot do?
         let slot = JavaValue::Int(-1);
-        let signature = get_signature(jvm, &frame, method_view);
+        let signature = get_signature(jvm, &frame, &method_view);
         let annotations = JavaValue::empty_byte_array(jvm);
         let parameterAnnotations = JavaValue::empty_byte_array(jvm);
         let annotationDefault = JavaValue::empty_byte_array(jvm);
@@ -96,7 +96,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     to_object(res)
 }
 
-fn get_signature(state: &JVMState, frame: &StackEntry, method_view: MethodView) -> JavaValue {
+fn get_signature(state: &JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
     create_string_on_stack(state, method_view.desc_str());
     frame.pop()
 }
@@ -158,25 +158,25 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         unimplemented!()
     }
     let temp = runtime_class_from_object(ofClass, jvm, &frame).unwrap();
-    let target_classfile = &temp.classfile;
-    let constructors = target_classfile.lookup_method_name(&"<init>".to_string());
+    let target_classview = &temp.class_view;
+    let constructors = target_classview.method_index().lookup_method_name(&"<init>".to_string()).unwrap();
     let class_obj = runtime_class_from_object(ofClass, jvm, &frame);
     let loader = frame.class_pointer.loader.clone();
     let constructor_class = check_inited_class(jvm, &ClassName::new("java/lang/reflect/Constructor"), loader.clone());
     let mut object_array = vec![];
 
-    constructors.clone().iter().filter(|(i, m)| {
+    constructors.iter().filter(|m| {
         if publicOnly > 0 {
-            m.access_flags & ACC_PUBLIC > 0
+            m.is_public()
         } else {
             true
         }
-    }).for_each(|(i, _)| {
+    }).for_each(|m| {
         push_new_object(jvm, frame, &constructor_class);
         let constructor_object = frame.pop();
         object_array.push(constructor_object.clone());
 
-        let method_view = temp.class_view.method_view_i(*i);
+        let method_view = m;
 
         let clazz = {
             let field_class_name = class_obj.as_ref().unwrap().class_view.name();
@@ -190,7 +190,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let modifiers = get_modifers(&method_view);
         //todo what does slot do?
         let slot = JavaValue::Int(-1);
-        let signature = get_signature(jvm, &frame, method_view);
+        let signature = get_signature(jvm, &frame, &method_view);
 
         //todo impl these
         let empty_byte_array = JavaValue::empty_byte_array(jvm);

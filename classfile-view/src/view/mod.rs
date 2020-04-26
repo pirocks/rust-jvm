@@ -189,6 +189,18 @@ impl MethodIndexer {
                     }
             )
     }
+    pub fn lookup_method_name(&self, name: &String) -> Option<Vec<MethodView>> {
+        self.index.get(name)
+            .map(
+                |methods|
+                    methods.values().map(|method_i| {
+                        MethodView {
+                            backing_class: self.backing_class.clone(),
+                            method_i: *method_i,
+                        }
+                    }).collect::<Vec<MethodView>>()
+            )
+    }
 }
 
 
