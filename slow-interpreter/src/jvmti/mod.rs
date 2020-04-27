@@ -17,7 +17,7 @@ use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread};
 use crate::rust_jni::MethodId;
-use crate::rust_jni::native_util::to_object;
+use crate::rust_jni::native_util::{to_object, from_object};
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
 use crate::jvmti::agent::*;
@@ -28,6 +28,7 @@ use crate::java::lang::thread::JThread;
 use rust_jvm_common::classnames::ClassName;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use crate::java_values::JavaValue;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -96,13 +97,13 @@ impl SharedLibJVMTI {
                     Box::leak(Box::new(jvmti)),
                     Box::leak(Box::new(transmute(jni))),
                     transmute(thread_obj),
-                    transmute(to_object(class_obj.into()))
+                    transmute(to_object(class_obj.into())),
                 )//todo are these leaks needed
             }
         }
     }
 
-    pub fn breakpoint(&self, jvm: &JVMState, method: MethodId, location: isize){
+    pub fn breakpoint(&self, jvm: &JVMState, method: MethodId, location: isize) {
         unsafe {
             let thread = to_object(jvm.get_current_thread().thread_object.borrow().as_ref().unwrap().clone().object().into());
             let jvmti = box get_jvmti_interface(jvm);
@@ -113,7 +114,7 @@ impl SharedLibJVMTI {
                 Box::leak(jni),
                 transmute(thread),
                 transmute(Box::leak(native_method_id)),
-                location as i64
+                location as i64,
             )
         }
     }
@@ -237,8 +238,8 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     }
 
     unsafe fn ClassPrepare(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, klass: *mut _jobject) {
-        if *self.class_prepare_enabled.read().unwrap(){
-            (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread,klass);
+        if *self.class_prepare_enabled.read().unwrap() {
+            (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
         }
     }
 
@@ -263,9 +264,9 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.garbage_collection_finish_enabled.write().unwrap() = false;
     }
 
-    unsafe fn Breakpoint(&self,jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, method: *mut _jmethodID, location: i64) {
-        if *self.breakpoint_enabled.read().unwrap(){
-            (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env,jni_env,thread,method,location);
+    unsafe fn Breakpoint(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, method: *mut _jmethodID, location: i64) {
+        if *self.breakpoint_enabled.read().unwrap() {
+            (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location);
         }
     }
 
@@ -410,7 +411,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         IsModifiableClass: None,
         Allocate: Some(allocate),
         Deallocate: Some(deallocate),
-        GetClassSignature: None,
+        GetClassSignature: Some(get_class_signature),
         GetClassStatus: Some(get_class_status),
         GetSourceFileName: None,
         GetClassModifiers: None,
@@ -420,7 +421,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         IsInterface: None,
         IsArrayClass: None,
         GetClassLoader: None,
-        GetObjectHashCode: None,
+        GetObjectHashCode: Some(get_object_hash_code),
         GetObjectMonitorUsage: None,
         GetFieldName: None,
         GetFieldDeclaringClass: None,
@@ -521,9 +522,43 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
+pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char, ) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
+    let notnull_class = from_object(transmute(klass)).unwrap();
+    let class_object_ptype = notnull_class.unwrap_normal_object().class_object_ptype.borrow();
+    let type_ = class_object_ptype.as_ref().unwrap();
+    if !signature_ptr.is_null() {
+        let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
+        let jvm_repr_ptr = jvm_repr.into_raw();
+        let allocated_jvm_repr = libc::malloc(libc::strlen(jvm_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
+        signature_ptr.write(allocated_jvm_repr);
+        libc::strcpy(allocated_jvm_repr, jvm_repr_ptr);
+    }
+    if !generic_ptr.is_null() {
+        let java_repr = CString::new(type_.java_source_representation()).unwrap();
+        let java_repr_ptr = java_repr.into_raw();
+        let allocated_java_repr = libc::malloc(libc::strlen(java_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
+        generic_ptr.write(allocated_java_repr);
+        libc::strcpy(allocated_java_repr, java_repr_ptr);
+    }
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassSignature");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobject, hash_code_ptr: *mut jint) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
+    let object = JavaValue::Object(from_object(transmute(object))).cast_object();
+    let res = object.hash_code(jvm, jvm.get_current_frame().deref());
+    hash_code_ptr.write(res);
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetObjectHashCode");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
 pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm,"GetMethodLocation");
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
     let method_id = (method as *mut MethodId).as_ref().unwrap();
     match method_id.class.class_view.method_view_i(method_id.method_i).code_attribute() {
         None => {
@@ -535,20 +570,20 @@ pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethod
             end_location_ptr.write((code.code.len() - 1) as i64);
         }
     };
-    jvm.tracing.trace_jdwp_function_enter(jvm,"GetMethodLocation");
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
     jvmtiError_JVMTI_ERROR_NONE
 }
 
 pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm,"DisposeEnvironment");
-    jvm.tracing.trace_jdwp_function_exit(jvm,"DisposeEnvironment");
+    jvm.tracing.trace_jdwp_function_enter(jvm, "DisposeEnvironment");
+    jvm.tracing.trace_jdwp_function_exit(jvm, "DisposeEnvironment");
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
 
 pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm,"SetBreakpoint");
+    jvm.tracing.trace_jdwp_function_enter(jvm, "SetBreakpoint");
     let method_id = (method as *mut MethodId).as_ref().unwrap();
     dbg!(&method_id);
     let mut breakpoint_guard = jvm.jvmti_state.break_points.write().unwrap();
@@ -560,7 +595,7 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
             breakpoints.insert(location as isize);//todo should I cast here?
         }
     }
-    jvm.tracing.trace_jdwp_function_exit(jvm,"SetBreakpoint");
+    jvm.tracing.trace_jdwp_function_exit(jvm, "SetBreakpoint");
     jvmtiError_JVMTI_ERROR_NONE
 }
 

@@ -32,8 +32,8 @@ pub enum PTypeView {
 
 
 impl PTypeView {
-    pub fn to_ptype(&self) -> PType{
-        match self{
+    pub fn to_ptype(&self) -> PType {
+        match self {
             PTypeView::ByteType => PType::ByteType,
             PTypeView::CharType => PType::CharType,
             PTypeView::DoubleType => PType::DoubleType,
@@ -52,8 +52,8 @@ impl PTypeView {
         }
     }
 
-    pub fn from_ptype(p : &PType) -> PTypeView{
-        match p{
+    pub fn from_ptype(p: &PType) -> PTypeView {
+        match p {
             PType::ByteType => PTypeView::ByteType,
             PType::CharType => PTypeView::CharType,
             PType::DoubleType => PTypeView::DoubleType,
@@ -99,8 +99,8 @@ impl PTypeView {
         }
     }
 
-    pub fn is_primitive(&self) -> bool{
-        match self{
+    pub fn is_primitive(&self) -> bool {
+        match self {
             PTypeView::ByteType => true,
             PTypeView::CharType => true,
             PTypeView::DoubleType => true,
@@ -119,7 +119,7 @@ impl PTypeView {
         }
     }
 
-    pub fn primitive_name(&self) -> &'static str{
+    pub fn primitive_name(&self) -> &'static str {
         match self {
             PTypeView::ByteType => "byte",
             PTypeView::CharType => "char",
@@ -134,12 +134,78 @@ impl PTypeView {
         }
     }
 
-    pub fn object() -> Self{
+    pub fn object() -> Self {
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::object()))
     }
 
-    pub fn array(of : Self) -> Self{
+    pub fn array(of: Self) -> Self {
         PTypeView::Ref(ReferenceTypeView::Array(of.into()))
+    }
+
+    pub fn jvm_representation(&self) -> String {
+        //'B' => PType::ByteType,
+        //         'C' => PType::CharType,
+        //         'D' => PType::DoubleType,
+        //         'F' => PType::FloatType,
+        //         'I' => PType::IntType,
+        //         'J' => PType::LongType,
+        //         'S' => PType::ShortType,
+        //         'Z' => PType::BooleanType,
+        let mut res = String::new();
+        match self {
+            PTypeView::ByteType => res.push_str("B"),
+            PTypeView::CharType => res.push_str("C"),
+            PTypeView::DoubleType => res.push_str("D"),
+            PTypeView::FloatType => res.push_str("F"),
+            PTypeView::IntType => res.push_str("I"),
+            PTypeView::LongType => res.push_str("J"),
+            PTypeView::Ref(ref_) => {
+                match ref_{
+                    ReferenceTypeView::Class(c) => {
+                        res.push_str("L");
+                        res.push_str(c.get_referred_name());
+                        res.push_str(";")
+                    },
+                    ReferenceTypeView::Array(subtype) => {
+                        res.push_str("[");
+                        res.push_str(&subtype.deref().jvm_representation())
+                    },
+                }
+            }
+            PTypeView::ShortType => res.push_str("S"),
+            PTypeView::BooleanType => res.push_str("Z"),
+            PTypeView::VoidType => res.push_str("V"),
+            _ => panic!(),
+        }
+        res
+    }
+
+    pub fn java_source_representation(&self) -> String {
+        let mut res = String::new();
+        match self {
+            PTypeView::ByteType => res.push_str("byte"),
+            PTypeView::CharType => res.push_str("char"),
+            PTypeView::DoubleType => res.push_str("double"),
+            PTypeView::FloatType => res.push_str("float"),
+            PTypeView::IntType => res.push_str("int"),
+            PTypeView::LongType => res.push_str("long"),
+            PTypeView::Ref(ref_) => {
+                match ref_{
+                    ReferenceTypeView::Class(c) => {
+                        res.push_str(c.get_referred_name().replace("/",".").as_str());
+                    },
+                    ReferenceTypeView::Array(subtype) => {
+                        res.push_str(&subtype.deref().java_source_representation());
+                        res.push_str("[]");
+                    },
+                }
+            }
+            PTypeView::ShortType => res.push_str("S"),
+            PTypeView::BooleanType => res.push_str("Z"),
+            PTypeView::VoidType => res.push_str("V"),
+            _ => panic!(),
+        }
+        res
     }
 }
 
@@ -151,29 +217,29 @@ pub enum ReferenceTypeView {
     Array(Box<PTypeView>),
 }
 
-impl ReferenceTypeView{
-    pub fn to_reference_type(&self) -> ReferenceType{
-        match self{
+impl ReferenceTypeView {
+    pub fn to_reference_type(&self) -> ReferenceType {
+        match self {
             ReferenceTypeView::Class(c) => ReferenceType::Class(c.clone()),
             ReferenceTypeView::Array(a) => ReferenceType::Array(a.deref().to_ptype().into()),
         }
     }
 
-    pub fn from_reference_type(ref_ : &ReferenceType) -> ReferenceTypeView{
-        match ref_{
+    pub fn from_reference_type(ref_: &ReferenceType) -> ReferenceTypeView {
+        match ref_ {
             ReferenceType::Class(c) => ReferenceTypeView::Class(c.clone()),
             ReferenceType::Array(a) => ReferenceTypeView::Array(PTypeView::from_ptype(a.deref()).into()),
         }
     }
 
-    pub fn try_unwrap_name(&self) -> Option<ClassName>{
+    pub fn try_unwrap_name(&self) -> Option<ClassName> {
         match self {
             ReferenceTypeView::Class(c) => c.clone().into(),
             ReferenceTypeView::Array(_) => None,
         }
     }
 
-    pub fn unwrap_name(&self) -> ClassName{
+    pub fn unwrap_name(&self) -> ClassName {
         self.try_unwrap_name().unwrap()
     }
 
@@ -181,36 +247,36 @@ impl ReferenceTypeView{
         match self {
             ReferenceTypeView::Class(c) => c.clone().into(),
             ReferenceTypeView::Array(a) => {
-                match a.deref().try_unwrap_ref_type(){
+                match a.deref().try_unwrap_ref_type() {
                     None => return None,
                     Some(ref_) => {
                         ref_.unwrap_arrays_to_name()
-                    },
+                    }
                 }
-            },
+            }
         }
     }
 
-    pub fn unwrap_array(&self) -> PTypeView{
+    pub fn unwrap_array(&self) -> PTypeView {
         match self {
             ReferenceTypeView::Class(_) => panic!(),
             ReferenceTypeView::Array(a) => {
                 a.deref().clone()
-            },
+            }
         }
     }
 
-    pub fn is_array(&self) -> bool{
-        match self{
+    pub fn is_array(&self) -> bool {
+        match self {
             ReferenceTypeView::Class(_) => false,
             ReferenceTypeView::Array(_) => true,
         }
     }
 }
 
-impl Clone for ReferenceTypeView{
+impl Clone for ReferenceTypeView {
     fn clone(&self) -> Self {
-        match self{
+        match self {
             ReferenceTypeView::Class(c) => ReferenceTypeView::Class(c.clone()),
             ReferenceTypeView::Array(a) => ReferenceTypeView::Array(Box::new(a.deref().clone())),
         }
@@ -264,13 +330,13 @@ impl PTypeView {
             _ => panic!()
         }
     }
-    pub fn unwrap_ref_type(&self) -> &ReferenceTypeView{
+    pub fn unwrap_ref_type(&self) -> &ReferenceTypeView {
         match self {
             PTypeView::Ref(r) => r,
             _ => panic!(),
         }
     }
-    pub fn try_unwrap_ref_type(&self) -> Option<&ReferenceTypeView>{
+    pub fn try_unwrap_ref_type(&self) -> Option<&ReferenceTypeView> {
         match self {
             PTypeView::Ref(r) => r.into(),
             _ => None,
@@ -278,7 +344,7 @@ impl PTypeView {
     }
 
     pub fn unwrap_type_to_name(&self) -> Option<ClassName> {
-        match self{
+        match self {
             PTypeView::ByteType => ClassName::raw_byte().into(),
             PTypeView::CharType => ClassName::raw_char().into(),
             PTypeView::DoubleType => ClassName::raw_double().into(),
@@ -293,15 +359,15 @@ impl PTypeView {
         }
     }
 
-    pub fn is_array(&self) -> bool{
-        match self{
+    pub fn is_array(&self) -> bool {
+        match self {
             PTypeView::ByteType => false,
             PTypeView::CharType => false,
             PTypeView::DoubleType => false,
             PTypeView::FloatType => false,
             PTypeView::IntType => false,
             PTypeView::LongType => false,
-            PTypeView::Ref(r) => match r{
+            PTypeView::Ref(r) => match r {
                 ReferenceTypeView::Class(_) => false,
                 ReferenceTypeView::Array(_) => true,
             },
