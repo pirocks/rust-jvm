@@ -17,7 +17,6 @@ use classfile_view::view::HasAccessFlags;
 #[no_mangle]
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
     let frame = call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l));
-
     let res = frame.pop().unwrap_object();
     to_object(res)
 }

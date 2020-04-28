@@ -55,7 +55,7 @@ pub fn run_native_method(
         panic!();
     }
     let monitor = monitor_for_function(jvm, frame, method, method.access_flags & JVM_ACC_SYNCHRONIZED as u16 > 0, &class.class_view.name());
-    monitor.map(|m|m.lock(jvm));
+    monitor.as_ref().map(|m|m.lock(jvm));
     if _debug {
         // dbg!(&args);
         // dbg!(&frame.operand_stack);
@@ -180,7 +180,7 @@ pub fn run_native_method(
             }
         }
     }
-    monitor.map(|m|m.unlock(jvm));
+    monitor.as_ref().map(|m|m.unlock(jvm));
     // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
