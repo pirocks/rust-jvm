@@ -138,7 +138,7 @@ fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &Stri
 
 }
 
-fn monitor_for_function(
+pub fn monitor_for_function(
     jvm: &JVMState,
     current_frame: &StackEntry,
     method: &MethodInfo,

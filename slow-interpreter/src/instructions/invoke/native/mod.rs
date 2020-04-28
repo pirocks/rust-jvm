@@ -22,9 +22,12 @@ use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;
 use std::sync::atomic::Ordering;
+use rust_jvm_common::classfile::InstructionInfo::monitorexit;
+use crate::interpreter::monitor_for_function;
+use jni_bindings::JVM_ACC_SYNCHRONIZED;
 
 pub fn run_native_method(
-    state: & JVMState,
+    jvm: & JVMState,
     frame: &StackEntry,
     class: Arc<RuntimeClass>,
     method_i: usize,
@@ -51,7 +54,8 @@ pub fn run_native_method(
     } else {
         panic!();
     }
-
+    let monitor = monitor_for_function(jvm, frame, method, method.access_flags & JVM_ACC_SYNCHRONIZED as u16 > 0, &class.class_view.name());
+    monitor.map(|m|m.lock(jvm));
     if _debug {
         // dbg!(&args);
         // dbg!(&frame.operand_stack);
@@ -64,24 +68,25 @@ pub fn run_native_method(
     } else if meth_name == "arraycopy".to_string() {
         system_array_copy(&mut args)
     } else {
-        let result = if state.jni.registered_natives.read().unwrap().contains_key(&class) &&
-            state.jni.registered_natives.read().unwrap().get(&class).unwrap().read().unwrap().contains_key(&(method_i as u16))
+        let result = if jvm.jni.registered_natives.read().unwrap().contains_key(&class) &&
+            jvm.jni.registered_natives.read().unwrap().get(&class).unwrap().read().unwrap().contains_key(&(method_i as u16))
         {
             //todo dup
             let res_fn = {
-                let reg_natives = state.jni.registered_natives.read().unwrap();
+                let reg_natives = jvm.jni.registered_natives.read().unwrap();
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().read().unwrap();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            call_impl(state, frame.clone(), class.clone(), args, parsed, &res_fn, !method.is_static(), debug)
+            call_impl(jvm, frame.clone(), class.clone(), args, parsed, &res_fn, !method.is_static(), debug)
         } else {
-            let res = match call(state, frame.clone(), class.clone(), method_i, args.clone(), parsed) {
+            let res = match call(jvm, frame.clone(), class.clone(), method_i, args.clone(), parsed) {
                 Ok(r) => r,
                 Err(_) => {
                     let mangled = mangling::mangle(class.clone(), method_i);
+                    // state.tracing.trace_dynmaic_link()
                     //todo actually impl these at some point
                     if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
-                        object_field_offset(state, &frame, &mut args)
+                        object_field_offset(jvm, &frame, &mut args)
                     } else if mangled == "Java_sun_misc_Unsafe_getIntVolatile".to_string() {
                         get_int_volatile(&mut args)
                     } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapInt".to_string() {
@@ -105,14 +110,14 @@ pub fn run_native_method(
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
                         MHN_getConstant()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
-                        MHN_resolve(state, &frame, &mut args)
+                        MHN_resolve(jvm, &frame, &mut args)
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
-                        MHN_init(state, &frame, &mut args)
+                        MHN_init(jvm, &frame, &mut args)
                     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
                         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-                        shouldBeInitialized(state, &mut args)
+                        shouldBeInitialized(jvm, &mut args)
                     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
-                        if shouldBeInitialized(state, &mut args).unwrap().unwrap_int() != 1 {
+                        if shouldBeInitialized(jvm, &mut args).unwrap().unwrap_int() != 1 {
                             panic!()
                         }
                         None
@@ -122,12 +127,12 @@ pub fn run_native_method(
                         //todo for debug, delete later
                         let mut unpatched = parse_class_file(&mut byte_array.as_slice());
                         File::create("unpatched.class").unwrap().write(byte_array.clone().as_slice()).unwrap();
-                        patch_all(state, &frame, &mut args, &mut unpatched);
+                        patch_all(jvm, &frame, &mut args, &mut unpatched);
                         let parsed = Arc::new(unpatched);
                         //todo maybe have an anon loader for this
-                        let bootstrap_loader = state.bootstrap_loader.clone();
+                        let bootstrap_loader = jvm.bootstrap_loader.clone();
 
-                        let vf = VerifierContext { live_pool_getter: state.get_live_object_pool_getter(), bootstrap_loader: bootstrap_loader.clone() };
+                        let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), bootstrap_loader: bootstrap_loader.clone() };
                         let class_view = ClassView::from(parsed.clone());
 
                         bootstrap_loader.add_pre_loaded(&class_view.name(), &parsed);
@@ -136,18 +141,18 @@ pub fn run_native_method(
                             Ok(_) => {}
                             Err(_) => panic!(),
                         };
-                        load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(class_view.name())));
+                        load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(class_view.name())));
                         frame.pop().into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
                         let member_name = args[0].cast_member_name();
-                        let name = member_name.get_name(state, frame);
+                        let name = member_name.get_name(jvm, frame);
                         let clazz = member_name.clazz();
-                        let field_type = member_name.get_field_type(state, frame.clone());
-                        let empty_string = JString::from(state, &frame, "".to_string());
-                        let field = Field::init(state, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
+                        let field_type = member_name.get_field_type(jvm, frame.clone());
+                        let empty_string = JString::from(jvm, &frame, "".to_string());
+                        let field = Field::init(jvm, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
 
-                        let mut args = vec![Unsafe::the_unsafe(state, &frame).java_value(), field.java_value()];
-                        object_field_offset(state, &frame, &mut args)
+                        let mut args = vec![Unsafe::the_unsafe(jvm, &frame).java_value(), field.java_value()];
+                        object_field_offset(jvm, &frame, &mut args)
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
 //static native int getMembers(Class<?> defc, String matchName, String matchSig,
 // //          int matchFlags, Class<?> caller, int skip, MemberName[] results);
@@ -175,6 +180,7 @@ pub fn run_native_method(
             }
         }
     }
+    monitor.map(|m|m.unlock(jvm));
     // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
