@@ -106,3 +106,7 @@ pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> 
     res
 
 }
+
+pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError,) -> jvmtiError{
+    unimplemented!()
+}

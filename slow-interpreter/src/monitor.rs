@@ -65,7 +65,7 @@ impl Monitor {
     }
 
     pub fn wait(&self, millis: i64, jvm: &JVMState) {
-        jvm.tracing.trace_monitor_wait(self);
+        jvm.tracing.trace_monitor_wait(self,jvm );
         let mut guard = self.owned.write().unwrap();
         let count = guard.count;
         guard.count = 0;
@@ -89,12 +89,12 @@ impl Monitor {
     }
 
     pub fn notify_all(&self, jvm: &JVMState) {
-        jvm.tracing.trace_monitor_notify_all(self);
+        jvm.tracing.trace_monitor_notify_all(self, jvm);
         self.condvar.notify_all();
     }
 
     pub fn notify(&self, jvm: &JVMState) {
-        jvm.tracing.trace_monitor_notify(self);
+        jvm.tracing.trace_monitor_notify(self,jvm);
         self.condvar.notify_one();
     }
 }

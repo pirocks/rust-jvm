@@ -145,7 +145,7 @@ pub struct JVMState {
 
     pub main_class_name: ClassName,
 
-    pub  classpath: Arc<Classpath>,
+    pub classpath: Arc<Classpath>,
     invoke_interface: RwLock<Option<JNIInvokeInterface_>>,
 
     pub jvmti_state: JVMTIState,
@@ -254,6 +254,13 @@ impl JVMState {
         let res = Arc::new(Monitor::new(name, index));
         monitor_guard.push(res.clone());
         res
+    }
+
+    pub fn get_current_thread_name(&self) -> String {
+        let current_thread = self.get_current_thread();
+        let thread_object = current_thread.thread_object.borrow();
+        thread_object.as_ref().map(|jthread| jthread.name().to_rust_string())
+            .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
     }
 }
 

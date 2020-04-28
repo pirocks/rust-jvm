@@ -5,6 +5,8 @@ use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::native_util::{from_object, get_state, get_frame};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use slow_interpreter::jvmti::is_array_impl;
+use std::intrinsics::transmute;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -50,11 +52,10 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    let object_non_null = from_object(cls).unwrap().clone();
-    let ptype = object_non_null.unwrap_normal_object().class_object_ptype.borrow();
-    let is_array = ptype.as_ref().unwrap().is_array();
-    is_array as jboolean
+    is_array_impl(transmute(cls))
 }
+
+
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {

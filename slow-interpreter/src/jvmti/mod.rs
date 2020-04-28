@@ -15,7 +15,7 @@ use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
-use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread};
+use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list};
 use crate::rust_jni::MethodId;
 use crate::rust_jni::native_util::{to_object, from_object};
 use crate::jvmti::thread_local_storage::*;
@@ -29,6 +29,7 @@ use rust_jvm_common::classnames::ClassName;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::JavaValue;
+use classfile_view::view::HasAccessFlags;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -418,8 +419,8 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetClassMethods: None,
         GetClassFields: None,
         GetImplementedInterfaces: None,
-        IsInterface: None,
-        IsArrayClass: None,
+        IsInterface: Some(is_interface),
+        IsArrayClass: Some(is_array_class),
         GetClassLoader: None,
         GetObjectHashCode: Some(get_object_hash_code),
         GetObjectMonitorUsage: None,
@@ -428,7 +429,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetFieldModifiers: None,
         IsFieldSynthetic: None,
         GetMethodName: None,
-        GetMethodDeclaringClass: None,
+        GetMethodDeclaringClass: Some(get_method_declaring_class),
         GetMethodModifiers: None,
         reserved67: std::ptr::null_mut(),
         GetMaxLocals: None,
@@ -456,7 +457,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetSourceDebugExtension: None,
         IsMethodObsolete: None,
         SuspendThreadList: Some(suspend_thread_list),
-        ResumeThreadList: None,
+        ResumeThreadList: Some(resume_thread_list),
         reserved94: std::ptr::null_mut(),
         reserved95: std::ptr::null_mut(),
         reserved96: std::ptr::null_mut(),
@@ -522,7 +523,46 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
-pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char, ) -> jvmtiError {
+pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: jmethodID, declaring_class_ptr: *mut jclass) -> jvmtiError{
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodDeclaringClass");
+    let runtime_class = (&*(method as *const MethodId)).class.clone();
+    let class_object = get_or_create_class_object(
+        jvm,
+        &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.class_view.name())),
+        jvm.get_current_frame().deref(),
+        runtime_class.loader.clone()
+    );//todo fix this type verbosity thing
+    declaring_class_ptr.write(transmute(to_object(class_object.into())));
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodDeclaringClass");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_array_class_ptr: *mut jboolean) -> jvmtiError{
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "IsArrayClass");
+    is_array_class_ptr.write(is_array_impl(klass));
+    jvm.tracing.trace_jdwp_function_exit(jvm, "IsArrayClass");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+pub fn is_array_impl(cls: jclass) -> u8 {
+    let object_non_null = unsafe { from_object(transmute(cls)).unwrap().clone()};
+    let ptype = object_non_null.unwrap_normal_object().class_object_ptype.borrow();
+    let is_array = ptype.as_ref().unwrap().is_array();
+    is_array as jboolean
+}
+
+pub unsafe extern "C" fn is_interface(env: *mut jvmtiEnv, klass: jclass, is_interface_ptr: *mut jboolean) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "IsInterface");
+    let res = from_object(transmute(klass)).unwrap().unwrap_normal_object().class_pointer.class_view.is_interface();
+    is_interface_ptr.write(res as u8);
+    jvm.tracing.trace_jdwp_function_exit(jvm, "IsInterface");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(transmute(klass)).unwrap();

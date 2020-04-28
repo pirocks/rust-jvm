@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jthread, jvmtiStartFunction, jint, jvmtiError, _jobject, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_bindings::{jvmtiEnv, jthread, jvmtiStartFunction, jint, jvmtiError, _jobject, jvmtiError_JVMTI_ERROR_NONE, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, JVMTI_THREAD_MIN_PRIORITY};
 use crate::jvmti::{get_state, get_jvmti_interface};
 use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::ClassName;
@@ -13,6 +13,7 @@ use std::cell::RefCell;
 use crate::stack_entry::StackEntry;
 use std::rc::Rc;
 use lock_api::Mutex;
+use thread_priority::*;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
@@ -24,14 +25,24 @@ unsafe impl Send for ThreadArgWrapper {}
 
 unsafe impl Sync for ThreadArgWrapper {}
 
-pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, _priority: jint) -> jvmtiError {
+pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
     //todo implement thread priority
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm,"RunAgentThread");
     let args = ThreadArgWrapper { proc_, arg, thread };
     let system_class = check_inited_class(jvm, &ClassName::system(), jvm.bootstrap_loader.clone());
 //TODO ADD THREAD TO JVM STATE STRUCT
-    std::thread::spawn(move || {
+    //todo handle join handles somehow
+    let _join_handle = std::thread::Builder::new()
+        .name("Unknown Agent Thread".to_string())
+        .spawn(move || {
+        if priority == JVMTI_THREAD_MAX_PRIORITY as i32 {
+            set_current_thread_priority(ThreadPriority::Max).unwrap();
+        }else if priority == JVMTI_THREAD_NORM_PRIORITY as i32 {
+            // unimplemented!()
+        }else if priority == JVMTI_THREAD_MIN_PRIORITY as i32{
+            set_current_thread_priority(ThreadPriority::Min).unwrap();
+        }
         let ThreadArgWrapper { proc_, arg, thread } = args;
         let thread_object = JavaValue::Object(from_object(transmute(thread))).cast_thread();
         let agent_thread = Arc::new(JavaThread {

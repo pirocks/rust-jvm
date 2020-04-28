@@ -69,25 +69,25 @@ impl TracingSettings {
 
     pub fn trace_monitor_unlock(&self, m: &Monitor, jvm: &JVMState) {
         if self.trace_monitor_unlock {
-            println!("Monitor unlock:{}/{}, thread:{} {}", m.name, m.monitor_i, std::thread::current().name().unwrap_or("unknown"), Monitor::get_tid(jvm));
+            println!("Monitor unlock:{}/{}, thread:{} {}", m.name, m.monitor_i, jvm.get_current_thread_name(), Monitor::get_tid(jvm));
         }
     }
 
-    pub fn trace_monitor_wait(&self, m: &Monitor) {
+    pub fn trace_monitor_wait(&self, m: &Monitor, jvm: &JVMState) {
         if self.trace_monitor_wait {
-            println!("Monitor wait:{}, thread:{}", m.name, std::thread::current().name().unwrap_or("unknown"));
+            println!("Monitor wait:{}, thread:{}", m.name, jvm.get_current_thread_name());
         }
     }
 
-    pub fn trace_monitor_notify(&self, m: &Monitor) {
+    pub fn trace_monitor_notify(&self, m: &Monitor, jvm: &JVMState) {
         if self.trace_monitor_notify {
-            println!("Monitor notify:{}, thread:{}", m.name, std::thread::current().name().unwrap_or("unknown"));
+            println!("Monitor notify:{}, thread:{}", m.name, jvm.get_current_thread_name());
         }
     }
 
-    pub fn trace_monitor_notify_all(&self, m: &Monitor) {
+    pub fn trace_monitor_notify_all(&self, m: &Monitor, jvm: &JVMState) {
         if self.trace_monitor_notify_all {
-            println!("Monitor notify all:{}, thread:{}", m.name, std::thread::current().name().unwrap_or("unknown"));
+            println!("Monitor notify all:{}, thread:{}", m.name, jvm.get_current_thread_name());
         }
     }
 
