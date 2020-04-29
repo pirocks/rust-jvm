@@ -43,9 +43,8 @@ pub fn array_of_type_class(state: &JVMState, current_frame: &StackEntry, type_fo
     let res = state.class_object_pool.read().unwrap().get(&array_type).cloned();
     match res {
         None => {
-            let r = create_a_class_object(state, current_frame);
-            let array_ptype_view = array_type.clone().into();
-            r.unwrap_normal_object().class_object_ptype.replace(array_ptype_view);
+            let array_ptype_view = array_type.clone();
+            let r = create_a_class_object(state, current_frame,array_ptype_view );
             state.class_object_pool.write().unwrap().insert(array_type, r.clone());//todo race condition see below
             r
         }
@@ -58,8 +57,7 @@ fn regular_object(state: &JVMState, class_type: &PTypeView, current_frame: &Stac
     let res = state.class_object_pool.read().unwrap().get(&class_type).cloned();
     match res {
         None => {
-            let r = create_a_class_object(state, current_frame);
-            r.unwrap_normal_object().class_object_ptype.replace(Some(class_type.clone()));
+            let r = create_a_class_object(state, current_frame, class_type.clone() );
             //todo likely race condition created by expectation that Integer.class == Integer.class, maybe let it happen anyway?
             state.class_object_pool.write().unwrap().insert(class_type.clone(), r.clone());
             if class_type.is_primitive() {
@@ -74,7 +72,7 @@ fn regular_object(state: &JVMState, class_type: &PTypeView, current_frame: &Stac
     }
 }
 
-fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry) -> Arc<Object> {
+fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry, ptypev : PTypeView) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
     let current_loader = current_frame.class_pointer.loader.clone();
@@ -88,7 +86,7 @@ fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry) -> Arc<Obje
         bootstrap_loader: true,
         // object_class_object_pointer: RefCell::new(None),
         // array_class_object_pointer: RefCell::new(None),
-        class_object_ptype: RefCell::new(None),
+        class_object_ptype: ptypev.into(),
     }));
     // state.class_loader = boostrap_loader_object;
     //the above would only be required for higher jdks where a class loader object is part of Class.

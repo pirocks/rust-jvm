@@ -124,10 +124,6 @@ impl JVMOptions {
     }
 }
 
-// let jni = new_java_loading(libjava);
-// let jdwp = load_libjdwp(libjdwp.as_str());
-
-
 pub struct JVMState {
     pub bootstrap_loader: LoaderArc,
     pub system_domain_loader: bool,

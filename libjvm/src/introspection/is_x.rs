@@ -19,8 +19,7 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
     let frame = get_frame(env);
     let obj = from_object(cls).unwrap().clone();
     let normal_obj = obj.unwrap_normal_object();
-    let temp = normal_obj.class_object_ptype.borrow();
-    let type_view = temp.as_ref().unwrap();
+    let type_view = &normal_obj.class_object_ptype.as_ref().unwrap();
     (match type_view {
         PTypeView::ByteType => false,
         PTypeView::CharType => false,

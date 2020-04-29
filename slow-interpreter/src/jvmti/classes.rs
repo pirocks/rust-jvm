@@ -14,7 +14,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm,"GetClassStatus");
     let class = from_object(transmute(klass)).unwrap();//todo handle null
-    let res = match class.unwrap_normal_object().class_object_ptype.borrow().as_ref() {
+    let res = match class.unwrap_normal_object().class_object_ptype.as_ref() {
         None => {
             0
         },
@@ -75,7 +75,7 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(transmute(klass)).unwrap();
-    let class_object_ptype = notnull_class.unwrap_normal_object().class_object_ptype.borrow();
+    let class_object_ptype = notnull_class.unwrap_normal_object().class_object_ptype.clone();
     let type_ = class_object_ptype.as_ref().unwrap();
     if !signature_ptr.is_null() {
         let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
@@ -101,7 +101,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
     let class_object_wrapped = from_object(transmute(klass)).unwrap();
     let class = class_object_wrapped.unwrap_normal_object();
-    let class_ptype_guard = class.class_object_ptype.borrow();
+    let class_ptype_guard = class.class_object_ptype.clone();
     let class_name = class_ptype_guard.as_ref().unwrap().unwrap_class_type();
     let loaded_class = check_inited_class(jvm,&class_name,jvm.get_current_frame().deref().class_pointer.loader.clone());
     method_count_ptr.write(loaded_class.class_view.num_methods() as i32);

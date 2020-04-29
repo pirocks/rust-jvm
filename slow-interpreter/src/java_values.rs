@@ -242,9 +242,7 @@ impl JavaValue {
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
             bootstrap_loader: false,
-            // object_class_object_pointer: RefCell::new(None),
-            // array_class_object_pointer: RefCell::new(None),
-            class_object_ptype: RefCell::new(None),
+            class_object_ptype: None,
         })).into()
     }
 
@@ -433,9 +431,7 @@ impl Object {
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
                     bootstrap_loader: o.bootstrap_loader,
-                    // object_class_object_pointer: o.object_class_object_pointer.clone(),
-                    // array_class_object_pointer: o.array_class_object_pointer.clone(),
-                    class_object_ptype: RefCell::new(None),
+                    class_object_ptype: None,
                 })
             }
         }
@@ -488,7 +484,7 @@ pub struct NormalObject {
     pub class_pointer: Arc<RuntimeClass>,
     //todo this should just point to the actual class object.
     pub bootstrap_loader: bool,
-    pub class_object_ptype: RefCell<Option<PTypeView>>,
+    pub class_object_ptype: Option<PTypeView>,
     //points to the object represented by this class object of relevant
     //might be simpler to ccombine these into a ptype
     // pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
@@ -498,7 +494,7 @@ pub struct NormalObject {
 
 impl NormalObject {
     pub fn class_object_to_ptype(&self) -> PTypeView {
-        self.class_object_ptype.borrow().clone().unwrap()
+        self.class_object_ptype.clone().unwrap()
     }
 }
 

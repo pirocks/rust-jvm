@@ -108,7 +108,7 @@ pub fn object_field_offset(
     let field_name = string_obj_to_string(param1_obj.lookup_field("name").unwrap_object());
     let temp = param1_obj.lookup_field("clazz");
     let field_class = temp.unwrap_normal_object();
-    let borrow_4 = field_class.class_object_ptype.borrow();
+    let borrow_4 = field_class.class_object_ptype.clone();
     let field_class_name = borrow_4.as_ref().unwrap().unwrap_ref_type().unwrap_name();
     let field_classfile = &check_inited_class(state,&field_class_name,frame.class_pointer.loader.clone()).classfile;
     let mut res = None;
@@ -122,6 +122,6 @@ pub fn object_field_offset(
 
 
 pub fn shouldBeInitialized(state: & JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
-    let class_name_to_check = args[1].unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().unwrap_type_to_name().unwrap();
+    let class_name_to_check = args[1].unwrap_normal_object().class_object_ptype.as_ref().unwrap().unwrap_type_to_name().unwrap();
     JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some()).into()
 }

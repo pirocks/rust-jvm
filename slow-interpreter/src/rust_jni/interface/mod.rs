@@ -309,7 +309,7 @@ pub mod instance_of {
         let jvm = get_state(env);
         let java_obj = from_object(obj);
         let class_object = from_object(clazz);
-        let type_ = class_object.unwrap().unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone().unwrap_ref_type().clone();
+        let type_ = class_object.unwrap().unwrap_normal_object().class_object_ptype.as_ref().unwrap().clone().unwrap_ref_type().clone();
         let frame = get_frame(env);
         instance_of_impl(jvm, frame.deref(), java_obj.unwrap(), type_);
         (frame.pop().unwrap_int() != 0) as jboolean

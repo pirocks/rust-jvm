@@ -79,7 +79,7 @@ pub mod class {
 
     impl JClass {
         pub fn as_type(&self) -> PTypeView {
-            self.normal_object.unwrap_normal_object().class_object_ptype.borrow().as_ref().unwrap().clone()
+            self.normal_object.unwrap_normal_object().class_object_ptype.as_ref().unwrap().clone()
         }
 
         pub fn get_class_loader(&self, state: &JVMState, frame: &StackEntry) -> ClassLoader {

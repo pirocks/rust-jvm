@@ -54,8 +54,8 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 
     let sub_not_null = from_object(sub).unwrap();
     let sup_not_null = from_object(sup).unwrap();
-    let sub_temp_refcell = sub_not_null.unwrap_normal_object().class_object_ptype.borrow();
-    let sup_temp_refcell = sup_not_null.unwrap_normal_object().class_object_ptype.borrow();
+    let sub_temp_refcell = sub_not_null.unwrap_normal_object().class_object_ptype.clone();
+    let sup_temp_refcell = sup_not_null.unwrap_normal_object().class_object_ptype.clone();
 
     let sub_type = sub_temp_refcell.as_ref().unwrap();
     let sup_type = sup_temp_refcell.as_ref().unwrap();
