@@ -10,6 +10,6 @@ edition = "2018"
 [dependencies]
 rust-jvm-common = {path = "../rust-jvm-common"}
 slow-interpreter = {path = "../slow-interpreter"}
-jni-bindings = {path = "../jni-bindings"}
+jvmti-jni-bindings = {path = "../jvmti-jni-bindings"}
 classfile-parser = {path = "../classfile-parser"}
 classfile-view = {path = "../classfile-view"}

@@ -1,5 +1,5 @@
 use slow_interpreter::rust_jni::native_util::{to_object, from_object, get_frame, get_state};
-use jni_bindings::{jobject, jclass, JNIEnv, jboolean};
+use jvmti_jni_bindings::{jobject, jclass, JNIEnv, jboolean};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use rust_jvm_common::classnames::ClassName;
 

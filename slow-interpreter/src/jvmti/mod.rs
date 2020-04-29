@@ -1,4 +1,4 @@
-use jvmti_bindings::*;
+use jvmti_jni_bindings::*;
 use std::intrinsics::transmute;
 use std::ops::Deref;
 use crate::{JVMState};
@@ -27,7 +27,7 @@ use crate::jvmti::event_callbacks::set_event_callbacks;
 pub mod event_callbacks;
 
 
-pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l JVMState/*<'l>*/ {
+pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l JVMState {
     transmute((**env).reserved1)
 }
 

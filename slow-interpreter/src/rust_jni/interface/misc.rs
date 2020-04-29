@@ -1,5 +1,5 @@
 use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object};
-use jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_, jthrowable};
+use jvmti_jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_, jthrowable};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use crate::rust_jni::MethodId;
 use std::ffi::CStr;

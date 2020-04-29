@@ -26,7 +26,7 @@ pub mod field {
     use crate::java_values::{JavaValue, Object, ArrayObject};
     use crate::java::lang::string::JString;
     use crate::java::lang::class::JClass;
-    use jni_bindings::jint;
+    use jvmti_jni_bindings::jint;
     use crate::{JVMState, StackEntry};
 
     use crate::interpreter_util::{push_new_object, run_constructor, check_inited_class};

@@ -6,7 +6,7 @@ use slow_interpreter::rust_jni::native_util::{to_object, get_frame, get_state, f
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use rust_jvm_common::classfile::ACC_PUBLIC;
-use jni_bindings::{JNIEnv, jclass, jboolean, jobjectArray, jio_vfprintf};
+use jvmti_jni_bindings::{JNIEnv, jclass, jboolean, jobjectArray, jio_vfprintf};
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::get_all_methods;
 use libjvm_utils::ptype_to_class_object;

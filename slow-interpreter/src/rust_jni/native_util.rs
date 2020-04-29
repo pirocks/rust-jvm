@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use crate::{JVMState, StackEntry};
-use jni_bindings::{jclass, JNIEnv, jobject, _jobject};
+use jvmti_jni_bindings::{jclass, JNIEnv, jobject, _jobject};
 
 use std::ops::Deref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};

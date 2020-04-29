@@ -1,4 +1,4 @@
-use jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va_list_tag, jboolean, JNI_FALSE, JNI_TRUE};
+use jvmti_jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va_list_tag, jboolean, JNI_FALSE, JNI_TRUE};
 use std::mem::transmute;
 use std::ffi::c_void;
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id};
@@ -300,7 +300,7 @@ pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: 
 }
 
 pub mod instance_of {
-    use jni_bindings::{JNIEnv, jobject, jclass, jboolean};
+    use jvmti_jni_bindings::{JNIEnv, jobject, jclass, jboolean};
     use crate::rust_jni::native_util::{get_state, from_object, get_frame};
     use crate::instructions::special::instance_of_impl;
     use std::ops::Deref;
@@ -317,7 +317,7 @@ pub mod instance_of {
 }
 
 pub mod local_ref {
-    use jni_bindings::{JNIEnv, jobject};
+    use jvmti_jni_bindings::{JNIEnv, jobject};
     use crate::rust_jni::native_util::from_object;
 
     pub unsafe extern "C" fn new_local_ref(_env: *mut JNIEnv, ref_: jobject) -> jobject {

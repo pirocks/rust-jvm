@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jvmtiError, jlong, jvmtiError_JVMTI_ERROR_OUT_OF_MEMORY, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_jni_bindings::{jvmtiEnv, jvmtiError, jlong, jvmtiError_JVMTI_ERROR_OUT_OF_MEMORY, jvmtiError_JVMTI_ERROR_NONE};
 use crate::jvmti::get_state;
 
 pub unsafe extern "C" fn allocate(env: *mut jvmtiEnv, size: jlong, mem_ptr: *mut *mut ::std::os::raw::c_uchar) -> jvmtiError{

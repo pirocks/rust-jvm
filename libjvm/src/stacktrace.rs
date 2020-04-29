@@ -1,4 +1,4 @@
-use jni_bindings::{jint, jobject, JNIEnv};
+use jvmti_jni_bindings::{jint, jobject, JNIEnv};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobject) {

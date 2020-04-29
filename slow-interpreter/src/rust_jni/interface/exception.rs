@@ -1,4 +1,4 @@
-use jni_bindings::{jthrowable, JNIEnv};
+use jvmti_jni_bindings::{jthrowable, JNIEnv};
 use crate::rust_jni::native_util::get_state;
 
 pub unsafe extern "C" fn exception_occured(_env: *mut JNIEnv) -> jthrowable {

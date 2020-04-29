@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jvmtiError, jint, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_jni_bindings::{jvmtiEnv, jvmtiError, jint, jvmtiError_JVMTI_ERROR_NONE};
 use crate::jvmti::get_state;
 
 pub unsafe extern "C" fn get_version_number(env: *mut jvmtiEnv, version_ptr: *mut jint) -> jvmtiError{

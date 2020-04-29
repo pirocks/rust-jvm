@@ -1,4 +1,4 @@
-use jni_bindings::{jint, sockaddr};
+use jvmti_jni_bindings::{jint, sockaddr};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitializeSocketLibrary() -> jint {

@@ -1,4 +1,4 @@
-use jvmti_bindings::*;
+use jvmti_jni_bindings::*;
 use crate::jvmti::get_state;
 use std::ops::Deref;
 use crate::jvmti::event_callbacks::DebuggerEventConsumer;

@@ -1,4 +1,4 @@
-use jni_bindings::{jboolean, jint};
+use jvmti_jni_bindings::{jboolean, jint};
 use std::mem::transmute;
 use std::os::raw::c_char;
 

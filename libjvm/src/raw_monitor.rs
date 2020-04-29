@@ -1,4 +1,4 @@
-use jni_bindings::jint;
+use jvmti_jni_bindings::jint;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_RawMonitorCreate() -> *mut ::std::os::raw::c_void {

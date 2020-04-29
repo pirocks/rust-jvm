@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jrawMonitorID, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jlong};
+use jvmti_jni_bindings::{jvmtiEnv, jrawMonitorID, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jlong};
 use std::os::raw::c_char;
 use crate::jvmti::get_state;
 use std::intrinsics::transmute;

@@ -1,4 +1,4 @@
-use jni_bindings::{jobject, JNIEnv, jintArray, jobjectArray};
+use jvmti_jni_bindings::{jobject, JNIEnv, jintArray, jobjectArray};
 use slow_interpreter::rust_jni::native_util::to_object;
 
 #[no_mangle]

@@ -23,7 +23,7 @@ use std::mem::size_of;
 
 use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
-use jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
+use jvmti_jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
 use crate::rust_jni::native_util::{get_state, get_frame, from_object};
 use crate::rust_jni::interface::get_interface;
 use std::io::Error;

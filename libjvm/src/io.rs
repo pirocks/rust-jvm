@@ -1,4 +1,4 @@
-use jni_bindings::{jlong, jint};
+use jvmti_jni_bindings::{jlong, jint};
 
 
 

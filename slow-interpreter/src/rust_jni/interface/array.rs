@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jbyte, jsize, jbyteArray, jarray};
+use jvmti_jni_bindings::{JNIEnv, jbyte, jsize, jbyteArray, jarray};
 use std::cell::RefCell;
 use std::sync::Arc;
 use crate::rust_jni::native_util::{to_object, from_object, get_state};

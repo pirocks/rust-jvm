@@ -1,5 +1,5 @@
 use crate::rust_jni::native_util::{from_object, get_state, get_frame};
-use jni_bindings::{jboolean, jfieldID, jobject, JNIEnv, jlong, jint, jclass};
+use jvmti_jni_bindings::{jboolean, jfieldID, jobject, JNIEnv, jlong, jint, jclass};
 use std::ops::DerefMut;
 use crate::rust_jni::interface::util::{FieldID, runtime_class_from_object};
 use crate::java_values::JavaValue;

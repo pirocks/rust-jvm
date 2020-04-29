@@ -2,7 +2,7 @@ use rust_jvm_common::ptype::PType;
 
 use std::sync::Arc;
 
-use jni_bindings::jstring;
+use jvmti_jni_bindings::jstring;
 use classfile_view::view::ptype_view::PTypeView;
 use slow_interpreter::JVMState;
 use slow_interpreter::java_values::Object;

@@ -1,5 +1,5 @@
 use crate::rust_jni::native_util::{from_object, to_object, get_state, get_frame};
-use jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethodID};
+use jvmti_jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethodID};
 use std::ops::Deref;
 use std::ffi::CStr;
 use std::mem::transmute;

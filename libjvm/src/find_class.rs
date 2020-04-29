@@ -1,4 +1,4 @@
-use jni_bindings::{jclass, jstring, jobject, JNIEnv, jboolean};
+use jvmti_jni_bindings::{jclass, jstring, jobject, JNIEnv, jboolean};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
 use std::ffi::{CStr, CString};

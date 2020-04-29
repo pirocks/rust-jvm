@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jvmtiCapabilities, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY};
+use jvmti_jni_bindings::{jvmtiEnv, jvmtiCapabilities, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY};
 use std::os::raw::c_void;
 use std::mem::{size_of, transmute};
 use crate::jvmti::get_state;

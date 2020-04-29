@@ -1,4 +1,4 @@
-use jni_bindings::jlong;
+use jvmti_jni_bindings::jlong;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_TotalMemory() -> jlong {

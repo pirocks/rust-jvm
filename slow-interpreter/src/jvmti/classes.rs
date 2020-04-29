@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE, jmethodID};
+use jvmti_jni_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE, jmethodID};
 use crate::jvmti::get_state;
 use std::mem::transmute;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
@@ -106,7 +106,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     let loaded_class = check_inited_class(jvm,&class_name,jvm.get_current_frame().deref().class_pointer.loader.clone());
     method_count_ptr.write(loaded_class.class_view.num_methods() as i32);
     //todo use Layout instead of whatever this is.
-    *methods_ptr = libc::malloc((size_of::<*mut c_void>())*(*method_count_ptr as usize)) as *mut *mut jvmti_bindings::_jmethodID;
+    *methods_ptr = libc::malloc((size_of::<*mut c_void>())*(*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;
     loaded_class.class_view.methods().enumerate().for_each(|(i,mv)|{
         methods_ptr
             .read()

@@ -1,4 +1,4 @@
-use jni_bindings::{jclass, JNIEnv, jobject, jboolean, jstring};
+use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jboolean, jstring};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitializeCompiler(env: *mut JNIEnv, compCls: jclass) {

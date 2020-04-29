@@ -3,7 +3,7 @@ use slow_interpreter::interpreter_util::{push_new_object, check_inited_class};
 use std::cell::RefCell;
 use std::sync::{Arc, RwLockWriteGuard, RwLock};
 use rust_jvm_common::classnames::ClassName;
-use jni_bindings::{JNIEnv, jclass, jobject, jlong, jint, jboolean, jobjectArray, jstring, jintArray};
+use jvmti_jni_bindings::{JNIEnv, jclass, jobject, jlong, jint, jboolean, jobjectArray, jstring, jintArray};
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::java_values::{JavaValue, Object};

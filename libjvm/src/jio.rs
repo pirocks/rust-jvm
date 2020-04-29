@@ -1,4 +1,4 @@
-use jni_bindings::{__va_list_tag, FILE, vsnprintf};
+use jvmti_jni_bindings::{__va_list_tag, FILE, vsnprintf};
 use log::trace;
 
 #[no_mangle]

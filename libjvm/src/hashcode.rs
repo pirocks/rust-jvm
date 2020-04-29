@@ -1,4 +1,4 @@
-use jni_bindings::{jint, jobject, JNIEnv};
+use jvmti_jni_bindings::{jint, jobject, JNIEnv};
 use std::mem::transmute;
 
 #[no_mangle]

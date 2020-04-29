@@ -1,6 +1,6 @@
 use libloading::Library;
 use std::sync::{Arc, RwLock};
-use jvmti_bindings::{jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jvmtiEventThreadStart, jvmtiEventThreadEnd, jvmtiEventClassPrepare, jvmtiEventGarbageCollectionFinish, jvmtiEventBreakpoint, jvmtiEventClassLoad, jvmtiEventExceptionCatch, jvmtiEventSingleStep, jvmtiEventFramePop, jvmtiEventFieldAccess, jvmtiEventFieldModification, jvmtiEventMethodEntry, jvmtiEventMethodExit, jvmtiEventMonitorWait, jvmtiEventMonitorWaited, jvmtiEventMonitorContendedEnter, jvmtiEventMonitorContendedEntered, jvmtiEnv, JNIEnv, jthread, jclass, jmethodID, jlocation, jvmtiInterface_1_, JNINativeInterface_, _jmethodID, _jobject, JNIInvokeInterface_, JavaVM, jint, jvmtiError, jobject, jvmtiError_JVMTI_ERROR_NONE, jvmtiEventCallbacks};
+use jvmti_jni_bindings::{jvmtiEventVMInit, jvmtiEventVMDeath, jvmtiEventException, jvmtiEventThreadStart, jvmtiEventThreadEnd, jvmtiEventClassPrepare, jvmtiEventGarbageCollectionFinish, jvmtiEventBreakpoint, jvmtiEventClassLoad, jvmtiEventExceptionCatch, jvmtiEventSingleStep, jvmtiEventFramePop, jvmtiEventFieldAccess, jvmtiEventFieldModification, jvmtiEventMethodEntry, jvmtiEventMethodExit, jvmtiEventMonitorWait, jvmtiEventMonitorWaited, jvmtiEventMonitorContendedEnter, jvmtiEventMonitorContendedEntered, jvmtiEnv, JNIEnv, jthread, jclass, jmethodID, jlocation, jvmtiInterface_1_, JNINativeInterface_, _jmethodID, _jobject, JNIInvokeInterface_, JavaVM, jint, jvmtiError, jobject, jvmtiError_JVMTI_ERROR_NONE, jvmtiEventCallbacks};
 use crate::{JVMState, JavaThread};
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::{get_jvmti_interface, get_state};
@@ -55,7 +55,7 @@ impl SharedLibJVMTI {
         unsafe {
             let interface = get_interface(state);
             let mut jvmti_interface = get_jvmti_interface(state);
-            let mut casted_jni = interface as *const jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_;
+            let mut casted_jni = interface as *const jvmti_jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_;
             let main_thread_guard = state.thread_state.main_thread.read().unwrap();
             let main_thread_nonnull = main_thread_guard.as_ref().unwrap();
             let thread_object_borrow = main_thread_nonnull.thread_object.borrow();

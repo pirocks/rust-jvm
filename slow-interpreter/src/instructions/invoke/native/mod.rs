@@ -23,7 +23,7 @@ use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;
 use std::sync::atomic::Ordering;
 use crate::interpreter::monitor_for_function;
-use jni_bindings::JVM_ACC_SYNCHRONIZED;
+use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 
 pub fn run_native_method(
     jvm: & JVMState,
@@ -53,7 +53,7 @@ pub fn run_native_method(
     } else {
         panic!();
     }
-    let monitor = monitor_for_function(jvm, frame, method, method.access_flags & JVM_ACC_SYNCHRONIZED as u16 > 0, &class.class_view.name());
+    let monitor = monitor_for_function(jvm, frame, method, method.access_flags & ACC_SYNCHRONIZED as u16 > 0, &class.class_view.name());
     monitor.as_ref().map(|m|m.lock(jvm));
     if _debug {
         // dbg!(&args);

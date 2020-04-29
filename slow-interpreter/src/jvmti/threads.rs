@@ -1,4 +1,4 @@
-use jvmti_bindings::*;
+use jvmti_jni_bindings::*;
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::{to_object, from_object};
 use std::intrinsics::transmute;

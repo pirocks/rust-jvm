@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jclass, jobject, jint, JVM_CALLER_DEPTH, jlong, jboolean};
+use jvmti_jni_bindings::{JNIEnv, jclass, jobject, jint, JVM_CALLER_DEPTH, jlong, jboolean};
 use crate::introspection::JVM_GetCallerClass;
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(

@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jstring, jboolean, jchar, jsize};
+use jvmti_jni_bindings::{JNIEnv, jstring, jboolean, jchar, jsize};
 use std::os::raw::c_char;
 use std::cell::Ref;
 use std::alloc::Layout;

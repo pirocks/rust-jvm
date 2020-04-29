@@ -1,4 +1,4 @@
-use jni_bindings::{jlong, jclass, JNIEnv, lchmod};
+use jvmti_jni_bindings::{jlong, jclass, JNIEnv, lchmod};
 use std::time::Instant;
 use slow_interpreter::rust_jni::native_util::get_state;
 

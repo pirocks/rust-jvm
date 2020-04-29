@@ -1,6 +1,6 @@
 use crate::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
 use crate::rust_jni::MethodId;
-use jni_bindings::{JNIEnv, jobject, jmethodID, jclass, JNINativeInterface_, jboolean};
+use jvmti_jni_bindings::{JNIEnv, jobject, jmethodID, jclass, JNINativeInterface_, jboolean};
 use std::ffi::{VaList, VaListImpl, c_void};
 
 // use log::trace;

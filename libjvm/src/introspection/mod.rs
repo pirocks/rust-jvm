@@ -1,4 +1,4 @@
-use jni_bindings::{jobjectArray, jclass, JNIEnv, jobject, jint, jstring, jbyteArray, jboolean, JVM_ExceptionTableEntryType};
+use jvmti_jni_bindings::{jobjectArray, jclass, JNIEnv, jobject, jint, jstring, jbyteArray, jboolean, JVM_ExceptionTableEntryType};
 use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
 use std::sync::Arc;
 use std::cell::RefCell;

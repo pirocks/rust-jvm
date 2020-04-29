@@ -1,5 +1,5 @@
 use crate::rust_jni::native_util::{to_object, from_object};
-use jni_bindings::{jobject, JNIEnv, jweak};
+use jvmti_jni_bindings::{jobject, JNIEnv, jweak};
 
 pub unsafe extern "C" fn new_global_ref(_env: *mut JNIEnv, lobj: jobject) -> jobject {
     let obj = from_object(lobj);

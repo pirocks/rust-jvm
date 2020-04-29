@@ -1,4 +1,4 @@
-use jni_bindings::jboolean;
+use jvmti_jni_bindings::jboolean;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_TraceInstructions(on: jboolean) {

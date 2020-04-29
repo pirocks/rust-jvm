@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jthread, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_jni_bindings::{jvmtiEnv, jthread, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use crate::jvmti::get_state;
 use std::cell::RefMut;
 use std::os::raw::c_void;

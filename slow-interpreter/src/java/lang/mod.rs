@@ -156,7 +156,7 @@ pub mod string {
 }
 
 pub mod integer {
-    use jni_bindings::jint;
+    use jvmti_jni_bindings::jint;
     use crate::{JVMState, StackEntry};
 
     use crate::java_values::{JavaValue, Object};

@@ -2,7 +2,7 @@ use libffi::middle::Arg;
 use libffi::middle::Type;
 use crate::rust_jni::native_util::to_object;
 use std::ffi::c_void;
-use jni_bindings::jclass;
+use jvmti_jni_bindings::jclass;
 use std::sync::Arc;
 use std::ops::Deref;
 use rust_jvm_common::ptype::PType;

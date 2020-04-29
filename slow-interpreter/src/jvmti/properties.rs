@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NOT_AVAILABLE, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_jni_bindings::{jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NOT_AVAILABLE, jvmtiError_JVMTI_ERROR_NONE};
 use std::ffi::{CStr, CString};
 use crate::jvmti::get_state;
 

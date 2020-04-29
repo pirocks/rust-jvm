@@ -1,4 +1,4 @@
-use jni_bindings::{jdouble, jboolean, JNIEnv, jclass};
+use jvmti_jni_bindings::{jdouble, jboolean, JNIEnv, jclass};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;

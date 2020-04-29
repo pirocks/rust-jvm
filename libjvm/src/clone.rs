@@ -1,4 +1,4 @@
-use jni_bindings::{jobject, JNIEnv};
+use jvmti_jni_bindings::{jobject, JNIEnv};
 use slow_interpreter::rust_jni::native_util::{to_object, from_object, get_state};
 use std::sync::Arc;
 use std::ops::Deref;

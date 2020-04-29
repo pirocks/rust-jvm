@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jint, jobject, JNI_OK};
+use jvmti_jni_bindings::{JNIEnv, jint, jobject, JNI_OK};
 use crate::rust_jni::native_util::{get_state, get_frame, to_object};
 use crate::java_values::JavaValue;
 use std::rc::Rc;

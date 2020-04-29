@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jobject, jlong, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_NULL_POINTER, jvmtiError_JVMTI_ERROR_NOT_FOUND};
+use jvmti_jni_bindings::{jvmtiEnv, jobject, jlong, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_NULL_POINTER, jvmtiError_JVMTI_ERROR_NOT_FOUND};
 use crate::jvmti::get_state;
 use std::intrinsics::transmute;
 

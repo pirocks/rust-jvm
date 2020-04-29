@@ -1,5 +1,5 @@
 use std::os::raw::{c_int, c_void};
-use jni_bindings::{JNI_VERSION_1_8, JavaVM};
+use jvmti_jni_bindings::{JNI_VERSION_1_8, JavaVM};
 use std::mem::transmute;
 
 #[no_mangle]

@@ -1,4 +1,4 @@
-use jni_bindings::{jobject, JNIEnv};
+use jvmti_jni_bindings::{jobject, JNIEnv};
 use slow_interpreter::instructions::ldc::create_string_on_stack;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, from_object};
 

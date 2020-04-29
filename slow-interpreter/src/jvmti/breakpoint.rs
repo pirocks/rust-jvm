@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiError_JVMTI_ERROR_NONE, jvmtiEnv, jlocation, jvmtiError, jmethodID};
+use jvmti_jni_bindings::{jvmtiError_JVMTI_ERROR_NONE, jvmtiEnv, jlocation, jvmtiError, jmethodID};
 use crate::jvmti::get_state;
 use crate::rust_jni::MethodId;
 use std::collections::HashSet;

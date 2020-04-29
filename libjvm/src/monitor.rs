@@ -1,4 +1,4 @@
-use jni_bindings::{jobject, JNIEnv, jlong};
+use jvmti_jni_bindings::{jobject, JNIEnv, jlong};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jlong) {

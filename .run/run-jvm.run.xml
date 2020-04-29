@@ -7,7 +7,7 @@
     <option name="emulateTerminal" value="false" />
     <option name="backtrace" value="SHORT" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-    <envs>
+    <envs pass-parent-envs="false">
       <env name="LD_LIBRARY_PATH" value="$PROJECT_DIR$/target/debug/deps/" />
       <env name="JVM_H" value="$USER_HOME$/build/openjdk-jdk8u/jdk/src/share/javavm/export" />
       <env name="JVM_MD_H" value="$PROJECT_DIR$/jni-bindings/" />

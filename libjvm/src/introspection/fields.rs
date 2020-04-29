@@ -1,4 +1,4 @@
-use jni_bindings::{JNIEnv, jclass, jint, jboolean, jobjectArray};
+use jvmti_jni_bindings::{JNIEnv, jclass, jint, jboolean, jobjectArray};
 use slow_interpreter::rust_jni::native_util::{get_frame, get_state, to_object};
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::interpreter_util::{push_new_object, check_inited_class, run_constructor};

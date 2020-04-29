@@ -1,5 +1,4 @@
 use crate::{JVMState, InterpreterState};
-use jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classnames::{class_name, ClassName};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::class_objects::get_or_create_class_object;
@@ -33,6 +32,7 @@ use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::stack_entry::StackEntry;
 use crate::monitor::Monitor;
 use std::sync::Arc;
+use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 
 pub fn run_function(jvm: &JVMState) {
     let current_thread = jvm.get_current_thread();
@@ -40,7 +40,7 @@ pub fn run_function(jvm: &JVMState) {
     let current_frame = frame_temp.deref();
     let methods = &current_frame.class_pointer.classfile.methods;
     let method = &methods[current_frame.method_i as usize];
-    let synchronized = method.access_flags & JVM_ACC_SYNCHRONIZED as u16 > 0;
+    let synchronized = method.access_flags & ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
     let meth_name = method.method_name(&current_frame.class_pointer.classfile);
     let class_name__ = class_name(&current_frame.class_pointer.classfile);

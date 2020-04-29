@@ -1,4 +1,4 @@
-use jni_bindings::{jstring, JNIEnv, jobjectArray};
+use jvmti_jni_bindings::{jstring, JNIEnv, jobjectArray};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetSystemPackage(env: *mut JNIEnv, name: jstring) -> jstring {

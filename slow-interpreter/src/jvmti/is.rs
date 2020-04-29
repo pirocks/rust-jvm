@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jclass, jboolean, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jmethodID};
+use jvmti_jni_bindings::{jvmtiEnv, jclass, jboolean, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jmethodID};
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::from_object;
 use std::mem::transmute;
