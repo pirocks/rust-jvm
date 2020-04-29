@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jint, jthreadGroup, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jthread, jvmtiThreadInfo, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
+use jvmti_bindings::{jvmtiEnv, jint, jthreadGroup, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jthread, jvmtiThreadInfo, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_SUSPENDED};
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::{to_object, from_object};
 use std::intrinsics::transmute;
@@ -53,9 +53,22 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-pub unsafe extern "C" fn get_thread_state(_env: *mut jvmtiEnv, _thread: jthread, _thread_state_ptr: *mut jint) -> jvmtiError {
-    unimplemented!();
-    // jvmtiError_JVMTI_ERROR_NONE
+pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, thread_state_ptr: *mut jint) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm,"GetThreadState");
+    let thread_object = JavaValue::Object(from_object(transmute(thread))).cast_thread();
+    let tid = thread_object.tid();
+    let alive_threads_read_guard = jvm.thread_state.alive_threads.read().unwrap();
+    let thread = alive_threads_read_guard.get(&tid);
+    let suspended = thread.unwrap().interpreter_state.suspended.read().unwrap().suspended;
+    let state = JVMTI_THREAD_STATE_ALIVE | if suspended {
+        JVMTI_THREAD_STATE_SUSPENDED
+    }else {
+        unimplemented!()
+    };
+    thread_state_ptr.write(state as i32);
+    jvm.tracing.trace_jdwp_function_exit(jvm,"GetThreadState");
+    jvmtiError_JVMTI_ERROR_NONE
 }
 
 pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {

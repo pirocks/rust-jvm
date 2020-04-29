@@ -7,6 +7,7 @@ import java.util.Collection;
 
 public class Swing {
     public static void main(String[] args) {
+        System.out.println("test");
         JFrame test = new JFrame("test");
 //        Collection<Integer> thing = new ArrayList<Integer>(){{
 //            add(1);

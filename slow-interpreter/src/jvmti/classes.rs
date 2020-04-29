@@ -5,6 +5,7 @@ use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::class_objects::get_or_create_class_object;
 use crate::rust_jni::native_util::{to_object, from_object};
 use std::ops::Deref;
+use std::ffi::CString;
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
@@ -62,5 +63,31 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
     class_count_ptr.write(res_vec.len() as i32);
     classes_ptr.write(transmute(Vec::leak(res_vec).as_mut_ptr())); //todo leaking
     jvm.tracing.trace_jdwp_function_exit(jvm,"GetLoadedClasses");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+
+
+pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
+    let notnull_class = from_object(transmute(klass)).unwrap();
+    let class_object_ptype = notnull_class.unwrap_normal_object().class_object_ptype.borrow();
+    let type_ = class_object_ptype.as_ref().unwrap();
+    if !signature_ptr.is_null() {
+        let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
+        let jvm_repr_ptr = jvm_repr.into_raw();
+        let allocated_jvm_repr = libc::malloc(libc::strlen(jvm_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
+        signature_ptr.write(allocated_jvm_repr);
+        libc::strcpy(allocated_jvm_repr, jvm_repr_ptr);
+    }
+    if !generic_ptr.is_null() {
+        let java_repr = CString::new(type_.java_source_representation()).unwrap();
+        let java_repr_ptr = java_repr.into_raw();
+        let allocated_java_repr = libc::malloc(libc::strlen(java_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
+        generic_ptr.write(allocated_java_repr);
+        libc::strcpy(allocated_java_repr, java_repr_ptr);
+    }
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassSignature");
     jvmtiError_JVMTI_ERROR_NONE
 }

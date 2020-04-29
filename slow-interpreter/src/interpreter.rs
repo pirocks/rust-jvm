@@ -369,11 +369,9 @@ fn run_single_instruction(
         InstructionInfo::lxor => unimplemented!(),
         InstructionInfo::monitorenter => {
             current_frame.pop().unwrap_object_nonnull().monitor_lock(jvm);
-            /*unimplemented for now todo*/
         }
         InstructionInfo::monitorexit => {
             current_frame.pop().unwrap_object_nonnull().monitor_unlock(jvm);
-            /*unimplemented for now todo*/
         }
         InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, &current_frame, cp),
         InstructionInfo::new(cp) => new(jvm, &current_frame, cp as usize),

@@ -5,8 +5,8 @@ use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::native_util::{from_object, get_state, get_frame};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use slow_interpreter::jvmti::is_array_impl;
 use std::intrinsics::transmute;
+use slow_interpreter::jvmti::is::is_array_impl;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {

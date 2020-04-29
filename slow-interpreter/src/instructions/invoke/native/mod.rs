@@ -22,7 +22,6 @@ use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;
 use std::sync::atomic::Ordering;
-use rust_jvm_common::classfile::InstructionInfo::monitorexit;
 use crate::interpreter::monitor_for_function;
 use jni_bindings::JVM_ACC_SYNCHRONIZED;
 

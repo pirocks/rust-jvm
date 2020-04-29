@@ -15,21 +15,21 @@ use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
-use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list};
+use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state};
 use crate::rust_jni::MethodId;
 use crate::rust_jni::native_util::{to_object, from_object};
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
 use crate::jvmti::agent::*;
 use crate::jvmti::classes::*;
-use std::collections::HashSet;
-use std::iter::FromIterator;
 use crate::java::lang::thread::JThread;
 use rust_jvm_common::classnames::ClassName;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::JavaValue;
-use classfile_view::view::HasAccessFlags;
+use crate::jvmti::is::{is_interface, is_array_class};
+use crate::jvmti::frame::get_frame_count;
+use crate::jvmti::breakpoint::set_breakpoint;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -378,10 +378,10 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetCurrentContendedMonitor: None,
         RunAgentThread: Some(run_agent_thread),
         GetTopThreadGroups: Some(get_top_thread_groups),
-        GetThreadGroupInfo: None,
+        GetThreadGroupInfo: Some(get_thread_group_info),
         GetThreadGroupChildren: None,
-        GetFrameCount: None,
-        GetThreadState: None,
+        GetFrameCount: Some(get_frame_count),
+        GetThreadState: Some(get_thread_state),
         GetCurrentThread: None,
         GetFrameLocation: None,
         NotifyFramePop: None,
@@ -538,54 +538,6 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_array_class_ptr: *mut jboolean) -> jvmtiError{
-    let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "IsArrayClass");
-    is_array_class_ptr.write(is_array_impl(klass));
-    jvm.tracing.trace_jdwp_function_exit(jvm, "IsArrayClass");
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
-pub fn is_array_impl(cls: jclass) -> u8 {
-    let object_non_null = unsafe { from_object(transmute(cls)).unwrap().clone()};
-    let ptype = object_non_null.unwrap_normal_object().class_object_ptype.borrow();
-    let is_array = ptype.as_ref().unwrap().is_array();
-    is_array as jboolean
-}
-
-pub unsafe extern "C" fn is_interface(env: *mut jvmtiEnv, klass: jclass, is_interface_ptr: *mut jboolean) -> jvmtiError {
-    let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "IsInterface");
-    let res = from_object(transmute(klass)).unwrap().unwrap_normal_object().class_pointer.class_view.is_interface();
-    is_interface_ptr.write(res as u8);
-    jvm.tracing.trace_jdwp_function_exit(jvm, "IsInterface");
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
-pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
-    let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
-    let notnull_class = from_object(transmute(klass)).unwrap();
-    let class_object_ptype = notnull_class.unwrap_normal_object().class_object_ptype.borrow();
-    let type_ = class_object_ptype.as_ref().unwrap();
-    if !signature_ptr.is_null() {
-        let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
-        let jvm_repr_ptr = jvm_repr.into_raw();
-        let allocated_jvm_repr = libc::malloc(libc::strlen(jvm_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
-        signature_ptr.write(allocated_jvm_repr);
-        libc::strcpy(allocated_jvm_repr, jvm_repr_ptr);
-    }
-    if !generic_ptr.is_null() {
-        let java_repr = CString::new(type_.java_source_representation()).unwrap();
-        let java_repr_ptr = java_repr.into_raw();
-        let allocated_java_repr = libc::malloc(libc::strlen(java_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
-        generic_ptr.write(allocated_java_repr);
-        libc::strcpy(allocated_java_repr, java_repr_ptr);
-    }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassSignature");
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
 pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobject, hash_code_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
@@ -621,24 +573,9 @@ pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
 
-pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
-    let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "SetBreakpoint");
-    let method_id = (method as *mut MethodId).as_ref().unwrap();
-    dbg!(&method_id);
-    let mut breakpoint_guard = jvm.jvmti_state.break_points.write().unwrap();
-    match breakpoint_guard.get_mut(method_id) {
-        None => {
-            breakpoint_guard.insert(method_id.clone(), HashSet::from_iter(vec![location as isize].iter().cloned()));
-        }
-        Some(breakpoints) => {
-            breakpoints.insert(location as isize);//todo should I cast here?
-        }
-    }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "SetBreakpoint");
-    jvmtiError_JVMTI_ERROR_NONE
-}
-
+pub mod is;
+pub mod breakpoint;
+pub mod frame;
 pub mod thread_local_storage;
 pub mod agent;
 pub mod classes;

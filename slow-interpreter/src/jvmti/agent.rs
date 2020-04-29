@@ -75,7 +75,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             jvm.set_current_thread(agent_thread.clone());
             let mut jvmti = get_jvmti_interface(jvm);
             let mut jni_env = get_interface(jvm);
-            jvm.jvmti_state.built_in_jdwp.thread_start(jvm,transmute(thread));
+            jvm.jvmti_state.built_in_jdwp.thread_start(jvm,thread_object);
             proc_.unwrap()(&mut jvmti, transmute(&mut jni_env), arg as *mut c_void)
         });
     jvm.tracing.trace_jdwp_function_exit(jvm, "RunAgentThread");
