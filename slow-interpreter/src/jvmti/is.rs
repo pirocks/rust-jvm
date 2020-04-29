@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jclass, jboolean, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_bindings::{jvmtiEnv, jclass, jboolean, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jmethodID};
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::from_object;
 use std::mem::transmute;
@@ -29,3 +29,11 @@ pub unsafe extern "C" fn is_interface(env: *mut jvmtiEnv, klass: jclass, is_inte
 }
 
 
+
+pub unsafe extern "C" fn is_method_obsolete(env: *mut jvmtiEnv, _method: jmethodID, is_obsolete_ptr: *mut jboolean ) -> jvmtiError{
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodObsolete");
+    is_obsolete_ptr.write(false as u8);//todo don't support retransform classes.
+    jvm.tracing.trace_jdwp_function_exit(jvm, "IsMethodObsolete");
+    jvmtiError_JVMTI_ERROR_NONE
+}

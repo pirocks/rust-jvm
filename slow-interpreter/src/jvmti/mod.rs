@@ -15,7 +15,7 @@ use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
-use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state};
+use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state, get_thread_group_info};
 use crate::rust_jni::MethodId;
 use crate::rust_jni::native_util::{to_object, from_object};
 use crate::jvmti::thread_local_storage::*;
@@ -27,8 +27,8 @@ use rust_jvm_common::classnames::ClassName;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::JavaValue;
-use crate::jvmti::is::{is_interface, is_array_class};
-use crate::jvmti::frame::get_frame_count;
+use crate::jvmti::is::{is_interface, is_array_class, is_method_obsolete};
+use crate::jvmti::frame::{get_frame_count, get_frame_location};
 use crate::jvmti::breakpoint::set_breakpoint;
 
 pub struct SharedLibJVMTI {
@@ -383,7 +383,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetFrameCount: Some(get_frame_count),
         GetThreadState: Some(get_thread_state),
         GetCurrentThread: None,
-        GetFrameLocation: None,
+        GetFrameLocation: Some(get_frame_location),
         NotifyFramePop: None,
         GetLocalObject: None,
         GetLocalInt: None,
@@ -416,7 +416,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetClassStatus: Some(get_class_status),
         GetSourceFileName: None,
         GetClassModifiers: None,
-        GetClassMethods: None,
+        GetClassMethods: Some(get_class_methods),
         GetClassFields: None,
         GetImplementedInterfaces: None,
         IsInterface: Some(is_interface),
@@ -455,7 +455,7 @@ fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
         GetVersionNumber: Some(get_version_number),
         GetCapabilities: Some(get_capabilities),
         GetSourceDebugExtension: None,
-        IsMethodObsolete: None,
+        IsMethodObsolete: Some(is_method_obsolete),
         SuspendThreadList: Some(suspend_thread_list),
         ResumeThreadList: Some(resume_thread_list),
         reserved94: std::ptr::null_mut(),
@@ -572,6 +572,8 @@ pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
     jvm.tracing.trace_jdwp_function_exit(jvm, "DisposeEnvironment");
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
+
+
 
 pub mod is;
 pub mod breakpoint;

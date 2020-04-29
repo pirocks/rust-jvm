@@ -1,11 +1,14 @@
-use jvmti_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE};
+use jvmti_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE, jmethodID};
 use crate::jvmti::get_state;
 use std::mem::transmute;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::class_objects::get_or_create_class_object;
 use crate::rust_jni::native_util::{to_object, from_object};
 use std::ops::Deref;
-use std::ffi::CString;
+use std::ffi::{CString, c_void};
+use crate::interpreter_util::check_inited_class;
+use crate::rust_jni::MethodId;
+use std::mem::size_of;
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
@@ -89,5 +92,27 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
         libc::strcpy(allocated_java_repr, java_repr_ptr);
     }
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassSignature");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+
+pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, method_count_ptr: *mut jint, methods_ptr: *mut *mut jmethodID) -> jvmtiError{
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
+    let class_object_wrapped = from_object(transmute(klass)).unwrap();
+    let class = class_object_wrapped.unwrap_normal_object();
+    let class_ptype_guard = class.class_object_ptype.borrow();
+    let class_name = class_ptype_guard.as_ref().unwrap().unwrap_class_type();
+    let loaded_class = check_inited_class(jvm,&class_name,jvm.get_current_frame().deref().class_pointer.loader.clone());
+    method_count_ptr.write(loaded_class.class_view.num_methods() as i32);
+    //todo use Layout instead of whatever this is.
+    *methods_ptr = libc::malloc((size_of::<*mut c_void>())*(*method_count_ptr as usize)) as *mut *mut jvmti_bindings::_jmethodID;
+    loaded_class.class_view.methods().enumerate().for_each(|(i,mv)|{
+        methods_ptr
+            .read()
+            .offset(i as isize)
+            .write( Box::leak(box MethodId { class: loaded_class.clone(), method_i: mv.method_i() }) as *mut MethodId as jmethodID)
+    });
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassMethods");
     jvmtiError_JVMTI_ERROR_NONE
 }

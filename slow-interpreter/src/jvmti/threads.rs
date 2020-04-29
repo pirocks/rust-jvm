@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiEnv, jint, jthreadGroup, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jthread, jvmtiThreadInfo, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_SUSPENDED};
+use jvmti_bindings::{jvmtiEnv, jint, jthreadGroup, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jthread, jvmtiThreadInfo, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_SUSPENDED, jvmtiThreadGroupInfo, jboolean, JVMTI_THREAD_STATE_RUNNABLE, JVMTI_THREAD_STATE_IN_NATIVE};
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::{to_object, from_object};
 use std::intrinsics::transmute;
@@ -64,7 +64,7 @@ pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, t
     let state = JVMTI_THREAD_STATE_ALIVE | if suspended {
         JVMTI_THREAD_STATE_SUSPENDED
     }else {
-        unimplemented!()
+        JVMTI_THREAD_STATE_ALIVE//todo this is not always correct
     };
     thread_state_ptr.write(state as i32);
     jvm.tracing.trace_jdwp_function_exit(jvm,"GetThreadState");
@@ -122,4 +122,19 @@ pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> 
 
 pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError,) -> jvmtiError{
     unimplemented!()
+}
+
+
+pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError{
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm,"GetThreadGroupInfo");
+    //todo thread groups not implemented atm.
+    let boxed_string = CString::new("main").unwrap().into_boxed_c_str();
+    let info_pointer_writer = info_ptr.as_mut().unwrap();
+    info_pointer_writer.name = Box::leak(boxed_string).as_ptr() as *mut i8;
+    info_pointer_writer.is_daemon = false as jboolean;
+    info_pointer_writer.max_priority = 0;
+    info_pointer_writer.parent = std::ptr::null_mut();
+    jvm.tracing.trace_jdwp_function_exit(jvm,"GetThreadGroupInfo");
+    jvmtiError_JVMTI_ERROR_NONE
 }
