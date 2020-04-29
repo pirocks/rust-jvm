@@ -1,19 +1,13 @@
 use jvmti_bindings::*;
 use std::intrinsics::transmute;
-use std::os::raw::{c_void, c_char};
-use libloading::Library;
 use std::ops::Deref;
-use crate::{JVMState, JavaThread};
-use std::ffi::CString;
-use crate::invoke_interface::get_invoke_interface;
+use crate::{JVMState};
 use crate::jvmti::version::get_version_number;
 use crate::jvmti::properties::get_system_property;
 use crate::jvmti::allocate::{allocate, deallocate};
 use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities, get_capabilities};
-use crate::jvmti::events::{set_event_notification_mode, set_event_callbacks};
-use std::sync::{Arc, RwLock};
+use crate::jvmti::events::set_event_notification_mode;
 use std::cell::RefCell;
-use crate::rust_jni::interface::get_interface;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state, get_thread_group_info};
 use crate::rust_jni::MethodId;
@@ -22,312 +16,16 @@ use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
 use crate::jvmti::agent::*;
 use crate::jvmti::classes::*;
-use crate::java::lang::thread::JThread;
-use rust_jvm_common::classnames::ClassName;
 use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::JavaValue;
 use crate::jvmti::is::{is_interface, is_array_class, is_method_obsolete};
 use crate::jvmti::frame::{get_frame_count, get_frame_location};
 use crate::jvmti::breakpoint::set_breakpoint;
+use crate::jvmti::event_callbacks::set_event_callbacks;
 
-pub struct SharedLibJVMTI {
-    lib: Arc<Library>,
-    vm_init_callback: RwLock<jvmtiEventVMInit>,
-    vm_init_enabled: RwLock<bool>,
-    vm_death_callback: RwLock<jvmtiEventVMDeath>,
-    vm_death_enabled: RwLock<bool>,
-    exception_callback: RwLock<jvmtiEventException>,
-    exception_enabled: RwLock<bool>,
-    thread_start_callback: RwLock<jvmtiEventThreadStart>,
-    thread_start_enabled: RwLock<bool>,
-    thread_end_callback: RwLock<jvmtiEventThreadEnd>,
-    thread_end_enabled: RwLock<bool>,
-    class_prepare_callback: RwLock<jvmtiEventClassPrepare>,
-    class_prepare_enabled: RwLock<bool>,
-    garbage_collection_finish_callback: RwLock<jvmtiEventGarbageCollectionFinish>,
-    garbage_collection_finish_enabled: RwLock<bool>,
-    breakpoint_callback: RwLock<jvmtiEventBreakpoint>,
-    breakpoint_enabled: RwLock<bool>,
+pub mod event_callbacks;
 
-    class_load_callback: RwLock<jvmtiEventClassLoad>,
-
-    exception_catch_callback: RwLock<jvmtiEventExceptionCatch>,
-    single_step_callback: RwLock<jvmtiEventSingleStep>,
-    frame_pop_callback: RwLock<jvmtiEventFramePop>,
-    field_access_callback: RwLock<jvmtiEventFieldAccess>,
-    field_modification_callback: RwLock<jvmtiEventFieldModification>,
-    method_entry_callback: RwLock<jvmtiEventMethodEntry>,
-    method_exit_callback: RwLock<jvmtiEventMethodExit>,
-    monitor_wait_callback: RwLock<jvmtiEventMonitorWait>,
-    monitor_waited_callback: RwLock<jvmtiEventMonitorWaited>,
-    monitor_conteded_enter_callback: RwLock<jvmtiEventMonitorContendedEnter>,
-    monitor_conteded_entered_callback: RwLock<jvmtiEventMonitorContendedEntered>,
-}
-
-impl SharedLibJVMTI {
-    pub fn vm_inited(&self, state: &JVMState) {
-        unsafe {
-            let interface = get_interface(state);
-            let mut jvmti_interface = get_jvmti_interface(state);
-            let mut casted_jni = interface as *const jni_bindings::JNINativeInterface_ as *const libc::c_void as *const JNINativeInterface_;
-            let main_thread_guard = state.thread_state.main_thread.read().unwrap();
-            let main_thread_nonnull = main_thread_guard.as_ref().unwrap();
-            let thread_object_borrow = main_thread_nonnull.thread_object.borrow();
-            let main_thread_object = thread_object_borrow.as_ref().unwrap().clone().object();
-            self.VMInit(&mut jvmti_interface, &mut casted_jni, transmute(to_object(main_thread_object.into())))
-        }
-    }
-    pub fn thread_start(&self, jvm: &JVMState, thread: JThread) {
-        unsafe {
-            let obj = to_object(thread.object().into());
-            let jvmti = get_jvmti_interface(jvm);
-            let jni = get_interface(jvm);
-            self.ThreadStart(Box::leak(Box::new(jvmti)), Box::leak(Box::new(transmute(jni))), transmute(obj));
-        }
-    }
-
-    pub fn class_prepare(&self, jvm: &JVMState, class: &ClassName) {
-        unsafe {
-            if *self.class_prepare_enabled.read().unwrap() {
-                let thread_obj = to_object(jvm.get_current_thread().thread_object.borrow().clone().unwrap().object().into());
-                let jvmti = get_jvmti_interface(jvm);
-                let jni = get_interface(jvm);
-                let class_obj = get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class.clone())), jvm.get_current_frame().deref(), jvm.bootstrap_loader.clone());
-                self.ClassPrepare(
-                    Box::leak(Box::new(jvmti)),
-                    Box::leak(Box::new(transmute(jni))),
-                    transmute(thread_obj),
-                    transmute(to_object(class_obj.into())),
-                )//todo are these leaks needed
-            }
-        }
-    }
-
-    pub fn breakpoint(&self, jvm: &JVMState, method: MethodId, location: isize) {
-        unsafe {
-            let thread = to_object(jvm.get_current_thread().thread_object.borrow().as_ref().unwrap().clone().object().into());
-            let jvmti = box get_jvmti_interface(jvm);
-            let jni = box transmute(get_interface(jvm));
-            let native_method_id = box method;//todo leaks here , use a vtable based methodId
-            self.Breakpoint(
-                Box::leak(jvmti),
-                Box::leak(jni),
-                transmute(thread),
-                transmute(Box::leak(native_method_id)),
-                location as i64,
-            )
-        }
-    }
-}
-
-#[allow(non_snake_case)]
-pub trait DebuggerEventConsumer {
-    unsafe fn VMInit(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
-
-    fn VMInit_enable(&self);
-    fn VMInit_disable(&self);
-
-    unsafe fn VMDeath(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv);
-
-    fn VMDeath_enable(&self);
-    fn VMDeath_disable(&self);
-
-    unsafe fn Exception(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation, exception: jobject, catch_method: jmethodID, catch_location: jlocation);
-
-    fn Exception_enable(&self);
-    fn Exception_disable(&self);
-
-    unsafe fn ThreadStart(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
-
-    fn ThreadStart_enable(&self);
-    fn ThreadStart_disable(&self);
-
-
-    unsafe fn ThreadEnd(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
-
-    fn ThreadEnd_enable(&self);
-    fn ThreadEnd_disable(&self);
-
-    unsafe fn ClassPrepare(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, klass: jclass);
-
-    fn ClassPrepare_enable(&self);
-    fn ClassPrepare_disable(&self);
-
-
-    unsafe fn GarbageCollectionFinish(jvmti_env: *mut jvmtiEnv);
-    fn GarbageCollectionFinish_enable(&self);
-    fn GarbageCollectionFinish_disable(&self);
-
-
-    unsafe fn Breakpoint(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation);
-    fn Breakpoint_enable(&self);
-    fn Breakpoint_disable(&self);
-}
-
-#[allow(non_snake_case)]
-impl DebuggerEventConsumer for SharedLibJVMTI {
-    unsafe fn VMInit(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
-        if *self.vm_init_enabled.read().unwrap() {
-            let guard = self.vm_init_callback.read().unwrap();
-            let f_pointer = *guard.as_ref().unwrap();
-            std::mem::drop(guard);
-            f_pointer(jvmti_env, jni_env, thread);
-        }
-    }
-
-    fn VMInit_enable(&self) {
-        *self.vm_init_enabled.write().unwrap() = true;
-    }
-
-    fn VMInit_disable(&self) {
-        *self.vm_init_enabled.write().unwrap() = false;
-    }
-
-    unsafe fn VMDeath(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_) {
-        if *self.vm_death_enabled.read().unwrap() {
-            (self.vm_death_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env);
-        }
-    }
-
-    fn VMDeath_enable(&self) {
-        *self.vm_death_enabled.write().unwrap() = true;
-    }
-
-    fn VMDeath_disable(&self) {
-        *self.vm_death_enabled.write().unwrap() = false;
-    }
-
-    unsafe fn Exception(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, method: *mut _jmethodID, location: i64, exception: *mut _jobject, catch_method: *mut _jmethodID, catch_location: i64) {
-        if *self.exception_enabled.read().unwrap() {
-            (self.exception_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location, exception, catch_method, catch_location);
-        }
-    }
-
-    fn Exception_enable(&self) {
-        *self.exception_enabled.write().unwrap() = true;
-    }
-
-    fn Exception_disable(&self) {
-        *self.exception_enabled.write().unwrap() = false;
-    }
-
-    unsafe fn ThreadStart(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
-        if *self.thread_start_enabled.read().unwrap() {
-            (self.thread_start_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread);
-        }
-    }
-
-    fn ThreadStart_enable(&self) {
-        *self.thread_start_enabled.write().unwrap() = true;
-    }
-
-    fn ThreadStart_disable(&self) {
-        *self.thread_start_enabled.write().unwrap() = false;
-    }
-
-    unsafe fn ThreadEnd(_jvmti_env: *mut *const jvmtiInterface_1_, _jni_env: *mut *const JNINativeInterface_, _thread: jthread) {
-        unimplemented!()
-    }
-
-    fn ThreadEnd_enable(&self) {
-        *self.thread_start_enabled.write().unwrap() = true;
-    }
-
-    fn ThreadEnd_disable(&self) {
-        *self.thread_start_enabled.write().unwrap() = false;
-    }
-
-    unsafe fn ClassPrepare(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, klass: *mut _jobject) {
-        if *self.class_prepare_enabled.read().unwrap() {
-            (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
-        }
-    }
-
-    fn ClassPrepare_enable(&self) {
-        *self.class_prepare_enabled.write().unwrap() = true;
-    }
-
-    fn ClassPrepare_disable(&self) {
-        *self.class_prepare_enabled.write().unwrap() = false;
-    }
-
-    unsafe fn GarbageCollectionFinish(_jvmti_env: *mut *const jvmtiInterface_1_) {
-        //todo blocking on having a garbage collector
-        unimplemented!()
-    }
-
-    fn GarbageCollectionFinish_enable(&self) {
-        *self.garbage_collection_finish_enabled.write().unwrap() = true;
-    }
-
-    fn GarbageCollectionFinish_disable(&self) {
-        *self.garbage_collection_finish_enabled.write().unwrap() = false;
-    }
-
-    unsafe fn Breakpoint(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject, method: *mut _jmethodID, location: i64) {
-        if *self.breakpoint_enabled.read().unwrap() {
-            (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location);
-        }
-    }
-
-    fn Breakpoint_enable(&self) {
-        *self.breakpoint_enabled.write().unwrap() = true;
-    }
-
-    fn Breakpoint_disable(&self) {
-        *self.breakpoint_enabled.write().unwrap() = false;
-    }
-}
-
-impl SharedLibJVMTI {
-    pub fn agent_load(&self, state: &JVMState, _thread: &JavaThread) -> jvmtiError {
-        //todo why is thread relevant/unused here
-        unsafe {
-            let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
-            let agent_load_fn_ptr = agent_load_symbol.deref();
-            let args = CString::new("transport=dt_socket,server=y,suspend=y,address=5005").unwrap().into_raw();//todo parse these at jvm startup
-            let interface: *const JNIInvokeInterface_ = get_invoke_interface(state);
-            agent_load_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError//todo leak
-        }
-    }
-}
-
-impl SharedLibJVMTI {
-    pub fn load_libjdwp(jdwp_path: &str) -> SharedLibJVMTI {
-        SharedLibJVMTI {
-            lib: Arc::new(Library::new(jdwp_path).unwrap()),
-            vm_init_callback: RwLock::new(None),
-            vm_init_enabled: RwLock::new(false),
-            vm_death_callback: RwLock::new(None),
-            vm_death_enabled: RwLock::new(false),
-            exception_callback: RwLock::new(None),
-            exception_enabled: RwLock::new(false),
-            thread_start_callback: RwLock::new(None),
-            thread_start_enabled: RwLock::new(false),
-            thread_end_callback: Default::default(),
-            thread_end_enabled: Default::default(),
-            class_prepare_callback: Default::default(),
-            class_prepare_enabled: Default::default(),
-            garbage_collection_finish_callback: Default::default(),
-            garbage_collection_finish_enabled: Default::default(),
-            class_load_callback: Default::default(),
-            exception_catch_callback: Default::default(),
-            single_step_callback: Default::default(),
-            frame_pop_callback: Default::default(),
-            breakpoint_callback: Default::default(),
-            field_access_callback: Default::default(),
-            field_modification_callback: Default::default(),
-            method_entry_callback: Default::default(),
-            method_exit_callback: Default::default(),
-            monitor_wait_callback: Default::default(),
-            monitor_waited_callback: Default::default(),
-            monitor_conteded_enter_callback: Default::default(),
-            monitor_conteded_entered_callback: Default::default(),
-            breakpoint_enabled: Default::default(),
-        }
-    }
-}
 
 pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l JVMState/*<'l>*/ {
     transmute((**env).reserved1)
@@ -336,14 +34,6 @@ pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l JVMState/*<'l>*/ {
 thread_local! {
     static JVMTI_INTERFACE: RefCell<Option<jvmtiInterface_1_>> = RefCell::new(None);
 }
-
-/*macro_rules! jvmti_entry {
-    (name: ident, impl_function : expr) => {
-
-    };
-}*/
-
-/*static SetEventNotificationMode_ : unsafe extern "C" fn(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError = set_event_notification_mode;*/
 
 pub fn get_jvmti_interface(state: &JVMState) -> jvmtiEnv {
     JVMTI_INTERFACE.with(|refcell| {

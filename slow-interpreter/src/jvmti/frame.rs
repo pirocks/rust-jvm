@@ -1,4 +1,4 @@
-use jvmti_bindings::{jvmtiError_JVMTI_ERROR_NONE, jvmtiEnv, jthread, jvmtiError, jmethodID, jlocation, _jvmtiMonitorUsage};
+use jvmti_bindings::{jvmtiError_JVMTI_ERROR_NONE, jvmtiEnv, jthread, jvmtiError, jmethodID, jlocation};
 use jni_bindings::jint;
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::from_object;

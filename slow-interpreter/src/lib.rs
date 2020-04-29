@@ -30,7 +30,6 @@ use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::time::{Instant, Duration};
-use crate::jvmti::SharedLibJVMTI;
 use crate::java::lang::thread::JThread;
 use crate::loading::{Classpath, BootstrapLoader};
 use crate::stack_entry::StackEntry;
@@ -46,6 +45,7 @@ use parking_lot::RawMutex;
 use crate::tracing::TracingSettings;
 use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
+use crate::jvmti::event_callbacks::SharedLibJVMTI;
 
 
 pub mod java_values;
