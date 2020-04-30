@@ -13,21 +13,33 @@ use descriptor_parser::parse_field_descriptor;
 use classfile_view::view::ptype_view::PTypeView;
 use crate::interpreter::run_function;
 
+#[derive(Debug, PartialEq, Hash)]
+pub enum RuntimeClass{
+    Int,
+    Array(RuntimeClassArray),
+    Object(RuntimeClassObject)
+}
 
-pub struct RuntimeClass {
+#[derive(Debug)]
+pub struct RuntimeClassArray{
+
+}
+
+
+pub struct RuntimeClassObject {
     pub classfile: Arc<Classfile>,
     pub class_view: ClassView,
     pub loader: LoaderArc,
     pub static_vars: RwLock<HashMap<String, JavaValue>>,
 }
 
-impl Debug for RuntimeClass {
+impl Debug for RuntimeClassObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
     }
 }
 
-impl Hash for RuntimeClass {
+impl Hash for RuntimeClassObject {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.classfile.hash(state);
         self.loader.name().to_string().hash(state)
@@ -35,7 +47,7 @@ impl Hash for RuntimeClass {
 }
 
 
-impl PartialEq for RuntimeClass {
+impl PartialEq for RuntimeClassObject {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.loader, &other.loader) && self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
     }
@@ -55,12 +67,12 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
             res.insert(name, val);
         }
     }
-    RuntimeClass {
+    RuntimeClassObject {
         class_view: ClassView::from(classfile.clone()),
         classfile,
         loader,
         static_vars: RwLock::new(res),
-    }
+    }.into()
 }
 
 pub fn initialize_class(
