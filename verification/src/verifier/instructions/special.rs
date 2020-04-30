@@ -158,7 +158,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 }
 
 //todo maybe move to impl
-pub fn extract_field_descriptor(cp: CPIndex, class: ClassView) -> (ClassName, String, FieldDescriptor) {
+pub fn extract_field_descriptor(cp: CPIndex, class: &ClassView) -> (ClassName, String, FieldDescriptor) {
 //    dbg!(cp);
     let current_class = class;
     let field_entry = &current_class.constant_pool_view(cp as usize);

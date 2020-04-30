@@ -32,23 +32,23 @@ pub mod dynamic {
     use crate::java::lang::string::JString;
     use crate::java::lang::invoke::method_handle::MethodHandle;
 
-    pub fn invoke_dynamic(state: & JVMState, frame: &StackEntry, cp: u16) {
+    pub fn invoke_dynamic(jvm: & JVMState, frame: &StackEntry, cp: u16) {
         let _method_handle_class = check_inited_class(
-            state,
+            jvm,
             &ClassName::method_handle(),
-            frame.class_pointer.loader.clone(),
+            frame.class_pointer.loader(jvm).clone(),
         );
         let _method_type_class = check_inited_class(
-            state,
+            jvm,
             &ClassName::method_type(),
-            frame.class_pointer.loader.clone(),
+            frame.class_pointer.loader(jvm).clone(),
         );
         let _call_site_class = check_inited_class(
-            state,
+            jvm,
             &ClassName::Str("java/lang/invoke/CallSite".to_string()),
-            frame.class_pointer.loader.clone(),
+            frame.class_pointer.loader(jvm).clone(),
         );
-        let invoke_dynamic_view = match frame.class_pointer.class_view.constant_pool_view(cp as usize) {
+        let invoke_dynamic_view = match frame.class_pointer.view().constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
@@ -60,15 +60,15 @@ pub mod dynamic {
                     match is {
                         InvokeStatic::Interface(_) => unimplemented!(),
                         InvokeStatic::Method(mr) => {
-                            let lookup = MethodHandle::public_lookup(state, &frame);
+                            let lookup = MethodHandle::public_lookup(jvm, &frame);
                             // let _a_rando_class_object = lookup.get_class(state, frame.clone());
                             // dbg!(&a_rando_class_object.clone().java_value().unwrap_normal_object().fields);
                             // let loader = a_rando_class_object.get_class_loader(state, &frame);
-                            let name = JString::from(state, &frame, mr.name_and_type().name());
-                            let desc = JString::from(state, &frame, mr.name_and_type().desc_str());
-                            let method_type = MethodType::from_method_descriptor_string(state, &frame, desc, None);
-                            let target_class = JClass::from_name(state, &frame, mr.class());
-                            lookup.find_virtual(state, &frame, target_class, name, method_type)
+                            let name = JString::from(jvm, &frame, mr.name_and_type().name());
+                            let desc = JString::from(jvm, &frame, mr.name_and_type().desc_str());
+                            let method_type = MethodType::from_method_descriptor_string(jvm, &frame, desc, None);
+                            let target_class = JClass::from_name(jvm, &frame, mr.class());
+                            lookup.find_virtual(jvm, &frame, target_class, name, method_type)
                         },
                     }
                 },
@@ -96,7 +96,7 @@ pub mod dynamic {
         // invoke_dynamic_view.name_and_type()
         // let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
         // invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
-        // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_ current_frame.class_pointer.loader.clone());
+        // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_ current_frame.class_pointer.loader(jvm).clone());
         // dbg!(invoke_dynamic_view.name_and_type().name());
         // dbg!(invoke_dynamic_view.name_and_type().desc());
         // dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().name_and_type());
@@ -112,7 +112,7 @@ pub mod dynamic {
 
 fn resolved_class(jvm: & JVMState, current_frame: &StackEntry, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let classfile = &current_frame.class_pointer.classfile;
-    let loader_arc = &current_frame.class_pointer.loader;
+    let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(classfile.clone()));
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => {

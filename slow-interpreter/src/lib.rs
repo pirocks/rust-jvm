@@ -284,7 +284,7 @@ pub struct LibJavaLoading {
 impl LivePoolGetter for LivePoolGetterImpl {
     fn elem_type(&self, idx: usize) -> ReferenceTypeView {
         let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
-        ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.class_view.name())//todo handle arrays
+        ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.view().name())//todo handle arrays
     }
 }
 
@@ -345,7 +345,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     //trigger breakpoint on thread.resume for debuggers that rely on that:
 
     let thread_class = check_inited_class(&jvm, &ClassName::thread(), jvm.bootstrap_loader.clone());
-    let method_i = thread_class.classfile.lookup_method("resume".to_string(), "()V".to_string()).unwrap().0;
+    let method_i = thread_class.view().method_index().lookup(&"resume".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap().method_i();
     let thread_resume_id = MethodId { class: thread_class, method_i };
     let breakpoints = jvm.jvmti_state.break_points.read().unwrap();
     let breakpoint_offsets = breakpoints.get(&thread_resume_id);
@@ -419,7 +419,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
 }
 
 fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {
-    let method_views = system.class_view.method_index().lookup_method_name(&"initializeSystemClass".to_string()).unwrap();
+    let method_views = system.view().method_index().lookup_method_name(&"initializeSystemClass".to_string()).unwrap();
     method_views.first().unwrap().clone()
 }
 

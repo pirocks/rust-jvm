@@ -26,7 +26,7 @@ pub fn class_object_to_runtime_class(obj: &NormalObject, state: & JVMState, fram
     }
     match obj.class_object_to_ptype().unwrap_ref_type() {
         ReferenceTypeView::Class(class_name) => {
-            check_inited_class(state, &class_name,  frame.class_pointer.loader.clone()).into()//todo a better way?
+            check_inited_class(state, &class_name,  frame.class_pointer.loader(jvm).clone()).into()//todo a better way?
         }
         ReferenceTypeView::Array(_) => {
             None

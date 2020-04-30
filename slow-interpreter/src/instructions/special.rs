@@ -19,7 +19,7 @@ pub fn arraylength(current_frame: & StackEntry) -> () {
 }
 
 
-pub fn invoke_checkcast(state: & JVMState, current_frame: & StackEntry, cp: u16) {
+pub fn invoke_checkcast(jvm: & JVMState, current_frame: & StackEntry, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Object(possibly_null));
@@ -30,9 +30,9 @@ pub fn invoke_checkcast(state: & JVMState, current_frame: & StackEntry, cp: u16)
         Object(o) => {
             let classfile = &current_frame.class_pointer.classfile;
             let instance_of_class_name = classfile.extract_class_from_constant_pool_name(cp);
-            let instanceof_class = check_inited_class(state, &ClassName::Str(instance_of_class_name), current_frame.class_pointer.loader.clone());
+            let instanceof_class = check_inited_class(jvm, &ClassName::Str(instance_of_class_name), current_frame.class_pointer.loader(jvm).clone());
             let object_class = o.class_pointer.clone();
-            if inherits_from(state, &object_class, &instanceof_class) {
+            if inherits_from(jvm, &object_class, &instanceof_class) {
                 current_frame.push(JavaValue::Object(object.clone().into()));
                 return;
             } else {
@@ -41,16 +41,16 @@ pub fn invoke_checkcast(state: & JVMState, current_frame: & StackEntry, cp: u16)
             }
         },
         Array(a) => {
-            let current_frame_class = &current_frame.class_pointer.classfile;
+            let current_frame_class = &current_frame.class_pointer.view();
             let instance_of_class_str = current_frame_class.extract_class_from_constant_pool_name(cp);
             let (should_be_empty, expected_type_wrapped) = parse_field_type( instance_of_class_str.as_str()).unwrap();
             assert!(should_be_empty.is_empty());
             let expected_type = expected_type_wrapped.unwrap_array_type();
             let cast_succeeds = match &a.elem_type {
                 PTypeView::Ref(_) => {
-                    let actual_runtime_class = check_inited_class(state,&a.elem_type.unwrap_class_type(),current_frame.class_pointer.loader.clone());
-                    let expected_runtime_class = check_inited_class(state,&expected_type.unwrap_class_type(),current_frame.class_pointer.loader.clone());
-                    inherits_from(state,&actual_runtime_class,&expected_runtime_class)
+                    let actual_runtime_class = check_inited_class(jvm, &a.elem_type.unwrap_class_type(), current_frame.class_pointer.loader(jvm).clone());
+                    let expected_runtime_class = check_inited_class(jvm, &expected_type.unwrap_class_type(), current_frame.class_pointer.loader(jvm).clone());
+                    inherits_from(jvm, &actual_runtime_class, &expected_runtime_class)
                 },
                 _ => {
                     a.elem_type == PTypeView::from_ptype(&expected_type)
@@ -103,7 +103,7 @@ pub fn instance_of_impl(state: &JVMState, current_frame: &StackEntry, unwrapped:
         Object(object) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
-                    let instanceof_class = check_inited_class(state, &instance_of_class_name, current_frame.class_pointer.loader.clone());
+                    let instanceof_class = check_inited_class(state, &instance_of_class_name, current_frame.class_pointer.loader(jvm).clone());
                     let object_class = object.class_pointer.clone();
                     if inherits_from(state, &object_class, &instanceof_class) {
                         current_frame.push(JavaValue::Int(1))
@@ -118,8 +118,8 @@ pub fn instance_of_impl(state: &JVMState, current_frame: &StackEntry, unwrapped:
 }
 
 fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
-    if inherits.classfile.has_super_class() {
-        Some(check_inited_class(jvm, &inherits.classfile.super_class_name().unwrap(), inherits.loader.clone()))
+    if inherits.view().super_name().is_some() {
+        Some(check_inited_class(jvm, &inherits.classfile.super_class_name().unwrap(), inherits.loader(jvm).clone()))
     } else {
         None
     }
@@ -138,7 +138,7 @@ pub fn inherits_from(state: & JVMState, inherits: &Arc<RuntimeClass>, parent: &A
     }
     let interfaces_match = inherits.classfile.interfaces.iter().any(|x| {
         let interface = runtime_interface_class(state, inherits, *x);
-        class_name(&interface.classfile) == class_name(&parent.classfile)
+        &interface.view().name() == &parent.view().name()
     });
 
     (match runtime_super_class(state, inherits) {

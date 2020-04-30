@@ -22,7 +22,7 @@ pub fn is_array_impl(cls: jclass) -> u8 {
 pub unsafe extern "C" fn is_interface(env: *mut jvmtiEnv, klass: jclass, is_interface_ptr: *mut jboolean) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "IsInterface");
-    let res = from_object(transmute(klass)).unwrap().unwrap_normal_object().class_pointer.class_view.is_interface();
+    let res = from_object(transmute(klass)).unwrap().unwrap_normal_object().class_pointer.view().is_interface();
     is_interface_ptr.write(res as u8);
     jvm.tracing.trace_jdwp_function_exit(jvm, "IsInterface");
     jvmtiError_JVMTI_ERROR_NONE

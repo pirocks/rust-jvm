@@ -14,6 +14,7 @@ use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use crate::class_objects::get_or_create_class_object;
 use std::ops::Deref;
 use crate::interpreter::run_function;
+use classfile_view::view::constant_info_view::ConstantInfoView;
 
 
 fn load_class_constant(state: &JVMState, current_frame: &StackEntry, constant_pool: &Vec<ConstantInfo>, c: &Class) {
@@ -23,7 +24,7 @@ fn load_class_constant(state: &JVMState, current_frame: &StackEntry, constant_po
 }
 
 pub fn load_class_constant_by_type(state: &JVMState, current_frame: &StackEntry, res_class_type: &PTypeView) {
-    let object = get_or_create_class_object(state, res_class_type, current_frame.clone().into(), current_frame.class_pointer.loader.clone());
+    let object = get_or_create_class_object(state, res_class_type, current_frame.clone().into(), current_frame.class_pointer.loader(jvm).clone());
     current_frame.push(JavaValue::Object(object.into()));
 }
 
@@ -36,7 +37,7 @@ pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
     let java_lang_string = ClassName::string();
     let frame_temp = jvm.get_current_frame();
     let current_frame = frame_temp.deref();
-    let current_loader = current_frame.class_pointer.loader.clone();
+    let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let string_class = check_inited_class(
         jvm,
         &java_lang_string,
@@ -80,15 +81,15 @@ pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
 }
 
 pub fn ldc2_w(current_frame: &StackEntry, cp: u16) -> () {
-    let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-    let pool_entry = &constant_pool[cp as usize];
-    match &pool_entry.kind {
-        ConstantKind::Long(l) => {
+    let view = current_frame.class_pointer.view();
+    let pool_entry = &view.constant_pool_view(cp as usize);
+    match &pool_entry {
+        ConstantInfoView::Long(l) => {
             let high = l.high_bytes as u64;
             let low = l.low_bytes as u64;
             current_frame.push(JavaValue::Long((high << 32 | low) as i64));
         }
-        ConstantKind::Double(d) => {
+        ConstantInfoView::Double(d) => {
             let high = d.high_bytes as u64;
             let low = d.low_bytes as u64;
             current_frame.push(JavaValue::Double(unsafe { transmute(high << 32 | low) }));

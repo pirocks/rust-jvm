@@ -21,11 +21,11 @@ pub struct StackEntry {
 impl StackEntry {
     pub fn pop(&self) -> JavaValue {
         self.operand_stack.borrow_mut().pop().unwrap_or_else(|| {
-            let classfile = &self.class_pointer.classfile;
-            let method = &classfile.methods[self.method_i as usize];
-            dbg!(&method.method_name(&classfile));
-            dbg!(&method.code_attribute().unwrap().code);
-            dbg!(&self.pc);
+            // let classfile = &self.class_pointer.classfile;
+            // let method = &classfile.methods[self.method_i as usize];
+            // dbg!(&method.method_name(&classfile));
+            // dbg!(&method.code_attribute().unwrap().code);
+            // dbg!(&self.pc);
             panic!()
         })
     }

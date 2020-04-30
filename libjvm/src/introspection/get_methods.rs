@@ -26,7 +26,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let jvm = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
-    let loader = frame.class_pointer.loader.clone();
+    let loader = frame.class_pointer.loader(jvm).clone();
     let temp1 = from_object(ofClass).unwrap();
     let class_ptype = temp1.unwrap_normal_object().class_object_ptype.as_ref().unwrap();
     if class_ptype.is_array() || class_ptype.is_primitive() {
@@ -160,7 +160,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     let target_classview = &temp.class_view;
     let constructors = target_classview.method_index().lookup_method_name(&"<init>".to_string()).unwrap();
     let class_obj = runtime_class_from_object(ofClass, jvm, &frame);
-    let loader = frame.class_pointer.loader.clone();
+    let loader = frame.class_pointer.loader(jvm).clone();
     let constructor_class = check_inited_class(jvm, &ClassName::new("java/lang/reflect/Constructor"), loader.clone());
     let mut object_array = vec![];
 

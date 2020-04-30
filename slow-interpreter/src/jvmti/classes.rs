@@ -59,8 +59,8 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
     let mut res_vec = vec![];
 //todo what about int.class and other primitive classes
     jvm.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
-        let name = runtime_class.class_view.name();
-        let class_object = get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(name)), frame.deref(), runtime_class.loader.clone());
+        let name = runtime_class.view().name();
+        let class_object = get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(name)), frame.deref(), runtime_class.loader(jvm).clone());
         res_vec.push(to_object(class_object.into()))
     });
     class_count_ptr.write(res_vec.len() as i32);
@@ -103,11 +103,11 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     let class = class_object_wrapped.unwrap_normal_object();
     let class_ptype_guard = class.class_object_ptype.clone();
     let class_name = class_ptype_guard.as_ref().unwrap().unwrap_class_type();
-    let loaded_class = check_inited_class(jvm,&class_name,jvm.get_current_frame().deref().class_pointer.loader.clone());
-    method_count_ptr.write(loaded_class.class_view.num_methods() as i32);
+    let loaded_class = check_inited_class(jvm,&class_name,jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
+    method_count_ptr.write(loaded_class.view().num_methods() as i32);
     //todo use Layout instead of whatever this is.
     *methods_ptr = libc::malloc((size_of::<*mut c_void>())*(*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;
-    loaded_class.class_view.methods().enumerate().for_each(|(i,mv)|{
+    loaded_class.view().methods().enumerate().for_each(|(i,mv)|{
         methods_ptr
             .read()
             .offset(i as isize)

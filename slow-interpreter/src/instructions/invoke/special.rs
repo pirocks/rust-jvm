@@ -14,18 +14,18 @@ use descriptor_parser::MethodDescriptor;
 use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
 
-pub fn invoke_special(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
-    let loader_arc = current_frame.class_pointer.loader.clone();
+pub fn invoke_special(jvm: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
+    let loader_arc = current_frame.class_pointer.loader(jvm).clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(current_frame.class_pointer.classfile.clone()));
     let method_class_name = method_class_type.unwrap_class_type();
     let target_class = check_inited_class(
-        state,
+        jvm,
         &method_class_name,
         loader_arc.clone()
     );
-    let (target_m_i, final_target_class) = find_target_method(state, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
-    let target_m = &final_target_class.class_view.method_view_i(target_m_i);
-    invoke_special_impl(state, current_frame, &parsed_descriptor, target_m_i, final_target_class.clone(), target_m);
+    let (target_m_i, final_target_class) = find_target_method(jvm, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
+    let target_m = &final_target_class.view().method_view_i(target_m_i);
+    invoke_special_impl(jvm, current_frame, &parsed_descriptor, target_m_i, final_target_class.clone(), target_m);
 }
 
 pub fn invoke_special_impl(

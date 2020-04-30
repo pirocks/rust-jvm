@@ -30,7 +30,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
         //todo for now we ignore this, but irl we should only ignore this for main thread
     } else {
         let frame = get_frame(env);
-        let thread_class = check_inited_class(jvm,&ClassName::thread(),frame.class_pointer.loader.clone());
+        let thread_class = check_inited_class(jvm,&ClassName::thread(),frame.class_pointer.loader(jvm).clone());
 
         let thread_from_rust = Arc::new(JavaThread {
             java_tid: tid,
@@ -136,7 +136,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 // static mut SYSTEM_THREAD_GROUP: Option<Arc<Object>> = None;
 
 fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
-    let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()), frame.class_pointer.loader.clone());
+    let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()), frame.class_pointer.loader(jvm).clone());
     push_new_object(jvm, frame.clone(), &thread_group_class);
     let object = frame.pop();
     let (init_i, init) = thread_group_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
@@ -176,7 +176,7 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
     };
 
 
-    let thread_class = check_inited_class(jvm, &ClassName::Str("java/lang/Thread".to_string()), frame.class_pointer.loader.clone());
+    let thread_class = check_inited_class(jvm, &ClassName::Str("java/lang/Thread".to_string()), frame.class_pointer.loader(jvm).clone());
     // if !Arc::ptr_eq(&thread_class, &runtime_thread_class) {
     // frame.print_stack_trace();
     // }

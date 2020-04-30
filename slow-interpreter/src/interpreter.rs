@@ -38,14 +38,14 @@ pub fn run_function(jvm: &JVMState) {
     let current_thread = jvm.get_current_thread();
     let frame_temp = current_thread.get_current_frame();
     let current_frame = frame_temp.deref();
-    let methods = &current_frame.class_pointer.classfile.methods;
-    let method = &methods[current_frame.method_i as usize];
+    let view = &current_frame.class_pointer.view();
+    let method = &view.method_view_i(current_frame.method_i as usize);
     let synchronized = method.access_flags & ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
-    let meth_name = method.method_name(&current_frame.class_pointer.classfile);
-    let class_name__ = class_name(&current_frame.class_pointer.classfile);
+    let meth_name = method.name();
+    let class_name__ = &current_frame.class_pointer.view().name();
 
-    let method_desc = method.descriptor_str(&current_frame.class_pointer.classfile);
+    let method_desc = method.desc_str();
     let current_depth = jvm.get_current_thread().call_stack.borrow().len();
     jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, jvm.get_current_thread().java_tid);
     let interpreter_state = &jvm.get_current_thread().interpreter_state;
@@ -82,16 +82,16 @@ pub fn run_function(jvm: &JVMState) {
                         current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
                         interpreter_state.throw.replace(None);
                         current_frame.pc.replace(excep_table.handler_pc as usize);
-                        println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
+                        println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
                         break;
                     } else {
-                        let catch_runtime_name = current_frame.class_pointer.classfile.extract_class_from_constant_pool_name(excep_table.catch_type);
-                        let catch_class = check_inited_class(jvm, &ClassName::Str(catch_runtime_name), current_frame.class_pointer.loader.clone());
+                        let catch_runtime_name = current_frame.class_pointer.view().extract_class_from_constant_pool_name(excep_table.catch_type);
+                        let catch_class = check_inited_class(jvm, &ClassName::Str(catch_runtime_name), current_frame.class_pointer.loader(jvm).clone());
                         if inherits_from(jvm, &throw_class, &catch_class) {
                             current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
                             interpreter_state.throw.replace(None);
                             current_frame.pc.replace(excep_table.handler_pc as usize);
-                            println!("Caught Exception:{}", class_name(&throw_class.classfile).get_referred_name());
+                            println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
                             break;
                         }
                     }
@@ -151,7 +151,7 @@ pub fn monitor_for_function(
                 jvm,
                 &PTypeView::Ref(ReferenceTypeView::Class(class_name__.clone())),
                 current_frame,
-                current_frame.class_pointer.loader.clone(),
+                current_frame.class_pointer.loader(jvm).clone(),
             );
             class_object.unwrap_normal_object().monitor.clone()
         } else {

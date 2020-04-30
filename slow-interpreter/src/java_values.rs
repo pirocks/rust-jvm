@@ -3,13 +3,13 @@ use std::sync::Arc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Error};
-use rust_jvm_common::classnames::{class_name, ClassName};
-use rust_jvm_common::classfile::ACC_ABSTRACT;
+use rust_jvm_common::classnames::ClassName;
 
 use std::ops::Deref;
 use classfile_view::view::ptype_view::PTypeView;
 use crate::monitor::Monitor;
 use crate::JVMState;
+use classfile_view::view::HasAccessFlags;
 
 //#[derive(Debug)]
 pub enum JavaValue {
@@ -86,9 +86,9 @@ impl CycleDetectingDebug for Object {
 impl CycleDetectingDebug for NormalObject {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
         let o = self;
-        if o.class_pointer.class_view.name() == ClassName::class() {
+        if o.class_pointer.view().name() == ClassName::class() {
             write!(f, "(Class Object:{:?})", o.class_object_ptype)?;
-        } else if o.class_pointer.class_view.name() == ClassName::string() {
+        } else if o.class_pointer.view().name() == ClassName::string() {
             let fields_borrow = o.fields.borrow();
             let value_field = fields_borrow.get("value").unwrap();
             match &value_field.unwrap_object() {
@@ -100,7 +100,7 @@ impl CycleDetectingDebug for NormalObject {
                 }
             }
         } else {
-            write!(f, "{:?}", class_name(&o.class_pointer.classfile).get_referred_name())?;
+            write!(f, "{:?}", &o.class_pointer.view().name())?;
             write!(f, "-")?;
 //        write!(f, "{:?}", self.class_pointer.static_vars)?;
             write!(f, "-")?;
@@ -235,7 +235,7 @@ impl JavaValue {
         JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType, monitor: jvm.new_monitor("".to_string()) }))))
     }
     pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
-        assert_eq!(runtime_class.classfile.access_flags & ACC_ABSTRACT, 0);
+        assert!(!runtime_class.view().is_abstract());
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.new_monitor("".to_string()),
             gc_reachable: true,

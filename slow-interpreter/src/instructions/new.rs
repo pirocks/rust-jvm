@@ -7,21 +7,21 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
 use crate::{JVMState, StackEntry};
 
-pub fn new(state: &JVMState, current_frame: &StackEntry, cp: usize) -> () {
-    let loader_arc = &current_frame.class_pointer.loader;
-    let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-    let class_name_index = match &constant_pool[cp as usize].kind {
+pub fn new(jvm: &JVMState, current_frame: &StackEntry, cp: usize) -> () {
+    let loader_arc = &current_frame.class_pointer.loader(jvm);
+    let view = &current_frame.class_pointer.view();
+    let class_name_index = match &view.constant_pool_view(cp as usize) {
         ConstantKind::Class(c) => c.name_index,
         _ => panic!()
     };
-    let target_class_name = ClassName::Str(constant_pool[class_name_index as usize].extract_string_from_utf8());
+    let target_class_name = ClassName::Str(view.constant_pool_view(class_name_index as usize).extract_string_from_utf8());
 //    dbg!(&target_class_name);
     let target_classfile = check_inited_class(
-        state,
+        jvm,
         &target_class_name,
         loader_arc.clone(),
     );
-    push_new_object(state, current_frame, &target_classfile);
+    push_new_object(jvm, current_frame, &target_classfile);
 }
 
 
@@ -30,11 +30,11 @@ pub fn anewarray(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
         JavaValue::Int(i) => i,
         _ => panic!()
     };
-    let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-    let cp_entry = &constant_pool[cp as usize].kind;
+    let view = &current_frame.class_pointer.view();
+    let cp_entry = &view.constant_pool_view(cp as usize);
     match cp_entry {
         ConstantKind::Class(c) => {
-            let name = ClassName::Str(constant_pool[c.name_index as usize].extract_string_from_utf8());
+            let name = ClassName::Str(view.constant_pool_view(c.name_index as usize).extract_string_from_utf8());
             a_new_array_from_name(state, current_frame, len, &name)
         }
         _ => {
@@ -48,7 +48,7 @@ pub fn a_new_array_from_name(jvm: &JVMState, current_frame: &StackEntry, len: i3
     check_inited_class(
         jvm,
         &name,
-        current_frame.class_pointer.loader.clone(),
+        current_frame.class_pointer.loader(jvm).clone(),
     );
     let t = PTypeView::Ref(ReferenceTypeView::Class(name.clone()));
     current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(jvm, len as usize, JavaValue::Object(None), t).unwrap()).into()))
@@ -92,12 +92,12 @@ pub fn newarray(jvm: &JVMState, current_frame: &StackEntry, a_type: Atype) -> ()
 
 pub fn multi_a_new_array(jvm: &JVMState, current_frame: &StackEntry, cp: MultiNewArray) -> () {
     let dims = cp.dims;
-    let temp = current_frame.class_pointer.class_view.constant_pool_view(cp.index as usize);
+    let temp = current_frame.class_pointer.view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class();
     let name = type_.class_name();
     dbg!(&name);
 
-    check_inited_class(jvm, &name.unwrap_arrays_to_name().unwrap(), current_frame.class_pointer.loader.clone());
+    check_inited_class(jvm, &name.unwrap_arrays_to_name().unwrap(), current_frame.class_pointer.loader(jvm).clone());
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     for _ in 0..dims {

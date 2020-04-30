@@ -23,7 +23,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
 
 unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
     let method_id = (method_id as *mut MethodId).as_ref().unwrap();
-    let classview = method_id.class.class_view.clone();
+    let classview = method_id.class.view().clone();
     let method = &classview.method_view_i(method_id.method_i);
     if method.is_static() {
         unimplemented!()
@@ -75,10 +75,10 @@ pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, 
     let state = get_state(env);
     let frame_rc = get_frame(env);
     let frame = frame_rc.deref();
-    let classfile = &method_id.class.classfile;
-    let method = &classfile.methods[method_id.method_i];
-    let method_descriptor_str = method.descriptor_str(classfile);
-    let _name = method.method_name(classfile);
+    let classfile = &method_id.class.view();
+    let method = &classfile.method_view_i(method_id.method_i);
+    let method_descriptor_str = method.desc_str();
+    let _name = method.name();
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
 //todo dup
     push_params_onto_frame(&mut l, &frame, &parsed);

@@ -14,21 +14,27 @@ use descriptor_parser::MethodDescriptor;
 use std::ops::Deref;
 use crate::interpreter::run_function;
 
-pub fn run_invoke_static(state: & JVMState, current_frame: &StackEntry, cp: u16) {
+pub fn run_invoke_static(jvm: & JVMState, current_frame: &StackEntry, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
-    let classfile = &current_frame.class_pointer.classfile;
-    let loader_arc = &current_frame.class_pointer.loader;
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(classfile.clone()));
+    let view = &current_frame.class_pointer.view();
+    let loader_arc = &current_frame.class_pointer.loader(jvm);
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &view);
     let class_name = class_name_type.unwrap_class_type();
     let target_class = check_inited_class(
-        state,
+        jvm,
         &class_name,
         loader_arc.clone()
     );
-    let (target_method_i, final_target_method) = find_target_method(state, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
+    let (target_method_i, final_target_method) = find_target_method(jvm, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
 
-    invoke_static_impl(state, expected_descriptor, final_target_method.clone(), target_method_i, &final_target_method.classfile.methods[target_method_i]);
+    invoke_static_impl(
+        jvm,
+        expected_descriptor,
+        final_target_method.clone(),
+        target_method_i,
+        &final_target_method.view().method_view_i(target_method_i).method_info()
+    );
 }
 
 pub fn invoke_static_impl(

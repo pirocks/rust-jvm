@@ -40,7 +40,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_inited_class(state,&target_class_name,frame.class_pointer.loader.clone());
+    let target_runtime_class = check_inited_class(state,&target_class_name,frame.class_pointer.loader(jvm).clone());
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {

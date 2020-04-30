@@ -26,7 +26,7 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 //     use crate::java_values::JavaValue;
 
     pub fn push_new_object(jvm: &JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>) {
-        let loader_arc = &current_frame.class_pointer.loader.clone();
+        let loader_arc = &current_frame.class_pointer.loader(jvm).clone();
         let object_pointer = JavaValue::new_object(jvm, target_classfile.clone());
         let new_obj = JavaValue::Object(object_pointer.clone());
         default_init_fields(jvm, loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
@@ -60,7 +60,7 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 
     pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
         let (i, _) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
-        let method_view = target_classfile.class_view.method_view_i(i);
+        let method_view = target_classfile.view().method_view_i(i);
         let md = method_view.desc();
         let this_ptr = full_args[0].clone();
         let actual_args = &full_args[1..];

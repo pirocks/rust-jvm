@@ -67,7 +67,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
             let obj = from_object(cls).unwrap();
             let type_ = obj.unwrap_normal_object().class_object_to_ptype();
             let name = type_.unwrap_type_to_name().unwrap();
-            let class_for_access_flags = check_inited_class(state, &name,  frame.class_pointer.loader.clone());
+            let class_for_access_flags = check_inited_class(state, &name,  frame.class_pointer.loader(jvm)clone());
             (class_for_access_flags.class_view.access_flags() | ACC_ABSTRACT) as jint
         }
         Some(rc) => {
@@ -152,7 +152,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let frame = frame_temp.deref();
 
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    to_object(Some(get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))), frame, frame.class_pointer.loader.clone())))
+    to_object(Some(get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))), frame, frame.class_pointer.loader(jvm).clone())))
 }
 
 

@@ -53,7 +53,7 @@ pub fn run_native_method(
     } else {
         panic!();
     }
-    let monitor = monitor_for_function(jvm, frame, method, method.access_flags & ACC_SYNCHRONIZED as u16 > 0, &class.class_view.name());
+    let monitor = monitor_for_function(jvm, frame, method, method.access_flags & ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
     monitor.as_ref().map(|m|m.lock(jvm));
     if _debug {
         // dbg!(&args);

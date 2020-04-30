@@ -5,19 +5,21 @@ use std::ffi::CStr;
 use std::mem::transmute;
 use crate::rust_jni::MethodId;
 use crate::rust_jni::interface::util::{FieldID, runtime_class_from_object, class_object_to_runtime_class};
+use descriptor_parser::parse_method_descriptor;
+use regex::internal::Input;
 
 pub unsafe extern "C" fn get_long_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jlong {
     let field_id: &FieldID = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
-    let classfile = &field_id.class.classfile;
-    let name = classfile.fields[field_id.field_i as usize].name(classfile);
+    let view = &field_id.class.view();
+    let name = view.field(field_id.field_i as usize).field_name();
     from_object(obj).unwrap().unwrap_normal_object().fields.borrow().deref().get(&name).unwrap().unwrap_long() as jlong
 }
 
 
 pub unsafe extern "C" fn get_int_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jint {
     let field_id: &FieldID = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
-    let classfile = &field_id.class.classfile;
-    let name = classfile.fields[field_id.field_i as usize].name(classfile);
+    let view = &field_id.class.view();
+    let name = view.field(field_id.field_i as usize).field_name();
     from_object(obj).unwrap().unwrap_normal_object().fields.borrow().deref().get(&name).unwrap().unwrap_int() as jint
 }
 
@@ -27,8 +29,8 @@ pub unsafe extern "C" fn get_object_field(_env: *mut JNIEnv, obj: jobject, field
     let nonnull = from_object(obj).unwrap();
     let field_borrow = nonnull.unwrap_normal_object().fields.borrow();
     let fields = field_borrow.deref();
-    let classfile = &field_id.class.classfile;
-    let field_name = classfile.fields[field_id.field_i].name(classfile);
+    let view = &field_id.class.view();
+    let field_name = view.field(field_id.field_i).field_name();
     to_object(fields.get(&field_name).unwrap().unwrap_object())
 }
 
@@ -38,10 +40,10 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     let frame = get_frame(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let runtime_class = runtime_class_from_object(clazz,state,&frame).unwrap();
-    let fields = &runtime_class.classfile.fields;
-    for field_i in 0..fields.len() {
+    let view = &runtime_class.view();
+    for field_i in 0..view.num_fields() {
         //todo check descriptor
-        if fields[field_i].name(&runtime_class.classfile) == name {
+        if view.field(field_i).field_name() == name {
             return Box::into_raw(Box::new(FieldID { class: runtime_class.clone(), field_i })) as jfieldID;
         }
     }
@@ -62,8 +64,8 @@ pub unsafe extern "C" fn get_static_method_id(
     let class_obj_o = from_object(clazz).unwrap();
     //todo dup
     let runtime_class = class_object_to_runtime_class(class_obj_o.unwrap_normal_object(),state,&frame).unwrap();
-    let classfile = &runtime_class.classfile;
-    let (method_i, method) = classfile.lookup_method(method_name, method_descriptor_str).unwrap();
+    let view = &runtime_class.view();
+    let (method_i, method) = view.method_index().lookup(&method_name, &parse_method_descriptor(method_descriptor_str.as_str()).unwrap()).unwrap();
     assert!(method.is_static());
     let res = Box::into_raw(Box::new(MethodId { class: runtime_class.clone(), method_i }));
     transmute(res)

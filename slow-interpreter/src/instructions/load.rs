@@ -86,16 +86,16 @@ pub fn aaload(current_frame: &StackEntry) -> () {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds(state: & JVMState, current_frame: & StackEntry) {
+fn throw_array_out_of_bounds(jvm: & JVMState, current_frame: & StackEntry) {
     let bounds_class = check_inited_class(
-        state,
+        jvm,
         &ClassName::new("java/lang/ArrayIndexOutOfBoundsException"),
-        current_frame.class_pointer.loader.clone()
+        current_frame.class_pointer.loader(jvm).clone()
     );
-    push_new_object(state,current_frame,&bounds_class);
+    push_new_object(jvm, current_frame, &bounds_class);
     let obj = current_frame.pop();
-    run_constructor(state,current_frame, bounds_class,vec![obj.clone()],"()V".to_string());
-    state.get_current_thread().interpreter_state.throw.replace(obj.unwrap_object().into());
+    run_constructor(jvm, current_frame, bounds_class, vec![obj.clone()], "()V".to_string());
+    jvm.get_current_thread().interpreter_state.throw.replace(obj.unwrap_object().into());
 }
 
 pub fn caload(state: & JVMState, current_frame: & StackEntry) -> () {

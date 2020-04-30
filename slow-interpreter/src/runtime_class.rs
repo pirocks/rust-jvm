@@ -15,46 +15,86 @@ use crate::interpreter::run_function;
 
 #[derive(Debug, PartialEq, Hash)]
 pub enum RuntimeClass{
+    Byte,
+    Boolean,
+    Short,
+    Char,
     Int,
+    Long,
+    Float,
+    Double,
+    Void,
     Array(RuntimeClassArray),
-    Object(RuntimeClassObject)
+    Object(RuntimeClassClass)
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Hash, Eq)]
 pub struct RuntimeClassArray{
 
 }
 
 
-pub struct RuntimeClassObject {
-    pub classfile: Arc<Classfile>,
-    pub class_view: ClassView,
-    pub loader: LoaderArc,
-    pub static_vars: RwLock<HashMap<String, JavaValue>>,
+pub struct RuntimeClassClass {
+    classfile: Arc<Classfile>,
+    class_view: Arc<ClassView>,
+    loader: LoaderArc,
+    static_vars: RwLock<HashMap<String, JavaValue>>,
 }
 
-impl Debug for RuntimeClassObject {
+impl RuntimeClass{
+    pub fn view(&self) -> &Arc<ClassView>{
+        match self{
+            RuntimeClass::Byte => unimplemented!(),
+            RuntimeClass::Boolean => unimplemented!(),
+            RuntimeClass::Short => unimplemented!(),
+            RuntimeClass::Char => unimplemented!(),
+            RuntimeClass::Int => unimplemented!(),
+            RuntimeClass::Long => unimplemented!(),
+            RuntimeClass::Float => unimplemented!(),
+            RuntimeClass::Double => unimplemented!(),
+            RuntimeClass::Void => unimplemented!(),
+            RuntimeClass::Array(_) => unimplemented!(),
+            RuntimeClass::Object(o) => &o.class_view,
+        }
+    }
+
+    pub fn loader(&self , _jvm: &JVMState) -> LoaderArc{
+        match self{
+            RuntimeClass::Byte => unimplemented!(),
+            RuntimeClass::Boolean => unimplemented!(),
+            RuntimeClass::Short => unimplemented!(),
+            RuntimeClass::Char => unimplemented!(),
+            RuntimeClass::Int => unimplemented!(),
+            RuntimeClass::Long => unimplemented!(),
+            RuntimeClass::Float => unimplemented!(),
+            RuntimeClass::Double => unimplemented!(),
+            RuntimeClass::Void => unimplemented!(),
+            RuntimeClass::Array(_) => unimplemented!(),
+            RuntimeClass::Object(o) => o.loader.clone(),
+        }
+    }
+}
+
+impl Debug for RuntimeClassClass {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
     }
 }
 
-impl Hash for RuntimeClassObject {
+impl Hash for RuntimeClassClass {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.classfile.hash(state);
         self.loader.name().to_string().hash(state)
     }
 }
 
-
-impl PartialEq for RuntimeClassObject {
+impl PartialEq for RuntimeClassClass {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.loader, &other.loader) && self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
     }
 }
 
 impl Eq for RuntimeClass {}
-
 
 pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
     let mut res = HashMap::new();
@@ -67,14 +107,20 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
             res.insert(name, val);
         }
     }
-    RuntimeClassObject {
-        class_view: ClassView::from(classfile.clone()),
+    RuntimeClassClass {
+        class_view: Arc::new(ClassView::from(classfile.clone())),
         classfile,
         loader,
         static_vars: RwLock::new(res),
     }.into()
 }
 
+
+impl std::convert::From<RuntimeClassClass> for RuntimeClass{
+    fn from(rcc: RuntimeClassClass) -> Self {
+        Self::Object(rcc)
+    }
+}
 pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
     jvm: &JVMState,

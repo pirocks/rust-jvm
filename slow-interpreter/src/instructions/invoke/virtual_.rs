@@ -101,7 +101,7 @@ pub fn setup_virtual_args(current_frame: &StackEntry, expected_descriptor: &Meth
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(state: &JVMState, current_frame: &StackEntry, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
+pub fn invoke_virtual(jvm: &JVMState, current_frame: &StackEntry, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -121,9 +121,9 @@ pub fn invoke_virtual(state: &JVMState, current_frame: &StackEntry, method_name:
         Object::Array(_a) => {
 //todo so spec seems vague about this, but basically assume this is an Object
             let object_class = check_inited_class(
-                state,
+                jvm,
                 &ClassName::object(),
-                current_frame.class_pointer.loader.clone(),
+                current_frame.class_pointer.loader(jvm).clone(),
             );
             object_class.clone()
         }
@@ -132,17 +132,17 @@ pub fn invoke_virtual(state: &JVMState, current_frame: &StackEntry, method_name:
         }
     };
 
-    let (final_target_class, new_i) = virtual_method_lookup(state, &current_frame, &method_name, md, c);
-    let final_class_view = &final_target_class.class_view;
+    let (final_target_class, new_i) = virtual_method_lookup(jvm, &current_frame, &method_name, md, c);
+    let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
     let final_descriptor = target_method.desc();
-    invoke_virtual_method_i(state, final_descriptor, final_target_class.clone(), new_i, target_method, debug)
+    invoke_virtual_method_i(jvm, final_descriptor, final_target_class.clone(), new_i, target_method, debug)
 }
 
 pub fn virtual_method_lookup(state: &JVMState, current_frame: &StackEntry, method_name: &String, md: &MethodDescriptor, c: Arc<RuntimeClass>) -> (Arc<RuntimeClass>, usize) {
     let all_methods = get_all_methods(state, current_frame.clone(), c.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
-        let method_view = c.class_view.method_view_i(*i);
+        let method_view = c.view().method_view_i(*i);
         let cur_name = method_view.name();
         let cur_desc = method_view.desc();
         let expected_name = &method_name;

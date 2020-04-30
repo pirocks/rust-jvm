@@ -9,7 +9,7 @@ use crate::{JVMState, StackEntry};
 
 pub fn putstatic(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
-    let loader_arc = &current_frame.class_pointer.loader;
+    let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
     let target_classfile = check_inited_class(state, &field_class_name,  loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
@@ -19,7 +19,7 @@ pub fn putstatic(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () 
 
 pub fn putfield(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
     let classfile = &current_frame.class_pointer.classfile;
-    let loader_arc = &current_frame.class_pointer.loader;
+    let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
     let _target_classfile = check_inited_class(state, &field_class_name,  loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
@@ -42,7 +42,7 @@ pub fn get_static(state: & JVMState, current_frame: & StackEntry, cp: u16) -> ()
     //todo make sure class pointer is updated correctly
 
     let classfile = &current_frame.class_pointer.classfile;
-    let loader_arc = &current_frame.class_pointer.loader;
+    let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
     /*if field_name == "reflectionFactory" {
         dbg!(cp);
@@ -69,8 +69,8 @@ fn get_static_impl(state: & JVMState, current_frame: & StackEntry, cp: u16, load
 }
 
 pub fn get_field(current_frame: & StackEntry, cp: u16, _debug: bool) -> () {
-    let classfile = &current_frame.class_pointer.classfile;
-    let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
+    let view = &current_frame.class_pointer.view();
+    let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let object_ref = current_frame.pop();
     match object_ref {
         JavaValue::Object(o) => {

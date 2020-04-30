@@ -35,14 +35,14 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
     let frame = get_frame(env);
-    let state = get_state(env);
-    let super_name = match runtime_class_from_object(sub,state,&frame).unwrap().classfile.super_class_name() {
+    let jvm = get_state(env);
+    let super_name = match runtime_class_from_object(sub, jvm, &frame).unwrap().view().super_name() {
         None => { return to_object(None); }
         Some(n) => n,
     };
 //    frame.print_stack_trace();
-    let _inited_class = check_inited_class(state, &super_name, frame.class_pointer.loader.clone());
-    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
+    let _inited_class = check_inited_class(jvm, &super_name, frame.class_pointer.loader(jvm).clone());
+    load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     to_object(frame.pop().unwrap_object())
 }
 
@@ -60,7 +60,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sub_type = sub_temp_refcell.as_ref().unwrap();
     let sup_type = sup_temp_refcell.as_ref().unwrap();
 
-    let loader = &frame.class_pointer.loader;
+    let loader = &frame.class_pointer.loader(jvm);
     let sub_vtype = sub_type.to_verification_type(loader);
     let sup_vtype = sup_type.to_verification_type(loader);
 
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     let state = get_state(env);
     let frame_temp = state.get_current_frame();
     let frame = frame_temp.deref();
-    let classview = &method_id.class.class_view;
+    let classview = &method_id.class.view();
     let method = &classview.method_view_i(method_id.method_i);
     let _name = method.name();
     let parsed = method.desc();
@@ -123,7 +123,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     let state = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
-    let classview = &method_id.class.class_view;
+    let classview = &method_id.class.view();
     let method = &classview.method_view_i(method_id.method_i);
     let _name = method.name();
     let parsed = method.desc();

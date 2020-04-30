@@ -171,7 +171,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
         let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz, jvm, &get_frame(env)).unwrap();
         let jni_context = &jvm.jni;
-        let classfile = &runtime_class.classfile;
+        let classfile = &runtime_class.view();
         &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
             let descriptor_str = method_info.descriptor_str(classfile);
             let current_name = method_info.method_name(classfile);
@@ -219,14 +219,14 @@ pub fn get_all_methods(state: & JVMState, frame: &StackEntry, class: Arc<Runtime
     class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
-    if class.classfile.super_class == 0 {
+    if class.view().super_name().is_none() {
         let object = check_inited_class(state, &ClassName::object(),  class.loader.clone());
         object.classfile.methods.iter().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
-        let name = class.classfile.super_class_name();
-        let super_ = check_inited_class(state, &name.unwrap(),  class.loader.clone());
+        let name = class.view().super_name().unwrap();
+        let super_ = check_inited_class(state, &name.unwrap(),  class.loader(jvm).clone());
         for (c, i) in get_all_methods(state, frame, super_) {
             res.push((c, i));
         }
@@ -236,20 +236,20 @@ pub fn get_all_methods(state: & JVMState, frame: &StackEntry, class: Arc<Runtime
 }
 
 //todo duplication with methods
-pub fn get_all_fields(state: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_fields(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     class.classfile.fields.iter().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
-    if class.classfile.super_class == 0 {
-        let object = check_inited_class(state, &ClassName::object(),  class.loader.clone());
-        object.classfile.fields.iter().enumerate().for_each(|(i, _)| {
+    if class.view().super_name().is_none() {
+        let object = check_inited_class(jvm, &ClassName::object(), class.loader.clone());
+        object.view().fields().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.classfile.super_class_name();
-        let super_ = check_inited_class(state, &name.unwrap(),  class.loader.clone());
-        for (c, i) in get_all_fields(state, frame, super_) {
+        let super_ = check_inited_class(jvm, &name.unwrap(), class.loader(jvm).clone());
+        for (c, i) in get_all_fields(jvm, frame, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }
     }

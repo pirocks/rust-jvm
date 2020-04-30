@@ -219,9 +219,9 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     let runtime_class = (&*(method as *const MethodId)).class.clone();
     let class_object = get_or_create_class_object(
         jvm,
-        &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.class_view.name())),
+        &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
         jvm.get_current_frame().deref(),
-        runtime_class.loader.clone()
+        runtime_class.loader(jvm).clone()
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(transmute(to_object(class_object.into())));
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodDeclaringClass");
@@ -242,7 +242,7 @@ pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethod
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
     let method_id = (method as *mut MethodId).as_ref().unwrap();
-    match method_id.class.class_view.method_view_i(method_id.method_i).code_attribute() {
+    match method_id.class.view().method_view_i(method_id.method_i).code_attribute() {
         None => {
             start_location_ptr.write(-1);
             end_location_ptr.write(-1);

@@ -75,7 +75,7 @@ fn regular_object(state: &JVMState, class_type: &PTypeView, current_frame: &Stac
 fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry, ptypev : PTypeView) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-    let current_loader = current_frame.class_pointer.loader.clone();
+    let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let class_class = check_inited_class(jvm, &java_lang_class, current_loader.clone());
     let class_loader_class = check_inited_class(jvm, &java_lang_class_loader, current_loader.clone());
     let boostrap_loader_object = Arc::new(Object::Object(NormalObject {
