@@ -171,12 +171,12 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
         let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz, jvm, &get_frame(env)).unwrap();
         let jni_context = &jvm.jni;
-        let classfile = &runtime_class.view();
-        &classfile.methods.iter().enumerate().for_each(|(i, method_info)| {
-            let descriptor_str = method_info.descriptor_str(classfile);
-            let current_name = method_info.method_name(classfile);
+        let view = &runtime_class.view();
+        &view.methods().enumerate().for_each(|(i, method_info)| {
+            let descriptor_str = method_info.descriptor_str(view);
+            let current_name = method_info.method_name(view);
             if current_name == expected_name && descriptor == descriptor_str {
-                jvm.tracing.trace_jni_register(&class_name(classfile),expected_name.as_str());
+                jvm.tracing.trace_jni_register(&view.name(), expected_name.as_str());
                 register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
             }
         });

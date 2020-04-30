@@ -91,8 +91,8 @@ pub fn get_int_volatile(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let unwrapped = param1_obj.unwrap();
     let target_obj = unwrapped.unwrap_normal_object();
     let var_offset = args[2].unwrap_long();
-    let classfile = &target_obj.class_pointer.classfile;
-    let field_name = classfile.constant_pool[classfile.fields[var_offset as usize].name_index as usize].extract_string_from_utf8();
+    let view = &target_obj.class_pointer.view();
+    let field_name = view.field(var_offset as usize).field_name();
     let fields = target_obj.fields.borrow();
     fields.get(&field_name).unwrap().clone().into()
 }

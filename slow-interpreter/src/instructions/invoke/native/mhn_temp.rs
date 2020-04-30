@@ -255,7 +255,7 @@ pub fn create_method_type(jvm: &JVMState, frame: &StackEntry, signature: &String
 
 //todo this should go in some sort of utils
 pub fn run_static_or_virtual(state: &JVMState, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
-    let res_fun = class.view().lookup_method(method_name, desc_str);//todo move this into classview
+    let res_fun = class.view().method_index().lookup(&method_name, &parse_method_descriptor(desc_str.as_str()).unwrap());//todo move this into classview
     let (i, m) = res_fun.unwrap();
     let method_view = class.view().method_view_i(i);
     let md = method_view.desc();

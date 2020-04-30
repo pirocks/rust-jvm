@@ -18,9 +18,9 @@ pub fn putstatic(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () 
 }
 
 pub fn putfield(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
-    let classfile = &current_frame.class_pointer.classfile;
+    let view = &current_frame.class_pointer.classfile;
     let loader_arc = &current_frame.class_pointer.loader(jvm);
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
+    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let _target_classfile = check_inited_class(state, &field_class_name,  loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
     let val = stack.pop().unwrap();
@@ -41,9 +41,9 @@ pub fn putfield(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
 pub fn get_static(state: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
     //todo make sure class pointer is updated correctly
 
-    let classfile = &current_frame.class_pointer.classfile;
+    let view = &current_frame.class_pointer.view();
     let loader_arc = &current_frame.class_pointer.loader(jvm);
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, ClassView::from(classfile.clone()));
+    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     /*if field_name == "reflectionFactory" {
         dbg!(cp);
         panic!()
@@ -58,7 +58,7 @@ fn get_static_impl(state: & JVMState, current_frame: & StackEntry, cp: u16, load
     let attempted_get = temp.get(field_name);
     let field_value = match attempted_get {
         None => {
-            return get_static_impl(state,current_frame,cp,loader_arc,&target_classfile.classfile.super_class_name().unwrap(),field_name)
+            return get_static_impl(state,current_frame,cp,loader_arc,&target_classfile.view().super_class_name().unwrap(),field_name)
         },
         Some(val) => {
             val.clone()

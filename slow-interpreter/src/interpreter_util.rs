@@ -33,7 +33,7 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
         current_frame.push(new_obj);
     }
 
-    fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<Classfile>, bl: LoaderArc) {
+    fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<RuntimeClass>, bl: LoaderArc) {
         if classfile.super_class != 0 {
             let super_name = classfile.super_class_name();
             let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();

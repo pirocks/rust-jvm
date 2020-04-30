@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
 use crate::{JVMState, StackEntry};
+use classfile_view::view::constant_info_view::ConstantInfoView;
 
 pub fn new(jvm: &JVMState, current_frame: &StackEntry, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader(jvm);
@@ -33,8 +34,8 @@ pub fn anewarray(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
     let view = &current_frame.class_pointer.view();
     let cp_entry = &view.constant_pool_view(cp as usize);
     match cp_entry {
-        ConstantKind::Class(c) => {
-            let name = ClassName::Str(view.constant_pool_view(c.name_index as usize).extract_string_from_utf8());
+        ConstantInfoView::Class(c) => {
+            let name = ClassName::Str(c.class_name().unwrap_name().clone().get_referred_name().to_string());//todo fix this jankyness
             a_new_array_from_name(state, current_frame, len, &name)
         }
         _ => {

@@ -75,8 +75,8 @@ pub fn invoke_instanceof(state: & JVMState, current_frame: & StackEntry, cp: u16
         return;
     }
     let unwrapped = possibly_null.unwrap();
-    let classfile = &current_frame.class_pointer.class_view;
-    let instance_of_class_type = classfile.constant_pool_view(cp as usize).unwrap_class().class_name();
+    let view = &current_frame.class_pointer.view();
+    let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_name();
     // assert!(instance_of_class_type.try_unwrap_name().is_none());
     instance_of_impl(state, current_frame, unwrapped, instance_of_class_type);
 }
@@ -128,7 +128,7 @@ fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<
 
 fn runtime_interface_class(jvm: & JVMState, class_: &Arc<RuntimeClass>, i: Interface) -> Arc<RuntimeClass> {
     let intf_name = class_.classfile.extract_class_from_constant_pool_name(i);
-    check_inited_class(jvm, &ClassName::Str(intf_name),  class_.loader.clone())
+    check_inited_class(jvm, &ClassName::Str(intf_name),  class_.loader(jvm).clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
@@ -145,7 +145,7 @@ pub fn inherits_from(state: & JVMState, inherits: &Arc<RuntimeClass>, parent: &A
         None => false,
         Some(super_) => {
             //todo why is this not an impl function?
-            class_name(&super_.classfile) == class_name(&parent.classfile) ||
+            &super_.view().name() == &parent.view().name() ||
                 inherits_from(state, &super_, parent)
         }
     }) || interfaces_match

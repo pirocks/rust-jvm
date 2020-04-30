@@ -10,9 +10,9 @@ use crate::{JVMState, StackEntry};
 
 pub fn invoke_interface(jvm: & JVMState, current_frame: &StackEntry, invoke_interface: InvokeInterface) {
     invoke_interface.count;
-    let classfile = &current_frame.class_pointer.classfile;
+    let view = &current_frame.class_pointer.view();
     let loader_arc = &current_frame.class_pointer.loader(jvm);
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &ClassView::from(classfile.clone()));
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &view);
     let class_name_ = class_name_type.unwrap_class_type();
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let _target_class = check_inited_class(jvm, &class_name_, loader_arc.clone());
