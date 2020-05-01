@@ -1,5 +1,5 @@
 use crate::interpreter_util::check_inited_class;
-use rust_jvm_common::classnames::{ClassName, class_name};
+use rust_jvm_common::classnames::{ClassName};
 use std::sync::Arc;
 use rust_jvm_common::classfile::Interface;
 use std::ops::Deref;
@@ -28,8 +28,8 @@ pub fn invoke_checkcast(jvm: & JVMState, current_frame: & StackEntry, cp: u16) {
     let object = possibly_null.unwrap();
     match object.deref(){
         Object(o) => {
-            let classfile = &current_frame.class_pointer.classfile;
-            let instance_of_class_name = classfile.extract_class_from_constant_pool_name(cp);
+            let view = &current_frame.class_pointer.view();
+            let instance_of_class_name = view.extract_class_from_constant_pool_name(cp);
             let instanceof_class = check_inited_class(jvm, &ClassName::Str(instance_of_class_name), current_frame.class_pointer.loader(jvm).clone());
             let object_class = o.class_pointer.clone();
             if inherits_from(jvm, &object_class, &instanceof_class) {
@@ -81,7 +81,7 @@ pub fn invoke_instanceof(state: & JVMState, current_frame: & StackEntry, cp: u16
     instance_of_impl(state, current_frame, unwrapped, instance_of_class_type);
 }
 
-pub fn instance_of_impl(state: &JVMState, current_frame: &StackEntry, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
+pub fn instance_of_impl(jvm: &JVMState, current_frame: &StackEntry, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -103,9 +103,9 @@ pub fn instance_of_impl(state: &JVMState, current_frame: &StackEntry, unwrapped:
         Object(object) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
-                    let instanceof_class = check_inited_class(state, &instance_of_class_name, current_frame.class_pointer.loader(jvm).clone());
+                    let instanceof_class = check_inited_class(jvm, &instance_of_class_name, current_frame.class_pointer.loader(jvm).clone());
                     let object_class = object.class_pointer.clone();
-                    if inherits_from(state, &object_class, &instanceof_class) {
+                    if inherits_from(jvm, &object_class, &instanceof_class) {
                         current_frame.push(JavaValue::Int(1))
                     } else {
                         current_frame.push(JavaValue::Int(0))
@@ -119,7 +119,7 @@ pub fn instance_of_impl(state: &JVMState, current_frame: &StackEntry, unwrapped:
 
 fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.view().super_name().is_some() {
-        Some(check_inited_class(jvm, &inherits.classfile.super_class_name().unwrap(), inherits.loader(jvm).clone()))
+        Some(check_inited_class(jvm, &inherits.view().super_name().unwrap(), inherits.loader(jvm).clone()))
     } else {
         None
     }
@@ -127,16 +127,16 @@ fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<
 
 
 fn runtime_interface_class(jvm: & JVMState, class_: &Arc<RuntimeClass>, i: Interface) -> Arc<RuntimeClass> {
-    let intf_name = class_.classfile.extract_class_from_constant_pool_name(i);
+    let intf_name = class_.view().extract_class_from_constant_pool_name(i);
     check_inited_class(jvm, &ClassName::Str(intf_name),  class_.loader(jvm).clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
 pub fn inherits_from(state: & JVMState, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
-    if class_name(&inherits.classfile) == class_name(&parent.classfile){
+    if &inherits.view().name() == &parent.view().name(){
         return true;
     }
-    let interfaces_match = inherits.classfile.interfaces.iter().any(|x| {
+    let interfaces_match = inherits.view().interfaces().any(|x| {
         let interface = runtime_interface_class(state, inherits, *x);
         &interface.view().name() == &parent.view().name()
     });

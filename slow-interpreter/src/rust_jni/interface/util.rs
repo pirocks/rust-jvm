@@ -20,13 +20,13 @@ pub unsafe fn runtime_class_from_object(cls: jclass, state: & JVMState, frame: &
     runtime_class.clone()
 }
 
-pub fn class_object_to_runtime_class(obj: &NormalObject, state: & JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
+pub fn class_object_to_runtime_class(obj: &NormalObject, jvm: & JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
     if obj.class_object_to_ptype().is_primitive() {
         return None;
     }
     match obj.class_object_to_ptype().unwrap_ref_type() {
         ReferenceTypeView::Class(class_name) => {
-            check_inited_class(state, &class_name,  frame.class_pointer.loader(jvm).clone()).into()//todo a better way?
+            check_inited_class(jvm, &class_name, frame.class_pointer.loader(jvm).clone()).into()//todo a better way?
         }
         ReferenceTypeView::Array(_) => {
             None

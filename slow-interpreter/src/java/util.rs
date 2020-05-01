@@ -19,12 +19,12 @@ pub mod properties {
     }
 
     impl Properties {
-        pub fn set_property(&self, state: &JVMState, frame: &StackEntry, key: JString, value: JString) {
-            let properties_class = check_inited_class(state, &ClassName::properties(), frame.class_pointer.loader(jvm).clone());
+        pub fn set_property(&self, jvm: &JVMState, frame: &StackEntry, key: JString, value: JString) {
+            let properties_class = check_inited_class(jvm, &ClassName::properties(), frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             frame.push(key.java_value());
             frame.push(value.java_value());
-            run_static_or_virtual(state, &properties_class,"setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string());
+            run_static_or_virtual(jvm, &properties_class, "setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string());
             frame.pop();
         }
     }

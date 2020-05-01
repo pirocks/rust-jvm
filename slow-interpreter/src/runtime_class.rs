@@ -2,9 +2,9 @@ use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 use std::fmt::{Formatter, Debug, Error};
 use crate::java_values::{JavaValue, default_value};
-use rust_jvm_common::classfile::{Classfile, ACC_FINAL, ACC_STATIC};
+use rust_jvm_common::classfile::{Classfile, ACC_STATIC};
 use std::hash::{Hash, Hasher};
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::loading::LoaderArc;
 
 use crate::{StackEntry, JVMState};
@@ -129,28 +129,26 @@ pub fn initialize_class(
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
     {
-        let classfile = &runtime_class.classfile;
-        for field in &classfile.fields {
-            if (field.access_flags & ACC_STATIC > 0) && (field.access_flags & ACC_FINAL > 0) {
+        let view = &runtime_class.view();
+        for field in view.fields() {
+            if field.is_static() && field.is_final() {
                 //todo do I do this for non-static? Should I?
-                let value_i = match field.constant_value_attribute_i() {
+                let constant_info_view = match field.constant_value_attribute() {
                     None => continue,
                     Some(i) => i,
                 };
-                let constant_pool = &classfile.constant_pool;
-                let x = &constant_pool[value_i as usize];
-                let constant_value = from_constant_pool_entry(constant_pool, x, jvm);
-                let name = constant_pool[field.name_index as usize].extract_string_from_utf8();
+                let constant_value = from_constant_pool_entry(view, &constant_info_view, jvm);
+                let name = field.field_name();
                 runtime_class.static_vars.write().unwrap().insert(name, constant_value);
             }
         }
     }
     //todo detecting if assertions are enabled?
     let class_arc = runtime_class;
-    let classfile = &class_arc.classfile;
-    let lookup_res = classfile.lookup_method_name(&"<clinit>".to_string());
+    let view = &class_arc.view();
+    let lookup_res = view.method_index().lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
-    let (clinit_i, clinit) = match lookup_res.iter().nth(0) {
+    let  clinit = match lookup_res.iter().nth(0) {
         None => return class_arc,
         Some(x) => x,
     };
@@ -164,7 +162,7 @@ pub fn initialize_class(
 
     let new_stack = StackEntry {
         class_pointer: class_arc.clone(),
-        method_i: *clinit_i as u16,
+        method_i: *clinit.method_i() as u16,
         local_vars: locals.into(),
         operand_stack: vec![].into(),
         pc: 0.into(),

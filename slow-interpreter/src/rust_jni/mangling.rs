@@ -1,7 +1,5 @@
 use std::sync::Arc;
-use rust_jvm_common::classnames::class_name;
 use regex::Regex;
-use rust_jvm_common::classfile::ACC_NATIVE;
 use crate::runtime_class::RuntimeClass;
 use classfile_view::view::HasAccessFlags;
 

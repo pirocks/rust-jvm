@@ -1,9 +1,9 @@
 use crate::{JVMState, InterpreterState};
-use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::classnames::{ClassName};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::class_objects::get_or_create_class_object;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
-use rust_jvm_common::classfile::{InstructionInfo, Code, MethodInfo};
+use rust_jvm_common::classfile::{InstructionInfo, Code};
 use crate::rust_jni::MethodId;
 use std::collections::HashSet;
 use crate::instructions::store::*;
@@ -33,6 +33,8 @@ use crate::stack_entry::StackEntry;
 use crate::monitor::Monitor;
 use std::sync::Arc;
 use jvmti_jni_bindings::ACC_SYNCHRONIZED;
+use classfile_view::view::method_view::MethodView;
+use classfile_view::view::HasAccessFlags;
 
 pub fn run_function(jvm: &JVMState) {
     let current_thread = jvm.get_current_thread();
@@ -40,7 +42,7 @@ pub fn run_function(jvm: &JVMState) {
     let current_frame = frame_temp.deref();
     let view = &current_frame.class_pointer.view();
     let method = &view.method_view_i(current_frame.method_i as usize);
-    let synchronized = method.access_flags & ACC_SYNCHRONIZED as u16 > 0;
+    let synchronized = method.access_flags() & ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
     let meth_name = method.name();
     let class_name__ = &current_frame.class_pointer.view().name();
@@ -85,8 +87,8 @@ pub fn run_function(jvm: &JVMState) {
                         println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
                         break;
                     } else {
-                        let catch_runtime_name = current_frame.class_pointer.view().extract_class_from_constant_pool_name(excep_table.catch_type);
-                        let catch_class = check_inited_class(jvm, &ClassName::Str(catch_runtime_name), current_frame.class_pointer.loader(jvm).clone());
+                        let catch_runtime_name = current_frame.class_pointer.view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_name().unwrap_name();
+                        let catch_class = check_inited_class(jvm, &catch_runtime_name, current_frame.class_pointer.loader(jvm).clone());
                         if inherits_from(jvm, &throw_class, &catch_class) {
                             current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
                             interpreter_state.throw.replace(None);
@@ -141,7 +143,7 @@ fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &Stri
 pub fn monitor_for_function(
     jvm: &JVMState,
     current_frame: &StackEntry,
-    method: &MethodInfo,
+    method: &MethodView,
     synchronized: bool,
     class_name__: &ClassName
 ) -> Option<Arc<Monitor>>{

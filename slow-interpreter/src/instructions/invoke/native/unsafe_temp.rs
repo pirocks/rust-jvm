@@ -18,8 +18,8 @@ pub fn compare_and_swap_long(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let var_offset = args[2].unwrap_long();
     let old = args[3].unwrap_long();
     let new = args[4].unwrap_long();
-    let classfile = &target_obj.class_pointer.classfile;
-    let field_name = classfile.constant_pool[classfile.fields[var_offset as usize].name_index as usize].extract_string_from_utf8();
+    let view = &target_obj.class_pointer.view();
+    let field_name = view.field(var_offset as usize).field_name();
     let mut fields = target_obj.fields.borrow_mut();
     let cur_val = fields.get(&field_name).unwrap().unwrap_long();
     if cur_val != old {
@@ -74,8 +74,8 @@ pub fn compare_and_swap_int(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let var_offset = args[2].unwrap_long();
     let old = args[3].unwrap_int();
     let new = args[4].unwrap_int();
-    let classfile = &target_obj.class_pointer.classfile;
-    let field_name = classfile.constant_pool[classfile.fields[var_offset as usize].name_index as usize].extract_string_from_utf8();
+    let view = &target_obj.class_pointer.view();
+    let field_name = view.field(var_offset as usize).field_name();
     let mut fields = target_obj.fields.borrow_mut();
     let cur_val = fields.get(&field_name).unwrap().unwrap_int();
     if cur_val != old {

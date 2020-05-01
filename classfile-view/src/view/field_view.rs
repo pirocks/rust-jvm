@@ -20,7 +20,7 @@ impl FieldView {
     pub fn field_desc(&self) -> String {
         self.backing_class.constant_pool[self.field_info().descriptor_index as usize].extract_string_from_utf8()
     }
-    pub fn constant_value_attribute(&self) -> ConstantInfoView {
+    pub fn constant_value_attribute(&self) -> Option<ConstantInfoView> {
         unimplemented!()
 //            self.field_info().constant_value_attribute_i().map(|i| { self.backing_class.constant_pool[i as usize] })
     }

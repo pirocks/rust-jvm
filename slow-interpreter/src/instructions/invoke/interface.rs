@@ -5,7 +5,6 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::instructions::invoke::virtual_::{setup_virtual_args, invoke_virtual_method_i};
 use crate::instructions::invoke::find_target_method;
-use classfile_view::view::ClassView;
 use crate::{JVMState, StackEntry};
 
 pub fn invoke_interface(jvm: & JVMState, current_frame: &StackEntry, invoke_interface: InvokeInterface) {

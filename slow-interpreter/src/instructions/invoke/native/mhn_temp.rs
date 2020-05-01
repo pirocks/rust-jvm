@@ -170,7 +170,7 @@ pub const IS_FIELD_OR_METHOD: i32 = 327680;
 pub const SEARCH_ALL_SUPERS: i32 = 3145728;
 pub const REFERENCE_KIND_SHIFT: u32 = 24;
 
-pub fn MHN_init(state: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_init(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
     // init(MemberName mname, Object target);
     let mname = args[0].unwrap_normal_object();
@@ -190,7 +190,7 @@ pub fn MHN_init(state: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>)
         } else {
             let class_ptye = clazz.unwrap_normal_object().class_object_ptype.clone();
             let class_name = class_ptye.as_ref().unwrap().unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-            let inited_class = check_inited_class(state, &class_name, frame.class_pointer.loader(jvm).clone());
+            let inited_class = check_inited_class(jvm, &class_name, frame.class_pointer.loader(jvm).clone());
             if inited_class.view().is_interface() {
                 REF_invokeInterface
             } else {
@@ -254,14 +254,13 @@ pub fn create_method_type(jvm: &JVMState, frame: &StackEntry, signature: &String
 
 
 //todo this should go in some sort of utils
-pub fn run_static_or_virtual(state: &JVMState, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
+pub fn run_static_or_virtual(jvm: &JVMState, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
     let res_fun = class.view().method_index().lookup(&method_name, &parse_method_descriptor(desc_str.as_str()).unwrap());//todo move this into classview
-    let (i, m) = res_fun.unwrap();
-    let method_view = class.view().method_view_i(i);
+    let method_view = res_fun.unwrap();//todo and if this fails
     let md = method_view.desc();
-    if m.is_static() {
-        invoke_static_impl(state, md, class.clone(), i, m)
+    if method_view.is_static() {
+        invoke_static_impl(jvm, md, class.clone(), method_view.method_i(), method_view.method_info())
     } else {
-        invoke_virtual_method_i(state, md, class.clone(), i, &method_view, false);
+        invoke_virtual_method_i(jvm, md, class.clone(), method_view.method_i(), &method_view, false);
     }
 }

@@ -419,7 +419,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
 }
 
 fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {
-    let method_views = system.view().method_index().lookup_method_name(&"initializeSystemClass".to_string()).unwrap();
+    let method_views = system.view().method_index().lookup_method_name(&"initializeSystemClass".to_string());
     method_views.first().unwrap().clone()
 }
 

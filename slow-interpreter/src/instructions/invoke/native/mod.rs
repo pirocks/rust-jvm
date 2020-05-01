@@ -1,6 +1,6 @@
 use rust_jvm_common::classnames::ClassName;
 use crate::rust_jni::{mangling, call_impl, call};
-use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ConstantInfo, ConstantKind, Class, Utf8, Classfile};
+use rust_jvm_common::classfile::{ConstantInfo, ConstantKind, Class, Utf8, Classfile};
 
 use std::sync::Arc;
 
@@ -9,7 +9,7 @@ use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::unsafe_temp::*;
 use classfile_parser::parse_class_file;
 use verification::{verify, VerifierContext};
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use crate::instructions::ldc::load_class_constant_by_type;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::{JVMState, StackEntry};
@@ -17,7 +17,6 @@ use crate::runtime_class::RuntimeClass;
 use crate::java_values::{Object, JavaValue};
 use std::fs::File;
 use std::io::Write;
-use descriptor_parser::MethodDescriptor;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;
@@ -33,18 +32,18 @@ pub fn run_native_method(
     _debug: bool,
 ) {
     //todo only works for static void methods atm
-    let classfile = &class.classfile;
-    let method = &classfile.methods[method_i];
-    assert!(method.access_flags & ACC_NATIVE > 0);
-    let parsed = MethodDescriptor::from_legacy(method, classfile);
+    let view = &class.view();
+    let method = &view.method_view_i(method_i);
+    assert!(method.is_native());
+    let parsed = method.desc();
     let mut args = vec![];
     //todo should have some setup args functions
-    if method.access_flags & ACC_STATIC > 0 {
+    if method.is_static() {
         for _ in &parsed.parameter_types {
             args.push(frame.pop());
         }
         args.reverse();
-    } else if method.access_flags & ACC_NATIVE > 0 {
+    } else if method.is_native() {
         for _ in &parsed.parameter_types {
             args.push(frame.pop());
         }
@@ -53,14 +52,14 @@ pub fn run_native_method(
     } else {
         panic!();
     }
-    let monitor = monitor_for_function(jvm, frame, method, method.access_flags & ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
+    let monitor = monitor_for_function(jvm, frame, method, method.access_flags() & ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
     monitor.as_ref().map(|m|m.lock(jvm));
     if _debug {
         // dbg!(&args);
         // dbg!(&frame.operand_stack);
     }
     // println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
-    let meth_name = method.method_name(classfile);
+    let meth_name = method.name();
     let debug = false;//meth_name.contains("isAlive");
     if meth_name == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         frame.push(JavaValue::Boolean(false))
@@ -208,7 +207,7 @@ fn patch_single(
     unpatched: &mut Classfile,
     i: usize,
 ) {
-    let class_name = patch.unwrap_normal_object().class_pointer.class_view.name();
+    let class_name = patch.unwrap_normal_object().class_pointer.view().name();
 
     // Integer, Long, Float, Double: the corresponding wrapper object type from java.lang
     // Utf8: a string (must have suitable syntax if used as signature or name)

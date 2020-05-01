@@ -6,7 +6,6 @@ use std::sync::Arc;
 use crate::interpreter_util::check_inited_class;
 use crate::utils::lookup_method_parsed;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::view::ClassView;
 use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, Object, ArrayObject};
 use crate::runtime_class::RuntimeClass;
@@ -111,9 +110,9 @@ pub mod dynamic {
 }
 
 fn resolved_class(jvm: & JVMState, current_frame: &StackEntry, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
-    let classfile = &current_frame.class_pointer.classfile;
+    let view = current_frame.class_pointer.view();
     let loader_arc = &current_frame.class_pointer.loader(jvm);
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &ClassView::from(classfile.clone()));
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => {
             match r {

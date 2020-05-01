@@ -1,4 +1,4 @@
-use rust_jvm_common::classfile::{ConstantKind, Atype, MultiNewArray};
+use rust_jvm_common::classfile::{ Atype, MultiNewArray};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use std::sync::Arc;
@@ -11,12 +11,8 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 pub fn new(jvm: &JVMState, current_frame: &StackEntry, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let view = &current_frame.class_pointer.view();
-    let class_name_index = match &view.constant_pool_view(cp as usize) {
-        ConstantKind::Class(c) => c.name_index,
-        _ => panic!()
-    };
+    let class_name_index = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
     let target_class_name = ClassName::Str(view.constant_pool_view(class_name_index as usize).extract_string_from_utf8());
-//    dbg!(&target_class_name);
     let target_classfile = check_inited_class(
         jvm,
         &target_class_name,

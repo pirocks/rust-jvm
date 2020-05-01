@@ -83,7 +83,7 @@ pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, 
 //todo dup
     push_params_onto_frame(&mut l, &frame, &parsed);
     // trace!("----NATIVE EXIT ----");
-    invoke_static_impl(state, parsed, method_id.class.clone(), method_id.method_i, method);
+    invoke_static_impl(state, parsed, method_id.class.clone(), method_id.method_i, method.method_info());
     // trace!("----NATIVE ENTER----");
     frame_rc
 }

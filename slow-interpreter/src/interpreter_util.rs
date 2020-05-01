@@ -1,13 +1,12 @@
 use crate::{JVMState, StackEntry};
-use rust_jvm_common::classfile::{ACC_STATIC, Classfile};
+use rust_jvm_common::classfile::ACC_STATIC;
 use crate::runtime_class::{prepare_class, RuntimeClass};
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
 use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, default_value, Object};
-use descriptor_parser::{parse_field_descriptor};
-use classfile_view::view::ptype_view::PTypeView;
+use descriptor_parser::{parse_method_descriptor};
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 
 
@@ -29,27 +28,26 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
         let loader_arc = &current_frame.class_pointer.loader(jvm).clone();
         let object_pointer = JavaValue::new_object(jvm, target_classfile.clone());
         let new_obj = JavaValue::Object(object_pointer.clone());
-        default_init_fields(jvm, loader_arc.clone(), object_pointer, &target_classfile.classfile, loader_arc.clone());
+        default_init_fields(jvm, loader_arc.clone(), object_pointer, target_classfile, loader_arc.clone());
         current_frame.push(new_obj);
     }
 
     fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<RuntimeClass>, bl: LoaderArc) {
-        if classfile.super_class != 0 {
-            let super_name = classfile.super_class_name();
+        let view = classfile.view();
+        if view.super_name().is_some() {
+            let super_name = view.super_name();
             let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
-            default_init_fields(jvm, loader_arc.clone(), object_pointer.clone(), &loaded_super.backing_class(), bl);
+            default_init_fields(jvm, loader_arc.clone(), object_pointer.clone(), &loaded_super, bl);
         }
-        for field in &classfile.fields {
+        for field in view.fields() {
             if field.access_flags & ACC_STATIC == 0 {
                 //todo should I look for constant val attributes?
                 let _value_i = match field.constant_value_attribute_i() {
                     None => {}
                     Some(_i) => unimplemented!(),
                 };
-                let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
-                let descriptor_str = classfile.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
-                let descriptor = parse_field_descriptor(descriptor_str.as_str()).unwrap();
-                let type_ = PTypeView::from_ptype(&descriptor.field_type);
+                let name = field.field_name();
+                let type_ = field.field_type();
                 let val = default_value(type_);
                 {
                     object_pointer.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert(name, val);
@@ -59,8 +57,7 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
     }
 
     pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
-        let (i, _) = target_classfile.classfile.lookup_method("<init>".to_string(), descriptor.clone()).unwrap();
-        let method_view = target_classfile.view().method_view_i(i);
+        let method_view = target_classfile.view().method_index().lookup(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
         let md = method_view.desc();
         let this_ptr = full_args[0].clone();
         let actual_args = &full_args[1..];
@@ -69,7 +66,7 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
             frame.push(arg.clone());
         }
         //todo this should be invoke special
-        invoke_virtual_method_i(state, md, target_classfile.clone(), i, &method_view, false);
+        invoke_virtual_method_i(state, md, target_classfile.clone(), method_view.method_i(), &method_view, false);
     }
 
 

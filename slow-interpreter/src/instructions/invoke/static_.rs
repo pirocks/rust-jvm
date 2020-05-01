@@ -6,7 +6,6 @@ use crate::interpreter_util::check_inited_class;
 use std::sync::Arc;
 use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ACC_ABSTRACT, MethodInfo};
 use crate::instructions::invoke::native::run_native_method;
-use classfile_view::view::ClassView;
 use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;

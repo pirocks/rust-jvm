@@ -35,7 +35,7 @@ thread_local! {
     static JVMTI_INTERFACE: RefCell<Option<jvmtiInterface_1_>> = RefCell::new(None);
 }
 
-pub fn get_jvmti_interface(state: &JVMState) -> jvmtiEnv {
+pub fn get_jvmti_interface(jvm: &JVMState) -> jvmtiEnv {
     JVMTI_INTERFACE.with(|refcell| {
         {
             let first_borrow = refcell.borrow();
@@ -46,16 +46,16 @@ pub fn get_jvmti_interface(state: &JVMState) -> jvmtiEnv {
                 }
             }
         }
-        let new = get_jvmti_interface_impl(state);
+        let new = get_jvmti_interface_impl(jvm);
         refcell.replace(new.into());
         let new_borrow = refcell.borrow();
         new_borrow.as_ref().unwrap() as jvmtiEnv
     })
 }
 
-fn get_jvmti_interface_impl(state: &JVMState) -> jvmtiInterface_1_ {
+fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
     jvmtiInterface_1_ {
-        reserved1: unsafe { transmute(state) },
+        reserved1: unsafe { transmute(jvm) },
         SetEventNotificationMode: Some(set_event_notification_mode),
         reserved3: std::ptr::null_mut(),
         GetAllThreads: Some(get_all_threads),

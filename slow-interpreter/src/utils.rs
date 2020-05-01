@@ -21,7 +21,7 @@ pub fn lookup_method_parsed(state: &JVMState, class: Arc<RuntimeClass>, name: St
 pub fn lookup_method_parsed_impl(state: &JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
     match class.view().method_index().lookup(&name, &descriptor) {
         None => {
-            let super_class = state.initialized_classes.read().unwrap().get(&class.classfile.super_class_name().unwrap()).unwrap().clone();
+            let super_class = state.initialized_classes.read().unwrap().get(&class.view().super_name().unwrap()).unwrap().clone();
             lookup_method_parsed_impl(state, super_class, name, descriptor, loader)
         }
         Some(method_view) => {

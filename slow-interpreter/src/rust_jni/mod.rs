@@ -16,7 +16,7 @@ use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use std::collections::HashMap;
 use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::classnames::ClassName;
 use std::os::raw::{c_char, c_void};
 use std::alloc::Layout;
 use std::mem::size_of;
@@ -35,6 +35,7 @@ use crate::{JVMState, StackEntry, LibJavaLoading};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 use std::fmt::{Debug, Formatter};
+use classfile_view::view::HasAccessFlags;
 
 
 pub mod value_conversion;
@@ -76,7 +77,7 @@ pub fn call(
         };
         symbol.deref().clone()
     };
-    if classfile.classfile.methods[method_i].is_static() {
+    if classfile.view().method_view_i(method_i).is_static() {
         Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, false, false))
     } else {
         Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true, false))
@@ -93,7 +94,7 @@ pub fn call_impl(jvm: & JVMState, current_frame: &StackEntry, classfile: Arc<Run
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        load_class_constant_by_type(jvm, &current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.class_view.name())));
+        load_class_constant_by_type(jvm, &current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.view().name())));
         let res = vec![Arg::new(&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
         res
     };
@@ -173,8 +174,8 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let jni_context = &jvm.jni;
         let view = &runtime_class.view();
         &view.methods().enumerate().for_each(|(i, method_info)| {
-            let descriptor_str = method_info.descriptor_str(view);
-            let current_name = method_info.method_name(view);
+            let descriptor_str = method_info.desc_str();
+            let current_name = method_info.name();
             if current_name == expected_name && descriptor == descriptor_str {
                 jvm.tracing.trace_jni_register(&view.name(), expected_name.as_str());
                 register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
@@ -213,21 +214,21 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
-pub fn get_all_methods(state: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_methods(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     // dbg!(&class.class_view.name());
-    class.classfile.methods.iter().enumerate().for_each(|(i, _)| {
+    class.view().methods().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_inited_class(state, &ClassName::object(),  class.loader.clone());
-        object.classfile.methods.iter().enumerate().for_each(|(i, _)| {
+        let object = check_inited_class(jvm, &ClassName::object(), class.loader(jvm).clone());
+        object.view().methods().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name().unwrap();
-        let super_ = check_inited_class(state, &name.unwrap(),  class.loader(jvm).clone());
-        for (c, i) in get_all_methods(state, frame, super_) {
+        let super_ = check_inited_class(jvm, &name.unwrap(), class.loader(jvm).clone());
+        for (c, i) in get_all_methods(jvm, frame, super_) {
             res.push((c, i));
         }
     }
@@ -238,16 +239,16 @@ pub fn get_all_methods(state: & JVMState, frame: &StackEntry, class: Arc<Runtime
 //todo duplication with methods
 pub fn get_all_fields(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
-    class.classfile.fields.iter().enumerate().for_each(|(i, _)| {
+    class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_inited_class(jvm, &ClassName::object(), class.loader.clone());
+        let object = check_inited_class(jvm, &ClassName::object(), class.loader(jvm).clone());
         object.view().fields().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
-        let name = class.classfile.super_class_name();
+        let name = class.view().super_name();
         let super_ = check_inited_class(jvm, &name.unwrap(), class.loader(jvm).clone());
         for (c, i) in get_all_fields(jvm, frame, super_) {
             res.push((c, i));//todo accidental O(n^2)
@@ -286,9 +287,9 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let runtime_class = class_object_to_runtime_class(class_obj.unwrap_normal_object(), state, &frame).unwrap();
     let all_methods = get_all_methods(state, frame, runtime_class);
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
-        let method_info = &c.classfile.methods[*i];
-        let cur_desc = method_info.descriptor_str(&c.classfile);
-        let cur_method_name = method_info.method_name(&c.classfile);
+        let method_view = &c.view().method_view_i(*i);
+        let cur_desc = method_view.desc_str();
+        let cur_method_name = method_view.name();
         cur_method_name == method_name &&
             method_descriptor_str == cur_desc
     }).unwrap();
@@ -304,8 +305,8 @@ pub struct MethodId {
 
 impl Debug for MethodId{
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(),std::fmt::Error> {
-        let method_view = self.class.class_view.method_view_i(self.method_i);
-        write!(f, "{:?} {} {}",self.class.class_view.name(), method_view.name(),method_view.desc_str())
+        let method_view = self.class.view().method_view_i(self.method_i);
+        write!(f, "{:?} {} {}",self.class.view().name(), method_view.name(),method_view.desc_str())
     }
 }
 

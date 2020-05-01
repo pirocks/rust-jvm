@@ -6,8 +6,8 @@ use crate::java_values::JavaValue;
 
 pub unsafe extern "C" fn set_int_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jint) {
     let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
-    let classfile = &field_id.class.classfile;
-    let name = classfile.fields[field_id.field_i as usize].name(classfile);
+    let view = &field_id.class.view();
+    let name = view.field(field_id.field_i as usize).field_name();
     from_object(obj).unwrap().unwrap_normal_object().fields.borrow_mut().deref_mut().insert(name, JavaValue::Int(val));
 }
 
