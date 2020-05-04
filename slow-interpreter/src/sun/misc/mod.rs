@@ -19,7 +19,7 @@ pub mod unsafe_ {
     impl Unsafe {
         pub fn the_unsafe(jvm: & JVMState, frame: &StackEntry) -> Unsafe {
             let unsafe_class = check_inited_class(jvm, &ClassName::unsafe_(), frame.class_pointer.loader(jvm).clone());
-            let static_vars = unsafe_class.static_vars.read().unwrap();
+            let static_vars = unsafe_class.static_vars();
             static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
         }
 

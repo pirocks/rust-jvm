@@ -29,8 +29,8 @@ pub fn invoke_checkcast(jvm: & JVMState, current_frame: & StackEntry, cp: u16) {
     match object.deref(){
         Object(o) => {
             let view = &current_frame.class_pointer.view();
-            let instance_of_class_name = view.extract_class_from_constant_pool_name(cp);
-            let instanceof_class = check_inited_class(jvm, &ClassName::Str(instance_of_class_name), current_frame.class_pointer.loader(jvm).clone());
+            let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
+            let instanceof_class = check_inited_class(jvm, &instance_of_class_name, current_frame.class_pointer.loader(jvm).clone());
             let object_class = o.class_pointer.clone();
             if inherits_from(jvm, &object_class, &instanceof_class) {
                 current_frame.push(JavaValue::Object(object.clone().into()));
@@ -42,8 +42,12 @@ pub fn invoke_checkcast(jvm: & JVMState, current_frame: & StackEntry, cp: u16) {
         },
         Array(a) => {
             let current_frame_class = &current_frame.class_pointer.view();
-            let instance_of_class_str = current_frame_class.extract_class_from_constant_pool_name(cp);
-            let (should_be_empty, expected_type_wrapped) = parse_field_type( instance_of_class_str.as_str()).unwrap();
+            let instance_of_class = current_frame_class
+                .constant_pool_view(cp as usize)
+                .unwrap_class()
+                .class_name()
+                .unwrap_name();
+            let (should_be_empty, expected_type_wrapped) = parse_field_type( instance_of_class.get_referred_name().as_str()).unwrap();
             assert!(should_be_empty.is_empty());
             let expected_type = expected_type_wrapped.unwrap_array_type();
             let cast_succeeds = match &a.elem_type {
@@ -127,8 +131,8 @@ fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<
 
 
 fn runtime_interface_class(jvm: & JVMState, class_: &Arc<RuntimeClass>, i: Interface) -> Arc<RuntimeClass> {
-    let intf_name = class_.view().extract_class_from_constant_pool_name(i);
-    check_inited_class(jvm, &ClassName::Str(intf_name),  class_.loader(jvm).clone())
+    let intf_name = class_.view().constant_pool_view(i as usize).unwrap_class().class_name().unwrap_name();
+    check_inited_class(jvm, &intf_name,  class_.loader(jvm).clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
@@ -136,8 +140,8 @@ pub fn inherits_from(state: & JVMState, inherits: &Arc<RuntimeClass>, parent: &A
     if &inherits.view().name() == &parent.view().name(){
         return true;
     }
-    let interfaces_match = inherits.view().interfaces().any(|x| {
-        let interface = runtime_interface_class(state, inherits, *x);
+    let interfaces_match = inherits.view().interfaces().enumerate().any(|(i,_)| {
+        let interface = runtime_interface_class(state, inherits, i as u16);
         &interface.view().name() == &parent.view().name()
     });
 

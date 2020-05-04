@@ -9,6 +9,7 @@ use crate::view::attribute_view::{EnclosingMethodView, BootstrapMethodsView};
 use std::collections::HashMap;
 use descriptor_parser::MethodDescriptor;
 use std::iter::FromIterator;
+use std::mem::transmute;
 
 
 pub trait HasAccessFlags {
@@ -77,12 +78,24 @@ impl ClassView {
         let backing_class = self.backing_class.clone();
         match &self.backing_class.constant_pool[i].kind {
             ConstantKind::Utf8(_) => unimplemented!(),
-            ConstantKind::Integer(_) => ConstantInfoView::Integer(IntegerView {}),//todo
-            ConstantKind::Float(_) => ConstantInfoView::Float(FloatView {}),//todo
-            ConstantKind::Long(_) => ConstantInfoView::Long(LongView {}),//todo
-            ConstantKind::Double(_) => ConstantInfoView::Double(DoubleView {}),//todo
+            ConstantKind::Integer(i) => ConstantInfoView::Integer(IntegerView { int: i.bytes as i32 }),//todo
+            ConstantKind::Float(f) => ConstantInfoView::Float(FloatView {
+                float: unsafe {
+                    transmute(f.bytes)
+                }
+            }),//todo
+            ConstantKind::Long(l) => ConstantInfoView::Long(LongView {
+                long: unsafe {
+                    transmute((l.high_bytes as u64) << 32 | l.low_bytes as u64)
+                }
+            }),//todo
+            ConstantKind::Double(d) => ConstantInfoView::Double(DoubleView {
+                double: unsafe {
+                    transmute((d.high_bytes as u64) << 32 | d.low_bytes as u64)
+                }
+            }),//todo
             ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
-            ConstantKind::String(_) => ConstantInfoView::String(StringView {}),//todo
+            ConstantKind::String(s) => ConstantInfoView::String(StringView { backing_class, string_index: s.string_index as usize }),//todo
             ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { backing_class, i }),
             ConstantKind::Methodref(_) => ConstantInfoView::Methodref(MethodrefView { backing_class, i }),
             ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { backing_class, i }),

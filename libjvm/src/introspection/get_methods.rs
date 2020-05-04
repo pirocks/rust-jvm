@@ -39,7 +39,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {
         if publicOnly > 0 {
-            c.class_view.method_view_i(*i).is_public()
+            c.view().method_view_i(*i).is_public()
         } else {
             true
         }
@@ -50,7 +50,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         object_array.push(method_object.clone());
 
 
-        let method_view = c.class_view.method_view_i(*i);
+        let method_view = c.view().method_view_i(*i);
         //constructor goes:
         // this.clazz = var1;
         // this.name = var2;
@@ -64,7 +64,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         // this.parameterAnnotations = var10;
         // this.annotationDefault = var11;
         let clazz = {
-            let field_class_name = c.class_view.name();
+            let field_class_name = c.view().name();
             //todo so if we are calling this on int.class that is caught by the unimplemented above.
             load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name)));
             frame.pop()
@@ -91,7 +91,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         //todo replace with wrapper object
         run_constructor(jvm, frame, method_class.clone(), full_args, METHOD_SIGNATURE.to_string());
     });
-    let res = Arc::new(Object::object_array(jvm, object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.class_view.name())))).into();
+    let res = Arc::new(Object::object_array(jvm, object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.view().name())))).into();
     to_object(res)
 }
 
@@ -157,7 +157,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         unimplemented!()
     }
     let temp = runtime_class_from_object(ofClass, jvm, &frame).unwrap();
-    let target_classview = &temp.class_view;
+    let target_classview = &temp.view();
     let constructors = target_classview.method_index().lookup_method_name(&"<init>".to_string()).unwrap();
     let class_obj = runtime_class_from_object(ofClass, jvm, &frame);
     let loader = frame.class_pointer.loader(jvm).clone();
@@ -178,7 +178,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let method_view = m;
 
         let clazz = {
-            let field_class_name = class_obj.as_ref().unwrap().class_view.name();
+            let field_class_name = class_obj.as_ref().unwrap().view().name();
             //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
             load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name.clone())));
             frame.pop()
@@ -197,7 +197,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, empty_byte_array.clone(), empty_byte_array];
         run_constructor(jvm, frame, constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
     });
-    let res = Arc::new(Object::object_array(jvm,object_array, PTypeView::Ref(ReferenceTypeView::Class(constructor_class.class_view.name())))).into();
+    let res = Arc::new(Object::object_array(jvm,object_array, PTypeView::Ref(ReferenceTypeView::Class(constructor_class.view().name())))).into();
     to_object(res)
 }
 

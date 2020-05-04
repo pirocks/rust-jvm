@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::collections::HashMap;
 use std::fmt::{Formatter, Debug, Error};
 use crate::java_values::{JavaValue, default_value};
@@ -73,6 +73,22 @@ impl RuntimeClass{
             RuntimeClass::Object(o) => o.loader.clone(),
         }
     }
+
+    pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue>> {
+        match self{
+            RuntimeClass::Byte => unimplemented!(),
+            RuntimeClass::Boolean => unimplemented!(),
+            RuntimeClass::Short => unimplemented!(),
+            RuntimeClass::Char => unimplemented!(),
+            RuntimeClass::Int => unimplemented!(),
+            RuntimeClass::Long => unimplemented!(),
+            RuntimeClass::Float => unimplemented!(),
+            RuntimeClass::Double => unimplemented!(),
+            RuntimeClass::Void => unimplemented!(),
+            RuntimeClass::Array(_) => unimplemented!(),
+            RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
+        }
+    }
 }
 
 impl Debug for RuntimeClassClass {
@@ -139,7 +155,7 @@ pub fn initialize_class(
                 };
                 let constant_value = from_constant_pool_entry(view, &constant_info_view, jvm);
                 let name = field.field_name();
-                runtime_class.static_vars.write().unwrap().insert(name, constant_value);
+                runtime_class.static_vars().insert(name, constant_value);
             }
         }
     }
@@ -162,7 +178,7 @@ pub fn initialize_class(
 
     let new_stack = StackEntry {
         class_pointer: class_arc.clone(),
-        method_i: *clinit.method_i() as u16,
+        method_i: clinit.method_i() as u16,
         local_vars: locals.into(),
         operand_stack: vec![].into(),
         pc: 0.into(),

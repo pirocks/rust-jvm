@@ -1,5 +1,4 @@
 use crate::{JVMState, StackEntry};
-use rust_jvm_common::classfile::ACC_STATIC;
 use crate::runtime_class::{prepare_class, RuntimeClass};
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
@@ -8,6 +7,7 @@ use classfile_view::loading::LoaderArc;
 use crate::java_values::{JavaValue, default_value, Object};
 use descriptor_parser::{parse_method_descriptor};
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use classfile_view::view::{HasAccessFlags, ClassView};
 
 
 //todo jni should really live in interpreter state
@@ -28,21 +28,20 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
         let loader_arc = &current_frame.class_pointer.loader(jvm).clone();
         let object_pointer = JavaValue::new_object(jvm, target_classfile.clone());
         let new_obj = JavaValue::Object(object_pointer.clone());
-        default_init_fields(jvm, loader_arc.clone(), object_pointer, target_classfile, loader_arc.clone());
+        default_init_fields(jvm, loader_arc.clone(), object_pointer, target_classfile.view(), loader_arc.clone());
         current_frame.push(new_obj);
     }
 
-    fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, classfile: &Arc<RuntimeClass>, bl: LoaderArc) {
-        let view = classfile.view();
+    fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, view: &ClassView, bl: LoaderArc) {
         if view.super_name().is_some() {
             let super_name = view.super_name();
             let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
             default_init_fields(jvm, loader_arc.clone(), object_pointer.clone(), &loaded_super, bl);
         }
         for field in view.fields() {
-            if field.access_flags & ACC_STATIC == 0 {
+            if !field.is_static() {
                 //todo should I look for constant val attributes?
-                let _value_i = match field.constant_value_attribute_i() {
+                let _value_i = match field.constant_value_attribute() {
                     None => {}
                     Some(_i) => unimplemented!(),
                 };

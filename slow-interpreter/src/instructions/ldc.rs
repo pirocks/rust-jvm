@@ -1,10 +1,8 @@
-use rust_jvm_common::classfile::{ConstantInfo, Class, ConstantKind};
 use rust_jvm_common::classnames::ClassName;
 use crate::{StackEntry, JVMState};
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::sync::Arc;
 use crate::instructions::invoke::find_target_method;
-use std::mem::transmute;
 use std::cell::RefCell;
 use crate::rust_jni::native_util::{to_object, from_object};
 use crate::rust_jni::interface::string::intern_impl;
@@ -14,13 +12,13 @@ use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use crate::class_objects::get_or_create_class_object;
 use std::ops::Deref;
 use crate::interpreter::run_function;
-use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
+use classfile_view::view::constant_info_view::{ConstantInfoView, StringView, ClassPoolElemView};
 use classfile_view::view::ClassView;
 
 
-fn load_class_constant(state: &JVMState, current_frame: &StackEntry, constant_pool: &Vec<ConstantInfo>, c: &Class) {
-    let res_class_name = constant_pool[c.name_index as usize].extract_string_from_utf8();
-    let type_ = parse_field_descriptor(&res_class_name).unwrap().field_type;
+fn load_class_constant(state: &JVMState, current_frame: &StackEntry, c: &ClassPoolElemView) {
+    let res_class_name = c.class_name().unwrap_name();
+    let type_ = parse_field_descriptor(res_class_name.get_referred_name().as_str()).unwrap().field_type;
     load_class_constant_by_type(state, current_frame, &PTypeView::from_ptype(&type_));
 }
 
@@ -29,8 +27,8 @@ pub fn load_class_constant_by_type(jvm: &JVMState, current_frame: &StackEntry, r
     current_frame.push(JavaValue::Object(object.into()));
 }
 
-fn load_string_constant(jvm: &JVMState, constant_pool: &Vec<ConstantInfo>, s: &StringView) {
-    let res_string = constant_pool[s.string_index as usize].extract_string_from_utf8();
+fn load_string_constant(jvm: &JVMState, s: &StringView) {
+    let res_string = s.string();
     create_string_on_stack(jvm, res_string);
 }
 
@@ -86,14 +84,10 @@ pub fn ldc2_w(current_frame: &StackEntry, cp: u16) -> () {
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::Long(l) => {
-            let high = l.high_bytes as u64;
-            let low = l.low_bytes as u64;
-            current_frame.push(JavaValue::Long((high << 32 | low) as i64));
+            current_frame.push(JavaValue::Long(l.long));
         }
         ConstantInfoView::Double(d) => {
-            let high = d.high_bytes as u64;
-            let low = d.low_bytes as u64;
-            current_frame.push(JavaValue::Double(unsafe { transmute(high << 32 | low) }));
+            current_frame.push(JavaValue::Double(d.double));
         }
         _ => {}
     }
@@ -101,21 +95,21 @@ pub fn ldc2_w(current_frame: &StackEntry, cp: u16) -> () {
 
 
 pub fn ldc_w(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
-    let constant_pool = &current_frame.class_pointer.classfile.constant_pool;
-    let pool_entry = &constant_pool[cp as usize];
-    match &pool_entry.kind {
-        ConstantKind::String(s) => load_string_constant(state, &constant_pool, &s),
-        ConstantKind::Class(c) => load_class_constant(state, &current_frame, constant_pool, &c),
-        ConstantKind::Float(f) => {
-            let float: f32 = unsafe { transmute(f.bytes) };
+    let view = &current_frame.class_pointer.view();
+    let pool_entry = &view.constant_pool_view(cp as usize);
+    match &pool_entry {
+        ConstantInfoView::String(s) => load_string_constant(state, &s),
+        ConstantInfoView::Class(c) => load_class_constant(state, &current_frame, &c),
+        ConstantInfoView::Float(f) => {
+            let float: f32 = f.float;
             current_frame.push(JavaValue::Float(float));
         }
-        ConstantKind::Integer(i) => {
-            let int: i32 = unsafe { transmute(i.bytes) };
+        ConstantInfoView::Integer(i) => {
+            let int: i32 = i.int;
             current_frame.push(JavaValue::Int(int));
         }
         _ => {
-            dbg!(&pool_entry.kind);
+            // dbg!(&pool_entry.kind);
             unimplemented!()
         }
     }
@@ -123,20 +117,12 @@ pub fn ldc_w(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
 
 pub fn from_constant_pool_entry(class: &ClassView, c: &ConstantInfoView, jvm: &JVMState) -> JavaValue {
     match &c {
-        ConstantInfoView::Integer(i) => JavaValue::Int(unsafe { transmute(i.bytes) }),
-        ConstantInfoView::Float(f) => JavaValue::Float(unsafe { transmute(f.bytes) }),
-        ConstantInfoView::Long(l) => JavaValue::Long(unsafe {
-            let high = (l.high_bytes as u64) << 32;
-            let low = l.low_bytes as u64;
-            transmute(high | low)
-        }),
-        ConstantInfoView::Double(d) => JavaValue::Double(unsafe {
-            let high = (d.high_bytes as u64) << 32;
-            let low = d.low_bytes as u64;
-            transmute(high | low)
-        }),
+        ConstantInfoView::Integer(i) => JavaValue::Int(i.int),
+        ConstantInfoView::Float(f) => JavaValue::Float(f.float),
+        ConstantInfoView::Long(l) => JavaValue::Long(l.long),
+        ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
-            load_string_constant(jvm, class, s);
+            load_string_constant(jvm, s);
             let frame = jvm.get_current_frame();
             frame.pop()
         }

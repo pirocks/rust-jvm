@@ -62,10 +62,11 @@ unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) ->
     if class_object.is_none() {
         return false as jboolean;
     }
-    let name_ = class_name(&class_object.unwrap().classfile);
+    let name_ = class_object.unwrap().view().name();
     let name = name_.get_referred_name();
     // dbg!(name);
     // dbg!(name == &"java/lang/Integer".to_string());
+    //todo wrong?
     let is_primitive = name == &"java/lang/Boolean".to_string() ||
         name == &"java/lang/Character".to_string() ||
         name == &"java/lang/Byte".to_string() ||

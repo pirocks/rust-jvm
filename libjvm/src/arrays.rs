@@ -39,7 +39,7 @@ unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, lengt
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
     let state = get_state(env);
-    let array_type_name = runtime_class_from_object(eltClass,state,&frame).unwrap().class_view.name();//todo how does this handle nested arrays?
+    let array_type_name = runtime_class_from_object(eltClass,state,&frame).unwrap().view().name();//todo how does this handle nested arrays?
     a_new_array_from_name(state,frame,length,&array_type_name);
     to_object(frame.pop().unwrap_object())
 }

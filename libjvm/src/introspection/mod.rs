@@ -57,9 +57,9 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -> jint {
     let frame = get_frame(env);
-    let state = get_state(env);
+    let jvm = get_state(env);
 
-    match runtime_class_from_object(cls, state, &frame) {
+    match runtime_class_from_object(cls, jvm, &frame) {
         None => {
             // is primitive
             // essentially an abstract class of the non-primitive version
@@ -67,11 +67,11 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
             let obj = from_object(cls).unwrap();
             let type_ = obj.unwrap_normal_object().class_object_to_ptype();
             let name = type_.unwrap_type_to_name().unwrap();
-            let class_for_access_flags = check_inited_class(state, &name,  frame.class_pointer.loader(jvm)clone());
-            (class_for_access_flags.class_view.access_flags() | ACC_ABSTRACT) as jint
+            let class_for_access_flags = check_inited_class(jvm, &name, frame.class_pointer.loader(jvm).clone());
+            (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
         }
         Some(rc) => {
-            rc.class_view.access_flags() as jint
+            rc.view().access_flags() as jint
         }
     }
 }
@@ -127,7 +127,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let frame = get_frame(env);
     let state = get_state(env);
 
-    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(state.get_previous_frame().class_pointer.class_view.name())));
+    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(state.get_previous_frame().class_pointer.view().name())));
     let jclass = frame.pop().unwrap_object();
     to_object(jclass)
 }
@@ -147,19 +147,24 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     loader: jobject,
     caller: jclass,
 ) -> jclass {
-    let state = get_state(env);
+    let jvm = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
 
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    to_object(Some(get_or_create_class_object(state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))), frame, frame.class_pointer.loader(jvm).clone())))
+    to_object(Some(get_or_create_class_object(
+        jvm,
+        &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))),
+        frame,
+        frame.class_pointer.loader(jvm).clone()
+    )))
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
     let obj = runtime_class_from_object(cls, get_state(env), &get_frame(env)).unwrap();
-    let full_name = class_name(&obj.classfile).get_referred_name().replace("/", ".");
+    let full_name = &obj.view().name().get_referred_name().replace("/", ".");
     new_string_with_string(env, full_name)
 }
 

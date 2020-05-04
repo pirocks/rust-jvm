@@ -31,9 +31,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let class_obj = runtime_class_from_object(ofClass, get_state(env),&get_frame(env));
     let mut object_array = vec![];
     // dbg!(unsafe {&STRING_INTERNMENT_CAMP});
-    &class_obj.clone().unwrap().classfile.fields.iter().enumerate().for_each(|(i, f)| {
+    &class_obj.clone().unwrap().view().fields().enumerate().for_each(|(i, f)| {
         //todo so this is big and messy put I don't really see a way to simplify
-        let field_class_name_ = class_obj.clone().as_ref().unwrap().class_view.name();
+        let field_class_name_ = class_obj.clone().as_ref().unwrap().view().name();
         load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
         let parent_runtime_class = frame.pop();
 

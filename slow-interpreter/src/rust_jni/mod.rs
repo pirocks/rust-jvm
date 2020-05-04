@@ -227,7 +227,7 @@ pub fn get_all_methods(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeCl
         });
     } else {
         let name = class.view().super_name().unwrap();
-        let super_ = check_inited_class(jvm, &name.unwrap(), class.loader(jvm).clone());
+        let super_ = check_inited_class(jvm, &name, class.loader(jvm).clone());
         for (c, i) in get_all_methods(jvm, frame, super_) {
             res.push((c, i));
         }

@@ -110,10 +110,11 @@ pub fn object_field_offset(
     let field_class = temp.unwrap_normal_object();
     let borrow_4 = field_class.class_object_ptype.clone();
     let field_class_name = borrow_4.as_ref().unwrap().unwrap_ref_type().unwrap_name();
-    let field_classfile = &check_inited_class(jvm, &field_class_name, frame.class_pointer.loader(jvm).clone()).classfile;
+    let inited_field_class = check_inited_class(jvm, &field_class_name, frame.class_pointer.loader(jvm).clone());
+    let field_classfile = inited_field_class.view();
     let mut res = None;
-    &field_classfile.fields.iter().enumerate().for_each(|(i, f)| {
-        if f.name(field_classfile) == field_name {
+    &field_classfile.fields().enumerate().for_each(|(i, f)| {
+        if f.field_name() == field_name {
             res = Some(Some(JavaValue::Long(i as i64)));
         }
     });

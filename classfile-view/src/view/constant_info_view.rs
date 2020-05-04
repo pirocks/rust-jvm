@@ -13,22 +13,22 @@ pub struct Utf8View {
 
 #[derive(Debug)]
 pub struct IntegerView {
-    //todo
+    pub int: i32
 }
 
 #[derive(Debug)]
 pub struct FloatView {
-    //todo
+    pub float:f32
 }
 
 #[derive(Debug)]
 pub struct LongView {
-    //todo
+    pub long: i64
 }
 
 #[derive(Debug)]
 pub struct DoubleView {
-    //todo
+    pub double: f64
 }
 
 #[derive(Debug)]
@@ -50,7 +50,14 @@ impl ClassPoolElemView {
 
 #[derive(Debug)]
 pub struct StringView {
-    //todo
+    pub(crate) backing_class: Arc<Classfile>,
+    pub(crate) string_index: usize,
+}
+
+impl StringView{
+    pub fn string(&self) -> String{
+        self.backing_class.constant_pool[self.string_index].extract_string_from_utf8()
+    }
 }
 
 #[derive(Debug)]

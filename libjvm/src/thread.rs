@@ -16,6 +16,9 @@ use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use parking_lot::Mutex;
 use slow_interpreter::interpreter::run_function;
+use descriptor_parser::MethodDescriptor;
+use classfile_view::view::ptype_view::PTypeView;
+use rust_jvm_common::ptype::PType;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -30,7 +33,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
         //todo for now we ignore this, but irl we should only ignore this for main thread
     } else {
         let frame = get_frame(env);
-        let thread_class = check_inited_class(jvm,&ClassName::thread(),frame.class_pointer.loader(jvm).clone());
+        let thread_class = check_inited_class(jvm, &ClassName::thread(), frame.class_pointer.loader(jvm).clone());
 
         let thread_from_rust = Arc::new(JavaThread {
             java_tid: tid,
@@ -40,29 +43,27 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
                 terminate: RefCell::new(false),
                 throw: RefCell::new(None),
                 function_return: RefCell::new(false),
-                suspended: RwLock::new(SuspendedStatus{
+                suspended: RwLock::new(SuspendedStatus {
                     suspended: false,
-                    suspended_lock: Mutex::new(())
-                })
+                    suspended_lock: Mutex::new(()),
+                }),
             },
         });
         all_threads_guard.insert(tid, thread_from_rust.clone());
-        std::thread::spawn(move||{
-            let new_thread_frame = Rc::new(StackEntry{
+        std::thread::spawn(move || {
+            let new_thread_frame = Rc::new(StackEntry {
                 class_pointer: thread_class.clone(),
                 method_i: std::u16::MAX,
                 local_vars: RefCell::new(vec![]),
                 operand_stack: RefCell::new(vec![]),
                 pc: RefCell::new(std::usize::MAX),
-                pc_offset: RefCell::new(-1)
+                pc_offset: RefCell::new(-1),
             });
             jvm.set_current_thread(thread_from_rust.clone());
             thread_from_rust.call_stack.borrow_mut().push(new_thread_frame.clone());
-            thread_from_rust.thread_object.borrow().as_ref().unwrap().run(jvm,&new_thread_frame);
+            thread_from_rust.thread_object.borrow().as_ref().unwrap().run(jvm, &new_thread_frame);
             thread_from_rust.call_stack.borrow_mut().pop();
-
         });
-
     }
 }
 
@@ -78,7 +79,7 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     let tid = thread_object.tid();
     let mut alive = jvm.thread_state.alive_threads.read().unwrap().get(&tid)
         //todo this is jank.
-        .map(|thread|!thread.interpreter_state.suspended.read().unwrap().suspended)
+        .map(|thread| !thread.interpreter_state.suspended.read().unwrap().suspended)
         .unwrap_or(false);
     alive as jboolean
 }
@@ -107,6 +108,7 @@ unsafe extern "system" fn JVM_Yield(env: *mut JNIEnv, threadClass: jclass) {
 unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, threadClass: jclass, millis: jlong) {
     unimplemented!()
 }
+
 //todo get rid of this jankyness
 static mut MAIN_THREAD: Option<Arc<Object>> = None;
 
@@ -116,12 +118,12 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
         None => {
             let jvm = get_state(env);
             let frame = get_frame(env);
-            let runtime_thread_class = runtime_class_from_object(threadClass, state, &frame).unwrap();
-            make_thread(&runtime_thread_class, state, &frame);
+            let runtime_thread_class = runtime_class_from_object(threadClass, jvm, &frame).unwrap();
+            make_thread(&runtime_thread_class, jvm, &frame);
             let thread_object = frame.pop().unwrap_object();
             MAIN_THREAD = thread_object.clone();
             //todo get rid of that jankyness as well:
-            state.main_thread().thread_object.borrow_mut().replace(JavaValue::Object(MAIN_THREAD.clone()).cast_thread().into());
+            jvm.main_thread().thread_object.borrow_mut().replace(JavaValue::Object(MAIN_THREAD.clone()).cast_thread().into());
             to_object(thread_object)
         }
         Some(_) => {
@@ -139,7 +141,12 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
     let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()), frame.class_pointer.loader(jvm).clone());
     push_new_object(jvm, frame.clone(), &thread_group_class);
     let object = frame.pop();
-    let (init_i, init) = thread_group_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
+    let (init_i, init) = thread_group_class
+        .view()
+        .method_index()
+        .lookup(&"<init>".to_string(),
+                &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType })
+        .unwrap();
     let new_frame = StackEntry {
         class_pointer: thread_group_class.clone(),
         method_i: init_i as u16,
@@ -183,7 +190,7 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     push_new_object(jvm, frame.clone(), &thread_class);
     let object = frame.pop();
-    let (init_i, init) = thread_class.classfile.lookup_method("<init>".to_string(), "()V".to_string()).unwrap();
+    let (init_i, init) = thread_class.view().method_index().lookup(&"<init>".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap();
     let new_frame = StackEntry {
         class_pointer: thread_class.clone(),
         method_i: init_i as u16,

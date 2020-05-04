@@ -23,8 +23,8 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jo
     let val = frame.pop();
     let prop_obj = from_object(p).unwrap();
     let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
-    let class_view = &runtime_class.class_view;
-    let candidate_meth = class_view.method_index().lookup_method_name(&"setProperty".to_string()).unwrap();
+    let class_view = &runtime_class.view();
+    let candidate_meth = class_view.method_index().lookup_method_name(&"setProperty".to_string());
     let meth = candidate_meth.iter().next().unwrap();
     let md = meth.desc();
     frame.push(JavaValue::Object(prop_obj.clone().into()));
