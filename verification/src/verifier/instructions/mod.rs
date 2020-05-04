@@ -543,7 +543,8 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
 }
 
 pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool_view(cp as usize);
+    let view = get_class(&env.vf, env.method.class);
+    let const_ = &view.constant_pool_view(cp as usize);
     let type_: VType = loadable_constant(&env.vf, const_);
     match type_ {
         VType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
@@ -554,7 +555,8 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: &Fra
 }
 
 pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool_view(cp as usize);
+    let view = get_class(&env.vf, env.method.class);
+    let const_ = &view.constant_pool_view(cp as usize);
     let type_ = match const_ {
         ConstantInfoView::Integer(_) => VType::IntType,
         ConstantInfoView::Float(_) => VType::FloatType,
@@ -567,7 +569,8 @@ pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_fram
 }
 
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let const_ = &get_class(&env.vf, env.method.class).constant_pool_view(cp as usize);
+    let view = get_class(&env.vf, env.method.class);
+    let const_ = &view.constant_pool_view(cp as usize);
     let type_: VType = loadable_constant(&env.vf, const_);//todo dup
     match type_ {
         VType::DoubleType => {}

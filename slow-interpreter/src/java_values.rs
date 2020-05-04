@@ -234,7 +234,7 @@ impl JavaValue {
     pub fn empty_byte_array(jvm: &JVMState) -> JavaValue {
         JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType, monitor: jvm.new_monitor("".to_string()) }))))
     }
-    pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
+    pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>,class_object_ptype : PTypeView) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.new_monitor("".to_string()),
@@ -242,7 +242,7 @@ impl JavaValue {
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
             bootstrap_loader: false,
-            class_object_ptype: None,
+            class_object_ptype,
         })).into()
     }
 
@@ -431,7 +431,7 @@ impl Object {
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
                     bootstrap_loader: o.bootstrap_loader,
-                    class_object_ptype: None,
+                    class_object_ptype: o.class_object_ptype.clone(),
                 })
             }
         }
@@ -484,7 +484,7 @@ pub struct NormalObject {
     pub class_pointer: Arc<RuntimeClass>,
     //todo this should just point to the actual class object.
     pub bootstrap_loader: bool,
-    pub class_object_ptype: Option<PTypeView>,
+    pub class_object_ptype: PTypeView,
     //points to the object represented by this class object of relevant
     //might be simpler to ccombine these into a ptype
     // pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
@@ -494,7 +494,7 @@ pub struct NormalObject {
 
 impl NormalObject {
     pub fn class_object_to_ptype(&self) -> PTypeView {
-        self.class_object_ptype.clone().unwrap()
+        self.class_object_ptype.clone()
     }
 }
 

@@ -95,7 +95,7 @@ impl ClassView {
                 }
             }),//todo
             ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
-            ConstantKind::String(s) => ConstantInfoView::String(StringView { backing_class, string_index: s.string_index as usize }),//todo
+            ConstantKind::String(s) => ConstantInfoView::String(StringView { view: self, string_index: s.string_index as usize }),//todo
             ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { backing_class, i }),
             ConstantKind::Methodref(_) => ConstantInfoView::Methodref(MethodrefView { backing_class, i }),
             ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { backing_class, i }),
@@ -121,7 +121,7 @@ impl ClassView {
         FieldIterator { backing_class: &self, i: 0 }
     }
     pub fn interfaces(&self) -> InterfaceIterator {
-        InterfaceIterator { backing_class: &self, i: 0 }
+        InterfaceIterator { view: &self, i: 0 }
     }
     pub fn num_fields(&self) -> usize {
         self.backing_class.fields.len()

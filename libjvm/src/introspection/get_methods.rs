@@ -28,7 +28,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let frame = frame_temp.deref();
     let loader = frame.class_pointer.loader(jvm).clone();
     let temp1 = from_object(ofClass).unwrap();
-    let class_ptype = temp1.unwrap_normal_object().class_object_ptype.as_ref().unwrap();
+    let class_ptype = &temp1.unwrap_normal_object().class_object_ptype;
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
     }
@@ -151,7 +151,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     let frame = frame_temp.deref();
     let temp1 = from_object(ofClass).unwrap();
     let class_object_non_null = temp1.unwrap_normal_object().clone();
-    let class_type = class_object_non_null.class_object_ptype.as_ref().unwrap().clone();
+    let class_type = class_object_non_null.class_object_ptype.clone();
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()

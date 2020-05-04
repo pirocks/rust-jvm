@@ -30,7 +30,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                         fields: RefCell::new(o.fields.borrow().iter().map(|(k,v)|{(k.clone(),v.clone())}).collect()),
                         class_pointer: o.class_pointer.clone(),
                         bootstrap_loader: o.bootstrap_loader,
-                        class_object_ptype: None
+                        class_object_ptype: o.class_object_ptype.clone()
                     })).into()
                 },
             }

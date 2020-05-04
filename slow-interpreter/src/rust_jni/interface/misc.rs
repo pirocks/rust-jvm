@@ -57,8 +57,8 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sub_temp_refcell = sub_not_null.unwrap_normal_object().class_object_ptype.clone();
     let sup_temp_refcell = sup_not_null.unwrap_normal_object().class_object_ptype.clone();
 
-    let sub_type = sub_temp_refcell.as_ref().unwrap();
-    let sup_type = sup_temp_refcell.as_ref().unwrap();
+    let sub_type = sub_temp_refcell;
+    let sup_type = sup_temp_refcell;
 
     let loader = &frame.class_pointer.loader(jvm);
     let sub_vtype = sub_type.to_verification_type(loader);

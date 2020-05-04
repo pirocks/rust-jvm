@@ -1,38 +1,36 @@
-use rust_jvm_common::classfile::Classfile;
-use std::sync::Arc;
 use crate::view::ClassView;
 
-pub struct InterfaceView {
-    backing_class: Arc<Classfile>,
+pub struct InterfaceView<'l> {
+    view: &'l ClassView,
     i: usize,
 }
 
 
 pub struct InterfaceIterator<'l> {
     //todo create a from and remove pub(crate)
-    pub(crate) backing_class: &'l ClassView,
+    pub(crate) view: &'l ClassView,
     pub(crate) i: usize,
 }
 
 
-impl InterfaceView {
+impl<'l> InterfaceView<'l> {
     fn from(c: &ClassView, i: usize) -> InterfaceView {
-        InterfaceView { backing_class: c.backing_class.clone(), i }
+        InterfaceView { view: c, i }
     }
     pub fn interface_name(&self) -> String {
-        self.backing_class.extract_class_from_constant_pool_name(self.backing_class.interfaces[self.i])
+        self.view.backing_class.extract_class_from_constant_pool_name(self.view.backing_class.interfaces[self.i])
     }
 }
 
 
-impl Iterator for InterfaceIterator<'_> {
-    type Item = InterfaceView;
+impl <'l> Iterator for InterfaceIterator<'l> {
+    type Item = InterfaceView<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.i >= self.backing_class.num_interfaces() {
+        if self.i >= self.view.num_interfaces() {
             return None;
         }
-        let res = InterfaceView::from(self.backing_class, self.i);
+        let res = InterfaceView::from(self.view, self.i);
         self.i += 1;
         Some(res)
     }

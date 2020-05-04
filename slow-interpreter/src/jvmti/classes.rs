@@ -12,30 +12,26 @@ use std::mem::size_of;
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm,"GetClassStatus");
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
     let class = from_object(transmute(klass)).unwrap();//todo handle null
-    let res = match class.unwrap_normal_object().class_object_ptype.as_ref() {
-        None => {
-            0
-        },
-        Some(type_) => {
-            let mut status = 0;
-            status |= JVMTI_CLASS_STATUS_PREPARED as i32;
-            status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
-            status |= JVMTI_CLASS_STATUS_INITIALIZED as i32;//todo so technically this isn't correct, b/c we don't check static intializer completeness
-            match type_ {
-                PTypeView::Ref(ref_) => {
-                    match ref_{
-                        ReferenceTypeView::Class(_) => {},
-                        ReferenceTypeView::Array(array) => {
-                            status |= JVMTI_CLASS_STATUS_ARRAY as i32;
-                        },
+    let res = {
+        let type_ = &class.unwrap_normal_object().class_object_ptype;
+        let mut status = 0;
+        status |= JVMTI_CLASS_STATUS_PREPARED as i32;
+        status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
+        status |= JVMTI_CLASS_STATUS_INITIALIZED as i32;//todo so technically this isn't correct, b/c we don't check static intializer completeness
+        match type_ {
+            PTypeView::Ref(ref_) => {
+                match ref_ {
+                    ReferenceTypeView::Class(_) => {}
+                    ReferenceTypeView::Array(array) => {
+                        status |= JVMTI_CLASS_STATUS_ARRAY as i32;
                     }
-                },
-                _ => {status |= JVMTI_CLASS_STATUS_PRIMITIVE as i32;},
-            };
-            status
-        },
+                }
+            }
+            _ => { status |= JVMTI_CLASS_STATUS_PRIMITIVE as i32; }
+        };
+        status
     };
     status_ptr.write(res);
 
@@ -48,13 +44,13 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     //     JVMTI_CLASS_STATUS_PRIMITIVE	32	Class is a primitive class (for example, java.lang.Integer.TYPE). If set, all other bits are zero.
     //todo actually implement this
 //todo handle primitive classes
-    jvm.tracing.trace_jdwp_function_exit(jvm,"GetClassStatus");
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassStatus");
     jvmtiError_JVMTI_ERROR_NONE
 }
 
 pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm,"GetLoadedClasses");
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
     let frame = jvm.get_current_frame();
     let mut res_vec = vec![];
 //todo what about int.class and other primitive classes
@@ -65,10 +61,9 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
     });
     class_count_ptr.write(res_vec.len() as i32);
     classes_ptr.write(transmute(Vec::leak(res_vec).as_mut_ptr())); //todo leaking
-    jvm.tracing.trace_jdwp_function_exit(jvm,"GetLoadedClasses");
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetLoadedClasses");
     jvmtiError_JVMTI_ERROR_NONE
 }
-
 
 
 pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
@@ -76,7 +71,7 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(transmute(klass)).unwrap();
     let class_object_ptype = notnull_class.unwrap_normal_object().class_object_ptype.clone();
-    let type_ = class_object_ptype.as_ref().unwrap();
+    let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
         let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
         let jvm_repr_ptr = jvm_repr.into_raw();
@@ -96,22 +91,22 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
 }
 
 
-pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, method_count_ptr: *mut jint, methods_ptr: *mut *mut jmethodID) -> jvmtiError{
+pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, method_count_ptr: *mut jint, methods_ptr: *mut *mut jmethodID) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
     let class_object_wrapped = from_object(transmute(klass)).unwrap();
     let class = class_object_wrapped.unwrap_normal_object();
     let class_ptype_guard = class.class_object_ptype.clone();
-    let class_name = class_ptype_guard.as_ref().unwrap().unwrap_class_type();
-    let loaded_class = check_inited_class(jvm,&class_name,jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
+    let class_name = class_ptype_guard.unwrap_class_type();
+    let loaded_class = check_inited_class(jvm, &class_name, jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
     method_count_ptr.write(loaded_class.view().num_methods() as i32);
     //todo use Layout instead of whatever this is.
-    *methods_ptr = libc::malloc((size_of::<*mut c_void>())*(*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;
-    loaded_class.view().methods().enumerate().for_each(|(i,mv)|{
+    *methods_ptr = libc::malloc((size_of::<*mut c_void>()) * (*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;
+    loaded_class.view().methods().enumerate().for_each(|(i, mv)| {
         methods_ptr
             .read()
             .offset(i as isize)
-            .write( Box::leak(box MethodId { class: loaded_class.clone(), method_i: mv.method_i() }) as *mut MethodId as jmethodID)
+            .write(Box::leak(box MethodId { class: loaded_class.clone(), method_i: mv.method_i() }) as *mut MethodId as jmethodID)
     });
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassMethods");
     jvmtiError_JVMTI_ERROR_NONE

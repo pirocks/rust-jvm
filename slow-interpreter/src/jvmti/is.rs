@@ -15,7 +15,7 @@ pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_ar
 pub fn is_array_impl(cls: jclass) -> u8 {
     let object_non_null = unsafe { from_object(transmute(cls)).unwrap().clone() };
     let ptype = object_non_null.unwrap_normal_object().class_object_ptype.clone();
-    let is_array = ptype.as_ref().unwrap().is_array();
+    let is_array = ptype.is_array();
     is_array as jboolean
 }
 

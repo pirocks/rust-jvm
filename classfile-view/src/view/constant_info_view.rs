@@ -49,14 +49,14 @@ impl ClassPoolElemView {
 }
 
 #[derive(Debug)]
-pub struct StringView {
-    pub(crate) backing_class: Arc<Classfile>,
+pub struct StringView<'l> {
+    pub(crate) view: &'l ClassView,
     pub(crate) string_index: usize,
 }
 
-impl StringView{
+impl StringView<'_>{
     pub fn string(&self) -> String{
-        self.backing_class.constant_pool[self.string_index].extract_string_from_utf8()
+        self.view.backing_class.constant_pool[self.string_index].extract_string_from_utf8()
     }
 }
 
@@ -274,14 +274,14 @@ pub struct InvalidConstantView {
 }
 
 #[derive(Debug)]
-pub enum ConstantInfoView {
+pub enum ConstantInfoView<'l> {
     Utf8(Utf8View),
     Integer(IntegerView),
     Float(FloatView),
     Long(LongView),
     Double(DoubleView),
     Class(ClassPoolElemView),
-    String(StringView),
+    String(StringView<'l>),
     Fieldref(FieldrefView),
     Methodref(MethodrefView),
     InterfaceMethodref(InterfaceMethodrefView),
@@ -296,7 +296,7 @@ pub enum ConstantInfoView {
     LiveObject(usize),
 }
 
-impl ConstantInfoView {
+impl ConstantInfoView<'_> {
     pub fn unwrap_class(&self) -> &ClassPoolElemView {
         match self {
             ConstantInfoView::Class(c) => { c }

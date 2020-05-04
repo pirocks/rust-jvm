@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     let signature = string_obj_to_string(method_obj.lookup_field("signature").unwrap_object());
     let clazz_java_val = method_obj.lookup_field("clazz");
     let target_class_refcell_borrow = clazz_java_val.unwrap_normal_object().class_object_ptype.borrow();
-    let target_class = target_class_refcell_borrow.as_ref().unwrap();
+    let target_class = target_class_refcell_borrow;
     if target_class.is_primitive() || target_class.is_array() {
         unimplemented!()
     }

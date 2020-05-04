@@ -61,7 +61,7 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
         fields: RefCell::new(Default::default()),
         class_pointer: check_inited_class(jvm, &ClassName::object(), frame.class_pointer.loader(jvm).clone()),
         bootstrap_loader: true,
-        class_object_ptype: None,
+        class_object_ptype: PTypeView::TopType,//todo maybe add a type for resolution object
     })).into());
     member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), resolution_object);
     //todo sets resolution to something on failure
@@ -77,7 +77,7 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
     let is_constructor = flags_val & 131072 > 0;
     let clazz_field = member_name.lookup_field("clazz");
     let clazz = clazz_field.unwrap_normal_object();
-    let clazz_points_to = clazz.class_object_ptype.as_ref().unwrap().unwrap_class_type();//todo doesn't work for arrays
+    let clazz_points_to = clazz.class_object_ptype.unwrap_class_type();//todo doesn't work for arrays
     let clazz_as_runtime_class = check_inited_class(jvm, &clazz_points_to, frame.class_pointer.loader(jvm).clone());
     let name = string_obj_to_string(member_name.lookup_field("name").unwrap_object());
     let debug = &name == "checkSpreadArgument";
@@ -87,7 +87,7 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
         let all_fields = get_all_fields(jvm, frame.clone(), clazz_as_runtime_class);
         dbg!(type_);
         if type_.class_pointer.view().name() == ClassName::class() {
-            let target_ptype = type_.class_object_ptype.as_ref().unwrap().clone();
+            let target_ptype = type_.class_object_ptype.clone();
             let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
                 let field = c.view().field(*i);
                 field.field_name() == name &&
@@ -110,8 +110,8 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
         if type_.class_pointer.view().name() == ClassName::method_type() {
             let r_type_class = type_java_value.unwrap_object_nonnull().lookup_field("rtype").unwrap_object_nonnull();
             let param_types_class = type_java_value.unwrap_object_nonnull().lookup_field("ptypes").unwrap_array().unwrap_object_array_nonnull();
-            let _r_type_as_ptype = r_type_class.unwrap_normal_object().class_object_ptype.as_ref().unwrap().clone();
-            let params_as_ptype: Vec<PTypeView> = param_types_class.iter().map(|x| { x.unwrap_normal_object().class_object_ptype.as_ref().unwrap().clone() }).collect();
+            let _r_type_as_ptype = r_type_class.unwrap_normal_object().class_object_ptype.clone();
+            let params_as_ptype: Vec<PTypeView> = param_types_class.iter().map(|x| { x.unwrap_normal_object().class_object_ptype.clone() }).collect();
             //todo how do the params work with static v. not static
             match all_methods.iter().find(|(x, i)| {
                 let c_method = x.view().method_view_i(*i);
@@ -189,7 +189,7 @@ pub fn MHN_init(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -
             REF_invokeStatic
         } else {
             let class_ptye = clazz.unwrap_normal_object().class_object_ptype.clone();
-            let class_name = class_ptye.as_ref().unwrap().unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
+            let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
             let inited_class = check_inited_class(jvm, &class_name, frame.class_pointer.loader(jvm).clone());
             if inited_class.view().is_interface() {
                 REF_invokeInterface

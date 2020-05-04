@@ -26,7 +26,7 @@ use classfile_view::view::{HasAccessFlags, ClassView};
 
     pub fn push_new_object(jvm: &JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>) {
         let loader_arc = &current_frame.class_pointer.loader(jvm).clone();
-        let object_pointer = JavaValue::new_object(jvm, target_classfile.clone());
+        let object_pointer = JavaValue::new_object(jvm, target_classfile.clone(), target_classfile.ptypeview());
         let new_obj = JavaValue::Object(object_pointer.clone());
         default_init_fields(jvm, loader_arc.clone(), object_pointer, target_classfile.view(), loader_arc.clone());
         current_frame.push(new_obj);

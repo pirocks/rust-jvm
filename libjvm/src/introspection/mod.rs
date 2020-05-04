@@ -50,7 +50,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let frame = get_frame(env);
     let object_non_null = from_object(cls).unwrap().clone();
     let temp = object_non_null.unwrap_normal_object().class_object_ptype.borrow();
-    let object_class = temp.as_ref().unwrap().unwrap_ref_type();
+    let object_class = temp.unwrap_ref_type();
     to_object(ptype_to_class_object(state, &frame, &object_class.unwrap_array().to_ptype()))
 }
 

@@ -10,7 +10,7 @@ use classfile_view::loading::LoaderArc;
 use crate::{StackEntry, JVMState};
 use crate::instructions::ldc::from_constant_pool_entry;
 use descriptor_parser::parse_field_descriptor;
-use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::interpreter::run_function;
 
 #[derive(Debug, PartialEq, Hash)]
@@ -42,6 +42,24 @@ pub struct RuntimeClassClass {
 }
 
 impl RuntimeClass{
+
+    pub fn ptypeview(&self) -> PTypeView{
+        match self{
+            RuntimeClass::Byte => PTypeView::ByteType,
+            RuntimeClass::Boolean => PTypeView::BooleanType,
+            RuntimeClass::Short => PTypeView::ShortType,
+            RuntimeClass::Char => PTypeView::CharType,
+            RuntimeClass::Int => PTypeView::IntType,
+            RuntimeClass::Long => PTypeView::LongType,
+            RuntimeClass::Float => PTypeView::FloatType,
+            RuntimeClass::Double => PTypeView::DoubleType,
+            RuntimeClass::Void => PTypeView::VoidType,
+            RuntimeClass::Array(_) => unimplemented!(),
+            RuntimeClass::Object(o) => {
+                PTypeView::Ref(ReferenceTypeView::Class(o.class_view.name()))
+            },
+        }
+    }
     pub fn view(&self) -> &Arc<ClassView>{
         match self{
             RuntimeClass::Byte => unimplemented!(),

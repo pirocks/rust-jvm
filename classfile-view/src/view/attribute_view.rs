@@ -79,7 +79,7 @@ pub struct BootstrapArgViewIterator {
 
 
 impl Iterator for BootstrapArgViewIterator{
-    type Item = BootstrapArgView;
+    type Item = BootstrapArgView<'static>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let arg = self.bootstrap_args[self.i];
@@ -94,8 +94,8 @@ impl Iterator for BootstrapArgViewIterator{
 
 //CONSTANT_String_info,  CONSTANT_Class_info,CONSTANT_Integer_info, CONSTANT_Long_info,
 // CONSTANT_Float_info, CONSTANT_Double_info,CONSTANT_MethodHandle_info, or CONSTANT_MethodType_info
-pub enum BootstrapArgView {
-    String(StringView),
+pub enum BootstrapArgView<'l> {
+    String(StringView<'l>),
     Class(ClassView),
     Integer(IntegerView),
     Long(LongView),
