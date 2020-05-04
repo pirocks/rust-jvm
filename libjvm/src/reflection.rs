@@ -21,7 +21,7 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
-    let state = get_state(env);
+    let jvm = get_state(env);
     //todo need to convert lots of these to unwrap_or_throw
     // dbg!(args0);
     // dbg!(method);
@@ -40,7 +40,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_inited_class(state,&target_class_name,frame.class_pointer.loader(jvm).clone());
+    let target_runtime_class = check_inited_class(jvm, &target_class_name, frame.class_pointer.loader(jvm).clone());
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {
@@ -48,7 +48,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         frame.push(arg.clone());
     }
 
-    run_static_or_virtual(state,&target_runtime_class,method_name,signature);
+    run_static_or_virtual(jvm, &target_runtime_class, method_name, signature);
     to_object(frame.pop().unwrap_object())
 }
 

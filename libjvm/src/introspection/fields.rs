@@ -16,6 +16,7 @@ use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::rust_jni::interface::string::STRING_INTERNMENT_CAMP;
 use slow_interpreter::monitor::Monitor;
+use classfile_view::view::HasAccessFlags;
 
 
 #[no_mangle]
@@ -37,13 +38,13 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
         let parent_runtime_class = frame.pop();
 
-        let field_name = class_obj.clone().unwrap().classfile.constant_pool[f.name_index as usize].extract_string_from_utf8();
+        let field_name = f.field_name();
 
-        let field_desc_str = class_obj.clone().unwrap().classfile.constant_pool[f.descriptor_index as usize].extract_string_from_utf8();
+        let field_desc_str = f.field_desc();
         let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
         let field_type_class = ptype_to_class_object(jvm, &frame, &field_type);
 
-        let modifiers = f.access_flags as i32;
+        let modifiers = f.access_flags() as i32;
         let slot = i as i32;
         let clazz = parent_runtime_class.cast_class();
         let name = JString::from(jvm, &frame, field_name);

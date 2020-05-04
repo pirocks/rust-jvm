@@ -97,7 +97,7 @@ pub mod get_methods;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
-    runtime_class_from_object(cls, get_state(env), &get_frame(env)).unwrap().classfile.access_flags as i32
+    runtime_class_from_object(cls, get_state(env), &get_frame(env)).unwrap().view().access_flags() as i32
 }
 
 
@@ -165,6 +165,6 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
     let obj = runtime_class_from_object(cls, get_state(env), &get_frame(env)).unwrap();
     let full_name = &obj.view().name().get_referred_name().replace("/", ".");
-    new_string_with_string(env, full_name)
+    new_string_with_string(env, full_name.to_string())
 }
 

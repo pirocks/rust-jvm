@@ -158,7 +158,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     }
     let temp = runtime_class_from_object(ofClass, jvm, &frame).unwrap();
     let target_classview = &temp.view();
-    let constructors = target_classview.method_index().lookup_method_name(&"<init>".to_string()).unwrap();
+    let constructors = target_classview.method_index().lookup_method_name(&"<init>".to_string());
     let class_obj = runtime_class_from_object(ofClass, jvm, &frame);
     let loader = frame.class_pointer.loader(jvm).clone();
     let constructor_class = check_inited_class(jvm, &ClassName::new("java/lang/reflect/Constructor"), loader.clone());

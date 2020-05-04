@@ -1,31 +1,30 @@
-use rust_jvm_common::classfile::{Classfile, FieldInfo};
-use std::sync::Arc;
+use rust_jvm_common::classfile::FieldInfo;
 use crate::view::{HasAccessFlags, ClassView};
 use crate::view::constant_info_view::ConstantInfoView;
 use crate::view::ptype_view::PTypeView;
 use descriptor_parser::parse_field_descriptor;
 
-pub struct FieldView {
-    backing_class: Arc<Classfile>,
+pub struct FieldView<'l> {
+    view: &'l ClassView,
     i: usize,
 }
 
-impl FieldView {
+impl FieldView<'_> {
     fn field_info(&self) -> &FieldInfo {
-        &self.backing_class.fields[self.i]
+        &self.view.backing_class.fields[self.i]
     }
     pub fn field_name(&self) -> String {
-        self.field_info().name(&self.backing_class)
+        self.field_info().name(&self.view.backing_class)
     }
     pub fn field_desc(&self) -> String {
-        self.backing_class.constant_pool[self.field_info().descriptor_index as usize].extract_string_from_utf8()
+        self.view.backing_class.constant_pool[self.field_info().descriptor_index as usize].extract_string_from_utf8()
     }
     pub fn constant_value_attribute(&self) -> Option<ConstantInfoView> {
-        unimplemented!()
-//            self.field_info().constant_value_attribute_i().map(|i| { self.backing_class.constant_pool[i as usize] })
+           self.field_info().constant_value_attribute_i().map(|i| { self.view.constant_pool_view(i as usize) })
     }
+    //todo deprecate this b/c messy
     pub fn from(c: &ClassView, i: usize) -> FieldView {
-        FieldView { backing_class: c.backing_class.clone(), i }
+        FieldView { view: c, i }
     }
     pub fn field_type(&self) -> PTypeView{
         PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)
@@ -35,7 +34,7 @@ impl FieldView {
     }
 }
 
-impl HasAccessFlags for FieldView {
+impl HasAccessFlags for FieldView<'_> {
     fn access_flags(&self) -> u16 {
         self.field_info().access_flags
     }
@@ -49,8 +48,8 @@ pub struct FieldIterator<'l> {
 }
 
 
-impl Iterator for FieldIterator<'_> {
-    type Item = FieldView;
+impl <'l> Iterator  for FieldIterator<'l> {
+    type Item = FieldView<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.i >= self.backing_class.num_fields() {

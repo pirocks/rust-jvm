@@ -141,12 +141,13 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
     let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()), frame.class_pointer.loader(jvm).clone());
     push_new_object(jvm, frame.clone(), &thread_group_class);
     let object = frame.pop();
-    let (init_i, init) = thread_group_class
+    let init = thread_group_class
         .view()
         .method_index()
         .lookup(&"<init>".to_string(),
                 &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType })
         .unwrap();
+    let init_i = init.method_i();
     let new_frame = StackEntry {
         class_pointer: thread_group_class.clone(),
         method_i: init_i as u16,
@@ -190,7 +191,8 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     push_new_object(jvm, frame.clone(), &thread_class);
     let object = frame.pop();
-    let (init_i, init) = thread_class.view().method_index().lookup(&"<init>".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap();
+    let init = thread_class.view().method_index().lookup(&"<init>".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap();
+    let init_i = init.method_i();
     let new_frame = StackEntry {
         class_pointer: thread_class.clone(),
         method_i: init_i as u16,
