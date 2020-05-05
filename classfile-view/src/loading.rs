@@ -36,9 +36,10 @@ impl std::error::Error for ClassLoadingError {}
 
 
 #[derive(Debug)]
-#[derive(Hash)]
+#[derive(Hash, Eq)]
 pub enum LoaderName {
     Str(String),
+    Class(ClassName),
     BootstrapLoader,
 }
 
@@ -47,12 +48,19 @@ impl PartialEq for LoaderName {
         match self {
             LoaderName::Str(s1) => match other {
                 LoaderName::Str(s2) => s1 == s2,
-                LoaderName::BootstrapLoader => false
+                LoaderName::BootstrapLoader => false,
+                LoaderName::Class(_) => false
             },
             LoaderName::BootstrapLoader => match other {
                 LoaderName::Str(_) => false,
-                LoaderName::BootstrapLoader => true
+                LoaderName::BootstrapLoader => true,
+                LoaderName::Class(_) => false
             },
+            LoaderName::Class(c1) => match other{
+                LoaderName::Str(_) => false,
+                LoaderName::Class(c2) => c1 == c2,
+                LoaderName::BootstrapLoader => false,
+            }
         }
     }
 }
@@ -64,6 +72,7 @@ impl Display for LoaderName {
             LoaderName::BootstrapLoader => {
                 write!(f, "<bl>")
             }
+            LoaderName::Class(_) => unimplemented!()
         }
     }
 }

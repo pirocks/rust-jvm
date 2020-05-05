@@ -164,7 +164,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
     let obj = from_jclass(cls).as_runtime_class();
-    let full_name = &obj.view().name().get_referred_name().replace("/", ".");//todo need a standard way off doing this
+    let full_name = &obj.view().name().get_referred_name().replace("/", ".");//todo need a standard way of doing this
     new_string_with_string(env, full_name.to_string())
 }
 

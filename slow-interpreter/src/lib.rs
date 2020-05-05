@@ -17,7 +17,7 @@ use rust_jvm_common::string_pool::StringPool;
 use rust_jvm_common::ptype::PType;
 use rust_jvm_common::classfile::Classfile;
 use crate::runtime_class::RuntimeClass;
-use crate::java_values::{Object, JavaValue};
+use crate::java_values::{Object, JavaValue, NormalObject};
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::check_inited_class;
 use libloading::Library;
@@ -125,6 +125,7 @@ impl JVMOptions {
 }
 
 pub struct JVMState {
+    loaders: RwLock<HashMap<LoaderName,Arc<Object>>>,
     pub bootstrap_loader: LoaderArc,
     pub system_domain_loader: bool,
     pub string_pool: StringPool,
@@ -212,6 +213,7 @@ impl JVMState {
 
 
         Self {
+            loaders: RwLock::new(HashMap::new()),
             bootstrap_loader,
             initialized_classes: RwLock::new(HashMap::new()),
             class_object_pool: RwLock::new(HashMap::new()),
@@ -257,6 +259,29 @@ impl JVMState {
         let thread_object = current_thread.thread_object.borrow();
         thread_object.as_ref().map(|jthread| jthread.name().to_rust_string())
             .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
+    }
+
+    pub fn get_or_create_bootstrap_object_loader(&self) -> JavaValue{
+        if !self.vm_live(){
+            return JavaValue::Object(None)
+        }
+        let mut loader_guard = self.loaders.write().unwrap();
+        match loader_guard.get(&self.bootstrap_loader.name()){
+            None => {
+                let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
+                let current_loader = self.get_current_frame().class_pointer.loader(self).clone();
+                let class_loader_class = check_inited_class(self, &java_lang_class_loader, current_loader.clone());
+                let res = Arc::new(Object::Object(NormalObject {
+                    monitor: self.new_monitor("bootstrap loader object monitor".to_string()),
+                    fields: RefCell::new(HashMap::new()),
+                    class_pointer: class_loader_class.clone(),
+                    class_object_type: None
+                }));
+                loader_guard.insert(self.bootstrap_loader.name(),res.clone());
+                JavaValue::Object(res.into())
+            },
+            Some(res) => {JavaValue::Object(res.clone().into())},
+        }
     }
 }
 

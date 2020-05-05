@@ -4,7 +4,6 @@ use crate::interpreter_util::check_inited_class;
 use classfile_view::view::ptype_view::ReferenceTypeView;
 use crate::runtime_class::RuntimeClass;
 use crate::{JVMState, StackEntry};
-use crate::java_values::JavaValue;
 use crate::java::lang::class::JClass;
 
 pub struct FieldID {
