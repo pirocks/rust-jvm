@@ -171,7 +171,7 @@ pub fn initialize_class(
                     None => continue,
                     Some(i) => i,
                 };
-                let constant_value = from_constant_pool_entry(view, &constant_info_view, jvm);
+                let constant_value = from_constant_pool_entry(&constant_info_view, jvm);
                 let name = field.field_name();
                 runtime_class.static_vars().insert(name, constant_value);
             }

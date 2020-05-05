@@ -13,7 +13,6 @@ use crate::class_objects::get_or_create_class_object;
 use std::ops::Deref;
 use crate::interpreter::run_function;
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView, ClassPoolElemView};
-use classfile_view::view::ClassView;
 
 
 fn load_class_constant(state: &JVMState, current_frame: &StackEntry, c: &ClassPoolElemView) {
@@ -115,7 +114,7 @@ pub fn ldc_w(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
     }
 }
 
-pub fn from_constant_pool_entry(class: &ClassView, c: &ConstantInfoView, jvm: &JVMState) -> JavaValue {
+pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState) -> JavaValue {
     match &c {
         ConstantInfoView::Integer(i) => JavaValue::Int(i.int),
         ConstantInfoView::Float(f) => JavaValue::Float(f.float),

@@ -57,11 +57,9 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
 
     let resolution_object = JavaValue::Object(Arc::new(Object(NormalObject {
         monitor: jvm.new_monitor("monitor for a resolution object".to_string()),
-        gc_reachable: false,
         fields: RefCell::new(Default::default()),
         class_pointer: check_inited_class(jvm, &ClassName::object(), frame.class_pointer.loader(jvm).clone()),
-        bootstrap_loader: true,
-        class_object_ptype: PTypeView::TopType,//todo maybe add a type for resolution object
+        class_object_type: None
     })).into());
     member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), resolution_object);
     //todo sets resolution to something on failure

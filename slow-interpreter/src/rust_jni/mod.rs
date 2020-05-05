@@ -280,12 +280,16 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
         method_descriptor_str.push(sig.offset(i as isize).read() as u8 as char);
     }
 
-    let state = get_state(env);
+    let jvm = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
     let class_obj: Arc<Object> = from_object(clazz).unwrap();
-    let runtime_class = class_object_to_runtime_class(class_obj.unwrap_normal_object(), state, &frame).unwrap();
-    let all_methods = get_all_methods(state, frame, runtime_class);
+    let runtime_class = class_object_to_runtime_class(class_obj.unwrap_normal_object(), jvm, &frame).unwrap();
+    dbg!(runtime_class.view().name());
+    let all_methods = get_all_methods(jvm, frame, runtime_class);
+    dbg!(&method_descriptor_str);
+    dbg!(&method_name);
+
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_view = &c.view().method_view_i(*i);
         let cur_desc = method_view.desc_str();

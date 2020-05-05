@@ -87,7 +87,7 @@ impl CycleDetectingDebug for NormalObject {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
         let o = self;
         if o.class_pointer.view().name() == ClassName::class() {
-            write!(f, "(Class Object:{:?})", o.class_object_ptype)?;
+            write!(f, "(Class Object:{:?})", o.class_object_type.as_ref().unwrap().ptypeview())?;//todo needs a JClass type interface
         } else if o.class_pointer.view().name() == ClassName::string() {
             let fields_borrow = o.fields.borrow();
             let value_field = fields_borrow.get("value").unwrap();
@@ -110,7 +110,6 @@ impl CycleDetectingDebug for NormalObject {
                 write!(f, ")\n").unwrap();
             });
             write!(f, "-")?;
-            write!(f, "{:?}", o.bootstrap_loader)?;
         }
         Result::Ok(())
     }
@@ -234,15 +233,13 @@ impl JavaValue {
     pub fn empty_byte_array(jvm: &JVMState) -> JavaValue {
         JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType, monitor: jvm.new_monitor("".to_string()) }))))
     }
-    pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>,class_object_ptype : PTypeView) -> Option<Arc<Object>> {
+    pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>,class_object_type : Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.new_monitor("".to_string()),
-            gc_reachable: true,
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
-            bootstrap_loader: false,
-            class_object_ptype,
+            class_object_type
         })).into()
     }
 
@@ -427,11 +424,9 @@ impl Object {
                 let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
                 Object::Object(NormalObject {
                     monitor: jvm.new_monitor("".to_string()),
-                    gc_reachable: o.gc_reachable,
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
-                    bootstrap_loader: o.bootstrap_loader,
-                    class_object_ptype: o.class_object_ptype.clone(),
+                    class_object_type: o.class_object_type.clone()
                 })
             }
         }
@@ -475,28 +470,14 @@ pub struct ArrayObject {
     pub monitor: Arc<Monitor>,
 }
 
-//#[derive(Debug)]
 pub struct NormalObject {
     pub monitor: Arc<Monitor>,
-    pub gc_reachable: bool,
     //I guess this never changes so unneeded?
-    pub fields: RefCell<HashMap<String, JavaValue>>,
-    pub class_pointer: Arc<RuntimeClass>,
-    //todo this should just point to the actual class object.
-    pub bootstrap_loader: bool,
-    pub class_object_ptype: PTypeView,
-    //points to the object represented by this class object of relevant
-    //might be simpler to ccombine these into a ptype
-    // pub object_class_object_pointer: RefCell<Option<Arc<RuntimeClass>>>,
-    //todo why are these refcell?
-    // pub array_class_object_pointer: RefCell<Option<PType>>,// is type of array sub type,not including the array.
+    pub fields: RefCell<HashMap<String, JavaValue>>,//todo this refcell should be for the elememts.
+    pub class_pointer: Arc<RuntimeClass>, //todo this should just point to the actual class object.
+    pub class_object_type: Option<Arc<RuntimeClass>>, //points to the object represented by this class object of relevant
 }
 
-impl NormalObject {
-    pub fn class_object_to_ptype(&self) -> PTypeView {
-        self.class_object_ptype.clone()
-    }
-}
 
 impl Debug for NormalObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
