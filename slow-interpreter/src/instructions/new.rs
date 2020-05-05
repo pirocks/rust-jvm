@@ -13,7 +13,7 @@ pub fn new(jvm: &JVMState, current_frame: &StackEntry, cp: usize) -> () {
     let view = &current_frame.class_pointer.view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
     let target_classfile = check_inited_class(jvm, &target_class_name, loader_arc.clone());
-    push_new_object(jvm, current_frame, &target_classfile);
+    push_new_object(jvm, current_frame, &target_classfile, None);
 }
 
 

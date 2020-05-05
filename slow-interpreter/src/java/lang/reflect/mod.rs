@@ -48,7 +48,7 @@ pub mod field {
     impl Field {
         pub fn init(jvm: &JVMState, frame: &StackEntry, clazz: JClass, name: JString, type_: JClass, modifiers: jint, slot: jint, signature: JString, annotations: Vec<JavaValue>) -> Self {
             let field_classfile = check_inited_class(jvm, &ClassName::field(), frame.class_pointer.loader(jvm).clone());
-            push_new_object(jvm, frame, &field_classfile);
+            push_new_object(jvm, frame, &field_classfile, None);
             let field_object = frame.pop();
 
 

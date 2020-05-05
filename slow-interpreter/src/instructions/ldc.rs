@@ -43,7 +43,7 @@ pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
     );
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x) }).collect();
-    push_new_object(jvm, current_frame, &string_class);//todo what if stack overflows here?
+    push_new_object(jvm, current_frame, &string_class,None);//todo what if stack overflows here?
     let string_object = current_frame.pop();
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {

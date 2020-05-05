@@ -10,6 +10,7 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::instructions::ldc::create_string_on_stack;
 use rust_jvm_common::classnames::ClassName;
 use std::ops::Deref;
+use crate::runtime_class::RuntimeClass;
 
 //todo do something about this class object crap
 pub fn get_or_create_class_object(state: &JVMState,
@@ -50,14 +51,14 @@ pub fn array_of_type_class(state: &JVMState, current_frame: &StackEntry, type_fo
     }
 }
 
-fn regular_object(state: &JVMState, class_type: &PTypeView, current_frame: &StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_object(state: &JVMState, class_type: &Arc<RuntimeClass>, current_frame: &StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
     check_inited_class(state, class_type.unwrap_type_to_name().as_ref().unwrap(), loader_arc);
-    let res = state.class_object_pool.read().unwrap().get(&class_type).cloned();
+    let res = state.class_object_pool.read().unwrap().get(&class_type.ptypeview()).cloned();
     match res {
         None => {
             let r = create_a_class_object(state, current_frame, class_type.clone());
             //todo likely race condition created by expectation that Integer.class == Integer.class, maybe let it happen anyway?
-            state.class_object_pool.write().unwrap().insert(class_type.clone(), r.clone());
+            state.class_object_pool.write().unwrap().insert(class_type.ptypeview(), r.clone());
             if class_type.is_primitive() {
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
@@ -70,14 +71,14 @@ fn regular_object(state: &JVMState, class_type: &PTypeView, current_frame: &Stac
     }
 }
 
-fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry, ptypev: PTypeView) -> Arc<Object> {
+fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let class_class = check_inited_class(jvm, &java_lang_class, current_loader.clone());
     let boostrap_loader_object = jvm.get_or_create_bootstrap_object_loader();
     //the above would only be required for higher jdks where a class loader object is part of Class.
     //as it stands we can just push to operand stack
-    push_new_object(jvm, current_frame, &class_class);
+    push_new_object(jvm, current_frame, &class_class, ptypev.into());
     let object = current_frame.pop();
     match object.clone() {
         JavaValue::Object(o) => {

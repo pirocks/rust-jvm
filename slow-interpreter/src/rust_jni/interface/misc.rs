@@ -78,7 +78,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     let method = &classview.method_view_i(method_id.method_i);
     let _name = method.name();
     let parsed = method.desc();
-    push_new_object(state,frame, &method_id.class);
+    push_new_object(state,frame, &method_id.class, None);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {
@@ -124,7 +124,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     let method = &classview.method_view_i(method_id.method_i);
     let _name = method.name();
     let parsed = method.desc();
-    push_new_object(state,frame.clone(), &method_id.class);
+    push_new_object(state,frame.clone(), &method_id.class, None);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {

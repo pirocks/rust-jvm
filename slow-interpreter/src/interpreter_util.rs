@@ -12,9 +12,9 @@ use classfile_view::view::{HasAccessFlags, ClassView};
 
 //todo jni should really live in interpreter state
 
-pub fn push_new_object(jvm: &JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>) {
+pub fn push_new_object(jvm: &JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) {
     let loader_arc = &current_frame.class_pointer.loader(jvm).clone();
-    let object_pointer = JavaValue::new_object(jvm, target_classfile.clone(), None);
+    let object_pointer = JavaValue::new_object(jvm, target_classfile.clone(), class_object_type);
     let new_obj = JavaValue::Object(object_pointer.clone());
     default_init_fields(jvm, loader_arc.clone(), object_pointer, target_classfile.view(), loader_arc.clone());
     current_frame.push(new_obj);

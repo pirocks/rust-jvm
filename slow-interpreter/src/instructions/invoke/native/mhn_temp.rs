@@ -225,7 +225,7 @@ pub fn create_method_type(jvm: &JVMState, frame: &StackEntry, signature: &String
     //todo need to use MethodTypeForm.findForm
     let loader_arc = frame.class_pointer.loader(jvm).clone();
     let method_type_class = check_inited_class(jvm, &ClassName::method_type(), loader_arc.clone());
-    push_new_object(jvm, frame, &method_type_class);
+    push_new_object(jvm, frame, &method_type_class,None);
     let this = frame.pop();
     let method_descriptor = parse_method_descriptor(signature).unwrap();
     let rtype = JavaValue::Object(get_or_create_class_object(jvm, &PTypeView::from_ptype(&method_descriptor.return_type), frame.clone(), loader_arc.clone()).into());
