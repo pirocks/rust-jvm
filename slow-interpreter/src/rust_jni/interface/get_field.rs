@@ -1,10 +1,10 @@
-use crate::rust_jni::native_util::{from_object, to_object, get_state, get_frame};
+use crate::rust_jni::native_util::{from_object, to_object, get_state, get_frame, from_jclass};
 use jvmti_jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethodID};
 use std::ops::Deref;
 use std::ffi::CStr;
 use std::mem::transmute;
 use crate::rust_jni::MethodId;
-use crate::rust_jni::interface::util::{FieldID, runtime_class_from_object, class_object_to_runtime_class};
+use crate::rust_jni::interface::util::{FieldID, class_object_to_runtime_class};
 use descriptor_parser::parse_method_descriptor;
 use classfile_view::view::HasAccessFlags;
 use crate::java_values::JavaValue;
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     let state = get_state(env);
     let frame = get_frame(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let runtime_class = runtime_class_from_object(clazz);
+    let runtime_class = from_jclass(clazz).as_runtime_class();
     let view = &runtime_class.view();
     for field_i in 0..view.num_fields() {
         //todo check descriptor

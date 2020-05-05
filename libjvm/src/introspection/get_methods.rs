@@ -2,12 +2,11 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use rust_jvm_common::classnames::{class_name, ClassName};
-use slow_interpreter::rust_jni::native_util::{to_object, get_frame, get_state, from_object};
+use slow_interpreter::rust_jni::native_util::{to_object, get_frame, get_state, from_object, from_jclass};
 use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use jvmti_jni_bindings::{JNIEnv, jclass, jboolean, jobjectArray, jio_vfprintf};
-use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::get_all_methods;
 use libjvm_utils::ptype_to_class_object;
 use classfile_view::view::HasAccessFlags;
@@ -32,7 +31,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
     }
-    let runtime_class = runtime_class_from_object(ofClass);
+    let runtime_class = from_jclass(ofClass).as_runtime_class();
     let methods = get_all_methods(jvm, frame, runtime_class);
     let method_class = check_inited_class(jvm, &ClassName::method(), loader.clone());
     let mut object_array = vec![];
@@ -155,7 +154,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         dbg!(class_type.is_primitive());
         unimplemented!()
     }
-    let class_obj = runtime_class_from_object(ofClass);
+    let class_obj = from_jclass(ofClass).as_runtime_class();
     let target_classview = &class_obj.view();
     let constructors = target_classview.method_index().lookup_method_name(&"<init>".to_string());
     let loader = frame.class_pointer.loader(jvm).clone();

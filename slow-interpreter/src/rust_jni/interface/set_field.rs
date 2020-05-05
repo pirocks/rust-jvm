@@ -1,7 +1,7 @@
-use crate::rust_jni::native_util::{from_object, get_state, get_frame};
+use crate::rust_jni::native_util::{from_object, get_state, get_frame, from_jclass};
 use jvmti_jni_bindings::{jboolean, jfieldID, jobject, JNIEnv, jlong, jint, jclass};
 use std::ops::DerefMut;
-use crate::rust_jni::interface::util::{FieldID, runtime_class_from_object};
+use crate::rust_jni::interface::util::{FieldID};
 use crate::java_values::JavaValue;
 
 pub unsafe extern "C" fn set_int_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jint) {
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass
     let value = from_object(value);
     let view = &field_id.class.view();
     let field_name = view.field(field_id.field_i).field_name();
-    let static_class = runtime_class_from_object(clazz);
+    let static_class = from_jclass(clazz).as_runtime_class();
     static_class.static_vars().insert(field_name, JavaValue::Object(value));
 }
 

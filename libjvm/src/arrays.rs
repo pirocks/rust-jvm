@@ -1,7 +1,6 @@
 use jvmti_jni_bindings::{jobject, jintArray, jclass, JNIEnv, jint, jvalue};
 use slow_interpreter::rust_jni::native_util::{get_frame, get_state, to_object, from_jclass};
 use slow_interpreter::instructions::new::a_new_array_from_name;
-use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use std::ops::Deref;
 
 #[no_mangle]

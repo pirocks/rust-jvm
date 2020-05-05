@@ -24,11 +24,11 @@ use std::mem::size_of;
 use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
 use jvmti_jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
-use crate::rust_jni::native_util::{get_state, get_frame, from_object};
+use crate::rust_jni::native_util::{get_state, get_frame, from_object, from_jclass};
 use crate::rust_jni::interface::get_interface;
 use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_type;
-use crate::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
+use crate::rust_jni::interface::util::class_object_to_runtime_class;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry, LibJavaLoading};
@@ -170,7 +170,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
-        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz);
+        let runtime_class: Arc<RuntimeClass> = from_jclass(clazz).as_runtime_class();
         let jni_context = &jvm.jni;
         let view = &runtime_class.view();
         &view.methods().enumerate().for_each(|(i, method_info)| {

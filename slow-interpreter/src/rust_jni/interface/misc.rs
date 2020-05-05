@@ -1,10 +1,9 @@
-use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object};
+use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object, from_jclass};
 use jvmti_jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_, jthrowable};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use crate::rust_jni::MethodId;
 use std::ffi::CStr;
 use crate::instructions::ldc::load_class_constant_by_type;
-use crate::rust_jni::interface::util::runtime_class_from_object;
 
 
 use rust_jvm_common::classnames::ClassName;
@@ -36,7 +35,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
     let frame = get_frame(env);
     let jvm = get_state(env);
-    let super_name = match runtime_class_from_object(sub).view().super_name() {
+    let super_name = match from_jclass(sub).as_runtime_class().view().super_name() {
         None => { return to_object(None); }
         Some(n) => n,
     };

@@ -1,6 +1,4 @@
 use std::sync::Arc;
-use crate::rust_jni::native_util::from_object;
-use jvmti_jni_bindings::jclass;
 
 use crate::interpreter_util::check_inited_class;
 use classfile_view::view::ptype_view::ReferenceTypeView;
@@ -14,11 +12,6 @@ pub struct FieldID {
     pub field_i: usize,
 }
 
-
-pub unsafe fn runtime_class_from_object(cls: jclass) -> Arc<RuntimeClass> {
-    let object = from_object(cls);
-    JavaValue::Object(object).cast_class().as_runtime_class()
-}
 
 pub fn class_object_to_runtime_class(obj: &JClass, jvm: & JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
     if obj.as_type().is_primitive() {

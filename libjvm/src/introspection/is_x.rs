@@ -1,7 +1,6 @@
 use jvmti_jni_bindings::{jdouble, jboolean, JNIEnv, jclass, JVM_Available};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
-use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::rust_jni::native_util::{from_object, get_state, get_frame};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};

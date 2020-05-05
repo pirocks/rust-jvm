@@ -10,7 +10,7 @@ use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_con
 use rust_jvm_common::classfile::{ACC_PUBLIC, ACC_ABSTRACT};
 use std::ops::Deref;
 use std::ffi::CStr;
-use slow_interpreter::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
+use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 
 
@@ -97,7 +97,7 @@ pub mod get_methods;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
-    runtime_class_from_object(cls).view().access_flags() as i32
+    from_jclass(cls).as_runtime_class().view().access_flags() as i32
 }
 
 
@@ -163,8 +163,8 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
-    let obj = runtime_class_from_object(cls);
-    let full_name = &obj.view().name().get_referred_name().replace("/", ".");
+    let obj = from_jclass(cls).as_runtime_class();
+    let full_name = &obj.view().name().get_referred_name().replace("/", ".");//todo need a standard way off doing this
     new_string_with_string(env, full_name.to_string())
 }
 
