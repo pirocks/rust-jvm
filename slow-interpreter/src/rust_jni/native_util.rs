@@ -4,9 +4,10 @@ use jvmti_jni_bindings::{jclass, JNIEnv, jobject, _jobject};
 
 use std::ops::Deref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use crate::java_values::Object;
+use crate::java_values::{Object, JavaValue};
 use crate::class_objects::get_or_create_class_object;
 use std::rc::Rc;
+use crate::java::lang::class::JClass;
 
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
@@ -47,4 +48,12 @@ pub unsafe extern "C" fn from_object(obj: jobject) -> Option<Arc<Object>> {
     } else {
         (obj as *mut Arc<Object>).as_ref().unwrap().clone().into()
     }
+}
+
+pub unsafe extern "C" fn from_jclass(obj: jclass) -> JClass {
+    let possibly_null = from_object(obj);
+    if possibly_null.is_none(){
+        panic!()
+    }
+    JavaValue::Object(possibly_null).cast_class()
 }

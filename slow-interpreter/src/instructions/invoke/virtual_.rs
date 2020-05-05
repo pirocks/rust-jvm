@@ -155,7 +155,7 @@ pub fn virtual_method_lookup(state: &JVMState, current_frame: &StackEntry, metho
                     md.parameter_types.last()
                         .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().map(|x2| x2.clone()))
                         .map(|x| x.unwrap_name() == ClassName::member_name())
-                        .unwrap_or(false);//todo this is currently under construction.
+                        .unwrap_or(false) && unimplemented!();//todo this is currently under construction.
                 unimplemented!()
             } else {
                 md.parameter_types == cur_desc.parameter_types //we don't check return types b/c these could be subclassed

@@ -74,9 +74,9 @@ impl Monitor {
         unsafe { self.mutex.force_unlock_fair(); }
         std::mem::drop(guard);
         if millis < 0 {
-            self.condvar.wait(guard1).unwrap();
+            std::mem::drop(self.condvar.wait(guard1).unwrap());
         } else {
-            self.condvar.wait_timeout(guard1, Duration::from_millis(millis as u64)).unwrap();
+            std::mem::drop(self.condvar.wait_timeout(guard1, Duration::from_millis(millis as u64)).unwrap());
         }
         std::mem::forget(self.mutex.lock());
         let mut write_guard = self.owned.write().unwrap();

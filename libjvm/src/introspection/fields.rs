@@ -29,12 +29,12 @@ unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) 
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let frame = get_frame(env);
     let jvm = get_state(env);
-    let class_obj = runtime_class_from_object(ofClass, get_state(env),&get_frame(env));
+    let class_obj = runtime_class_from_object(ofClass);
     let mut object_array = vec![];
     // dbg!(unsafe {&STRING_INTERNMENT_CAMP});
-    &class_obj.clone().unwrap().view().fields().enumerate().for_each(|(i, f)| {
+    &class_obj.view().fields().enumerate().for_each(|(i, f)| {
         //todo so this is big and messy put I don't really see a way to simplify
-        let field_class_name_ = class_obj.clone().as_ref().unwrap().view().name();
+        let field_class_name_ = class_obj.clone().view().name();
         load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
         let parent_runtime_class = frame.pop();
 

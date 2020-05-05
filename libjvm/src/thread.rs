@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::sync::{Arc, RwLockWriteGuard, RwLock};
 use rust_jvm_common::classnames::ClassName;
 use jvmti_jni_bindings::{JNIEnv, jclass, jobject, jlong, jint, jboolean, jobjectArray, jstring, jintArray};
-use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
+use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object, from_jclass};
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::{JVMState, JavaThread, InterpreterState, SuspendedStatus};
@@ -118,8 +118,8 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
         None => {
             let jvm = get_state(env);
             let frame = get_frame(env);
-            let runtime_thread_class = runtime_class_from_object(threadClass, jvm, &frame).unwrap();
-            make_thread(&runtime_thread_class, jvm, &frame);
+            let runtime_thread_class = from_jclass(threadClass);
+            make_thread(&runtime_thread_class.as_runtime_class(), jvm, &frame);
             let thread_object = frame.pop().unwrap_object();
             MAIN_THREAD = thread_object.clone();
             //todo get rid of that jankyness as well:

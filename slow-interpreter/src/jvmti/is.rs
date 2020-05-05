@@ -3,6 +3,7 @@ use crate::jvmti::get_state;
 use crate::rust_jni::native_util::from_object;
 use std::mem::transmute;
 use classfile_view::view::HasAccessFlags;
+use crate::java_values::JavaValue;
 
 pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_array_class_ptr: *mut jboolean) -> jvmtiError {
     let jvm = get_state(env);
@@ -14,7 +15,7 @@ pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_ar
 
 pub fn is_array_impl(cls: jclass) -> u8 {
     let object_non_null = unsafe { from_object(transmute(cls)).unwrap().clone() };
-    let ptype = object_non_null.unwrap_normal_object().class_object_ptype.clone();
+    let ptype = JavaValue::Object(object_non_null.into()).cast_class().as_type();
     let is_array = ptype.is_array();
     is_array as jboolean
 }

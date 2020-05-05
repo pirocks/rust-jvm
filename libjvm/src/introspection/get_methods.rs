@@ -27,12 +27,12 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
     let loader = frame.class_pointer.loader(jvm).clone();
-    let temp1 = from_object(ofClass).unwrap();
-    let class_ptype = &temp1.unwrap_normal_object().class_object_ptype;
+    let temp1 = from_object(ofClass);
+    let class_ptype = &JavaValue::Object(temp1).cast_class().as_type();
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
     }
-    let runtime_class = runtime_class_from_object(ofClass, jvm, &frame).unwrap();
+    let runtime_class = runtime_class_from_object(ofClass);
     let methods = get_all_methods(jvm, frame, runtime_class);
     let method_class = check_inited_class(jvm, &ClassName::method(), loader.clone());
     let mut object_array = vec![];
@@ -149,17 +149,15 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     let jvm = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
-    let temp1 = from_object(ofClass).unwrap();
-    let class_object_non_null = temp1.unwrap_normal_object().clone();
-    let class_type = class_object_non_null.class_object_ptype.clone();
+    let temp1 = from_object(ofClass);
+    let class_type = JavaValue::Object(temp1).cast_class().as_type();
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()
     }
-    let temp = runtime_class_from_object(ofClass, jvm, &frame).unwrap();
-    let target_classview = &temp.view();
+    let class_obj = runtime_class_from_object(ofClass);
+    let target_classview = &class_obj.view();
     let constructors = target_classview.method_index().lookup_method_name(&"<init>".to_string());
-    let class_obj = runtime_class_from_object(ofClass, jvm, &frame);
     let loader = frame.class_pointer.loader(jvm).clone();
     let constructor_class = check_inited_class(jvm, &ClassName::new("java/lang/reflect/Constructor"), loader.clone());
     let mut object_array = vec![];
@@ -178,7 +176,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         let method_view = m;
 
         let clazz = {
-            let field_class_name = class_obj.as_ref().unwrap().view().name();
+            let field_class_name = class_obj.view().name();
             //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
             load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name.clone())));
             frame.pop()

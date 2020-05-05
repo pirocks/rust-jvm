@@ -65,6 +65,7 @@ pub mod class {
     use crate::{StackEntry, JVMState};
     use rust_jvm_common::classnames::ClassName;
     use crate::class_objects::get_or_create_class_object;
+    use crate::runtime_class::RuntimeClass;
 
     #[derive(Debug, Clone)]
     pub struct JClass {
@@ -80,6 +81,10 @@ pub mod class {
     impl JClass {
         pub fn as_type(&self) -> PTypeView {
             self.normal_object.unwrap_normal_object().class_object_type.as_ref().unwrap().ptypeview()
+        }
+
+        pub fn as_runtime_class(&self) -> Arc<RuntimeClass> {
+            self.normal_object.unwrap_normal_object().class_object_type.as_ref().unwrap().clone()
         }
 
         pub fn get_class_loader(&self, state: &JVMState, frame: &StackEntry) -> ClassLoader {

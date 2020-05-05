@@ -1,5 +1,5 @@
 use jvmti_jni_bindings::{jobject, jintArray, jclass, JNIEnv, jint, jvalue};
-use slow_interpreter::rust_jni::native_util::{get_frame, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{get_frame, get_state, to_object, from_jclass};
 use slow_interpreter::instructions::new::a_new_array_from_name;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
 use std::ops::Deref;
@@ -39,7 +39,8 @@ unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, lengt
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
     let state = get_state(env);
-    let array_type_name = runtime_class_from_object(eltClass,state,&frame).unwrap().view().name();//todo how does this handle nested arrays?
+    //todo is this name even correct?
+    let array_type_name = from_jclass(eltClass).as_runtime_class().view().name();//todo how does this handle nested arrays?
     a_new_array_from_name(state,frame,length,&array_type_name);
     to_object(frame.pop().unwrap_object())
 }

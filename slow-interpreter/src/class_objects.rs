@@ -72,7 +72,7 @@ fn regular_object(state: &JVMState, class_type: &PTypeView, current_frame: &Stac
     }
 }
 
-fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry, ptypev : PTypeView) -> Arc<Object> {
+fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry, ptypev: PTypeView) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
     let current_loader = current_frame.class_pointer.loader(jvm).clone();
@@ -83,7 +83,7 @@ fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry, ptypev : PT
         fields: RefCell::new(HashMap::new()),
         class_pointer: class_loader_class.clone(),
         class_object_type: None
-    }));
+    }));//todo don't create a new one everytime
     // state.class_loader = boostrap_loader_object;
     //the above would only be required for higher jdks where a class loader object is part of Class.
     //as it stands we can just push to operand stack

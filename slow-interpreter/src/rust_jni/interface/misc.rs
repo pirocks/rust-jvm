@@ -36,7 +36,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
     let frame = get_frame(env);
     let jvm = get_state(env);
-    let super_name = match runtime_class_from_object(sub, jvm, &frame).unwrap().view().super_name() {
+    let super_name = match runtime_class_from_object(sub).view().super_name() {
         None => { return to_object(None); }
         Some(n) => n,
     };
@@ -54,11 +54,9 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 
     let sub_not_null = from_object(sub).unwrap();
     let sup_not_null = from_object(sup).unwrap();
-    let sub_temp_refcell = sub_not_null.unwrap_normal_object().class_object_ptype.clone();
-    let sup_temp_refcell = sup_not_null.unwrap_normal_object().class_object_ptype.clone();
 
-    let sub_type = sub_temp_refcell;
-    let sup_type = sup_temp_refcell;
+    let sub_type = JavaValue::Object(sub_not_null.into()).cast_class().as_type();
+    let sup_type = JavaValue::Object(sup_not_null.into()).cast_class().as_type();
 
     let loader = &frame.class_pointer.loader(jvm);
     let sub_vtype = sub_type.to_verification_type(loader);

@@ -107,9 +107,8 @@ pub fn object_field_offset(
     let param1_obj = args[1].unwrap_object().unwrap();
     let field_name = string_obj_to_string(param1_obj.lookup_field("name").unwrap_object());
     let temp = param1_obj.lookup_field("clazz");
-    let field_class = temp.unwrap_normal_object();
-    let borrow_4 = field_class.class_object_ptype.clone();
-    let field_class_name = borrow_4.unwrap_ref_type().unwrap_name();
+    let field_class = temp.cast_class();
+    let field_class_name = field_class.as_type().unwrap_ref_type().unwrap_name();
     let inited_field_class = check_inited_class(jvm, &field_class_name, frame.class_pointer.loader(jvm).clone());
     let field_classfile = inited_field_class.view();
     let mut res = None;
@@ -123,6 +122,6 @@ pub fn object_field_offset(
 
 
 pub fn shouldBeInitialized(state: &JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
-    let class_name_to_check = args[1].unwrap_normal_object().class_object_ptype.unwrap_type_to_name().unwrap();
+    let class_name_to_check = args[1].cast_class().as_type().unwrap_type_to_name().unwrap();//todo should be dome kind of should be inited
     JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some()).into()
 }

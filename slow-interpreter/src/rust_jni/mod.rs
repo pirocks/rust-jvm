@@ -30,7 +30,7 @@ use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::rust_jni::interface::util::{runtime_class_from_object, class_object_to_runtime_class};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry, LibJavaLoading};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
@@ -170,7 +170,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
-        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz, jvm, &get_frame(env)).unwrap();
+        let runtime_class: Arc<RuntimeClass> = runtime_class_from_object(clazz);
         let jni_context = &jvm.jni;
         let view = &runtime_class.view();
         &view.methods().enumerate().for_each(|(i, method_info)| {
@@ -283,8 +283,8 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let jvm = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
-    let class_obj: Arc<Object> = from_object(clazz).unwrap();
-    let runtime_class = class_object_to_runtime_class(class_obj.unwrap_normal_object(), jvm, &frame).unwrap();
+    let class_obj= from_object(clazz);
+    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj).cast_class(), jvm, &frame).unwrap();
     dbg!(runtime_class.view().name());
     let all_methods = get_all_methods(jvm, frame, runtime_class);
     dbg!(&method_descriptor_str);

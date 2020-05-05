@@ -6,7 +6,8 @@ use crate::interpreter_util::check_inited_class;
 use classfile_view::view::ptype_view::ReferenceTypeView;
 use crate::runtime_class::RuntimeClass;
 use crate::{JVMState, StackEntry};
-use crate::java_values::NormalObject;
+use crate::java_values::JavaValue;
+use crate::java::lang::class::JClass;
 
 pub struct FieldID {
     pub class: Arc<RuntimeClass>,
@@ -14,17 +15,17 @@ pub struct FieldID {
 }
 
 
-pub unsafe fn runtime_class_from_object(cls: jclass, state: & JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
-    let object_non_null = from_object(cls).unwrap().clone();
-    let runtime_class = class_object_to_runtime_class(object_non_null.unwrap_normal_object(), state, frame);
-    runtime_class.clone()
+pub unsafe fn runtime_class_from_object(cls: jclass) -> Arc<RuntimeClass> {
+    let object = from_object(cls);
+    JavaValue::Object(object).cast_class().as_runtime_class()
 }
 
-pub fn class_object_to_runtime_class(obj: &NormalObject, jvm: & JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
-    if obj.class_object_to_ptype().is_primitive() {
+pub fn class_object_to_runtime_class(obj: &JClass, jvm: & JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
+    if obj.as_type().is_primitive() {
         return None;
     }
-    match obj.class_object_to_ptype().unwrap_ref_type() {
+    //todo needs to be reimplemented when loaded class sett is fixed.
+    match obj.as_type().unwrap_ref_type() {
         ReferenceTypeView::Class(class_name) => {
             check_inited_class(jvm, &class_name, frame.class_pointer.loader(jvm).clone()).into()//todo a better way?
         }

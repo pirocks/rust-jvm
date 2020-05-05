@@ -1,5 +1,5 @@
-use jvmti_jni_bindings::{jobjectArray, jclass, JNIEnv, jobject, jint, jstring, jbyteArray, jboolean, JVM_ExceptionTableEntryType};
-use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
+use jvmti_jni_bindings::{jobjectArray, jclass, JNIEnv, jobject, jint, jstring, jbyteArray, jboolean, JVM_ExceptionTableEntryType, jvmtiCapabilities};
+use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, from_object, from_jclass};
 use std::sync::Arc;
 use std::cell::RefCell;
 use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -21,6 +21,7 @@ use slow_interpreter::rust_jni::get_all_methods;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::java_values::JavaValue;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -48,8 +49,8 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
 unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) -> jclass {
     let state = get_state(env);
     let frame = get_frame(env);
-    let object_non_null = from_object(cls).unwrap().clone();
-    let temp = object_non_null.unwrap_normal_object().class_object_ptype.borrow();
+    let object = from_object(cls);
+    let temp = JavaValue::Object(object).cast_class().as_type();
     let object_class = temp.unwrap_ref_type();
     to_object(ptype_to_class_object(state, &frame, &object_class.unwrap_array().to_ptype()))
 }
@@ -59,20 +60,19 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
     let frame = get_frame(env);
     let jvm = get_state(env);
 
-    match runtime_class_from_object(cls, jvm, &frame) {
-        None => {
-            // is primitive
-            // essentially an abstract class of the non-primitive version
-            //todo find a better way to do this
-            let obj = from_object(cls).unwrap();
-            let type_ = obj.unwrap_normal_object().class_object_to_ptype();
-            let name = type_.unwrap_type_to_name().unwrap();
-            let class_for_access_flags = check_inited_class(jvm, &name, frame.class_pointer.loader(jvm).clone());
-            (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
-        }
-        Some(rc) => {
-            rc.view().access_flags() as jint
-        }
+    let jclass = from_jclass(cls);
+    let type_ = jclass.as_type();
+    if type_.is_primitive() {
+        // is primitive
+        // essentially an abstract class of the non-primitive version
+        //todo find a better way to do this
+        let obj = from_object(cls);
+        let type_ = JavaValue::Object(obj).cast_class().as_type();
+        let name = type_.unwrap_type_to_name().unwrap();
+        let class_for_access_flags = check_inited_class(jvm, &name, frame.class_pointer.loader(jvm).clone());
+        (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
+    } else {
+        jclass.as_runtime_class().view().access_flags() as jint
     }
 }
 
@@ -97,7 +97,7 @@ pub mod get_methods;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
-    runtime_class_from_object(cls, get_state(env), &get_frame(env)).unwrap().view().access_flags() as i32
+    runtime_class_from_object(cls).view().access_flags() as i32
 }
 
 
@@ -156,14 +156,14 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))),
         frame,
-        frame.class_pointer.loader(jvm).clone()
+        frame.class_pointer.loader(jvm).clone(),
     )))
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
-    let obj = runtime_class_from_object(cls, get_state(env), &get_frame(env)).unwrap();
+    let obj = runtime_class_from_object(cls);
     let full_name = &obj.view().name().get_referred_name().replace("/", ".");
     new_string_with_string(env, full_name.to_string())
 }

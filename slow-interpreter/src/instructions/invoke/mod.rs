@@ -75,7 +75,7 @@ pub mod dynamic {
 
         };
         let arg_iterator = invoke_dynamic_view.bootstrap_method().bootstrap_args();
-        arg_iterator.map(|x|{
+        arg_iterator.for_each(|x|{
             match x {
                 BootstrapArgView::String(_) => unimplemented!(),
                 BootstrapArgView::Class(_) => unimplemented!(),

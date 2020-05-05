@@ -33,7 +33,7 @@ pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass
     let value = from_object(value);
     let view = &field_id.class.view();
     let field_name = view.field(field_id.field_i).field_name();
-    let static_class = runtime_class_from_object(clazz,state,&frame).unwrap();
+    let static_class = runtime_class_from_object(clazz);
     static_class.static_vars().insert(field_name, JavaValue::Object(value));
 }
 

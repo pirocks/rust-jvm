@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{jdouble, jboolean, JNIEnv, jclass};
+use jvmti_jni_bindings::{jdouble, jboolean, JNIEnv, jclass, JVM_Available};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::rust_jni::interface::util::runtime_class_from_object;
@@ -7,6 +7,9 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use std::intrinsics::transmute;
 use slow_interpreter::jvmti::is::is_array_impl;
+use slow_interpreter::java_values::JavaValue;
+use std::ops::Deref;
+use slow_interpreter::runtime_class::RuntimeClass;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -17,34 +20,22 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let state = get_state(env);
     let frame = get_frame(env);
-    let obj = from_object(cls).unwrap().clone();
-    let normal_obj = obj.unwrap_normal_object();
-    let type_view = &normal_obj.class_object_ptype;
-    (match type_view {
-        PTypeView::ByteType => false,
-        PTypeView::CharType => false,
-        PTypeView::DoubleType => false,
-        PTypeView::FloatType => false,
-        PTypeView::IntType => false,
-        PTypeView::LongType => false,
-        PTypeView::Ref(r) => {
-            match r {
-                ReferenceTypeView::Class(c) => {
-                    state.class_object_pool.write().unwrap().get(type_view).unwrap().unwrap_normal_object().class_pointer.view().is_interface()
-                },
-                ReferenceTypeView::Array(a) => {
-                    false
-                },
-            }
+    let obj = from_object(cls);
+    let runtime_class = JavaValue::Object(obj).cast_class().as_runtime_class();
+    (match runtime_class.deref() {
+        RuntimeClass::Byte => false,
+        RuntimeClass::Boolean => false,
+        RuntimeClass::Short => false,
+        RuntimeClass::Char => false,
+        RuntimeClass::Int => false,
+        RuntimeClass::Long => false,
+        RuntimeClass::Float => false,
+        RuntimeClass::Double => false,
+        RuntimeClass::Void => false,
+        RuntimeClass::Array(_) => false,
+        RuntimeClass::Object(_) => {
+            runtime_class.view().is_interface()
         },
-        PTypeView::ShortType => false,
-        PTypeView::BooleanType => false,
-        PTypeView::VoidType => false,
-        PTypeView::TopType => panic!(),
-        PTypeView::NullType => panic!(),
-        PTypeView::Uninitialized(_) => panic!(),
-        PTypeView::UninitializedThis => panic!(),
-        PTypeView::UninitializedThisOrClass(_) => panic!(),
     }) as jboolean
 
 }
@@ -58,25 +49,8 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    let class_object = runtime_class_from_object(cls,get_state(env),&get_frame(env));
-    if class_object.is_none() {
-        return false as jboolean;
-    }
-    let name_ = class_object.unwrap().view().name();
-    let name = name_.get_referred_name();
-    // dbg!(name);
-    // dbg!(name == &"java/lang/Integer".to_string());
-    //todo wrong?
-    let is_primitive = name == &"java/lang/Boolean".to_string() ||
-        name == &"java/lang/Character".to_string() ||
-        name == &"java/lang/Byte".to_string() ||
-        name == &"java/lang/Short".to_string() ||
-        name == &"java/lang/Integer".to_string() ||
-        name == &"java/lang/Long".to_string() ||
-        name == &"java/lang/Float".to_string() ||
-        name == &"java/lang/Double".to_string() ||
-        name == &"java/lang/Void".to_string();
-    is_primitive as jboolean
+    let type_ = JavaValue::Object(from_object(cls)).cast_class().as_type();
+    type_.is_primitive() as jboolean
 }
 
 

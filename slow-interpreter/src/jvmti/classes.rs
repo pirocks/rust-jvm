@@ -9,13 +9,14 @@ use std::ffi::{CString, c_void};
 use crate::interpreter_util::check_inited_class;
 use crate::rust_jni::MethodId;
 use std::mem::size_of;
+use crate::java_values::JavaValue;
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
     let class = from_object(transmute(klass)).unwrap();//todo handle null
     let res = {
-        let type_ = &class.unwrap_normal_object().class_object_ptype;
+        let type_ = &JavaValue::Object(class.into()).cast_class().as_type();
         let mut status = 0;
         status |= JVMTI_CLASS_STATUS_PREPARED as i32;
         status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
@@ -24,7 +25,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
             PTypeView::Ref(ref_) => {
                 match ref_ {
                     ReferenceTypeView::Class(_) => {}
-                    ReferenceTypeView::Array(array) => {
+                    ReferenceTypeView::Array(_array) => {
                         status |= JVMTI_CLASS_STATUS_ARRAY as i32;
                     }
                 }
@@ -70,7 +71,7 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(transmute(klass)).unwrap();
-    let class_object_ptype = notnull_class.unwrap_normal_object().class_object_ptype.clone();
+    let class_object_ptype = JavaValue::Object(notnull_class.into()).cast_class().as_type();
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
         let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
@@ -95,9 +96,8 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
     let class_object_wrapped = from_object(transmute(klass)).unwrap();
-    let class = class_object_wrapped.unwrap_normal_object();
-    let class_ptype_guard = class.class_object_ptype.clone();
-    let class_name = class_ptype_guard.unwrap_class_type();
+    let class = JavaValue::Object(class_object_wrapped.into()).cast_class();
+    let class_name = class.as_type().unwrap_class_type();
     let loaded_class = check_inited_class(jvm, &class_name, jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
     method_count_ptr.write(loaded_class.view().num_methods() as i32);
     //todo use Layout instead of whatever this is.

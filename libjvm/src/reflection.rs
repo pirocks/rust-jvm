@@ -34,7 +34,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     let method_name = string_obj_to_string(method_obj.lookup_field("name").unwrap_object());
     let signature = string_obj_to_string(method_obj.lookup_field("signature").unwrap_object());
     let clazz_java_val = method_obj.lookup_field("clazz");
-    let target_class_refcell_borrow = clazz_java_val.unwrap_normal_object().class_object_ptype.borrow();
+    let target_class_refcell_borrow = clazz_java_val.cast_class().as_type();
     let target_class = target_class_refcell_borrow;
     if target_class.is_primitive() || target_class.is_array() {
         unimplemented!()
@@ -64,11 +64,11 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     };
     let constructor_obj = from_object(c).unwrap();
     let signature_str_obj = constructor_obj.lookup_field("signature");
-    let temp_4 = constructor_obj.lookup_field("clazz").unwrap_object_nonnull();
+    let temp_4 = constructor_obj.lookup_field("clazz");
     let state = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
-    let clazz = class_object_to_runtime_class(temp_4.unwrap_normal_object(), state, &frame).unwrap();
+    let clazz = class_object_to_runtime_class(&temp_4.cast_class(), state, &frame).unwrap();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
     push_new_object(state,frame.clone(), &clazz);
     let obj = frame.pop();
