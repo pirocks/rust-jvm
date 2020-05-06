@@ -77,6 +77,13 @@ impl JavaThread {
     pub fn get_current_frame(&self) -> Rc<StackEntry> {
         self.call_stack.borrow().last().unwrap().clone()
     }
+    pub fn print_stack_trace(&self) {
+        self.call_stack.borrow().iter().rev().enumerate().for_each(|(i, stack_entry)| {
+            let name = stack_entry.class_pointer.view().name();
+            let meth_name = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize).name();
+            println!("{}.{} {} pc: {}", name.get_referred_name(), meth_name, i, stack_entry.pc.borrow())
+        });
+    }
 }
 
 #[derive(Debug)]
@@ -125,7 +132,7 @@ impl JVMOptions {
 }
 
 pub struct JVMState {
-    loaders: RwLock<HashMap<LoaderName,Arc<Object>>>,
+    loaders: RwLock<HashMap<LoaderName, Arc<Object>>>,
     pub bootstrap_loader: LoaderArc,
     pub system_domain_loader: bool,
     pub string_pool: StringPool,
@@ -261,12 +268,12 @@ impl JVMState {
             .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
     }
 
-    pub fn get_or_create_bootstrap_object_loader(&self) -> JavaValue{
-        if !self.vm_live(){
-            return JavaValue::Object(None)
+    pub fn get_or_create_bootstrap_object_loader(&self) -> JavaValue {
+        if !self.vm_live() {
+            return JavaValue::Object(None);
         }
         let mut loader_guard = self.loaders.write().unwrap();
-        match loader_guard.get(&self.bootstrap_loader.name()){
+        match loader_guard.get(&self.bootstrap_loader.name()) {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
                 let current_loader = self.get_current_frame().class_pointer.loader(self).clone();
@@ -275,12 +282,12 @@ impl JVMState {
                     monitor: self.new_monitor("bootstrap loader object monitor".to_string()),
                     fields: RefCell::new(HashMap::new()),
                     class_pointer: class_loader_class.clone(),
-                    class_object_type: None
+                    class_object_type: None,
                 }));
-                loader_guard.insert(self.bootstrap_loader.name(),res.clone());
+                loader_guard.insert(self.bootstrap_loader.name(), res.clone());
                 JavaValue::Object(res.into())
-            },
-            Some(res) => {JavaValue::Object(res.clone().into())},
+            }
+            Some(res) => { JavaValue::Object(res.clone().into()) }
         }
     }
 }

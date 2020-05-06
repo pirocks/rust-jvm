@@ -1,5 +1,5 @@
 use crate::JVMState;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::ptype_view::PTypeView;
 use crate::java_values::{Object, JavaValue};
 use std::sync::Arc;
 use classfile_view::loading::LoaderArc;

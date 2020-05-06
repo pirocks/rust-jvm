@@ -12,7 +12,6 @@ use crate::instructions::ldc::from_constant_pool_entry;
 use descriptor_parser::parse_field_descriptor;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::interpreter::run_function;
-use rust_jvm_common::classnames::ClassName;
 
 #[derive(Debug, PartialEq, Hash)]
 pub enum RuntimeClass{
@@ -209,6 +208,7 @@ pub fn initialize_class(
     run_function(jvm);
     jvm.get_current_thread().call_stack.borrow_mut().pop();
     if jvm.get_current_thread().interpreter_state.throw.borrow().is_some() || *jvm.get_current_thread().interpreter_state.terminate.borrow() {
+        jvm.get_current_thread().print_stack_trace();
         unimplemented!()
         //need to clear status after
     }

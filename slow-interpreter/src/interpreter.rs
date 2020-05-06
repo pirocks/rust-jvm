@@ -192,6 +192,7 @@ fn run_single_instruction(
             println!("EXCEPTION:");
             let exception_obj = current_frame.pop().unwrap_object_nonnull();
             dbg!(exception_obj.lookup_field("detailMessage"));
+            jvm.get_current_thread().print_stack_trace();
             interpreter_state.throw.replace(exception_obj.into());
         }
         InstructionInfo::baload => baload(&current_frame),

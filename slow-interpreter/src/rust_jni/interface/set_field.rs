@@ -27,8 +27,6 @@ pub unsafe extern "C" fn set_boolean_field(_env: *mut JNIEnv, obj: jobject, fiel
 
 pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject) {
 //Box::into_raw(Box::new(FieldID { class: runtime_class.clone(), field_i })) as jfieldID;
-    let state = get_state(env);
-    let frame = get_frame(env);
     let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));//todo leak
     let value = from_object(value);
     let view = &field_id.class.view();

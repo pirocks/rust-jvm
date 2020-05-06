@@ -1,7 +1,6 @@
 use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::{ClassName};
 use std::sync::Arc;
-use rust_jvm_common::classfile::Interface;
 use std::ops::Deref;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::JavaValue;

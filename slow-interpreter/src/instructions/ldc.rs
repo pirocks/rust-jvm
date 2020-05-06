@@ -8,7 +8,7 @@ use crate::rust_jni::native_util::{to_object, from_object};
 use crate::rust_jni::interface::string::intern_impl;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject};
-use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
+use descriptor_parser::MethodDescriptor;
 use crate::class_objects::get_or_create_class_object;
 use std::ops::Deref;
 use crate::interpreter::run_function;
