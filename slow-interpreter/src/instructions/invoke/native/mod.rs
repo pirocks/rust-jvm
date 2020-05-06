@@ -124,7 +124,7 @@ pub fn run_native_method(
                         let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8).collect();
                         //todo for debug, delete later
                         let mut unpatched = parse_class_file(&mut byte_array.as_slice());
-                        File::create("unpatched.class").unwrap().write(byte_array.clone().as_slice()).unwrap();
+
                         patch_all(jvm, &frame, &mut args, &mut unpatched);
                         let parsed = Arc::new(unpatched);
                         //todo maybe have an anon loader for this
@@ -132,7 +132,7 @@ pub fn run_native_method(
 
                         let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), bootstrap_loader: bootstrap_loader.clone() };
                         let class_view = ClassView::from(parsed.clone());
-
+                        // File::create(class_view.name().get_referred_name().replace("/",".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
                         bootstrap_loader.add_pre_loaded(&class_view.name(), &parsed);
                         // frame.print_stack_trace();
                         match verify(&vf, class_view.clone(), bootstrap_loader.clone()) {

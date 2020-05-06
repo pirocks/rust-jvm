@@ -1,5 +1,5 @@
 use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames, exception_stack_frame, target_is_type_safe, ResultFrames};
-use crate::verifier::codecorrectness::{Environment, can_pop, MergedCodeInstruction};
+use crate::verifier::codecorrectness::{Environment, can_pop, MergedCodeInstruction, push_operand_stack};
 use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::TypeSafetyError;
 use rust_jvm_common::classfile::{InstructionInfo, UninitializedVariableInfo};
@@ -325,7 +325,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
         stack_arg_list.iter().for_each(|_| {
             next_stack_frame.operand_pop();//todo do check object
         });
-        next_stack_frame.operand_push(return_type.clone());
+        next_stack_frame = push_operand_stack(&env.vf,&next_stack_frame,&return_type);
         standard_exception_frame(stack_frame, Frame {
             locals: stack_frame.locals.clone(),
             stack_map: next_stack_frame,
