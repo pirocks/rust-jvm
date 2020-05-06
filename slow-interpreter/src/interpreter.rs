@@ -1,6 +1,5 @@
 use crate::{JVMState, InterpreterState};
 use rust_jvm_common::classnames::{ClassName};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::class_objects::get_or_create_class_object;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use rust_jvm_common::classfile::{InstructionInfo, Code};
@@ -88,7 +87,7 @@ pub fn run_function(jvm: &JVMState) {
                         break;
                     } else {
                         let catch_runtime_name = current_frame.class_pointer.view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_name().unwrap_name();
-                        let catch_class = check_inited_class(jvm, &catch_runtime_name, current_frame.class_pointer.loader(jvm).clone());
+                        let catch_class = check_inited_class(jvm, &catch_runtime_name.into(), current_frame.class_pointer.loader(jvm).clone());
                         if inherits_from(jvm, &throw_class, &catch_class) {
                             current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
                             interpreter_state.throw.replace(None);
@@ -145,13 +144,13 @@ pub fn monitor_for_function(
     current_frame: &StackEntry,
     method: &MethodView,
     synchronized: bool,
-    class_name__: &ClassName
+    class_name: &ClassName
 ) -> Option<Arc<Monitor>>{
      if synchronized {
         let monitor = if method.is_static() {
             let class_object = get_or_create_class_object(
                 jvm,
-                &PTypeView::Ref(ReferenceTypeView::Class(class_name__.clone())),
+                &class_name.clone().into(),
                 current_frame,
                 current_frame.class_pointer.loader(jvm).clone(),
             );

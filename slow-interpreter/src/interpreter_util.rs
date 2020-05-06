@@ -1,5 +1,5 @@
 use crate::{JVMState, StackEntry};
-use crate::runtime_class::{prepare_class, RuntimeClass};
+use crate::runtime_class::{prepare_class, RuntimeClass, RuntimeClassArray};
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
 use rust_jvm_common::classnames::ClassName;
@@ -8,6 +8,8 @@ use crate::java_values::{JavaValue, default_value, Object};
 use descriptor_parser::{parse_method_descriptor};
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use classfile_view::view::{HasAccessFlags, ClassView};
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use std::ops::Deref;
 
 
 //todo jni should really live in interpreter state
@@ -59,49 +61,94 @@ pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: A
 
 pub fn check_inited_class(
     jvm: &JVMState,
-    class_name: &ClassName,
+    ptype: &PTypeView,
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
-    if !jvm.initialized_classes.read().unwrap().contains_key(&class_name) {
+    if !jvm.initialized_classes.read().unwrap().contains_key(&ptype) {
         //todo the below is jank
-        if class_name == &ClassName::raw_byte() {
-            return check_inited_class(jvm, &ClassName::byte(), loader_arc);
+        match ptype.try_unwrap_ref_type() {
+            None => {}
+            Some(ref_) => {
+                match ref_ {
+                    ReferenceTypeView::Class(class_name) => {
+                        if class_name == &ClassName::raw_byte() {
+                            return check_inited_class(jvm, &PTypeView::ByteType, loader_arc);
+                        }
+                        if class_name == &ClassName::raw_char() {
+                            return check_inited_class(jvm, &PTypeView::CharType, loader_arc);
+                        }
+                        if class_name == &ClassName::raw_double() {
+                            return check_inited_class(jvm, &PTypeView::DoubleType, loader_arc);
+                        }
+                        if class_name == &ClassName::raw_float() {
+                            return check_inited_class(jvm, &PTypeView::FloatType, loader_arc);
+                        }
+                        if class_name == &ClassName::raw_int() {
+                            return check_inited_class(jvm, &PTypeView::IntType, loader_arc);
+                        }
+                        if class_name == &ClassName::raw_long() {
+                            return check_inited_class(jvm, &PTypeView::LongType, loader_arc);
+                        }
+                        if class_name == &ClassName::raw_short() {
+                            return check_inited_class(jvm, &PTypeView::ShortType, loader_arc);
+                        }
+                        if class_name == &ClassName::raw_boolean() {
+                            return check_inited_class(jvm, &PTypeView::BooleanType, loader_arc);
+                        }
+                        if class_name == &ClassName::raw_void() {
+                            return check_inited_class(jvm, &PTypeView::VoidType, loader_arc);
+                        }
+                    }
+                    ReferenceTypeView::Array(_) => {}
+                }
+            }
         }
-        if class_name == &ClassName::raw_char() {
-            return check_inited_class(jvm, &ClassName::character(), loader_arc);
+        &ptype.unwrap_type_to_name().map(|class_name|jvm.tracing.trace_class_loads(&class_name));
+        match &ptype{
+            PTypeView::ByteType => unimplemented!(),
+            PTypeView::CharType => unimplemented!(),
+            PTypeView::DoubleType => unimplemented!(),
+            PTypeView::FloatType => unimplemented!(),
+            PTypeView::IntType => unimplemented!(),
+            PTypeView::LongType => unimplemented!(),
+            PTypeView::Ref(ref_) => match ref_{
+                ReferenceTypeView::Class(class_name) => {
+                    let new_rclass = check_inited_class_impl(jvm,class_name,loader_arc);
+                    jvm.initialized_classes.write().unwrap().insert(ptype.clone(),new_rclass);
+                },
+                ReferenceTypeView::Array(arr) => {
+                    let array_type_class = check_inited_class(jvm,arr.deref(),loader_arc);
+                    let new_rclass = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class: array_type_class }));
+                    jvm.initialized_classes.write().unwrap().insert(ptype.clone(),new_rclass);
+                },
+            },
+            PTypeView::ShortType => unimplemented!(),
+            PTypeView::BooleanType => unimplemented!(),
+            PTypeView::VoidType => unimplemented!(),
+            PTypeView::TopType | PTypeView::NullType | PTypeView::Uninitialized(_) | PTypeView::UninitializedThis |
+            PTypeView::UninitializedThisOrClass(_) => unimplemented!(),
         }
-        if class_name == &ClassName::raw_double() {
-            return check_inited_class(jvm, &ClassName::double(), loader_arc);
-        }
-        if class_name == &ClassName::raw_float() {
-            return check_inited_class(jvm, &ClassName::float(), loader_arc);
-        }
-        if class_name == &ClassName::raw_int() {
-            return check_inited_class(jvm, &ClassName::int(), loader_arc);
-        }
-        if class_name == &ClassName::raw_long() {
-            return check_inited_class(jvm, &ClassName::long(), loader_arc);
-        }
-        if class_name == &ClassName::raw_short() {
-            return check_inited_class(jvm, &ClassName::short(), loader_arc);
-        }
-        if class_name == &ClassName::raw_boolean() {
-            return check_inited_class(jvm, &ClassName::boolean(), loader_arc);
-        }
-        if class_name == &ClassName::raw_void() {
-            return check_inited_class(jvm, &ClassName::void(), loader_arc);
-        }
-        let bl = jvm.bootstrap_loader.clone();
-        jvm.tracing.trace_class_loads(&class_name);
-        let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, jvm.get_live_object_pool_getter()).unwrap();
+        // jvm.jvmti_state.built_in_jdwp.class_prepare(jvm, ptype)//todo this should really happen in the function that actually does preparing
+    } else {}
+    //todo race?
+    let res = jvm.initialized_classes.read().unwrap().get(ptype).unwrap().clone();
+    res
+}
 
-        let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
-        jvm.initialized_classes.write().unwrap().insert(class_name.clone(), prepared.clone());//must be before, otherwise infinite recurse
-        let inited_target = initialize_class(prepared, jvm);
-        jvm.initialized_classes.write().unwrap().insert(class_name.clone(), inited_target);
-        jvm.jvmti_state.built_in_jdwp.class_prepare(jvm, class_name)
-    }
-    let res = jvm.initialized_classes.read().unwrap().get(class_name).unwrap().clone();
+fn check_inited_class_impl(
+    jvm: &JVMState,
+    class_name: &ClassName,
+    loader_arc: LoaderArc,
+) -> Arc<RuntimeClass>{
+    let bl = jvm.bootstrap_loader.clone();
+    let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, jvm.get_live_object_pool_getter()).unwrap();
+    let ptype = PTypeView::Ref(ReferenceTypeView::Class(class_name.clone()));
+    let prepared = Arc::new(prepare_class(target_classfile.backing_class(), loader_arc.clone()));
+    jvm.initialized_classes.write().unwrap().insert(ptype.clone(), prepared.clone());//must be before, otherwise infinite recurse
+    let inited_target = initialize_class(prepared, jvm);
+    jvm.initialized_classes.write().unwrap().insert(ptype.clone(), inited_target);
+    jvm.jvmti_state.built_in_jdwp.class_prepare(jvm,&class_name);
+    let res = jvm.initialized_classes.read().unwrap().get(&ptype).unwrap().clone();
     res
 }

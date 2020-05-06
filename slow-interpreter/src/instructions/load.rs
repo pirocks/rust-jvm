@@ -89,7 +89,7 @@ pub fn aaload(current_frame: &StackEntry) -> () {
 fn throw_array_out_of_bounds(jvm: & JVMState, current_frame: & StackEntry) {
     let bounds_class = check_inited_class(
         jvm,
-        &ClassName::new("java/lang/ArrayIndexOutOfBoundsException"),
+        &ClassName::new("java/lang/ArrayIndexOutOfBoundsException").into(),
         current_frame.class_pointer.loader(jvm).clone()
     );
     push_new_object(jvm, current_frame, &bounds_class, None);

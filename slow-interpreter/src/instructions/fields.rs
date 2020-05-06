@@ -10,7 +10,7 @@ pub fn putstatic(jvm: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
     let view = &current_frame.class_pointer.view();
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    let target_classfile = check_inited_class(jvm, &field_class_name, loader_arc.clone());
+    let target_classfile = check_inited_class(jvm, &field_class_name.into(), loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
     let field_value = stack.pop().unwrap();
     target_classfile.static_vars().insert(field_name, field_value);
@@ -20,7 +20,7 @@ pub fn putfield(jvm: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
     let view = &current_frame.class_pointer.view();
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    let _target_classfile = check_inited_class(jvm, &field_class_name, loader_arc.clone());
+    let _target_classfile = check_inited_class(jvm, &field_class_name.into(), loader_arc.clone());
     let mut stack = current_frame.operand_stack.borrow_mut();
     let val = stack.pop().unwrap();
     let object_ref = stack.pop().unwrap();
@@ -51,7 +51,7 @@ pub fn get_static(jvm: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
 }
 
 fn get_static_impl(state: & JVMState, current_frame: & StackEntry, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &String) {
-    let target_classfile = check_inited_class(state, &field_class_name,  loader_arc.clone());
+    let target_classfile = check_inited_class(state, &field_class_name.clone().into(),  loader_arc.clone());
     let temp = target_classfile.static_vars();
     let attempted_get = temp.get(field_name);
     let field_value = match attempted_get {

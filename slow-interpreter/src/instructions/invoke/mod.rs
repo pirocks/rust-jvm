@@ -34,17 +34,17 @@ pub mod dynamic {
     pub fn invoke_dynamic(jvm: & JVMState, frame: &StackEntry, cp: u16) {
         let _method_handle_class = check_inited_class(
             jvm,
-            &ClassName::method_handle(),
+            &ClassName::method_handle().into(),
             frame.class_pointer.loader(jvm).clone(),
         );
         let _method_type_class = check_inited_class(
             jvm,
-            &ClassName::method_type(),
+            &ClassName::method_type().into(),
             frame.class_pointer.loader(jvm).clone(),
         );
         let _call_site_class = check_inited_class(
             jvm,
-            &ClassName::Str("java/lang/invoke/CallSite".to_string()),
+            &ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
             frame.class_pointer.loader(jvm).clone(),
         );
         let invoke_dynamic_view = match frame.class_pointer.view().constant_pool_view(cp as usize) {
@@ -139,7 +139,7 @@ fn resolved_class(jvm: & JVMState, current_frame: &StackEntry, cp: u16) -> Optio
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let resolved_class = check_inited_class(
         jvm,
-        &class_name_,
+        &class_name_.into(),
         loader_arc.clone()
     );
     (resolved_class, expected_method_name, expected_descriptor).into()

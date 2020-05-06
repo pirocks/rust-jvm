@@ -40,7 +40,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_inited_class(jvm, &target_class_name, frame.class_pointer.loader(jvm).clone());
+    let target_runtime_class = check_inited_class(jvm, &target_class_name.into(), frame.class_pointer.loader(jvm).clone());
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {
@@ -70,7 +70,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let frame = frame_temp.deref();
     let clazz = class_object_to_runtime_class(&temp_4.cast_class(), state, &frame).unwrap();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
-    push_new_object(state,frame.clone(), &clazz);
+    push_new_object(state,frame.clone(), &clazz,None);
     let obj = frame.pop();
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());

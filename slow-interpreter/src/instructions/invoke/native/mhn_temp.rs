@@ -58,7 +58,7 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
     let resolution_object = JavaValue::Object(Arc::new(Object(NormalObject {
         monitor: jvm.new_monitor("monitor for a resolution object".to_string()),
         fields: RefCell::new(Default::default()),
-        class_pointer: check_inited_class(jvm, &ClassName::object(), frame.class_pointer.loader(jvm).clone()),
+        class_pointer: check_inited_class(jvm, &ClassName::object().into(), frame.class_pointer.loader(jvm).clone()),
         class_object_type: None,
     })).into());
     member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), resolution_object);
@@ -188,7 +188,7 @@ pub fn MHN_init(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -
         } else {
             let class_ptye = clazz.as_type();
             let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-            let inited_class = check_inited_class(jvm, &class_name, frame.class_pointer.loader(jvm).clone());
+            let inited_class = check_inited_class(jvm, &class_name.into(), frame.class_pointer.loader(jvm).clone());
             if inited_class.view().is_interface() {
                 REF_invokeInterface
             } else {
@@ -224,7 +224,7 @@ pub fn create_method_type(jvm: &JVMState, frame: &StackEntry, signature: &String
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
     let loader_arc = frame.class_pointer.loader(jvm).clone();
-    let method_type_class = check_inited_class(jvm, &ClassName::method_type(), loader_arc.clone());
+    let method_type_class = check_inited_class(jvm, &ClassName::method_type().into(), loader_arc.clone());
     push_new_object(jvm, frame, &method_type_class,None);
     let this = frame.pop();
     let method_descriptor = parse_method_descriptor(signature).unwrap();

@@ -134,8 +134,8 @@ pub struct JVMState {
     pub jni: LibJavaLoading,//todo rename to libjava
 
 
-    pub initialized_classes: RwLock<HashMap<ClassName, Arc<RuntimeClass>>>,
-    pub class_object_pool: RwLock<HashMap<PTypeView, Arc<Object>>>,
+    pub initialized_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub class_object_pool: RwLock<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
     //anon classes
     pub anon_class_counter: AtomicUsize,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
@@ -270,7 +270,7 @@ impl JVMState {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
                 let current_loader = self.get_current_frame().class_pointer.loader(self).clone();
-                let class_loader_class = check_inited_class(self, &java_lang_class_loader, current_loader.clone());
+                let class_loader_class = check_inited_class(self, &java_lang_class_loader.into(), current_loader.clone());
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.new_monitor("bootstrap loader object monitor".to_string()),
                     fields: RefCell::new(HashMap::new()),
@@ -369,7 +369,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     jvm.jvmti_state.built_in_jdwp.thread_start(&jvm, jvm.main_thread().thread_object.borrow().clone().unwrap());
     //trigger breakpoint on thread.resume for debuggers that rely on that:
 
-    let thread_class = check_inited_class(&jvm, &ClassName::thread(), jvm.bootstrap_loader.clone());
+    let thread_class = check_inited_class(&jvm, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
     let method_i = thread_class.view().method_index().lookup(&"resume".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap().method_i();
     let thread_resume_id = MethodId { class: thread_class, method_i };
     let breakpoints = jvm.jvmti_state.break_points.read().unwrap();
@@ -416,7 +416,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
             }),
         },
     }));
-    let system_class = check_inited_class(jvm, &ClassName::system(), bl.clone());
+    let system_class = check_inited_class(jvm, &ClassName::system().into(), bl.clone());
     let init_method_view = locate_init_system_class(&system_class);
     let mut locals = vec![];
     for _ in 0..init_method_view.code_attribute().unwrap().max_locals {

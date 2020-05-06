@@ -122,7 +122,7 @@ pub fn invoke_virtual(jvm: &JVMState, current_frame: &StackEntry, method_name: &
 //todo so spec seems vague about this, but basically assume this is an Object
             let object_class = check_inited_class(
                 jvm,
-                &ClassName::object(),
+                &ClassName::object().into(),
                 current_frame.class_pointer.loader(jvm).clone(),
             );
             object_class.clone()

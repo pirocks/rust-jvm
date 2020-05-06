@@ -33,7 +33,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
     let runtime_class = from_jclass(ofClass).as_runtime_class();
     let methods = get_all_methods(jvm, frame, runtime_class);
-    let method_class = check_inited_class(jvm, &ClassName::method(), loader.clone());
+    let method_class = check_inited_class(jvm, &ClassName::method().into(), loader.clone());
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {
@@ -44,7 +44,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
         }
     }).for_each(|(c, i)| {
         //todo dupe?
-        push_new_object(jvm, frame, &method_class);
+        push_new_object(jvm, frame, &method_class,None);
         let method_object = frame.pop();
         object_array.push(method_object.clone());
 
@@ -158,7 +158,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     let target_classview = &class_obj.view();
     let constructors = target_classview.method_index().lookup_method_name(&"<init>".to_string());
     let loader = frame.class_pointer.loader(jvm).clone();
-    let constructor_class = check_inited_class(jvm, &ClassName::new("java/lang/reflect/Constructor"), loader.clone());
+    let constructor_class = check_inited_class(jvm, &ClassName::new("java/lang/reflect/Constructor").into(), loader.clone());
     let mut object_array = vec![];
 
     constructors.iter().filter(|m| {
@@ -168,7 +168,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
             true
         }
     }).for_each(|m| {
-        push_new_object(jvm, frame, &constructor_class);
+        push_new_object(jvm, frame, &constructor_class,None);
         let constructor_object = frame.pop();
         object_array.push(constructor_object.clone());
 

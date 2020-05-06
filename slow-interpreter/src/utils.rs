@@ -5,6 +5,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::java_values::Object;
 use std::ops::Deref;
 use descriptor_parser::MethodDescriptor;
+use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 
 
 //todo the fact that I need a loader for this is dumb
@@ -21,7 +22,9 @@ pub fn lookup_method_parsed(state: &JVMState, class: Arc<RuntimeClass>, name: St
 pub fn lookup_method_parsed_impl(state: &JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
     match class.view().method_index().lookup(&name, &descriptor) {
         None => {
-            let super_class = state.initialized_classes.read().unwrap().get(&class.view().super_name().unwrap()).unwrap().clone();
+            let class_name = class.view().super_name().unwrap();
+            let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));
+            let super_class = state.initialized_classes.read().unwrap().get(&lookup_type).unwrap().clone();
             lookup_method_parsed_impl(state, super_class, name, descriptor, loader)
         }
         Some(method_view) => {

@@ -38,7 +38,7 @@ pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
     let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let string_class = check_inited_class(
         jvm,
-        &java_lang_string,
+        &java_lang_string.into(),
         current_loader.clone(),
     );
     let str_as_vec = res_string.chars();

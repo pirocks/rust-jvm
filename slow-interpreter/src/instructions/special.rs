@@ -30,7 +30,7 @@ pub fn invoke_checkcast(jvm: & JVMState, current_frame: & StackEntry, cp: u16) {
         Object(o) => {
             let view = &current_frame.class_pointer.view();
             let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
-            let instanceof_class = check_inited_class(jvm, &instance_of_class_name, current_frame.class_pointer.loader(jvm).clone());
+            let instanceof_class = check_inited_class(jvm, &instance_of_class_name.into(), current_frame.class_pointer.loader(jvm).clone());
             let object_class = o.class_pointer.clone();
             if inherits_from(jvm, &object_class, &instanceof_class) {
                 current_frame.push(JavaValue::Object(object.clone().into()));
@@ -52,8 +52,8 @@ pub fn invoke_checkcast(jvm: & JVMState, current_frame: & StackEntry, cp: u16) {
             let expected_type = expected_type_wrapped.unwrap_array_type();
             let cast_succeeds = match &a.elem_type {
                 PTypeView::Ref(_) => {
-                    let actual_runtime_class = check_inited_class(jvm, &a.elem_type.unwrap_class_type(), current_frame.class_pointer.loader(jvm).clone());
-                    let expected_runtime_class = check_inited_class(jvm, &expected_type.unwrap_class_type(), current_frame.class_pointer.loader(jvm).clone());
+                    let actual_runtime_class = check_inited_class(jvm, &a.elem_type.unwrap_class_type().clone().into(), current_frame.class_pointer.loader(jvm).clone());
+                    let expected_runtime_class = check_inited_class(jvm, &expected_type.unwrap_class_type().clone().into(), current_frame.class_pointer.loader(jvm).clone());
                     inherits_from(jvm, &actual_runtime_class, &expected_runtime_class)
                 },
                 _ => {
@@ -107,7 +107,7 @@ pub fn instance_of_impl(jvm: &JVMState, current_frame: &StackEntry, unwrapped: A
         Object(object) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
-                    let instanceof_class = check_inited_class(jvm, &instance_of_class_name, current_frame.class_pointer.loader(jvm).clone());
+                    let instanceof_class = check_inited_class(jvm, &instance_of_class_name.into(), current_frame.class_pointer.loader(jvm).clone());
                     let object_class = object.class_pointer.clone();
                     if inherits_from(jvm, &object_class, &instanceof_class) {
                         current_frame.push(JavaValue::Int(1))
@@ -123,7 +123,7 @@ pub fn instance_of_impl(jvm: &JVMState, current_frame: &StackEntry, unwrapped: A
 
 fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.view().super_name().is_some() {
-        Some(check_inited_class(jvm, &inherits.view().super_name().unwrap(), inherits.loader(jvm).clone()))
+        Some(check_inited_class(jvm, &inherits.view().super_name().unwrap().into(), inherits.loader(jvm).clone()))
     } else {
         None
     }
@@ -132,7 +132,7 @@ fn runtime_super_class(jvm: & JVMState, inherits: &Arc<RuntimeClass>) -> Option<
 
 fn runtime_interface_class(jvm: & JVMState, class_: &Arc<RuntimeClass>, i: Interface) -> Arc<RuntimeClass> {
     let intf_name = class_.view().constant_pool_view(i as usize).unwrap_class().class_name().unwrap_name();
-    check_inited_class(jvm, &intf_name,  class_.loader(jvm).clone())
+    check_inited_class(jvm, &intf_name.into(),  class_.loader(jvm).clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>

@@ -14,7 +14,7 @@ pub fn invoke_interface(jvm: & JVMState, current_frame: &StackEntry, invoke_inte
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &view);
     let class_name_ = class_name_type.unwrap_class_type();
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
-    let _target_class = check_inited_class(jvm, &class_name_, loader_arc.clone());
+    let _target_class = check_inited_class(jvm, &class_name_.into(), loader_arc.clone());
     let mut args = vec![];
     let checkpoint = current_frame.operand_stack.borrow().clone();
     setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);

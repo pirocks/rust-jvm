@@ -29,9 +29,12 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
     //todo implement thread priority
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
-    let name = JavaValue::Object(from_object(transmute(thread))).cast_thread().name().to_rust_string();
+    let name = JavaValue::Object(from_object(transmute(thread)))
+        .cast_thread()
+        .name()
+        .to_rust_string();
     let args = ThreadArgWrapper { proc_, arg, thread };
-    let system_class = check_inited_class(jvm, &ClassName::system(), jvm.bootstrap_loader.clone());
+    let system_class = check_inited_class(jvm, &ClassName::system().into(), jvm.bootstrap_loader.clone());
 //TODO ADD THREAD TO JVM STATE STRUCT
     //todo handle join handles somehow
     let _join_handle = std::thread::Builder::new()

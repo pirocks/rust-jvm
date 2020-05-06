@@ -29,7 +29,7 @@ pub mod member_name {
         // private Object type;
         // private int flags;
         pub fn get_name(&self, jvm: &JVMState, frame: &StackEntry) -> JString {
-            let member_name_class = check_inited_class(jvm, &ClassName::member_name(), frame.class_pointer.loader(jvm).clone());
+            let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string());
             frame.pop().cast_string()
@@ -40,14 +40,14 @@ pub mod member_name {
         }
 
         pub fn get_method_type(&self, jvm: &JVMState, frame: &StackEntry) -> MethodType {
-            let member_name_class = check_inited_class(jvm, &ClassName::member_name(), frame.class_pointer.loader(jvm).clone());
+            let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, &member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
             frame.pop().cast_method_type()
         }
 
         pub fn get_field_type(&self, jvm: &JVMState, frame: &StackEntry) -> JClass {
-            let member_name_class = check_inited_class(jvm, &ClassName::member_name(), frame.class_pointer.loader(jvm).clone());
+            let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string());
             frame.pop().cast_class()
@@ -238,7 +238,7 @@ pub mod thread {
         }
 
         pub fn run(&self, jvm : &JVMState, frame: &StackEntry){
-            let thread_class = check_inited_class(jvm,&ClassName::thread(),frame.class_pointer.loader(jvm).clone());
+            let thread_class = check_inited_class(jvm,&ClassName::thread().into(),frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm,&thread_class,"run".to_string(),"()V".to_string());
 

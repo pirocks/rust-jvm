@@ -69,7 +69,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
         let obj = from_object(cls);
         let type_ = JavaValue::Object(obj).cast_class().as_type();
         let name = type_.unwrap_type_to_name().unwrap();
-        let class_for_access_flags = check_inited_class(jvm, &name, frame.class_pointer.loader(jvm).clone());
+        let class_for_access_flags = check_inited_class(jvm, &name.into(), frame.class_pointer.loader(jvm).clone());
         (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
     } else {
         jclass.as_runtime_class().view().access_flags() as jint

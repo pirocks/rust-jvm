@@ -12,6 +12,7 @@ use crate::instructions::ldc::from_constant_pool_entry;
 use descriptor_parser::parse_field_descriptor;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::interpreter::run_function;
+use rust_jvm_common::classnames::ClassName;
 
 #[derive(Debug, PartialEq, Hash)]
 pub enum RuntimeClass{
@@ -30,7 +31,7 @@ pub enum RuntimeClass{
 
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub struct RuntimeClassArray{
-
+    pub sub_class: Arc<RuntimeClass>
 }
 
 

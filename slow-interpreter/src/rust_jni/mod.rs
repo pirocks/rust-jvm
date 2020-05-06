@@ -221,13 +221,13 @@ pub fn get_all_methods(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeCl
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_inited_class(jvm, &ClassName::object(), class.loader(jvm).clone());
+        let object = check_inited_class(jvm, &ClassName::object().into(), class.loader(jvm).clone());
         object.view().methods().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name().unwrap();
-        let super_ = check_inited_class(jvm, &name, class.loader(jvm).clone());
+        let super_ = check_inited_class(jvm, &name.into(), class.loader(jvm).clone());
         for (c, i) in get_all_methods(jvm, frame, super_) {
             res.push((c, i));
         }
@@ -243,13 +243,13 @@ pub fn get_all_fields(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeCla
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_inited_class(jvm, &ClassName::object(), class.loader(jvm).clone());
+        let object = check_inited_class(jvm, &ClassName::object().into(), class.loader(jvm).clone());
         object.view().fields().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name();
-        let super_ = check_inited_class(jvm, &name.unwrap(), class.loader(jvm).clone());
+        let super_ = check_inited_class(jvm, &name.unwrap().into(), class.loader(jvm).clone());
         for (c, i) in get_all_fields(jvm, frame, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }

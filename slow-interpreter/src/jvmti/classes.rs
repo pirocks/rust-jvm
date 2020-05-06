@@ -98,7 +98,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     let class_object_wrapped = from_object(transmute(klass)).unwrap();
     let class = JavaValue::Object(class_object_wrapped.into()).cast_class();
     let class_name = class.as_type().unwrap_class_type();
-    let loaded_class = check_inited_class(jvm, &class_name, jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
+    let loaded_class = check_inited_class(jvm, &class_name.into(), jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
     method_count_ptr.write(loaded_class.view().num_methods() as i32);
     //todo use Layout instead of whatever this is.
     *methods_ptr = libc::malloc((size_of::<*mut c_void>()) * (*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;

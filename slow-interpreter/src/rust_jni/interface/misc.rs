@@ -40,7 +40,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
 //    frame.print_stack_trace();
-    let _inited_class = check_inited_class(jvm, &super_name, frame.class_pointer.loader(jvm).clone());
+    let _inited_class = check_inited_class(jvm, &super_name.clone().into(), frame.class_pointer.loader(jvm).clone());
     load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     to_object(frame.pop().unwrap_object())
 }

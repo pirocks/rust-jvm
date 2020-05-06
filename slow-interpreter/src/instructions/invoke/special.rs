@@ -20,7 +20,7 @@ pub fn invoke_special(jvm: &JVMState, current_frame: &StackEntry, cp: u16) -> ()
     let method_class_name = method_class_type.unwrap_class_type();
     let target_class = check_inited_class(
         jvm,
-        &method_class_name,
+        &method_class_name.into(),
         loader_arc.clone()
     );
     let (target_m_i, final_target_class) = find_target_method(jvm, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);

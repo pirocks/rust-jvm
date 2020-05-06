@@ -382,3 +382,11 @@ impl PTypeView {
         }
     }
 }
+
+
+
+impl From<ClassName> for PTypeView{
+    fn from(cn: ClassName) -> Self {
+        Self::Ref(ReferenceTypeView::Class(cn))
+    }
+}

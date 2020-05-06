@@ -12,7 +12,7 @@ pub fn new(jvm: &JVMState, current_frame: &StackEntry, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let view = &current_frame.class_pointer.view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
-    let target_classfile = check_inited_class(jvm, &target_class_name, loader_arc.clone());
+    let target_classfile = check_inited_class(jvm, &target_class_name.clone().into(), loader_arc.clone());
     push_new_object(jvm, current_frame, &target_classfile, None);
 }
 
@@ -39,7 +39,7 @@ pub fn anewarray(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
 pub fn a_new_array_from_name(jvm: &JVMState, current_frame: &StackEntry, len: i32, name: &ClassName) -> () {
     check_inited_class(
         jvm,
-        &name,
+        &name.clone().into(),
         current_frame.class_pointer.loader(jvm).clone(),
     );
     let t = PTypeView::Ref(ReferenceTypeView::Class(name.clone()));
@@ -85,11 +85,9 @@ pub fn newarray(jvm: &JVMState, current_frame: &StackEntry, a_type: Atype) -> ()
 pub fn multi_a_new_array(jvm: &JVMState, current_frame: &StackEntry, cp: MultiNewArray) -> () {
     let dims = cp.dims;
     let temp = current_frame.class_pointer.view().constant_pool_view(cp.index as usize);
-    let type_ = temp.unwrap_class();
-    let name = type_.class_name();
-    dbg!(&name);
+    let type_ = temp.unwrap_class().class_name();
 
-    check_inited_class(jvm, &name.unwrap_arrays_to_name().unwrap(), current_frame.class_pointer.loader(jvm).clone());
+    check_inited_class(jvm, &PTypeView::Ref(type_), current_frame.class_pointer.loader(jvm).clone());
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     for _ in 0..dims {

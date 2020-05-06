@@ -22,7 +22,7 @@ pub fn run_invoke_static(jvm: & JVMState, current_frame: &StackEntry, cp: u16) {
     let class_name = class_name_type.unwrap_class_type();
     let target_class = check_inited_class(
         jvm,
-        &class_name,
+        &class_name.into(),
         loader_arc.clone()
     );
     let (target_method_i, final_target_method) = find_target_method(jvm, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);

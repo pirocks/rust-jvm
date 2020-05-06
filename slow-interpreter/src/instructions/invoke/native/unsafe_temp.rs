@@ -109,7 +109,7 @@ pub fn object_field_offset(
     let temp = param1_obj.lookup_field("clazz");
     let field_class = temp.cast_class();
     let field_class_name = field_class.as_type().unwrap_ref_type().unwrap_name();
-    let inited_field_class = check_inited_class(jvm, &field_class_name, frame.class_pointer.loader(jvm).clone());
+    let inited_field_class = check_inited_class(jvm, &field_class_name.into(), frame.class_pointer.loader(jvm).clone());
     let field_classfile = inited_field_class.view();
     let mut res = None;
     &field_classfile.fields().enumerate().for_each(|(i, f)| {
@@ -122,6 +122,6 @@ pub fn object_field_offset(
 
 
 pub fn shouldBeInitialized(state: &JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
-    let class_name_to_check = args[1].cast_class().as_type().unwrap_type_to_name().unwrap();//todo should be dome kind of should be inited
+    let class_name_to_check = args[1].cast_class().as_type();
     JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some()).into()
 }
