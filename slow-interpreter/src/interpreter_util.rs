@@ -59,6 +59,8 @@ pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: A
 }
 
 
+
+
 pub fn check_inited_class(
     jvm: &JVMState,
     ptype: &PTypeView,
@@ -105,30 +107,58 @@ pub fn check_inited_class(
             }
         }
         &ptype.unwrap_type_to_name().map(|class_name|jvm.tracing.trace_class_loads(&class_name));
-        match &ptype{
-            PTypeView::ByteType => unimplemented!(),
-            PTypeView::CharType => unimplemented!(),
-            PTypeView::DoubleType => unimplemented!(),
-            PTypeView::FloatType => unimplemented!(),
-            PTypeView::IntType => unimplemented!(),
-            PTypeView::LongType => unimplemented!(),
+        let new_rclass = match &ptype{
+            PTypeView::ByteType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Byte)//todo duplication with last line
+            },
+            PTypeView::CharType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Char)//todo duplication with last line
+            },
+            PTypeView::DoubleType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Double)
+            },
+            PTypeView::FloatType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Float)//todo duplication with last line
+            },
+            PTypeView::IntType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Int)//todo duplication with last line
+            },
+            PTypeView::LongType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Long)//todo duplication with last line
+            },
             PTypeView::Ref(ref_) => match ref_{
                 ReferenceTypeView::Class(class_name) => {
                     let new_rclass = check_inited_class_impl(jvm,class_name,loader_arc);
-                    jvm.initialized_classes.write().unwrap().insert(ptype.clone(),new_rclass);
+                    new_rclass
                 },
                 ReferenceTypeView::Array(arr) => {
                     let array_type_class = check_inited_class(jvm,arr.deref(),loader_arc);
                     let new_rclass = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class: array_type_class }));
-                    jvm.initialized_classes.write().unwrap().insert(ptype.clone(),new_rclass);
+                    new_rclass
                 },
             },
-            PTypeView::ShortType => unimplemented!(),
-            PTypeView::BooleanType => unimplemented!(),
-            PTypeView::VoidType => unimplemented!(),
+            PTypeView::ShortType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Short)//todo duplication with last line
+            },
+            PTypeView::BooleanType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Boolean)//todo duplication with last line
+            },
+            PTypeView::VoidType => {
+                check_inited_class(jvm,&ptype.primitive_to_non_primitive_equiv().into(),loader_arc);
+                Arc::new(RuntimeClass::Void)//todo duplication with last line
+            },
             PTypeView::TopType | PTypeView::NullType | PTypeView::Uninitialized(_) | PTypeView::UninitializedThis |
-            PTypeView::UninitializedThisOrClass(_) => unimplemented!(),
-        }
+            PTypeView::UninitializedThisOrClass(_) => panic!(),
+        };
+        jvm.initialized_classes.write().unwrap().insert(ptype.clone(),new_rclass);
         // jvm.jvmti_state.built_in_jdwp.class_prepare(jvm, ptype)//todo this should really happen in the function that actually does preparing
     } else {}
     //todo race?

@@ -207,6 +207,21 @@ impl PTypeView {
         }
         res
     }
+
+    pub fn primitive_to_non_primitive_equiv(&self) -> ClassName{
+        match self{
+            PTypeView::ByteType => ClassName::byte(),
+            PTypeView::CharType => ClassName::character(),
+            PTypeView::DoubleType => ClassName::double(),
+            PTypeView::FloatType => ClassName::float(),
+            PTypeView::IntType => ClassName::int(),
+            PTypeView::LongType => ClassName::long(),
+            PTypeView::ShortType => ClassName::short(),
+            PTypeView::BooleanType => ClassName::boolean(),
+            PTypeView::VoidType => ClassName::void(),
+            _ => panic!(),
+        }
+    }
 }
 
 #[derive(Debug)]
