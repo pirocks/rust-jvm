@@ -16,9 +16,9 @@ use classfile_view::view::constant_info_view::{ConstantInfoView, StringView, Cla
 
 
 fn load_class_constant(state: &JVMState, current_frame: &StackEntry, c: &ClassPoolElemView) {
-    let res_class_name = c.class_name().unwrap_name();
-    let type_ = parse_field_descriptor(res_class_name.get_referred_name().as_str()).unwrap().field_type;
-    load_class_constant_by_type(state, current_frame, &PTypeView::from_ptype(&type_));
+    let res_class_name = c.class_name();
+    let type_ = PTypeView::Ref(res_class_name);
+    load_class_constant_by_type(state, current_frame, &type_);
 }
 
 pub fn load_class_constant_by_type(jvm: &JVMState, current_frame: &StackEntry, res_class_type: &PTypeView) {

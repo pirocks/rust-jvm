@@ -56,8 +56,7 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
     let mut res_vec = vec![];
 //todo what about int.class and other primitive classes
     jvm.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
-        let name = runtime_class.view().name();
-        let class_object = get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(name)), frame.deref(), runtime_class.loader(jvm).clone());
+        let class_object = get_or_create_class_object(jvm, &runtime_class.ptypeview(), frame.deref(), runtime_class.loader(jvm).clone());
         res_vec.push(to_object(class_object.into()))
     });
     class_count_ptr.write(res_vec.len() as i32);

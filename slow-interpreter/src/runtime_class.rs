@@ -55,7 +55,9 @@ impl RuntimeClass{
             RuntimeClass::Float => PTypeView::FloatType,
             RuntimeClass::Double => PTypeView::DoubleType,
             RuntimeClass::Void => PTypeView::VoidType,
-            RuntimeClass::Array(_) => unimplemented!(),
+            RuntimeClass::Array(arr) => {
+                PTypeView::Ref(ReferenceTypeView::Array(box arr.sub_class.ptypeview()))
+            },
             RuntimeClass::Object(o) => {
                 PTypeView::Ref(ReferenceTypeView::Class(o.class_view.name()))
             },
@@ -77,18 +79,18 @@ impl RuntimeClass{
         }
     }
 
-    pub fn loader(&self , _jvm: &JVMState) -> LoaderArc{
+    pub fn loader(&self , jvm: &JVMState) -> LoaderArc{
         match self{
-            RuntimeClass::Byte => unimplemented!(),
-            RuntimeClass::Boolean => unimplemented!(),
-            RuntimeClass::Short => unimplemented!(),
-            RuntimeClass::Char => unimplemented!(),
-            RuntimeClass::Int => unimplemented!(),
-            RuntimeClass::Long => unimplemented!(),
-            RuntimeClass::Float => unimplemented!(),
-            RuntimeClass::Double => unimplemented!(),
-            RuntimeClass::Void => unimplemented!(),
-            RuntimeClass::Array(_) => unimplemented!(),
+            RuntimeClass::Byte => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Boolean => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Short => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Char => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Int => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Long => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Float => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Double => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Void => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Array(a) => a.sub_class.loader(jvm),//todo technically this is wrong
             RuntimeClass::Object(o) => o.loader.clone(),
         }
     }
