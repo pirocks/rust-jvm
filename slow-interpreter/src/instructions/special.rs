@@ -9,7 +9,6 @@ use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::Object::{Array, Object};
 use crate::java_values;
-use descriptor_parser::parse_field_type;
 use classfile_view::view::interface_view::InterfaceView;
 
 

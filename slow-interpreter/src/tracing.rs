@@ -25,7 +25,7 @@ impl TracingSettings {
             trace_function_start: false,
             trace_jni_register: false,
             trace_jni_dynamic_link: false,
-            trace_class_loads: false,
+            trace_class_loads: true,
             trace_jdwp_events: true,
             trace_jdwp_function_enter: true,
             trace_jdwp_function_exit: true,//todo parse this from options in future

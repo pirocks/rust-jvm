@@ -77,13 +77,14 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
     let clazz_as_runtime_class = clazz.as_runtime_class();
     let name = string_obj_to_string(member_name.lookup_field("name").unwrap_object());
     let debug = &name == "checkSpreadArgument";
-    let type_ = type_java_value.cast_class();
+    let type_ = type_java_value.unwrap_normal_object();
     if is_field {
         assert!(!is_method);
         let all_fields = get_all_fields(jvm, frame.clone(), clazz_as_runtime_class);
         dbg!(&type_);
-        if type_.as_runtime_class().view().name() == ClassName::class() {
-            let target_ptype = type_.as_type();
+        if type_.class_pointer.view().name() == ClassName::class() {
+            let typejclass = type_java_value.cast_class();
+            let target_ptype = typejclass.as_type();
             let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
                 let field = c.view().field(*i);
                 field.field_name() == name &&
@@ -103,7 +104,7 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
         assert!(!is_field);
         // frame.print_stack_trace();
         let all_methods = get_all_methods(jvm, frame.clone(), clazz_as_runtime_class);
-        if type_.as_runtime_class().view().name() == ClassName::method_type() {
+        if type_.class_pointer.view().name() == ClassName::method_type() {
             let r_type_class = type_java_value.unwrap_object_nonnull().lookup_field("rtype").unwrap_object_nonnull();
             let param_types_class = type_java_value.unwrap_object_nonnull().lookup_field("ptypes").unwrap_array().unwrap_object_array_nonnull();
             let _r_type_as_ptype = JavaValue::Object(r_type_class.into()).cast_class().as_type();

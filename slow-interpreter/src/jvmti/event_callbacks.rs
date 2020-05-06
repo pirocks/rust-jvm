@@ -205,7 +205,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     }
 
     fn ThreadStart_enable(&self) {
-        assert!(self.thread_start_callback.read().unwrap().is_some());
+        // assert!(self.thread_start_callback.read().unwrap().is_some());
         *self.thread_start_enabled.write().unwrap() = true;
     }
 

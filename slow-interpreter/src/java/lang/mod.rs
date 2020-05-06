@@ -74,6 +74,8 @@ pub mod class {
 
     impl JavaValue {
         pub fn cast_class(&self) -> JClass {
+            assert_eq!(self.unwrap_normal_object().class_pointer.view().name(), ClassName::class());
+            assert!(self.unwrap_normal_object().class_object_type.is_some());
             JClass { normal_object: self.unwrap_object_nonnull() }
         }
     }
