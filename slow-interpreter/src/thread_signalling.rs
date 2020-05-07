@@ -1,11 +1,12 @@
-use nix::sys::signal::{SigAction, SigHandler, SigSet};
+use nix::sys::signal::{SigAction, SigHandler, SigSet, sigaction};
 use crate::{JVMState, JavaThread};
 use nix::sys::signal::Signal;
 use std::convert::TryFrom;
 use std::mem::transmute;
-use crate::signal::{sigqueue, sigval};
+use crate::signal::{sigqueue, sigval, SA_SIGINFO};
 use std::ffi::c_void;
 use crate::jvmti::event_callbacks::{JVMTIEvent, DebuggerEventConsumer};
+use nix::errno::errno;
 
 pub struct JVMTIEventData<'l> {
     pub event: JVMTIEvent,
@@ -19,7 +20,10 @@ pub enum SignalReason<'l> {
 
 impl JVMState {
     pub fn init_signal_handler(&self) {
-        SigAction::new(SigHandler::SigAction(handler), unsafe { transmute(0 as libc::c_int) }, SigSet::all());
+        unsafe {
+            let sa = SigAction::new(SigHandler::SigAction(handler), transmute(SA_SIGINFO as libc::c_int), SigSet::all());
+            sigaction(Signal::SIGUSR1, &sa).unwrap();
+        };
     }
 
     pub fn trigger_jvmti_event(&self, t: &JavaThread, event: JVMTIEvent) {
@@ -32,6 +36,7 @@ impl JVMState {
         let sigval_ = sigval { sival_ptr: metadata_void_ptr };
         let res = sigqueue(t.unix_tid.as_raw(), transmute(Signal::SIGUSR1), sigval_);
         if res != 0 {
+            dbg!(errno());
             panic!()
         }
     }
@@ -43,20 +48,20 @@ extern fn handler(signal_number: libc::c_int, _siginfo: *mut libc::siginfo_t, da
     match reason {
         SignalReason::JVMTIEvent(jvmti_data) => {
             let JVMTIEventData { event, jvm } = jvmti_data;
-             match event {
-                 JVMTIEvent::VMInit(init) => {
-                     unsafe {jvm.jvmti_state.built_in_jdwp.VMInit(jvm,init)}
-                 },
-                 JVMTIEvent::ThreadStart(thread_start) => {
-                     unsafe {jvm.jvmti_state.built_in_jdwp.ThreadStart(jvm,thread_start)}
-                 },
-                 JVMTIEvent::Breakpoint(breakpoint) => {
-                     unsafe { jvm.jvmti_state.built_in_jdwp.Breakpoint(jvm,breakpoint)}
-                 }
-                 JVMTIEvent::ClassPrepare(classprepare) => {
-                     unsafe {jvm.jvmti_state.built_in_jdwp.ClassPrepare(jvm,classprepare)}
-                 }
-             }
+            match event {
+                JVMTIEvent::VMInit(init) => {
+                    unsafe { jvm.jvmti_state.built_in_jdwp.VMInit(jvm, init) }
+                }
+                JVMTIEvent::ThreadStart(thread_start) => {
+                    unsafe { jvm.jvmti_state.built_in_jdwp.ThreadStart(jvm, thread_start) }
+                }
+                JVMTIEvent::Breakpoint(breakpoint) => {
+                    unsafe { jvm.jvmti_state.built_in_jdwp.Breakpoint(jvm, breakpoint) }
+                }
+                JVMTIEvent::ClassPrepare(classprepare) => {
+                    unsafe { jvm.jvmti_state.built_in_jdwp.ClassPrepare(jvm, classprepare) }
+                }
+            }
         }
     }
     unimplemented!()

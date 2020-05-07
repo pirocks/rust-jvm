@@ -111,12 +111,12 @@ impl SharedLibJVMTI {
         })
     }
 
-    fn trigger_event_threads(jvm: &JVMState, threads: &HashMap<ThreadId, bool>, jvmti_event: &JVMTIEvent) {
+    fn trigger_event_threads(jvm: &JVMState, threads: &HashMap<ThreadId, bool>, jvmti_event: &dyn Fn() -> JVMTIEvent) {
         threads.iter().for_each(|(tid, enabled)| {
             if *enabled {
                 let read_guard = jvm.thread_state.alive_threads.read().unwrap();
                 let t = read_guard.get(tid).unwrap();
-                jvm.trigger_jvmti_event(t, jvmti_event.clone())
+                jvm.trigger_jvmti_event(t, jvmti_event())
             }
         });
     }
@@ -147,27 +147,33 @@ impl SharedLibJVMTI {
 
 
     pub fn class_prepare(&self, jvm: &JVMState, class: &ClassName) {
-        let thread = unsafe { to_object(jvm.get_current_thread().thread_object.borrow().clone().unwrap().object().into()) };
-        let klass_obj = get_or_create_class_object(jvm,
-                                                   &class.clone().into(),
-                                                   jvm.get_current_frame().deref(),
-                                                   jvm.bootstrap_loader.clone());
-        let klass = unsafe { to_object(klass_obj.into()) };
-        let event = JVMTIEvent::ClassPrepare(ClassPrepareEvent { thread, klass });
-        SharedLibJVMTI::trigger_event_threads(jvm, &self.class_prepare_enabled.read().unwrap(), &event);
+        let event_getter= &||{
+            let thread = unsafe { to_object(jvm.get_current_thread().thread_object.borrow().clone().unwrap().object().into()) };
+            let klass_obj = get_or_create_class_object(jvm,
+                                                       &class.clone().into(),
+                                                       jvm.get_current_frame().deref(),
+                                                       jvm.bootstrap_loader.clone());
+            let klass = unsafe { to_object(klass_obj.into()) };
+            let event = JVMTIEvent::ClassPrepare(ClassPrepareEvent { thread, klass });
+            event
+        };
+        SharedLibJVMTI::trigger_event_threads(jvm, &self.class_prepare_enabled.read().unwrap(), event_getter);
     }
 
     pub fn breakpoint(&self, jvm: &JVMState, method: MethodId, location: i64) {
         unsafe {
-            let thread = to_object(jvm.get_current_thread().thread_object.borrow().as_ref().unwrap().clone().object().into());
-            let native_method_id = box method;//todo leaks here , use a vtable based methodId
-            let method = transmute(Box::leak(native_method_id));
-            let jvmti_event = JVMTIEvent::Breakpoint(BreakpointEvent {
-                thread,
-                method,
-                location,
-            });
-            SharedLibJVMTI::trigger_event_threads(jvm, &self.breakpoint_enabled.read().unwrap(), &jvmti_event);
+            let event_getter = &|| {
+                let thread = to_object(jvm.get_current_thread().thread_object.borrow().as_ref().unwrap().clone().object().into());
+                let native_method_id = box method.clone();//todo leaks here , use a vtable based methodId
+                let method = transmute(Box::leak(native_method_id));
+                let jvmti_event = JVMTIEvent::Breakpoint(BreakpointEvent {
+                    thread,
+                    method,
+                    location,
+                });
+                jvmti_event
+            };
+            SharedLibJVMTI::trigger_event_threads(jvm, &self.breakpoint_enabled.read().unwrap(), event_getter);
         }
     }
 }
@@ -362,13 +368,14 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 
 
 impl SharedLibJVMTI {
-    pub fn agent_load(&self, state: &JVMState, _thread: &JavaThread) -> jvmtiError {
+    pub fn agent_load(&self, jvm: &JVMState, _thread: &JavaThread) -> jvmtiError {
 //todo why is thread relevant/unused here
+        jvm.init_signal_handler();
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
             let args = CString::new("transport=dt_socket,server=y,suspend=y,address=5005").unwrap().into_raw();//todo parse these at jvm startup
-            let interface: *const JNIInvokeInterface_ = get_invoke_interface(state);
+            let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm);
             agent_load_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError//todo leak
         }
     }

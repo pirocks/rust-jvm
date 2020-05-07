@@ -12,6 +12,7 @@ extern crate lock_api;
 extern crate parking_lot;
 extern crate futures_intrusive;
 extern crate nix;
+extern crate errno;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
