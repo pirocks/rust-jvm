@@ -19,6 +19,13 @@ fn main() {
         .rustfmt_bindings(true)
         .generate().unwrap();
 
+    let signal = bindgen::Builder::default()
+        .header("signals-wrapper.h")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .derive_debug(true)
+        .rustfmt_bindings(true)
+        .generate().unwrap();
+
     let out_path = PathBuf::from("gen/");
     if !out_path.clone().into_boxed_path().exists() {
         create_dir(out_path.clone().into_boxed_path()).unwrap();
@@ -30,5 +37,9 @@ fn main() {
 
     std_arg
         .write_to_file(PathBuf::from("gen/stdarg.rs"))
+        .expect("Couldn't write bindings!");
+
+    signal
+        .write_to_file(PathBuf::from("gen/signal.rs"))
         .expect("Couldn't write bindings!");
 }

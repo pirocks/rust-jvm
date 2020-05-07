@@ -25,7 +25,7 @@ impl TracingSettings {
             trace_function_start: false,
             trace_jni_register: false,
             trace_jni_dynamic_link: false,
-            trace_class_loads: true,
+            trace_class_loads: false,
             trace_jdwp_events: true,
             trace_jdwp_function_enter: true,
             trace_jdwp_function_exit: true,//todo parse this from options in future
@@ -99,7 +99,7 @@ impl TracingSettings {
             }else {
                 "VM not live"
             };
-            println!("JVMTI [{}] {} {{",vm_life, function_name);
+            println!("JVMTI [{}] {} {{ ",vm_life, function_name);
         }
     }
 
@@ -112,6 +112,30 @@ impl TracingSettings {
                 "VM not live"
             };
             println!("JVMTI [{}] {} }}",vm_life, function_name);
+        }
+    }
+
+    pub fn trace_event_enable_global(&self, event_name: &str) {
+        if self.trace_jdwp_events {
+            println!("JVMTI [ALL] # user enabled event {}
+JVMTI [-] # recompute enabled - before 0
+JVMTI [-] # Enabling event {}
+JVMTI [-] # recompute enabled - after 0", event_name,event_name);
+        }
+    }
+
+    pub fn trace_event_disable_global(&self, event_name: &str){
+        if self.trace_jdwp_events {
+            println!("JVMTI [ALL] # user disabled event {}
+JVMTI [-] # recompute enabled - before 0
+JVMTI [-] # Disabling event {}
+JVMTI [-] # recompute enabled - after 0", event_name,event_name);
+        }
+    }
+
+    pub fn trace_event_trigger(&self, event_name: &str){
+        if self.trace_jdwp_events{
+            println!("JVMTI Trg {} triggered",event_name)
         }
     }
 }

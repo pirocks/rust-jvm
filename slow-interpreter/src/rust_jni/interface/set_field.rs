@@ -1,4 +1,4 @@
-use crate::rust_jni::native_util::{from_object, get_state, get_frame, from_jclass};
+use crate::rust_jni::native_util::{from_object, from_jclass};
 use jvmti_jni_bindings::{jboolean, jfieldID, jobject, JNIEnv, jlong, jint, jclass};
 use std::ops::DerefMut;
 use crate::rust_jni::interface::util::{FieldID};

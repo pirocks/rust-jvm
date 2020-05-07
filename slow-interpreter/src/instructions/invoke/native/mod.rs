@@ -15,7 +15,6 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::{Object, JavaValue};
-use std::io::Write;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
 use crate::sun::misc::unsafe_::Unsafe;

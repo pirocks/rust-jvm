@@ -23,6 +23,7 @@ lock_api = "0.3.4"
 parking_lot = "0.10.2"
 futures-intrusive = "0.3.0"
 thread-priority = "0.2.0"
+nix = "0.17.0"
 
 [build-dependencies]
 bindgen = "0.52.0"

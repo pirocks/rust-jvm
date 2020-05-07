@@ -14,6 +14,7 @@ use crate::stack_entry::StackEntry;
 use std::rc::Rc;
 use lock_api::Mutex;
 use thread_priority::*;
+use nix::unistd::gettid;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
@@ -70,6 +71,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
                         suspended_lock: Mutex::new(()),
                     }),
                 },
+                unix_tid: gettid()
             });
             // let result = jvm.thread_state.alive_threads.write();
             // result.unwrap().insert(agent_thread.java_tid, agent_thread.clone());//todo needs to be done via JavaThread constructor

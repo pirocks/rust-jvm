@@ -11,6 +11,7 @@ extern crate va_list;
 extern crate lock_api;
 extern crate parking_lot;
 extern crate futures_intrusive;
+extern crate nix;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
@@ -46,6 +47,7 @@ use crate::tracing::TracingSettings;
 use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
+use nix::unistd::{Pid, gettid};
 
 
 pub mod java_values;
@@ -66,6 +68,7 @@ pub struct JavaThread {
     //for the main thread the object may not exist for a bit,b/c the code to create that object needs to run on a thread
     //todo maybe this shouldn't be private?
     pub interpreter_state: InterpreterState,
+    pub unix_tid: Pid,
 }
 
 //todo is this correct?
@@ -360,6 +363,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.main_thread();
     assert!(Arc::ptr_eq(&jvm.get_current_thread(), &main_thread));
+    // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
     jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
     let main_stack = Rc::new(StackEntry {
         class_pointer: Arc::new(main_class),
@@ -419,6 +423,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
                 suspended_lock: Mutex::new(()),
             }),
         },
+        unix_tid: gettid(),
     }));
     let system_class = check_inited_class(jvm, &ClassName::system().into(), bl.clone());
     let init_method_view = locate_init_system_class(&system_class);
@@ -466,6 +471,8 @@ fn locate_main_method(_bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
     panic!();
 }
 
+
+pub mod thread_signalling;
 pub mod instructions;
 pub mod interpreter_util;
 pub mod rust_jni;
@@ -477,3 +484,4 @@ pub mod class_objects;
 pub mod monitor;
 pub mod tracing;
 pub mod interpreter;
+pub mod signal;

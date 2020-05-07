@@ -163,7 +163,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                       clazz: jclass,
                                       methods: *const JNINativeMethod,
                                       n_methods: jint) -> jint {
-    println!("Call to register_natives, n_methods: {}", n_methods);
+    // println!("Call to register_natives, n_methods: {}", n_methods);
     let jvm = get_state(env);
     // dbg!(state.get_current_thread());
     for to_register_i in 0..n_methods {

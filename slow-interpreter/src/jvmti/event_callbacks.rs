@@ -15,6 +15,7 @@ use crate::class_objects::get_or_create_class_object;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java::lang::thread::JThread;
 use std::ops::Deref;
+use crate::tracing::TracingSettings;
 
 pub struct SharedLibJVMTI {
     lib: Arc<Library>,
@@ -111,50 +112,52 @@ impl SharedLibJVMTI {
 pub trait DebuggerEventConsumer {
     unsafe fn VMInit(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
 
-    fn VMInit_enable(&self);
-    fn VMInit_disable(&self);
+    fn VMInit_enable(&self, trace: &TracingSettings);
+    fn VMInit_disable(&self, trace: &TracingSettings);
 
     unsafe fn VMDeath(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv);
 
-    fn VMDeath_enable(&self);
-    fn VMDeath_disable(&self);
+    fn VMDeath_enable(&self, trace: &TracingSettings);
+    fn VMDeath_disable(&self, trace: &TracingSettings);
 
     unsafe fn Exception(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation, exception: jobject, catch_method: jmethodID, catch_location: jlocation);
 
-    fn Exception_enable(&self);
-    fn Exception_disable(&self);
+    fn Exception_enable(&self, trace: &TracingSettings);
+    fn Exception_disable(&self, trace: &TracingSettings);
 
     unsafe fn ThreadStart(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
 
-    fn ThreadStart_enable(&self);
-    fn ThreadStart_disable(&self);
+    fn ThreadStart_enable(&self, trace: &TracingSettings);
+    fn ThreadStart_disable(&self, trace: &TracingSettings);
 
 
     unsafe fn ThreadEnd(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
 
-    fn ThreadEnd_enable(&self);
-    fn ThreadEnd_disable(&self);
+    fn ThreadEnd_enable(&self, trace: &TracingSettings);
+    fn ThreadEnd_disable(&self, trace: &TracingSettings);
 
     unsafe fn ClassPrepare(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, klass: jclass);
 
-    fn ClassPrepare_enable(&self);
-    fn ClassPrepare_disable(&self);
+    fn ClassPrepare_enable(&self, trace: &TracingSettings);
+    fn ClassPrepare_disable(&self, trace: &TracingSettings);
 
 
     unsafe fn GarbageCollectionFinish(jvmti_env: *mut jvmtiEnv);
-    fn GarbageCollectionFinish_enable(&self);
-    fn GarbageCollectionFinish_disable(&self);
+    fn GarbageCollectionFinish_enable(&self, trace: &TracingSettings);
+    fn GarbageCollectionFinish_disable(&self, trace: &TracingSettings);
 
 
     unsafe fn Breakpoint(&self, jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread, method: jmethodID, location: jlocation);
-    fn Breakpoint_enable(&self);
-    fn Breakpoint_disable(&self);
+    fn Breakpoint_enable(&self, trace: &TracingSettings);
+    fn Breakpoint_disable(&self, trace: &TracingSettings);
 }
 
 #[allow(non_snake_case)]
 impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn VMInit(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
         if *self.vm_init_enabled.read().unwrap() {
+            let jvm = get_state(jvmti_env);
+            jvm.tracing.trace_event_trigger("VMInit");
             let guard = self.vm_init_callback.read().unwrap();
             let f_pointer = *guard.as_ref().unwrap();
             std::mem::drop(guard);
@@ -162,11 +165,13 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         }
     }
 
-    fn VMInit_enable(&self) {
+    fn VMInit_enable(&self, trace: &TracingSettings) {
+        trace.trace_event_enable_global("VMInit");
         *self.vm_init_enabled.write().unwrap() = true;
     }
 
-    fn VMInit_disable(&self) {
+    fn VMInit_disable(&self, trace: &TracingSettings) {
+        trace.trace_event_disable_global("VMInit");
         *self.vm_init_enabled.write().unwrap() = false;
     }
 
@@ -176,11 +181,13 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         }
     }
 
-    fn VMDeath_enable(&self) {
+    fn VMDeath_enable(&self, trace: &TracingSettings) {
+        trace.trace_event_enable_global("VMDeath");
         *self.vm_death_enabled.write().unwrap() = true;
     }
 
-    fn VMDeath_disable(&self) {
+    fn VMDeath_disable(&self, trace: &TracingSettings) {
+        trace.trace_event_disable_global("VMDeath");
         *self.vm_death_enabled.write().unwrap() = false;
     }
 
@@ -190,26 +197,31 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         }
     }
 
-    fn Exception_enable(&self) {
+    fn Exception_enable(&self, trace: &TracingSettings) {
+        trace.trace_event_enable_global("Exception");
         *self.exception_enabled.write().unwrap() = true;
     }
 
-    fn Exception_disable(&self) {
+    fn Exception_disable(&self, trace: &TracingSettings) {
+        trace.trace_event_disable_global("Exception");
         *self.exception_enabled.write().unwrap() = false;
     }
 
     unsafe fn ThreadStart(&self, jvmti_env: *mut *const jvmtiInterface_1_, jni_env: *mut *const JNINativeInterface_, thread: *mut _jobject) {
-        if *self.thread_start_enabled.read().unwrap() {
+        if *self.thread_start_enabled.read().unwrap() {//todo kinda sorta maybe race condition
+            get_state(jvmti_env).tracing.trace_event_trigger("ThreadStart");
             (self.thread_start_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread);
         }
     }
 
-    fn ThreadStart_enable(&self) {
+    fn ThreadStart_enable(&self, trace: &TracingSettings) {
+        trace.trace_event_enable_global("ThreadStart");
         // assert!(self.thread_start_callback.read().unwrap().is_some());
         *self.thread_start_enabled.write().unwrap() = true;
     }
 
-    fn ThreadStart_disable(&self) {
+    fn ThreadStart_disable(&self, trace: &TracingSettings) {
+        trace.trace_event_disable_global("ThreadStart");
         *self.thread_start_enabled.write().unwrap() = false;
     }
 
@@ -217,11 +229,13 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         unimplemented!()
     }
 
-    fn ThreadEnd_enable(&self) {
+    fn ThreadEnd_enable(&self, trace: &TracingSettings) {
+        trace.trace_event_enable_global("ThreadEnd");
         *self.thread_start_enabled.write().unwrap() = true;
     }
 
-    fn ThreadEnd_disable(&self) {
+    fn ThreadEnd_disable(&self, trace: &TracingSettings) {
+        trace.trace_event_disable_global("ThreadEnd");
         *self.thread_start_enabled.write().unwrap() = false;
     }
 
@@ -231,11 +245,13 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         }
     }
 
-    fn ClassPrepare_enable(&self) {
+    fn ClassPrepare_enable(&self, trace: &TracingSettings) {
+        trace.trace_event_enable_global("ClassPrepare");
         *self.class_prepare_enabled.write().unwrap() = true;
     }
 
-    fn ClassPrepare_disable(&self) {
+    fn ClassPrepare_disable(&self, trace: &TracingSettings) {
+        trace.trace_event_disable_global("ClassPrepare");
         *self.class_prepare_enabled.write().unwrap() = false;
     }
 
@@ -244,11 +260,13 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         unimplemented!()
     }
 
-    fn GarbageCollectionFinish_enable(&self) {
+    fn GarbageCollectionFinish_enable(&self, trace: &TracingSettings) {
+        trace.trace_event_enable_global("GarbageCollectionFinish");
         *self.garbage_collection_finish_enabled.write().unwrap() = true;
     }
 
-    fn GarbageCollectionFinish_disable(&self) {
+    fn GarbageCollectionFinish_disable(&self, trace: &TracingSettings) {
+        trace.trace_event_disable_global("GarbageCollectionFinish");
         *self.garbage_collection_finish_enabled.write().unwrap() = false;
     }
 
@@ -258,11 +276,13 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         }
     }
 
-    fn Breakpoint_enable(&self) {
+    fn Breakpoint_enable(&self, trace: &TracingSettings) {
+        trace.trace_event_enable_global("Breakpoint");
         *self.breakpoint_enabled.write().unwrap() = true;
     }
 
-    fn Breakpoint_disable(&self) {
+    fn Breakpoint_disable(&self, trace: &TracingSettings) {
+        trace.trace_event_disable_global("Breakpoint");
         *self.breakpoint_enabled.write().unwrap() = false;
     }
 }
