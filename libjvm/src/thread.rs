@@ -1,7 +1,7 @@
 use slow_interpreter::interpreter_util::{push_new_object, check_inited_class};
 
 use std::cell::RefCell;
-use std::sync::{Arc, RwLockWriteGuard, RwLock};
+use std::sync::{Arc, RwLockWriteGuard, RwLock, Condvar};
 use rust_jvm_common::classnames::ClassName;
 use jvmti_jni_bindings::{JNIEnv, jclass, jobject, jlong, jint, jboolean, jobjectArray, jstring, jintArray};
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object, from_jclass};
@@ -18,6 +18,7 @@ use slow_interpreter::interpreter::run_function;
 use descriptor_parser::MethodDescriptor;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::ptype::PType;
+use nix::unistd::gettid;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -33,23 +34,27 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     } else {
         let frame = get_frame(env);
         let thread_class = check_inited_class(jvm, &ClassName::thread().into(), frame.class_pointer.loader(jvm).clone());
-
-        let thread_from_rust = Arc::new(JavaThread {
-            java_tid: tid,
-            call_stack: RefCell::new(vec![]),
-            thread_object: RefCell::new(thread_object.into()),
-            interpreter_state: InterpreterState {
-                terminate: RefCell::new(false),
-                throw: RefCell::new(None),
-                function_return: RefCell::new(false),
-                suspended: RwLock::new(SuspendedStatus {
-                    suspended: false,
-                    suspended_lock: Mutex::new(()),
-                }),
-            },
-        });
-        all_threads_guard.insert(tid, thread_from_rust.clone());
+        let thread_creation_complete = Arc::new(Condvar::new());
+        let thread_creation_complete_copy = thread_creation_complete.clone();
+        let mutex = std::sync::Mutex::new(());
         std::thread::spawn(move || {
+            let thread_from_rust = Arc::new(JavaThread {
+                java_tid: tid,
+                call_stack: RefCell::new(vec![]),
+                thread_object: RefCell::new(thread_object.into()),
+                interpreter_state: InterpreterState {
+                    terminate: RefCell::new(false),
+                    throw: RefCell::new(None),
+                    function_return: RefCell::new(false),
+                    suspended: RwLock::new(SuspendedStatus {
+                        suspended: false,
+                        suspended_lock: Mutex::new(()),
+                    }),
+                },
+                unix_tid: gettid()
+            });
+            jvm.thread_state.alive_threads.write().unwrap().insert(tid, thread_from_rust.clone());
+            thread_creation_complete.clone().notify_one();
             let new_thread_frame = Rc::new(StackEntry {
                 class_pointer: thread_class.clone(),
                 method_i: std::u16::MAX,
@@ -63,6 +68,9 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
             thread_from_rust.thread_object.borrow().as_ref().unwrap().run(jvm, &new_thread_frame);
             thread_from_rust.call_stack.borrow_mut().pop();
         });
+        //todo this whole thread start is very racy and needs fixing
+        std::mem::drop(all_threads_guard);
+        thread_creation_complete_copy.wait(mutex.lock().unwrap());
     }
 }
 

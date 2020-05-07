@@ -8,6 +8,7 @@ extern crate simple_logger;
 extern crate regex;
 extern crate num_cpus;
 extern crate libc;
+extern crate nix;
 
 use std::str::from_utf8;
 use std::borrow::Borrow;

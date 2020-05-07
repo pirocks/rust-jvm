@@ -37,8 +37,6 @@ pub unsafe extern "C" fn get_object_field(_env: *mut JNIEnv, obj: jobject, field
 
 
 pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {
-    let state = get_state(env);
-    let frame = get_frame(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let runtime_class = from_jclass(clazz).as_runtime_class();
     let view = &runtime_class.view();

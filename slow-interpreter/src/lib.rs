@@ -385,7 +385,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     std::mem::drop(breakpoint_offsets
         .map(|x| x.iter().for_each(|i| {
             //todo handle this breakpoint the usual way
-            jvm.jvmti_state.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), *i);
+            jvm.jvmti_state.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), *i as i64);
         })));
     std::mem::drop(breakpoints);
     //todo so this DUMB AND VERY TEMPORARY UNTIL I CAN FIGURE OUT A RACE CONDITION LIKELY NOT IN MY CODE.
