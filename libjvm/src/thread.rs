@@ -19,6 +19,7 @@ use descriptor_parser::MethodDescriptor;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::ptype::PType;
 use nix::unistd::gettid;
+use nix::sys::pthread::pthread_self;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -29,7 +30,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     // dbg!("start");
     // dbg!(thread_object.name().to_rust_string());
     let mut all_threads_guard = jvm.thread_state.alive_threads.write().unwrap();
-    if all_threads_guard.contains_key(&tid) {
+    if all_threads_guard.contains_key(&tid) || Arc::ptr_eq(&jvm.main_thread(),&jvm.get_current_thread()) {
         //todo for now we ignore this, but irl we should only ignore this for main thread
     } else {
         let frame = get_frame(env);
@@ -54,6 +55,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
                 unix_tid: gettid()
             });
             jvm.thread_state.alive_threads.write().unwrap().insert(tid, thread_from_rust.clone());
+            jvm.init_signal_handler();
             thread_creation_complete.clone().notify_one();
             let new_thread_frame = Rc::new(StackEntry {
                 class_pointer: thread_class.clone(),

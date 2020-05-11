@@ -358,7 +358,6 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let guard = self.breakpoint_enabled.write().unwrap();
         SharedLibJVMTI::enable_impl(tid, guard)
     }
-
     fn Breakpoint_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
         trace.trace_event_disable_global("Breakpoint");
         let guard = self.breakpoint_enabled.write().unwrap();

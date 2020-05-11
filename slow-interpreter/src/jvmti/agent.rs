@@ -15,6 +15,7 @@ use std::rc::Rc;
 use lock_api::Mutex;
 use thread_priority::*;
 use nix::unistd::gettid;
+use nix::sys::pthread::pthread_self;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
@@ -77,6 +78,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             // result.unwrap().insert(agent_thread.java_tid, agent_thread.clone());//todo needs to be done via JavaThread constructor
             // todo this isn't strictly a java thread so not alive?
             println!("start thread:{}", &thread_object.name().to_rust_string());
+            // jvm.init_signal_handler();
             jvm.set_current_thread(agent_thread.clone());
             let mut jvmti = get_jvmti_interface(jvm);
             let mut jni_env = get_interface(jvm);

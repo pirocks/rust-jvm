@@ -13,6 +13,7 @@ extern crate parking_lot;
 extern crate futures_intrusive;
 extern crate nix;
 extern crate errno;
+extern crate syscall;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
@@ -49,6 +50,7 @@ use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use nix::unistd::{Pid, gettid};
+use nix::sys::pthread::{Pthread, pthread_self};
 
 
 pub mod java_values;

@@ -26,6 +26,8 @@ fn main() {
         .rustfmt_bindings(true)
         .generate().unwrap();
 
+    println!("cargo:rerun-if-changed={}","signals-wrapper.h");
+
     let out_path = PathBuf::from("gen/");
     if !out_path.clone().into_boxed_path().exists() {
         create_dir(out_path.clone().into_boxed_path()).unwrap();
