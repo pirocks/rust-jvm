@@ -3,7 +3,7 @@ use crate::{JVMState, JavaThread};
 use nix::sys::signal::Signal;
 use std::convert::TryFrom;
 use std::mem::transmute;
-use crate::signal::{sigval, siginfo_t, SI_QUEUE, pthread_sigqueue, siginfo_t__bindgen_ty_1, siginfo_t__bindgen_ty_1__bindgen_ty_3};
+use crate::signal::{sigval, siginfo_t, SI_QUEUE, siginfo_t__bindgen_ty_1, siginfo_t__bindgen_ty_1__bindgen_ty_3};
 use std::ffi::c_void;
 use crate::jvmti::event_callbacks::{JVMTIEvent, DebuggerEventConsumer};
 use nix::errno::errno;

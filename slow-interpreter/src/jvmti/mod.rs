@@ -1,5 +1,5 @@
 use jvmti_jni_bindings::*;
-use std::intrinsics::transmute;
+use std::mem::{transmute, size_of};
 use std::ops::Deref;
 use crate::{JVMState};
 use crate::jvmti::version::get_version_number;
@@ -26,6 +26,8 @@ use crate::jvmti::event_callbacks::set_event_callbacks;
 use classfile_view::view::HasAccessFlags;
 use std::ptr::null_mut;
 use std::ffi::CString;
+use crate::rust_jni::interface::get_field::new_field_id;
+use rust_jvm_common::classnames::ClassName;
 
 pub mod event_callbacks;
 
@@ -110,8 +112,8 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetSourceFileName: Some(get_source_file_name),
         GetClassModifiers: None,
         GetClassMethods: Some(get_class_methods),
-        GetClassFields: None,
-        GetImplementedInterfaces: None,
+        GetClassFields: Some(get_class_fields),
+        GetImplementedInterfaces: Some(get_implemented_interfaces),
         IsInterface: Some(is_interface),
         IsArrayClass: Some(is_array_class),
         GetClassLoader: None,
@@ -215,6 +217,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetLocalInstance: None,
     }
 }
+
 
 pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: jmethodID, declaring_class_ptr: *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
@@ -330,6 +333,56 @@ unsafe extern "C" fn get_source_file_name(
     let class_view = runtime_class.view();
     source_name_ptr.write(CString::new(class_view.sourcefile_attr().file()).unwrap().into_raw());
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetSourceFileName");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+
+unsafe extern "C" fn get_class_fields(
+    env: *mut jvmtiEnv,
+    klass: jclass,
+    field_count_ptr: *mut jint,
+    fields_ptr: *mut *mut jfieldID,
+) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
+    let class_obj = from_jclass(klass);
+    let runtime_class = class_obj.as_runtime_class();
+    let class_view = runtime_class.view();
+    let num_fields = class_view.num_fields();
+    field_count_ptr.write(num_fields as jint);
+    fields_ptr.write(libc::calloc(num_fields, size_of::<*mut jfieldID>()) as *mut *mut jvmti_jni_bindings::_jfieldID);
+    for i in 0..num_fields {
+        fields_ptr.read().offset(i as isize).write(new_field_id(runtime_class.clone(), i))
+    }
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassFields");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+unsafe extern "C" fn get_implemented_interfaces(
+    env: *mut jvmtiEnv,
+    klass: jclass,
+    interface_count_ptr: *mut jint,
+    interfaces_ptr: *mut *mut jclass,
+) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
+    let class_obj = from_jclass(klass);
+    let runtime_class = class_obj.as_runtime_class();
+    let class_view = runtime_class.view();
+    let num_interfaces = class_view.num_interfaces();
+    interface_count_ptr.write(num_interfaces as i32);
+    interfaces_ptr.write(libc::calloc(num_interfaces, size_of::<*mut jclass>()) as *mut jclass);
+    for (i, interface) in class_view.interfaces().enumerate() {
+        let interface_obj = get_or_create_class_object(
+            jvm,
+            &ClassName::Str(interface.interface_name()).into(),
+            jvm.get_current_frame().deref(),
+            runtime_class.loader(jvm).clone(),
+        );
+        let interface_class = to_object(interface_obj.into());
+        interfaces_ptr.read().offset(i as isize).write(interface_class)
+    }
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetImplementedInterfaces");
     jvmtiError_JVMTI_ERROR_NONE
 }
 

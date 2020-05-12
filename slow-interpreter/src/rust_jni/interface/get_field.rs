@@ -8,6 +8,8 @@ use crate::rust_jni::interface::util::{FieldID, class_object_to_runtime_class};
 use descriptor_parser::parse_method_descriptor;
 use classfile_view::view::HasAccessFlags;
 use crate::java_values::JavaValue;
+use crate::runtime_class::RuntimeClass;
+use std::sync::Arc;
 
 pub unsafe extern "C" fn get_long_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jlong {
     let field_id: &FieldID = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
@@ -43,10 +45,14 @@ pub unsafe extern "C" fn get_field_id(_env: *mut JNIEnv, clazz: jclass, c_name: 
     for field_i in 0..view.num_fields() {
         //todo check descriptor
         if view.field(field_i).field_name() == name {
-            return Box::into_raw(Box::new(FieldID { class: runtime_class.clone(), field_i })) as jfieldID;
+            return new_field_id(runtime_class, field_i);
         }
     }
     panic!()
+}
+
+pub(crate) fn new_field_id(runtime_class: Arc<RuntimeClass>, field_i: usize) -> jfieldID {
+    Box::into_raw(Box::new(FieldID { class: runtime_class.clone(), field_i })) as jfieldID
 }
 
 
