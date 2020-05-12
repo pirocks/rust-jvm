@@ -7,6 +7,7 @@ use std::ffi::CString;
 use std::sync::Arc;
 use crate::JavaThread;
 use crate::runtime_class::RuntimeClass;
+use std::convert::TryInto;
 
 pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_ptr: *mut jint, groups_ptr: *mut *mut jthreadGroup) -> jvmtiError {
     let jvm = get_state(env);
@@ -125,10 +126,37 @@ pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> 
     res
 }
 
-pub unsafe extern "C" fn resume_thread_list(_env: *mut jvmtiEnv, _request_count: jint, _request_list: *const jthread, _results: *mut jvmtiError) -> jvmtiError {
-    unimplemented!()
+pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThreadList");
+    for i in 0..request_count{
+        let jthreadp = request_list.offset(i as isize).read();
+        let tid = JavaValue::Object(from_object(jthreadp)).cast_thread().tid();
+        let java_thread = jvm.thread_state.alive_threads.read().unwrap().get(&tid).cloned();
+        results.offset(i as isize).write(resume_thread_impl(java_thread));
+    }
+    jvm.tracing.trace_jdwp_function_exit(jvm, "ResumeThreadList");
+    jvmtiError_JVMTI_ERROR_NONE
 }
 
+
+fn resume_thread_impl(java_thread: Option<Arc<JavaThread>>) -> jvmtiError {
+    match java_thread {
+        None => {
+            jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
+        }
+        Some(java_thread) => {
+            let mut suspend_info = java_thread.interpreter_state.suspended.write().unwrap();
+            if !suspend_info.suspended {
+                unimplemented!()
+            } else {
+                suspend_info.suspended = false;
+                unsafe {suspend_info.suspended_lock.force_unlock()};
+                jvmtiError_JVMTI_ERROR_NONE
+            }
+        }
+    }
+}
 
 pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError {
     let jvm = get_state(env);
