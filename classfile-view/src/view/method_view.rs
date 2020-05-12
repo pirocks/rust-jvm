@@ -1,6 +1,6 @@
 use crate::view::{HasAccessFlags, ClassView};
 use std::sync::Arc;
-use rust_jvm_common::classfile::{Classfile, Code, MethodInfo};
+use rust_jvm_common::classfile::{Classfile, Code, MethodInfo, ACC_FINAL, ACC_SYNTHETIC};
 use crate::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};

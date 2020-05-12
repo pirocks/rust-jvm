@@ -23,6 +23,7 @@ use crate::jvmti::is::{is_interface, is_array_class, is_method_obsolete};
 use crate::jvmti::frame::{get_frame_count, get_frame_location};
 use crate::jvmti::breakpoint::set_breakpoint;
 use crate::jvmti::event_callbacks::set_event_callbacks;
+use classfile_view::view::HasAccessFlags;
 
 pub mod event_callbacks;
 
@@ -118,9 +119,9 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetFieldDeclaringClass: None,
         GetFieldModifiers: None,
         IsFieldSynthetic: None,
-        GetMethodName: None,
+        GetMethodName: Some(get_method_name),
         GetMethodDeclaringClass: Some(get_method_declaring_class),
-        GetMethodModifiers: None,
+        GetMethodModifiers: Some(get_method_modifiers),
         reserved67: std::ptr::null_mut(),
         GetMaxLocals: None,
         GetArgumentsSize: None,
@@ -131,7 +132,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         SetNativeMethodPrefixes: None,
         GetBytecodes: None,
         IsMethodNative: None,
-        IsMethodSynthetic: None,
+        IsMethodSynthetic: Some(is_method_synthetic),
         GetLoadedClasses: Some(get_loaded_classes),
         GetClassLoaderClasses: None,
         PopFrame: None,
@@ -213,7 +214,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
-pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: jmethodID, declaring_class_ptr: *mut jclass) -> jvmtiError{
+pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: jmethodID, declaring_class_ptr: *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodDeclaringClass");
     let runtime_class = (&*(method as *const MethodId)).class.clone();
@@ -221,7 +222,7 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
         jvm.get_current_frame().deref(),
-        runtime_class.loader(jvm).clone()
+        runtime_class.loader(jvm).clone(),
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(transmute(to_object(class_object.into())));
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodDeclaringClass");
@@ -263,6 +264,45 @@ pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
     jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
 }
 
+pub unsafe extern "C" fn is_method_synthetic(
+    env: *mut jvmtiEnv,
+    method: jmethodID,
+    is_synthetic_ptr: *mut jboolean
+) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodSynthetic");
+    let method_id = &*(method as *const MethodId);
+    let synthetic = method_id.class.view().method_view_i(method_id.method_i).is_synthetic();
+    is_synthetic_ptr.write(synthetic as u8);
+    jvm.tracing.trace_jdwp_function_exit(jvm, "IsMethodSynthetic");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+unsafe extern "C" fn get_method_modifiers(
+env: *mut jvmtiEnv,
+method: jmethodID,
+modifiers_ptr: *mut jint,
+) -> jvmtiError{
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodModifiers");
+    let method_id = &*(method as *const MethodId);
+    let modifiers = method_id.class.view().method_view_i(method_id.method_i).access_flags();
+    modifiers_ptr.write(modifiers as jint);
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodModifiers");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
+name_ptr: *mut *mut ::std::os::raw::c_char,
+signature_ptr: *mut *mut ::std::os::raw::c_char,
+generic_ptr: *mut *mut ::std::os::raw::c_char,
+) -> jvmtiError{
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
+    unimplemented!()
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodName");
+    jvmtiError_JVMTI_ERROR_NONE
+}
 
 
 pub mod is;

@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 use crate::view::method_view::{MethodIterator, MethodView};
-use rust_jvm_common::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType, ACC_VARARGS};
+use rust_jvm_common::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType, ACC_VARARGS, ACC_SYNTHETIC};
 use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView, MethodHandleView};
 use crate::view::field_view::{FieldIterator, FieldView};
@@ -40,6 +40,9 @@ pub trait HasAccessFlags {
     }
     fn is_interface(&self) -> bool {
         self.access_flags() & ACC_INTERFACE > 0
+    }
+    fn is_synthetic(&self) -> bool{
+        self.access_flags() & ACC_SYNTHETIC > 0
     }
 }
 
