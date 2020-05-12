@@ -303,4 +303,11 @@ impl ConstantInfoView<'_> {
             _ => panic!(),
         }
     }
+
+    /*pub fn unwrap_utf8(&self) -> String{
+        match self{
+            ConstantInfoView::Utf8(utf8) => utf8,
+            _ => panic!(),
+        }
+    }*/
 }

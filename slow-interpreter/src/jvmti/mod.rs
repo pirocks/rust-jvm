@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state, get_thread_group_info};
 use crate::rust_jni::MethodId;
-use crate::rust_jni::native_util::{to_object, from_object};
+use crate::rust_jni::native_util::{to_object, from_object, from_jclass};
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
 use crate::jvmti::agent::*;
@@ -24,6 +24,8 @@ use crate::jvmti::frame::{get_frame_count, get_frame_location};
 use crate::jvmti::breakpoint::set_breakpoint;
 use crate::jvmti::event_callbacks::set_event_callbacks;
 use classfile_view::view::HasAccessFlags;
+use std::ptr::null_mut;
+use std::ffi::CString;
 
 pub mod event_callbacks;
 
@@ -105,7 +107,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         Deallocate: Some(deallocate),
         GetClassSignature: Some(get_class_signature),
         GetClassStatus: Some(get_class_status),
-        GetSourceFileName: None,
+        GetSourceFileName: Some(get_source_file_name),
         GetClassModifiers: None,
         GetClassMethods: Some(get_class_methods),
         GetClassFields: None,
@@ -267,7 +269,7 @@ pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
 pub unsafe extern "C" fn is_method_synthetic(
     env: *mut jvmtiEnv,
     method: jmethodID,
-    is_synthetic_ptr: *mut jboolean
+    is_synthetic_ptr: *mut jboolean,
 ) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodSynthetic");
@@ -279,10 +281,10 @@ pub unsafe extern "C" fn is_method_synthetic(
 }
 
 unsafe extern "C" fn get_method_modifiers(
-env: *mut jvmtiEnv,
-method: jmethodID,
-modifiers_ptr: *mut jint,
-) -> jvmtiError{
+    env: *mut jvmtiEnv,
+    method: jmethodID,
+    modifiers_ptr: *mut jint,
+) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodModifiers");
     let method_id = &*(method as *const MethodId);
@@ -293,14 +295,41 @@ modifiers_ptr: *mut jint,
 }
 
 unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
-name_ptr: *mut *mut ::std::os::raw::c_char,
-signature_ptr: *mut *mut ::std::os::raw::c_char,
-generic_ptr: *mut *mut ::std::os::raw::c_char,
-) -> jvmtiError{
+                                     name_ptr: *mut *mut ::std::os::raw::c_char,
+                                     signature_ptr: *mut *mut ::std::os::raw::c_char,
+                                     generic_ptr: *mut *mut ::std::os::raw::c_char,
+) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
-    unimplemented!()
+    let method_id = &*(method as *const MethodId);
+    let mv = method_id.class.view().method_view_i(method_id.method_i);
+    let name = mv.desc_str();
+    let desc_str = mv.desc_str();
+    if generic_ptr != null_mut() {
+        // unimplemented!()//todo figure out what this is
+    }
+    if signature_ptr != null_mut() {
+        signature_ptr.write(CString::new(desc_str).unwrap().into_raw())
+    }
+    if name_ptr != null_mut() {
+        name_ptr.write(CString::new(name).unwrap().into_raw())
+    }
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodName");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+unsafe extern "C" fn get_source_file_name(
+    env: *mut jvmtiEnv,
+    klass: jclass,
+    source_name_ptr: *mut *mut ::std::os::raw::c_char,
+) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "GetSourceFileName");
+    let class_obj = from_jclass(klass);
+    let runtime_class = class_obj.as_runtime_class();
+    let class_view = runtime_class.view();
+    source_name_ptr.write(CString::new(class_view.sourcefile_attr().file()).unwrap().into_raw());
+    jvm.tracing.trace_jdwp_function_exit(jvm, "GetSourceFileName");
     jvmtiError_JVMTI_ERROR_NONE
 }
 

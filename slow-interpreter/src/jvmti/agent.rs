@@ -15,7 +15,6 @@ use std::rc::Rc;
 use lock_api::Mutex;
 use thread_priority::*;
 use nix::unistd::gettid;
-use nix::sys::pthread::pthread_self;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,

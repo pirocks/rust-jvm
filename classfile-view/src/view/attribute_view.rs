@@ -1,5 +1,5 @@
 use crate::view::ClassView;
-use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex};
+use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, SourceFile};
 use crate::view::constant_info_view::{ConstantInfoView, StringView, IntegerView, LongView, FloatView, DoubleView, MethodHandleView, MethodTypeView};
 
 #[derive(Clone)]
@@ -121,4 +121,24 @@ impl EnclosingMethodView{
     // }
 
 
+}
+
+
+pub struct SourceFileView<'l>{
+    pub(crate) backing_class : &'l ClassView ,
+    pub(crate) i : usize
+}
+
+impl SourceFileView<'_>{
+    fn source_file_attr(&self) -> &SourceFile{
+        match &self.backing_class.backing_class.attributes[self.i].attribute_type{
+            AttributeType::SourceFile(sf) => sf,
+            _ => panic!(),
+        }
+    }
+
+    pub fn file(&self) -> String{
+        let si = self.source_file_attr().sourcefile_index;
+        self.backing_class.backing_class.constant_pool[si as usize].extract_string_from_utf8()
+    }
 }

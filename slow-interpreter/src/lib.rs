@@ -50,7 +50,6 @@ use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use nix::unistd::{Pid, gettid};
-use nix::sys::pthread::{Pthread, pthread_self};
 
 
 pub mod java_values;

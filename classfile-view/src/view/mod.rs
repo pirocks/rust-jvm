@@ -5,7 +5,7 @@ use rust_jvm_common::classnames::{ClassName, class_name};
 use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView, MethodHandleView};
 use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
-use crate::view::attribute_view::{EnclosingMethodView, BootstrapMethodsView};
+use crate::view::attribute_view::{EnclosingMethodView, BootstrapMethodsView, SourceFileView};
 use std::collections::HashMap;
 use descriptor_parser::MethodDescriptor;
 use std::iter::FromIterator;
@@ -143,6 +143,15 @@ impl ClassView {
             }
         }).next().unwrap();
         BootstrapMethodsView { backing_class: self.clone(), attr_i: i }
+    }
+    pub fn sourcefile_attr(&self) -> SourceFileView {
+        let i= self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
+            match &x.attribute_type {
+                AttributeType::SourceFile(_) => Some(i),
+                _ => None
+            }
+        }).next().unwrap();
+        SourceFileView { backing_class: self, i }
     }
     pub fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
