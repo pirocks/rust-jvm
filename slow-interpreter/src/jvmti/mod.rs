@@ -10,7 +10,6 @@ use crate::jvmti::events::set_event_notification_mode;
 use std::cell::RefCell;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state, get_thread_group_info};
-use crate::rust_jni::MethodId;
 use crate::rust_jni::native_util::{to_object, from_object, from_jclass};
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
@@ -21,13 +20,14 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::JavaValue;
 use crate::jvmti::is::{is_interface, is_array_class, is_method_obsolete};
 use crate::jvmti::frame::{get_frame_count, get_frame_location};
-use crate::jvmti::breakpoint::set_breakpoint;
+use crate::jvmti::breakpoint::*;
 use crate::jvmti::event_callbacks::set_event_callbacks;
-use classfile_view::view::HasAccessFlags;
 use std::ptr::null_mut;
 use std::ffi::CString;
 use crate::rust_jni::interface::get_field::new_field_id;
 use rust_jvm_common::classnames::ClassName;
+use crate::method_table::MethodId;
+use classfile_view::view::HasAccessFlags;
 
 pub mod event_callbacks;
 
@@ -98,7 +98,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         RawMonitorNotify: Some(raw_monitor_notify),
         RawMonitorNotifyAll: Some(raw_monitor_notify_all),
         SetBreakpoint: Some(set_breakpoint),
-        ClearBreakpoint: None,
+        ClearBreakpoint: Some(clear_breakpoint),
         reserved40: std::ptr::null_mut(),
         SetFieldAccessWatch: None,
         ClearFieldAccessWatch: None,
@@ -219,10 +219,11 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
 }
 
 
+
 pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: jmethodID, declaring_class_ptr: *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodDeclaringClass");
-    let runtime_class = (&*(method as *const MethodId)).class.clone();
+    let runtime_class = jvm.method_table.read().unwrap().lookup(*(method as *const MethodId)).0;
     let class_object = get_or_create_class_object(
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
@@ -247,8 +248,9 @@ pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobjec
 pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
-    let method_id = (method as *mut MethodId).as_ref().unwrap();
-    match method_id.class.view().method_view_i(method_id.method_i).code_attribute() {
+    let method_id = *(method as *mut MethodId);
+    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    match class.view().method_view_i(method_i as usize).code_attribute() {
         None => {
             start_location_ptr.write(-1);
             end_location_ptr.write(-1);
@@ -276,8 +278,9 @@ pub unsafe extern "C" fn is_method_synthetic(
 ) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodSynthetic");
-    let method_id = &*(method as *const MethodId);
-    let synthetic = method_id.class.view().method_view_i(method_id.method_i).is_synthetic();
+    let method_id = *(method as *const MethodId);
+    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let synthetic = class.view().method_view_i(method_i as usize).is_synthetic();
     is_synthetic_ptr.write(synthetic as u8);
     jvm.tracing.trace_jdwp_function_exit(jvm, "IsMethodSynthetic");
     jvmtiError_JVMTI_ERROR_NONE
@@ -290,8 +293,9 @@ unsafe extern "C" fn get_method_modifiers(
 ) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodModifiers");
-    let method_id = &*(method as *const MethodId);
-    let modifiers = method_id.class.view().method_view_i(method_id.method_i).access_flags();
+    let method_id = *(method as *const MethodId);
+    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let modifiers = class.view().method_view_i(method_i as usize).access_flags();
     modifiers_ptr.write(modifiers as jint);
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodModifiers");
     jvmtiError_JVMTI_ERROR_NONE
@@ -304,8 +308,9 @@ unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
 ) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
-    let method_id = &*(method as *const MethodId);
-    let mv = method_id.class.view().method_view_i(method_id.method_i);
+    let method_id = *(method as *mut usize);
+    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let mv = class.view().method_view_i(method_i as usize);
     let name = mv.desc_str();
     let desc_str = mv.desc_str();
     if generic_ptr != null_mut() {

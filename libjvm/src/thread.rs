@@ -49,7 +49,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
                     function_return: RefCell::new(false),
                     suspended: RwLock::new(SuspendedStatus {
                         suspended: false,
-                        suspended_lock: Mutex::new(()),
+                        suspended_lock: Arc::new(Mutex::new(())),
                     }),
                 },
                 unix_tid: gettid()

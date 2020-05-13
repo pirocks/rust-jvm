@@ -1,5 +1,4 @@
 use crate::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
-use crate::rust_jni::MethodId;
 use jvmti_jni_bindings::{JNIEnv, jobject, jmethodID, jclass, JNINativeInterface_, jboolean};
 use std::ffi::{VaList, VaListImpl, c_void};
 
@@ -12,6 +11,7 @@ use crate::StackEntry;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use std::ops::Deref;
 use std::rc::Rc;
+use crate::method_table::MethodId;
 use classfile_view::view::HasAccessFlags;
 
 #[no_mangle]
@@ -22,9 +22,11 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
 }
 
 unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
-    let method_id = (method_id as *mut MethodId).as_ref().unwrap();
-    let classview = method_id.class.view().clone();
-    let method = &classview.method_view_i(method_id.method_i);
+    let method_id = *(method_id as *mut MethodId);
+    let jvm = get_state(env);
+    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let classview = class.view().clone();
+    let method = &classview.method_view_i(method_i as usize);
     if method.is_static() {
         unimplemented!()
     }
@@ -59,7 +61,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     }
 //todo add params into operand stack;
 //     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i(state, parsed, method_id.class.clone(), method_id.method_i, &method, false);
+    invoke_virtual_method_i(state, parsed, class.clone(), method_i as usize, &method, false);
     // trace!("----NATIVE ENTER ----");
     frame
 }
@@ -71,19 +73,20 @@ pub unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: j
 }
 
 pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
-    let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
-    let state = get_state(env);
+    let method_id = *(jmethod_id as *mut MethodId);
+    let jvm = get_state(env);
     let frame_rc = get_frame(env);
     let frame = frame_rc.deref();
-    let classfile = &method_id.class.view();
-    let method = &classfile.method_view_i(method_id.method_i);
+    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let classfile = &class.view();
+    let method = &classfile.method_view_i(method_i as usize);
     let method_descriptor_str = method.desc_str();
     let _name = method.name();
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
 //todo dup
     push_params_onto_frame(&mut l, &frame, &parsed);
     // trace!("----NATIVE EXIT ----");
-    invoke_static_impl(state, parsed, method_id.class.clone(), method_id.method_i, method.method_info());
+    invoke_static_impl(jvm, parsed, class.clone(), method_i as usize, method.method_info());
     // trace!("----NATIVE ENTER----");
     frame_rc
 }

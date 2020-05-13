@@ -7,7 +7,6 @@ use crate::rust_jni::native_util::{to_object, from_object};
 use std::ops::Deref;
 use std::ffi::{CString, c_void};
 use crate::interpreter_util::check_inited_class;
-use crate::rust_jni::MethodId;
 use std::mem::size_of;
 use crate::java_values::JavaValue;
 
@@ -102,10 +101,11 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     //todo use Layout instead of whatever this is.
     *methods_ptr = libc::malloc((size_of::<*mut c_void>()) * (*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;
     loaded_class.view().methods().enumerate().for_each(|(i, mv)| {
+        let method_id = jvm.method_table.write().unwrap().get_method_id(loaded_class.clone(), mv.method_i() as u16);
         methods_ptr
             .read()
             .offset(i as isize)
-            .write(Box::leak(box MethodId { class: loaded_class.clone(), method_i: mv.method_i() }) as *mut MethodId as jmethodID)
+            .write(Box::leak(box method_id) as *mut usize as *mut c_void as jmethodID)
     });
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassMethods");
     jvmtiError_JVMTI_ERROR_NONE

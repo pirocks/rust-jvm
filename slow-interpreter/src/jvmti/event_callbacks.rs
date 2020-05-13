@@ -6,7 +6,6 @@ use crate::rust_jni::interface::get_interface;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use std::mem::{transmute, size_of};
 use crate::rust_jni::native_util::to_object;
-use crate::rust_jni::MethodId;
 use crate::invoke_interface::get_invoke_interface;
 use std::ffi::{CString, c_void};
 use std::os::raw::c_char;
@@ -17,6 +16,7 @@ use std::ops::Deref;
 use crate::tracing::TracingSettings;
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
+use crate::method_table::MethodId;
 
 
 // does not support per thread notification

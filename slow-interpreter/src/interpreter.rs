@@ -3,7 +3,6 @@ use rust_jvm_common::classnames::{ClassName};
 use crate::class_objects::get_or_create_class_object;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use rust_jvm_common::classfile::{InstructionInfo, Code};
-use crate::rust_jni::MethodId;
 use std::collections::HashSet;
 use crate::instructions::store::*;
 use crate::instructions::load::*;
@@ -51,7 +50,7 @@ pub fn run_function(jvm: &JVMState) {
     jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, jvm.get_current_thread().java_tid);
     let interpreter_state = &jvm.get_current_thread().interpreter_state;
     assert!(!*interpreter_state.function_return.borrow());
-    let method_id = MethodId { class: current_frame.class_pointer.clone(), method_i: current_frame.method_i as usize };
+    let method_id = jvm.method_table.write().unwrap().get_method_id(current_frame.class_pointer.clone(),current_frame.method_i);
     let breakpoint_guard = jvm.jvmti_state.break_points.read().unwrap();
     let breakpoint_indices = breakpoint_guard
         .get(&method_id)
@@ -65,7 +64,10 @@ pub fn run_function(jvm: &JVMState) {
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, current_frame, method, synchronized, &class_name__);
     while !*interpreter_state.terminate.borrow() && !*interpreter_state.function_return.borrow() && !interpreter_state.throw.borrow().is_some() {
-        std::mem::drop(interpreter_state.suspended.read().unwrap().suspended_lock.lock());//so this will block when threads are suspended
+        let read_guard = interpreter_state.suspended.read().unwrap();
+        let suspension_lock = read_guard.suspended_lock.clone();
+        std::mem::drop(read_guard);
+        std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
         let (instruct, instruction_size) = current_instruction(current_frame, &code, &meth_name);
         if breakpoint_indices.as_ref()
             .map(|bps| bps.contains(&(*current_frame.pc.borrow() as isize)))

@@ -42,7 +42,6 @@ use crate::monitor::Monitor;
 use jvmti_jni_bindings::JNIInvokeInterface_;
 use std::ffi::c_void;
 use jvmti_jni_bindings::{jrawMonitorID, jlong};
-use crate::rust_jni::MethodId;
 use lock_api::Mutex;
 use parking_lot::RawMutex;
 use crate::tracing::TracingSettings;
@@ -50,6 +49,7 @@ use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use nix::unistd::{Pid, gettid};
+use crate::method_table::{MethodTable, MethodId};
 
 
 pub mod java_values;
@@ -103,7 +103,7 @@ pub struct InterpreterState {
 #[derive(Debug)]
 pub struct SuspendedStatus {
     pub suspended: bool,
-    pub suspended_lock: Mutex<RawMutex, ()>,
+    pub suspended_lock: Arc<Mutex<RawMutex, ()>>,
     // pub suspend_critical_section_lock: Mutex<RawMutex,()>
 }
 
@@ -160,6 +160,7 @@ pub struct JVMState {
     pub jvmti_state: JVMTIState,
     pub thread_state: ThreadState,
     pub tracing: TracingSettings,
+    pub method_table : RwLock<MethodTable>,
     live: RwLock<bool>,
 }
 
@@ -254,6 +255,7 @@ impl JVMState {
                 monitors: RwLock::new(vec![]),
             },
             tracing: TracingSettings::new(),
+            method_table: RwLock::new(MethodTable::new()),
             live: RwLock::new(false),
         }
     }
@@ -381,7 +383,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
 
     let thread_class = check_inited_class(&jvm, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
     let method_i = thread_class.view().method_index().lookup(&"resume".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap().method_i();
-    let thread_resume_id = MethodId { class: thread_class, method_i };
+    let thread_resume_id = jvm.method_table.write().unwrap().get_method_id(thread_class, method_i as u16);
     let breakpoints = jvm.jvmti_state.break_points.read().unwrap();
     let breakpoint_offsets = breakpoints.get(&thread_resume_id);
     std::mem::drop(breakpoint_offsets
@@ -422,7 +424,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
             function_return: RefCell::new(false),
             suspended: RwLock::new(SuspendedStatus {
                 suspended: false,
-                suspended_lock: Mutex::new(()),
+                suspended_lock: Arc::new(Mutex::new(())),
             }),
         },
         unix_tid: gettid(),
@@ -487,3 +489,4 @@ pub mod monitor;
 pub mod tracing;
 pub mod interpreter;
 pub mod signal;
+pub mod method_table;

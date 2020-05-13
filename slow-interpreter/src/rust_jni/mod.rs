@@ -34,7 +34,6 @@ use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry, LibJavaLoading};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
-use std::fmt::{Debug, Formatter};
 use classfile_view::view::HasAccessFlags;
 
 
@@ -297,22 +296,23 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
         cur_method_name == method_name &&
             method_descriptor_str == cur_desc
     }).unwrap();
-    let res = Box::into_raw(Box::new(MethodId { class: c.clone(), method_i: *m }));
+    let method_id = jvm.method_table.write().unwrap().get_method_id(c.clone(), *m as u16);
+    let res = Box::into_raw(box method_id);
     transmute(res)
 }
 
-#[derive(Clone, Hash, Eq, PartialEq)]
-pub struct MethodId {
-    pub class: Arc<RuntimeClass>,
-    pub method_i: usize,
-}
-
-impl Debug for MethodId{
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(),std::fmt::Error> {
-        let method_view = self.class.view().method_view_i(self.method_i);
-        write!(f, "{:?} {} {}",self.class.view().name(), method_view.name(),method_view.desc_str())
-    }
-}
+// #[derive(Clone, Hash, Eq, PartialEq)]
+// pub struct MethodId {
+//     pub class: Arc<RuntimeClass>,
+//     pub method_i: usize,
+// }
+//
+// impl Debug for MethodId{
+//     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(),std::fmt::Error> {
+//         let method_view = self.class.view().method_view_i(self.method_i);
+//         write!(f, "{:?} {} {}",self.class.view().name(), method_view.name(),method_view.desc_str())
+//     }
+// }
 
 pub mod native_util;
 pub mod interface;

@@ -1,5 +1,5 @@
 use nix::sys::signal::{SigAction, SigHandler, SigSet, sigaction};
-use crate::{JVMState, JavaThread};
+use crate::{JVMState, JavaThread, signal};
 use nix::sys::signal::Signal;
 use std::convert::TryFrom;
 use std::mem::transmute;
@@ -39,25 +39,29 @@ impl JVMState {
         let sigval_ = sigval { sival_ptr: metadata_void_ptr };
         let pid = getpid().as_raw();
         let tid = t.unix_tid.as_raw();
-        let mut signal_info = siginfo_t{
-            si_signo: transmute(Signal::SIGUSR1),
-            si_errno: 0,
-            si_code: SI_QUEUE,
-            __pad0: 0,
-            _sifields:siginfo_t__bindgen_ty_1{
-                _rt: siginfo_t__bindgen_ty_1__bindgen_ty_3{
-                    si_pid: tid,
-                    si_uid: getuid().as_raw(),
-                    si_sigval: sigval_
+            let mut signal_info = siginfo_t {
+                si_signo: transmute(Signal::SIGUSR1),
+                si_errno: 0,
+                si_code: SI_QUEUE,
+                __pad0: 0,
+                _sifields: siginfo_t__bindgen_ty_1 {
+                    _rt: siginfo_t__bindgen_ty_1__bindgen_ty_3 {
+                        si_pid: tid,
+                        si_uid: getuid().as_raw(),
+                        si_sigval: sigval_
+                    }
                 }
-            } 
-        };
-        let res = rt_tgsigqueueinfo(pid, tid, transmute(Signal::SIGUSR1),Box::leak(box signal_info));//todo use after free?
-        if res != 0 {
-            dbg!(gettid());
-            dbg!(errno());
-            dbg!(res);
-            panic!()
+            };
+        if gettid().as_raw() != tid {
+            let res = rt_tgsigqueueinfo(pid, tid, transmute(Signal::SIGUSR1), Box::leak(box signal_info));//todo use after free?
+            if res != 0 {
+                dbg!(gettid());
+                dbg!(errno());
+                dbg!(res);
+                panic!()
+            }
+        }else {
+            handler(transmute(Signal::SIGUSR1),Box::leak(box signal_info) as *mut signal::siginfo_t as *mut libc::c_void as *mut libc::siginfo_t,null_mut());
         }
     }
 }

@@ -3,7 +3,6 @@ use jvmti_jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethod
 use std::ops::Deref;
 use std::ffi::CStr;
 use std::mem::transmute;
-use crate::rust_jni::MethodId;
 use crate::rust_jni::interface::util::{FieldID, class_object_to_runtime_class};
 use descriptor_parser::parse_method_descriptor;
 use classfile_view::view::HasAccessFlags;
@@ -62,17 +61,20 @@ pub unsafe extern "C" fn get_static_method_id(
     name: *const ::std::os::raw::c_char,
     sig: *const ::std::os::raw::c_char,
 ) -> jmethodID {
-    let state = get_state(env);
+    let jvm = get_state(env);
     let frame = get_frame(env);
     let method_name = CStr::from_ptr(name).to_str().unwrap().to_string();
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = from_object(clazz);
     //todo dup
-    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj_o).cast_class(),state,&frame).unwrap();
+    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj_o).cast_class(), jvm, &frame).unwrap();
     let view = &runtime_class.view();
     let method = view.method_index().lookup(&method_name, &parse_method_descriptor(method_descriptor_str.as_str()).unwrap()).unwrap();
     assert!(method.is_static());
-    let res = Box::into_raw(Box::new(MethodId { class: runtime_class.clone(), method_i: method.method_i() }));
+    let res = Box::into_raw(box jvm.method_table
+        .write()
+        .unwrap()
+        .register_with_table(runtime_class.clone(), method.method_i() as u16));
     transmute(res)
 }
 

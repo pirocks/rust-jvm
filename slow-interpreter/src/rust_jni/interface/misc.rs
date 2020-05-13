@@ -1,7 +1,6 @@
 use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object, from_jclass};
 use jvmti_jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_, jthrowable};
 use crate::interpreter_util::{push_new_object, check_inited_class};
-use crate::rust_jni::MethodId;
 use std::ffi::CStr;
 use crate::instructions::ldc::load_class_constant_by_type;
 
@@ -15,6 +14,7 @@ use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
 use crate::invoke_interface::get_invoke_interface;
 use std::ops::Deref;
+use crate::method_table::MethodId;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -70,15 +70,16 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ::va_list::VaList) -> jobject {
     //todo dup
-    let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
-    let state = get_state(env);
-    let frame_temp = state.get_current_frame();
+    let method_id = *(jmethod_id as *mut MethodId);
+    let jvm = get_state(env);
+    let frame_temp = jvm.get_current_frame();
     let frame = frame_temp.deref();
-    let classview = &method_id.class.view();
-    let method = &classview.method_view_i(method_id.method_i);
+    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let classview = &class.view();
+    let method = &classview.method_view_i(method_i as usize);
     let _name = method.name();
     let parsed = method.desc();
-    push_new_object(state,frame, &method_id.class, None);
+    push_new_object(jvm, frame, &class, None);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {
@@ -105,26 +106,27 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
         }
     }
     invoke_special_impl(
-        state,
+        jvm,
         &frame,
         &parsed,
-        method_id.method_i,
-        method_id.class.clone(),
-        &classview.method_view_i(method_id.method_i),
+        method_i as usize,
+        class.clone(),
+        &classview.method_view_i(method_i as usize),
     );
     to_object(obj.unwrap_object())
 }
 
 pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
-    let method_id = (jmethod_id as *mut MethodId).as_ref().unwrap();
-    let state = get_state(env);
+    let method_id = *(jmethod_id as *mut MethodId);
+    let jvm = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
-    let classview = &method_id.class.view();
-    let method = &classview.method_view_i(method_id.method_i);
+    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let classview = &class.view();
+    let method = &classview.method_view_i(method_i as usize);
     let _name = method.name();
     let parsed = method.desc();
-    push_new_object(state,frame.clone(), &method_id.class, None);
+    push_new_object(jvm, frame.clone(), &class, None);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {
@@ -151,12 +153,12 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
         }
     }
     invoke_special_impl(
-        state,
+        jvm,
         &frame,
         &parsed,
-        method_id.method_i,
-        method_id.class.clone(),
-        &classview.method_view_i(method_id.method_i),
+        method_i as usize,
+        class.clone(),
+        &classview.method_view_i(method_i as usize),
     );
     to_object(obj.unwrap_object())
 }

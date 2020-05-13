@@ -68,7 +68,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
                     function_return: RefCell::new(false),
                     suspended: RwLock::new(SuspendedStatus {
                         suspended: false,
-                        suspended_lock: Mutex::new(()),
+                        suspended_lock: Arc::new(Mutex::new(())),
                     }),
                 },
                 unix_tid: gettid()
