@@ -66,12 +66,6 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     frame
 }
 
-pub unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: VaList) -> jobject {
-    let frame = call_static_method_impl(env, jmethod_id, VarargProvider::VaList(&mut l));
-    let res = frame.pop().unwrap_object();
-    to_object(res)
-}
-
 pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
     let method_id = *(jmethod_id as *mut MethodId);
     let jvm = get_state(env);
@@ -113,26 +107,16 @@ unsafe fn push_params_onto_frame(
             PTypeView::ShortType => unimplemented!(),
             PTypeView::BooleanType => unimplemented!(),
             PTypeView::VoidType => unimplemented!(),
-            PTypeView::TopType => unimplemented!(),
-            PTypeView::NullType => unimplemented!(),
-            PTypeView::Uninitialized(_) => unimplemented!(),
-            PTypeView::UninitializedThis => unimplemented!(),
+            PTypeView::TopType |
+            PTypeView::NullType |
+            PTypeView::Uninitialized(_) |
+            PTypeView::UninitializedThis |
             PTypeView::UninitializedThisOrClass(_) => panic!()
         }
     }
 }
 
-pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jboolean {
-    call_static_method_impl(env, method_id, VarargProvider::VaList(&mut l));
-    let res = get_frame(env).pop();
-    res.unwrap_int() as jboolean
-}
-
-pub unsafe extern "C" fn call_static_object_method(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: ...) -> jobject {
-    call_static_method_impl(env, method_id, VarargProvider::Dots(&mut l));
-    let res = get_frame(env).pop();
-    to_object(res.unwrap_object())
-}
+pub mod call_static;
 
 pub enum VarargProvider<'l, 'l2, 'l3> {
     Dots(&'l mut VaListImpl<'l2>),
@@ -155,8 +139,5 @@ impl VarargProvider<'_, '_, '_> {
 }
 
 pub unsafe extern "C" fn call_void_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) {
-    /*let frame =*/ call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l));
-
-// let res = frame.pop().unwrap_object();
-// to_object(res)
+    call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l));
 }
