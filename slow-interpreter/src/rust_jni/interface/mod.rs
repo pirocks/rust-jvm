@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jclass, __va_list_tag, jboolean, JNI_FALSE, JNI_TRUE};
+use jvmti_jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jboolean, JNI_FALSE, JNI_TRUE};
 use std::mem::transmute;
 use std::ffi::c_void;
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id};
@@ -75,7 +75,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         NewLocalRef: Some(new_local_ref),
         EnsureLocalCapacity: Some(ensure_local_capacity),
         AllocObject: None,
-        NewObject: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, ...) -> jobject>(new_object as *mut c_void) }),
+        NewObject: Some(unsafe { transmute(new_object as *mut c_void) }),
         NewObjectV: Some(unsafe { transmute(new_object_v as *mut c_void) }),
         NewObjectA: None,
         GetObjectClass: Some(get_object_class),

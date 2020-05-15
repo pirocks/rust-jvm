@@ -123,3 +123,9 @@ pub unsafe extern "C" fn call_static_long_method(env: *mut JNIEnv, _clazz: jclas
 }
 
 
+pub unsafe extern "C" fn call_static_void_method(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: ...)  {
+    call_static_method_impl(env, method_id, VarargProvider::Dots(&mut l));
+}
+
+
+
