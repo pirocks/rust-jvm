@@ -24,13 +24,3 @@ pub mod array_region;
 pub mod new;
 
 
-pub unsafe extern "C" fn set_byte_array_region(_env: *mut JNIEnv, array: jbyteArray, start: jsize, len: jsize, buf: *const jbyte) {
-    for i in 0..len {
-        from_object(array)
-            .unwrap()
-            .unwrap_array()
-            .elems
-            .borrow_mut()
-            .insert((start + i) as usize, JavaValue::Byte(buf.offset(i as isize).read() as i8));
-    }
-}
