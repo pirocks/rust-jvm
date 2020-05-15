@@ -362,13 +362,14 @@ impl JVMState {
 pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let mut jvm = JVMState::new(opts);
     jvm_run_system_init(&mut jvm);
+    jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
-    let main_class = prepare_class(main_view.clone().backing_class(), jvm.bootstrap_loader.clone());
+    let main_class = prepare_class(&jvm, main_view.clone().backing_class(), jvm.bootstrap_loader.clone());
+    jvm.jvmti_state.built_in_jdwp.class_prepare(&jvm,&main_view.name());
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.main_thread();
     assert!(Arc::ptr_eq(&jvm.get_current_thread(), &main_thread));
     // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
-    jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
     let main_stack = Rc::new(StackEntry {
         class_pointer: Arc::new(main_class),
         method_i: main_i as u16,
@@ -405,7 +406,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
 fn jvm_run_system_init(jvm: &JVMState) {
     let bl = &jvm.bootstrap_loader;
     let bootstrap_system_class_view = bl.load_class(bl.clone(), &ClassName::system(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
-    let bootstrap_system_class = Arc::new(prepare_class(bootstrap_system_class_view.backing_class(), bl.clone()));
+    let bootstrap_system_class = Arc::new(prepare_class(jvm,bootstrap_system_class_view.backing_class(), bl.clone()));
     let bootstrap_frame = StackEntry {
         class_pointer: bootstrap_system_class,
         method_i: 0,

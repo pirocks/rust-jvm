@@ -132,7 +132,7 @@ impl PartialEq for RuntimeClassClass {
 
 impl Eq for RuntimeClass {}
 
-pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
+pub fn prepare_class(jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
     let mut res = HashMap::new();
     for field in &classfile.fields {
         if (field.access_flags & ACC_STATIC) > 0 {
@@ -143,12 +143,13 @@ pub fn prepare_class(classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeCla
             res.insert(name, val);
         }
     }
-    RuntimeClassClass {
+    let res = RuntimeClassClass {
         class_view: Arc::new(ClassView::from(classfile.clone())),
         classfile,
         loader,
         static_vars: RwLock::new(res),
-    }.into()
+    }.into();
+    res
 }
 
 
