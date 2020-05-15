@@ -17,6 +17,8 @@ use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame}
 use std::sync::Arc;
 use crate::rust_jni::interface::local_ref::new_local_ref;
 use crate::rust_jni::interface::instance_of::is_instance_of;
+use crate::rust_jni::interface::array::array_region::*;
+use crate::rust_jni::interface::array::new::*;
 
 //todo this should be in state impl
 thread_local! {
@@ -245,12 +247,12 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         ReleaseDoubleArrayElements: None,
         GetBooleanArrayRegion: None,
         GetByteArrayRegion: Some(get_byte_array_region),
-        GetCharArrayRegion: None,
-        GetShortArrayRegion: None,
-        GetIntArrayRegion: None,
-        GetLongArrayRegion: None,
-        GetFloatArrayRegion: None,
-        GetDoubleArrayRegion: None,
+        GetCharArrayRegion: Some(get_char_array_region),
+        GetShortArrayRegion: Some(get_short_array_region),
+        GetIntArrayRegion: Some(get_int_array_region),
+        GetLongArrayRegion: Some(get_long_array_region),
+        GetFloatArrayRegion: Some(get_float_array_region),
+        GetDoubleArrayRegion: Some(get_double_array_region),
         SetBooleanArrayRegion: None,
         SetByteArrayRegion: Some(set_byte_array_region),
         SetCharArrayRegion: None,
