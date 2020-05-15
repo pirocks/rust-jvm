@@ -155,6 +155,7 @@ impl SharedLibJVMTI {
                                                        jvm.bootstrap_loader.clone());
             let klass = unsafe { to_object(klass_obj.into()) };
             let event = JVMTIEvent::ClassPrepare(ClassPrepareEvent { thread, klass });
+            // jvm.tracing.trace_event_trigger("")
             event
         };
         SharedLibJVMTI::trigger_event_threads(jvm, &self.class_prepare_enabled.read().unwrap(), event_getter);
