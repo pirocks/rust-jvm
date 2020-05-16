@@ -34,6 +34,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     let frame = get_frame(env);
     let parsed = method.desc();
     frame.push(JavaValue::Object(from_object(obj)));
+    //todo ducplication with push_params_onto_frame
     for type_ in &parsed.parameter_types {
         match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => {
@@ -106,20 +107,36 @@ unsafe fn push_params_onto_frame(
 ) {
     for type_ in &parsed.parameter_types {
         match PTypeView::from_ptype(type_) {
-            PTypeView::ByteType => unimplemented!(),
-            PTypeView::CharType => unimplemented!(),
-            PTypeView::DoubleType => unimplemented!(),
-            PTypeView::FloatType => unimplemented!(),
-            PTypeView::IntType => unimplemented!(),
-            PTypeView::LongType => unimplemented!(),
+            PTypeView::ByteType => {
+                frame.push(JavaValue::Byte(l.arg_byte()));
+            },
+            PTypeView::CharType => {
+                frame.push(JavaValue::Char(l.arg_char()));
+            },
+            PTypeView::DoubleType => {
+                frame.push(JavaValue::Double(l.arg_double()));
+            },
+            PTypeView::FloatType => {
+                frame.push(JavaValue::Float(l.arg_float()));
+            },
+            PTypeView::IntType => {
+                frame.push(JavaValue::Int(l.arg_int()));
+            },
+            PTypeView::LongType => {
+                frame.push(JavaValue::Long(l.arg_long()));
+            },
             PTypeView::Ref(_) => {
                 //todo dup with other line
                 let native_object: jobject = l.arg_ptr() as jobject;
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
-            PTypeView::ShortType => unimplemented!(),
-            PTypeView::BooleanType => unimplemented!(),
+            PTypeView::ShortType => {
+                frame.push(JavaValue::Short(l.arg_short()));
+            },
+            PTypeView::BooleanType => {
+                frame.push(JavaValue::Boolean(l.arg_bool()));
+            },
             PTypeView::VoidType => unimplemented!(),
             PTypeView::TopType |
             PTypeView::NullType |
