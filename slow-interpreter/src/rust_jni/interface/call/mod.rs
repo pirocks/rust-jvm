@@ -14,12 +14,7 @@ use std::rc::Rc;
 use crate::method_table::MethodId;
 use classfile_view::view::HasAccessFlags;
 
-#[no_mangle]
-pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
-    let frame = call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l));
-    let res = frame.pop().unwrap_object();
-    to_object(res)
-}
+pub mod call_nonstatic;
 
 unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
     let method_id = *(method_id as *mut MethodId);
@@ -216,8 +211,4 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => l.arg(),
         }
     }
-}
-
-pub unsafe extern "C" fn call_void_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) {
-    call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l));
 }

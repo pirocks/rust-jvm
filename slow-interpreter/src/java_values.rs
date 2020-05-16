@@ -22,8 +22,6 @@ pub enum JavaValue {
 
     Float(f32),
     Double(f64),
-
-    //    Array(Option<(ParsedType,Arc<RefCell<Vec<JavaValue>>>)>),
     Object(Option<Arc<Object>>),
 
     Top,//should never be interacted with by the bytecode
@@ -167,6 +165,33 @@ impl JavaValue {
         match self {
             JavaValue::Long(l) => {
                 *l
+            }
+            _ => panic!()
+        }
+    }
+
+    pub fn unwrap_byte(&self) -> i8 {
+        match self {
+            JavaValue::Byte(b) => {
+                *b
+            }
+            _ => panic!()
+        }
+    }
+
+    pub fn unwrap_boolean(&self) -> u8 {
+        match self {
+            JavaValue::Boolean(b) => {
+                *b
+            }
+            _ => panic!()
+        }
+    }
+
+    pub fn unwrap_short(&self) -> i16 {
+        match self {
+            JavaValue::Short(s) => {
+                *s
             }
             _ => panic!()
         }

@@ -20,6 +20,7 @@ use crate::rust_jni::interface::instance_of::is_instance_of;
 use crate::rust_jni::interface::array::array_region::*;
 use crate::rust_jni::interface::array::new::*;
 use crate::rust_jni::interface::call::call_static::*;
+use crate::rust_jni::interface::call::call_nonstatic::*;
 
 //todo this should be in state impl
 thread_local! {
@@ -84,28 +85,28 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         CallObjectMethod: Some(unsafe { transmute(call_object_method as *mut c_void) }),
         CallObjectMethodV: None,
         CallObjectMethodA: None,
-        CallBooleanMethod: None,
+        CallBooleanMethod: Some(unsafe { transmute(call_boolean_method as *mut c_void) }),
         CallBooleanMethodV: None,
         CallBooleanMethodA: None,
-        CallByteMethod: None,
+        CallByteMethod: Some(unsafe { transmute(call_byte_method as *mut c_void) }),
         CallByteMethodV: None,
         CallByteMethodA: None,
-        CallCharMethod: None,
+        CallCharMethod: Some(unsafe { transmute(call_char_method as *mut c_void) }),
         CallCharMethodV: None,
         CallCharMethodA: None,
-        CallShortMethod: None,
+        CallShortMethod: Some(unsafe { transmute(call_short_method as *mut c_void) }),
         CallShortMethodV: None,
         CallShortMethodA: None,
-        CallIntMethod: None,
+        CallIntMethod: Some(unsafe { transmute(call_int_method as *mut c_void) }),
         CallIntMethodV: None,
         CallIntMethodA: None,
-        CallLongMethod: None,
+        CallLongMethod: Some(unsafe { transmute(call_long_method as *mut c_void) }),
         CallLongMethodV: None,
         CallLongMethodA: None,
-        CallFloatMethod: None,
+        CallFloatMethod: Some(unsafe { transmute(call_float_method as *mut c_void) }),
         CallFloatMethodV: None,
         CallFloatMethodA: None,
-        CallDoubleMethod: None,
+        CallDoubleMethod: Some(unsafe { transmute(call_double_method as *mut c_void) }),
         CallDoubleMethodV: None,
         CallDoubleMethodA: None,
         CallVoidMethod: Some(call_void_method),
