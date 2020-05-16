@@ -36,18 +36,32 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     frame.push(JavaValue::Object(from_object(obj)));
     for type_ in &parsed.parameter_types {
         match PTypeView::from_ptype(type_) {
-            PTypeView::ByteType => unimplemented!(),
-            PTypeView::CharType => unimplemented!(),
-            PTypeView::DoubleType => unimplemented!(),
-            PTypeView::FloatType => unimplemented!(),
-            PTypeView::IntType => unimplemented!(),
-            PTypeView::LongType => unimplemented!(),
+            PTypeView::ByteType => {
+                frame.push(JavaValue::Byte(l.arg_byte()))
+            },
+            PTypeView::CharType => {
+                frame.push(JavaValue::Char(l.arg_char()))
+            },
+            PTypeView::DoubleType => {
+                frame.push(JavaValue::Double(l.arg_double()))
+            },
+            PTypeView::FloatType => {
+                frame.push(JavaValue::Float(l.arg_float()))
+            },
+            PTypeView::IntType => {
+                frame.push(JavaValue::Int(l.arg_int()))
+            },
+            PTypeView::LongType => {
+                frame.push(JavaValue::Long(l.arg_long()))
+            },
             PTypeView::Ref(_) => {
                 let native_object: jobject = l.arg_ptr() as jobject;
                 let o = from_object(native_object);
                 frame.push(JavaValue::Object(o));
             }
-            PTypeView::ShortType => unimplemented!(),
+            PTypeView::ShortType => {
+                frame.push(JavaValue::Short(l.arg_short()))
+            },
             PTypeView::BooleanType => {
                 frame.push(JavaValue::Boolean(l.arg_bool()))
             },
@@ -131,6 +145,55 @@ impl VarargProvider<'_, '_, '_> {
         }
     }
     pub unsafe fn arg_bool(&mut self) -> u8 {
+        match self {
+            VarargProvider::Dots(l) => l.arg(),
+            VarargProvider::VaList(l) => l.arg(),
+        }
+    }
+    pub unsafe fn arg_short(&mut self) -> i16 {
+        match self {
+            VarargProvider::Dots(l) => l.arg(),
+            VarargProvider::VaList(l) => l.arg(),
+        }
+    }
+
+    pub unsafe fn arg_long(&mut self) -> i64 {
+        match self {
+            VarargProvider::Dots(l) => l.arg(),
+            VarargProvider::VaList(l) => l.arg(),
+        }
+    }
+
+    pub unsafe fn arg_int(&mut self) -> i32 {
+        match self {
+            VarargProvider::Dots(l) => l.arg(),
+            VarargProvider::VaList(l) => l.arg(),
+        }
+    }
+
+
+    pub unsafe fn arg_float(&mut self) -> f32 {
+        match self {
+            VarargProvider::Dots(l) => l.arg(),
+            VarargProvider::VaList(l) => l.arg(),
+        }
+    }
+
+    pub unsafe fn arg_double(&mut self) -> f64 {
+        match self {
+            VarargProvider::Dots(l) => l.arg(),
+            VarargProvider::VaList(l) => l.arg(),
+        }
+    }
+
+    pub unsafe fn arg_byte(&mut self) -> i8 {
+        match self {
+            VarargProvider::Dots(l) => l.arg(),
+            VarargProvider::VaList(l) => l.arg(),
+        }
+    }
+
+    pub unsafe fn arg_char(&mut self) -> u16 {
         match self {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),

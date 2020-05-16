@@ -81,7 +81,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         GetObjectClass: Some(get_object_class),
         IsInstanceOf: Some(is_instance_of),
         GetMethodID: Some(get_method_id),
-        CallObjectMethod: Some(unsafe { transmute::<_, unsafe extern "C" fn(env: *mut JNIEnv, obj: jobject, methodID: jmethodID, ...) -> jobject>(call_object_method as *mut c_void) }),
+        CallObjectMethod: Some(unsafe { transmute(call_object_method as *mut c_void) }),
         CallObjectMethodV: None,
         CallObjectMethodA: None,
         CallBooleanMethod: None,
