@@ -13,6 +13,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use crate::method_table::MethodId;
 use classfile_view::view::HasAccessFlags;
+use std::intrinsics::transmute;
 
 pub mod call_nonstatic;
 
@@ -186,15 +187,15 @@ impl VarargProvider<'_, '_, '_> {
 
     pub unsafe fn arg_float(&mut self) -> f32 {
         match self {
-            VarargProvider::Dots(l) => l.arg(),
-            VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Dots(l) => transmute(l.arg::<u32>()),
+            VarargProvider::VaList(l) => transmute(l.arg::<u32>()),
         }
     }
 
     pub unsafe fn arg_double(&mut self) -> f64 {
         match self {
-            VarargProvider::Dots(l) => l.arg(),
-            VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Dots(l) => transmute(l.arg::<u64>()),
+            VarargProvider::VaList(l) => transmute(l.arg::<u64>()),
         }
     }
 
