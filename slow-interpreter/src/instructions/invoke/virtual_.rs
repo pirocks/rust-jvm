@@ -44,7 +44,6 @@ fn invoke_virtual_method_i_impl(
     if target_method.is_native() {
         run_native_method(jvm, current_frame, target_class, target_method_i, debug)
     } else if !target_method.is_abstract() {
-//todo this is wrong?
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         setup_virtual_args(current_frame, &expected_descriptor, &mut args, max_locals);

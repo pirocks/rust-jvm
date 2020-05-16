@@ -29,7 +29,6 @@ pub fn run_native_method(
     method_i: usize,
     _debug: bool,
 ) {
-    //todo only works for static void methods atm
     let view = &class.view();
     let method = &view.method_view_i(method_i);
     assert!(method.is_native());

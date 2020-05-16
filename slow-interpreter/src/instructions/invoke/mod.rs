@@ -152,6 +152,5 @@ pub fn find_target_method(
     parsed_descriptor: &MethodDescriptor,
     target_class: Arc<RuntimeClass>,
 ) -> (usize, Arc<RuntimeClass>) {
-    //todo bug need to handle super class, issue with that is need frame/state.
     lookup_method_parsed(state, target_class, expected_method_name, parsed_descriptor, &loader_arc).unwrap()
 }

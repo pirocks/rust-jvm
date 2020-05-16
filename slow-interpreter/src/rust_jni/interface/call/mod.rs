@@ -49,7 +49,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
             }
             PTypeView::ShortType => unimplemented!(),
             PTypeView::BooleanType => {
-                frame.push(JavaValue::Boolean(l.arg_bool()))//todo this erases byte values which a problem here and more generally the bool implementation
+                frame.push(JavaValue::Boolean(l.arg_bool()))
             },
             PTypeView::VoidType => unimplemented!(),
             PTypeView::TopType => unimplemented!(),
