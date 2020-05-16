@@ -116,7 +116,7 @@ pub fn ifne(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
     let succeeds = match val {
         JavaValue::Int(i) => i != 0,
-        JavaValue::Boolean(b) => b != false,
+        JavaValue::Boolean(b) => b != 0,
         _ => panic!()
     };
     if succeeds {
@@ -130,7 +130,7 @@ pub fn ifeq(current_frame: & StackEntry, offset: i16) -> () {
     // dbg!(&val);
     let succeeds = match val {
         JavaValue::Int(i) => i == 0,
-        JavaValue::Boolean(b) => b == false,//todo cover shorts etc. in every place where relevant
+        JavaValue::Boolean(b) => b == 0,//todo cover shorts etc. in every place where relevant
         _ => panic!()
     };
     if succeeds {

@@ -23,10 +23,10 @@ pub fn compare_and_swap_long(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let mut fields = target_obj.fields.borrow_mut();
     let cur_val = fields.get(&field_name).unwrap().unwrap_long();
     if cur_val != old {
-        JavaValue::Boolean(false)
+        JavaValue::Boolean(0)
     } else {
         fields.insert(field_name, JavaValue::Long(new));
-        JavaValue::Boolean(true)
+        JavaValue::Boolean(1)
     }.into()
 }
 
@@ -79,10 +79,10 @@ pub fn compare_and_swap_int(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let mut fields = target_obj.fields.borrow_mut();
     let cur_val = fields.get(&field_name).unwrap().unwrap_int();
     if cur_val != old {
-        JavaValue::Boolean(false)
+        JavaValue::Boolean(0)
     } else {
         fields.insert(field_name, JavaValue::Int(new));
-        JavaValue::Boolean(true)
+        JavaValue::Boolean(1)
     }.into()
 }
 
@@ -123,5 +123,5 @@ pub fn object_field_offset(
 
 pub fn shouldBeInitialized(state: &JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let class_name_to_check = args[1].cast_class().as_type();
-    JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some()).into()
+    JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some() as u8).into()
 }

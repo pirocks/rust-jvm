@@ -139,7 +139,7 @@ pub fn call_impl(jvm: & JVMState, current_frame: &StackEntry, classfile: Arc<Run
         }
 //            ParsedType::ShortType => {}
         PTypeView::BooleanType => {
-            Some(JavaValue::Boolean(cif_res as u64 != 0))
+            Some(JavaValue::Boolean(cif_res as u8))
         }
         PTypeView::Ref(_) => {
             unsafe {

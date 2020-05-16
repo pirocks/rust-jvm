@@ -60,7 +60,7 @@ pub fn run_native_method(
     let meth_name = method.name();
     let debug = false;//meth_name.contains("isAlive");
     if meth_name == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
-        frame.push(JavaValue::Boolean(false))
+        frame.push(JavaValue::Boolean(0))
     } else if meth_name == "arraycopy".to_string() {
         system_array_copy(&mut args)
     } else {

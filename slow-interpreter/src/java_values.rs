@@ -17,8 +17,8 @@ pub enum JavaValue {
     Int(i32),
     Short(i16),
     Byte(i8),
-    Boolean(bool),
-    Char(char),
+    Boolean(u8),
+    Char(u16),
 
     Float(f32),
     Double(f64),
@@ -264,10 +264,10 @@ impl JavaValue {
         }
     }
 
-    pub fn unwrap_char(&self) -> char {
+    pub fn unwrap_char(&self) -> u16 {
         match self {
             JavaValue::Char(c) => {
-                c.clone()
+                *c
             }
             _ => {
                 dbg!(self);
@@ -488,14 +488,14 @@ impl Debug for NormalObject {
 pub fn default_value(type_: PTypeView) -> JavaValue {
     match type_ {
         PTypeView::ByteType => JavaValue::Byte(0),
-        PTypeView::CharType => JavaValue::Char('\u{000000}'),
+        PTypeView::CharType => JavaValue::Char('\u{000000}' as u16),
         PTypeView::DoubleType => JavaValue::Double(0.0),
         PTypeView::FloatType => JavaValue::Float(0.0),
         PTypeView::IntType => JavaValue::Int(0),
         PTypeView::LongType => JavaValue::Long(0),
         PTypeView::Ref(_) => JavaValue::Object(None),
         PTypeView::ShortType => JavaValue::Short(0),
-        PTypeView::BooleanType => JavaValue::Boolean(false),
+        PTypeView::BooleanType => JavaValue::Boolean(0),
         PTypeView::VoidType => panic!(),
         PTypeView::TopType => JavaValue::Top,
         PTypeView::NullType => JavaValue::Object(None),

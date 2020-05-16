@@ -41,7 +41,7 @@ pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
     let borrowed_elems = chars.elems.borrow();
     let mut res = String::new();
     for char_ in borrowed_elems.deref() {
-        res.push(char_.unwrap_char());
+        res.push(char_.unwrap_char()as u8 as char);
     }
     res
 }

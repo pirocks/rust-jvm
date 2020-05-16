@@ -22,7 +22,7 @@ pub unsafe extern "C" fn set_boolean_field(_env: *mut JNIEnv, obj: jobject, fiel
     let field_id: &FieldID = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
     let view = &field_id.class.view();
     let name = view.field(field_id.field_i as usize).field_name();
-    from_object(obj).unwrap().unwrap_normal_object().fields.borrow_mut().deref_mut().insert(name, JavaValue::Boolean(val != 0));
+    from_object(obj).unwrap().unwrap_normal_object().fields.borrow_mut().deref_mut().insert(name, JavaValue::Boolean(val));
 }
 
 pub unsafe extern "C" fn set_static_object_field(_env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject) {

@@ -44,7 +44,7 @@ pub fn castore(current_frame: & StackEntry) -> () {
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
     let array_ref = &mut arrar_ref_o.unwrap_array().elems.borrow_mut();
-    let char_ = val as u8 as char;
+    let char_ = val as u16;
     array_ref[index as usize] = JavaValue::Char(char_);
 }
 

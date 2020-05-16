@@ -72,7 +72,7 @@ pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring {
     let char_array = char_array_ptr.unwrap_array().elems.borrow();
     let mut native_string = String::with_capacity(char_array.len());
     for char_ in &*char_array {
-        native_string.push(char_.unwrap_char());
+        native_string.push(char_.unwrap_char() as u8 as char);
     }
     if STRING_INTERNMENT_CAMP.as_ref().unwrap().contains_key(&native_string) {
         let res = STRING_INTERNMENT_CAMP.as_ref().unwrap().get(&native_string).unwrap().clone();

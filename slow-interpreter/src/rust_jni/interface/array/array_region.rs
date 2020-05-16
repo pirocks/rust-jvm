@@ -70,7 +70,7 @@ pub unsafe extern "C" fn get_long_array_region(_env: *mut JNIEnv, array: jlongAr
 
 pub unsafe extern "C" fn set_boolean_array_region(_env: *mut JNIEnv, array: jbooleanArray, start: jsize, len: jsize, buf: *const jboolean) {
     set_array_region(array, start, len, &mut|index: isize|{
-        JavaValue::Boolean(buf.offset(index ).read() != 0)//todo bool need to be u8
+        JavaValue::Boolean(buf.offset(index ).read())//todo bool need to be u8
     })
 }
 
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn set_byte_array_region(_env: *mut JNIEnv, array: jbyteAr
 
 pub unsafe extern "C" fn set_char_array_region(_env: *mut JNIEnv, array: jcharArray, start: jsize, len: jsize, buf: *const jchar) {
     set_array_region(array, start, len, &mut|index: isize|{
-        JavaValue::Char(buf.offset(index ).read() as u8 as char)//todo instead of char use u16
+        JavaValue::Char(buf.offset(index ).read())//todo instead of char use u16
     })
 }
 
