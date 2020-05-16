@@ -10,7 +10,6 @@ pub fn aload(current_frame: & StackEntry, n: usize) -> () {
         _ => {
             dbg!(ref_);
             dbg!(n);
-//            current_frame.print_stack_trace();
             dbg!(&current_frame.local_vars.borrow());
             panic!()
         }
@@ -21,15 +20,6 @@ pub fn aload(current_frame: & StackEntry, n: usize) -> () {
 pub fn iload(current_frame: & StackEntry, n: usize) {
     let java_val = &current_frame.local_vars.borrow()[n];
     java_val.unwrap_int();
-//    match java_val {
-//        JavaValue::Int(_) | JavaValue::Boolean(_) | JavaValue::Char(_) => {}
-//        _ => {
-//            dbg!(java_val);
-//            current_frame.print_stack_trace();
-//            dbg!(&current_frame.local_vars);
-//            panic!()
-//        }
-//    }
     current_frame.push(java_val.clone())
 }
 
@@ -77,12 +67,10 @@ pub fn aaload(current_frame: &StackEntry) -> () {
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.elems.borrow();
-//    dbg!(&current_frame.operand_stack);
-//    dbg!(&current_frame.local_vars);
     match array_refcell[index as usize] {
         JavaValue::Object(_) => {}
         _ => panic!(),
-    }//.unwrap_object();
+    };
     current_frame.push(array_refcell[index as usize].clone())
 }
 
@@ -110,7 +98,7 @@ pub fn caload(state: & JVMState, current_frame: & StackEntry) -> () {
     let as_int = match array_refcell[index as usize] {
         JavaValue::Char(c) => c as i32,
         _ => panic!(),
-    };//.unwrap_object();
+    };
     current_frame.push(JavaValue::Int(as_int))
 }
 
@@ -133,6 +121,6 @@ pub fn baload(current_frame: & StackEntry) -> () {
     let as_byte = match array_refcell[index as usize] {
         JavaValue::Byte(i) => i,
         _ => panic!(),
-    };//.unwrap_object();
+    };
     current_frame.push(JavaValue::Int(as_byte as i32))
 }

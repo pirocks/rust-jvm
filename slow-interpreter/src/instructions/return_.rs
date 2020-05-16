@@ -38,14 +38,7 @@ pub fn return_(state: & JVMState) {
 pub fn ireturn(state: & JVMState, current_frame: &StackEntry) -> () {
     let res = current_frame.pop();
     state.get_current_thread().interpreter_state.function_return.replace(true);
-    match res {
-        JavaValue::Int(_) => {}
-        JavaValue::Short(_) => {}
-        JavaValue::Byte(_) => {}
-        JavaValue::Boolean(_) => {}
-        JavaValue::Char(_) => {}
-        _ => panic!()
-    }
+    res.unwrap_int();
     state.get_previous_frame().push(res);
 }
 

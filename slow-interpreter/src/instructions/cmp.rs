@@ -3,11 +3,9 @@ use crate::java_values::JavaValue;
 use crate::StackEntry;
 
 pub fn fcmpl(current_frame: &StackEntry) -> () {
-    //todo dup
     let value2 = current_frame.pop().unwrap_float();
-//    dbg!(value2);
     let value1 = current_frame.pop().unwrap_float();
-//    dbg!(value1);
+    //todo check this actually handles Nan correctly
     if value1 == value2 {
         current_frame.push(JavaValue::Int(0))
     } else if value1 > value2 {

@@ -6,47 +6,6 @@ pub fn goto_(current_frame: & StackEntry, target: i16) {
     current_frame.pc_offset.replace(target as isize);
 }
 
-//todo why are these consts in branch?
-pub fn iconst_5(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Int(5))
-}
-
-pub fn iconst_4(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Int(4))
-}
-
-pub fn iconst_3(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Int(3))
-}
-
-pub fn iconst_2(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Int(2))
-}
-
-pub fn iconst_1(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Int(1))
-}
-
-pub fn iconst_0(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Int(0))
-}
-
-pub fn dconst_1(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Double(1.0))
-}
-
-pub fn dconst_0(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Double(0.0))
-}
-
-pub fn iconst_m1(current_frame: & StackEntry) -> () {
-    current_frame.push(JavaValue::Int(-1))
-}
-
-pub fn lconst(current_frame: & StackEntry, i: i64) -> () {
-    current_frame.push(JavaValue::Long(i))
-}
-
 pub fn ifnull(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
     let succeeds = match val {
@@ -70,24 +29,16 @@ pub fn ifnonnull(current_frame: & StackEntry, offset: i16) -> () {
 }
 
 pub fn ifle(current_frame: & StackEntry, offset: i16) -> () {
-    //todo dup
     let val = current_frame.pop();
-    let succeeds = match val {
-        JavaValue::Int(i) => i <= 0,
-        _ => panic!()
-    };
+    let succeeds = val.unwrap_int() <= 0;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
 }
 
 pub fn ifgt(current_frame: & StackEntry, offset: i16) -> () {
-    //todo dup
     let val = current_frame.pop();
-    let succeeds = match val {
-        JavaValue::Int(i) => i > 0,
-        _ => panic!()
-    };
+    let succeeds = val.unwrap_int() > 0;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -95,10 +46,7 @@ pub fn ifgt(current_frame: & StackEntry, offset: i16) -> () {
 
 pub fn ifge(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
-    let succeeds = val.unwrap_int() >= 0;/* match val {
-        JavaValue::Int(i) => i >= 0,
-        _ => panic!()
-    };*/
+    let succeeds = val.unwrap_int() >= 0;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -114,11 +62,7 @@ pub fn iflt(current_frame: & StackEntry, offset: i16) -> () {
 
 pub fn ifne(current_frame: & StackEntry, offset: i16) -> () {
     let val = current_frame.pop();
-    let succeeds = match val {
-        JavaValue::Int(i) => i != 0,
-        JavaValue::Boolean(b) => b != 0,
-        _ => panic!()
-    };
+    let succeeds = val.unwrap_int() != 0;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -127,12 +71,7 @@ pub fn ifne(current_frame: & StackEntry, offset: i16) -> () {
 pub fn ifeq(current_frame: & StackEntry, offset: i16) -> () {
     //todo dup
     let val = current_frame.pop();
-    // dbg!(&val);
-    let succeeds = match val {
-        JavaValue::Int(i) => i == 0,
-        JavaValue::Boolean(b) => b == 0,//todo cover shorts etc. in every place where relevant
-        _ => panic!()
-    };
+    let succeeds = val.unwrap_int() == 0;
     if succeeds {
         current_frame.pc_offset.replace(offset as isize);
     }
@@ -217,8 +156,6 @@ pub fn if_acmpeq(current_frame: & StackEntry, offset: i16) -> () {
 }
 
 fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
-    // dbg!(&value1);
-    // dbg!(&value2);
     match value1 {
         JavaValue::Object(o1) => match value2 {
             JavaValue::Object(o2) => match o1 {

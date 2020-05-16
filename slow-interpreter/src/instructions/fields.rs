@@ -43,10 +43,6 @@ pub fn get_static(jvm: & JVMState, current_frame: & StackEntry, cp: u16) -> () {
     let view = &current_frame.class_pointer.view();
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    /*if field_name == "reflectionFactory" {
-        dbg!(cp);
-        panic!()
-    }*/
     get_static_impl(jvm, current_frame, cp, loader_arc, &field_class_name, &field_name);
 }
 
