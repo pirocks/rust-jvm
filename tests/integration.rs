@@ -7,7 +7,6 @@ const DEFAULT_RT_JAR_LOCATION: &'static str = "/home/francis/Desktop/jdk8u232-b0
 
 #[test]
 fn float_double_arithmetic() {
-    println!("in test");
     run_integration_test("FloatDoubleArithmetic");
 }
 
@@ -28,4 +27,21 @@ fn run_integration_test(class_name: &str) {
         .arg("--classpath").arg(resources_path.as_path().to_str().unwrap())
         .spawn().unwrap();
     assert!(java_process.wait().unwrap().success());
+}
+
+
+#[test]
+fn method_introspection_reflection_demo() {
+    run_integration_test("MethodIntrospectionReflectionDemo");
+}
+
+#[test]
+fn empty_main() {
+    run_integration_test("EmptyMain");
+}
+
+
+#[test]
+fn io_examples() {
+    run_integration_test("IOExamples");
 }
