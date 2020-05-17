@@ -379,7 +379,7 @@ fn run_single_instruction(
         InstructionInfo::lstore_2 => lstore(&current_frame, 2),
         InstructionInfo::lstore_3 => lstore(&current_frame, 3),
         InstructionInfo::lsub => lsub(&current_frame),
-        InstructionInfo::lushr => unimplemented!(),
+        InstructionInfo::lushr => lushr(&current_frame),
         InstructionInfo::lxor => unimplemented!(),
         InstructionInfo::monitorenter => {
             current_frame.pop().unwrap_object_nonnull().monitor_lock(jvm);
@@ -402,7 +402,7 @@ fn run_single_instruction(
         InstructionInfo::sipush(val) => sipush(&current_frame, val),
         InstructionInfo::swap => unimplemented!(),
         InstructionInfo::tableswitch(switch) => tableswitch(switch, &current_frame),
-        InstructionInfo::wide(_) => unimplemented!(),
+        InstructionInfo::wide(w) => wide(jvm,&current_frame,w),
         InstructionInfo::EndOfCode => unimplemented!(),
     }
 }
