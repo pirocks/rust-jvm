@@ -66,7 +66,7 @@ pub fn call(
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
-            match state.jni.lib.get(mangled.clone().as_bytes()) {
+            match state.libjava.lib.get(mangled.clone().as_bytes()) {
                 Ok(o) => o,
                 Err(e) => {
 //                    dbg!(mangled);
@@ -170,7 +170,7 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
         let runtime_class: Arc<RuntimeClass> = from_jclass(clazz).as_runtime_class();
-        let jni_context = &jvm.jni;
+        let jni_context = &jvm.libjava;
         let view = &runtime_class.view();
         &view.methods().enumerate().for_each(|(i, method_info)| {
             let descriptor_str = method_info.desc_str();

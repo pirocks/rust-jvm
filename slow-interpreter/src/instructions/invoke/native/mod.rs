@@ -63,12 +63,12 @@ pub fn run_native_method(
     } else if meth_name == "arraycopy".to_string() {
         system_array_copy(&mut args)
     } else {
-        let result = if jvm.jni.registered_natives.read().unwrap().contains_key(&class) &&
-            jvm.jni.registered_natives.read().unwrap().get(&class).unwrap().read().unwrap().contains_key(&(method_i as u16))
+        let result = if jvm.libjava.registered_natives.read().unwrap().contains_key(&class) &&
+            jvm.libjava.registered_natives.read().unwrap().get(&class).unwrap().read().unwrap().contains_key(&(method_i as u16))
         {
             //todo dup
             let res_fn = {
-                let reg_natives = jvm.jni.registered_natives.read().unwrap();
+                let reg_natives = jvm.libjava.registered_natives.read().unwrap();
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().read().unwrap();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };

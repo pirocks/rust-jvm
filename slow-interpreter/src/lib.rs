@@ -148,7 +148,7 @@ pub struct JVMState {
     pub string_pool: StringPool,
     pub start_instant: Instant,
     //todo needs to be used for all instances of getClass
-    pub jni: LibJavaLoading,//todo rename to libjava
+    pub libjava: LibJavaLoading,
 
 
     pub initialized_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
@@ -253,7 +253,7 @@ impl JVMState {
             initialized_classes: RwLock::new(HashMap::new()),
             class_object_pool: RwLock::new(HashMap::new()),
             system_domain_loader: true,
-            jni: LibJavaLoading::new_java_loading(libjava),
+            libjava: LibJavaLoading::new_java_loading(libjava),
             string_pool: StringPool {
                 entries: HashSet::new()
             },
