@@ -1,4 +1,4 @@
-use crate::{JVMState, InterpreterState, JVMTIState};
+use crate::{JVMState, InterpreterState};
 use rust_jvm_common::classnames::{ClassName};
 use crate::class_objects::get_or_create_class_object;
 use classfile_parser::code::{CodeParserContext, parse_instruction};

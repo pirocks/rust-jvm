@@ -32,7 +32,7 @@ use std::sync::atomic::AtomicUsize;
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
-use std::time::{Instant, Duration};
+use std::time::{Instant};
 use crate::java::lang::thread::JThread;
 use crate::loading::{Classpath, BootstrapLoader};
 use crate::stack_entry::StackEntry;
@@ -327,7 +327,8 @@ struct LivePoolGetterImpl {
 
 #[derive(Debug)]
 pub struct LibJavaLoading {
-    pub lib: Library,
+    pub libjava: Library,
+    pub libnio: Library,
     pub registered_natives: RwLock<HashMap<Arc<RuntimeClass>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
 }
 

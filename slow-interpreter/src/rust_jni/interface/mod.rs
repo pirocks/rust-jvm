@@ -1,10 +1,9 @@
-use jvmti_jni_bindings::{JNINativeInterface_, JNIEnv, jobject, jmethodID, jboolean, JNI_FALSE, JNI_TRUE};
+use jvmti_jni_bindings::{JNINativeInterface_, JNIEnv, jobject,  jboolean, JNI_FALSE, JNI_TRUE};
 use std::mem::transmute;
 use std::ffi::c_void;
 use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id};
 use crate::rust_jni::native_util::{get_object_class, from_object};
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::interface::call::*;
 use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::get_field::*;
 use crate::rust_jni::interface::set_field::*;

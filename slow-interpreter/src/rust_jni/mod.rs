@@ -46,9 +46,12 @@ impl LibJavaLoading {
 //    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), (dlopen::RTLD_NOW | dlopen::RTLD_GLOBAL).try_into().unwrap()).unwrap();
 //    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), (dlopen::RTLD_NOW /*| dlopen::RTLD_GLOBAL*/).try_into().unwrap()).unwrap();
         let lib = Library::new(path.clone()).unwrap();
+        let nio_path = path.replace("libjava.so","libnio.so");
+        let nio_lib = Library::new(nio_path).unwrap();
 //    let lib = Library::from(loaded);
         LibJavaLoading {
-            lib,
+            libjava: lib,
+            libnio: nio_lib,
             registered_natives: RwLock::new(HashMap::new()),
         }
     }
@@ -66,11 +69,15 @@ pub fn call(
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
-            match state.libjava.lib.get(mangled.clone().as_bytes()) {
+            match state.libjava.libjava.get(mangled.clone().as_bytes()) {
                 Ok(o) => o,
-                Err(e) => {
-//                    dbg!(mangled);
-                    return Result::Err(e);
+                Err(_) => {
+                    match state.libjava.libnio.get(mangled.clone().as_bytes()){
+                        Ok(o) => o,
+                        Err(e) => {
+                            return Result::Err(e);
+                        },
+                    }
                 }
             }
         };

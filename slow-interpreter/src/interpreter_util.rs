@@ -1,4 +1,4 @@
-use crate::{JVMState, StackEntry, JVMTIState};
+use crate::{JVMState, StackEntry};
 use crate::runtime_class::{prepare_class, RuntimeClass, RuntimeClassArray};
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;

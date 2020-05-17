@@ -70,3 +70,25 @@ unsafe extern "system" fn JVM_GetHostName(name: *mut ::std::os::raw::c_char, nam
     unimplemented!()
 }
 
+#[no_mangle]
+unsafe extern "system"  fn JVM_GetSockOpt(
+    fd: jint,
+    level: ::std::os::raw::c_int,
+    optname: ::std::os::raw::c_int,
+    optval: *mut ::std::os::raw::c_char,
+    optlen: *mut ::std::os::raw::c_int,
+) -> jint{
+    unimplemented!()
+}
+
+#[no_mangle]
+unsafe extern "system" fn JVM_SetSockOpt(
+    fd: jint,
+    level: ::std::os::raw::c_int,
+    optname: ::std::os::raw::c_int,
+    optval: *const ::std::os::raw::c_char,
+    optlen: ::std::os::raw::c_int,
+) -> jint{
+    unimplemented!()
+}
+

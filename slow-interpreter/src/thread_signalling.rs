@@ -39,7 +39,7 @@ impl JVMState {
         let sigval_ = sigval { sival_ptr: metadata_void_ptr };
         let pid = getpid().as_raw();
         let tid = t.unix_tid.as_raw();
-            let mut signal_info = siginfo_t {
+            let signal_info = siginfo_t {
                 si_signo: transmute(Signal::SIGUSR1),
                 si_errno: 0,
                 si_code: SI_QUEUE,
