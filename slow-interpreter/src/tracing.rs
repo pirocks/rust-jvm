@@ -37,6 +37,24 @@ impl TracingSettings {
         }
     }
 
+    pub fn disabled() -> Self{
+        Self{
+            trace_function_end: false,
+            trace_function_start: false,
+            trace_jni_register: false,
+            trace_jni_dynamic_link: false,
+            trace_class_loads: false,
+            trace_jdwp_events: false,
+            trace_jdwp_function_enter: false,
+            trace_jdwp_function_exit: false,
+            trace_monitor_lock: false,
+            trace_monitor_unlock: false,
+            trace_monitor_wait: false,
+            trace_monitor_notify: false,
+            trace_monitor_notify_all: false
+        }
+    }
+
     pub fn trace_function_enter(&self, classname: &ClassName, meth_name: &str, method_desc: &str, current_depth: usize, threadtid: ThreadId) {
         if self.trace_function_start {
             println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);

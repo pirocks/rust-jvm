@@ -33,6 +33,8 @@ fn main() {
     let mut class_entries: Vec<String> = vec![];
     let mut args: Vec<String> = vec![];
     let mut libjava: String = "".to_string();
+    let mut enable_tracing = false;
+    let mut enable_jvmti = false;
     let mut libjdwp: String = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjdwp.so".to_string();
     {
         let mut ap = ArgumentParser::new();
@@ -53,6 +55,8 @@ fn main() {
             .add_option(&["--args"], List, "A list of args to pass to main");
         ap.refer(&mut libjava).add_option(&["--libjava"], Store, "");
         ap.refer(&mut libjdwp).add_option(&["--libjdwp"], Store, "");
+        ap.refer(&mut enable_tracing).add_option(&["--tracing"],StoreTrue,"Enable debug tracing");
+        ap.refer(&mut enable_jvmti).add_option(&["--jvmti"],StoreTrue,"Enable JVMTI");
         ap.parse_args_or_exit();
     }
 
@@ -70,7 +74,7 @@ fn main() {
         classpath_base: class_entries.iter().map(|x| Path::new(x).into()).collect(),
     };
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
-    let jvm_options = JVMOptions::new(main_class_name, classpath, args ,libjava, libjdwp);
+    let jvm_options = JVMOptions::new(main_class_name, classpath, args ,libjava, libjdwp,enable_tracing,enable_jvmti);
 
     run(jvm_options).unwrap();
 }

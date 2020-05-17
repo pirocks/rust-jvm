@@ -8,7 +8,7 @@ pub unsafe extern "C" fn get_tag(env: *mut jvmtiEnv, object: jobject, tag_ptr: *
     if object == std::ptr::null_mut(){
         return  jvmtiError_JVMTI_ERROR_NULL_POINTER
     }
-    let res = match jvm.jvmti_state.tags.read().unwrap().get(transmute(object)){
+    let res = match jvm.jvmti_state.as_ref().unwrap().tags.read().unwrap().get(transmute(object)){
         None => {jvmtiError_JVMTI_ERROR_NOT_FOUND},
         Some(tag) => {
             tag_ptr.write(*tag);
@@ -25,7 +25,7 @@ pub unsafe extern "C" fn set_tag(env: *mut jvmtiEnv, object: jobject, tag: jlong
     if object == std::ptr::null_mut(){
         return jvmtiError_JVMTI_ERROR_NULL_POINTER
     }
-    jvm.jvmti_state.tags.write().unwrap().insert(transmute(object),tag);
+    jvm.jvmti_state.as_ref().unwrap().tags.write().unwrap().insert(transmute(object),tag);
     jvm.tracing.trace_jdwp_function_exit(jvm, "SetTag");
     jvmtiError_JVMTI_ERROR_NONE
 }

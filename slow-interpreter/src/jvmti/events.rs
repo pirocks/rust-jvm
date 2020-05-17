@@ -16,7 +16,7 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
         JavaValue::Object(from_object(event_thread)).cast_thread().into()
     };
     let tid: Option<ThreadId> = thread_obj.map(|it| it.tid());
-    let jdwp_copy = jvm.jvmti_state.built_in_jdwp.clone();
+    let jdwp_copy = jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.clone();
     // does not support per thread notification
     // VMInit
     // VMStart

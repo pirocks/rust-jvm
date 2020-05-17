@@ -86,16 +86,16 @@ extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _da
             let JVMTIEventData { event, jvm } = jvmti_data;
             match event {
                 JVMTIEvent::VMInit(init) => {
-                    unsafe { jvm.jvmti_state.built_in_jdwp.VMInit(jvm, init) }
+                    unsafe { jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.VMInit(jvm, init) }
                 }
                 JVMTIEvent::ThreadStart(thread_start) => {
-                    unsafe { jvm.jvmti_state.built_in_jdwp.ThreadStart(jvm, thread_start) }
+                    unsafe { jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.ThreadStart(jvm, thread_start) }
                 }
                 JVMTIEvent::Breakpoint(breakpoint) => {
-                    unsafe { jvm.jvmti_state.built_in_jdwp.Breakpoint(jvm, breakpoint) }
+                    unsafe { jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.Breakpoint(jvm, breakpoint) }
                 }
                 JVMTIEvent::ClassPrepare(classprepare) => {
-                    unsafe { jvm.jvmti_state.built_in_jdwp.ClassPrepare(jvm, classprepare) }
+                    unsafe { jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.ClassPrepare(jvm, classprepare) }
                 }
             }
         }

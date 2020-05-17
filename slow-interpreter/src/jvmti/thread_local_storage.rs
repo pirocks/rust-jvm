@@ -7,7 +7,7 @@ pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, _thread: j
     let jvm = get_state(env);
     //todo this is wrong b/c it ignores thread
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadLocalStorage");
-    jvm.jvmti_state.jvmti_thread_local_storage.with(|tls_ptr| {
+    jvm.jvmti_state.as_ref().unwrap().jvmti_thread_local_storage.with(|tls_ptr| {
         data_ptr.write(*tls_ptr.borrow());
     });
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetThreadLocalStorage");
@@ -18,7 +18,7 @@ pub unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, _thread: j
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "SetThreadLocalStorage");
 
-    jvm.jvmti_state.jvmti_thread_local_storage.with(|tls_ptr| {
+    jvm.jvmti_state.as_ref().unwrap().jvmti_thread_local_storage.with(|tls_ptr| {
         let mut ref_mut: RefMut<*mut c_void> = tls_ptr.borrow_mut();
         *ref_mut = data as *mut c_void;
     });

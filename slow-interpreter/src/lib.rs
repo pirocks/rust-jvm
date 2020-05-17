@@ -117,7 +117,8 @@ pub struct JVMOptions {
     classpath: Classpath,
     args: Vec<String>,
     shared_libs: SharedLibraryPaths,
-
+    enable_tracing: bool,
+    enable_jvmti: bool,
 }
 
 impl JVMOptions {
@@ -126,12 +127,16 @@ impl JVMOptions {
                args: Vec<String>,
                libjava: String,
                libjdwp: String,
+               enable_tracing: bool,
+               enable_jvmti: bool,
     ) -> Self {
         Self {
             main_class_name,
             classpath,
             args,
             shared_libs: SharedLibraryPaths { libjava, libjdwp },
+            enable_tracing,
+            enable_jvmti,
         }
     }
 }
@@ -157,10 +162,10 @@ pub struct JVMState {
     pub classpath: Arc<Classpath>,
     invoke_interface: RwLock<Option<JNIInvokeInterface_>>,
 
-    pub jvmti_state: JVMTIState,
+    pub jvmti_state: Option<JVMTIState>,
     pub thread_state: ThreadState,
     pub tracing: TracingSettings,
-    pub method_table : RwLock<MethodTable>,
+    pub method_table: RwLock<MethodTable>,
     live: RwLock<bool>,
 }
 
@@ -214,7 +219,7 @@ impl JVMState {
     }
 
     pub fn new(jvm_options: JVMOptions) -> Self {
-        let JVMOptions { main_class_name, classpath, args: _, shared_libs } = jvm_options;
+        let JVMOptions { main_class_name, classpath, args: _, shared_libs, enable_tracing, enable_jvmti } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
         let bootstrap_loader = Arc::new(BootstrapLoader {
@@ -225,6 +230,23 @@ impl JVMState {
         });
 
 
+        let tracing = if enable_tracing { TracingSettings::new() } else { TracingSettings::disabled() };
+
+        let jvmti_state = if enable_jvmti {
+            JVMTIState {
+                built_in_jdwp: Arc::new(SharedLibJVMTI::load_libjdwp(libjdwp.as_str())),
+                jvmti_thread_local_storage: &JVMTI_TLS,
+                break_points: RwLock::new(HashMap::new()),
+                tags: RwLock::new(HashMap::new()),
+            }.into()
+        } else { None };
+        let thread_state = ThreadState {
+            alive_threads: RwLock::new(HashMap::new()),
+            main_thread: RwLock::new(None),
+            current_java_thread: &CURRENT_JAVA_THREAD,
+            system_thread_group: RwLock::new(None),
+            monitors: RwLock::new(vec![]),
+        };
         Self {
             loaders: RwLock::new(HashMap::new()),
             bootstrap_loader,
@@ -241,20 +263,9 @@ impl JVMState {
             main_class_name,
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
-            jvmti_state: JVMTIState {
-                built_in_jdwp: Arc::new(SharedLibJVMTI::load_libjdwp(libjdwp.as_str())),
-                jvmti_thread_local_storage: &JVMTI_TLS,
-                break_points: RwLock::new(HashMap::new()),
-                tags: RwLock::new(HashMap::new()),
-            },
-            thread_state: ThreadState {
-                alive_threads: RwLock::new(HashMap::new()),
-                main_thread: RwLock::new(None),
-                current_java_thread: &CURRENT_JAVA_THREAD,
-                system_thread_group: RwLock::new(None),
-                monitors: RwLock::new(vec![]),
-            },
-            tracing: TracingSettings::new(),
+            jvmti_state,
+            thread_state,
+            tracing,
             method_table: RwLock::new(MethodTable::new()),
             live: RwLock::new(false),
         }
@@ -362,10 +373,10 @@ impl JVMState {
 pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let mut jvm = JVMState::new(opts);
     jvm_run_system_init(&mut jvm);
-    jvm.jvmti_state.built_in_jdwp.vm_inited(&jvm);
+    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm));
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.clone().backing_class(), jvm.bootstrap_loader.clone());
-    jvm.jvmti_state.built_in_jdwp.class_prepare(&jvm,&main_view.name());
+    jvm.jvmti_state.as_ref().map(|jvmti|jvmti.built_in_jdwp.class_prepare(&jvm, &main_view.name()));
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.main_thread();
     assert!(Arc::ptr_eq(&jvm.get_current_thread(), &main_thread));
@@ -379,23 +390,28 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
         pc_offset: 0.into(),
     });
     jvm.main_thread().call_stack.replace(vec![main_stack]);
-    jvm.jvmti_state.built_in_jdwp.thread_start(&jvm, jvm.main_thread().thread_object.borrow().clone().unwrap());
+    jvm.jvmti_state.as_ref().map(|jvmti|jvmti.built_in_jdwp.thread_start(&jvm, jvm.main_thread().thread_object.borrow().clone().unwrap()));
     //trigger breakpoint on thread.resume for debuggers that rely on that:
 
     let thread_class = check_inited_class(&jvm, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
     let method_i = thread_class.view().method_index().lookup(&"resume".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap().method_i();
     let thread_resume_id = jvm.method_table.write().unwrap().get_method_id(thread_class, method_i as u16);
-    let breakpoints = jvm.jvmti_state.break_points.read().unwrap();
-    let breakpoint_offsets = breakpoints.get(&thread_resume_id);
-    std::mem::drop(breakpoint_offsets
-        .map(|x| x.iter().for_each(|i| {
-            //todo handle this breakpoint the usual way
-            jvm.jvmti_state.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), *i as i64);
-        })));
-    std::mem::drop(breakpoints);
-    //todo so this DUMB AND VERY TEMPORARY UNTIL I CAN FIGURE OUT A RACE CONDITION LIKELY NOT IN MY CODE.
-    std::thread::sleep(Duration::new(2, 0));
-    jvm.jvmti_state.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), 0);
+    match &jvm.jvmti_state{
+        None => {},
+        Some(jvmti) => {
+            let breakpoints = jvmti.break_points.read().unwrap();
+            let breakpoint_offsets = breakpoints.get(&thread_resume_id);
+            std::mem::drop(breakpoint_offsets
+                .map(|x| x.iter().for_each(|i| {
+                    //todo handle this breakpoint the usual way
+                    jvmti.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), *i as i64);
+                })));
+            std::mem::drop(breakpoints);
+            jvmti.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), 0);
+        },
+    }
+
+
     run_function(&jvm);
     if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
         unimplemented!()
@@ -406,7 +422,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
 fn jvm_run_system_init(jvm: &JVMState) {
     let bl = &jvm.bootstrap_loader;
     let bootstrap_system_class_view = bl.load_class(bl.clone(), &ClassName::system(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
-    let bootstrap_system_class = Arc::new(prepare_class(jvm,bootstrap_system_class_view.backing_class(), bl.clone()));
+    let bootstrap_system_class = Arc::new(prepare_class(jvm, bootstrap_system_class_view.backing_class(), bl.clone()));
     let bootstrap_frame = StackEntry {
         class_pointer: bootstrap_system_class,
         method_i: 0,
@@ -445,7 +461,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
         pc_offset: RefCell::new(-1),
     };
     jvm.get_current_thread().call_stack.replace(vec![Rc::new(initialize_system_frame)]);
-    jvm.jvmti_state.built_in_jdwp.agent_load(jvm, &jvm.main_thread());
+    jvm.jvmti_state.as_ref().map(|jvmti|jvmti.built_in_jdwp.agent_load(jvm, &jvm.main_thread()));
 //todo technically this needs to before any bytecode is run.
     run_function(&jvm);
     if *jvm.main_thread().interpreter_state.function_return.borrow() {

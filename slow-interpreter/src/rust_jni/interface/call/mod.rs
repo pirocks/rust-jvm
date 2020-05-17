@@ -157,7 +157,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),
             VarargProvider::Array(a_ptr) => {
-                let res = a_ptr.l;
+                let res = (**a_ptr).l;
                 *a_ptr = a_ptr.offset(1);
                 res
             }
@@ -169,7 +169,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => l.arg(),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
-                let res = a_ptr.z;
+                let res = (**a_ptr).z;
                 *a_ptr = a_ptr.offset(1);
                 res
             }
@@ -181,7 +181,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => l.arg(),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
-                let res = a_ptr.s;
+                let res = (**a_ptr).s;
                 *a_ptr = a_ptr.offset(1);
                 res
             }
@@ -194,7 +194,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => l.arg(),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
-                let res = a_ptr.j;
+                let res = (**a_ptr).j;
                 *a_ptr = a_ptr.offset(1);
                 res
             }
@@ -207,7 +207,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => l.arg(),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
-                let res = a_ptr.i;
+                let res = (**a_ptr).i;
                 *a_ptr = a_ptr.offset(1);
                 res
             }
@@ -221,7 +221,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => transmute(l.arg::<u32>()),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
-                let res = a_ptr.f;
+                let res = (**a_ptr).f;
                 *a_ptr = a_ptr.offset(1);
                 res
             }
@@ -234,7 +234,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => transmute(l.arg::<u64>()),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
-                let res = a_ptr.d;
+                let res = (**a_ptr).d;
                 *a_ptr = a_ptr.offset(1);
                 res
             }
@@ -247,7 +247,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => l.arg(),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
-                let res = a_ptr.b;
+                let res = (**a_ptr).b;
                 *a_ptr = a_ptr.offset(1);
                 res
             }
@@ -260,7 +260,7 @@ impl VarargProvider<'_, '_, '_> {
             VarargProvider::VaList(l) => l.arg(),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
-                let res = a_ptr.c;
+                let res = (**a_ptr).c;
                 *a_ptr = a_ptr.offset(1);
                 res
             }

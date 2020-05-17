@@ -1,4 +1,4 @@
-use crate::{JVMState, StackEntry};
+use crate::{JVMState, StackEntry, JVMTIState};
 use crate::runtime_class::{prepare_class, RuntimeClass, RuntimeClassArray};
 use crate::runtime_class::initialize_class;
 use std::sync::Arc;
@@ -178,7 +178,12 @@ fn check_inited_class_impl(
     jvm.initialized_classes.write().unwrap().insert(ptype.clone(), prepared.clone());//must be before, otherwise infinite recurse
     let inited_target = initialize_class(prepared, jvm);
     jvm.initialized_classes.write().unwrap().insert(ptype.clone(), inited_target);
-    jvm.jvmti_state.built_in_jdwp.class_prepare(jvm,&class_name);
+    match &jvm.jvmti_state{
+        None => {},
+        Some(jvmti) => {
+            jvmti.built_in_jdwp.class_prepare(jvm,&class_name);
+        },
+    }
     let res = jvm.initialized_classes.read().unwrap().get(&ptype).unwrap().clone();
     res
 }
