@@ -27,6 +27,18 @@ pub fn dadd(current_frame: & StackEntry) -> () {
 }
 
 
+pub fn dsub(current_frame: & StackEntry) -> () {
+    let value2 = current_frame.pop().unwrap_double();
+    let value1 = current_frame.pop().unwrap_double();
+    current_frame.push(JavaValue::Double(value1 - value2));
+}
+
+pub fn lmul(current_frame: &StackEntry) -> () {
+    let first = current_frame.pop().unwrap_long();
+    let second = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Long(first * second))
+}
+
 pub fn land(current_frame: &StackEntry) -> () {
     let first = current_frame.pop().unwrap_long();
     let second = current_frame.pop().unwrap_long();
@@ -138,6 +150,17 @@ pub fn ladd(current_frame: &StackEntry) -> () {
     current_frame.push(JavaValue::Long(first + second));
 }
 
+pub fn ldiv(current_frame: &StackEntry) -> () {
+    let value2 = current_frame.pop().unwrap_long();
+    let value1 = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Long(value1 / value2));
+}
+
+pub fn lrem(current_frame: &StackEntry) -> () {
+    let value2 = current_frame.pop().unwrap_long();
+    let value1 = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Long(value1 % value2));
+}
 
 pub fn lor(current_frame: &StackEntry) -> () {
     let first = current_frame.pop().unwrap_long();
@@ -148,7 +171,7 @@ pub fn lor(current_frame: &StackEntry) -> () {
 pub fn lshl(current_frame: &StackEntry) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_long();
-    current_frame.push(JavaValue::Long(value1 << ((value2 & 0x7F) as i64)));
+    current_frame.push(JavaValue::Long(value1 << ((value2 & 0x3F) as i64)));
 }
 
 

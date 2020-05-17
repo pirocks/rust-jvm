@@ -113,6 +113,16 @@ pub fn iaload(current_frame: & StackEntry) -> () {
 }
 
 
+pub fn laload(current_frame: & StackEntry) -> () {
+    let index = current_frame.pop().unwrap_int();
+    let temp = current_frame.pop();
+    let unborrowed = temp.unwrap_array();
+    let array_refcell = unborrowed.elems.borrow();
+    let long = array_refcell[index as usize].clone().unwrap_long();
+    current_frame.push(JavaValue::Long(long))
+}
+
+
 pub fn baload(current_frame: & StackEntry) -> () {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();

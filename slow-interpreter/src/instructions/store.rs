@@ -85,3 +85,13 @@ pub fn istore(current_frame: & StackEntry, n: u8) -> () {
     let object_ref = current_frame.pop();
     current_frame.local_vars.borrow_mut()[n as usize] = JavaValue::Int(object_ref.unwrap_int());
 }
+
+
+pub fn lastore(current_frame: &StackEntry) -> () {
+    let val = current_frame.pop().unwrap_long();
+    let index = current_frame.pop().unwrap_int();
+    let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
+    let array_ref = &mut arrar_ref_o.unwrap_array().elems.borrow_mut();
+    let long = val;
+    array_ref[index as usize] = JavaValue::Long(long);
+}
