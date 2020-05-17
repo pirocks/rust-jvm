@@ -29,4 +29,8 @@ public class FloatDoubleArithmetic {
 		}
 		d_d = f_d;
 	}
+
+	public static void main(String[] args) {
+		new FloatDoubleArithmetic();
+	}
 }

@@ -1,5 +1,3 @@
-package io.github.pirocks;
-
 public class HelloWorld {
     public static void main(String[] args) {
         System.out.println(System.getProperty("java.vm.name"));
@@ -12,6 +10,4 @@ public class HelloWorld {
         System.out.println(System.getProperty("sun.boot.class.path"));
         System.out.println("I need a more creative hello world string.");
     }
-
-
 }

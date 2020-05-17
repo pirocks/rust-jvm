@@ -9,13 +9,6 @@ public class Swing {
     public static void main(String[] args) {
         System.out.println("test");
         JFrame test = new JFrame("test");
-//        Collection<Integer> thing = new ArrayList<Integer>(){{
-//            add(1);
-//            add(2);
-//        }};
-//        for (Integer integer : thing) {
-//            System.out.println(integer);
-//        }
         test.setSize(100,100);
         test.setVisible(true);
     }
