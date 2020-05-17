@@ -1,5 +1,5 @@
 use crate::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
-use jvmti_jni_bindings::{JNIEnv, jobject, jmethodID,  JNINativeInterface_};
+use jvmti_jni_bindings::{JNIEnv, jobject, jmethodID, JNINativeInterface_, jvalue, jboolean, jshort, jint, jlong};
 use std::ffi::{VaList, VaListImpl, c_void};
 
 // use log::trace;
@@ -13,7 +13,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use crate::method_table::MethodId;
 use classfile_view::view::HasAccessFlags;
-use std::intrinsics::transmute;
+use std::mem::transmute;
 
 pub mod call_nonstatic;
 
@@ -148,39 +148,69 @@ pub mod call_static;
 pub enum VarargProvider<'l, 'l2, 'l3> {
     Dots(&'l mut VaListImpl<'l2>),
     VaList(&'l mut VaList<'l2, 'l3>),
+    Array(* const jvalue)
 }
 
 impl VarargProvider<'_, '_, '_> {
-    pub unsafe fn arg_ptr(&mut self) -> *mut c_void {
+    pub unsafe fn arg_ptr(&mut self) -> jobject {
         match self {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Array(a_ptr) => {
+                let res = a_ptr.l;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
-    pub unsafe fn arg_bool(&mut self) -> u8 {
+    pub unsafe fn arg_bool(&mut self) -> jboolean {
         match self {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Array(a_ptr) => {
+                //todo duplication
+                let res = a_ptr.z;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
-    pub unsafe fn arg_short(&mut self) -> i16 {
+    pub unsafe fn arg_short(&mut self) -> jshort {
         match self {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Array(a_ptr) => {
+                //todo duplication
+                let res = a_ptr.s;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
 
-    pub unsafe fn arg_long(&mut self) -> i64 {
+    pub unsafe fn arg_long(&mut self) -> jlong {
         match self {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Array(a_ptr) => {
+                //todo duplication
+                let res = a_ptr.j;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
 
-    pub unsafe fn arg_int(&mut self) -> i32 {
+    pub unsafe fn arg_int(&mut self) -> jint {
         match self {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Array(a_ptr) => {
+                //todo duplication
+                let res = a_ptr.i;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
 
@@ -189,6 +219,12 @@ impl VarargProvider<'_, '_, '_> {
         match self {
             VarargProvider::Dots(l) => transmute(l.arg::<u32>()),
             VarargProvider::VaList(l) => transmute(l.arg::<u32>()),
+            VarargProvider::Array(a_ptr) => {
+                //todo duplication
+                let res = a_ptr.f;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
 
@@ -196,6 +232,12 @@ impl VarargProvider<'_, '_, '_> {
         match self {
             VarargProvider::Dots(l) => transmute(l.arg::<u64>()),
             VarargProvider::VaList(l) => transmute(l.arg::<u64>()),
+            VarargProvider::Array(a_ptr) => {
+                //todo duplication
+                let res = a_ptr.d;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
 
@@ -203,6 +245,12 @@ impl VarargProvider<'_, '_, '_> {
         match self {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Array(a_ptr) => {
+                //todo duplication
+                let res = a_ptr.b;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
 
@@ -210,6 +258,12 @@ impl VarargProvider<'_, '_, '_> {
         match self {
             VarargProvider::Dots(l) => l.arg(),
             VarargProvider::VaList(l) => l.arg(),
+            VarargProvider::Array(a_ptr) => {
+                //todo duplication
+                let res = a_ptr.c;
+                *a_ptr = a_ptr.offset(1);
+                res
+            }
         }
     }
 }
