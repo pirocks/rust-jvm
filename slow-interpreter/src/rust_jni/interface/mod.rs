@@ -220,8 +220,8 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         ReleaseStringUTFChars: Some(release_string_utfchars),
         GetArrayLength: Some(get_array_length),
         NewObjectArray: Some(new_object_array),
-        GetObjectArrayElement: None,
-        SetObjectArrayElement: None,
+        GetObjectArrayElement: Some(get_object_array_element),
+        SetObjectArrayElement: Some(set_object_array_element),
         NewBooleanArray: Some(new_boolean_array),
         NewByteArray: Some(new_byte_array),
         NewCharArray: Some(new_char_array),
@@ -246,7 +246,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         ReleaseLongArrayElements: None,
         ReleaseFloatArrayElements: None,
         ReleaseDoubleArrayElements: None,
-        GetBooleanArrayRegion: None,
+        GetBooleanArrayRegion: Some(get_boolean_array_region),
         GetByteArrayRegion: Some(get_byte_array_region),
         GetCharArrayRegion: Some(get_char_array_region),
         GetShortArrayRegion: Some(get_short_array_region),
@@ -302,39 +302,8 @@ pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: 
     }) as u8
 }
 
-pub mod instance_of {
-    use jvmti_jni_bindings::{JNIEnv, jobject, jclass, jboolean};
-    use crate::rust_jni::native_util::{get_state, from_object, get_frame};
-    use crate::instructions::special::instance_of_impl;
-    use std::ops::Deref;
-    use crate::java_values::JavaValue;
-
-    pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
-        let jvm = get_state(env);
-        let java_obj = from_object(obj);
-        let class_object = from_object(clazz);
-        let type_view = JavaValue::Object(class_object).cast_class().as_type();
-        let type_ = match type_view.try_unwrap_ref_type(){
-            None => unimplemented!(),
-            Some(ref_type) => ref_type,
-        };
-        let frame = get_frame(env);
-        instance_of_impl(jvm, frame.deref(), java_obj.unwrap(), type_.clone());
-        (frame.pop().unwrap_int() != 0) as jboolean
-    }
-}
-
-pub mod local_ref {
-    use jvmti_jni_bindings::{JNIEnv, jobject};
-    use crate::rust_jni::native_util::from_object;
-
-    pub unsafe extern "C" fn new_local_ref(_env: *mut JNIEnv, ref_: jobject) -> jobject {
-        //todo blocking on actually having gc
-        std::mem::forget(from_object(ref_).unwrap());
-        ref_
-    }
-}
-
+pub mod instance_of;
+pub mod local_ref;
 pub mod local_frame;
 pub mod call;
 pub mod array;

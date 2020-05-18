@@ -156,7 +156,7 @@ pub fn run_native_method(
                         // unimplemented!()
                         Some(JavaValue::Int(0))
                     } else {
-                        // frame.print_stack_trace();
+                        jvm.get_current_thread().print_stack_trace();
                         dbg!(mangled);
                         panic!()
                     }

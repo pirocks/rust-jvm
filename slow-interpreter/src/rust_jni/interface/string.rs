@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{JNIEnv, jstring, jboolean, jchar, jsize};
+use jvmti_jni_bindings::{JNIEnv, jstring, jboolean, jchar, jsize, JNI_TRUE};
 use std::os::raw::c_char;
 use std::cell::Ref;
 use std::alloc::Layout;
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
     });
     res.offset(char_array.len() as isize).write(0);//null terminate
     if is_copy != std::ptr::null_mut() {
-        unimplemented!()
+        is_copy.write(JNI_TRUE as u8);
     }
     // dbg!(get_state(_env).get_current_thread());
     return res;

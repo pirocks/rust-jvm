@@ -1,3 +1,5 @@
+#![feature(box_syntax)]
+
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::classfile::{MethodInfo, Classfile};
 use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -171,3 +173,15 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PType)> {
     })
 }
 
+pub fn parse_class_name(str_: &str) -> PType{
+    if str_.starts_with("["){
+        let field_descriptor = parse_field_descriptor(&str_[1..]).unwrap().field_type;
+        PType::Ref(ReferenceType::Array(box field_descriptor))
+    }
+    else if str_.ends_with(";"){
+        parse_field_descriptor(&str_).unwrap().field_type
+    }
+    else {
+        PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))
+    }
+}

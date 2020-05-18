@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::view::ClassView;
 use crate::view::attribute_view::BootstrapMethodView;
 use crate::view::ptype_view::{ReferenceTypeView, PTypeView};
-use descriptor_parser::{parse_field_descriptor, parse_method_descriptor, MethodDescriptor};
+use descriptor_parser::{parse_method_descriptor, MethodDescriptor, parse_class_name};
 
 #[derive(Debug)]
 pub struct Utf8View {
@@ -42,7 +42,8 @@ impl ClassPoolElemView {
         //todo should really find a way of getting this into a string pool
         let name_str = self.backing_class.constant_pool[self.name_index].extract_string_from_utf8();
 
-        let type_ = PTypeView::from_ptype(&parse_field_descriptor(&name_str).unwrap().field_type);
+        //todo parse_class_name needs to be used more elsewhere
+        let type_ = PTypeView::from_ptype(&parse_class_name(&name_str));
         type_.unwrap_ref_type().clone()
         // ClassName::Str(name_str)
     }
