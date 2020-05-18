@@ -150,7 +150,6 @@ pub struct JVMState {
     //todo needs to be used for all instances of getClass
     pub libjava: LibJavaLoading,
 
-
     pub initialized_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub class_object_pool: RwLock<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
     //anon classes
@@ -377,28 +376,43 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm));
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.clone().backing_class(), jvm.bootstrap_loader.clone());
-    jvm.jvmti_state.as_ref().map(|jvmti|jvmti.built_in_jdwp.class_prepare(&jvm, &main_view.name()));
+    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.class_prepare(&jvm, &main_view.name()));
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.main_thread();
     assert!(Arc::ptr_eq(&jvm.get_current_thread(), &main_thread));
+    let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
     // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
-    let main_stack = Rc::new(StackEntry {
+    let stack_entry = StackEntry {
         class_pointer: Arc::new(main_class),
         method_i: main_i as u16,
-        local_vars: vec![].into(),//todo handle parameters, todo handle non-zero size locals
+        local_vars: vec![JavaValue::Top; num_vars as usize].into(),//todo handle parameters, todo handle non-zero size locals
         operand_stack: vec![].into(),
         pc: RefCell::new(0),
         pc_offset: 0.into(),
-    });
+    };
+    let main_stack = Rc::new(stack_entry);
     jvm.main_thread().call_stack.replace(vec![main_stack]);
-    jvm.jvmti_state.as_ref().map(|jvmti|jvmti.built_in_jdwp.thread_start(&jvm, jvm.main_thread().thread_object.borrow().clone().unwrap()));
+    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, jvm.main_thread().thread_object.borrow().clone().unwrap()));
     //trigger breakpoint on thread.resume for debuggers that rely on that:
 
-    let thread_class = check_inited_class(&jvm, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
-    let method_i = thread_class.view().method_index().lookup(&"resume".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap().method_i();
+    let thread_class = check_inited_class(
+        &jvm,
+        &ClassName::thread().into(),
+        jvm.bootstrap_loader.clone()
+    );
+    let method_i = thread_class
+        .view()
+        .method_index()
+        .lookup(&"resume".to_string(),
+                &MethodDescriptor {
+                    parameter_types: vec![],
+                    return_type: PType::VoidType,
+                })
+        .unwrap()
+        .method_i();
     let thread_resume_id = jvm.method_table.write().unwrap().get_method_id(thread_class, method_i as u16);
-    match &jvm.jvmti_state{
-        None => {},
+    match &jvm.jvmti_state {
+        None => {}
         Some(jvmti) => {
             let breakpoints = jvmti.break_points.read().unwrap();
             let breakpoint_offsets = breakpoints.get(&thread_resume_id);
@@ -409,9 +423,8 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
                 })));
             std::mem::drop(breakpoints);
             jvmti.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), 0);
-        },
+        }
     }
-
 
     run_function(&jvm);
     if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
@@ -462,7 +475,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
         pc_offset: RefCell::new(-1),
     };
     jvm.get_current_thread().call_stack.replace(vec![Rc::new(initialize_system_frame)]);
-    jvm.jvmti_state.as_ref().map(|jvmti|jvmti.built_in_jdwp.agent_load(jvm, &jvm.main_thread()));
+    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.main_thread()));
 //todo technically this needs to before any bytecode is run.
     run_function(&jvm);
     if *jvm.main_thread().interpreter_state.function_return.borrow() {

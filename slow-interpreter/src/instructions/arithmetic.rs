@@ -1,4 +1,4 @@
-
+use std::num::Wrapping;
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
@@ -37,6 +37,12 @@ pub fn lmul(current_frame: &StackEntry) -> () {
     let first = current_frame.pop().unwrap_long();
     let second = current_frame.pop().unwrap_long();
     current_frame.push(JavaValue::Long(first * second))
+}
+
+
+pub fn lneg(current_frame: &StackEntry) -> () {
+    let first = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Long(-first))
 }
 
 pub fn land(current_frame: &StackEntry) -> () {
@@ -144,10 +150,14 @@ pub fn lcmp(current_frame: &StackEntry) -> () {
 }
 
 
+
 pub fn ladd(current_frame: &StackEntry) -> () {
     let first = current_frame.pop().unwrap_long();
     let second = current_frame.pop().unwrap_long();
-    current_frame.push(JavaValue::Long(first + second));
+    let wrapping_first = Wrapping(first);
+    let wrapping_second = Wrapping(second);
+    let sum = wrapping_first + wrapping_second;
+    current_frame.push(JavaValue::Long(sum.0));
 }
 
 pub fn ldiv(current_frame: &StackEntry) -> () {

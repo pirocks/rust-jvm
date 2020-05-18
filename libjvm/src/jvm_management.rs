@@ -4,6 +4,7 @@ use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::java::util::properties::Properties;
 use slow_interpreter::java::lang::string::JString;
 use std::ops::Deref;
+use std::process::exit;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {
@@ -22,7 +23,7 @@ unsafe extern "system" fn JVM_Exit(code: jint) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Halt(code: jint) {
-    unimplemented!()
+    exit(code);//todo cleanup and gracefully shutdown
 }
 
 #[no_mangle]

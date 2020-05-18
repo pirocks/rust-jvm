@@ -153,7 +153,7 @@ pub fn inherits_from(state: &JVMState, inherits: &Arc<RuntimeClass>, parent: &Ar
     }) || interfaces_match
 }
 
-pub fn wide(state: &JVMState, current_frame: &StackEntry, w: Wide) {
+pub fn wide(current_frame: &StackEntry, w: Wide) {
     match w {
         Wide::Iload(_) => {
             unimplemented!()

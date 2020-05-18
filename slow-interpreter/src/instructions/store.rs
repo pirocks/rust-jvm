@@ -28,15 +28,21 @@ pub fn lstore(current_frame: & StackEntry, n: usize) -> () {
 }
 
 pub fn dstore(current_frame: & StackEntry, n: usize) -> () {
-    let object_ref = current_frame.pop();
-    match object_ref.clone() {
+    let jv = current_frame.pop();
+    match jv.clone() {
         JavaValue::Double(_) => {}
         _ => {
-            dbg!(&object_ref);
+            dbg!(&jv);
             panic!()
         }
     }
-    current_frame.local_vars.borrow_mut()[n] = object_ref;
+    current_frame.local_vars.borrow_mut()[n] = jv;
+}
+
+pub fn fstore(current_frame: & StackEntry, n: usize) -> () {
+    let jv = current_frame.pop();
+    jv.unwrap_float();
+    current_frame.local_vars.borrow_mut()[n] = jv;
 }
 
 pub fn castore(current_frame: & StackEntry) -> () {

@@ -9,22 +9,57 @@ use classfile_view::view::ClassView;
 use verification::{verify, VerifierContext};
 use classfile_view::loading::{LoaderName, ClassLoadingError, Loader, LoaderArc, LivePoolGetter};
 use jar_manipulation::JarHandle;
+use classfile_view::loading::ClassLoadingError::ClassNotFoundException;
 
 #[derive(Debug)]
 pub struct Classpath {
-    pub jars: Vec<RwLock<Box<JarHandle>>>,
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>,
+    jar_cache: RwLock<HashMap<Box<Path>, Box<JarHandle>>>,
 }
 
-impl Classpath{
-    pub fn classpath_string(&self) -> String{
+impl Classpath {
+    pub fn lookup(&self, class_name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+        for x in &self.classpath_base {
+            for dir_member in x.read_dir().unwrap() {
+                let dir_member = dir_member.unwrap();
+                let is_jar = dir_member.path().extension().map(|x|{&x.to_string_lossy() == "jar"}).unwrap_or(false);
+                if is_jar {
+                    let mut cache_write_guard = self.jar_cache.write().unwrap();
+                    let boxed_path = dir_member.path().into_boxed_path();
+                    if cache_write_guard.get(&boxed_path).is_none() {
+                        cache_write_guard.insert(boxed_path.clone(), box JarHandle::new(boxed_path).unwrap());
+                    }
+                }
+            }
+        }
+        let mut cache_read_guard = self.jar_cache.write().unwrap();
+        for jar in cache_read_guard.values_mut() {
+            match jar.lookup(class_name){
+                Ok(c) =>{return Result::Ok(c);},
+                Err(_) => {},
+            }
+        };
+        for path in &self.classpath_base {
+            let mut new_path = path.clone().into_path_buf();
+            new_path.push(format!("{}.class",class_name.get_referred_name()));
+            if new_path.is_file(){
+                let file_read = &mut File::open(new_path).unwrap();
+                let classfile = parse_class_file(file_read);
+                return Result::Ok(Arc::new(classfile))
+            }
+        }
+        Result::Err(ClassNotFoundException)
+    }
+
+    pub fn from_dirs(dirs: Vec<Box<Path>>) -> Self {
+        Self { classpath_base: dirs, jar_cache: RwLock::new(HashMap::new()) }
+    }
+
+    pub fn classpath_string(&self) -> String {
         let mut res = String::new();
         for p in &self.classpath_base {
             res.push_str(format!("{}:", p.to_str().unwrap()).as_str());
-        }
-        for jar in &self.jars {
-            res.push_str(format!("{}:", jar.read().unwrap().path.to_str().unwrap()).as_str());
         }
         res
     }
@@ -59,15 +94,15 @@ impl Loader for BootstrapLoader {
             let classfile = self.pre_load(class)?;
             if class != &ClassName::object() {
                 if classfile.super_name() == None {
-                    self.load_class(self_arc.clone(), &ClassName::object(), bl.clone(),live_pool_getter.clone())?;
+                    self.load_class(self_arc.clone(), &ClassName::object(), bl.clone(), live_pool_getter.clone())?;
                 } else {
                     let super_class_name = classfile.super_name();
-                    self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone(),live_pool_getter.clone())?;
+                    self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone(), live_pool_getter.clone())?;
                 }
             }
             for i in classfile.interfaces() {
                 let interface_name = i.interface_name();
-                self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone(),live_pool_getter.clone())?;
+                self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone(), live_pool_getter.clone())?;
             }
             match verify(&VerifierContext { live_pool_getter, bootstrap_loader: bl.clone() }, classfile.clone(), self_arc) {
                 Ok(_) => {}
@@ -90,21 +125,7 @@ impl Loader for BootstrapLoader {
         let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());
         let res = match maybe_classfile {
             None => {
-                let jar_class_file: Option<Arc<Classfile>> = self.classpath.jars.iter().find_map(|h| {
-                    let mut h2 = h.write().unwrap();
-                    match h2.lookup(name) {
-                        Ok(c) => Some(c),
-                        Err(_) => None,
-                    }
-                });
-                match jar_class_file {
-                    None => {
-                        self.search_class_files(name)
-                    }
-                    Some(c) => {
-                        Result::Ok(c)
-                    }
-                }
+                self.classpath.lookup(name)
             }
             Some(c) => Result::Ok(c.clone()),
         };
@@ -138,7 +159,6 @@ impl BootstrapLoader {
         });
         match found_class_file {
             None => {
-//                dbg!(name);
                 Result::Err(ClassLoadingError::ClassNotFoundException)
             }
             Some(path) => {

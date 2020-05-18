@@ -13,7 +13,6 @@ use std::path::Path;
 use std::sync::RwLock;
 use slow_interpreter::{run, JVMOptions};
 use rust_jvm_common::classnames::ClassName;
-use jar_manipulation::JarHandle;
 use slow_interpreter::loading::Classpath;
 
 
@@ -29,7 +28,6 @@ fn main() {
     let mut verbose = false;
     let mut debug = false;
     let mut main_class_name = "".to_string();
-    let mut jars: Vec<String> = vec![];
     let mut class_entries: Vec<String> = vec![];
     let mut args: Vec<String> = vec![];
     let mut libjava: String = "".to_string();
@@ -47,8 +45,8 @@ fn main() {
         ap.refer(&mut main_class_name)
             .add_option(&["--main"], Store,
                         "Main class");
-        ap.refer(&mut jars)
-            .add_option(&["--jars"], List, "A list of jars from which to load classes");
+        // ap.refer(&mut jars)
+        //     .add_option(&["--jars"], List, "A list of jars from which to load classes");
         ap.refer(&mut class_entries)
             .add_option(&["--classpath"], List, "A list of directories from which to load classes");
         ap.refer(&mut args)
@@ -65,14 +63,7 @@ fn main() {
     }
 
 
-    let classpath = Classpath {
-        jars: jars.iter().map(|x| {
-            let path = Path::new(x).into();
-            let jar_handle = JarHandle::new(path).unwrap();
-            RwLock::new(Box::new(jar_handle))
-        }).collect(),
-        classpath_base: class_entries.iter().map(|x| Path::new(x).into()).collect(),
-    };
+    let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
     let jvm_options = JVMOptions::new(main_class_name, classpath, args ,libjava, libjdwp,enable_tracing,enable_jvmti);
 
