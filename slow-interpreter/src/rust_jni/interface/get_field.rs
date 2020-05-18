@@ -1,5 +1,5 @@
 use crate::rust_jni::native_util::{from_object, to_object, get_state, get_frame, from_jclass};
-use jvmti_jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethodID};
+use jvmti_jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethodID, _jfieldID, _jobject, jboolean, jshort, jbyte, jchar, jfloat, jdouble};
 use std::ops::Deref;
 use std::ffi::CStr;
 use std::mem::transmute;
@@ -10,30 +10,60 @@ use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use std::sync::Arc;
 
-pub unsafe extern "C" fn get_long_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jlong {
-    let field_id: &FieldID = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
-    let view = &field_id.class.view();
-    let name = view.field(field_id.field_i as usize).field_name();
-    from_object(obj).unwrap().unwrap_normal_object().fields.borrow().deref().get(&name).unwrap().unwrap_long() as jlong
+pub unsafe extern "C" fn get_boolean_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
+    let java_value = get_java_value_field(obj, field_id_raw);
+    java_value.unwrap_boolean()
 }
 
+pub unsafe extern "C" fn get_byte_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jbyte {
+    let java_value = get_java_value_field(obj, field_id_raw);
+    java_value.unwrap_byte()
+}
+
+pub unsafe extern "C" fn get_short_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jshort {
+    let java_value = get_java_value_field(obj, field_id_raw);
+    java_value.unwrap_short()
+}
+
+pub unsafe extern "C" fn get_char_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jchar {
+    let java_value = get_java_value_field(obj, field_id_raw);
+    java_value.unwrap_char()
+}
 
 pub unsafe extern "C" fn get_int_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jint {
-    let field_id: &FieldID = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
-    let view = &field_id.class.view();
-    let name = view.field(field_id.field_i as usize).field_name();
-    from_object(obj).unwrap().unwrap_normal_object().fields.borrow().deref().get(&name).unwrap().unwrap_int() as jint
+    let java_value = get_java_value_field(obj, field_id_raw);
+    java_value.unwrap_int() as jint
+}
+
+pub unsafe extern "C" fn get_long_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jlong {
+    let java_value = get_java_value_field(obj, field_id_raw);
+    java_value.unwrap_long() as jlong
+}
+
+pub unsafe extern "C" fn get_float_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jfloat {
+    let java_value = get_java_value_field(obj, field_id_raw);
+    java_value.unwrap_float()
+}
+
+pub unsafe extern "C" fn get_double_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jdouble {
+    let java_value = get_java_value_field(obj, field_id_raw);
+    java_value.unwrap_double()
+}
+
+pub unsafe extern "C" fn get_object_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jobject {
+    let java_value = get_java_value_field(obj, field_id_raw);
+    to_object(java_value.unwrap_object())
 }
 
 
-pub unsafe extern "C" fn get_object_field(_env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jobject {
-    let field_id = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
-    let nonnull = from_object(obj).unwrap();
-    let field_borrow = nonnull.unwrap_normal_object().fields.borrow();
-    let fields = field_borrow.deref();
+unsafe fn get_java_value_field(obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> JavaValue {
+    let field_id: &FieldID = Box::leak(Box::from_raw(field_id_raw as *mut FieldID));
     let view = &field_id.class.view();
-    let field_name = view.field(field_id.field_i).field_name();
-    to_object(fields.get(&field_name).unwrap().unwrap_object())
+    let name = view.field(field_id.field_i as usize).field_name();
+    let notnull = from_object(obj).unwrap();
+    let normal_obj = notnull.unwrap_normal_object();
+    let fields_borrow = normal_obj.fields.borrow();
+    fields_borrow.deref().get(&name).unwrap().clone()
 }
 
 

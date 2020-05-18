@@ -7,7 +7,7 @@ unsafe extern "system" fn JVM_InitializeSocketLibrary() -> jint {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Socket(domain: jint, type_: jint, protocol: jint) -> jint {
-    unimplemented!()
+    libc::socket(domain,type_,protocol)
 }
 
 #[no_mangle]

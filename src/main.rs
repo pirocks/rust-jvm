@@ -10,7 +10,6 @@ use log::info;
 
 use argparse::{ArgumentParser, Store, StoreTrue, List};
 use std::path::Path;
-use std::sync::RwLock;
 use slow_interpreter::{run, JVMOptions};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::loading::Classpath;
