@@ -1,10 +1,12 @@
 use jvmti_jni_bindings::{JNIEnv, jclass, jobject, jint, JVM_CALLER_DEPTH, jlong, jboolean, jbyte};
 use crate::introspection::JVM_GetCallerClass;
-use slow_interpreter::rust_jni::native_util::from_object;
+use slow_interpreter::rust_jni::native_util::{from_object, get_state};
 use std::ptr::null_mut;
 use std::intrinsics::transmute;
 use classfile_view::view::ptype_view::PTypeView;
 use std::ops::Deref;
+use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::rust_jni::interface::get_field::new_field_id;
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(
@@ -91,4 +93,95 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putByte__JB(env: *mut JNIEnv,
 ) {
     let byte_addr: *mut jbyte = transmute(address);
     byte_addr.write(byte_);
+}
+
+pub mod compare_and_swap {
+    use jvmti_jni_bindings::{jboolean, jlong, jint, jobject, JNIEnv};
+    use slow_interpreter::rust_jni::native_util::{from_object, get_state};
+    use std::mem::transmute;
+    use slow_interpreter::java_values::JavaValue;
+
+    #[no_mangle]
+    unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEnv, the_unsafe: jobject,
+                                                                     target_obj: jobject,
+                                                                     offset: jlong,
+                                                                     old: jint,
+                                                                     new: jint,
+    ) -> jboolean {
+        let jvm = get_state(env);
+        let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+        let view = rc.view();
+        let field = view.field(field_i as usize);
+        let field_name = field.field_name();
+        let notnull = from_object(target_obj).unwrap();
+        let normal_obj = notnull.unwrap_normal_object();
+        let mut fields_borrow = normal_obj.fields.borrow_mut();
+        let curval = fields_borrow.get(field_name.as_str()).unwrap();
+        (if curval.unwrap_int() == old {
+            fields_borrow.insert(field_name, JavaValue::Int(new));
+            1
+        } else {
+            0
+        }) as jboolean
+    }
+
+    #[no_mangle]
+    unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIEnv, the_unsafe: jobject,
+                                                                      target_obj: jobject,
+                                                                      offset: jlong,
+                                                                      old: jlong,
+                                                                      new: jlong,
+    ) -> jboolean {
+        //TODO MAJOR DUP
+        let jvm = get_state(env);
+        let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+        let view = rc.view();
+        let field = view.field(field_i as usize);
+        let field_name = field.field_name();
+        let notnull = from_object(target_obj).unwrap();
+        let normal_obj = notnull.unwrap_normal_object();
+        let mut fields_borrow = normal_obj.fields.borrow_mut();
+        let curval = fields_borrow.get(field_name.as_str()).unwrap();
+        (if curval.unwrap_long() == old {
+            fields_borrow.insert(field_name, JavaValue::Long(new));
+            1
+        } else {
+            0
+        }) as jboolean
+    }
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEnv, the_unsafe: jobject,
+                                                                 field_obj: jobject,
+) -> jlong {
+    let jfield = JavaValue::Object(from_object(field_obj)).cast_field();
+    let name = jfield.name().to_rust_string();
+    let clazz = jfield.clazz().as_runtime_class();
+    let class_view = clazz.view();
+    let mut field_i = None;
+    &class_view.fields().enumerate().for_each(|(i, f)| {
+        if f.field_name() == name {
+            field_i = Some(i);
+        }
+    });
+    let jvm = get_state(env);
+    let field_id = new_field_id(jvm, clazz, field_i.unwrap());
+    transmute(field_id)
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(
+    env: *mut JNIEnv,
+    the_unsafe: jobject,
+    obj: jobject,
+    offset: jlong
+)-> jint{
+    let jvm = get_state(env);
+    let notnull = from_object(obj).unwrap();
+    let (rc,field_i ) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+    let field_name = rc.view().field(field_i as usize).field_name();
+    let field_borrow = notnull.unwrap_normal_object().fields.borrow();
+    field_borrow.get(&field_name).unwrap().unwrap_int()
 }

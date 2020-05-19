@@ -72,6 +72,14 @@ pub mod field {
             field_object.cast_field()
         }
 
+        pub fn name(&self)-> JString{
+            self.normal_object.lookup_field("name").cast_string()
+        }
+
+        pub fn clazz(&self)-> JClass{
+            self.normal_object.lookup_field("clazz").cast_class()
+        }
+
         as_object_or_java_value!();
     }
 }

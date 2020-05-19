@@ -80,14 +80,7 @@ pub fn run_native_method(
                     let mangled = mangling::mangle(class.clone(), method_i);
                     // state.tracing.trace_dynmaic_link()
                     //todo actually impl these at some point
-                    if mangled == "Java_sun_misc_Unsafe_objectFieldOffset".to_string() {
-                        object_field_offset(jvm, &frame, &mut args)
-                    } else if mangled == "Java_sun_misc_Unsafe_getIntVolatile".to_string() {
-                        get_int_volatile(&mut args)
-                    } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapInt".to_string() {
-                        jvm.get_current_thread().print_stack_trace();
-                        compare_and_swap_int(&mut args)
-                    } else if mangled == "Java_sun_misc_Unsafe_allocateMemory".to_string() {
+                    if mangled == "Java_sun_misc_Unsafe_allocateMemory".to_string() {
                         allocate_memory(&mut args)
                     } else if mangled == "Java_sun_misc_Unsafe_putLong__JJ".to_string() {
                         putLong__JJ(&mut args)
@@ -98,8 +91,6 @@ pub fn run_native_method(
                         //todo all these unsafe function thingys are getting a tad excessive
                     } else if mangled == "Java_sun_misc_Unsafe_getObjectVolatile".to_string() {
                         get_object_volatile(&mut args)
-                    } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapLong".to_string() {
-                        compare_and_swap_long(&mut args)
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
                         //todo
                         None
@@ -146,9 +137,7 @@ pub fn run_native_method(
                         let field_type = member_name.get_field_type(jvm, frame.clone());
                         let empty_string = JString::from(jvm, &frame, "".to_string());
                         let field = Field::init(jvm, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
-
-                        let mut args = vec![Unsafe::the_unsafe(jvm, &frame).java_value(), field.java_value()];
-                        object_field_offset(jvm, &frame, &mut args)
+                        Unsafe::the_unsafe(jvm, &frame).object_field_offset(jvm,frame,field).into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
 //static native int getMembers(Class<?> defc, String matchName, String matchSig,
 // //          int matchFlags, Class<?> caller, int skip, MemberName[] results);

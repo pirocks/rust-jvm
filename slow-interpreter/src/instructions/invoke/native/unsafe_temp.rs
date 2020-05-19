@@ -4,31 +4,11 @@
 
 //all of these functions should be implemented in libjvm
 use std::mem::transmute;
-use crate::utils::string_obj_to_string;
 
-use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
-use crate::{JVMState, StackEntry};
+use crate::{JVMState};
 
 
-pub fn compare_and_swap_long(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
-    let param1_obj = args[1].unwrap_object();
-    let unwrapped = param1_obj.unwrap();
-    let target_obj = unwrapped.unwrap_normal_object();
-    let var_offset = args[2].unwrap_long();
-    let old = args[3].unwrap_long();
-    let new = args[4].unwrap_long();
-    let view = &target_obj.class_pointer.view();
-    let field_name = view.field(var_offset as usize).field_name();
-    let mut fields = target_obj.fields.borrow_mut();
-    let cur_val = fields.get(&field_name).unwrap().unwrap_long();
-    if cur_val != old {
-        JavaValue::Boolean(0)
-    } else {
-        fields.insert(field_name, JavaValue::Long(new));
-        JavaValue::Boolean(1)
-    }.into()
-}
 
 pub fn get_object_volatile(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let temp = args[1].unwrap_object().unwrap();
@@ -65,61 +45,6 @@ pub fn allocate_memory(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
         transmute(libc::malloc(transmute(args[1].unwrap_long())))
     };
     JavaValue::Long(res).into()
-}
-
-pub fn compare_and_swap_int(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
-    let param1_obj = args[1].unwrap_object();
-    let unwrapped = param1_obj.unwrap();
-    let target_obj = unwrapped.unwrap_normal_object();
-    let var_offset = args[2].unwrap_long();
-    let old = args[3].unwrap_int();
-    let new = args[4].unwrap_int();
-    let view = &target_obj.class_pointer.view();
-    dbg!(var_offset);
-    dbg!(view.name());
-    let field_name = view.field(var_offset as usize).field_name();
-    let mut fields = target_obj.fields.borrow_mut();
-    let cur_val = fields.get(&field_name).unwrap().unwrap_int();
-    if cur_val != old {
-        JavaValue::Boolean(0)
-    } else {
-        fields.insert(field_name, JavaValue::Int(new));
-        JavaValue::Boolean(1)
-    }.into()
-}
-
-pub fn get_int_volatile(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
-    let param1_obj = args[1].unwrap_object();
-    let unwrapped = param1_obj.unwrap();
-    let target_obj = unwrapped.unwrap_normal_object();
-    let var_offset = args[2].unwrap_long();
-    let view = &target_obj.class_pointer.view();
-    let field_name = view.field(var_offset as usize).field_name();
-    let fields = target_obj.fields.borrow();
-    fields.get(&field_name).unwrap().clone().into()
-}
-
-pub fn object_field_offset(
-    jvm: &JVMState,
-    frame: &StackEntry,
-    args: &mut Vec<JavaValue>,
-) -> Option<JavaValue> {
-    let param0_obj = args[0].unwrap_object();
-    let _the_unsafe = param0_obj.as_ref().unwrap().unwrap_normal_object();
-    let param1_obj = args[1].unwrap_object().unwrap();
-    let field_name = string_obj_to_string(param1_obj.lookup_field("name").unwrap_object());
-    let temp = param1_obj.lookup_field("clazz");
-    let field_class = temp.cast_class();
-    let field_class_type = field_class.as_type();
-    let inited_field_class = check_inited_class(jvm, &field_class_type, frame.class_pointer.loader(jvm).clone());
-    let field_classfile = inited_field_class.view();
-    let mut res = None;
-    &field_classfile.fields().enumerate().for_each(|(i, f)| {
-        if f.field_name() == field_name {
-            res = Some(Some(JavaValue::Long(i as i64)));
-        }
-    });
-    res.unwrap()
 }
 
 
