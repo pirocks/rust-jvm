@@ -75,6 +75,8 @@ pub fn compare_and_swap_int(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let old = args[3].unwrap_int();
     let new = args[4].unwrap_int();
     let view = &target_obj.class_pointer.view();
+    dbg!(var_offset);
+    dbg!(view.name());
     let field_name = view.field(var_offset as usize).field_name();
     let mut fields = target_obj.fields.borrow_mut();
     let cur_val = fields.get(&field_name).unwrap().unwrap_int();
@@ -108,8 +110,8 @@ pub fn object_field_offset(
     let field_name = string_obj_to_string(param1_obj.lookup_field("name").unwrap_object());
     let temp = param1_obj.lookup_field("clazz");
     let field_class = temp.cast_class();
-    let field_class_name = field_class.as_type().unwrap_ref_type().unwrap_name();
-    let inited_field_class = check_inited_class(jvm, &field_class_name.into(), frame.class_pointer.loader(jvm).clone());
+    let field_class_type = field_class.as_type();
+    let inited_field_class = check_inited_class(jvm, &field_class_type, frame.class_pointer.loader(jvm).clone());
     let field_classfile = inited_field_class.view();
     let mut res = None;
     &field_classfile.fields().enumerate().for_each(|(i, f)| {

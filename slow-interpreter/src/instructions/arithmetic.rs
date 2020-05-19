@@ -36,7 +36,8 @@ pub fn dsub(current_frame: & StackEntry) -> () {
 pub fn lmul(current_frame: &StackEntry) -> () {
     let first = current_frame.pop().unwrap_long();
     let second = current_frame.pop().unwrap_long();
-    current_frame.push(JavaValue::Long(first * second))
+    let mul_res = Wrapping(first) * Wrapping(second);
+    current_frame.push(JavaValue::Long(mul_res.0))
 }
 
 
@@ -176,6 +177,12 @@ pub fn lor(current_frame: &StackEntry) -> () {
     let first = current_frame.pop().unwrap_long();
     let second = current_frame.pop().unwrap_long();
     current_frame.push(JavaValue::Long(first | second));
+}
+
+pub fn lxor(current_frame: &StackEntry) -> () {
+    let first = current_frame.pop().unwrap_long();
+    let second = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Long(first ^ second));
 }
 
 pub fn lshl(current_frame: &StackEntry) -> () {

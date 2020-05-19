@@ -380,7 +380,7 @@ fn run_single_instruction(
         InstructionInfo::lstore_3 => lstore(&current_frame, 3),
         InstructionInfo::lsub => lsub(&current_frame),
         InstructionInfo::lushr => lushr(&current_frame),
-        InstructionInfo::lxor => unimplemented!(),
+        InstructionInfo::lxor => lxor(&current_frame),
         InstructionInfo::monitorenter => {
             current_frame.pop().unwrap_object_nonnull().monitor_lock(jvm);
         }

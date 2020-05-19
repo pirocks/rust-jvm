@@ -85,6 +85,7 @@ pub fn run_native_method(
                     } else if mangled == "Java_sun_misc_Unsafe_getIntVolatile".to_string() {
                         get_int_volatile(&mut args)
                     } else if mangled == "Java_sun_misc_Unsafe_compareAndSwapInt".to_string() {
+                        jvm.get_current_thread().print_stack_trace();
                         compare_and_swap_int(&mut args)
                     } else if mangled == "Java_sun_misc_Unsafe_allocateMemory".to_string() {
                         allocate_memory(&mut args)
