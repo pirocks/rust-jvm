@@ -357,7 +357,7 @@ unsafe extern "C" fn get_class_fields(
     field_count_ptr.write(num_fields as jint);
     fields_ptr.write(libc::calloc(num_fields, size_of::<*mut jfieldID>()) as *mut *mut jvmti_jni_bindings::_jfieldID);
     for i in 0..num_fields {
-        fields_ptr.read().offset(i as isize).write(new_field_id(runtime_class.clone(), i))
+        fields_ptr.read().offset(i as isize).write(new_field_id(jvm,runtime_class.clone(), i))
     }
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassFields");
     jvmtiError_JVMTI_ERROR_NONE

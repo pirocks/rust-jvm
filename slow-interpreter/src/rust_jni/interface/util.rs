@@ -6,12 +6,6 @@ use crate::runtime_class::RuntimeClass;
 use crate::{JVMState, StackEntry};
 use crate::java::lang::class::JClass;
 
-pub struct FieldID {
-    pub class: Arc<RuntimeClass>,
-    pub field_i: usize,
-}
-
-
 pub fn class_object_to_runtime_class(obj: &JClass, jvm: & JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
     if obj.as_type().is_primitive() {
         return None;

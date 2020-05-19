@@ -50,6 +50,7 @@ use classfile_view::view::method_view::MethodView;
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use nix::unistd::{Pid, gettid};
 use crate::method_table::{MethodTable, MethodId};
+use crate::field_table::FieldTable;
 
 
 pub mod java_values;
@@ -165,6 +166,7 @@ pub struct JVMState {
     pub thread_state: ThreadState,
     pub tracing: TracingSettings,
     pub method_table: RwLock<MethodTable>,
+    pub field_table: RwLock<FieldTable>,
     live: RwLock<bool>,
 }
 
@@ -266,6 +268,7 @@ impl JVMState {
             thread_state,
             tracing,
             method_table: RwLock::new(MethodTable::new()),
+            field_table: RwLock::new(FieldTable::new()),
             live: RwLock::new(false),
         }
     }
@@ -398,7 +401,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let thread_class = check_inited_class(
         &jvm,
         &ClassName::thread().into(),
-        jvm.bootstrap_loader.clone()
+        jvm.bootstrap_loader.clone(),
     );
     let method_i = thread_class
         .view()
@@ -521,3 +524,4 @@ pub mod tracing;
 pub mod interpreter;
 pub mod signal;
 pub mod method_table;
+pub mod field_table;
