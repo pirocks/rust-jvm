@@ -73,7 +73,7 @@ impl Monitor {
         let guard1 = self.condvar_mutex.lock().unwrap();
         unsafe { self.mutex.force_unlock_fair(); }
         std::mem::drop(guard);
-        if millis < 0 {
+        if millis <= 0 {
             std::mem::drop(self.condvar.wait(guard1).unwrap());
         } else {
             std::mem::drop(self.condvar.wait_timeout(guard1, Duration::from_millis(millis as u64)).unwrap());

@@ -472,7 +472,7 @@ impl Object {
         })
     }
 
-    fn monitor(&self) -> &Monitor {
+    pub fn monitor(&self) -> &Monitor {
         match self {
             Object::Array(a) => &a.monitor,
             Object::Object(o) => &o.monitor,
