@@ -101,6 +101,20 @@ pub struct InterpreterState {
     pub suspended: std::sync::RwLock<SuspendedStatus>,
 }
 
+impl Default for InterpreterState{
+    fn default() -> Self {
+        InterpreterState {
+            terminate: RefCell::new(false),
+            throw: RefCell::new(None),
+            function_return: RefCell::new(false),
+            suspended: RwLock::new(SuspendedStatus {
+                suspended: false,
+                suspended_lock: Arc::new(Mutex::new(())),
+            }),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct SuspendedStatus {
     pub suspended: bool,
@@ -435,7 +449,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     }
     Result::Ok(())
 }
-
+//java.security.egd
 fn jvm_run_system_init(jvm: &JVMState) {
     let bl = &jvm.bootstrap_loader;
     let bootstrap_system_class_view = bl.load_class(bl.clone(), &ClassName::system(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
@@ -452,15 +466,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
         java_tid: 0,
         call_stack: RefCell::new(vec![Rc::new(bootstrap_frame)]),
         thread_object: RefCell::new(None),
-        interpreter_state: InterpreterState {
-            terminate: RefCell::new(false),
-            throw: RefCell::new(None),
-            function_return: RefCell::new(false),
-            suspended: RwLock::new(SuspendedStatus {
-                suspended: false,
-                suspended_lock: Arc::new(Mutex::new(())),
-            }),
-        },
+        interpreter_state: InterpreterState::default(),
         unix_tid: gettid(),
     }));
     let system_class = check_inited_class(jvm, &ClassName::system().into(), bl.clone());

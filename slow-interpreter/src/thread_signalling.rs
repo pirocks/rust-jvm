@@ -24,7 +24,7 @@ impl JVMState {
     pub fn init_signal_handler(&self) {
         unsafe {
             let sa = SigAction::new(SigHandler::SigAction(handler), transmute(0 as libc::c_int), SigSet::empty());
-            println!("sigaction");
+            // println!("sigaction");
             sigaction(Signal::SIGUSR1, &sa).unwrap();
         };
     }

@@ -20,6 +20,8 @@ use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::ptype::PType;
 use nix::unistd::gettid;
 use nix::sys::pthread::pthread_self;
+use std::time::Duration;
+use std::thread::sleep;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -43,15 +45,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
                 java_tid: tid,
                 call_stack: RefCell::new(vec![]),
                 thread_object: RefCell::new(thread_object.into()),
-                interpreter_state: InterpreterState {
-                    terminate: RefCell::new(false),
-                    throw: RefCell::new(None),
-                    function_return: RefCell::new(false),
-                    suspended: RwLock::new(SuspendedStatus {
-                        suspended: false,
-                        suspended_lock: Arc::new(Mutex::new(())),
-                    }),
-                },
+                interpreter_state: InterpreterState::default(),
                 unix_tid: gettid()
             });
             jvm.thread_state.alive_threads.write().unwrap().insert(tid, thread_from_rust.clone());
@@ -114,8 +108,13 @@ unsafe extern "system" fn JVM_Yield(env: *mut JNIEnv, threadClass: jclass) {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, threadClass: jclass, millis: jlong) {
-    unimplemented!()
+unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, _threadClass: jclass, millis: jlong) {
+    //todo handle negative millis
+    if millis <0{
+        unimplemented!()
+    }
+    //todo figure out what threadClass is for
+    sleep(Duration::from_millis(millis as u64))
 }
 
 //todo get rid of this jankyness

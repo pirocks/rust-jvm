@@ -2,8 +2,8 @@ use jvmti_jni_bindings::{jvmtiEnv, jthread, jvmtiStartFunction, jint, jvmtiError
 use crate::jvmti::{get_state, get_jvmti_interface};
 use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::ClassName;
-use crate::{JavaThread, InterpreterState, SuspendedStatus};
-use std::sync::{Arc, RwLock};
+use crate::{JavaThread, InterpreterState};
+use std::sync::Arc;
 use crate::rust_jni::interface::get_interface;
 use std::mem::transmute;
 use std::os::raw::c_void;
@@ -12,7 +12,6 @@ use crate::java_values::JavaValue;
 use std::cell::RefCell;
 use crate::stack_entry::StackEntry;
 use std::rc::Rc;
-use lock_api::Mutex;
 use thread_priority::*;
 use nix::unistd::gettid;
 
@@ -62,15 +61,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
                     pc_offset: RefCell::new(-1),
                 })]),
                 thread_object: RefCell::new(thread_object.clone().into()),
-                interpreter_state: InterpreterState {
-                    terminate: RefCell::new(false),
-                    throw: RefCell::new(None),
-                    function_return: RefCell::new(false),
-                    suspended: RwLock::new(SuspendedStatus {
-                        suspended: false,
-                        suspended_lock: Arc::new(Mutex::new(())),
-                    }),
-                },
+                interpreter_state: InterpreterState::default(),
                 unix_tid: gettid()
             });
             // let result = jvm.thread_state.alive_threads.write();

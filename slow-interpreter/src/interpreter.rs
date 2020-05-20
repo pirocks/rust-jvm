@@ -96,7 +96,7 @@ pub fn run_function(jvm: &JVMState) {
                         current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
                         interpreter_state.throw.replace(None);
                         current_frame.pc.replace(excep_table.handler_pc as usize);
-                        println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
+                        // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
                         break;
                     } else {
                         let catch_runtime_name = current_frame.class_pointer.view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_name().unwrap_name();
@@ -105,7 +105,7 @@ pub fn run_function(jvm: &JVMState) {
                             current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
                             interpreter_state.throw.replace(None);
                             current_frame.pc.replace(excep_table.handler_pc as usize);
-                            println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
+                            // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
                             break;
                         }
                     }
