@@ -51,6 +51,8 @@ use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use nix::unistd::{Pid, gettid};
 use crate::method_table::{MethodTable, MethodId};
 use crate::field_table::FieldTable;
+use crate::java::lang::string::JString;
+use crate::java::lang::system::System;
 
 
 pub mod java_values;
@@ -134,6 +136,7 @@ pub struct JVMOptions {
     shared_libs: SharedLibraryPaths,
     enable_tracing: bool,
     enable_jvmti: bool,
+    properties: Vec<String>
 }
 
 impl JVMOptions {
@@ -144,6 +147,7 @@ impl JVMOptions {
                libjdwp: String,
                enable_tracing: bool,
                enable_jvmti: bool,
+               properties: Vec<String>
     ) -> Self {
         Self {
             main_class_name,
@@ -152,11 +156,13 @@ impl JVMOptions {
             shared_libs: SharedLibraryPaths { libjava, libjdwp },
             enable_tracing,
             enable_jvmti,
+            properties
         }
     }
 }
 
 pub struct JVMState {
+    properties: Vec<String>,
     loaders: RwLock<HashMap<LoaderName, Arc<Object>>>,
     pub bootstrap_loader: LoaderArc,
     pub system_domain_loader: bool,
@@ -234,7 +240,7 @@ impl JVMState {
     }
 
     pub fn new(jvm_options: JVMOptions) -> Self {
-        let JVMOptions { main_class_name, classpath, args: _, shared_libs, enable_tracing, enable_jvmti } = jvm_options;
+        let JVMOptions { main_class_name, classpath, args: _, shared_libs, enable_tracing, enable_jvmti, properties } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
         let bootstrap_loader = Arc::new(BootstrapLoader {
@@ -263,6 +269,7 @@ impl JVMState {
             monitors: RwLock::new(vec![]),
         };
         Self {
+            properties,
             loaders: RwLock::new(HashMap::new()),
             bootstrap_loader,
             initialized_classes: RwLock::new(HashMap::new()),
@@ -449,7 +456,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     }
     Result::Ok(())
 }
-//java.security.egd
+
 fn jvm_run_system_init(jvm: &JVMState) {
     let bl = &jvm.bootstrap_loader;
     let bootstrap_system_class_view = bl.load_class(bl.clone(), &ClassName::system(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
@@ -475,15 +482,15 @@ fn jvm_run_system_init(jvm: &JVMState) {
     for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
         locals.push(JavaValue::Top);
     }
-    let initialize_system_frame = StackEntry {
+    let initialize_system_frame = Rc::new(StackEntry {
         class_pointer: system_class.clone(),
         method_i: init_method_view.method_i() as u16,
         local_vars: RefCell::new(locals),
         operand_stack: RefCell::new(vec![]),
         pc: RefCell::new(0),
-        pc_offset: RefCell::new(-1),
-    };
-    jvm.get_current_thread().call_stack.replace(vec![Rc::new(initialize_system_frame)]);
+        pc_offset: RefCell::new(0),
+    });
+    jvm.get_current_thread().call_stack.replace(vec![initialize_system_frame.clone()]);
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.main_thread()));
 //todo technically this needs to before any bytecode is run.
     run_function(&jvm);
@@ -494,7 +501,24 @@ fn jvm_run_system_init(jvm: &JVMState) {
         unimplemented!()
     }
     *jvm.live.write().unwrap() = true;
+    set_properties(jvm);
+
 }
+
+fn set_properties(jvm: &JVMState) {
+    let properties= &jvm.properties;
+    let prop_obj= System::props(jvm);
+    assert_eq!(properties.len() % 2, 0);
+    for i in 0..properties.len() / 2 {
+        let key_i = 2*i;
+        let value_i = 2*i + 1;
+        let current_frame = &jvm.get_current_frame();
+        let key = JString::from(jvm, current_frame, properties[key_i].clone());
+        let value = JString::from(jvm, current_frame, properties[value_i].clone());
+        prop_obj.set_property(jvm, current_frame, key, value);
+    }
+}
+
 
 fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {
     let method_views = system.view().method_index().lookup_method_name(&"initializeSystemClass".to_string());
