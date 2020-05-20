@@ -1,4 +1,4 @@
-#The beginnings of a JVM implementation in Rust
+# The beginnings of a JVM implementation in Rust
 
 Title says it all pretty much. 
 
@@ -32,7 +32,9 @@ cargo run -- --main SecureRandomDemo  \
 # keep in mind the SecureRandomDemo can be quiet slow, both because this VM is slow, and because it may block if your system lacks entropy
 ```
 
-###What can it do? 
+Alternatively you can use the provided Dockerfile.
+
+### What can it do? 
  - Initialize a VM(with properties and streams correctly initialized)
  - Hello World
  - Verify Bytecode
