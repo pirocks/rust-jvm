@@ -30,7 +30,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     // dbg!("start");
     // dbg!(thread_object.name().to_rust_string());
     let mut all_threads_guard = jvm.thread_state.alive_threads.write().unwrap();
-    if all_threads_guard.contains_key(&tid) || Arc::ptr_eq(&jvm.main_thread(),&jvm.get_current_thread()) {
+    if all_threads_guard.contains_key(&tid) || &jvm.main_thread().java_tid == &tid {
         //todo for now we ignore this, but irl we should only ignore this for main thread
     } else {
         let frame = get_frame(env);
