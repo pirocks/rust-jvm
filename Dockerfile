@@ -13,8 +13,9 @@ ENV JNI_H jdk8u252-b09/include/
 ENV JVM_MD_H rust-jvm/jvmti-jni-bindings/
 ENV JNI_MD_H jdk8u252-b09/include/linux/
 WORKDIR rust-jvm
-RUN cargo run -- --main SecureRandomDemo  \
-      --libjava /jdk8u252-b09/jre/lib/amd64/libjava.so  \
-      --args args not implemented yet so...  \
-      --classpath resources/test \
-       /jdk8u252-b09/jre/lib/ /jdk8u252-b09/jre/lib/ext/
+RUN cargo build
+ENV LD_LIBRARY_PATH /rust-jvm/target/debug/deps/
+ENTRYPOINT ["target/debug/java"]
+# run with(assuming you built with `docker build -t test`):
+# docker run test --main SecureRandomDemo --libjava /jdk8u252-b09/jre/lib/amd64/libjava.so --args args not implemented yet so... --classpath resources/test /jdk8u252-b09/jre/lib/ /jdk8u252-b09/jre/lib/ext/
+# See resources/test for more Demo classes. You only need to change "--main SecureRandomDemo" to run them.
