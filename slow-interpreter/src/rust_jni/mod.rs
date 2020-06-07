@@ -1,9 +1,6 @@
 extern crate libloading;
 extern crate libc;
-extern crate log;
-extern crate simple_logger;
 
-use log::trace;
 use libloading::Library;
 use libloading::Symbol;
 use std::sync::{Arc, RwLock};
@@ -42,7 +39,7 @@ pub mod mangling;
 
 impl LibJavaLoading {
     pub fn new_java_loading(path: String) -> LibJavaLoading {
-        trace!("Loading libjava.so from:`{}`", path);
+        // trace!("Loading libjava.so from:`{}`", path);
 //    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), (dlopen::RTLD_NOW | dlopen::RTLD_GLOBAL).try_into().unwrap()).unwrap();
 //    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), (dlopen::RTLD_NOW /*| dlopen::RTLD_GLOBAL*/).try_into().unwrap()).unwrap();
         let lib = Library::new(path.clone()).unwrap();

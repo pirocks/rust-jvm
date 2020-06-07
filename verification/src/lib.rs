@@ -1,5 +1,3 @@
-extern crate log;
-extern crate simple_logger;
 extern crate elapsed;
 
 use elapsed::measure_time;

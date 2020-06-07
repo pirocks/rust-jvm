@@ -3,8 +3,6 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 
-extern crate log;
-extern crate simple_logger;
 extern crate regex;
 extern crate num_cpus;
 extern crate libc;
@@ -17,7 +15,6 @@ use rust_jvm_common::classnames::{ClassName, class_name};
 use std::intrinsics::transmute;
 use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
 use jvmti_jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH, JavaVM, JNI_VERSION_1_8};
-use log::trace;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::instructions::ldc::{load_class_constant_by_type, create_string_on_stack};
 use rust_jvm_common::ptype::PType;

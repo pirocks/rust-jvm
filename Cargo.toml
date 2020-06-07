@@ -18,8 +18,6 @@ classfile-view = {path = "./classfile-view"}
 descriptor-parser = {path = "./descriptor-parser"}
 jvmti-jni-bindings = {path = "./jvmti-jni-bindings"}
 argparse = "0.2.2"
-log = "0.4"
-simple_logger = "1.3.0"
 
 
 [workspace]

@@ -2,8 +2,6 @@
 #![feature(thread_local)]
 #![feature(vec_leak)]
 #![feature(box_syntax)]
-extern crate log;
-extern crate simple_logger;
 extern crate libloading;
 extern crate libc;
 extern crate regex;

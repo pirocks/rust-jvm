@@ -1,6 +1,3 @@
-extern crate log;
-extern crate simple_logger;
-
 use std::sync::Arc;
 use std::fs::File;
 

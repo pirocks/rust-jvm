@@ -1,5 +1,4 @@
 use jvmti_jni_bindings::{__va_list_tag, FILE, vsnprintf};
-use log::trace;
 
 #[no_mangle]
 unsafe extern "system" fn jio_vsnprintf(

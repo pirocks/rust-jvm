@@ -1,12 +1,9 @@
 extern crate argparse;
-extern crate log;
-extern crate simple_logger;
 extern crate rust_jvm_common;
 
 pub mod class_loading;
 pub mod classpath_indexing;
 
-use log::info;
 
 use argparse::{ArgumentParser, Store, StoreTrue, List};
 use std::path::Path;
@@ -23,7 +20,6 @@ extern crate classfile_view;
 
 
 fn main() {
-    simple_logger::init().unwrap();
     let mut verbose = false;
     let mut debug = false;
     let mut main_class_name = "".to_string();
@@ -59,9 +55,9 @@ fn main() {
         ap.parse_args_or_exit();
     }
 
-    if verbose {
-        info!("in verbose mode, which currently doesn't really do anything, b/c I'm always verbose, since I program in java a lot.");
-    }
+    // if verbose {
+        // info!("in verbose mode, which currently doesn't really do anything, b/c I'm always verbose, since I program in java a lot.");
+    // }
 
 
     let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
