@@ -37,7 +37,7 @@ impl JVMState {
     pub unsafe fn trigger_signal(&self, t: &JavaThread, reason: SignalReason) {
         let metadata_void_ptr = Box::leak(box reason) as *mut SignalReason as *mut c_void;
         let sigval_ = sigval { sival_ptr: metadata_void_ptr };
-        let pid = getpid().as_raw();
+        // let pid = getpid().as_raw();
         let tid = t.unix_tid.as_raw();
 
         if gettid().as_raw() != tid {
