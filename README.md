@@ -26,13 +26,21 @@ export JNI_MD_H=/home/francis/Desktop/jdk8u232-b09/include/linux/
 cargo run -- --main SecureRandomDemo  \ 
   --libjava /home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so  \
 # You do not need to use a version of libjava.so from a standard openjdk build, and can instead use libjava.so from a distribution of jdk8. I do this because I want debug symbols.
-  --args args not implemented yet so...  \
+  --args args for java program go here  \
   --classpath /home/francis/Clion/rust-jvm/resources/test \ #resources/test contains SecureRandomDemo.class. You can change this as needed 
    /home/francis/Desktop/jdk8u232-b09/jre/lib/ /home/francis/Desktop/jdk8u232-b09/jre/lib/ext/ # for rt.jar and ext/
 # keep in mind the SecureRandomDemo can be quiet slow, both because this VM is slow, and because it may block if your system lacks entropy
 ```
 
-Alternatively, you can use the provided Dockerfile.
+Alternatively, you can use the provided Dockerfile, as so:
+
+```shell script
+docker build -t rust_jvm_test 
+docker run rust_jvm_test --main SecureRandomDemo --libjava /jdk8u252-b09/jre/lib/amd64/libjava.so --args args for java program go here --classpath resources/test /jdk8u252-b09/jre/lib/ /jdk8u252-b09/jre/lib/ext/
+```
+
+See resources/test for more Demo classes. You only need to change "--main SecureRandomDemo" to run them.
+
 
 ### What can it do? 
  - Initialize a VM(with properties and the `System.in`/`System.out` streams correctly initialized)
@@ -48,6 +56,7 @@ Alternatively, you can use the provided Dockerfile.
  - Configure JVM properties
  - String Internment
  - Secure Random
+ - Pass arguments to the Java program in question
  
 
 ### What can it partially do?
@@ -63,6 +72,5 @@ Alternatively, you can use the provided Dockerfile.
 - Network/Sockets and similar complex IO
 - Execute `invokedynamic` instructions
 - Expose openjdk compatible command line arguments
-- Pass arguments to the Java program in question
 - ThreadGroups(except the main thread group)
 - Support for anything other than x86_64 linux
