@@ -157,7 +157,7 @@ fn resume_thread_impl(java_thread: Option<Arc<JavaThread>>) -> jvmtiError {
     }
 }
 
-pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError {
+pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, _group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadGroupInfo");
     //todo thread groups not implemented atm.

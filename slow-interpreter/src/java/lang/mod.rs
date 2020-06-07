@@ -264,13 +264,13 @@ pub mod thread {
 
 
 pub mod system {
-    use crate::java_values::Object;
     use std::sync::Arc;
     use crate::java::util::properties::Properties;
     use crate::JVMState;
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
     use std::borrow::Borrow;
+    use crate::java_values::{Object, JavaValue};
 
     pub struct System {
         normal_object: Arc<Object>
@@ -282,6 +282,8 @@ pub mod system {
             let prop_jv = system_class.static_vars().borrow().get("props").unwrap().clone();
             prop_jv.cast_properties()
         }
+
+        as_object_or_java_value!();
     }
 }
 

@@ -149,7 +149,7 @@ pub fn virtual_method_lookup(state: &JVMState, current_frame: &StackEntry, metho
             !method_view.is_static() &&
             !method_view.is_abstract() &&
             if method_view.is_signature_polymorphic() {
-                method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
+                let _matches = method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
                     method_view.desc().return_type == PTypeView::object().to_ptype() &&
                     md.parameter_types.last()
                         .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().map(|x2| x2.clone()))

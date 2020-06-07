@@ -6,7 +6,7 @@ pub struct TracingSettings {
     trace_function_end: bool,
     trace_function_start: bool,
     trace_jni_register: bool,
-    trace_jni_dynamic_link: bool,
+    _trace_jni_dynamic_link: bool, //todo implement this trace
     trace_class_loads: bool,
     trace_jdwp_events: bool,
     trace_jdwp_function_enter: bool,
@@ -24,7 +24,7 @@ impl TracingSettings {
             trace_function_end: false,
             trace_function_start: false,
             trace_jni_register: false,
-            trace_jni_dynamic_link: false,
+            _trace_jni_dynamic_link: false,
             trace_class_loads: false,
             trace_jdwp_events: true,
             trace_jdwp_function_enter: true,
@@ -42,7 +42,7 @@ impl TracingSettings {
             trace_function_end: false,
             trace_function_start: false,
             trace_jni_register: false,
-            trace_jni_dynamic_link: false,
+            _trace_jni_dynamic_link: false,
             trace_class_loads: false,
             trace_jdwp_events: false,
             trace_jdwp_function_enter: false,
@@ -122,7 +122,7 @@ impl TracingSettings {
     }
 
     pub fn trace_jdwp_function_exit(&self, jvm: &JVMState, function_name: &str) {
-        if self.trace_jdwp_function_enter{
+        if self.trace_jdwp_function_exit{
             let current_thread = std::thread::current();
             let vm_life = if jvm.vm_live() {
                 current_thread.name().unwrap_or("unknown thread")

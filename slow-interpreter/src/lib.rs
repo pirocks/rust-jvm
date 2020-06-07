@@ -132,7 +132,7 @@ pub struct SharedLibraryPaths {
 pub struct JVMOptions {
     main_class_name: ClassName,
     classpath: Classpath,
-    args: Vec<String>,
+    _args: Vec<String>,//todo args not implemented yet
     shared_libs: SharedLibraryPaths,
     enable_tracing: bool,
     enable_jvmti: bool,
@@ -152,7 +152,7 @@ impl JVMOptions {
         Self {
             main_class_name,
             classpath,
-            args,
+            _args: args,
             shared_libs: SharedLibraryPaths { libjava, libjdwp },
             enable_tracing,
             enable_jvmti,
@@ -240,7 +240,7 @@ impl JVMState {
     }
 
     pub fn new(jvm_options: JVMOptions) -> Self {
-        let JVMOptions { main_class_name, classpath, args: _, shared_libs, enable_tracing, enable_jvmti, properties } = jvm_options;
+        let JVMOptions { main_class_name, classpath, _args: _, shared_libs, enable_tracing, enable_jvmti, properties } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
         let bootstrap_loader = Arc::new(BootstrapLoader {

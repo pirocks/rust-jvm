@@ -149,24 +149,24 @@ impl Loader for BootstrapLoader {
 }
 
 impl BootstrapLoader {
-    fn search_class_files(&self, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
-        let found_class_file = self.classpath.classpath_base.iter().map(|x| {
-            let mut path_buf = x.to_path_buf();
-            path_buf.push(format!("{}.class", name.get_referred_name()));
-            path_buf
-        }).find(|p| {
-            p.exists()
-        });
-        match found_class_file {
-            None => {
-                Result::Err(ClassLoadingError::ClassNotFoundException)
-            }
-            Some(path) => {
-                let file = File::open(path).unwrap();
-                let classfile = parse_class_file(&mut (&file).try_clone().unwrap());
-                Result::Ok(Arc::new(classfile))
-            }
-        }
-    }
+    // fn search_class_files(&self, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    //     let found_class_file = self.classpath.classpath_base.iter().map(|x| {
+    //         let mut path_buf = x.to_path_buf();
+    //         path_buf.push(format!("{}.class", name.get_referred_name()));
+    //         path_buf
+    //     }).find(|p| {
+    //         p.exists()
+    //     });
+    //     match found_class_file {
+    //         None => {
+    //             Result::Err(ClassLoadingError::ClassNotFoundException)
+    //         }
+    //         Some(path) => {
+    //             let file = File::open(path).unwrap();
+    //             let classfile = parse_class_file(&mut (&file).try_clone().unwrap());
+    //             Result::Ok(Arc::new(classfile))
+    //         }
+    //     }
+    // }
 }
 
