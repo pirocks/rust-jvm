@@ -31,7 +31,7 @@ fn main() {
         .clang_arg(format!("-I/{}/", jvm_md_include_path))
         .clang_arg(format!("-I/{}/", jni_include_path))
         .clang_arg(format!("-I/{}/", jni_md_include_path))
-
+        .clang_arg(format!("-I."))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .derive_debug(true)
         .rustfmt_bindings(true)
