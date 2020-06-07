@@ -936,7 +936,6 @@ dependencies = [
  "regex",
  "rust-jvm-common",
  "simple_logger",
- "syscall",
  "thread-priority",
  "va_list",
  "verification",
@@ -1019,12 +1018,6 @@ dependencies = [
  "quote",
  "unicode-xid",
 ]
-
-[[package]]
-name = "syscall"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dae2c4de039bf338dd96f46621f20222c4101045dac5403b46f472608cb5b556"
 
 [[package]]
 name = "tempfile"

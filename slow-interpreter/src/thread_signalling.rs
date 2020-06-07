@@ -3,7 +3,7 @@ use crate::{JVMState, JavaThread, signal};
 use nix::sys::signal::Signal;
 use std::convert::TryFrom;
 use std::mem::transmute;
-use crate::signal::{sigval, siginfo_t, SI_QUEUE, siginfo_t__bindgen_ty_1, siginfo_t__bindgen_ty_1__bindgen_ty_3};
+use crate::signal::{sigval, siginfo_t, SI_QUEUE, siginfo_t__bindgen_ty_1, siginfo_t__bindgen_ty_1__bindgen_ty_3, pthread_sigqueue};
 use std::ffi::c_void;
 use crate::jvmti::event_callbacks::{JVMTIEvent, DebuggerEventConsumer};
 use nix::errno::errno;
@@ -39,6 +39,16 @@ impl JVMState {
         let sigval_ = sigval { sival_ptr: metadata_void_ptr };
         let pid = getpid().as_raw();
         let tid = t.unix_tid.as_raw();
+
+        if gettid().as_raw() != tid {
+            let res = pthread_sigqueue(tid as u64, transmute(Signal::SIGUSR1), sigval_);//rt_tgsigqueueinfo(pid, tid, transmute(Signal::SIGUSR1), Box::leak(box signal_info));//todo use after free?
+            if res != 0 {
+                dbg!(gettid());
+                dbg!(errno());
+                dbg!(res);
+                panic!()
+            }
+        }else {
             let signal_info = siginfo_t {
                 si_signo: transmute(Signal::SIGUSR1),
                 si_errno: 0,
@@ -52,25 +62,18 @@ impl JVMState {
                     }
                 }
             };
-        if gettid().as_raw() != tid {
-            let res = rt_tgsigqueueinfo(pid, tid, transmute(Signal::SIGUSR1), Box::leak(box signal_info));//todo use after free?
-            if res != 0 {
-                dbg!(gettid());
-                dbg!(errno());
-                dbg!(res);
-                panic!()
-            }
-        }else {
             handler(transmute(Signal::SIGUSR1),Box::leak(box signal_info) as *mut signal::siginfo_t as *mut libc::c_void as *mut libc::siginfo_t,null_mut());
         }
     }
 }
+/*
 
 const RT_TGSIGQUEUEINFO_SYSCALL_NUM: usize = 297;
 
 unsafe extern "C" fn rt_tgsigqueueinfo( tgid: libc::pid_t, tid: libc::pid_t, sig: libc::c_int,  uinfo: *mut siginfo_t) -> libc::c_int {
     syscall::syscall4(RT_TGSIGQUEUEINFO_SYSCALL_NUM, tgid as usize, tid as usize, sig as usize, transmute(uinfo)) as i32
 }
+*/
 
 extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _data: *mut libc::c_void) {
     assert_eq!(Signal::try_from(signal_number).unwrap(), Signal::SIGUSR1);

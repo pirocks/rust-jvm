@@ -13,7 +13,6 @@ extern crate parking_lot;
 extern crate futures_intrusive;
 extern crate nix;
 extern crate errno;
-extern crate syscall;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
