@@ -17,7 +17,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     let unwrapped_action = action.clone().unwrap();
     let runtime_class = &unwrapped_action.unwrap_normal_object().class_pointer;
     let class_view = &runtime_class.view();
-    let run_method = class_view.method_index().lookup(&"run".to_string(), &parse_method_descriptor("()Ljava/lang/Object;").unwrap()).unwrap();
+    let run_method = class_view.lookup_method(&"run".to_string(), &parse_method_descriptor("()Ljava/lang/Object;").unwrap()).unwrap();
     let expected_descriptor = MethodDescriptor {
         parameter_types: vec![],
         return_type: PType::Ref(ReferenceType::Class(ClassName::object())),

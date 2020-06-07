@@ -426,8 +426,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     );
     let method_i = thread_class
         .view()
-        .method_index()
-        .lookup(&"resume".to_string(),
+        .lookup_method(&"resume".to_string(),
                 &MethodDescriptor {
                     parameter_types: vec![],
                     return_type: PType::VoidType,
@@ -521,7 +520,8 @@ fn set_properties(jvm: &JVMState) {
 
 
 fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {
-    let method_views = system.view().method_index().lookup_method_name(&"initializeSystemClass".to_string());
+    let system_class = system.view();
+    let method_views = system_class.lookup_method_name(&"initializeSystemClass".to_string());
     method_views.first().unwrap().clone()
 }
 

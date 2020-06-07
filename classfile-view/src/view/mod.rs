@@ -49,10 +49,10 @@ pub trait HasAccessFlags {
 #[derive(Debug)]
 pub struct ClassView {
     backing_class: Arc<Classfile>,
-    method_index: RwLock<Option<Arc<MethodIndexer>>>,
+    method_index: RwLock<Option<Arc<MethodIndex>>>,
 }
 
-impl Clone for ClassView {
+impl Clone for ClassView{
     fn clone(&self) -> Self {
         Self { backing_class: self.backing_class.clone(), method_index: RwLock::new(None) }//todo should I copy the index?
     }
@@ -69,10 +69,10 @@ impl ClassView {
         self.backing_class.super_class_name()
     }
     pub fn methods(&self) -> MethodIterator {
-        MethodIterator { backing_class: self, i: 0 }
+        MethodIterator { class_view: self, i: 0 }
     }
     pub fn method_view_i(&self, i: usize) -> MethodView {
-        MethodView { backing_class: self.backing_class.clone(), method_i: i }
+        MethodView { class_view: self, method_i: i }
     }
     pub fn num_methods(&self) -> usize {
         self.backing_class.methods.len()
@@ -98,16 +98,16 @@ impl ClassView {
                 }
             }),//todo
             ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
-            ConstantKind::String(s) => ConstantInfoView::String(StringView { view: self, string_index: s.string_index as usize }),//todo
-            ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { backing_class, i }),
-            ConstantKind::Methodref(_) => ConstantInfoView::Methodref(MethodrefView { backing_class, i }),
-            ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { backing_class, i }),
-            ConstantKind::NameAndType(_) => ConstantInfoView::NameAndType(NameAndTypeView { backing_class, i }),
-            ConstantKind::MethodHandle(_) => ConstantInfoView::MethodHandle(MethodHandleView { backing_class, i }),
+            ConstantKind::String(s) => ConstantInfoView::String(StringView { class_view: self, string_index: s.string_index as usize }),//todo
+            ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { class_view:self , i }),
+            ConstantKind::Methodref(_) => ConstantInfoView::Methodref(MethodrefView { class_view: self, i }),
+            ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { class_view: self, i }),
+            ConstantKind::NameAndType(_) => ConstantInfoView::NameAndType(NameAndTypeView { class_view: self, i }),
+            ConstantKind::MethodHandle(_) => ConstantInfoView::MethodHandle(MethodHandleView { class_view: self, i }),
             ConstantKind::MethodType(_) => unimplemented!(),
             ConstantKind::Dynamic(_) => unimplemented!(),
             ConstantKind::InvokeDynamic(id) => ConstantInfoView::InvokeDynamic(InvokeDynamicView {
-                backing_class: self.clone(),
+                class_view: self,
                 bootstrap_method_attr_index: id.bootstrap_method_attr_index,
                 name_and_type_index: id.name_and_type_index,
             }),
@@ -161,11 +161,19 @@ impl ClassView {
             }
         }).map(|(i, _)| { EnclosingMethodView { backing_class: ClassView::from(self.backing_class.clone()), i } })
     }
-    pub fn method_index(&self) -> Arc<MethodIndexer> {
+
+    pub fn lookup_method(&self, name: &String, desc: &MethodDescriptor) -> Option<MethodView> {
+        self.method_index().lookup(self,name,desc)
+    }
+    pub fn lookup_method_name(&self, name: &String) -> Vec<MethodView>{
+        self.method_index().lookup_method_name(self,name)
+    }
+
+    fn method_index(&self) -> Arc<MethodIndex> {
         let read_guard = self.method_index.read().unwrap();
         match read_guard.as_ref() {
             None => {
-                let res = MethodIndexer::new(self);
+                let res = MethodIndex::new(self);
                 std::mem::drop(read_guard);
                 self.method_index.write().unwrap().replace(Arc::new(res).into());
                 self.method_index()
@@ -178,14 +186,13 @@ impl ClassView {
 type MethodName = String;
 
 #[derive(Debug)]
-pub struct MethodIndexer {
-    backing_class: Arc<Classfile>,
+pub struct MethodIndex {
     index: HashMap<MethodName, HashMap<MethodDescriptor, usize>>,
 }
 
-impl MethodIndexer {
-    pub fn new(c: &ClassView) -> Self {
-        let mut res = Self { backing_class: c.backing_class.clone(), index: HashMap::new() };
+impl MethodIndex {
+    fn new(c: &ClassView) -> Self {
+        let mut res = Self { index: HashMap::new() };
         for method_view in c.methods() {
             let name = method_view.name();
             let parsed_desc = method_view.desc();
@@ -202,24 +209,24 @@ impl MethodIndexer {
         }
         res
     }
-    pub fn lookup(&self, name: &String, desc: &MethodDescriptor) -> Option<MethodView> {
+    fn lookup<'cl>(&self,c: &'cl ClassView, name: &String, desc: &MethodDescriptor) -> Option<MethodView<'cl>> {
         self.index.get(name)
             .and_then(|x| x.get(desc))
             .map(
                 |method_i|
                     MethodView {
-                        backing_class: self.backing_class.clone(),
+                        class_view: c,
                         method_i: *method_i,
                     }
             )
     }
-    pub fn lookup_method_name(&self, name: &String) -> Vec<MethodView> {
+    fn lookup_method_name<'cl>(&self, c: &'cl ClassView, name: &String) -> Vec<MethodView<'cl>> {
         self.index.get(name)
             .map(
                 |methods|
                     methods.values().map(|method_i| {
                         MethodView {
-                            backing_class: self.backing_class.clone(),
+                            class_view: c,
                             method_i: *method_i,
                         }
                     }).collect::<Vec<MethodView>>()

@@ -46,7 +46,7 @@ fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Op
 }
 
 pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
-    let method_view = target_classfile.view().method_index().lookup(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
+    let method_view = target_classfile.view().lookup_method(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
     let md = method_view.desc();
     let this_ptr = full_args[0].clone();
     let actual_args = &full_args[1..];

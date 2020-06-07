@@ -94,14 +94,14 @@ impl Iterator for BootstrapArgViewIterator{
 
 //CONSTANT_String_info,  CONSTANT_Class_info,CONSTANT_Integer_info, CONSTANT_Long_info,
 // CONSTANT_Float_info, CONSTANT_Double_info,CONSTANT_MethodHandle_info, or CONSTANT_MethodType_info
-pub enum BootstrapArgView<'l> {
-    String(StringView<'l>),
-    Class(ClassView),
+pub enum BootstrapArgView<'cl> {
+    String(StringView<'cl>),
+    Class(&'cl ClassView),
     Integer(IntegerView),
     Long(LongView),
     Float(FloatView),
     Double(DoubleView),
-    MethodHandle(MethodHandleView),
+    MethodHandle(MethodHandleView<'cl>),
     MethodType(MethodTypeView)
 }
 

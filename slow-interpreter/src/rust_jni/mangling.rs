@@ -8,7 +8,7 @@ pub fn mangle(classfile: Arc<RuntimeClass>, method_i: usize) -> String {
     let method_name = method.name();
     let class_name_ = classfile.view().name();
     let class_name = class_name_.get_referred_name();
-    if classfile.view().method_index().lookup_method_name(&method_name).iter().filter(|m|{
+    if classfile.view().lookup_method_name(&method_name).iter().filter(|m|{
         m.is_native()
     }).count() > 1 {
         let descriptor_str = method.desc_str();

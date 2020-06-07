@@ -20,7 +20,7 @@ pub fn lookup_method_parsed(state: &JVMState, class: Arc<RuntimeClass>, name: St
 }
 
 pub fn lookup_method_parsed_impl(state: &JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
-    match class.view().method_index().lookup(&name, &descriptor) {
+    match class.view().lookup_method(&name, &descriptor) {
         None => {
             let class_name = class.view().super_name().unwrap();
             let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));

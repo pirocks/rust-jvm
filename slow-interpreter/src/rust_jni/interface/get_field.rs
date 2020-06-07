@@ -5,11 +5,11 @@ use std::ffi::CStr;
 use std::mem::transmute;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
 use descriptor_parser::parse_method_descriptor;
-use classfile_view::view::HasAccessFlags;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use std::sync::Arc;
 use crate::JVMState;
+use classfile_view::view::HasAccessFlags;
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
     let java_value = get_java_value_field(env,obj, field_id_raw);
@@ -101,7 +101,7 @@ pub unsafe extern "C" fn get_static_method_id(
     //todo dup
     let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj_o).cast_class(), jvm, &frame).unwrap();
     let view = &runtime_class.view();
-    let method = view.method_index().lookup(&method_name, &parse_method_descriptor(method_descriptor_str.as_str()).unwrap()).unwrap();
+    let method = view.lookup_method(&method_name, &parse_method_descriptor(method_descriptor_str.as_str()).unwrap()).unwrap();
     assert!(method.is_static());
     let res = Box::into_raw(box jvm.method_table
         .write()

@@ -183,7 +183,7 @@ pub fn initialize_class(
     //todo detecting if assertions are enabled?
     let class_arc = runtime_class;
     let view = &class_arc.view();
-    let lookup_res = view.method_index().lookup_method_name(&"<clinit>".to_string());
+    let lookup_res = view.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
     let  clinit = match lookup_res.iter().nth(0) {
         None => return class_arc,

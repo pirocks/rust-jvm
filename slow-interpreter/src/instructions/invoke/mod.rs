@@ -53,7 +53,8 @@ pub mod dynamic {
         };
 
         let _method_handle = {
-            let methodref_view = invoke_dynamic_view.bootstrap_method().bootstrap_method_ref();
+            let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
+            let methodref_view = bootstrap_method_view.bootstrap_method_ref();
             match methodref_view.get_reference_data(){
                 ReferenceData::InvokeStatic(is) => {
                     match is {

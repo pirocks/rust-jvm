@@ -151,8 +151,7 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
     let object = frame.pop();
     let init = thread_group_class
         .view()
-        .method_index()
-        .lookup(&"<init>".to_string(),
+        .lookup_method(&"<init>".to_string(),
                 &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType })
         .unwrap();
     let init_i = init.method_i();
@@ -199,7 +198,7 @@ unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, 
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     push_new_object(jvm, frame.clone(), &thread_class, None);
     let object = frame.pop();
-    let init = thread_class.view().method_index().lookup(&"<init>".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap();
+    let init = thread_class.view().lookup_method(&"<init>".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap();
     let init_i = init.method_i();
     let new_frame = StackEntry {
         class_pointer: thread_class.clone(),

@@ -151,7 +151,8 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
 }
 
 pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let method_view = get_class(vf, method.class).method_view_i(method.method_index as usize);
+    let method_class = get_class(vf, method.class);
+    let method_view = method_class.method_view_i(method.method_index as usize);
     does_not_override_final_method(vf, class, method)?;
     if method_view.is_native() {
         Result::Ok(())
@@ -196,7 +197,8 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
 }
 
 pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let method_info = &get_class(vf, class).method_view_i(method.method_index);
+    let method_class = get_class(vf, class);
+    let method_info = &method_class.method_view_i(method.method_index);
     let code = method_info.code_attribute().unwrap();//todo add CodeView
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
@@ -390,10 +392,11 @@ fn expand_to_length_verification(list: Vec<VType>, size: usize, filler: VType) -
 
 
 fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Option<VType> {
-    let method_view = get_class(vf, method.class).method_view_i(method.method_index);
+    let method_class = get_class(vf, method.class);
+    let method_view = method_class.method_view_i(method.method_index);
     if method_view.is_static() {
         //todo dup
-        let classfile = &get_class(vf, method.class);
+        let classfile = &method_class;
         let method_info = &classfile.method_view_i(method.method_index);
         let method_name_ = method_info.name();
         let method_name = method_name_.deref();
