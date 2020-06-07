@@ -20,7 +20,7 @@ use rust_jvm_common::string_pool::StringPool;
 use rust_jvm_common::ptype::PType;
 use rust_jvm_common::classfile::Classfile;
 use crate::runtime_class::RuntimeClass;
-use crate::java_values::{Object, JavaValue, NormalObject};
+use crate::java_values::{Object, JavaValue, NormalObject, ArrayObject};
 use crate::runtime_class::prepare_class;
 use crate::interpreter_util::check_inited_class;
 use libloading::Library;
@@ -53,6 +53,8 @@ use crate::method_table::{MethodTable, MethodId};
 use crate::field_table::FieldTable;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
+use std::ops::Deref;
+use crate::java_values::Object::Array;
 
 
 pub mod java_values;
@@ -103,7 +105,7 @@ pub struct InterpreterState {
     pub suspended: std::sync::RwLock<SuspendedStatus>,
 }
 
-impl Default for InterpreterState{
+impl Default for InterpreterState {
     fn default() -> Self {
         InterpreterState {
             terminate: RefCell::new(false),
@@ -132,11 +134,12 @@ pub struct SharedLibraryPaths {
 pub struct JVMOptions {
     main_class_name: ClassName,
     classpath: Classpath,
-    _args: Vec<String>,//todo args not implemented yet
+    args: Vec<String>,
+    //todo args not implemented yet
     shared_libs: SharedLibraryPaths,
     enable_tracing: bool,
     enable_jvmti: bool,
-    properties: Vec<String>
+    properties: Vec<String>,
 }
 
 impl JVMOptions {
@@ -147,16 +150,16 @@ impl JVMOptions {
                libjdwp: String,
                enable_tracing: bool,
                enable_jvmti: bool,
-               properties: Vec<String>
+               properties: Vec<String>,
     ) -> Self {
         Self {
             main_class_name,
             classpath,
-            _args: args,
+            args,
             shared_libs: SharedLibraryPaths { libjava, libjdwp },
             enable_tracing,
             enable_jvmti,
-            properties
+            properties,
         }
     }
 }
@@ -239,8 +242,8 @@ impl JVMState {
         call_stack.get(call_stack.len() - 2).unwrap().clone()
     }
 
-    pub fn new(jvm_options: JVMOptions) -> Self {
-        let JVMOptions { main_class_name, classpath, _args: _, shared_libs, enable_tracing, enable_jvmti, properties } = jvm_options;
+    pub fn new(jvm_options: JVMOptions) -> (Vec<String>, Self) {
+        let JVMOptions { main_class_name, classpath, args, shared_libs, enable_tracing, enable_jvmti, properties } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
         let bootstrap_loader = Arc::new(BootstrapLoader {
@@ -268,7 +271,7 @@ impl JVMState {
             system_thread_group: RwLock::new(None),
             monitors: RwLock::new(vec![]),
         };
-        Self {
+        (args, Self {
             properties,
             loaders: RwLock::new(HashMap::new()),
             bootstrap_loader,
@@ -291,7 +294,7 @@ impl JVMState {
             method_table: RwLock::new(MethodTable::new()),
             field_table: RwLock::new(FieldTable::new()),
             live: RwLock::new(false),
-        }
+        })
     }
 
     pub fn new_monitor(&self, name: String) -> Arc<Monitor> {
@@ -395,7 +398,7 @@ impl JVMState {
 }
 
 pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
-    let mut jvm = JVMState::new(opts);
+    let (args, mut jvm) = JVMState::new(opts);
     jvm_run_system_init(&mut jvm);
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm));
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
@@ -424,13 +427,14 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
         &ClassName::thread().into(),
         jvm.bootstrap_loader.clone(),
     );
+    //todo is firing a resume breakpoint event really needed?
     let method_i = thread_class
         .view()
         .lookup_method(&"resume".to_string(),
-                &MethodDescriptor {
-                    parameter_types: vec![],
-                    return_type: PType::VoidType,
-                })
+                       &MethodDescriptor {
+                           parameter_types: vec![],
+                           return_type: PType::VoidType,
+                       })
         .unwrap()
         .method_i();
     let thread_resume_id = jvm.method_table.write().unwrap().get_method_id(thread_class, method_i as u16);
@@ -449,11 +453,28 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
         }
     }
 
+    setup_program_args(&jvm, args);
     run_function(&jvm);
     if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
         unimplemented!()
     }
     Result::Ok(())
+}
+
+
+fn setup_program_args(jvm: &JVMState, args: Vec<String>) {
+    let current_frame = jvm.get_current_frame();
+
+    let arg_strings:Vec<JavaValue> = args.iter().map(|arg_str| {
+        JString::from(jvm, current_frame.deref(), arg_str.clone()).java_value()
+    }).collect();
+    let arg_array = JavaValue::Object(Some(Arc::new(Array(ArrayObject {
+        elems: RefCell::new(arg_strings),
+        elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
+        monitor: jvm.new_monitor( "arg array monitor".to_string())
+    }))));
+    let mut local_vars = current_frame.local_vars.borrow_mut();
+    local_vars[0] = arg_array;
 }
 
 fn jvm_run_system_init(jvm: &JVMState) {
@@ -501,16 +522,15 @@ fn jvm_run_system_init(jvm: &JVMState) {
     }
     *jvm.live.write().unwrap() = true;
     set_properties(jvm);
-
 }
 
 fn set_properties(jvm: &JVMState) {
-    let properties= &jvm.properties;
-    let prop_obj= System::props(jvm);
+    let properties = &jvm.properties;
+    let prop_obj = System::props(jvm);
     assert_eq!(properties.len() % 2, 0);
     for i in 0..properties.len() / 2 {
-        let key_i = 2*i;
-        let value_i = 2*i + 1;
+        let key_i = 2 * i;
+        let value_i = 2 * i + 1;
         let current_frame = &jvm.get_current_frame();
         let key = JString::from(jvm, current_frame, properties[key_i].clone());
         let value = JString::from(jvm, current_frame, properties[value_i].clone());
