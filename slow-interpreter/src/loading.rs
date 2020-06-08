@@ -91,24 +91,25 @@ impl Loader for BootstrapLoader {
     fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc, live_pool_getter: Arc<dyn LivePoolGetter>) -> Result<ClassView, ClassLoadingError> {
         if !self.initiating_loader_of(class) {
             // trace!("loading {}", class.get_referred_name());
-            let classfile = self.pre_load(class)?;
+            let class_view = self.pre_load(class)?;
             if class != &ClassName::object() {
-                if classfile.super_name() == None {
+                if class_view.super_name() == None {
                     self.load_class(self_arc.clone(), &ClassName::object(), bl.clone(), live_pool_getter.clone())?;
                 } else {
-                    let super_class_name = classfile.super_name();
+                    let super_class_name = class_view.super_name();
                     self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone(), live_pool_getter.clone())?;
                 }
             }
-            for i in classfile.interfaces() {
+            for i in class_view.interfaces() {
                 let interface_name = i.interface_name();
                 self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone(), live_pool_getter.clone())?;
             }
-            match verify(&VerifierContext { live_pool_getter, bootstrap_loader: bl.clone() }, classfile.clone(), self_arc) {
+            let backing_class = class_view.backing_class();
+            match verify(&VerifierContext { live_pool_getter, bootstrap_loader: bl.clone() }, class_view, self_arc) {
                 Ok(_) => {}
                 Err(_) => panic!(),
             };
-            self.loaded.write().unwrap().insert(class.clone(), classfile.backing_class());
+            self.loaded.write().unwrap().insert(class.clone(), backing_class);
         }
         Result::Ok(ClassView::from(self.loaded.read().unwrap().get(class).unwrap().clone()))
     }

@@ -122,13 +122,14 @@ pub fn run_native_method(
                         let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), bootstrap_loader: bootstrap_loader.clone() };
                         let class_view = ClassView::from(parsed.clone());
                         // File::create(class_view.name().get_referred_name().replace("/",".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
-                        bootstrap_loader.add_pre_loaded(&class_view.name(), &parsed);
+                        let class_name = class_view.name();
+                        bootstrap_loader.add_pre_loaded(&class_name, &parsed);
                         // frame.print_stack_trace();
-                        match verify(&vf, class_view.clone(), bootstrap_loader.clone()) {
+                        match verify(&vf, class_view, bootstrap_loader.clone()) {
                             Ok(_) => {}
                             Err(_) => panic!(),
                         };
-                        load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(class_view.name())));
+                        load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(class_name)));
                         frame.pop().into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
                         let member_name = args[0].cast_member_name();

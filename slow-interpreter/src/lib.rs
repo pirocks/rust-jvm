@@ -399,7 +399,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     jvm_run_system_init(&mut jvm);
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm));
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
-    let main_class = prepare_class(&jvm, main_view.clone().backing_class(), jvm.bootstrap_loader.clone());
+    let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.class_prepare(&jvm, &main_view.name()));
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.main_thread();

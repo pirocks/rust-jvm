@@ -1,15 +1,16 @@
 use crate::view::ClassView;
 use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, SourceFile};
 use crate::view::constant_info_view::{ConstantInfoView, StringView, IntegerView, LongView, FloatView, DoubleView, MethodHandleView, MethodTypeView};
+use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct BootstrapMethodIterator {
-    pub(crate) view: BootstrapMethodsView,
+pub struct BootstrapMethodIterator<'cl> {
+    pub(crate) view: BootstrapMethodsView<'cl>,
     pub(crate) i: usize,
 }
 
-impl Iterator for BootstrapMethodIterator {
-    type Item = BootstrapMethodView;
+impl <'cl> Iterator for BootstrapMethodIterator<'cl> {
+    type Item = BootstrapMethodView<'cl>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.i >= self.view.get_bootstrap_methods_raw().len() {
@@ -22,12 +23,12 @@ impl Iterator for BootstrapMethodIterator {
 }
 
 #[derive(Clone)]
-pub struct BootstrapMethodsView {
-    pub(crate) backing_class: ClassView,
+pub struct BootstrapMethodsView<'cl> {
+    pub(crate) backing_class: &'cl ClassView,
     pub(crate) attr_i: usize,
 }
 
-impl BootstrapMethodsView {
+impl BootstrapMethodsView<'_> {
     fn get_bootstrap_methods_raw(&self) -> &Vec<BootstrapMethod> {
         match &self.backing_class.backing_class.attributes[self.attr_i].attribute_type {
             AttributeType::BootstrapMethods(bm) => {
@@ -42,12 +43,12 @@ impl BootstrapMethodsView {
     }
 }
 #[derive(Clone)]
-pub struct BootstrapMethodView {
-    pub(crate) backing: BootstrapMethodsView,
+pub struct BootstrapMethodView<'cl> {
+    pub(crate) backing: BootstrapMethodsView<'cl>,
     pub(crate) i: usize,
 }
 
-impl BootstrapMethodView {
+impl BootstrapMethodView<'_> {
     fn get_raw(&self) -> &BootstrapMethod {
         &self.backing.get_bootstrap_methods_raw()[self.i]
     }
@@ -64,22 +65,22 @@ impl BootstrapMethodView {
 
     pub fn bootstrap_args(&self) -> BootstrapArgViewIterator {
         BootstrapArgViewIterator {
-            backing_class: self.backing.backing_class.clone(),
+            backing_class: self.backing.backing_class,
             bootstrap_args: self.get_raw().bootstrap_arguments.clone(),
             i: 0
         }
     }
 }
 
-pub struct BootstrapArgViewIterator {
-    backing_class: ClassView,
+pub struct BootstrapArgViewIterator<'cl> {
+    backing_class: &'cl ClassView,
     bootstrap_args : Vec<CPIndex>,//todo get rid of clone for this
     i : usize
 }
 
 
-impl Iterator for BootstrapArgViewIterator{
-    type Item = BootstrapArgView<'static>;
+impl <'cl> Iterator for BootstrapArgViewIterator<'cl>{
+    type Item = BootstrapArgView<'cl>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let arg = self.bootstrap_args[self.i];
@@ -96,7 +97,7 @@ impl Iterator for BootstrapArgViewIterator{
 // CONSTANT_Float_info, CONSTANT_Double_info,CONSTANT_MethodHandle_info, or CONSTANT_MethodType_info
 pub enum BootstrapArgView<'cl> {
     String(StringView<'cl>),
-    Class(&'cl ClassView),
+    Class(Arc<ClassView>),
     Integer(IntegerView),
     Long(LongView),
     Float(FloatView),

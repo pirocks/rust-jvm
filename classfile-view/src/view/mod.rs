@@ -52,11 +52,6 @@ pub struct ClassView {
     method_index: RwLock<Option<Arc<MethodIndex>>>,
 }
 
-impl Clone for ClassView{
-    fn clone(&self) -> Self {
-        Self { backing_class: self.backing_class.clone(), method_index: RwLock::new(None) }//todo should I copy the index?
-    }
-}
 
 impl ClassView {
     pub fn from(c: Arc<Classfile>) -> ClassView {
@@ -142,7 +137,7 @@ impl ClassView {
                 _ => None
             }
         }).next().unwrap();
-        BootstrapMethodsView { backing_class: self.clone(), attr_i: i }
+        BootstrapMethodsView { backing_class: self, attr_i: i }
     }
     pub fn sourcefile_attr(&self) -> SourceFileView {
         let i= self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {

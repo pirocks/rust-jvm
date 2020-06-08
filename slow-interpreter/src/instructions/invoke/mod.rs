@@ -52,8 +52,8 @@ pub mod dynamic {
             _ => panic!(),
         };
 
+        let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
         let _method_handle = {
-            let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
             let methodref_view = bootstrap_method_view.bootstrap_method_ref();
             match methodref_view.get_reference_data(){
                 ReferenceData::InvokeStatic(is) => {
@@ -75,7 +75,7 @@ pub mod dynamic {
             }
 
         };
-        let arg_iterator = invoke_dynamic_view.bootstrap_method().bootstrap_args();
+        let arg_iterator = bootstrap_method_view.bootstrap_args();
         arg_iterator.for_each(|x|{
             match x {
                 BootstrapArgView::String(_) => unimplemented!(),
