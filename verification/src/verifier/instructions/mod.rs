@@ -262,6 +262,18 @@ pub fn pop_category2(vf: &VerifierContext, input: &mut OperandStack) -> Result<V
     Result::Err(unknown_error_verifying!())
 }
 
+pub fn peek_category2(vf: &VerifierContext, input: &mut OperandStack) -> Result<VType, TypeSafetyError> {
+    let top = input.operand_pop();
+    // assert_eq!(top, VType::TopType);
+    let valid_size = size_of(vf, &input.peek()) == 2;
+    let type_ = input.peek();
+    input.operand_push(top.clone());
+    if valid_size && top == VType::TopType {
+        return Result::Ok(type_);
+    }
+    Result::Err(unknown_error_verifying!())
+}
+
 pub fn instruction_is_type_safe_dup_x1(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let Frame { locals, stack_map: input_operand_stack, flag_this_uninit: flags } = stack_frame;
     let mut stack_1 = input_operand_stack;
@@ -320,7 +332,7 @@ pub fn instruction_is_type_safe_dup_x2(env: &Environment, stack_frame: Frame) ->
 
 fn dup_x2_form_is_type_safe(env: &Environment, mut input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
     let temp = input_stack.operand_pop();
-    let is_form1 = size_of(&env.vf,&input_stack.peek()) == 2;
+    let is_form1 = peek_category2(&env.vf,&mut input_stack).is_err();
     input_stack.operand_push(temp);
     if is_form1 {//todo
         dup_x2_form1_is_type_safe(env, input_stack)
@@ -329,8 +341,10 @@ fn dup_x2_form_is_type_safe(env: &Environment, mut input_stack: OperandStack) ->
     }
 }
 
-fn dup2_form_is_type_safe(env: &Environment, input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
+fn dup2_form_is_type_safe(env: &Environment, mut input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
+    let top = input_stack.operand_pop();
     let is_form2 = size_of(&env.vf, &input_stack.peek()) == 2;
+    input_stack.operand_push(top);
     if is_form2 {
         dup2_form2_is_type_safe(env, input_stack)
     } else {

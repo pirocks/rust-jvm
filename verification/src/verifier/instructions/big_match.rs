@@ -12,6 +12,7 @@ use crate::verifier::instructions::stores::*;
 use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    // dbg!(&instruction.instruction);
     match &instruction.instruction {
         InstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
         InstructionInfo::aastore => instruction_is_type_safe_aastore(env, stack_frame),
