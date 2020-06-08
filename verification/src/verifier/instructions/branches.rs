@@ -15,6 +15,7 @@ use classfile_view::loading::ClassWithLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use descriptor_parser::{Descriptor, MethodDescriptor, parse_field_descriptor};
+use std::rc::Rc;
 
 
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -25,7 +26,7 @@ pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) ->
     if stack_frame.flag_this_uninit {
         return Result::Err(TypeSafetyError::NotSafe("todo messsage".to_string()));
     }
-    let exception_frame = exception_stack_frame(stack_frame);
+    let exception_frame = exception_stack_frame(stack_frame.locals.clone(),stack_frame.flag_this_uninit);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames {
         exception_frame
     }))
@@ -33,15 +34,17 @@ pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) ->
 
 
 pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::Reference, VType::Reference])?;
     target_is_type_safe(env, &next_frame, target as usize)?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 
 pub fn instruction_is_type_safe_goto(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     target_is_type_safe(env, &stack_frame, target as usize)?;
-    let exception_frame = exception_stack_frame(stack_frame);
+    let exception_frame = exception_stack_frame(stack_frame.locals.clone(),stack_frame.flag_this_uninit);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
@@ -168,7 +171,7 @@ fn invoke_special_init(env: &Environment, stack_frame: Frame, method_class_name:
             let next_operand_stack = substitute_operand_stack(&uninit_address, &this_class, &operand_stack);
             let next_locals = substitute(&uninit_address, &this_class, locals.as_slice());
             let next_frame = Frame {
-                locals: next_locals,
+                locals: Rc::new(next_locals),
                 stack_map: next_operand_stack,
                 flag_this_uninit: next_flags,
             };
@@ -188,7 +191,7 @@ fn invoke_special_init(env: &Environment, stack_frame: Frame, method_class_name:
             let next_locals = substitute(&VType::UninitializedThis, &this_class, locals.as_slice());
             //todo duplication with above
             let next_frame = Frame {
-                locals: next_locals,
+                locals: Rc::new(next_locals),
                 stack_map: next_operand_stack,
                 flag_this_uninit,
             };

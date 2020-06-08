@@ -19,6 +19,7 @@ use classfile_view::loading::ClassWithLoader;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_descriptor};
+use std::rc::Rc;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
@@ -235,7 +236,7 @@ pub fn instruction_is_type_safe_new(cp: usize, offset: usize, env: &Environment,
     };
     let new_locals = substitute(&new_item, &VType::TopType, locals.as_slice());
     let next_frame = valid_type_transition(env, vec![], &new_item, Frame {
-        locals: new_locals,
+        locals: Rc::new(new_locals),
         stack_map: operand_stack.clone(),
         flag_this_uninit: flags,
     })?;

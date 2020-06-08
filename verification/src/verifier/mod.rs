@@ -12,6 +12,7 @@ use classfile_view::view::ClassView;
 use classfile_view::loading::*;
 use classfile_view::view::ptype_view::PTypeView;
 use descriptor_parser::Descriptor;
+use std::rc::Rc;
 
 macro_rules! unknown_error_verifying {
     () => {
@@ -58,7 +59,7 @@ pub struct ClassWithLoaderMethod<'l> {
 #[derive(Eq, PartialEq)]
 #[derive(Debug)]
 pub struct Frame {
-    pub locals: Vec<VType>,
+    pub locals: Rc<Vec<VType>>,
     pub stack_map: OperandStack,
     pub flag_this_uninit: bool,
 }
@@ -178,8 +179,8 @@ fn classes_in_other_pkg_with_protected_member_impl(
 }
 
 
-pub fn standard_exception_frame(stack_frame: Frame, next_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let exception_frame = exception_stack_frame(stack_frame);
+pub fn standard_exception_frame(stack_frame_locals: Rc<Vec<VType>>, stack_frame_flag: bool, next_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let exception_frame = exception_stack_frame(stack_frame_locals,stack_frame_flag);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 

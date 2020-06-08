@@ -8,6 +8,7 @@ use classfile_view::loading::*;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::view::method_view::MethodView;
 use crate::verifier::{Frame, InternalFrame};
+use std::rc::Rc;
 
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodView) -> Vec<StackMap> {
@@ -44,10 +45,10 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
         res.push(StackMap {
             offset: frame.current_offset as usize,
             map_frame: Frame {
-                locals: expand_to_length(frame.locals.clone(), frame.max_locals as usize, PTypeView::TopType)
+                locals: Rc::new(expand_to_length(frame.locals.clone(), frame.max_locals as usize, PTypeView::TopType)
                     .iter()
                     .map(|x| x.to_verification_type(&vf.bootstrap_loader))
-                    .collect(),
+                    .collect()),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter()
                     .map(|x| x.to_verification_type(&vf.bootstrap_loader))
                     .collect()),

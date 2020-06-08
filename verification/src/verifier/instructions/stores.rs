@@ -11,8 +11,7 @@ use crate::verifier::instructions::special::nth1_operand_stack_is;
 use classfile_view::vtype::VType;
 use classfile_view::loading::ClassWithLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-
-
+use std::rc::Rc;
 
 
 fn store_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: Frame) -> Result<Frame, TypeSafetyError> {
@@ -20,7 +19,7 @@ fn store_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: Fra
     let actual_type = pop_matching_type(&env.vf, &mut next_stack, &type_)?;
     let new_locals = modify_local_variable(&env.vf, index, actual_type, &frame.locals)?;
     Result::Ok(Frame {
-        locals: new_locals,
+        locals: Rc::new(new_locals),
         stack_map: next_stack,
         flag_this_uninit: frame.flag_this_uninit,
     })

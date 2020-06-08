@@ -17,6 +17,7 @@ use classfile_view::loading::*;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use descriptor_parser::MethodDescriptor;
+use std::rc::Rc;
 
 //todo this is responsible for 8 to 9% of total init time.
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
@@ -84,22 +85,21 @@ pub fn size_of(vf: &VerifierContext, unified_type: &VType) -> u64 {
     }
 }
 
-pub fn push_operand_stack(vf: &VerifierContext, operand_stack: &OperandStack, type_: &VType) -> OperandStack {
-    let mut operand_stack_copy = operand_stack.clone();
+pub fn push_operand_stack(vf: &VerifierContext, mut operand_stack: OperandStack, type_: &VType) -> OperandStack {
     match type_ {
         VType::VoidType => {
-            operand_stack_copy
+            operand_stack
         }
         _ => {
             if size_of(vf, type_) == 2 {
-                operand_stack_copy.operand_push(type_.clone());
-                operand_stack_copy.operand_push(VType::TopType);
+                operand_stack.operand_push(type_.clone());
+                operand_stack.operand_push(VType::TopType);
             } else if size_of(vf, type_) == 1 {
-                operand_stack_copy.operand_push(type_.clone());
+                operand_stack.operand_push(type_.clone());
             } else {
                 unimplemented!()
             }
-            operand_stack_copy
+            operand_stack
         }
     }
 }
@@ -333,7 +333,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     args.iter().for_each(|x| {
         this_args.push(x.clone())
     });
-    let locals = expand_to_length_verification(this_args, frame_size as usize, VType::TopType);
+    let locals = Rc::new(expand_to_length_verification(this_args, frame_size as usize, VType::TopType));
     return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.bootstrap_loader));
 }
 
