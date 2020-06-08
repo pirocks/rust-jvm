@@ -64,6 +64,17 @@ pub struct Frame {
     pub flag_this_uninit: bool,
 }
 
+//todo in future get rid of this clone implementation
+impl Clone for Frame{
+    fn clone(&self) -> Self {
+        Self{
+            locals: self.locals.clone(),
+            stack_map: self.stack_map.clone(),
+            flag_this_uninit: self.flag_this_uninit
+        }
+    }
+}
+
 
 #[derive(Debug)]
 pub enum TypeSafetyError {

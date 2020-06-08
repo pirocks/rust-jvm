@@ -318,7 +318,7 @@ pub fn instruction_is_type_safe_dup_x2(env: &Environment, stack_frame: Frame) ->
     standard_exception_frame(locals, flags, next_frame)
 }
 
-fn dup_x2_form_is_type_safe(env: &Environment, mut input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
+fn dup_x2_form_is_type_safe(env: &Environment, input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
     if unimplemented!() {//todo
         dup_x2_form1_is_type_safe(env, input_stack)
     }else {
@@ -335,13 +335,13 @@ fn dup2_form_is_type_safe(env: &Environment, input_stack: OperandStack) -> Resul
     }
 }
 
-fn dup2_form1_is_type_safe(env: &Environment, mut input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
+fn dup2_form1_is_type_safe(env: &Environment, input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
     let mut temp_stack = input_stack;
     let type1 = pop_category1(&env.vf, &mut temp_stack)?;
     let mut stack2 = temp_stack;
     let type2 = pop_category1(&env.vf, &mut stack2)?;
-    stack2.operand_push(type2);
-    stack2.operand_push(type1);
+    stack2.operand_push(type2.clone());
+    stack2.operand_push(type1.clone());
     let original_stack = stack2;
     can_safely_push_list(env, original_stack, vec![type2, type1])
 }
@@ -404,7 +404,7 @@ pub fn dup2_x1form_is_type_safe(env: &Environment, input_frame: OperandStack) ->
 //popCategory1(Stack1, Type2, Stack2),
 //popCategory1(Stack2, Type3, Rest),
 //canSafelyPushList(Environment, Rest, [Type2, Type1, Type3, Type2, Type1],OutputOperandStack).
-pub fn dup2_x1form1_is_type_safe(env: &Environment, mut input_frame: OperandStack) -> Result<OperandStack, TypeSafetyError> {
+pub fn dup2_x1form1_is_type_safe(env: &Environment, input_frame: OperandStack) -> Result<OperandStack, TypeSafetyError> {
     let mut stack1 = input_frame;
     let type1 = pop_category1(&env.vf, &mut stack1)?;
     let mut stack2 = stack1;
@@ -418,7 +418,7 @@ pub fn dup2_x1form1_is_type_safe(env: &Environment, mut input_frame: OperandStac
 //popCategory2(InputOperandStack, Type1, Stack1),
 //popCategory1(Stack1, Type2, Rest),
 //canSafelyPushList(Environment, Rest, [Type1, Type2, Type1],OutputOperandStack).
-pub fn dup2_x1form2_is_type_safe(env: &Environment,mut input_frame: OperandStack) -> Result<OperandStack, TypeSafetyError> {
+pub fn dup2_x1form2_is_type_safe(env: &Environment,input_frame: OperandStack) -> Result<OperandStack, TypeSafetyError> {
     let mut stack1 = input_frame;
     let type1 = pop_category2(&env.vf, &mut stack1)?;
     let mut rest = stack1;

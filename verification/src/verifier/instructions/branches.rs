@@ -32,13 +32,17 @@ pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) ->
     }))
 }
 
-
-pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn type_safe_if_cmp(target: usize, env: &Environment, stack_frame: Frame, comparison_types: Vec<VType>) -> Result<InstructionTypeSafe, TypeSafetyError>{
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
-    let next_frame = can_pop(&env.vf, stack_frame, vec![VType::Reference, VType::Reference])?;
+    let next_frame = can_pop(&env.vf, stack_frame, comparison_types)?;
     target_is_type_safe(env, &next_frame, target as usize)?;
     standard_exception_frame(locals,flag, next_frame)
+}
+
+
+pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    type_safe_if_cmp(target,env,stack_frame,vec![VType::Reference, VType::Reference])
 }
 
 
@@ -48,7 +52,6 @@ pub fn instruction_is_type_safe_goto(target: usize, env: &Environment, stack_fra
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
-
 pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo is ireturn used for shorts etc?
     //what should a method return type be?
@@ -56,37 +59,34 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: Frame) -
         VType::IntType => {}
         _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string()))
     }
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![VType::IntType])?;
-    let exception_frame = exception_stack_frame(stack_frame);
+    let exception_frame = exception_stack_frame(locals,flag);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
-
 
 pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let return_type = &env.return_type;
     is_assignable(&env.vf, return_type, &VType::Reference)?;
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![return_type.clone()])?;
-    let exception_frame = exception_stack_frame(stack_frame);
+    let exception_frame = exception_stack_frame(locals,flag);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
 
 pub fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType])?;
-    target_is_type_safe(env, &next_frame, target)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_safe_if_cmp(target,env,stack_frame,vec![VType::IntType, VType::IntType])
 }
 
 pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType])?;
-    target_is_type_safe(env, &next_frame, target)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_safe_if_cmp(target,env,stack_frame,vec![VType::IntType])
 }
 
 pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let next_frame = can_pop(&env.vf, stack_frame, vec![VType::Reference])?;
-    target_is_type_safe(env, &next_frame, target)?;
-    standard_exception_frame(stack_frame, next_frame)
+    type_safe_if_cmp(target,env,stack_frame,vec![VType::Reference])
 }
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -103,8 +103,10 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
     let operand_arg_list: Vec<VType> = descriptor.parameter_types.iter().rev().map(|x| { PTypeView::from_ptype(&x).to_verification_type(&env.class_loader) }).collect();
     let return_type = PTypeView::from_ptype(&descriptor.return_type).to_verification_type(&env.class_loader);
     let stack_arg_list = operand_arg_list;
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -124,14 +126,17 @@ pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &E
     let current_loader = env.class_loader.clone();
     operand_arg_list.push(VType::Class(ClassWithLoader { class_name: ClassName::Str(method_intf_name.clone()), loader: current_loader }));
     let stack_arg_list = operand_arg_list;
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
+    let stack_frame_size = stack_frame.stack_map.len();
     let temp_frame = can_pop(&env.vf, stack_frame, stack_arg_list)?;
-    count_is_valid(count, &stack_frame, &temp_frame)?;
+    count_is_valid(count, stack_frame_size, &temp_frame)?;
     let next_frame = valid_type_transition(env, vec![], &return_type, temp_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
-fn count_is_valid(count: usize, input_frame: &Frame, output_frame: &Frame) -> Result<(), TypeSafetyError> {
-    let len1 = input_frame.stack_map.len();
+fn count_is_valid(count: usize, input_frame_stack_map_size: usize, output_frame: &Frame) -> Result<(), TypeSafetyError> {
+    let len1 = input_frame_stack_map_size;
     let len2 = output_frame.stack_map.len();
     if count == len1 - len2 {
         Result::Ok(())
@@ -296,11 +301,21 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
     }).collect();
     operand_arg_list_copy.push(current_class);
     let return_type = &PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);
-    let next_frame = valid_type_transition(env, operand_arg_list_copy, &return_type, stack_frame)?;
-    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| { PTypeView::from_ptype(&x).to_verification_type(&env.class_loader) }).collect();
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
+    let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types
+        .iter().rev()
+        .map(|x| { PTypeView::from_ptype(&x).to_verification_type(&env.class_loader) })
+        .collect();
     operand_arg_list_copy2.push(method_class);
-    valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame)?;
-    let exception_frame = exception_stack_frame(stack_frame);
+    valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame.clone())?;//todo uneeded clone
+    let next_frame = valid_type_transition(
+        env,
+        operand_arg_list_copy,
+        &return_type,
+        stack_frame
+    )?;
+    let exception_frame = exception_stack_frame(locals,flag);
     return Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }));
 }
 
@@ -328,16 +343,18 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
         stack_arg_list.iter().for_each(|_| {
             next_stack_frame.operand_pop();//todo do check object
         });
-        next_stack_frame = push_operand_stack(&env.vf,&next_stack_frame,&return_type);
-        standard_exception_frame(stack_frame, Frame {
+        next_stack_frame = push_operand_stack(&env.vf,next_stack_frame,&return_type);
+        standard_exception_frame(stack_frame.locals.clone(),stack_frame.flag_this_uninit, Frame {
             locals: stack_frame.locals.clone(),
             stack_map: next_stack_frame,
             flag_this_uninit: stack_frame.flag_this_uninit,
         })
     } else {
         // dbg!(method_name);
+        let locals = stack_frame.locals.clone();
+        let flag = stack_frame.flag_this_uninit;
         let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
-        standard_exception_frame(stack_frame, next_frame)
+        standard_exception_frame(locals,flag, next_frame)
     }
 }
 
@@ -369,12 +386,14 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     let mut stack_arg_list: Vec<_> = arg_list.clone();
     stack_arg_list.push(method_class);
     let return_type = PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);//todo what should the loader here be?
-    let nf = valid_type_transition(env, stack_arg_list.clone(), &return_type, stack_frame)?;
-    let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
+    let nf = valid_type_transition(env, stack_arg_list.clone(), &return_type, stack_frame.clone())?;
+    let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;//todo the above is an unneeded clone b/c this is equivalent/redundant?
     if class_name.is_some() {
         passes_protected_check(env, &class_name.unwrap(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
     }
-    standard_exception_frame(stack_frame, nf)
+    standard_exception_frame(locals,flag, nf)
 }
 
 pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PTypeView, String, MethodDescriptor) {
@@ -414,8 +433,10 @@ pub fn possibly_array_to_type(class_name: &String) -> ReferenceTypeView {
 pub fn instruction_is_type_safe_lreturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
         VType::LongType => {
+            let locals = stack_frame.locals.clone();
+            let flag = stack_frame.flag_this_uninit;
             can_pop(&env.vf, stack_frame, vec![VType::LongType])?;
-            let exception_frame = exception_stack_frame(stack_frame);
+            let exception_frame = exception_stack_frame(locals,flag);
             Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
         }
         _ => Result::Err(unknown_error_verifying!())
@@ -426,8 +447,10 @@ pub fn instruction_is_type_safe_dreturn(env: &Environment, stack_frame: Frame) -
     if env.return_type != VType::DoubleType {
         return Result::Err(unknown_error_verifying!());
     }
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![VType::DoubleType])?;
-    let exception_frame = exception_stack_frame(stack_frame);
+    let exception_frame = exception_stack_frame(locals,flag);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
@@ -435,7 +458,9 @@ pub fn instruction_is_type_safe_freturn(env: &Environment, stack_frame: Frame) -
     if env.return_type != VType::FloatType {
         return Result::Err(unknown_error_verifying!());
     }
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![VType::FloatType])?;
-    let exception_frame = exception_stack_frame(stack_frame);
+    let exception_frame = exception_stack_frame(locals,flag);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }

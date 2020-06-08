@@ -43,20 +43,26 @@ pub fn instruction_is_type_safe_aastore(env: &Environment, stack_frame: Frame) -
     let object = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.bootstrap_loader.clone() };
     let object_type = VType::Class(object.clone());
     let object_array = VType::ArrayReferenceType(PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())));
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![object_type, VType::IntType, object_array])?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_astore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::Reference, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_bastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = nth1_operand_stack_is(3, &stack_frame)?;
     is_small_array(array_type)?;
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType, VType::TopType])?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn is_small_array(array_type: VType) -> Result<(), TypeSafetyError> {
@@ -72,57 +78,77 @@ pub fn is_small_array(array_type: VType) -> Result<(), TypeSafetyError> {
 }
 
 pub fn instruction_is_type_safe_castore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType, VType::ArrayReferenceType(PTypeView::CharType)])?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_dastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = VType::ArrayReferenceType(PTypeView::DoubleType);
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::DoubleType, VType::IntType, array_type])?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_dstore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::DoubleType, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_fastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = VType::ArrayReferenceType(PTypeView::FloatType);
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::FloatType, VType::IntType, array_type])?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_fstore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::FloatType, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_iastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = VType::ArrayReferenceType(PTypeView::IntType);
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType, array_type])?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_istore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::IntType, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_lastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = VType::ArrayReferenceType(PTypeView::LongType);
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::LongType, VType::IntType, array_type])?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 
 pub fn instruction_is_type_safe_lstore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::LongType, stack_frame)?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_sastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = VType::ArrayReferenceType(PTypeView::ShortType);
+    let locals = stack_frame.locals.clone();
+    let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType, array_type])?;
-    standard_exception_frame(stack_frame, next_frame)
+    standard_exception_frame(locals,flag, next_frame)
 }
