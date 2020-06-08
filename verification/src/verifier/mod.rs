@@ -13,6 +13,7 @@ use classfile_view::loading::*;
 use classfile_view::view::ptype_view::PTypeView;
 use descriptor_parser::Descriptor;
 use std::rc::Rc;
+use std::sync::Arc;
 
 macro_rules! unknown_error_verifying {
     () => {
@@ -33,7 +34,7 @@ pub struct InternalFrame {
 }
 
 //todo impl on VerifierContext
-pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> ClassView {
+pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<ClassView> {
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     if class.loader.initiating_loader_of(&class.class_name) {
         // verifier_context.jvm

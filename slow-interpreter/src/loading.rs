@@ -67,8 +67,8 @@ impl Classpath {
 
 #[derive(Debug)]
 pub struct BootstrapLoader {
-    pub loaded: RwLock<HashMap<ClassName, Arc<Classfile>>>,
-    pub parsed: RwLock<HashMap<ClassName, Arc<Classfile>>>,
+    pub loaded: RwLock<HashMap<ClassName, (Arc<ClassView>,Arc<Classfile>)>>,
+    pub parsed: RwLock<HashMap<ClassName, (Arc<ClassView>,Arc<Classfile>)>>,
     pub name: RwLock<LoaderName>,
     //for now the classpath is immutable so no locks are needed.
     pub classpath: Arc<Classpath>,
@@ -76,8 +76,8 @@ pub struct BootstrapLoader {
 
 
 impl Loader for BootstrapLoader {
-    fn find_loaded_class(&self, name: &ClassName) -> Option<ClassView> {
-        self.loaded.read().unwrap().get(name).cloned().map(|c| ClassView::from(c))
+    fn find_loaded_class(&self, name: &ClassName) -> Option<Arc<ClassView>> {
+        self.loaded.read().unwrap().get(name).cloned().map(|c| c.0.clone())
     }
 
     fn initiating_loader_of(&self, class: &ClassName) -> bool {
@@ -88,7 +88,7 @@ impl Loader for BootstrapLoader {
         unimplemented!()
     }
 
-    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc, live_pool_getter: Arc<dyn LivePoolGetter>) -> Result<ClassView, ClassLoadingError> {
+    fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc, live_pool_getter: Arc<dyn LivePoolGetter>) -> Result<Arc<ClassView>, ClassLoadingError> {
         if !self.initiating_loader_of(class) {
             // trace!("loading {}", class.get_referred_name());
             let class_view = self.pre_load(class)?;
@@ -105,13 +105,14 @@ impl Loader for BootstrapLoader {
                 self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone(), live_pool_getter.clone())?;
             }
             let backing_class = class_view.backing_class();
-            match verify(&VerifierContext { live_pool_getter, bootstrap_loader: bl.clone() }, class_view, self_arc) {
+            match verify(&VerifierContext { live_pool_getter, bootstrap_loader: bl.clone() }, &class_view, self_arc) {
                 Ok(_) => {}
                 Err(_) => panic!(),
             };
-            self.loaded.write().unwrap().insert(class.clone(), backing_class);
+            self.loaded.write().unwrap().insert(class.clone(), (Arc::new(ClassView::from(backing_class.clone())),backing_class));
         }
-        Result::Ok(ClassView::from(self.loaded.read().unwrap().get(class).unwrap().clone()))
+        let c = self.loaded.read().unwrap().get(class).unwrap().clone();
+        Result::Ok(c.0)
     }
 
     fn name(&self) -> LoaderName {
@@ -120,10 +121,10 @@ impl Loader for BootstrapLoader {
 
     //todo hacky and janky
     // as a fix for self_arc we could wrap Arc, and have that struct impl loader
-    fn pre_load(&self, name: &ClassName) -> Result<ClassView, ClassLoadingError> {
+    fn pre_load(&self, name: &ClassName) -> Result<Arc<ClassView>, ClassLoadingError> {
         //todo assert self arc is same
         //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
-        let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.clone());
+        let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.1.clone());
         let res = match maybe_classfile {
             None => {
                 self.classpath.lookup(name)
@@ -132,8 +133,10 @@ impl Loader for BootstrapLoader {
         };
         match res {
             Ok(c) => {
-                self.parsed.write().unwrap().insert(class_name(&c), c.clone());
-                Result::Ok(ClassView::from(c))
+                let class_view = Arc::new(ClassView::from(c.clone()));
+                self.parsed.write().unwrap().insert(class_name(&c),
+                                                    (class_view.clone(), c));
+                Result::Ok(class_view)
             }
             Err(e) => {
                 dbg!(e);
@@ -145,7 +148,8 @@ impl Loader for BootstrapLoader {
     }
 
     fn add_pre_loaded(&self, name: &ClassName, classfile: &Arc<Classfile>) {
-        self.parsed.write().unwrap().insert(name.clone(), classfile.clone());
+        self.parsed.write().unwrap().insert(name.clone(),
+                                            (Arc::new(ClassView::from(classfile.clone())),classfile.clone()));
     }
 }
 

@@ -125,7 +125,7 @@ pub fn run_native_method(
                         let class_name = class_view.name();
                         bootstrap_loader.add_pre_loaded(&class_name, &parsed);
                         // frame.print_stack_trace();
-                        match verify(&vf, class_view, bootstrap_loader.clone()) {
+                        match verify(&vf, &class_view, bootstrap_loader.clone()) {
                             Ok(_) => {}
                             Err(_) => panic!(),
                         };
