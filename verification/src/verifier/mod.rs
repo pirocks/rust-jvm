@@ -178,7 +178,7 @@ fn classes_in_other_pkg_with_protected_member_impl(
 }
 
 
-pub fn standard_exception_frame(stack_frame: &Frame, next_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn standard_exception_frame(stack_frame: Frame, next_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let exception_frame = exception_stack_frame(stack_frame);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }

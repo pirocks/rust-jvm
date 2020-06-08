@@ -11,7 +11,7 @@ use crate::verifier::instructions::special::*;
 use crate::verifier::instructions::stores::*;
 use crate::verifier::TypeSafetyError;
 
-pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match &instruction.instruction {
         InstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
         InstructionInfo::aastore => instruction_is_type_safe_aastore(env, stack_frame),
@@ -266,13 +266,13 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
     }
 }
 
-fn if_icmp_wrapper(instruction: &Instruction, env: &Environment, stack_frame: &Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn if_icmp_wrapper(instruction: &Instruction, env: &Environment, stack_frame: Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let final_target = (target as isize) + (instruction.offset as isize);
     assert!(final_target >= 0);
     instruction_is_type_safe_if_icmpeq(final_target as usize, env, stack_frame)
 }
 
-fn ifeq_wrapper(instruction: &Instruction, env: &Environment, stack_frame: &Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn ifeq_wrapper(instruction: &Instruction, env: &Environment, stack_frame: Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let final_target = (target as isize) + (instruction.offset as isize);
     assert!(final_target >= 0);
     instruction_is_type_safe_ifeq(final_target as usize, env, stack_frame)

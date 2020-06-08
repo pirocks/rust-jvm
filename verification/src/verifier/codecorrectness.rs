@@ -19,29 +19,29 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use descriptor_parser::MethodDescriptor;
 
 //todo this is responsible for 8 to 9% of total init time.
-pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: &Frame) -> Result<Frame, TypeSafetyError> {
-    let input_operand_stack = &input_frame.stack_map;
+pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
+    let Frame { locals,  stack_map:input_operand_stack, flag_this_uninit } = input_frame;
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&env.vf, &interim_operand_stack, &result_type);
     if operand_stack_has_legal_length(env, &next_operand_stack) {
-        Result::Ok(Frame { locals: input_frame.locals.iter().map(|x| x.clone()).collect(), stack_map: next_operand_stack, flag_this_uninit: input_frame.flag_this_uninit })
+        Result::Ok(Frame { locals, stack_map: next_operand_stack, flag_this_uninit })
     } else {
         Result::Err(TypeSafetyError::NotSafe("Operand stack did not have legal length".to_string()))
     }
 }
 
 //todo 10% of total init time.
-pub fn pop_matching_list(vf: &VerifierContext, pop_from: &OperandStack, pop: Vec<VType>) -> Result<OperandStack, TypeSafetyError> {
-    let result = pop_matching_list_impl(vf, &mut pop_from.clone(), pop.as_slice());
+pub fn pop_matching_list(vf: &VerifierContext, pop_from: OperandStack, pop: Vec<VType>) -> Result<OperandStack, TypeSafetyError> {
+    let result = pop_matching_list_impl(vf, pop_from, pop.as_slice());
     return result;
 }
 
-pub fn pop_matching_list_impl(vf: &VerifierContext, pop_from: &mut OperandStack, pop: &[VType]) -> Result<OperandStack, TypeSafetyError> {
+pub fn pop_matching_list_impl(vf: &VerifierContext, mut pop_from: OperandStack, pop: &[VType]) -> Result<OperandStack, TypeSafetyError> {
     if pop.is_empty() {
-        Result::Ok(pop_from.clone())//todo inefficent copying
+        Result::Ok(pop_from)//todo inefficent copying
     } else {
         let to_pop = pop.first().unwrap();
-        pop_matching_type(vf, pop_from, to_pop)?;
+        pop_matching_type(vf, &mut pop_from, to_pop)?;
         return pop_matching_list_impl(vf, pop_from, &pop[1..]);
     }
 }
@@ -49,8 +49,6 @@ pub fn pop_matching_list_impl(vf: &VerifierContext, pop_from: &mut OperandStack,
 pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut OperandStack, type_: &VType) -> Result<VType, TypeSafetyError> {
     if size_of(vf, type_) == 1 {
         let actual_type = operand_stack.peek();
-        // dbg!(&actual_type);
-        // dbg!(&type_);
         is_assignable(vf, &actual_type, type_)?;
         operand_stack.operand_pop();
         return Result::Ok(actual_type.clone());
@@ -111,16 +109,13 @@ pub fn operand_stack_has_legal_length(environment: &Environment, operand_stack: 
     operand_stack.len() <= environment.max_stack as usize
 }
 
-pub fn can_pop(vf: &VerifierContext, input_frame: &Frame, types: Vec<VType>) -> Result<Frame, TypeSafetyError> {
-    let poped_stack = pop_matching_list(vf, &input_frame.stack_map, types)?;
+pub fn can_pop(vf: &VerifierContext, input_frame: Frame, types: Vec<VType>) -> Result<Frame, TypeSafetyError> {
+    let Frame { locals, stack_map, flag_this_uninit } = input_frame;
+    let poped_stack = pop_matching_list(vf, stack_map, types)?;
     Result::Ok(Frame {
-        locals: input_frame
-            .locals
-            .iter()
-            .map(|x| x.clone())
-            .collect(),
+        locals,
         stack_map: poped_stack,
-        flag_this_uninit: input_frame.flag_this_uninit,
+        flag_this_uninit,
     })
 }
 
@@ -218,7 +213,7 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
     let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
     handlers_are_legal(&env)?;
-    merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame))?;/*{
+    merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(frame))?;/*{
         Ok(_) => Result::Ok(()),
         Err(_) => {
             //then maybe we need to try alternate initial_this_type
