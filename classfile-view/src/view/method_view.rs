@@ -47,7 +47,7 @@ impl MethodView<'_> {
     }
 
     pub fn desc(&self) -> MethodDescriptor {
-        parse_method_descriptor( self.desc_str().as_str()).unwrap()
+        parse_method_descriptor( self.desc_str().as_str()).unwrap()//todo accounts for 13% of runtime, should be cached somehow
     }
 
     pub fn code_attribute(&self) -> Option<&Code>{
