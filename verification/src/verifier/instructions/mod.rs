@@ -318,8 +318,11 @@ pub fn instruction_is_type_safe_dup_x2(env: &Environment, stack_frame: Frame) ->
     standard_exception_frame(locals, flags, next_frame)
 }
 
-fn dup_x2_form_is_type_safe(env: &Environment, input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
-    if unimplemented!() {//todo
+fn dup_x2_form_is_type_safe(env: &Environment, mut input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
+    let temp = input_stack.operand_pop();
+    let is_form1 = size_of(&env.vf,&input_stack.peek()) == 2;
+    input_stack.operand_push(temp);
+    if is_form1 {//todo
         dup_x2_form1_is_type_safe(env, input_stack)
     }else {
         dup_x2_form2_is_type_safe(env, input_stack)
@@ -366,7 +369,7 @@ fn dup_x2_form2_is_type_safe(env: &Environment, input_stack: OperandStack) -> Re
     let mut stack1 = input_stack;
     let type1 = pop_category1(&env.vf, &mut stack1)?;
     let mut rest = stack1;
-    let type2 = pop_category1(&env.vf, &mut rest)?;
+    let type2 = pop_category2(&env.vf, &mut rest)?;
     can_safely_push_list(env, rest, vec![type1.clone(), type2, type1])
 }
 

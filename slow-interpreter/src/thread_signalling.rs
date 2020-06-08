@@ -7,7 +7,7 @@ use crate::signal::{sigval, siginfo_t, SI_QUEUE, siginfo_t__bindgen_ty_1, siginf
 use std::ffi::c_void;
 use crate::jvmti::event_callbacks::{JVMTIEvent, DebuggerEventConsumer};
 use nix::errno::errno;
-use nix::unistd::{gettid, getpid, getuid};
+use nix::unistd::{gettid, getuid};
 use std::ptr::{null_mut};
 
 pub struct JVMTIEventData<'l> {
