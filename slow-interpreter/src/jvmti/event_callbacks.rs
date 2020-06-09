@@ -165,8 +165,8 @@ impl SharedLibJVMTI {
         unsafe {
             let event_getter = &|| {
                 let thread = to_object(jvm.get_current_thread().thread_object.borrow().as_ref().unwrap().clone().object().into());
-                let native_method_id = box method.clone();//todo leaks here , use a vtable based methodId
-                let method = transmute(Box::leak(native_method_id));
+                let native_method_id = jvm.native_interface_allocations.allocate_box(method.clone());//todo use a vtable based methodId
+                let method = transmute(native_method_id);
                 let jvmti_event = JVMTIEvent::Breakpoint(BreakpointEvent {
                     thread,
                     method,

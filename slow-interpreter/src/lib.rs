@@ -2,6 +2,7 @@
 #![feature(thread_local)]
 #![feature(vec_leak)]
 #![feature(box_syntax)]
+#![feature(vec_into_raw_parts)]
 extern crate libloading;
 extern crate libc;
 extern crate regex;
@@ -52,6 +53,7 @@ use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use std::ops::Deref;
 use crate::java_values::Object::Array;
+use crate::native_allocation::{NativeAllocator};
 
 
 pub mod java_values;
@@ -187,6 +189,7 @@ pub struct JVMState {
     pub tracing: TracingSettings,
     pub method_table: RwLock<MethodTable>,
     pub field_table: RwLock<FieldTable>,
+    pub native_interface_allocations : NativeAllocator,
     live: RwLock<bool>,
 }
 
@@ -290,6 +293,7 @@ impl JVMState {
             tracing,
             method_table: RwLock::new(MethodTable::new()),
             field_table: RwLock::new(FieldTable::new()),
+            native_interface_allocations: NativeAllocator{ allocations: RwLock::new(HashMap::new()) },
             live: RwLock::new(false),
         })
     }
@@ -572,3 +576,4 @@ pub mod interpreter;
 pub mod signal;
 pub mod method_table;
 pub mod field_table;
+pub mod native_allocation;

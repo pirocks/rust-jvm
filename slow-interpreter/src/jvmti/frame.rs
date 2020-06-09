@@ -29,8 +29,8 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     let thread = jvm.thread_state.alive_threads.read().unwrap().get(&tid).unwrap().clone();
     let call_stack_guard =  thread.call_stack.borrow();
     let stack_entry = call_stack_guard[depth as usize].deref();
-    let meth_id = box jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer.clone(), stack_entry.method_i );
-    method_ptr.write(Box::leak(meth_id) as *mut usize as *mut c_void as jmethodID);//todo leak
+    let meth_id = jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer.clone(), stack_entry.method_i );
+    method_ptr.write(jvm.native_interface_allocations.allocate_box(meth_id) as *mut usize as *mut c_void as jmethodID);
     location_ptr.write(*stack_entry.pc.borrow() as i64);
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetFrameLocation");
     jvmtiError_JVMTI_ERROR_NONE

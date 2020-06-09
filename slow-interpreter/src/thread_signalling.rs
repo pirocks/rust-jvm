@@ -3,7 +3,7 @@ use crate::{JVMState, JavaThread, signal};
 use nix::sys::signal::Signal;
 use std::convert::TryFrom;
 use std::mem::transmute;
-use crate::signal::{sigval, siginfo_t, SI_QUEUE, siginfo_t__bindgen_ty_1, siginfo_t__bindgen_ty_1__bindgen_ty_3, pthread_sigqueue};
+use crate::signal::{sigval, siginfo_t, SI_QUEUE, siginfo_t__bindgen_ty_1, siginfo_t__bindgen_ty_1__bindgen_ty_3, pthread_sigqueue, pthread_self};
 use std::ffi::c_void;
 use crate::jvmti::event_callbacks::{JVMTIEvent, DebuggerEventConsumer};
 use nix::errno::errno;
@@ -41,7 +41,7 @@ impl JVMState {
         let tid = t.unix_tid.as_raw();
 
         if gettid().as_raw() != tid {
-            let res = pthread_sigqueue(tid as u64, transmute(Signal::SIGUSR1), sigval_);//rt_tgsigqueueinfo(pid, tid, transmute(Signal::SIGUSR1), Box::leak(box signal_info));//todo use after free?
+            let res = pthread_sigqueue(pthread_self(), transmute(Signal::SIGUSR1), sigval_);//rt_tgsigqueueinfo(pid, tid, transmute(Signal::SIGUSR1), Box::leak(box signal_info));//todo use after free?
             if res != 0 {
                 dbg!(gettid());
                 dbg!(errno());

@@ -26,7 +26,7 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
     let mut res_ptr = vec![];
     //todo why is main not an alive thread
     std::mem::drop(jvm.thread_state.alive_threads.read().unwrap().values()
-        /*.chain(vec![/*chain(vec![jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())*/jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())*/
+        .chain(vec![/*chain(vec![jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())*/jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())
         .map(|v| {
             let thread_object_arc = v.thread_object.borrow().as_ref().unwrap().clone();
             // dbg!(thread_object_arc.tid());
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
             .get(&RuntimeClass::Int).unwrap()//todo technically this needs a check inited class
             .lookup_field("classLoader")
             .unwrap_object()));//todo deal with this whole loader situation
-    (*info_ptr).name = CString::new(thread_object.name().to_rust_string()).unwrap().into_raw();//todo leak
+    (*info_ptr).name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_object.name().to_rust_string()).unwrap());
     (*info_ptr).is_daemon = thread_object.daemon() as u8;//todo this issue again
     (*info_ptr).priority = thread_object.priority();
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetThreadInfo");
