@@ -47,7 +47,16 @@ impl MethodView<'_> {
     }
 
     pub fn desc(&self) -> MethodDescriptor {
-        parse_method_descriptor( self.desc_str().as_str()).unwrap()//todo accounts for 13% of runtime, should be cached somehow
+        let guard = self.class_view.descriptor_index.read().unwrap();
+        match &guard[self.method_i]{
+            None => {
+                let parsed = parse_method_descriptor( self.desc_str().as_str()).unwrap();
+                std::mem::drop(guard);
+                self.class_view.descriptor_index.write().unwrap()[self.method_i] = Some(parsed.clone());
+                parsed
+            },
+            Some(res) => res.clone(),
+        }
     }
 
     pub fn code_attribute(&self) -> Option<&Code>{

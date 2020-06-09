@@ -5,7 +5,7 @@ use rust_jvm_common::classfile::{MethodInfo, Classfile};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
 
-#[derive(Debug, Hash, Eq)]
+#[derive(Debug, Hash, Eq, Clone)]
 pub struct MethodDescriptor { pub parameter_types: Vec<PType>, pub return_type: PType }
 
 impl MethodDescriptor {

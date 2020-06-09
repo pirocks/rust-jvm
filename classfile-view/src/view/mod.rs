@@ -50,12 +50,13 @@ pub trait HasAccessFlags {
 pub struct ClassView {
     backing_class: Arc<Classfile>,
     method_index: RwLock<Option<Arc<MethodIndex>>>,
+    descriptor_index: RwLock<Vec<Option<MethodDescriptor>>>
 }
 
 
 impl ClassView {
     pub fn from(c: Arc<Classfile>) -> ClassView {
-        ClassView { backing_class: c.clone(), method_index: RwLock::new(None) }
+        ClassView { backing_class: c.clone(), method_index: RwLock::new(None), descriptor_index: RwLock::new(vec![None;c.methods.len()]) }
     }
     pub fn name(&self) -> ClassName {
         class_name(&self.backing_class)
