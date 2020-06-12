@@ -51,14 +51,51 @@ pub unsafe extern "C" fn set_object_field(env: *mut JNIEnv, obj: jobject, field_
 }
 
 
+pub unsafe extern "C" fn set_static_boolean_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jboolean) {
+    set_static_field(env, clazz, field_id_raw, JavaValue::Boolean(value));
+}
+
+pub unsafe extern "C" fn set_static_byte_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jbyte) {
+    set_static_field(env, clazz, field_id_raw, JavaValue::Byte(value));
+}
+
+pub unsafe extern "C" fn set_static_short_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jshort) {
+    set_static_field(env, clazz, field_id_raw, JavaValue::Short(value));
+}
+
+pub unsafe extern "C" fn set_static_char_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jchar) {
+    set_static_field(env, clazz, field_id_raw, JavaValue::Char(value));
+}
+
+pub unsafe extern "C" fn set_static_int_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jint) {
+    set_static_field(env, clazz, field_id_raw, JavaValue::Int(value));
+}
+
+pub unsafe extern "C" fn set_static_long_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jlong) {
+    set_static_field(env, clazz, field_id_raw, JavaValue::Long(value));
+}
+
+pub unsafe extern "C" fn set_static_float_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value:jfloat) {
+    set_static_field(env, clazz, field_id_raw, JavaValue::Float(value));
+}
+
+pub unsafe extern "C" fn set_static_double_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jdouble) {
+    set_static_field(env, clazz, field_id_raw, JavaValue::Double(value));
+}
+
 pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject) {
-    let jvm = get_state(env);
-    let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(field_id_raw));
     let value = from_object(value);
+    set_static_field(env, clazz, field_id_raw, JavaValue::Object(value));
+}
+
+unsafe fn set_static_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: JavaValue) {
+    let jvm = get_state(env);
+    //todo create a field conversion function.
+    let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(field_id_raw));
     let view = &rc.view();
     let field_name = view.field(field_i as usize).field_name();
     let static_class = from_jclass(clazz).as_runtime_class();
-    static_class.static_vars().insert(field_name, JavaValue::Object(value));
+    static_class.static_vars().insert(field_name, value);
 }
 
 
