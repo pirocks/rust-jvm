@@ -8,7 +8,7 @@ use crate::jvmti::allocate::{allocate, deallocate};
 use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities, get_capabilities};
 use crate::jvmti::events::set_event_notification_mode;
 use std::cell::RefCell;
-use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
+use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify, destroy_raw_monitor};
 use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state, get_thread_group_info, interrupt_thread};
 use crate::rust_jni::native_util::{to_object, from_object, from_jclass};
 use crate::jvmti::thread_local_storage::*;
@@ -91,7 +91,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         SetLocalFloat: None,
         SetLocalDouble: None,
         CreateRawMonitor: Some(create_raw_monitor),
-        DestroyRawMonitor: None,
+        DestroyRawMonitor: Some(destroy_raw_monitor),
         RawMonitorEnter: Some(raw_monitor_enter),
         RawMonitorExit: Some(raw_monitor_exit),
         RawMonitorWait: Some(raw_monitor_wait),
