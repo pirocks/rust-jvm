@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class DebuggingClass {
-    public static void main(String[] args) throws IOException, IllegalConnectorArgumentsException, IncompatibleThreadStateException {
+    public static void main(String[] args) throws IOException, IllegalConnectorArgumentsException {
         final GenericAttachingConnector connector = new SocketAttachingConnector();
         final VirtualMachine attached = connector.attach("localhost:5005", connector.defaultArguments());
         final List<ThreadReference> threads = attached.allThreads();
@@ -28,9 +28,21 @@ public class DebuggingClass {
         }
         for (ThreadReference thread : threads) {
             thread.interrupt();
-            for (StackFrame frame : thread.frames()) {
-                System.out.println(frame.location().lineNumber());
+            thread.suspend();
+            System.out.println(thread.name());
+            System.out.println(thread.status());
+            try {
+                System.out.println(thread.frameCount());
+                for (StackFrame frame : thread.frames()) {
+                    for (LocalVariable variable : frame.visibleVariables()) {
+                        System.out.println(variable.type());
+                    }
+                    System.out.println(frame.location().lineNumber());
+                }
+            } catch (IncompatibleThreadStateException | AbsentInformationException | ClassNotLoadedException e) {
+                e.printStackTrace();
             }
+
             System.out.println(thread.name());
         }
 
