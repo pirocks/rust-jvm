@@ -12,7 +12,7 @@ public class DebuggingClass {
         final VirtualMachine attached = connector.attach("localhost:5005", connector.defaultArguments());
         final List<ThreadReference> threads = attached.allThreads();
         for (ReferenceType aClass : attached.allClasses()) {
-            if (!aClass.name().equals("int") &&
+           /* if (!aClass.name().equals("int") &&
                     !aClass.name().equals("boolean") &&
                     !aClass.name().equals("byte") &&
                     !aClass.name().equals("short") &&
@@ -23,7 +23,7 @@ public class DebuggingClass {
                 for (Method method : aClass.allMethods()) {
                     System.out.println(method.name());
                 }
-            }
+            }*/
             System.out.println(aClass.name());
         }
         for (ThreadReference thread : threads) {

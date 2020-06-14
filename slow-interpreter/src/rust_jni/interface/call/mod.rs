@@ -1,24 +1,25 @@
-use crate::rust_jni::native_util::{get_state, get_frame, from_object};
-use jvmti_jni_bindings::{jobject, jmethodID, JNINativeInterface_, jvalue, jboolean, jshort, jint, jlong};
 use std::ffi::{VaList, VaListImpl};
+use std::mem::transmute;
+use std::ops::Deref;
+use std::rc::Rc;
+
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::PTypeView;
+use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
 
 // use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use classfile_view::view::ptype_view::PTypeView;
 use crate::java_values::JavaValue;
-use crate::StackEntry;
-use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
-use std::ops::Deref;
-use std::rc::Rc;
 use crate::method_table::MethodId;
-use classfile_view::view::HasAccessFlags;
-use std::mem::transmute;
+use crate::rust_jni::native_util::{from_object, get_frame, get_state};
+use crate::StackEntry;
 
 pub mod call_nonstatic;
 
 unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
-    let method_id = *(method_id as *mut MethodId);
+    let method_id: MethodId = transmute(method_id);
     let jvm = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = class.view().clone();
@@ -35,22 +36,22 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
         match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => {
                 frame.push(JavaValue::Byte(l.arg_byte()))
-            },
+            }
             PTypeView::CharType => {
                 frame.push(JavaValue::Char(l.arg_char()))
-            },
+            }
             PTypeView::DoubleType => {
                 frame.push(JavaValue::Double(l.arg_double()))
-            },
+            }
             PTypeView::FloatType => {
                 frame.push(JavaValue::Float(l.arg_float()))
-            },
+            }
             PTypeView::IntType => {
                 frame.push(JavaValue::Int(l.arg_int()))
-            },
+            }
             PTypeView::LongType => {
                 frame.push(JavaValue::Long(l.arg_long()))
-            },
+            }
             PTypeView::Ref(_) => {
                 let native_object: jobject = l.arg_ptr() as jobject;
                 let o = from_object(native_object);
@@ -58,10 +59,10 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
             }
             PTypeView::ShortType => {
                 frame.push(JavaValue::Short(l.arg_short()))
-            },
+            }
             PTypeView::BooleanType => {
                 frame.push(JavaValue::Boolean(l.arg_bool()))
-            },
+            }
             PTypeView::VoidType => unimplemented!(),
             PTypeView::TopType => unimplemented!(),
             PTypeView::NullType => unimplemented!(),
@@ -105,22 +106,22 @@ unsafe fn push_params_onto_frame(
         match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => {
                 frame.push(JavaValue::Byte(l.arg_byte()));
-            },
+            }
             PTypeView::CharType => {
                 frame.push(JavaValue::Char(l.arg_char()));
-            },
+            }
             PTypeView::DoubleType => {
                 frame.push(JavaValue::Double(l.arg_double()));
-            },
+            }
             PTypeView::FloatType => {
                 frame.push(JavaValue::Float(l.arg_float()));
-            },
+            }
             PTypeView::IntType => {
                 frame.push(JavaValue::Int(l.arg_int()));
-            },
+            }
             PTypeView::LongType => {
                 frame.push(JavaValue::Long(l.arg_long()));
-            },
+            }
             PTypeView::Ref(_) => {
                 //todo dup with other line
                 let native_object: jobject = l.arg_ptr() as jobject;
@@ -129,10 +130,10 @@ unsafe fn push_params_onto_frame(
             }
             PTypeView::ShortType => {
                 frame.push(JavaValue::Short(l.arg_short()));
-            },
+            }
             PTypeView::BooleanType => {
                 frame.push(JavaValue::Boolean(l.arg_bool()));
-            },
+            }
             PTypeView::VoidType => unimplemented!(),
             PTypeView::TopType |
             PTypeView::NullType |
@@ -148,7 +149,7 @@ pub mod call_static;
 pub enum VarargProvider<'l, 'l2, 'l3> {
     Dots(&'l mut VaListImpl<'l2>),
     VaList(&'l mut VaList<'l2, 'l3>),
-    Array(* const jvalue)
+    Array(*const jvalue),
 }
 
 impl VarargProvider<'_, '_, '_> {

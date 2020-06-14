@@ -248,7 +248,7 @@ pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobjec
 pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
-    let method_id = *(method as *mut MethodId);
+    let method_id : MethodId = transmute(method);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     match class.view().method_view_i(method_i as usize).code_attribute() {
         None => {

@@ -3,11 +3,12 @@ use crate::jvmti::get_state;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use crate::method_table::MethodId;
+use std::intrinsics::transmute;
 
 pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "SetBreakpoint");
-    let method_id = *(method as *mut usize);
+    let method_id: MethodId = transmute(method);
     dbg!(&method_id);
     let mut breakpoint_guard = jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap();
     match breakpoint_guard.get_mut(&method_id) {
@@ -26,7 +27,8 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
 pub unsafe extern "C" fn clear_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError{
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "ClearBreakpoint");
-    jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap().get_mut(&*(method as *mut MethodId)).unwrap().remove(&(location as isize));
+    let method_id: MethodId = transmute(method);
+    jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap().get_mut(&method_id).unwrap().remove(&(location as isize));
     jvm.tracing.trace_jdwp_function_exit(jvm, "ClearBreakpoint");
     jvmtiError_JVMTI_ERROR_NONE
 }

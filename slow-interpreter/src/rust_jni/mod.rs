@@ -288,10 +288,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let frame = frame_temp.deref();
     let class_obj= from_object(clazz);
     let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj).cast_class(), jvm, &frame).unwrap();
-    // dbg!(runtime_class.view().name());
     let all_methods = get_all_methods(jvm, frame, runtime_class);
-    // dbg!(&method_descriptor_str);
-    // dbg!(&method_name);
 
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_view = &c.view().method_view_i(*i);
@@ -301,8 +298,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
             method_descriptor_str == cur_desc
     }).unwrap();
     let method_id = jvm.method_table.write().unwrap().get_method_id(c.clone(), *m as u16);
-    let res = Box::into_raw(box method_id);
-    transmute(res)
+    transmute(method_id)
 }
 
 // #[derive(Clone, Hash, Eq, PartialEq)]

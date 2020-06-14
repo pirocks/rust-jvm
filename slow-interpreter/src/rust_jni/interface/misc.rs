@@ -1,20 +1,20 @@
-use crate::rust_jni::native_util::{from_object, get_state, get_frame, to_object, from_jclass};
-use jvmti_jni_bindings::{jobject, jboolean, jclass, JNIEnv, jmethodID, jint, JavaVM, JNIInvokeInterface_, jthrowable};
-use crate::interpreter_util::{push_new_object, check_inited_class};
 use std::ffi::CStr;
-use crate::instructions::ldc::load_class_constant_by_type;
-
-
-use rust_jvm_common::classnames::ClassName;
 use std::intrinsics::transmute;
-use crate::instructions::invoke::special::invoke_special_impl;
-use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use crate::java_values::JavaValue;
+use std::ops::Deref;
+
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, jmethodID, JNIEnv, JNIInvokeInterface_, jobject, jthrowable};
+use rust_jvm_common::classnames::ClassName;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
+
+use crate::instructions::invoke::special::invoke_special_impl;
+use crate::instructions::ldc::load_class_constant_by_type;
+use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::invoke_interface::get_invoke_interface;
-use std::ops::Deref;
+use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
+use crate::rust_jni::native_util::{from_jclass, from_object, get_frame, get_state, to_object};
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
     //todo impl later
     let jvm = get_state(env);
-    let frame  = get_frame(env);
+    let frame = get_frame(env);
 
     let sub_not_null = from_object(sub).unwrap();
     let sup_not_null = from_object(sup).unwrap();
@@ -62,9 +62,8 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sup_vtype = sup_type.to_verification_type(loader);
 
 
-
     let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), bootstrap_loader: jvm.bootstrap_loader.clone() };
-    let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_|true).unwrap_or(false);
+    let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
     res as jboolean
 }
 
@@ -117,7 +116,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
 }
 
 pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
-    let method_id = *(jmethod_id as *mut MethodId);
+    let method_id: MethodId = transmute(jmethod_id);
     let jvm = get_state(env);
     let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
@@ -168,11 +167,11 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
     //todo get rid of this transmute
     let state = get_state(env);
     let interface = get_invoke_interface(state);
-    *vm = Box::into_raw(Box::new(transmute::<_,*mut JNIInvokeInterface_>(Box::leak(Box::new(interface)))));//todo do something about this leak
+    *vm = Box::into_raw(Box::new(transmute::<_, *mut JNIInvokeInterface_>(Box::leak(Box::new(interface)))));//todo do something about this leak
     0 as jint
 }
 
-pub(crate) unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint{
+pub(crate) unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
     let state = get_state(env);
     state.get_current_thread().interpreter_state.throw.replace(from_object(obj));
     0 as jint
