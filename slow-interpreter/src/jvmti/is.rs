@@ -4,6 +4,7 @@ use crate::rust_jni::native_util::from_object;
 use std::mem::transmute;
 use classfile_view::view::HasAccessFlags;
 use crate::java_values::JavaValue;
+use crate::method_table::MethodId;
 
 pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_array_class_ptr: *mut jboolean) -> jvmtiError {
     let jvm = get_state(env);
@@ -36,5 +37,19 @@ pub unsafe extern "C" fn is_method_obsolete(env: *mut jvmtiEnv, _method: jmethod
     jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodObsolete");
     is_obsolete_ptr.write(false as u8);//todo don't support retransform classes.
     jvm.tracing.trace_jdwp_function_exit(jvm, "IsMethodObsolete");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+
+pub unsafe extern "C" fn is_method_native(
+env: *mut jvmtiEnv,
+method: jmethodID,
+is_native_ptr: *mut jboolean,
+) -> jvmtiError{
+    let jvm = get_state(env);
+    let method_id: MethodId = transmute(method);
+    let (rc, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let mv = rc.view().method_view_i(method_i as usize);
+    is_native_ptr.write(mv.is_native() as jboolean);
     jvmtiError_JVMTI_ERROR_NONE
 }
