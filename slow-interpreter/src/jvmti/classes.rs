@@ -105,7 +105,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
         methods_ptr
             .read()
             .offset(i as isize)
-            .write(Box::leak(box method_id) as *mut usize as *mut c_void as jmethodID)
+            .write(method_id as jmethodID)
     });
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassMethods");
     jvmtiError_JVMTI_ERROR_NONE

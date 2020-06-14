@@ -31,3 +31,7 @@ pub unsafe extern "C" fn new_weak_global_ref(_env: *mut JNIEnv, lobj: jobject) -
 pub unsafe extern "C" fn delete_global_ref(_env: *mut JNIEnv, _gref: jobject){
     //todo blocking on having a gc
 }
+
+pub unsafe extern "C" fn delete_weak_global_ref(_env: *mut JNIEnv, _ref_: jweak){
+    //todo blocking on having a gc
+}

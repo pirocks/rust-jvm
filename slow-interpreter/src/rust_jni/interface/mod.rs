@@ -274,7 +274,7 @@ fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
         GetStringCritical: None,
         ReleaseStringCritical: None,
         NewWeakGlobalRef: Some(new_weak_global_ref),
-        DeleteWeakGlobalRef: None,
+        DeleteWeakGlobalRef: Some(delete_weak_global_ref),
         ExceptionCheck: Some(exception_check),
         NewDirectByteBuffer: None,
         GetDirectBufferAddress: None,

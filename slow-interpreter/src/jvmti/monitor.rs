@@ -64,7 +64,7 @@ pub unsafe extern "C" fn raw_monitor_notify(env: *mut jvmtiEnv, monitor_id: jraw
 }
 
 
-pub unsafe extern "C" fn destroy_raw_monitor(env: *mut jvmtiEnv, monitor: jrawMonitorID) -> jvmtiError {
+pub unsafe extern "C" fn destroy_raw_monitor(_env: *mut jvmtiEnv, _monitor: jrawMonitorID) -> jvmtiError {
     //todo for now no-op
     jvmtiError_JVMTI_ERROR_NONE
 }

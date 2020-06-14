@@ -69,7 +69,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ::va_list::VaList) -> jobject {
     //todo dup
-    let method_id = *(jmethod_id as *mut MethodId);
+    let method_id: MethodId = transmute(jmethod_id );
     let jvm = get_state(env);
     let frame_temp = jvm.get_current_frame();
     let frame = frame_temp.deref();
