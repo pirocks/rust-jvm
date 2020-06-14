@@ -9,7 +9,7 @@ use crate::jvmti::capabilities::{add_capabilities, get_potential_capabilities, g
 use crate::jvmti::events::set_event_notification_mode;
 use std::cell::RefCell;
 use crate::jvmti::monitor::{create_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_wait, raw_monitor_notify_all, raw_monitor_notify};
-use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state, get_thread_group_info};
+use crate::jvmti::threads::{get_top_thread_groups, get_all_threads, get_thread_info, suspend_thread_list, suspend_thread, resume_thread_list, get_thread_state, get_thread_group_info, interrupt_thread};
 use crate::rust_jni::native_util::{to_object, from_object, from_jclass};
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::tags::*;
@@ -67,7 +67,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         SuspendThread: Some(suspend_thread),
         ResumeThread: None,
         StopThread: None,
-        InterruptThread: None,
+        InterruptThread: Some(interrupt_thread),//todo technically these are different.For now should be fine though
         GetThreadInfo: Some(get_thread_info),
         GetOwnedMonitorInfo: None,
         GetCurrentContendedMonitor: None,
@@ -116,7 +116,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetImplementedInterfaces: Some(get_implemented_interfaces),
         IsInterface: Some(is_interface),
         IsArrayClass: Some(is_array_class),
-        GetClassLoader: None,
+        GetClassLoader: Some(get_class_loader),
         GetObjectHashCode: Some(get_object_hash_code),
         GetObjectMonitorUsage: None,
         GetFieldName: None,

@@ -1,9 +1,9 @@
-use jvmti_jni_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE, jmethodID};
+use jvmti_jni_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE, jmethodID, jobject};
 use crate::jvmti::get_state;
 use std::mem::transmute;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::class_objects::get_or_create_class_object;
-use crate::rust_jni::native_util::{to_object, from_object};
+use crate::rust_jni::native_util::{to_object, from_object, from_jclass, get_frame};
 use std::ops::Deref;
 use std::ffi::{CString, c_void};
 use crate::interpreter_util::check_inited_class;
@@ -108,5 +108,17 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
             .write(Box::leak(box method_id) as *mut usize as *mut c_void as jmethodID)
     });
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassMethods");
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
+
+pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, classloader_ptr: *mut jobject ) -> jvmtiError{
+    assert_eq!(classloader_ptr, std::ptr::null_mut());//only implement bootstrap loader case
+    let jvm = get_state(env);
+    let frame = jvm.get_current_frame().deref();
+    let class = from_jclass(klass);
+    let class_loader= class.get_class_loader(jvm,frame);
+    let jobject_ = to_object(class_loader.object().into());
+    classloader_ptr.write(jobject_);
     jvmtiError_JVMTI_ERROR_NONE
 }
