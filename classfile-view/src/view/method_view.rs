@@ -1,8 +1,8 @@
 use crate::view::{HasAccessFlags, ClassView};
-use rust_jvm_common::classfile::{Code, MethodInfo};
+use rust_jvm_common::classfile::{Code, MethodInfo, AttributeType, LocalVariableTableEntry};
 use crate::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
-use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use descriptor_parser::{MethodDescriptor, parse_method_descriptor, FieldDescriptor, parse_field_descriptor};
 
 pub struct MethodView<'cl> {
     pub(crate) class_view: &'cl ClassView,
@@ -63,6 +63,21 @@ impl MethodView<'_> {
         self.method_info().code_attribute()//todo get a Code view
     }
 
+    pub fn local_variable_attribute(&self) ->  Option<Vec<LocalVariableView>>{
+        match self.method_info().code_attribute(){
+            None => return None,
+            Some(code) => {
+                code.attributes.iter().find_map(|attr| match &attr.attribute_type{
+                    AttributeType::LocalVariableTable(lvt) => Some(lvt),
+                    _ => None,
+                }).unwrap().local_variable_table.iter().map(|entry|{
+                    let local_variable_entry = entry;
+                    LocalVariableView { method_view: self, local_variable_entry }
+                }).collect::<Vec<LocalVariableView>>().into()
+            }
+        }
+    }
+
     pub fn is_signature_polymorphic(&self) -> bool{
         // from the spec:
         // A method is signature polymorphic if all of the following are true:
@@ -81,6 +96,10 @@ impl MethodView<'_> {
     //todo this shouldn't be public but needs to be atm.
     pub fn method_i(&self)-> usize {
         self.method_i
+    }
+
+    pub fn num_args(&self) -> usize{
+        self.desc().parameter_types.len()
     }
 }
 
@@ -102,5 +121,42 @@ impl <'cl> Iterator for MethodIterator<'cl> {
         let res = MethodView::from(self.class_view, self.i);
         self.i += 1;
         Some(res)
+    }
+}
+
+pub struct LocalVariableView<'cl>{
+    method_view: &'cl MethodView<'cl>,
+    local_variable_entry: &'cl LocalVariableTableEntry
+
+}
+
+
+impl LocalVariableView<'_>{
+    pub fn variable_start_pc(&self) -> u16{
+        self.local_variable_entry.start_pc
+    }
+
+    pub fn name(&self) -> String{
+        let cv = self.method_view.class_view;
+        let name_i = self.local_variable_entry.name_index;
+        cv.backing_class.constant_pool[name_i as usize].extract_string_from_utf8()
+    }
+
+    pub fn variable_length(&self) -> usize{
+        self.local_variable_entry.length as usize
+    }
+
+    pub fn desc_str(&self) -> String{
+        let cv = self.method_view.class_view;
+        let desc_i = self.local_variable_entry.descriptor_index;
+        cv.backing_class.constant_pool[desc_i as usize].extract_string_from_utf8()
+    }
+
+    pub fn desc(&self) -> FieldDescriptor{
+        parse_field_descriptor(self.desc_str().as_str()).unwrap()
+    }
+
+    pub fn local_var_slot(&self) -> u16 {
+        self.local_variable_entry.index
     }
 }

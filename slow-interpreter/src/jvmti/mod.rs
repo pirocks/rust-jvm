@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::ffi::CString;
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
-use std::ptr::null_mut;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -19,17 +18,18 @@ use crate::jvmti::capabilities::{add_capabilities, get_capabilities, get_potenti
 use crate::jvmti::classes::*;
 use crate::jvmti::event_callbacks::set_event_callbacks;
 use crate::jvmti::events::set_event_notification_mode;
-use crate::jvmti::frame::{get_frame_count, get_frame_location};
+use crate::jvmti::frame::*;
 use crate::jvmti::is::{is_array_class, is_interface, is_method_obsolete, is_method_native};
-use crate::jvmti::monitor::{create_raw_monitor, destroy_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_notify, raw_monitor_notify_all, raw_monitor_wait};
+use crate::jvmti::monitor::*;
 use crate::jvmti::properties::get_system_property;
 use crate::jvmti::tags::*;
 use crate::jvmti::thread_local_storage::*;
-use crate::jvmti::threads::{get_all_threads, get_thread_group_info, get_thread_info, get_thread_state, get_top_thread_groups, interrupt_thread, resume_thread_list, suspend_thread, suspend_thread_list};
+use crate::jvmti::threads::*;
 use crate::jvmti::version::get_version_number;
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::get_field::new_field_id;
 use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
+use crate::jvmti::methods::*;
 
 pub mod event_callbacks;
 
@@ -130,10 +130,10 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetMethodModifiers: Some(get_method_modifiers),
         reserved67: std::ptr::null_mut(),
         GetMaxLocals: None,
-        GetArgumentsSize: None,
+        GetArgumentsSize: Some(get_arguments_size),
         GetLineNumberTable: None,
         GetMethodLocation: Some(get_method_location),
-        GetLocalVariableTable: None,
+        GetLocalVariableTable: Some(get_local_variable_table),
         SetNativeMethodPrefix: None,
         SetNativeMethodPrefixes: None,
         GetBytecodes: None,
@@ -303,30 +303,6 @@ unsafe extern "C" fn get_method_modifiers(
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
-                                     name_ptr: *mut *mut ::std::os::raw::c_char,
-                                     signature_ptr: *mut *mut ::std::os::raw::c_char,
-                                     generic_ptr: *mut *mut ::std::os::raw::c_char,
-) -> jvmtiError {
-    let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
-    let method_id: MethodId = transmute(method);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
-    let mv = class.view().method_view_i(method_i as usize);
-    let name = mv.name();
-    let desc_str = mv.desc_str();
-    if generic_ptr != null_mut() {
-        // unimplemented!()//todo figure out what this is
-    }
-    if signature_ptr != null_mut() {
-        signature_ptr.write(CString::new(desc_str).unwrap().into_raw())
-    }
-    if name_ptr != null_mut() {
-        name_ptr.write(CString::new(name).unwrap().into_raw())
-    }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodName");
-    jvmtiError_JVMTI_ERROR_NONE
-}
 
 unsafe extern "C" fn get_source_file_name(
     env: *mut jvmtiEnv,
@@ -408,3 +384,52 @@ pub mod version;
 pub mod properties;
 pub mod allocate;
 pub mod events;
+pub mod methods{
+    use jvmti_jni_bindings::{jint, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+    use crate::jvmti::get_state;
+    use crate::method_table::MethodId;
+    use std::mem::transmute;
+    use std::ptr::null_mut;
+    use std::ffi::CString;
+
+    pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
+                                         name_ptr: *mut *mut ::std::os::raw::c_char,
+                                         signature_ptr: *mut *mut ::std::os::raw::c_char,
+                                         generic_ptr: *mut *mut ::std::os::raw::c_char,
+    ) -> jvmtiError {
+        let jvm = get_state(env);
+        jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
+        let method_id: MethodId = transmute(method);
+        let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+        let mv = class.view().method_view_i(method_i as usize);
+        let name = mv.name();
+        let desc_str = mv.desc_str();
+        if generic_ptr != null_mut() {
+            // unimplemented!()//todo figure out what this is
+        }
+        if signature_ptr != null_mut() {
+            signature_ptr.write(CString::new(desc_str).unwrap().into_raw())
+        }
+        if name_ptr != null_mut() {
+            name_ptr.write(CString::new(name).unwrap().into_raw())
+        }
+        jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodName");
+        jvmtiError_JVMTI_ERROR_NONE
+    }
+
+    pub unsafe extern "C" fn get_arguments_size(
+        env: *mut jvmtiEnv,
+        method: jmethodID,
+        size_ptr: *mut jint
+    ) -> jvmtiError{
+        let jvm = get_state(env);
+        jvm.tracing.trace_jdwp_function_enter(jvm, "GetArgumentsSize");
+        let method_id: MethodId = transmute(method);
+        let (rc, i) = jvm.method_table.read().unwrap().lookup(method_id);
+        let mv = rc.view().method_view_i(i as usize);
+        size_ptr.write(mv.num_args() as i32);
+        jvm.tracing.trace_jdwp_function_exit(jvm, "GetArgumentsSize");
+        jvmtiError_JVMTI_ERROR_NONE
+    }
+
+}
