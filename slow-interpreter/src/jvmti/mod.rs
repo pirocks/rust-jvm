@@ -311,7 +311,7 @@ unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
     let method_id = *(method as *mut usize);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let mv = class.view().method_view_i(method_i as usize);
-    let name = mv.desc_str();
+    let name = mv.name();
     let desc_str = mv.desc_str();
     if generic_ptr != null_mut() {
         // unimplemented!()//todo figure out what this is

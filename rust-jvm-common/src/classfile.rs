@@ -2,6 +2,7 @@
 
 use std::hash::Hasher;
 use crate::ptype::PType;
+use crate::classnames::class_name;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -1093,16 +1094,17 @@ impl std::cmp::PartialEq for Classfile {
 
 impl std::hash::Hash for Classfile {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u32(self.magic);
-        state.write_u16(self.minor_version);
-        state.write_u16(self.major_version);
-        //todo constant_pool
-        state.write_u16(self.access_flags);
-        state.write_u16(self.this_class);
-        state.write_u16(self.super_class);
-        for interface in &self.interfaces {
-            state.write_u16(*interface)
-        }
+        state.write(class_name(self).get_referred_name().as_bytes());
+        // state.write_u32(self.magic);
+        // state.write_u16(self.minor_version);
+        // state.write_u16(self.major_version);
+        // todo constant_pool
+        // state.write_u16(self.access_flags);
+        // state.write_u16(self.this_class);
+        // state.write_u16(self.super_class);
+        // for interface in &self.interfaces {
+        //     state.write_u16(*interface)
+        // }
         //todo fields
         //todo methods
         //todo attributes
