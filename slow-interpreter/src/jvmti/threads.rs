@@ -26,7 +26,7 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
     let mut res_ptr = vec![];
     //todo why is main not an alive thread
     std::mem::drop(jvm.thread_state.alive_threads.read().unwrap().values()
-        .chain(vec![/*chain(vec![jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())*/jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())
+        // .chain(vec![/*chain(vec![jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())*/jvm.thread_state.main_thread.read().unwrap().clone().unwrap()].iter())
         .map(|v| {
             let thread_object_arc = v.thread_object.borrow().as_ref().unwrap().clone();
             // dbg!(thread_object_arc.tid());
@@ -113,8 +113,15 @@ fn suspend_thread_impl(java_thread: Option<Arc<JavaThread>>) -> jvmtiError {
     }
 }
 
+pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
+    let _jvm = get_state(env);
+    suspend_thread(env,thread);//todo this is an ugly hack.
+    jvmtiError_JVMTI_ERROR_NONE
+}
+
 pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
     //todo dubplication
+    //todo this part is not correct: If the calling thread is specified, this function will not return until some other thread calls ResumeThread. If the thread is currently suspended, this function does nothing and returns an error.
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
     let thread_object_raw = from_object(transmute(thread));//todo this transmute bs will sone have gone too far
