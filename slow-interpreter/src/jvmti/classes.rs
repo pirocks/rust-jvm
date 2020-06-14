@@ -3,7 +3,7 @@ use crate::jvmti::get_state;
 use std::mem::transmute;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::class_objects::get_or_create_class_object;
-use crate::rust_jni::native_util::{to_object, from_object, from_jclass, get_frame};
+use crate::rust_jni::native_util::{to_object, from_object, from_jclass};
 use std::ops::Deref;
 use std::ffi::{CString, c_void};
 use crate::interpreter_util::check_inited_class;
@@ -95,8 +95,8 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
     let class_object_wrapped = from_object(transmute(klass)).unwrap();
     let class = JavaValue::Object(class_object_wrapped.into()).cast_class();
-    let class_name = class.as_type().unwrap_class_type();
-    let loaded_class = check_inited_class(jvm, &class_name.into(), jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
+    let class_type = class.as_type();
+    let loaded_class = check_inited_class(jvm, &class_type, jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
     method_count_ptr.write(loaded_class.view().num_methods() as i32);
     //todo use Layout instead of whatever this is.
     *methods_ptr = libc::malloc((size_of::<*mut c_void>()) * (*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;
@@ -113,12 +113,12 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
 
 
 pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, classloader_ptr: *mut jobject ) -> jvmtiError{
-    assert_eq!(classloader_ptr, std::ptr::null_mut());//only implement bootstrap loader case
+    // assert_eq!(classloader_ptr, std::ptr::null_mut());//only implement bootstrap loader case
     let jvm = get_state(env);
-    let frame = jvm.get_current_frame().deref();
+    let frame = jvm.get_current_frame();
     let class = from_jclass(klass);
-    let class_loader= class.get_class_loader(jvm,frame);
-    let jobject_ = to_object(class_loader.object().into());
+    let class_loader= class.get_class_loader(jvm,frame.deref());
+    let jobject_ = to_object(class_loader.map(|cl| cl.object()));
     classloader_ptr.write(jobject_);
     jvmtiError_JVMTI_ERROR_NONE
 }

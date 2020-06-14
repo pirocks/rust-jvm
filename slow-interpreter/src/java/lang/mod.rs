@@ -89,7 +89,7 @@ pub mod class {
             self.normal_object.unwrap_normal_object().class_object_type.as_ref().unwrap().clone()
         }
 
-        pub fn get_class_loader(&self, state: &JVMState, frame: &StackEntry) -> ClassLoader {
+        pub fn get_class_loader(&self, state: &JVMState, frame: &StackEntry) -> Option<ClassLoader> {
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(
                 state,
@@ -97,7 +97,9 @@ pub mod class {
                 "getClassLoader".to_string(),
                 "()Ljava/lang/ClassLoader;".to_string(),
             );
-            frame.pop().cast_class_loader()
+            frame.pop()
+                .unwrap_object()
+                .map(|cl| JavaValue::Object(cl.into()).cast_class_loader())
         }
 
         pub fn from_name(jvm: &JVMState, frame: &StackEntry, name: ClassName) -> JClass {
