@@ -34,12 +34,16 @@ public class DebuggingClass {
             try {
                 System.out.println(thread.frameCount());
                 for (StackFrame frame : thread.frames()) {
-                    for (LocalVariable variable : frame.visibleVariables()) {
-                        System.out.println(variable.name());
+                    try {
+                        for (LocalVariable variable : frame.visibleVariables()) {
+                            System.out.println(variable.name());
+                        }
+                    } catch (AbsentInformationException e) {
+                        e.printStackTrace();
                     }
                     System.out.println(frame.location().lineNumber());
                 }
-            } catch (IncompatibleThreadStateException | AbsentInformationException  e) {
+            } catch (IncompatibleThreadStateException e) {
                 e.printStackTrace();
             }
 

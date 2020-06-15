@@ -131,7 +131,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         reserved67: std::ptr::null_mut(),
         GetMaxLocals: None,
         GetArgumentsSize: Some(get_arguments_size),
-        GetLineNumberTable: None,
+        GetLineNumberTable: Some(get_line_number_table),
         GetMethodLocation: Some(get_method_location),
         GetLocalVariableTable: Some(get_local_variable_table),
         SetNativeMethodPrefix: None,
