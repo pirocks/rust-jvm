@@ -30,6 +30,7 @@ use crate::method_table::MethodId;
 use crate::rust_jni::interface::get_field::new_field_id;
 use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 use crate::jvmti::methods::*;
+use crate::jvmti::locals::{get_local_object, get_local_int, get_local_long, get_local_float, get_local_double};
 
 pub mod event_callbacks;
 
@@ -82,11 +83,11 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetCurrentThread: None,
         GetFrameLocation: Some(get_frame_location),
         NotifyFramePop: None,
-        GetLocalObject: None,
-        GetLocalInt: None,
-        GetLocalLong: None,
-        GetLocalFloat: None,
-        GetLocalDouble: None,
+        GetLocalObject: Some(get_local_object),
+        GetLocalInt: Some(get_local_int),
+        GetLocalLong: Some(get_local_long),
+        GetLocalFloat: Some(get_local_float),
+        GetLocalDouble: Some(get_local_double),
         SetLocalObject: None,
         SetLocalInt: None,
         SetLocalLong: None,
@@ -384,6 +385,54 @@ pub mod version;
 pub mod properties;
 pub mod allocate;
 pub mod events;
+pub mod locals{
+    use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jobject, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+    use crate::rust_jni::native_util::{from_object, to_object};
+    use crate::java_values::JavaValue;
+    use crate::jvmti::get_state;
+    use std::ops::Deref;
+
+    pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jobject) -> jvmtiError{
+        let var = get_local_t(env, thread, depth, slot);
+        value_ptr.write(to_object(var.unwrap_object()));
+        jvmtiError_JVMTI_ERROR_NONE
+    }
+
+    pub unsafe extern "C" fn get_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jint) -> jvmtiError{
+        let var = get_local_t(env, thread, depth, slot);
+        value_ptr.write(var.unwrap_int());
+        jvmtiError_JVMTI_ERROR_NONE
+    }
+
+    pub unsafe extern "C" fn get_local_float(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jfloat) -> jvmtiError{
+        let var = get_local_t(env, thread, depth, slot);
+        value_ptr.write(var.unwrap_float());
+        jvmtiError_JVMTI_ERROR_NONE
+    }
+
+    pub unsafe extern "C" fn get_local_double(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jdouble) -> jvmtiError{
+        let var = get_local_t(env, thread, depth, slot);
+        value_ptr.write(var.unwrap_double());
+        jvmtiError_JVMTI_ERROR_NONE
+    }
+
+    pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jlong) -> jvmtiError{
+        let var = get_local_t(env, thread, depth, slot);
+        value_ptr.write(var.unwrap_long());
+        jvmtiError_JVMTI_ERROR_NONE
+    }
+
+
+    unsafe fn get_local_t(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint) -> JavaValue {
+        let jthread = JavaValue::Object(from_object(thread)).cast_thread();
+        let tid = jthread.tid();
+        let jvm = get_state(env);
+        let call_stack = jvm.thread_state.alive_threads.read().unwrap().get(&tid).unwrap().call_stack.borrow();
+        let stack_frame = &call_stack.deref()[depth as usize];
+        let var = stack_frame.local_vars.borrow().deref()[slot as usize].clone();
+        var
+    }
+}
 pub mod methods{
     use jvmti_jni_bindings::{jint, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
     use crate::jvmti::get_state;
