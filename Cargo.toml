@@ -30,4 +30,6 @@ members = ["rust-jvm-common",
            "libjvm-utils",
            "descriptor-parser",
            "classfile-view",
-           "jvmti-jni-bindings"]
+           "jvmti-jni-bindings",
+           "userspace-threads"
+           ]

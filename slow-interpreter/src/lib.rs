@@ -573,7 +573,6 @@ pub mod class_objects;
 pub mod monitor;
 pub mod tracing;
 pub mod interpreter;
-pub mod signal;
 pub mod method_table;
 pub mod field_table;
 pub mod native_allocation;
