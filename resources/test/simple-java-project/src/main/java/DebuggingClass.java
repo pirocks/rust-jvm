@@ -26,6 +26,7 @@ public class DebuggingClass {
             }*/
             System.out.println(aClass.name());
         }
+        attached.suspend();
         for (ThreadReference thread : threads) {
             thread.interrupt();
             thread.suspend();
@@ -37,10 +38,12 @@ public class DebuggingClass {
                     try {
                         for (LocalVariable variable : frame.visibleVariables()) {
                             System.out.println(variable.name());
+                            System.out.println(frame.getValue(variable));
                         }
                     } catch (AbsentInformationException e) {
                         e.printStackTrace();
                     }
+                    System.out.println(frame.thisObject());
                     System.out.println(frame.location().lineNumber());
                 }
             } catch (IncompatibleThreadStateException e) {

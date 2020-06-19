@@ -3,7 +3,6 @@ use rust_jvm_common::classnames::{ClassName};
 use crate::class_objects::get_or_create_class_object;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use rust_jvm_common::classfile::{InstructionInfo, Code};
-use std::collections::HashSet;
 use crate::instructions::store::*;
 use crate::instructions::load::*;
 use crate::instructions::constant::*;
@@ -50,23 +49,7 @@ pub fn run_function(jvm: &JVMState) {
     jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, jvm.get_current_thread().java_tid);
     let interpreter_state = &jvm.get_current_thread().interpreter_state;
     assert!(!*interpreter_state.function_return.borrow());
-    let breakpoint_indices:Option<Option<HashSet<_>>> = match &jvm.jvmti_state {
-        None => None,
-        Some(jvmti) => {
-            let method_id = jvm.method_table.write().unwrap().get_method_id(current_frame.class_pointer.clone(), current_frame.method_i);
-            let breakpoint_guard = jvmti.break_points.read().unwrap();
-            let breakpoint_indices = breakpoint_guard
-                .get(&method_id)
-                .and_then(|breakpoints| {
-                    breakpoints
-                        .iter().map(|x| *x)
-                        .collect::<HashSet<_>>()
-                        .into()
-                });
-            std::mem::drop(breakpoint_guard);
-            breakpoint_indices.into()
-        }
-    };
+    let method_id = jvm.method_table.write().unwrap().get_method_id(current_frame.class_pointer.clone(), current_frame.method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, current_frame, method, synchronized, &class_name__);
     while !*interpreter_state.terminate.borrow() && !*interpreter_state.function_return.borrow() && !interpreter_state.throw.borrow().is_some() {
@@ -75,17 +58,8 @@ pub fn run_function(jvm: &JVMState) {
         std::mem::drop(read_guard);
         std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
         let  (instruct, instruction_size) = current_instruction(current_frame, &code, &meth_name);
-        match &jvm.jvmti_state {
-            None => {},
-            Some(_) => {
-                if breakpoint_indices.as_ref().unwrap().as_ref()
-                    .map(|bps| bps.contains(&(*current_frame.pc.borrow() as isize)))
-                    .unwrap_or(false) {
-                    unimplemented!();
-                }
-            },
-        }
         current_frame.pc_offset.replace(instruction_size as isize);
+        breakpoint_check(jvm,method_id,*current_frame.pc.borrow() as isize);
         run_single_instruction(jvm, &current_frame, interpreter_state, instruct);
         if interpreter_state.throw.borrow().is_some() {
             let throw_class = interpreter_state.throw.borrow().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
@@ -131,6 +105,22 @@ pub fn run_function(jvm: &JVMState) {
         monitor.unwrap().unlock(jvm);
     }
     jvm.tracing.trace_function_exit(&class_name__, &meth_name, &method_desc, current_depth, jvm.get_current_thread().java_tid)
+}
+
+fn breakpoint_check(jvm: &JVMState, methodid: usize, pc: isize) {
+    let stop = match &jvm.jvmti_state {
+        None => false,
+        Some(jvmti) => {
+            let breakpoints = &jvmti.break_points.read().unwrap();
+            let function_breakpoints = breakpoints.get(&methodid);
+            function_breakpoints.map(|points|{
+                points.contains(&pc)
+            }).unwrap_or(false)
+        }
+    };
+    if stop{
+        unimplemented!()
+    }
 }
 
 fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &String) -> (InstructionInfo, usize) {
