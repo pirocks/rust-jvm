@@ -66,14 +66,6 @@ impl JVMState {
         }
     }
 }
-/*
-
-const RT_TGSIGQUEUEINFO_SYSCALL_NUM: usize = 297;
-
-unsafe extern "C" fn rt_tgsigqueueinfo( tgid: libc::pid_t, tid: libc::pid_t, sig: libc::c_int,  uinfo: *mut siginfo_t) -> libc::c_int {
-    syscall::syscall4(RT_TGSIGQUEUEINFO_SYSCALL_NUM, tgid as usize, tid as usize, sig as usize, transmute(uinfo)) as i32
-}
-*/
 
 extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _data: *mut libc::c_void) {
     assert_eq!(Signal::try_from(signal_number).unwrap(), Signal::SIGUSR1);

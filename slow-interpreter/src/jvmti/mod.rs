@@ -386,7 +386,7 @@ pub mod properties;
 pub mod allocate;
 pub mod events;
 pub mod locals{
-    use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jobject, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+    use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jobject, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jlong, jdouble, jfloat};
     use crate::rust_jni::native_util::{from_object, to_object};
     use crate::java_values::JavaValue;
     use crate::jvmti::get_state;
@@ -427,7 +427,8 @@ pub mod locals{
         let jthread = JavaValue::Object(from_object(thread)).cast_thread();
         let tid = jthread.tid();
         let jvm = get_state(env);
-        let call_stack = jvm.thread_state.alive_threads.read().unwrap().get(&tid).unwrap().call_stack.borrow();
+        let threads_guard = jvm.thread_state.alive_threads.read().unwrap();
+        let call_stack = threads_guard.get(&tid).unwrap().call_stack.borrow();
         let stack_frame = &call_stack.deref()[depth as usize];
         let var = stack_frame.local_vars.borrow().deref()[slot as usize].clone();
         var

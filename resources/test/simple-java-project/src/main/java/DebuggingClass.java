@@ -34,16 +34,21 @@ public class DebuggingClass {
             System.out.println(thread.status());
             try {
                 System.out.println(thread.frameCount());
+                System.out.println(thread.isSuspended());
                 for (StackFrame frame : thread.frames()) {
                     try {
                         for (LocalVariable variable : frame.visibleVariables()) {
                             System.out.println(variable.name());
                             System.out.println(frame.getValue(variable));
+                            System.out.println(variable.isArgument());
+                            System.out.println(variable.genericSignature());
+
                         }
                     } catch (AbsentInformationException e) {
                         e.printStackTrace();
                     }
                     System.out.println(frame.thisObject());
+                    System.out.println(frame.thread());
                     System.out.println(frame.location().lineNumber());
                 }
             } catch (IncompatibleThreadStateException e) {
