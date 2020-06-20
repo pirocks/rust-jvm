@@ -1,5 +1,6 @@
 #![feature(box_syntax)]
 
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -8,17 +9,16 @@ use std::mem::transmute;
 use std::ptr::null_mut;
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::Sender;
 use std::thread::LocalKey;
 
 use nix::errno::errno;
 use nix::sys::signal::{SigAction, sigaction, SigHandler, SigSet};
 use nix::sys::signal::Signal;
-use nix::unistd::{gettid, Pid};
+use nix::unistd::gettid;
 
 use crate::handlers::{handle_event, handle_pause};
-use crate::signal::{pthread_self, pthread_sigqueue, siginfo_t, sigval};
-use std::any::Any;
-use std::sync::mpsc::Sender;
+use crate::signal::{pthread_self, pthread_sigqueue, pthread_t, siginfo_t, sigval};
 
 type TID = usize;
 
@@ -40,47 +40,69 @@ impl Threads {
 
 
     pub fn create_thread(&self) -> Thread {
+        let join_status = Arc::new(RwLock::new(JoinStatus {
+            finished_mutex: Mutex::new(()),
+            alive: AtomicBool::new(false),
+            thread_finished: Condvar::new()
+        }));
         let mut res = Thread {
             started: AtomicBool::new(false),
-            alive: AtomicBool::new(false),
+            join_status : join_status.clone(),
             paused_mutex: Mutex::new(()),
             paused: Condvar::new(),
-            unix_tid: None,
+            pthread_id: None,
             rust_join_handle: None,
-            thread_start_channel_send: None
+            thread_start_channel_send: None,
         };
-        let (thread_info_channel_send,thread_info_channel_recv) = std::sync::mpsc::channel();
+        let (thread_info_channel_send, thread_info_channel_recv) = std::sync::mpsc::channel();
         let (thread_start_channel_send, thread_start_channel_recv) = std::sync::mpsc::channel();
-        let join_handle = std::thread::spawn(||{
-            thread_info_channel_send.send(gettid());
-            let (func, data): (fn(Box<dyn Any>), Box<dyn Any>) = thread_start_channel_recv.recv().unwrap();
-            func(data)
+        let join_handle = std::thread::spawn(move || unsafe {
+            thread_info_channel_send.send(pthread_self());
+            let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();
+            func(data);
+            join_status.read().unwrap().thread_finished.notify_all();
         });
         res.thread_start_channel_send = thread_start_channel_send.into();
-        res.unix_tid  = thread_info_channel_recv.recv().unwrap().into();
+        res.pthread_id = thread_info_channel_recv.recv().unwrap().into();
         res.rust_join_handle = join_handle.into();
         res
     }
 }
 
+pub struct ThreadStartInfo{
+    func: fn(Box<dyn Any>),
+    data: Box<dyn Any>
+}
+
+unsafe impl Send for ThreadStartInfo{}
+unsafe impl Sync for ThreadStartInfo{}
+
 pub struct Thread {
     started: AtomicBool,
-    alive: AtomicBool,
-    paused_mutex: Mutex<()>,//todo maybe use rust park() for this
+    join_status: Arc<RwLock<JoinStatus>>,
+    paused_mutex: Mutex<()>,
+    //todo maybe use rust park() for this
     paused: Condvar,
-    unix_tid: Option<Pid>,
+    pthread_id: Option<pthread_t>,
     rust_join_handle: Option<std::thread::JoinHandle<()>>,
-    thread_start_channel_send: Option<Sender<(fn(Box<dyn Any>), Box<dyn Any>)>>
+    thread_start_channel_send: Option<Sender<ThreadStartInfo>>,
 }
+
+pub struct JoinStatus{
+    alive: AtomicBool,
+    finished_mutex : Mutex<()>,//todo combine alive AtomicBool and Mutex
+    thread_finished: Condvar
+}
+
 
 impl Thread {
     pub fn start_thread(&self, func: fn(Box<dyn Any>), data: Box<dyn Any>) {
-        self.thread_start_channel_send.as_ref().unwrap().send((func, data)).unwrap();
+        self.thread_start_channel_send.as_ref().unwrap().send(ThreadStartInfo{ func, data }).unwrap();
     }
 
     pub fn pause(&self) {
-        assert_eq!(self.unix_tid, gettid());
-        self.paused.wait(self.paused_mutex.lock().unwrap());
+        unsafe { assert_eq!(self.pthread_id.unwrap(), pthread_self()); }
+        self.paused.wait(self.paused_mutex.lock().unwrap()).unwrap();
     }
 
     pub fn resume(&self) {
@@ -88,15 +110,18 @@ impl Thread {
     }
 
     pub fn is_alive(&self) -> bool {
-        self.alive.load(Ordering::SeqCst)
+        let guard= self.join_status.write().unwrap();
+        guard.alive.load(Ordering::SeqCst)
     }
 
     pub fn join(&self) {
-        self.rust_join_handle.join().unwrap();
+        let guard = self.join_status.read().unwrap();
+        assert!(guard.alive.load(Ordering::SeqCst));
+        std::mem::drop(guard.thread_finished.wait(guard.finished_mutex.lock().unwrap()).unwrap());
     }
 
-    fn rust_thread(&self) -> &std::thread::Thread{
-        self.rust_join_handle.thread()
+    fn rust_thread(&self) -> &std::thread::Thread {
+        self.rust_join_handle.as_ref().unwrap().thread()
     }
 }
 
@@ -121,9 +146,7 @@ impl Threads {
     unsafe fn trigger_signal(&self, t: &Thread, reason: SignalReason) {
         let metadata_void_ptr = Box::leak(box reason) as *mut SignalReason as *mut c_void;
         let sigval_ = sigval { sival_ptr: metadata_void_ptr };
-        let tid = t.unix_tid.as_raw();
-
-        let res = pthread_sigqueue(pthread_self(), transmute(Signal::SIGUSR1), sigval_);
+        let res = pthread_sigqueue(*t.pthread_id.as_ref().unwrap(), transmute(Signal::SIGUSR1), sigval_);
         if res != 0 {
             dbg!(gettid());
             dbg!(errno());
@@ -132,10 +155,11 @@ impl Threads {
         }
     }
 
-    pub fn await_all_threads_death(&self) {
+    /*pub fn await_all_threads_death(&self) {
         let all_threads_read_guard = self.all_threads.read().unwrap();
         all_threads_read_guard.values().find(|thread| { thread.is_alive() });
-    }
+        unimplemented!()
+    }*/
 }
 
 extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _data: *mut libc::c_void) {
@@ -163,7 +187,7 @@ pub mod handlers {
         this.pause();
     }
 
-    pub fn handle_event(e: AnEvent) {
+    pub unsafe fn handle_event(e: AnEvent) {
         let AnEvent { event_handler, data } = e;
         event_handler(data);
     }
