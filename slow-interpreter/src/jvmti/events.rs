@@ -4,7 +4,7 @@ use std::ops::Deref;
 use crate::jvmti::event_callbacks::DebuggerEventConsumer;
 use crate::rust_jni::native_util::from_object;
 use crate::java_values::JavaValue;
-use crate::ThreadId;
+use crate::threading::JavaThreadId;
 
 
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {
@@ -15,7 +15,7 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
     } else {
         JavaValue::Object(from_object(event_thread)).cast_thread().into()
     };
-    let tid: Option<ThreadId> = thread_obj.map(|it| it.tid());
+    let tid: Option<JavaThreadId> = thread_obj.map(|it| it.tid());
     let jdwp_copy = jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.clone();
     // does not support per thread notification
     // VMInit

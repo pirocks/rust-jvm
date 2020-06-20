@@ -224,6 +224,7 @@ pub mod thread {
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
     use crate::java::lang::string::JString;
+    use crate::threading::JavaThreadId;
 
     #[derive(Debug,Clone)]
     pub struct JThread {
@@ -237,7 +238,7 @@ pub mod thread {
     }
 
     impl JThread {
-        pub fn tid(&self)-> i64{
+        pub fn tid(&self)-> JavaThreadId{
             self.normal_object.unwrap_normal_object().fields.borrow().get("tid").unwrap().unwrap_long()
         }
 

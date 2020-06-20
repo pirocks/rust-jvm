@@ -1,7 +1,8 @@
 use libloading::Library;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use jvmti_jni_bindings::*;
-use crate::{JVMState, JavaThread, ThreadId};
+use crate::{JVMState, JavaThread};
+use crate::threading::JavaThreadId;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use std::mem::{transmute, size_of};
@@ -38,15 +39,15 @@ pub struct SharedLibJVMTI {
     thread_start_enabled: RwLock<bool>,
 
     exception_callback: RwLock<jvmtiEventException>,
-    exception_enabled: RwLock<HashMap<ThreadId, bool>>,
+    exception_enabled: RwLock<HashMap<JavaThreadId, bool>>,
     thread_end_callback: RwLock<jvmtiEventThreadEnd>,
-    thread_end_enabled: RwLock<HashMap<ThreadId, bool>>,
+    thread_end_enabled: RwLock<HashMap<JavaThreadId, bool>>,
     class_prepare_callback: RwLock<jvmtiEventClassPrepare>,
-    class_prepare_enabled: RwLock<HashMap<ThreadId, bool>>,
+    class_prepare_enabled: RwLock<HashMap<JavaThreadId, bool>>,
     garbage_collection_finish_callback: RwLock<jvmtiEventGarbageCollectionFinish>,
-    garbage_collection_finish_enabled: RwLock<HashMap<ThreadId, bool>>,
+    garbage_collection_finish_enabled: RwLock<HashMap<JavaThreadId, bool>>,
     breakpoint_callback: RwLock<jvmtiEventBreakpoint>,
-    breakpoint_enabled: RwLock<HashMap<ThreadId, bool>>,
+    breakpoint_enabled: RwLock<HashMap<JavaThreadId, bool>>,
 
     class_load_callback: RwLock<jvmtiEventClassLoad>,
 
@@ -111,7 +112,7 @@ impl SharedLibJVMTI {
         })
     }
 
-    fn trigger_event_threads(jvm: &JVMState, threads: &HashMap<ThreadId, bool>, jvmti_event: &dyn Fn() -> JVMTIEvent) {
+    fn trigger_event_threads(jvm: &JVMState, threads: &HashMap<JavaThreadId, bool>, jvmti_event: &dyn Fn() -> JVMTIEvent) {
         threads.iter().for_each(|(tid, enabled)| {
             if *enabled {
                 let read_guard = jvm.thread_state.alive_threads.read().unwrap();
@@ -199,28 +200,28 @@ pub trait DebuggerEventConsumer {
 
     unsafe fn Exception(&self, jvm: &JVMState, event: ExceptionEvent);
 
-    fn Exception_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
-    fn Exception_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
+    fn Exception_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
+    fn Exception_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
 
     unsafe fn ThreadEnd(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv, thread: jthread);
 
-    fn ThreadEnd_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
-    fn ThreadEnd_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
+    fn ThreadEnd_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
+    fn ThreadEnd_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
 
     unsafe fn ClassPrepare(&self, jvm: &JVMState, event: ClassPrepareEvent);
 
-    fn ClassPrepare_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
-    fn ClassPrepare_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
+    fn ClassPrepare_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
+    fn ClassPrepare_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
 
 
     unsafe fn GarbageCollectionFinish(jvmti_env: *mut jvmtiEnv);
-    fn GarbageCollectionFinish_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
-    fn GarbageCollectionFinish_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
+    fn GarbageCollectionFinish_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
+    fn GarbageCollectionFinish_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
 
 
     unsafe fn Breakpoint(&self, jvm: &JVMState, event: BreakpointEvent);
-    fn Breakpoint_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
-    fn Breakpoint_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>);
+    fn Breakpoint_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
+    fn Breakpoint_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>);
 }
 
 #[allow(non_snake_case)]
@@ -285,12 +286,12 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         (self.exception_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location, exception, catch_method, catch_location);
     }
 
-    fn Exception_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn Exception_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_enable_global("Exception");
         let guard = self.exception_enabled.write().unwrap();
         SharedLibJVMTI::enable_impl(tid, guard)
     }
-    fn Exception_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn Exception_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_disable_global("Exception");
         let guard = self.exception_enabled.write().unwrap();
         SharedLibJVMTI::disable_impl(tid, guard)
@@ -300,12 +301,12 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         unimplemented!()
     }
 
-    fn ThreadEnd_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn ThreadEnd_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_enable_global("ThreadEnd");
         let guard = self.thread_end_enabled.write().unwrap();
         SharedLibJVMTI::enable_impl(tid, guard)
     }
-    fn ThreadEnd_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn ThreadEnd_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_disable_global("ThreadEnd");
         let guard = self.thread_end_enabled.write().unwrap();
         SharedLibJVMTI::disable_impl(tid, guard)
@@ -319,12 +320,12 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
     }
 
-    fn ClassPrepare_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn ClassPrepare_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_enable_global("ClassPrepare");
         let guard = self.class_prepare_enabled.write().unwrap();
         SharedLibJVMTI::enable_impl(tid, guard)
     }
-    fn ClassPrepare_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn ClassPrepare_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_disable_global("ClassPrepare");
         let guard = self.class_prepare_enabled.write().unwrap();
         SharedLibJVMTI::disable_impl(tid, guard)
@@ -335,12 +336,12 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         unimplemented!()
     }
 
-    fn GarbageCollectionFinish_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn GarbageCollectionFinish_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_enable_global("GarbageCollectionFinish");
         let guard = self.garbage_collection_finish_enabled.write().unwrap();
         SharedLibJVMTI::enable_impl(tid, guard)
     }
-    fn GarbageCollectionFinish_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn GarbageCollectionFinish_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_disable_global("GarbageCollectionFinish");
         let guard = self.garbage_collection_finish_enabled.write().unwrap();
         SharedLibJVMTI::disable_impl(tid, guard)
@@ -354,12 +355,12 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location);
     }
 
-    fn Breakpoint_enable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn Breakpoint_enable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_enable_global("Breakpoint");
         let guard = self.breakpoint_enabled.write().unwrap();
         SharedLibJVMTI::enable_impl(tid, guard)
     }
-    fn Breakpoint_disable(&self, trace: &TracingSettings, tid: Option<ThreadId>) {
+    fn Breakpoint_disable(&self, trace: &TracingSettings, tid: Option<JavaThreadId>) {
         trace.trace_event_disable_global("Breakpoint");
         let guard = self.breakpoint_enabled.write().unwrap();
         SharedLibJVMTI::disable_impl(tid, guard)

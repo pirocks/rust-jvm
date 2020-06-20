@@ -27,11 +27,11 @@ use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::invoke_virtual_instruction;
 use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::stack_entry::StackEntry;
-use crate::monitor::Monitor;
 use std::sync::Arc;
 use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::HasAccessFlags;
+use crate::threading::monitors::Monitor;
 
 pub fn run_function(jvm: &JVMState) {
     let current_thread = jvm.get_current_thread();
@@ -104,7 +104,13 @@ pub fn run_function(jvm: &JVMState) {
     if synchronized {//todo synchronize better so that natives are synced
         monitor.unwrap().unlock(jvm);
     }
-    jvm.tracing.trace_function_exit(&class_name__, &meth_name, &method_desc, current_depth, jvm.get_current_thread().java_tid)
+    jvm.tracing.trace_function_exit(
+        &class_name__,
+        &meth_name,
+        &method_desc,
+        current_depth,
+        jvm.get_current_thread().java_tid
+    )
 }
 
 fn breakpoint_check(jvm: &JVMState, methodid: usize, pc: isize) {

@@ -7,9 +7,9 @@ use rust_jvm_common::classnames::ClassName;
 
 use std::ops::Deref;
 use classfile_view::view::ptype_view::PTypeView;
-use crate::monitor::Monitor;
 use crate::JVMState;
 use classfile_view::view::HasAccessFlags;
+use crate::threading::monitors::Monitor;
 
 //#[derive(Debug)]
 pub enum JavaValue {

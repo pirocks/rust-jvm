@@ -1,6 +1,7 @@
 use rust_jvm_common::classnames::ClassName;
-use crate::{ThreadId, JVMState};
-use crate::monitor::Monitor;
+use crate::JVMState;
+use crate::threading::monitors::Monitor;
+use crate::threading::JavaThreadId;
 
 pub struct TracingSettings {
     trace_function_end: bool,
@@ -55,13 +56,13 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_function_enter(&self, classname: &ClassName, meth_name: &str, method_desc: &str, current_depth: usize, threadtid: ThreadId) {
+    pub fn trace_function_enter(&self, classname: &ClassName, meth_name: &str, method_desc: &str, current_depth: usize, threadtid: JavaThreadId) {
         if self.trace_function_start {
             println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
         }
     }
 
-    pub fn trace_function_exit(&self, classname: &ClassName, meth_name: &str, method_desc: &str, current_depth: usize, threadtid: ThreadId) {
+    pub fn trace_function_exit(&self, classname: &ClassName, meth_name: &str, method_desc: &str, current_depth: usize, threadtid: JavaThreadId) {
         if self.trace_function_end {
             println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
         }

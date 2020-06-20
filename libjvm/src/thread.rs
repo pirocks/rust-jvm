@@ -1,73 +1,37 @@
-use slow_interpreter::interpreter_util::{push_new_object, check_inited_class};
-
 use std::cell::RefCell;
-use std::sync::{Arc, RwLockWriteGuard, RwLock, Condvar};
-use rust_jvm_common::classnames::ClassName;
-use jvmti_jni_bindings::{JNIEnv, jclass, jobject, jlong, jint, jboolean, jobjectArray, jstring, jintArray};
-use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object, from_jclass};
-use slow_interpreter::java_values::{JavaValue, Object};
-use slow_interpreter::{JVMState, JavaThread, InterpreterState, SuspendedStatus};
-use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::stack_entry::StackEntry;
-use std::ops::Deref;
-use std::rc::Rc;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
-use parking_lot::Mutex;
-use slow_interpreter::interpreter::run_function;
-use descriptor_parser::MethodDescriptor;
-use classfile_view::view::ptype_view::PTypeView;
-use rust_jvm_common::ptype::PType;
-use nix::unistd::gettid;
-use nix::sys::pthread::pthread_self;
-use std::time::Duration;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::{Arc, Condvar, RwLock, RwLockWriteGuard};
 use std::thread::sleep;
+use std::time::Duration;
+
+use nix::sys::pthread::pthread_self;
+use nix::unistd::gettid;
+use parking_lot::Mutex;
+
+use classfile_view::view::ptype_view::PTypeView;
+use descriptor_parser::MethodDescriptor;
+use jvmti_jni_bindings::{jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ptype::PType;
+use slow_interpreter::{InterpreterState, JavaThread, JVMState, SuspendedStatus};
+use slow_interpreter::interpreter::run_function;
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object};
+use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::runtime_class::RuntimeClass;
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_frame, get_state, to_object};
+use slow_interpreter::stack_entry::StackEntry;
+use slow_interpreter::threading::JavaThread;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
-//    assert!(Arc::ptr_eq(MAIN_THREAD.as_ref().unwrap(),&from_object(thread).unwrap()));//todo why does this not pass?
+    //todo need to assert not on main thread
     let jvm = get_state(env);
+    let frame = get_frame(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
-    let tid = thread_object.tid();
-    // dbg!("start");
-    // dbg!(thread_object.name().to_rust_string());
-    let mut all_threads_guard = jvm.thread_state.alive_threads.write().unwrap();
-    if all_threads_guard.contains_key(&tid) || &jvm.main_thread().java_tid == &tid {
-        //todo for now we ignore this, but irl we should only ignore this for main thread
-    } else {
-        let frame = get_frame(env);
-        let thread_class = check_inited_class(jvm, &ClassName::thread().into(), frame.class_pointer.loader(jvm).clone());
-        let thread_creation_complete = Arc::new(Condvar::new());
-        let thread_creation_complete_copy = thread_creation_complete.clone();
-        let mutex = std::sync::Mutex::new(());
-        std::thread::spawn(move || {
-            let thread_from_rust = Arc::new(JavaThread {
-                java_tid: tid,
-                call_stack: RefCell::new(vec![]),
-                thread_object: RefCell::new(thread_object.into()),
-                interpreter_state: InterpreterState::default(),
-                unix_tid: gettid()
-            });
-            jvm.thread_state.alive_threads.write().unwrap().insert(tid, thread_from_rust.clone());
-            jvm.init_signal_handler();
-            thread_creation_complete.clone().notify_one();
-            let new_thread_frame = Rc::new(StackEntry {
-                class_pointer: thread_class.clone(),
-                method_i: std::u16::MAX,
-                local_vars: RefCell::new(vec![]),
-                operand_stack: RefCell::new(vec![]),
-                pc: RefCell::new(std::usize::MAX),
-                pc_offset: RefCell::new(-1),
-            });
-            jvm.set_current_thread(thread_from_rust.clone());
-            thread_from_rust.call_stack.borrow_mut().push(new_thread_frame.clone());
-            thread_from_rust.thread_object.borrow().as_ref().unwrap().run(jvm, &new_thread_frame);
-            thread_from_rust.call_stack.borrow_mut().pop();
-        });
-        //todo this whole thread start is very racy and needs fixing
-        std::mem::drop(all_threads_guard);
-        thread_creation_complete_copy.wait(mutex.lock().unwrap());
-    }
+    jvm.thread_state.start_thread_from_obj(jvm,thread_object, frame.deref());
 }
 
 #[no_mangle]
@@ -110,7 +74,7 @@ unsafe extern "system" fn JVM_Yield(env: *mut JNIEnv, threadClass: jclass) {
 #[no_mangle]
 unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, _threadClass: jclass, millis: jlong) {
     //todo handle negative millis
-    if millis <0{
+    if millis < 0 {
         unimplemented!()
     }
     //todo figure out what threadClass is for
@@ -118,41 +82,37 @@ unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, _threadClass: jclass, mill
 }
 
 //todo get rid of this jankyness
-static mut MAIN_THREAD: Option<Arc<Object>> = None;
+// static mut MAIN_THREAD: Option<Arc<Object>> = None;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclass) -> jobject {
-    match MAIN_THREAD.clone() {
-        None => {
-            let jvm = get_state(env);
-            let frame = get_frame(env);
-            let runtime_thread_class = from_jclass(threadClass);
-            make_thread(&runtime_thread_class.as_runtime_class(), jvm, &frame);
-            let thread_object = frame.pop().unwrap_object();
-            MAIN_THREAD = thread_object.clone();
-            //todo get rid of that jankyness as well:
-            jvm.main_thread().thread_object.borrow_mut().replace(JavaValue::Object(MAIN_THREAD.clone()).cast_thread().into());
-            to_object(thread_object)
-        }
-        Some(_) => {
-            to_object(MAIN_THREAD.clone())
-        }
-    }
-    //threads are not a thing atm.
-    //todo
+    // match MAIN_THREAD.clone() {
+    //     None => {
+    //         let jvm = get_state(env);
+    //         let frame = get_frame(env);
+    //         let runtime_thread_class = from_jclass(threadClass);
+    //         make_thread(&runtime_thread_class.as_runtime_class(), jvm, &frame);
+    //         let thread_object = frame.pop().unwrap_object();
+    //         MAIN_THREAD = thread_object.clone();
+    //         todo get rid of that jankyness as well:
+    // jvm.main_thread().thread_object.borrow_mut().replace(JavaValue::Object(MAIN_THREAD.clone()).cast_thread().into());
+    // to_object(thread_object)
+    // }
+    // Some(_) => {
+    //     to_object(MAIN_THREAD.clone())
+    // }
+    // }
 }
 
 
-// static mut SYSTEM_THREAD_GROUP: Option<Arc<Object>> = None;
-
 fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
     let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), frame.class_pointer.loader(jvm).clone());
-    push_new_object(jvm, frame.clone(), &thread_group_class,None);
+    push_new_object(jvm, frame.clone(), &thread_group_class, None);
     let object = frame.pop();
     let init = thread_group_class
         .view()
         .lookup_method(&"<init>".to_string(),
-                &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType })
+                       &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType })
         .unwrap();
     let init_i = init.method_i();
     let new_frame = StackEntry {

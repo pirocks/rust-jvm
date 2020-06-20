@@ -31,22 +31,20 @@ use std::error::Error;
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::time::{Instant};
-use crate::java::lang::thread::JThread;
 use crate::loading::{Classpath, BootstrapLoader};
 use crate::stack_entry::StackEntry;
 use std::thread::LocalKey;
 use std::rc::Rc;
-use crate::monitor::Monitor;
 use jvmti_jni_bindings::JNIInvokeInterface_;
 use std::ffi::c_void;
-use jvmti_jni_bindings::{jrawMonitorID, jlong};
+use jvmti_jni_bindings::jlong;
 use lock_api::Mutex;
 use parking_lot::RawMutex;
 use crate::tracing::TracingSettings;
 use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
-use nix::unistd::{Pid, gettid};
+use nix::unistd::gettid;
 use crate::method_table::{MethodTable, MethodId};
 use crate::field_table::FieldTable;
 use crate::java::lang::string::JString;
@@ -55,6 +53,7 @@ use std::ops::Deref;
 use crate::java_values::Object::Array;
 use crate::native_allocation::{NativeAllocator};
 use crate::threading::{ThreadState, JavaThread};
+use crate::threading::monitors::Monitor;
 
 
 pub mod java_values;
@@ -68,9 +67,9 @@ pub mod utils;
 
 #[derive(Debug)]
 pub struct InterpreterState {
-    pub terminate: RefCell<bool>,
-    pub throw: RefCell<Option<Arc<Object>>>,
-    pub function_return: RefCell<bool>,
+    pub terminate: RwLock<bool>,
+    pub throw: RwLock<Option<Arc<Object>>>,
+    pub function_return: RwLock<bool>,
     //todo find some way of clarifying these can only be acessed from one thread
     pub suspended: std::sync::RwLock<SuspendedStatus>,
 }
@@ -78,9 +77,9 @@ pub struct InterpreterState {
 impl Default for InterpreterState {
     fn default() -> Self {
         InterpreterState {
-            terminate: RefCell::new(false),
-            throw: RefCell::new(None),
-            function_return: RefCell::new(false),
+            terminate: RwLock::new(false),
+            throw: RwLock::new(None),
+            function_return: RwLock::new(false),
             suspended: RwLock::new(SuspendedStatus {
                 suspended: false,
                 suspended_lock: Arc::new(Mutex::new(())),
@@ -166,18 +165,14 @@ pub struct JVMState {
 
 pub mod threading;
 
+thread_local! {
+    static JVMTI_TLS: RefCell<*mut c_void> = RefCell::new(std::ptr::null_mut());
+}
+
+
 impl JVMState {
-    pub fn set_current_thread(&self, java_thread: Arc<JavaThread>) {
-        self.thread_state.current_java_thread.with(|x| x.replace(java_thread.into()));
-    }
 
-    pub fn get_current_thread(&self) -> Arc<JavaThread> {
-        self.thread_state.current_java_thread.with(|thread_refcell| {
-            thread_refcell.borrow().as_ref().unwrap().clone()
-        })
-    }
-
-    pub fn get_current_frame(&self) -> Rc<StackEntry> {
+    /*pub fn get_current_frame(&self) -> Rc<StackEntry> {
         let current_thread = self.get_current_thread();
         let temp = current_thread.call_stack.borrow();
         temp.last().unwrap().clone()
@@ -188,7 +183,7 @@ impl JVMState {
         let call_stack = thread.call_stack.borrow();
         call_stack.get(call_stack.len() - 2).unwrap().clone()
     }
-
+*/
     pub fn new(jvm_options: JVMOptions) -> (Vec<String>, Self) {
         let JVMOptions { main_class_name, classpath, args, shared_libs, enable_tracing, enable_jvmti, properties } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
@@ -211,13 +206,7 @@ impl JVMState {
                 tags: RwLock::new(HashMap::new()),
             }.into()
         } else { None };
-        let thread_state = ThreadState {
-            alive_threads: RwLock::new(HashMap::new()),
-            main_thread: RwLock::new(None),
-            current_java_thread: &CURRENT_JAVA_THREAD,
-            system_thread_group: RwLock::new(None),
-            monitors: RwLock::new(vec![]),
-        };
+        let thread_state = ThreadState::new();
         (args, Self {
             properties,
             loaders: RwLock::new(HashMap::new()),
@@ -245,22 +234,7 @@ impl JVMState {
         })
     }
 
-    pub fn new_monitor(&self, name: String) -> Arc<Monitor> {
-        let mut monitor_guard = self.thread_state.monitors.write().unwrap();
-        let index = monitor_guard.len();
-        let res = Arc::new(Monitor::new(name, index));
-        monitor_guard.push(res.clone());
-        res
-    }
-
-    pub fn get_current_thread_name(&self) -> String {
-        let current_thread = self.get_current_thread();
-        let thread_object = current_thread.thread_object.borrow();
-        thread_object.as_ref().map(|jthread| jthread.name().to_rust_string())
-            .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
-    }
-
-    pub fn get_or_create_bootstrap_object_loader(&self) -> JavaValue {
+    pub fn get_or_create_bootstrap_object_loader(&self) -> JavaValue {//todo this should really take frame as a parameter
         if !self.vm_live() {
             return JavaValue::Object(None);
         }
@@ -268,10 +242,10 @@ impl JVMState {
         match loader_guard.get(&self.bootstrap_loader.name()) {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-                let current_loader = self.get_current_frame().class_pointer.loader(self).clone();
+                let current_loader = self.thread_state.get_current_thread().get_current_frame().class_pointer.loader(self).clone();
                 let class_loader_class = check_inited_class(self, &java_lang_class_loader.into(), current_loader.clone());
                 let res = Arc::new(Object::Object(NormalObject {
-                    monitor: self.new_monitor("bootstrap loader object monitor".to_string()),
+                    monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
                     fields: RefCell::new(HashMap::new()),
                     class_pointer: class_loader_class.clone(),
                     class_object_type: None,
@@ -331,18 +305,18 @@ impl JVMState {
         Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
     }
 
-    pub fn register_main_thread(&self, main_thread: Arc<JavaThread>) {
+    /*pub fn register_main_thread(&self, main_thread: Arc<JavaThread>) {
         //todo perhaps there should be a single rw lock for this
         self.thread_state.alive_threads.write().unwrap().insert(1, main_thread.clone());
         let mut main_thread_writer = self.thread_state.main_thread.write().unwrap();
         main_thread_writer.replace(main_thread.clone().into());
         self.set_current_thread(main_thread);
-    }
+    }*/
 
-    pub fn main_thread(&self) -> Arc<JavaThread> {
+    /*pub fn main_thread(&self) -> Arc<JavaThread> {
         let read_guard = self.thread_state.main_thread.read().unwrap();
         read_guard.as_ref().unwrap().clone()
-    }
+    }*/
 }
 
 pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
@@ -437,13 +411,13 @@ fn jvm_run_system_init(jvm: &JVMState) {
         pc: RefCell::new(0),
         pc_offset: RefCell::new(0),
     };
-    jvm.register_main_thread(Arc::new(JavaThread {
+    /*jvm.register_main_thread(Arc::new(JavaThread {
         java_tid: 0,
         call_stack: RefCell::new(vec![Rc::new(bootstrap_frame)]),
         thread_object: RefCell::new(None),
         interpreter_state: InterpreterState::default(),
         unix_tid: gettid(),
-    }));
+    }));*/
     let system_class = check_inited_class(jvm, &ClassName::system().into(), bl.clone());
     let init_method_view = locate_init_system_class(&system_class);
     let mut locals = vec![];
@@ -458,7 +432,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
         pc: RefCell::new(0),
         pc_offset: RefCell::new(0),
     });
-    jvm.get_current_thread().call_stack.replace(vec![initialize_system_frame.clone()]);
+    jvm.thread_state.get_current_thread().call_stack.replace(vec![initialize_system_frame.clone()]);
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.main_thread()));
 //todo technically this needs to before any bytecode is run.
     run_function(&jvm);
