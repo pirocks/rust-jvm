@@ -1,5 +1,5 @@
 use parking_lot::{FairMutex, const_fair_mutex};
-use std::sync::{Condvar, RwLock, Mutex};
+use std::sync::{Condvar, RwLock, Mutex, Arc};
 use std::time::Duration;
 use std::fmt::{Debug, Formatter, Error};
 use crate::JVMState;
@@ -11,12 +11,16 @@ pub struct OwningThreadAndCount {
 }
 
 pub struct Monitor {
-    pub owned: RwLock<OwningThreadAndCount>,
-    pub mutex: FairMutex<()>,
+    //metadata:
     pub monitor_i: usize,
+    pub name: String,
+    //essentially a reentrant lock:
+    pub owned: RwLock<OwningThreadAndCount>,
+    pub mutex: Arc<FairMutex<()>>,
+
+    //condvar
     pub condvar: Condvar,
     pub condvar_mutex: std::sync::Mutex<()>,
-    pub name: String,
 }
 
 impl Debug for Monitor {
@@ -30,7 +34,7 @@ impl Monitor {
     pub fn new(name: String, i: usize) -> Self {
         Self {
             owned: RwLock::new(OwningThreadAndCount { owner: None, count: 0 }),
-            mutex: const_fair_mutex(()),
+            mutex: Arc::new(const_fair_mutex(())),
             monitor_i: i,
             condvar: Condvar::new(),
             condvar_mutex: Mutex::new(()),
@@ -40,11 +44,18 @@ impl Monitor {
 
     pub fn lock(&self, jvm: &JVMState) {
         jvm.tracing.trace_monitor_lock(self, jvm);
-        let mut current_owners_guard = self.owned.write().unwrap();
+        self.lock_impl(jvm)
+    }
+
+    fn lock_impl(&self, jvm: &JVMState) {
+        let mut current_owners_guard = self.owned.read().unwrap();
+        //first we check if we currently own the lock. If we do increment and return.
+        //If we do not currently hold the lock then we will continue to not own the lock until
+        // std::mem::forget(self.mutex.lock()); returns.
         if current_owners_guard.owner == Monitor::get_tid(jvm).into() {
             current_owners_guard.count += 1;
         } else {
-            std::mem::drop(current_owners_guard);//todo I don;t think there should be two guards here
+            std::mem::drop(current_owners_guard);
             std::mem::forget(self.mutex.lock());
             let mut new_guard = self.owned.write().unwrap();
             assert_eq!(new_guard.count, 0);
@@ -66,18 +77,27 @@ impl Monitor {
 
     pub fn wait(&self, millis: i64, jvm: &JVMState) {
         jvm.tracing.trace_monitor_wait(self,jvm );
-        let mut guard = self.owned.write().unwrap();
-        let count = guard.count;
-        guard.count = 0;
-        guard.owner = None;
+        let mut count_and_owner = self.owned.write().unwrap();
+        if count_and_owner.owner != Monitor::get_tid(jvm).into() {
+            // in java this throws an illegal monitor exception.
+            unimplemented!()
+        }
+        // wait requires us to release hold on reentrant lock, but reacquire same count on notify
+        // instead of repeatedly unlocking, just set count to 0 and unlock.
+        let count = count_and_owner.count;
+        count_and_owner.count = 0;
+        count_and_owner.owner = None;
         let guard1 = self.condvar_mutex.lock().unwrap();
         unsafe { self.mutex.force_unlock_fair(); }
-        std::mem::drop(guard);
-        if millis <= 0 {
+        std::mem::drop(count_and_owner);
+        //after this line any other thread can now lock.
+        assert!(millis >= 0);// would throw an illegal argument exception.
+        if millis == 0 {
             std::mem::drop(self.condvar.wait(guard1).unwrap());
         } else {
             std::mem::drop(self.condvar.wait_timeout(guard1, Duration::from_millis(millis as u64)).unwrap());
         }
+        //now reacquire the same count as earlier:
         std::mem::forget(self.mutex.lock());
         let mut write_guard = self.owned.write().unwrap();
         write_guard.owner = Monitor::get_tid(jvm).into();
