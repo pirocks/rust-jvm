@@ -370,7 +370,6 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 impl SharedLibJVMTI {
     pub fn agent_load(&self, jvm: &JVMState, _thread: &JavaThread) -> jvmtiError {
 //todo why is thread relevant/unused here
-        jvm.init_signal_handler();
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();

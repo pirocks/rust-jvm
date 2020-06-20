@@ -18,7 +18,7 @@ use nix::sys::signal::Signal;
 use nix::unistd::gettid;
 
 use crate::handlers::{handle_event, handle_pause};
-use crate::signal::{pthread_self, pthread_sigqueue, pthread_t, siginfo_t, sigval};
+use crate::signal::{pthread_self, pthread_sigqueue, pthread_t, siginfo_t, sigval, SI_QUEUE};
 
 type TID = usize;
 
@@ -27,6 +27,13 @@ pub struct Threads {
     this_thread: &'static LocalKey<RefCell<Option<Arc<Thread>>>>,
 }
 
+static mut THERE_CAN_ONLY_BE_ONE_THREADS: bool = false;
+
+thread_local! {
+        static THIS_THREAD: RefCell<Option<Arc<Thread>>> = RefCell::new(None);
+    }
+
+
 impl Threads {
     pub fn this_thread(&self) -> Arc<Thread> {
         self.this_thread.with(|thread| {
@@ -34,22 +41,35 @@ impl Threads {
         })
     }
 
-    thread_local! {
-        static THIS_THREAD: RefCell<Option<Arc<Thread>>> = RefCell::new(None);
+    pub fn new() -> Threads {
+        unsafe {
+            if THERE_CAN_ONLY_BE_ONE_THREADS {
+                panic!()
+            }
+            THERE_CAN_ONLY_BE_ONE_THREADS = true;
+        }
+        let res = Threads {
+            all_threads: RwLock::new(HashMap::new()),
+            this_thread: &THIS_THREAD
+        };
+        res.init_signal_handler();
+        res
     }
-
 
     pub fn create_thread(&self) -> Thread {
         let join_status = Arc::new(RwLock::new(JoinStatus {
             finished_mutex: Mutex::new(()),
             alive: AtomicBool::new(false),
-            thread_finished: Condvar::new()
+            thread_finished: Condvar::new(),
         }));
+        let started = AtomicBool::new(false);
         let mut res = Thread {
-            started: AtomicBool::new(false),
-            join_status : join_status.clone(),
-            paused_mutex: Mutex::new(()),
-            paused: Condvar::new(),
+            started,
+            join_status: join_status.clone(),
+            pause: PauseStatus {
+                paused_mutex: Mutex::new(false),
+                paused: Condvar::new(),
+            },
             pthread_id: None,
             rust_join_handle: None,
             thread_start_channel_send: None,
@@ -57,7 +77,7 @@ impl Threads {
         let (thread_info_channel_send, thread_info_channel_recv) = std::sync::mpsc::channel();
         let (thread_start_channel_send, thread_start_channel_recv) = std::sync::mpsc::channel();
         let join_handle = std::thread::spawn(move || unsafe {
-            thread_info_channel_send.send(pthread_self());
+            thread_info_channel_send.send(pthread_self()).unwrap();
             let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();
             func(data);
             join_status.read().unwrap().thread_finished.notify_all();
@@ -69,48 +89,58 @@ impl Threads {
     }
 }
 
-pub struct ThreadStartInfo{
+pub struct ThreadStartInfo {
     func: fn(Box<dyn Any>),
-    data: Box<dyn Any>
+    data: Box<dyn Any>,
 }
 
-unsafe impl Send for ThreadStartInfo{}
-unsafe impl Sync for ThreadStartInfo{}
+unsafe impl Send for ThreadStartInfo {}
+
+unsafe impl Sync for ThreadStartInfo {}
 
 pub struct Thread {
     started: AtomicBool,
     join_status: Arc<RwLock<JoinStatus>>,
-    paused_mutex: Mutex<()>,
-    //todo maybe use rust park() for this
-    paused: Condvar,
+    pause: PauseStatus,
     pthread_id: Option<pthread_t>,
     rust_join_handle: Option<std::thread::JoinHandle<()>>,
     thread_start_channel_send: Option<Sender<ThreadStartInfo>>,
 }
 
-pub struct JoinStatus{
+pub struct PauseStatus {
+    paused_mutex: Mutex<bool>,
+    paused: Condvar,    //todo maybe use rust park() for this
+}
+
+pub struct JoinStatus {
     alive: AtomicBool,
-    finished_mutex : Mutex<()>,//todo combine alive AtomicBool and Mutex
-    thread_finished: Condvar
+    finished_mutex: Mutex<()>,
+    //todo combine alive AtomicBool and Mutex
+    thread_finished: Condvar,
 }
 
 
 impl Thread {
     pub fn start_thread(&self, func: fn(Box<dyn Any>), data: Box<dyn Any>) {
-        self.thread_start_channel_send.as_ref().unwrap().send(ThreadStartInfo{ func, data }).unwrap();
+        self.thread_start_channel_send.as_ref().unwrap().send(ThreadStartInfo { func, data }).unwrap();
+        self.started.store(true,Ordering::SeqCst);
     }
 
     pub fn pause(&self) {
         unsafe { assert_eq!(self.pthread_id.unwrap(), pthread_self()); }
-        self.paused.wait(self.paused_mutex.lock().unwrap()).unwrap();
+        std::mem::drop(self.pause.paused.wait(self.pause.paused_mutex.lock().unwrap()).unwrap());
+    }
+
+    pub fn is_paused(&self) -> bool {
+        *self.pause.paused_mutex.lock().unwrap()
     }
 
     pub fn resume(&self) {
-        self.paused.notify_one();
+        self.pause.paused.notify_one();
     }
 
     pub fn is_alive(&self) -> bool {
-        let guard= self.join_status.write().unwrap();
+        let guard = self.join_status.write().unwrap();
         guard.alive.load(Ordering::SeqCst)
     }
 
@@ -169,7 +199,7 @@ extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _da
         let siginfo_signals_h = (siginfo as *mut siginfo_t).read();
         let signal_reason_ptr = siginfo_signals_h._sifields._rt.si_sigval.sival_ptr;
         assert_ne!(signal_reason_ptr, null_mut());
-        // assert_eq!(siginfo_signals_h.si_code, SI_QUEUE);
+        assert_eq!(siginfo_signals_h.si_code, SI_QUEUE);
         let reason = (signal_reason_ptr as *mut SignalReason).read();
 
         match reason {
