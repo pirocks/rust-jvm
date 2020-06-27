@@ -44,7 +44,6 @@ use crate::tracing::TracingSettings;
 use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
-use nix::unistd::gettid;
 use crate::method_table::{MethodTable, MethodId};
 use crate::field_table::FieldTable;
 use crate::java::lang::string::JString;
@@ -53,7 +52,6 @@ use std::ops::Deref;
 use crate::java_values::Object::Array;
 use crate::native_allocation::{NativeAllocator};
 use crate::threading::{ThreadState, JavaThread};
-use crate::threading::monitors::Monitor;
 
 
 pub mod java_values;
@@ -327,8 +325,8 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.class_prepare(&jvm, &main_view.name()));
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
-    let main_thread = jvm.main_thread();
-    assert!(Arc::ptr_eq(&jvm.get_current_thread(), &main_thread));
+    let main_thread = jvm.thread_state.main_thread();
+    assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
     // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
     let stack_entry = StackEntry {
@@ -340,8 +338,8 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
         pc_offset: 0.into(),
     };
     let main_stack = Rc::new(stack_entry);
-    jvm.main_thread().call_stack.replace(vec![main_stack]);
-    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, jvm.main_thread().thread_object.borrow().clone().unwrap()));
+    jvm.thread_state.main_thread().call_stack.replace(vec![main_stack]);
+    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, jvm.thread_state.main_thread().thread_object.borrow().clone().unwrap()));
     //trigger breakpoint on thread.resume for debuggers that rely on that:
 
     let thread_class = check_inited_class(
@@ -393,7 +391,7 @@ fn setup_program_args(jvm: &JVMState, args: Vec<String>) {
     let arg_array = JavaValue::Object(Some(Arc::new(Array(ArrayObject {
         elems: RefCell::new(arg_strings),
         elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
-        monitor: jvm.new_monitor( "arg array monitor".to_string())
+        monitor: jvm.thread_state.new_monitor( "arg array monitor".to_string())
     }))));
     let mut local_vars = current_frame.local_vars.borrow_mut();
     local_vars[0] = arg_array;
@@ -433,7 +431,7 @@ fn jvm_run_system_init(jvm: &JVMState) {
         pc_offset: RefCell::new(0),
     });
     jvm.thread_state.get_current_thread().call_stack.replace(vec![initialize_system_frame.clone()]);
-    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.main_thread()));
+    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.thread_state.main_thread()));
 //todo technically this needs to before any bytecode is run.
     run_function(&jvm);
     if *jvm.main_thread().interpreter_state.function_return.borrow() {

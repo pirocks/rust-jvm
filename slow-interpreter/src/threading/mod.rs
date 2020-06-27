@@ -40,13 +40,13 @@ impl ThreadState {
 
     pub fn get_current_thread_name(&self) -> String {
         let current_thread = self.get_current_thread();
-        let thread_object = current_thread.thread_object.borrow();
+        let thread_object = current_thread.thread_object.read().unwrap();
         thread_object.as_ref().map(|jthread| jthread.name().to_rust_string())
             .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
     }
 
     pub fn new_monitor(&self, name: String) -> Arc<Monitor> {
-        let mut monitor_guard = self.thread_state.monitors.write().unwrap();
+        let mut monitor_guard = self.monitors.write().unwrap();
         let index = monitor_guard.len();
         let res = Arc::new(Monitor::new(name, index));
         monitor_guard.push(res.clone());
@@ -54,7 +54,7 @@ impl ThreadState {
     }
 
     pub fn get_current_thread(&self) -> Arc<JavaThread> {
-        self.thread_state.current_java_thread.with(|thread_refcell| {
+        self.current_java_thread.with(|thread_refcell| {
             thread_refcell.borrow().as_ref().unwrap().clone()
         })
     }
@@ -71,7 +71,7 @@ impl ThreadState {
 
         let (send, recv) = channel();
         let thread_class = check_inited_class(jvm, &ClassName::thread().into(), frame.class_pointer.loader(jvm).clone());
-        underlying.start_thread(move |(data)|{
+        underlying.start_thread(box move |data|{
             let java_thread = Arc::new(JavaThread::new(obj, underlying));
             send.send(java_thread.clone()).unwrap();
             let new_thread_frame = Rc::new(StackEntry {
@@ -85,7 +85,7 @@ impl ThreadState {
             java_thread.call_stack.write().unwrap().push(new_thread_frame.clone());
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &new_thread_frame);
             java_thread.call_stack.write().unwrap().pop();
-        }, unimplemented!());
+        }, box None);//todo is this Data really needed since we have a closure
         recv.recv().unwrap()
     }
 }
@@ -100,7 +100,7 @@ pub type JavaThreadId = i64;
 
 #[derive(Debug)]
 pub struct JavaThread {
-    java_tid: JavaThreadId,
+    pub java_tid: JavaThreadId,
     underlying_thread: Thread,
     call_stack: RwLock<Vec<Rc<StackEntry>>>,
     thread_object: RwLock<Option<JThread>>,
@@ -112,18 +112,18 @@ impl JavaThread {
         JavaThread {
             java_tid: thread_obj.tid(),
             underlying_thread: underlying,
-            call_stack: RefCell::new(vec![]),
-            thread_object: RefCell::new(thread_obj.into()),
+            call_stack: RwLock::new(vec![]),
+            thread_object: RwLock::new(thread_obj.into()),
             interpreter_state: InterpreterState::default(),
         }
     }
 
     fn set_current_thread(&self, java_thread: Arc<JavaThread>) {
-        self.thread_state.current_java_thread.with(|x| x.replace(java_thread.into()));
+        self.current_java_thread.with(|x| x.replace(java_thread.into()));
     }
 
     pub fn get_current_frame(&self) -> Rc<StackEntry> {
-        self.call_stack.borrow().last().unwrap().clone()
+        self.call_stack.read().unwrap().last().unwrap().clone()
     }
     pub fn print_stack_trace(&self) {
         self.call_stack.borrow().iter().rev().enumerate().for_each(|(i, stack_entry)| {

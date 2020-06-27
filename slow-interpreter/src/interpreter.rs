@@ -34,7 +34,7 @@ use classfile_view::view::HasAccessFlags;
 use crate::threading::monitors::Monitor;
 
 pub fn run_function(jvm: &JVMState) {
-    let current_thread = jvm.get_current_thread();
+    let current_thread = jvm.thread_state.get_current_thread();
     let frame_temp = current_thread.get_current_frame();
     let current_frame = frame_temp.deref();
     let view = &current_frame.class_pointer.view();
@@ -45,14 +45,14 @@ pub fn run_function(jvm: &JVMState) {
     let class_name__ = &current_frame.class_pointer.view().name();
 
     let method_desc = method.desc_str();
-    let current_depth = jvm.get_current_thread().call_stack.borrow().len();
-    jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, jvm.get_current_thread().java_tid);
-    let interpreter_state = &jvm.get_current_thread().interpreter_state;
-    assert!(!*interpreter_state.function_return.borrow());
+    let current_depth = jvm.thread_state.get_current_thread().call_stack.borrow().len();
+    jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, jvm.thread_state.get_current_thread().java_tid);
+    let interpreter_state = &jvm.thread_state.get_current_thread().interpreter_state;
+    assert!(!*interpreter_state.function_return.read().unwrap());
     let method_id = jvm.method_table.write().unwrap().get_method_id(current_frame.class_pointer.clone(), current_frame.method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, current_frame, method, synchronized, &class_name__);
-    while !*interpreter_state.terminate.borrow() && !*interpreter_state.function_return.borrow() && !interpreter_state.throw.borrow().is_some() {
+    while !*interpreter_state.terminate.read().unwrap() && !*interpreter_state.function_return.read().unwrap() && !interpreter_state.throw.read().unwrap().is_some() {
         let read_guard = interpreter_state.suspended.read().unwrap();
         let suspension_lock = read_guard.suspended_lock.clone();
         std::mem::drop(read_guard);
@@ -61,14 +61,14 @@ pub fn run_function(jvm: &JVMState) {
         current_frame.pc_offset.replace(instruction_size as isize);
         breakpoint_check(jvm,method_id,*current_frame.pc.borrow() as isize);
         run_single_instruction(jvm, &current_frame, interpreter_state, instruct);
-        if interpreter_state.throw.borrow().is_some() {
-            let throw_class = interpreter_state.throw.borrow().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
+        if interpreter_state.throw.read().unwrap().is_some() {
+            let throw_class = interpreter_state.throw.read().unwrap().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             for excep_table in &code.exception_table {
                 if excep_table.start_pc as usize <= *current_frame.pc.borrow() && *current_frame.pc.borrow() < (excep_table.end_pc as usize) {//todo exclusive
                     if excep_table.catch_type == 0 {
                         //todo dup
-                        current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
-                        interpreter_state.throw.replace(None);
+                        current_frame.push(JavaValue::Object(interpreter_state.throw.read().unwrap().deref().clone()));
+                        *interpreter_state.throw.write().unwrap() = None;
                         current_frame.pc.replace(excep_table.handler_pc as usize);
                         // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
                         break;
@@ -76,8 +76,8 @@ pub fn run_function(jvm: &JVMState) {
                         let catch_runtime_name = current_frame.class_pointer.view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_name().unwrap_name();
                         let catch_class = check_inited_class(jvm, &catch_runtime_name.into(), current_frame.class_pointer.loader(jvm).clone());
                         if inherits_from(jvm, &throw_class, &catch_class) {
-                            current_frame.push(JavaValue::Object(interpreter_state.throw.borrow().deref().clone()));
-                            interpreter_state.throw.replace(None);
+                            current_frame.push(JavaValue::Object(interpreter_state.throw.read().unwrap().deref().clone()));
+                            *interpreter_state.throw.write().unwrap() = None;
                             current_frame.pc.replace(excep_table.handler_pc as usize);
                             // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
                             break;
@@ -85,7 +85,7 @@ pub fn run_function(jvm: &JVMState) {
                     }
                 }
             }
-            if interpreter_state.throw.borrow().is_some() {
+            if interpreter_state.throw.read().unwrap().is_some() {
                 //need to propogate to caller
                 break;
             }
@@ -109,7 +109,7 @@ pub fn run_function(jvm: &JVMState) {
         &meth_name,
         &method_desc,
         current_depth,
-        jvm.get_current_thread().java_tid
+        jvm.thread_state.get_current_thread().java_tid
     )
 }
 
@@ -200,8 +200,8 @@ fn run_single_instruction(
             println!("EXCEPTION:");
             let exception_obj = current_frame.pop().unwrap_object_nonnull();
             dbg!(exception_obj.lookup_field("detailMessage"));
-            jvm.get_current_thread().print_stack_trace();
-            interpreter_state.throw.replace(exception_obj.into());
+            jvm.thread_state.get_current_thread().print_stack_trace();
+            *interpreter_state.throw.get_mut().unwrap() = exception_obj.into();
         }
         InstructionInfo::baload => baload(&current_frame),
         InstructionInfo::bastore => bastore(&current_frame),

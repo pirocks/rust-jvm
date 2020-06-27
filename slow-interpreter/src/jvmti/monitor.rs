@@ -11,7 +11,7 @@ pub unsafe extern "C" fn create_raw_monitor(env: *mut jvmtiEnv, name: *const c_c
     jvm.tracing.trace_jdwp_function_enter(jvm, "CreateRawMonitor");
     //todo handle name
     let monitor_name = CStr::from_ptr(name).to_str().unwrap().to_string();
-    let res_monitor = jvm.new_monitor(monitor_name);
+    let res_monitor = jvm.thread_state.new_monitor(monitor_name);
     monitor_ptr.write(transmute(res_monitor.monitor_i));//todo check that this is acceptable
     jvm.tracing.trace_jdwp_function_exit(jvm, "CreateRawMonitor");
     jvmtiError_JVMTI_ERROR_NONE

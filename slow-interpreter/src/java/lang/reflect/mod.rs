@@ -59,7 +59,7 @@ pub mod field {
             let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
                 elems: RefCell::new(annotations),
                 elem_type: PTypeView::ByteType,
-                monitor: jvm.new_monitor("montior for annotations array".to_string()),
+                monitor: jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
             }))));
 
             run_constructor(

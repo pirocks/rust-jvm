@@ -256,7 +256,11 @@ impl JavaValue {
         }
     }
     pub fn empty_byte_array(jvm: &JVMState) -> JavaValue {
-        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject { elems: RefCell::new(vec![]), elem_type: PTypeView::ByteType, monitor: jvm.new_monitor("".to_string()) }))))
+        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
+            elems: RefCell::new(vec![]),
+            elem_type: PTypeView::ByteType,
+            monitor: jvm.thread_state.new_monitor("".to_string())
+        }))))
     }
     pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>,class_object_type : Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
@@ -273,7 +277,11 @@ impl JavaValue {
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Some(Arc::new(Object::Array(ArrayObject { elems: buf.into(), elem_type, monitor: jvm.new_monitor("".to_string()) })))
+        Some(Arc::new(Object::Array(ArrayObject {
+            elems: buf.into(),
+            elem_type,
+            monitor: jvm.thread_state.new_monitor("array object monitor".to_string())
+        })))
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {
@@ -448,7 +456,7 @@ impl Object {
             Object::Object(o) => {
                 let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
                 Object::Object(NormalObject {
-                    monitor: jvm.new_monitor("".to_string()),
+                    monitor: jvm.thread_state.new_monitor("".to_string()),
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
                     class_object_type: o.class_object_type.clone()

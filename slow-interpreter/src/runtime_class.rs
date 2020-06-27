@@ -205,16 +205,16 @@ pub fn initialize_class(
         pc: 0.into(),
         pc_offset: 0.into(),
     }.into();
-    jvm.get_current_thread().call_stack.borrow_mut().push(new_stack);
+    jvm.thread_state.get_current_thread().call_stack.borrow_mut().push(new_stack);
     run_function(jvm);
-    jvm.get_current_thread().call_stack.borrow_mut().pop();
-    if jvm.get_current_thread().interpreter_state.throw.borrow().is_some() || *jvm.get_current_thread().interpreter_state.terminate.borrow() {
-        jvm.get_current_thread().print_stack_trace();
+    jvm.thread_state.get_current_thread().call_stack.borrow_mut().pop();
+    if jvm.thread_state.get_current_thread().interpreter_state.throw.borrow().is_some() || *jvm.thread_state.get_current_thread().interpreter_state.terminate.borrow() {
+        jvm.thread_state.get_current_thread().print_stack_trace();
         unimplemented!()
         //need to clear status after
     }
-    if *jvm.get_current_thread().interpreter_state.function_return.borrow() {
-        *jvm.get_current_thread().interpreter_state.function_return.borrow_mut() = false;
+    if *jvm.thread_state.get_current_thread().interpreter_state.function_return.borrow() {
+        *jvm.thread_state.get_current_thread().interpreter_state.function_return.borrow_mut() = false;
         return class_arc;
     }
     panic!()

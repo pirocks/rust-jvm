@@ -90,7 +90,7 @@ impl Threads {
 }
 
 pub struct ThreadStartInfo {
-    func: fn(Box<dyn Any>),
+    func: Box<dyn FnOnce(Box<dyn Any>) -> ()>,
     data: Box<dyn Any>,
 }
 
@@ -121,7 +121,7 @@ pub struct JoinStatus {
 
 
 impl Thread {
-    pub fn start_thread(&self, func: fn(Box<dyn Any>), data: Box<dyn Any>) {
+    pub fn start_thread<T: 'static>(&self, func: Box<T>, data: Box<dyn Any>)  where T: FnOnce(Box<dyn Any>) -> (){
         self.thread_start_channel_send.as_ref().unwrap().send(ThreadStartInfo { func, data }).unwrap();
         self.started.store(true,Ordering::SeqCst);
     }
