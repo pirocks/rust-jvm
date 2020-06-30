@@ -71,7 +71,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     //todo dup
     let method_id: MethodId = transmute(jmethod_id );
     let jvm = get_state(env);
-    let frame_temp = jvm.get_current_frame();
+    let frame_temp = get_frame(env);
     let frame = frame_temp.deref();
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = &class.view();
@@ -172,7 +172,7 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
 }
 
 pub(crate) unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
-    let state = get_state(env);
-    state.get_current_thread().interpreter_state.throw.replace(from_object(obj));
+    let jvm = get_state(env);
+    *jvm.thread_state.get_current_thread().interpreter_state.throw.write().unwrap() = from_object(obj);
     0 as jint
 }

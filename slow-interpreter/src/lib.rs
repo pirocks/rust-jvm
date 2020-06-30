@@ -48,10 +48,10 @@ use crate::method_table::{MethodTable, MethodId};
 use crate::field_table::FieldTable;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
-use std::ops::Deref;
 use crate::java_values::Object::Array;
 use crate::native_allocation::{NativeAllocator};
 use crate::threading::{ThreadState, JavaThread};
+use std::ops::Deref;
 
 
 pub mod java_values;
@@ -69,7 +69,7 @@ pub struct InterpreterState {
     pub throw: RwLock<Option<Arc<Object>>>,
     pub function_return: RwLock<bool>,
     //todo find some way of clarifying these can only be acessed from one thread
-    pub suspended: std::sync::RwLock<SuspendedStatus>,
+    pub suspended: RwLock<SuspendedStatus>,
 }
 
 impl Default for InterpreterState {
@@ -205,7 +205,7 @@ impl JVMState {
             }.into()
         } else { None };
         let thread_state = ThreadState::new();
-        (args, Self {
+        let jvm = Self {
             properties,
             loaders: RwLock::new(HashMap::new()),
             bootstrap_loader,
@@ -227,9 +227,13 @@ impl JVMState {
             tracing,
             method_table: RwLock::new(MethodTable::new()),
             field_table: RwLock::new(FieldTable::new()),
-            native_interface_allocations: NativeAllocator{ allocations: RwLock::new(HashMap::new()) },
+            native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: RwLock::new(false),
-        })
+        };
+        jvm.thread_state.setup_main_thread(&jvm);
+
+        (args, jvm)
+
     }
 
     pub fn get_or_create_bootstrap_object_loader(&self) -> JavaValue {//todo this should really take frame as a parameter
@@ -319,13 +323,19 @@ impl JVMState {
 
 pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let (args, mut jvm) = JVMState::new(opts);
-    jvm_run_system_init(&mut jvm);
-    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm));
+    let jvmti = jvm.jvmti_state.as_ref();
+    jvm_run_system_init(&mut jvm)?;
+    jvmti.map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm, jvm.thread_state.get_main_thread()));
+
+    run_main(args, &mut jvm)
+}
+
+fn run_main(args: Vec<String>, jvm: &mut JVMState) -> Result<(), Box<dyn Error>> {
+    let jvmti = jvm.jvmti_state.as_ref();
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
-    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.class_prepare(&jvm, &main_view.name()));
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
-    let main_thread = jvm.thread_state.main_thread();
+    let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
     // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
@@ -338,8 +348,8 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
         pc_offset: 0.into(),
     };
     let main_stack = Rc::new(stack_entry);
-    jvm.thread_state.main_thread().call_stack.replace(vec![main_stack]);
-    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, jvm.thread_state.main_thread().thread_object.borrow().clone().unwrap()));
+    *main_thread.call_stack.write().unwrap() = vec![main_stack];
+    jvmti.map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, main_thread.thread_object()));
     //trigger breakpoint on thread.resume for debuggers that rely on that:
 
     let thread_class = check_inited_class(
@@ -374,8 +384,8 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     }
 
     setup_program_args(&jvm, args);
-    run_function(&jvm);
-    if main_thread.interpreter_state.throw.borrow().is_some() || *main_thread.interpreter_state.terminate.borrow() {
+    run_function(&jvm,main_thread.deref());
+    if main_thread.interpreter_state.throw.read().unwrap().is_some() || *main_thread.interpreter_state.terminate.read().unwrap() {
         unimplemented!()
     }
     Result::Ok(())
@@ -383,7 +393,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
 
 
 fn setup_program_args(jvm: &JVMState, args: Vec<String>) {
-    let current_frame = jvm.get_current_frame();
+    let current_frame = jvm.thread_state.get_main_thread().get_current_frame();
 
     let arg_strings:Vec<JavaValue> = args.iter().map(|arg_str| {
         JString::from(jvm, current_frame.deref(), arg_str.clone()).java_value()
@@ -397,25 +407,8 @@ fn setup_program_args(jvm: &JVMState, args: Vec<String>) {
     local_vars[0] = arg_array;
 }
 
-fn jvm_run_system_init(jvm: &JVMState) {
+fn jvm_run_system_init(jvm: &JVMState) -> Result<(), Box<dyn Error>>{
     let bl = &jvm.bootstrap_loader;
-    let bootstrap_system_class_view = bl.load_class(bl.clone(), &ClassName::system(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
-    let bootstrap_system_class = Arc::new(prepare_class(jvm, bootstrap_system_class_view.backing_class(), bl.clone()));
-    let bootstrap_frame = StackEntry {
-        class_pointer: bootstrap_system_class,
-        method_i: 0,
-        local_vars: RefCell::new(vec![]),
-        operand_stack: RefCell::new(vec![]),
-        pc: RefCell::new(0),
-        pc_offset: RefCell::new(0),
-    };
-    /*jvm.register_main_thread(Arc::new(JavaThread {
-        java_tid: 0,
-        call_stack: RefCell::new(vec![Rc::new(bootstrap_frame)]),
-        thread_object: RefCell::new(None),
-        interpreter_state: InterpreterState::default(),
-        unix_tid: gettid(),
-    }));*/
     let system_class = check_inited_class(jvm, &ClassName::system().into(), bl.clone());
     let init_method_view = locate_init_system_class(&system_class);
     let mut locals = vec![];
@@ -430,18 +423,21 @@ fn jvm_run_system_init(jvm: &JVMState) {
         pc: RefCell::new(0),
         pc_offset: RefCell::new(0),
     });
-    jvm.thread_state.get_current_thread().call_stack.replace(vec![initialize_system_frame.clone()]);
-    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.thread_state.main_thread()));
+    *jvm.thread_state.get_current_thread().call_stack.write().unwrap() = vec![initialize_system_frame.clone()];
+    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.thread_state.get_main_thread()));
 //todo technically this needs to before any bytecode is run.
-    run_function(&jvm);
-    if *jvm.main_thread().interpreter_state.function_return.borrow() {
-        jvm.main_thread().interpreter_state.function_return.replace(false);
+    let main_thread = jvm.thread_state.get_main_thread();
+    run_function(&jvm,&main_thread);
+    let function_return = main_thread.interpreter_state.function_return.write().unwrap();
+    if *function_return {
+        *function_return = false;
     }
-    if jvm.main_thread().interpreter_state.throw.borrow().is_some() || *jvm.main_thread().interpreter_state.terminate.borrow() {
+    if main_thread.interpreter_state.throw.read().unwrap().is_some() || *main_thread.interpreter_state.terminate.read().unwrap() {
         unimplemented!()
     }
     *jvm.live.write().unwrap() = true;
     set_properties(jvm);
+    Result::Ok(())
 }
 
 fn set_properties(jvm: &JVMState) {
@@ -451,7 +447,7 @@ fn set_properties(jvm: &JVMState) {
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
-        let current_frame = &jvm.get_current_frame();
+        let current_frame = &jvm.thread_state.get_main_thread().get_current_frame();
         let key = JString::from(jvm, current_frame, properties[key_i].clone());
         let value = JString::from(jvm, current_frame, properties[value_i].clone());
         prop_obj.set_property(jvm, current_frame, key, value);

@@ -83,7 +83,7 @@ fn throw_array_out_of_bounds(jvm: & JVMState, current_frame: & StackEntry) {
     push_new_object(jvm, current_frame, &bounds_class, None);
     let obj = current_frame.pop();
     run_constructor(jvm, current_frame, bounds_class, vec![obj.clone()], "()V".to_string());
-    jvm.get_current_thread().interpreter_state.throw.replace(obj.unwrap_object().into());
+    *jvm.thread_state.get_current_thread().interpreter_state.throw.write().unwrap() = obj.unwrap_object().into();
 }
 
 pub fn caload(state: & JVMState, current_frame: & StackEntry) -> () {

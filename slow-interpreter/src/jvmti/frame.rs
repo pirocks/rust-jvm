@@ -1,5 +1,4 @@
 use std::mem::{size_of, transmute};
-use std::ops::Deref;
 
 use jvmti_jni_bindings::{_jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiLocalVariableEntry, jvmtiLineNumberEntry, _jvmtiLineNumberEntry, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION};
 use jvmti_jni_bindings::jint;

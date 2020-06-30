@@ -121,7 +121,7 @@ fn exception_types_table(jvm: &JVMState, frame: &StackEntry, method_view: &Metho
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
         elems: RefCell::new(exception_table),
         elem_type: class_type.clone(),
-        monitor: jvm.new_monitor("".to_string()),
+        monitor: jvm.thread_state.new_monitor("".to_string()),
     }))))
 }
 
@@ -136,7 +136,7 @@ fn parameters_type_objects(jvm: &JVMState, frame: &StackEntry, method_view: &Met
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
         elems: RefCell::new(res),
         elem_type: class_type.clone(),
-        monitor: jvm.new_monitor("".to_string())
+        monitor: jvm.thread_state.new_monitor("".to_string())
     }))))
 }
 

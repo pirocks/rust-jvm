@@ -67,7 +67,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         Object::Array(ArrayObject {
             elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
             elems: RefCell::new(object_array),
-            monitor: jvm.new_monitor("".to_string())
+            monitor: jvm.thread_state.new_monitor("".to_string())
         })));
     to_object(res)
 }

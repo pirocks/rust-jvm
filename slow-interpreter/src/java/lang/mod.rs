@@ -224,7 +224,7 @@ pub mod thread {
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
     use crate::java::lang::string::JString;
-    use crate::threading::JavaThreadId;
+    use crate::threading::{JavaThreadId, JavaThread};
 
     #[derive(Debug,Clone)]
     pub struct JThread {
@@ -259,6 +259,15 @@ pub mod thread {
 
         pub fn daemon(&self) -> bool{
             self.normal_object.lookup_field("daemon").unwrap_int() != 0
+        }
+
+        pub fn new(jvm : &JVMState, frame: &StackEntry) -> JThread {
+            unimplemented!()
+        }
+
+        pub fn get_java_thread(&self, jvm : &JVMState) -> Arc<JavaThread>{
+            let tid = self.tid();
+            jvm.thread_state.get_thread_by_tid(tid)
         }
 
         as_object_or_java_value!();

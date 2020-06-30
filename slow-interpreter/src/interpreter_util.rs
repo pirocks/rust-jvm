@@ -175,6 +175,8 @@ fn check_inited_class_impl(
     let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, jvm.get_live_object_pool_getter()).unwrap();
     let ptype = PTypeView::Ref(ReferenceTypeView::Class(class_name.clone()));
     let prepared = Arc::new(prepare_class(jvm, target_classfile.backing_class(), loader_arc.clone()));
+    let jvmti = jvm.jvmti_state.as_ref();
+    jvmti.map(|jvmti| jvmti.built_in_jdwp.class_prepare(&jvm, class_name));
     jvm.initialized_classes.write().unwrap().insert(ptype.clone(), prepared.clone());//must be before, otherwise infinite recurse
     let inited_target = initialize_class(prepared, jvm);
     jvm.initialized_classes.write().unwrap().insert(ptype.clone(), inited_target);

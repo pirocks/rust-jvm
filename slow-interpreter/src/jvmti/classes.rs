@@ -1,14 +1,13 @@
 use jvmti_jni_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE, jmethodID, jobject};
-use crate::jvmti::get_state;
-use std::mem::transmute;
+use crate::jvmti::{get_state, get_frame};
+use std::mem::{transmute, size_of};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::class_objects::get_or_create_class_object;
 use crate::rust_jni::native_util::{to_object, from_object, from_jclass};
 use std::ops::Deref;
 use std::ffi::{CString, c_void};
-use crate::interpreter_util::check_inited_class;
-use std::mem::size_of;
 use crate::java_values::JavaValue;
+use crate::interpreter_util::check_inited_class;
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
@@ -51,7 +50,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
 pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
-    let frame = jvm.get_current_frame();
+    let frame = jvm.thread_state.get_current_thread().get_current_frame();
     let mut res_vec = vec![];
 //todo what about int.class and other primitive classes
     jvm.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
@@ -92,11 +91,12 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
 
 pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, method_count_ptr: *mut jint, methods_ptr: *mut *mut jmethodID) -> jvmtiError {
     let jvm = get_state(env);
+    let frame = get_frame(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
     let class_object_wrapped = from_object(transmute(klass)).unwrap();
     let class = JavaValue::Object(class_object_wrapped.into()).cast_class();
     let class_type = class.as_type();
-    let loaded_class = check_inited_class(jvm, &class_type, jvm.get_current_frame().deref().class_pointer.loader(jvm).clone());
+    let loaded_class = check_inited_class(jvm, &class_type, frame.deref().class_pointer.loader(jvm).clone());
     method_count_ptr.write(loaded_class.view().num_methods() as i32);
     //todo use Layout instead of whatever this is.
     *methods_ptr = libc::malloc((size_of::<*mut c_void>()) * (*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;
@@ -115,7 +115,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
 pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, classloader_ptr: *mut jobject ) -> jvmtiError{
     // assert_eq!(classloader_ptr, std::ptr::null_mut());//only implement bootstrap loader case
     let jvm = get_state(env);
-    let frame = jvm.get_current_frame();
+    let frame = jvm.thread_state.get_current_thread().get_current_frame();
     let class = from_jclass(klass);
     let class_loader= class.get_class_loader(jvm,frame.deref());
     let jobject_ = to_object(class_loader.map(|cl| cl.object()));

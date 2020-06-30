@@ -10,8 +10,8 @@ use crate::java_values::JavaValue;
 use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
-use std::ops::Deref;
 use crate::interpreter::run_function;
+use std::ops::Deref;
 
 pub fn run_invoke_static(jvm: & JVMState, current_frame: &StackEntry, cp: u16) {
 //todo handle monitor enter and exit
@@ -44,7 +44,7 @@ pub fn invoke_static_impl(
     target_method: &MethodInfo,
 ) -> () {
     let mut args = vec![];
-    let frame_temp = jvm.get_current_frame();
+    let frame_temp = jvm.thread_state.get_current_thread().get_current_frame();
     let current_frame = frame_temp.deref();
     if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
@@ -72,15 +72,17 @@ pub fn invoke_static_impl(
             pc: 0.into(),
             pc_offset: 0.into(),
         }.into();
-        jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
-        run_function(jvm);
-        jvm.get_current_thread().call_stack.borrow_mut().pop();
-        let interpreter_state = &jvm.get_current_thread().interpreter_state;
-        if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
+        let current_thread = jvm.thread_state.get_current_thread();
+        current_thread.call_stack.write().unwrap().push(next_entry);
+        run_function(jvm,&current_thread);
+        current_thread.call_stack.write().unwrap().pop();
+        let interpreter_state = &current_thread.interpreter_state;
+        if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
             return;
         }
-        if *interpreter_state.function_return.borrow() {
-            interpreter_state.function_return.replace(false);
+        let function_return = interpreter_state.function_return.write().unwrap();
+        if *function_return {
+            *function_return = false;
             return;
         }
     } else {

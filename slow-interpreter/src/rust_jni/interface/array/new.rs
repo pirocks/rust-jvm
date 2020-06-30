@@ -55,6 +55,6 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: PTypeView) -> jarray 
     to_object(Some(Arc::new(Object::Array(ArrayObject {
         elems: RefCell::new(the_vec),
         elem_type,
-        monitor: jvm.new_monitor("monitor for jni created byte array".to_string())
+        monitor: jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())
     }))))
 }

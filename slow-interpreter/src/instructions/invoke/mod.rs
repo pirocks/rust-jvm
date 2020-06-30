@@ -126,7 +126,7 @@ fn resolved_class(jvm: & JVMState, current_frame: &StackEntry, cp: u16) -> Optio
                         current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
                             elems: to_clone_array.elems.clone(),
                             elem_type: to_clone_array.elem_type.clone(),
-                            monitor: jvm.new_monitor("monitor for cloned object".to_string())
+                            monitor: jvm.thread_state.new_monitor("monitor for cloned object".to_string())
                         })))));
                         return None;
                     } else {

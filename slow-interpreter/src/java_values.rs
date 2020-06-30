@@ -265,7 +265,7 @@ impl JavaValue {
     pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>,class_object_type : Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
         Arc::new(Object::Object(NormalObject {
-            monitor: jvm.new_monitor("".to_string()),
+            monitor: jvm.thread_state.new_monitor("".to_string()),
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
             class_object_type
@@ -451,7 +451,7 @@ impl Object {
         match &self {
             Object::Array(a) => {
                 let sub_array = a.elems.borrow().iter().map(|x| x.deep_clone(jvm )).collect();
-                Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.new_monitor("".to_string()) })
+                Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.thread_state.new_monitor("".to_string()) })
             }
             Object::Object(o) => {
                 let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
@@ -476,7 +476,7 @@ impl Object {
         Object::Array(ArrayObject {
             elems: RefCell::new(object_array),
             elem_type: class_type,
-            monitor: jvm.new_monitor("".to_string()),
+            monitor: jvm.thread_state.new_monitor("".to_string()),
         })
     }
 

@@ -105,7 +105,7 @@ impl Monitor {
     }
 
     pub fn get_tid(jvm: &JVMState) -> usize {
-        jvm.get_current_thread().java_tid as usize
+        jvm.thread_state.get_current_thread().java_tid as usize
     }
 
     pub fn notify_all(&self, jvm: &JVMState) {

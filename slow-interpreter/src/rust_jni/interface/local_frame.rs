@@ -9,10 +9,12 @@ pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> j
     assert_eq!(result, std::ptr::null_mut());
     // let jv = from_object(result);
 
-    let state = get_state(env);
-    state.get_current_thread().call_stack.borrow_mut().pop();
+    let jvm = get_state(env);
+    //todo this is wrong
+    jvm.thread_state.get_current_thread().call_stack.write().unwrap().pop();
 
-    to_object(None)
+    to_object(None);
+    unimplemented!();
 }
 
 pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint {

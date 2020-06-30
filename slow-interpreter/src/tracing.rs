@@ -106,7 +106,7 @@ impl TracingSettings {
 
     pub fn trace_monitor_notify_all(&self, m: &Monitor, jvm: &JVMState) {
         if self.trace_monitor_notify_all {
-            println!("Monitor notify all:{}, thread:{}", m.name, jvm.get_current_thread_name());
+            println!("Monitor notify all:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name());
         }
     }
 

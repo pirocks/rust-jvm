@@ -106,11 +106,11 @@ pub struct ExceptionEvent {
 }
 
 impl SharedLibJVMTI {
-    fn trigger_event_all_threads(jvm: &JVMState, jvmti_event: &JVMTIEvent) {
+    /*fn trigger_event_all_threads(jvm: &JVMState, jvmti_event: &JVMTIEvent) {
         jvm.thread_state.alive_threads.read().unwrap().values().for_each(|t| {
             jvm.trigger_jvmti_event(t, jvmti_event.clone())
         })
-    }
+    }*/
 
     fn trigger_event_threads(jvm: &JVMState, threads: &HashMap<JavaThreadId, bool>, jvmti_event: &dyn Fn() -> JVMTIEvent) {
         threads.iter().for_each(|(tid, enabled)| {
@@ -122,15 +122,12 @@ impl SharedLibJVMTI {
         });
     }
 
-    pub fn vm_inited(&self, jvm: &JVMState) {
+    pub fn vm_inited(&self, jvm: &JVMState, main_thread: Arc<JavaThread>) {
         if *self.vm_init_enabled.read().unwrap() {
-            let main_thread_guard = jvm.thread_state.main_thread.read().unwrap();
-            let main_thread_nonnull = main_thread_guard.as_ref().unwrap();
-            let thread_object_borrow = main_thread_nonnull.thread_object.borrow();
-            let main_thread_object = thread_object_borrow.as_ref().unwrap().clone().object();
+            let main_thread_object = main_thread.thread_object();
             let jvmti_event = JVMTIEvent::VMInit(
                 VMInitEvent {
-                    thread: unsafe { transmute(to_object(main_thread_object.into())) }
+                    thread: unsafe { transmute(to_object(main_thread_object.object().into())) }
                 });
             SharedLibJVMTI::trigger_event_all_threads(jvm, &jvmti_event)
         }
@@ -149,7 +146,7 @@ impl SharedLibJVMTI {
 
     pub fn class_prepare(&self, jvm: &JVMState, class: &ClassName) {
         let event_getter= &||{
-            let thread = unsafe { to_object(jvm.get_current_thread().thread_object.borrow().clone().unwrap().object().into()) };
+            let thread = unsafe { to_object(jvm.thread_state.get_current_thread().thread_object().into()) };
             let klass_obj = get_or_create_class_object(jvm,
                                                        &class.clone().into(),
                                                        jvm.get_current_frame().deref(),
@@ -165,7 +162,7 @@ impl SharedLibJVMTI {
     pub fn breakpoint(&self, jvm: &JVMState, method: MethodId, location: i64) {
         unsafe {
             let event_getter = &|| {
-                let thread = to_object(jvm.get_current_thread().thread_object.borrow().as_ref().unwrap().clone().object().into());
+                let thread = to_object(jvm.thread_state.get_current_thread().thread_object().into());
                 let native_method_id = jvm.native_interface_allocations.allocate_box(method.clone());//todo use a vtable based methodId
                 let method = transmute(native_method_id);
                 let jvmti_event = JVMTIEvent::Breakpoint(BreakpointEvent {

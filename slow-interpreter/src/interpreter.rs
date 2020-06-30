@@ -1,66 +1,68 @@
-use crate::{JVMState, InterpreterState};
-use rust_jvm_common::classnames::{ClassName};
-use crate::class_objects::get_or_create_class_object;
-use classfile_parser::code::{CodeParserContext, parse_instruction};
-use rust_jvm_common::classfile::{InstructionInfo, Code};
-use crate::instructions::store::*;
-use crate::instructions::load::*;
-use crate::instructions::constant::*;
-use crate::instructions::return_::*;
-use crate::instructions::conversion::*;
-use crate::instructions::special::*;
-use crate::instructions::arithmetic::*;
-use crate::instructions::fields::*;
-use crate::instructions::cmp::*;
-use crate::instructions::new::*;
-use crate::instructions::ldc::*;
-use crate::instructions::dup::*;
-use crate::instructions::branch::*;
-use crate::instructions::switch::*;
 use std::ops::Deref;
-use crate::interpreter_util::check_inited_class;
-use crate::java_values::JavaValue;
-use crate::instructions::pop::{pop, pop2};
+use std::sync::Arc;
+
+use classfile_parser::code::{CodeParserContext, parse_instruction};
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
+use jvmti_jni_bindings::ACC_SYNCHRONIZED;
+use rust_jvm_common::classfile::{Code, InstructionInfo};
+use rust_jvm_common::classnames::ClassName;
+
+use crate::JVMState;
+use crate::class_objects::get_or_create_class_object;
+use crate::instructions::arithmetic::*;
+use crate::instructions::branch::*;
+use crate::instructions::cmp::*;
+use crate::instructions::constant::*;
+use crate::instructions::conversion::*;
+use crate::instructions::dup::*;
+use crate::instructions::fields::*;
+use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::instructions::invoke::interface::invoke_interface;
 use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::invoke_virtual_instruction;
-use crate::instructions::invoke::dynamic::invoke_dynamic;
+use crate::instructions::ldc::*;
+use crate::instructions::load::*;
+use crate::instructions::new::*;
+use crate::instructions::pop::{pop, pop2};
+use crate::instructions::return_::*;
+use crate::instructions::special::*;
+use crate::instructions::store::*;
+use crate::instructions::switch::*;
+use crate::interpreter_util::check_inited_class;
+use crate::java_values::JavaValue;
 use crate::stack_entry::StackEntry;
-use std::sync::Arc;
-use jvmti_jni_bindings::ACC_SYNCHRONIZED;
-use classfile_view::view::method_view::MethodView;
-use classfile_view::view::HasAccessFlags;
+use crate::threading::JavaThread;
 use crate::threading::monitors::Monitor;
 
-pub fn run_function(jvm: &JVMState) {
-    let current_thread = jvm.thread_state.get_current_thread();
+pub fn run_function(jvm: &JVMState, current_thread: &JavaThread) {
     let frame_temp = current_thread.get_current_frame();
     let current_frame = frame_temp.deref();
-    let view = &current_frame.class_pointer.view();
-    let method = &view.method_view_i(current_frame.method_i as usize);
+    let view = current_frame.class_pointer.view();
+    let method = view.method_view_i(current_frame.method_i as usize);
     let synchronized = method.access_flags() & ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
     let meth_name = method.name();
     let class_name__ = &current_frame.class_pointer.view().name();
 
     let method_desc = method.desc_str();
-    let current_depth = jvm.thread_state.get_current_thread().call_stack.borrow().len();
-    jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, jvm.thread_state.get_current_thread().java_tid);
-    let interpreter_state = &jvm.thread_state.get_current_thread().interpreter_state;
+    let current_depth = current_thread.call_stack.read().unwrap().len();
+    jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread.java_tid);
+    let interpreter_state = &current_thread.interpreter_state;
     assert!(!*interpreter_state.function_return.read().unwrap());
     let method_id = jvm.method_table.write().unwrap().get_method_id(current_frame.class_pointer.clone(), current_frame.method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
-    let monitor = monitor_for_function(jvm, current_frame, method, synchronized, &class_name__);
+    let monitor = monitor_for_function(jvm, current_frame, &method, synchronized, &class_name__);
     while !*interpreter_state.terminate.read().unwrap() && !*interpreter_state.function_return.read().unwrap() && !interpreter_state.throw.read().unwrap().is_some() {
         let read_guard = interpreter_state.suspended.read().unwrap();
         let suspension_lock = read_guard.suspended_lock.clone();
         std::mem::drop(read_guard);
         std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
-        let  (instruct, instruction_size) = current_instruction(current_frame, &code, &meth_name);
+        let (instruct, instruction_size) = current_instruction(current_frame, &code, &meth_name);
         current_frame.pc_offset.replace(instruction_size as isize);
-        breakpoint_check(jvm,method_id,*current_frame.pc.borrow() as isize);
-        run_single_instruction(jvm, &current_frame, interpreter_state, instruct);
+        breakpoint_check(jvm, method_id, *current_frame.pc.borrow() as isize);
+        run_single_instruction(jvm, &current_thread, instruct);
         if interpreter_state.throw.read().unwrap().is_some() {
             let throw_class = interpreter_state.throw.read().unwrap().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             for excep_table in &code.exception_table {
@@ -109,7 +111,7 @@ pub fn run_function(jvm: &JVMState) {
         &meth_name,
         &method_desc,
         current_depth,
-        jvm.thread_state.get_current_thread().java_tid
+        current_thread.java_tid,
     )
 }
 
@@ -119,12 +121,12 @@ fn breakpoint_check(jvm: &JVMState, methodid: usize, pc: isize) {
         Some(jvmti) => {
             let breakpoints = &jvmti.break_points.read().unwrap();
             let function_breakpoints = breakpoints.get(&methodid);
-            function_breakpoints.map(|points|{
+            function_breakpoints.map(|points| {
                 points.contains(&pc)
             }).unwrap_or(false)
         }
     };
-    if stop{
+    if stop {
         unimplemented!()
     }
 }
@@ -175,10 +177,11 @@ pub fn monitor_for_function(
 
 fn run_single_instruction(
     jvm: &JVMState,
-    current_frame: &StackEntry,
-    interpreter_state: &InterpreterState,
+    current_thread: &JavaThread,
     instruct: InstructionInfo,
 ) {
+    let current_frame = current_thread.get_current_frame();
+    let interpreter_state = &current_thread.interpreter_state;
     match instruct.clone() {
         InstructionInfo::aaload => aaload(&current_frame),
         InstructionInfo::aastore => aastore(&current_frame),
@@ -189,7 +192,7 @@ fn run_single_instruction(
         InstructionInfo::aload_2 => aload(&current_frame, 2),
         InstructionInfo::aload_3 => aload(&current_frame, 3),
         InstructionInfo::anewarray(cp) => anewarray(jvm, &current_frame, cp),
-        InstructionInfo::areturn => areturn(jvm, &current_frame),
+        InstructionInfo::areturn => areturn(jvm, current_thread, &current_frame),
         InstructionInfo::arraylength => arraylength(&current_frame),
         InstructionInfo::astore(n) => astore(&current_frame, n as usize),
         InstructionInfo::astore_0 => astore(&current_frame, 0),
@@ -228,7 +231,7 @@ fn run_single_instruction(
         InstructionInfo::dmul => dmul(&current_frame),
         InstructionInfo::dneg => unimplemented!(),
         InstructionInfo::drem => unimplemented!(),
-        InstructionInfo::dreturn => dreturn(jvm, &current_frame),
+        InstructionInfo::dreturn => dreturn(jvm, current_thread, &current_frame),
         InstructionInfo::dstore(i) => dstore(&current_frame, i as usize),
         InstructionInfo::dstore_0 => dstore(&current_frame, 0 as usize),
         InstructionInfo::dstore_1 => dstore(&current_frame, 1 as usize),
@@ -261,12 +264,12 @@ fn run_single_instruction(
         InstructionInfo::fmul => fmul(&current_frame),
         InstructionInfo::fneg => unimplemented!(),
         InstructionInfo::frem => unimplemented!(),
-        InstructionInfo::freturn => freturn(jvm, &current_frame),
+        InstructionInfo::freturn => freturn(jvm, current_thread,&current_frame),
         InstructionInfo::fstore(i) => fstore(current_frame, i as usize),
-        InstructionInfo::fstore_0 => fstore(current_frame,0),
-        InstructionInfo::fstore_1 => fstore(current_frame,1),
-        InstructionInfo::fstore_2 => fstore(current_frame,2),
-        InstructionInfo::fstore_3 => fstore(current_frame,3),
+        InstructionInfo::fstore_0 => fstore(current_frame, 0),
+        InstructionInfo::fstore_1 => fstore(current_frame, 1),
+        InstructionInfo::fstore_2 => fstore(current_frame, 2),
+        InstructionInfo::fstore_3 => fstore(current_frame, 3),
         InstructionInfo::fsub => unimplemented!(),
         InstructionInfo::getfield(cp) => get_field(&current_frame, cp, false),
         InstructionInfo::getstatic(cp) => get_static(jvm, &current_frame, cp),
@@ -329,7 +332,7 @@ fn run_single_instruction(
         InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(jvm, current_frame, cp, false),
         InstructionInfo::ior => ior(&current_frame),
         InstructionInfo::irem => irem(&current_frame),
-        InstructionInfo::ireturn => ireturn(jvm, &current_frame),
+        InstructionInfo::ireturn => ireturn(jvm, current_thread,&current_frame),
         InstructionInfo::ishl => ishl(&current_frame),
         InstructionInfo::ishr => ishr(&current_frame),
         InstructionInfo::istore(n) => istore(&current_frame, n),
@@ -366,7 +369,7 @@ fn run_single_instruction(
         InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, &current_frame),
         InstructionInfo::lor => lor(&current_frame),
         InstructionInfo::lrem => lrem(&current_frame),
-        InstructionInfo::lreturn => lreturn(jvm, &current_frame),
+        InstructionInfo::lreturn => lreturn(jvm, current_thread, &current_frame),
         InstructionInfo::lshl => lshl(current_frame),
         InstructionInfo::lshr => lshr(current_frame),
         InstructionInfo::lstore(n) => lstore(&current_frame, n as usize),
@@ -392,13 +395,13 @@ fn run_single_instruction(
         InstructionInfo::putfield(cp) => putfield(jvm, &current_frame, cp),
         InstructionInfo::putstatic(cp) => putstatic(jvm, &current_frame, cp),
         InstructionInfo::ret(_) => unimplemented!(),
-        InstructionInfo::return_ => return_(jvm),
+        InstructionInfo::return_ => return_(interpreter_state),
         InstructionInfo::saload => unimplemented!(),
         InstructionInfo::sastore => unimplemented!(),
         InstructionInfo::sipush(val) => sipush(&current_frame, val),
         InstructionInfo::swap => unimplemented!(),
         InstructionInfo::tableswitch(switch) => tableswitch(switch, &current_frame),
-        InstructionInfo::wide(w) => wide(&current_frame,w),
+        InstructionInfo::wide(w) => wide(&current_frame, w),
         InstructionInfo::EndOfCode => unimplemented!(),
     }
 }

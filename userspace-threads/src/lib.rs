@@ -98,6 +98,7 @@ unsafe impl Send for ThreadStartInfo {}
 
 unsafe impl Sync for ThreadStartInfo {}
 
+#[derive(Debug)]
 pub struct Thread {
     started: AtomicBool,
     join_status: Arc<RwLock<JoinStatus>>,
@@ -107,11 +108,13 @@ pub struct Thread {
     thread_start_channel_send: Option<Sender<ThreadStartInfo>>,
 }
 
+#[derive(Debug)]
 pub struct PauseStatus {
     paused_mutex: Mutex<bool>,
     paused: Condvar,    //todo maybe use rust park() for this
 }
 
+#[derive(Debug)]
 pub struct JoinStatus {
     alive: AtomicBool,
     finished_mutex: Mutex<()>,

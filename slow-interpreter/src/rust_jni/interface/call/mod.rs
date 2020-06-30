@@ -75,7 +75,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
 //     trace!("----NATIVE EXIT ----");
     invoke_virtual_method_i(state, parsed, class.clone(), method_i as usize, &method, false);
     // trace!("----NATIVE ENTER ----");
-    frame
+    frame.clone()
 }
 
 pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
@@ -94,7 +94,7 @@ pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, 
     // trace!("----NATIVE EXIT ----");
     invoke_static_impl(jvm, parsed, class.clone(), method_i as usize, method.method_info());
     // trace!("----NATIVE ENTER----");
-    frame_rc
+    frame_rc.clone()
 }
 
 unsafe fn push_params_onto_frame(

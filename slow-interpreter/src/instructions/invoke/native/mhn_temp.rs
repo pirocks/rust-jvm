@@ -56,7 +56,7 @@ pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>
 
 
     let resolution_object = JavaValue::Object(Arc::new(Object(NormalObject {
-        monitor: jvm.new_monitor("monitor for a resolution object".to_string()),
+        monitor: jvm.thread_state.new_monitor("monitor for a resolution object".to_string()),
         fields: RefCell::new(Default::default()),
         class_pointer: check_inited_class(jvm, &ClassName::object().into(), frame.class_pointer.loader(jvm).clone()),
         class_object_type: None,
@@ -241,7 +241,7 @@ pub fn create_method_type(jvm: &JVMState, frame: &StackEntry, signature: &String
     let ptypes = JavaValue::Object(Arc::new(Array(ArrayObject {
         elems: RefCell::new(ptypes_as_classes),
         elem_type: class_type,
-        monitor: jvm.new_monitor("monitor for a method type".to_string()),
+        monitor: jvm.thread_state.new_monitor("monitor for a method type".to_string()),
     })).into());
     run_constructor(jvm, frame, method_type_class, vec![this.clone(), rtype, ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
     frame.push(this.clone());

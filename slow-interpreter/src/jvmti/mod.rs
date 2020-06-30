@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::ffi::CString;
 use std::mem::{size_of, transmute};
-use std::ops::Deref;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -31,12 +30,20 @@ use crate::rust_jni::interface::get_field::new_field_id;
 use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 use crate::jvmti::methods::*;
 use crate::jvmti::locals::{get_local_object, get_local_int, get_local_long, get_local_float, get_local_double};
+use std::ops::Deref;
+use crate::stack_entry::StackEntry;
+use std::rc::Rc;
 
 pub mod event_callbacks;
 
 
 pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l JVMState {
     transmute((**env).reserved1)
+}
+
+
+pub unsafe fn get_frame<'l>(env: *mut jvmtiEnv) -> &'l Rc<StackEntry> {
+    get_state(env).thread_state.get_current_thread().get_current_frame()
 }
 
 thread_local! {
@@ -230,7 +237,7 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     let class_object = get_or_create_class_object(
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
-        jvm.get_current_frame().deref(),
+        jvm.thread_state.get_current_thread().get_current_frame().deref(),
         runtime_class.loader(jvm).clone(),
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(transmute(to_object(class_object.into())));
@@ -360,7 +367,7 @@ unsafe extern "C" fn get_implemented_interfaces(
         let interface_obj = get_or_create_class_object(
             jvm,
             &ClassName::Str(interface.interface_name()).into(),
-            jvm.get_current_frame().deref(),
+            get_frame(env).deref(),
             runtime_class.loader(jvm).clone(),
         );
         let interface_class = to_object(interface_obj.into());
@@ -390,7 +397,6 @@ pub mod locals{
     use crate::rust_jni::native_util::{from_object, to_object};
     use crate::java_values::JavaValue;
     use crate::jvmti::get_state;
-    use std::ops::Deref;
 
     pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jobject) -> jvmtiError{
         let var = get_local_t(env, thread, depth, slot);

@@ -104,7 +104,7 @@ pub fn multi_a_new_array(jvm: &JVMState, current_frame: &StackEntry, cp: MultiNe
         current = JavaValue::Object(Arc::new(Object::Array(ArrayObject {
             elems: RefCell::new(new_vec),
             elem_type: next_type.clone(),
-            monitor: jvm.new_monitor("monitor for a multi dimensional array".to_string()),
+            monitor: jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string()),
         })).into());
         current_type = next_type;
     }

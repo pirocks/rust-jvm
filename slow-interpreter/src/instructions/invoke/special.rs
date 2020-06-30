@@ -50,17 +50,17 @@ pub fn invoke_special_impl(
             pc: 0.into(),
             pc_offset: 0.into(),
         }.into();
-        jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
-        run_function(jvm);
-        jvm.get_current_thread().call_stack.borrow_mut().pop();
-        let interpreter_state = &jvm.get_current_thread().interpreter_state;
-        if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
+        let current_thread = jvm.thread_state.get_current_thread();
+        current_thread.call_stack.write().unwrap().push(next_entry);
+        run_function(jvm,&current_thread);
+        current_thread.call_stack.write().unwrap().pop();
+        let interpreter_state = &current_thread.interpreter_state;
+        if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
             return;
         }
-        if *interpreter_state.function_return.borrow() {
-            interpreter_state.function_return.replace(false);
-            // trace!("Exit:{} {}", method_class_name.get_referred_name(), method_name.clone());
-            return;
+        let function_return = interpreter_state.function_return.write().unwrap();
+        if *function_return {
+            *function_return = false;
         }
     }
 }

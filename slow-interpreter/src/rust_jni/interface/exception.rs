@@ -8,6 +8,6 @@ pub unsafe extern "C" fn exception_occured(_env: *mut JNIEnv) -> jthrowable {
 
 pub unsafe extern "C" fn exception_clear(env: *mut JNIEnv){
     //todo not implemented yet
-    let state = get_state(env);
-    assert!(state.get_current_thread().interpreter_state.throw.borrow().is_none());
+    let jvm = get_state(env);
+    assert!(jvm.thread_state.get_current_thread().interpreter_state.throw.read().unwrap().is_none());
 }

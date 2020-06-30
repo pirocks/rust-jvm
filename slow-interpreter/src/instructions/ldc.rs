@@ -10,9 +10,9 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject};
 use descriptor_parser::MethodDescriptor;
 use crate::class_objects::get_or_create_class_object;
-use std::ops::Deref;
 use crate::interpreter::run_function;
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView, ClassPoolElemView};
+use std::ops::Deref;
 
 
 fn load_class_constant(state: &JVMState, current_frame: &StackEntry, c: &ClassPoolElemView) {
@@ -33,7 +33,8 @@ fn load_string_constant(jvm: &JVMState, s: &StringView) {
 
 pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
     let java_lang_string = ClassName::string();
-    let frame_temp = jvm.get_current_frame();
+    let current_thread = jvm.thread_state.get_current_thread();
+    let frame_temp = current_thread.get_current_frame();
     let current_frame = frame_temp.deref();
     let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let string_class = check_inited_class(
@@ -49,7 +50,7 @@ pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
         elems: RefCell::new(chars),
         elem_type: PTypeView::CharType,
-        monitor: jvm.new_monitor("monitor for a string".to_string()),
+        monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
     })))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
@@ -62,15 +63,16 @@ pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
         pc: 0.into(),
         pc_offset: 0.into(),
     }.into();
-    jvm.get_current_thread().call_stack.borrow_mut().push(next_entry);
-    run_function(jvm);
-    jvm.get_current_thread().call_stack.borrow_mut().pop();
-    let interpreter_state = &jvm.get_current_thread().interpreter_state;
-    if interpreter_state.throw.borrow().is_some() || *interpreter_state.terminate.borrow() {
+    current_thread.call_stack.write().unwrap().push(next_entry);
+    run_function(jvm,&current_thread);
+    current_thread.call_stack.write().unwrap().pop();
+    let interpreter_state = &current_thread.interpreter_state;
+    if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
         unimplemented!()
     }
-    if *interpreter_state.function_return.borrow() {
-        interpreter_state.function_return.replace(false);
+    let function_return = interpreter_state.function_return.write().unwrap();
+    if *function_return {
+        *function_return = false;
     }
     let interned = unsafe {
         from_object(intern_impl(to_object(string_object.unwrap_object())))
@@ -122,7 +124,7 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState) -> JavaVal
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, s);
-            let frame = jvm.get_current_frame();
+            let frame = jvm.thread_state.get_current_thread().get_current_frame();
             frame.pop()
         }
         _ => panic!()
