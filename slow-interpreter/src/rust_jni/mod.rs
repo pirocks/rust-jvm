@@ -57,7 +57,7 @@ impl LibJavaLoading {
 
 pub fn call(
     state: &'static JVMState,
-    current_frame: &StackEntry,
+    current_frame: &mut StackEntry,
     classfile: Arc<RuntimeClass>,
     method_i: usize,
     args: Vec<JavaValue>,
@@ -87,7 +87,7 @@ pub fn call(
     }
 }
 
-pub fn call_impl(jvm: &'static JVMState, current_frame: &StackEntry, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, _debug: bool) -> Option<JavaValue> {
+pub fn call_impl(jvm: &'static JVMState, current_frame: &mut StackEntry, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, _debug: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
@@ -97,7 +97,7 @@ pub fn call_impl(jvm: &'static JVMState, current_frame: &StackEntry, classfile: 
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        load_class_constant_by_type(jvm, &current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.view().name())));
+        load_class_constant_by_type(jvm, current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.view().name())));
         let res = vec![Arg::new(&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
         res
     };

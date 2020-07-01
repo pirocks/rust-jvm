@@ -8,7 +8,7 @@ use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
 use crate::{JVMState, StackEntry};
 use classfile_view::view::constant_info_view::ConstantInfoView;
 
-pub fn new(jvm: &'static JVMState, current_frame: &StackEntry, cp: usize) -> () {
+pub fn new(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: usize) -> () {
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let view = &current_frame.class_pointer.view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
@@ -17,7 +17,7 @@ pub fn new(jvm: &'static JVMState, current_frame: &StackEntry, cp: usize) -> () 
 }
 
 
-pub fn anewarray(state: &'static JVMState, current_frame: &StackEntry, cp: u16) -> () {
+pub fn anewarray(state: &'static JVMState, current_frame: &mut StackEntry, cp: u16) -> () {
     let len = match current_frame.pop() {
         JavaValue::Int(i) => i,
         _ => panic!()
@@ -36,7 +36,7 @@ pub fn anewarray(state: &'static JVMState, current_frame: &StackEntry, cp: u16) 
     }
 }
 
-pub fn a_new_array_from_name(jvm: &'static JVMState, current_frame: &StackEntry, len: i32, name: &ClassName) -> () {
+pub fn a_new_array_from_name(jvm: &'static JVMState, current_frame: &mut StackEntry, len: i32, name: &ClassName) -> () {
     check_inited_class(
         jvm,
         &name.clone().into(),
@@ -47,7 +47,7 @@ pub fn a_new_array_from_name(jvm: &'static JVMState, current_frame: &StackEntry,
 }
 
 
-pub fn newarray(jvm: &'static JVMState, current_frame: &StackEntry, a_type: Atype) -> () {
+pub fn newarray(jvm: &'static JVMState, current_frame: &mut StackEntry, a_type: Atype) -> () {
     let count = match current_frame.pop() {
         JavaValue::Int(i) => { i }
         _ => panic!()
@@ -82,7 +82,7 @@ pub fn newarray(jvm: &'static JVMState, current_frame: &StackEntry, a_type: Atyp
 }
 
 
-pub fn multi_a_new_array(jvm: &'static JVMState, current_frame: &StackEntry, cp: MultiNewArray) -> () {
+pub fn multi_a_new_array(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: MultiNewArray) -> () {
     let dims = cp.dims;
     let temp = current_frame.class_pointer.view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();

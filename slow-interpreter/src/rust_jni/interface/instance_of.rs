@@ -14,6 +14,6 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         Some(ref_type) => ref_type,
     };
     let frame = get_frame(env);
-    instance_of_impl(jvm, frame.deref(), java_obj.unwrap(), type_.clone());
+    instance_of_impl(jvm, frame, java_obj.unwrap(), type_.clone());
     (frame.pop().unwrap_int() != 0) as jboolean
 }

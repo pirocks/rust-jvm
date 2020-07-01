@@ -46,7 +46,7 @@ pub mod field {
     }
 
     impl Field {
-        pub fn init(jvm: &'static JVMState, frame: &StackEntry, clazz: JClass, name: JString, type_: JClass, modifiers: jint, slot: jint, signature: JString, annotations: Vec<JavaValue>) -> Self {
+        pub fn init(jvm: &'static JVMState, frame: &mut StackEntry, clazz: JClass, name: JString, type_: JClass, modifiers: jint, slot: jint, signature: JString, annotations: Vec<JavaValue>) -> Self {
             let field_classfile = check_inited_class(jvm, &ClassName::field().into(), frame.class_pointer.loader(jvm).clone());
             push_new_object(jvm, frame, &field_classfile, None);
             let field_object = frame.pop();
@@ -64,7 +64,7 @@ pub mod field {
 
             run_constructor(
                 jvm,
-                frame.clone(),
+                frame,
                 field_classfile.clone(),
                 vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations],
                 "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),

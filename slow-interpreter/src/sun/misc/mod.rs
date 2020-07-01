@@ -19,13 +19,13 @@ pub mod unsafe_ {
     }
 
     impl Unsafe {
-        pub fn the_unsafe(jvm: &'static JVMState, frame: &StackEntry) -> Unsafe {
+        pub fn the_unsafe(jvm: &'static JVMState, frame: &mut StackEntry) -> Unsafe {
             let unsafe_class = check_inited_class(jvm, &ClassName::unsafe_().into(), frame.class_pointer.loader(jvm).clone());
             let static_vars = unsafe_class.static_vars();
             static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
         }
 
-        pub fn object_field_offset(&self,jvm: &'static JVMState, frame: &StackEntry, field: Field) -> JavaValue{
+        pub fn object_field_offset(&self,jvm: &'static JVMState, frame: &mut StackEntry, field: Field) -> JavaValue{
             let desc_str =  "(Ljava/lang/reflect/Field;)J";
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             frame.push(field.java_value());

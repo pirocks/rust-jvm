@@ -229,8 +229,6 @@ impl JVMState {
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: RwLock::new(false),
         };
-        jvm.thread_state.setup_main_thread(&jvm);
-
         (args, jvm)
 
     }
@@ -322,6 +320,7 @@ impl JVMState {
 
 pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let (args, mut jvm) = JVMState::new(opts);
+    jvm.thread_state.setup_main_thread(&jvm);
     let jvmti = jvm.jvmti_state.as_ref();
     jvm_run_system_init(&jvm)?;
     jvmti.map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm, jvm.thread_state.get_main_thread()));
@@ -329,7 +328,7 @@ pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     run_main(args, &mut jvm)
 }
 
-fn run_main(args: Vec<String>, jvm: &'static mut JVMState) -> Result<(), Box<dyn Error>> {
+fn run_main(args: Vec<String>, jvm: &'static JVMState) -> Result<(), Box<dyn Error>> {
     let jvmti = jvm.jvmti_state.as_ref();
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
@@ -445,7 +444,7 @@ fn set_properties(jvm: &'static JVMState) {
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
-        let current_frame = &jvm.thread_state.get_main_thread().get_current_frame();
+        let current_frame = jvm.thread_state.get_main_thread().get_current_frame_mut();
         let key = JString::from(jvm, current_frame, properties[key_i].clone());
         let value = JString::from(jvm, current_frame, properties[value_i].clone());
         prop_obj.set_property(jvm, current_frame, key, value);

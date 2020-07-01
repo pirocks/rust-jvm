@@ -129,7 +129,7 @@ pub fn run_native_method(
                             Ok(_) => {}
                             Err(_) => panic!(),
                         };
-                        load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(class_name)));
+                        load_class_constant_by_type(jvm, frame, &PTypeView::Ref(ReferenceTypeView::Class(class_name)));
                         frame.pop().into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
                         let member_name = args[0].cast_member_name();
@@ -137,8 +137,8 @@ pub fn run_native_method(
                         let clazz = member_name.clazz();
                         let field_type = member_name.get_field_type(jvm, frame);
                         let empty_string = JString::from(jvm, &frame, "".to_string());
-                        let field = Field::init(jvm, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
-                        Unsafe::the_unsafe(jvm, &frame).object_field_offset(jvm,frame,field).into()
+                        let field = Field::init(jvm, frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
+                        Unsafe::the_unsafe(jvm, frame).object_field_offset(jvm,frame,field).into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
 //static native int getMembers(Class<?> defc, String matchName, String matchSig,
 // //          int matchFlags, Class<?> caller, int skip, MemberName[] results);

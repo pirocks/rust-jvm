@@ -11,7 +11,7 @@ pub fn putstatic(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: u16
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let target_classfile = check_inited_class(jvm, &field_class_name.into(), loader_arc.clone());
-    let mut stack = &mut current_frame.operand_stack;
+    let stack = &mut current_frame.operand_stack;
     let field_value = stack.pop().unwrap();
     target_classfile.static_vars().insert(field_name, field_value);
 }
@@ -21,7 +21,7 @@ pub fn putfield(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: u16)
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let _target_classfile = check_inited_class(jvm, &field_class_name.into(), loader_arc.clone());
-    let mut stack = &mut current_frame.operand_stack;
+    let stack = &mut current_frame.operand_stack;
     let val = stack.pop().unwrap();
     let object_ref = stack.pop().unwrap();
     match object_ref {
@@ -58,7 +58,7 @@ fn get_static_impl(state: &'static JVMState, current_frame: &mut StackEntry, cp:
             val.clone()
         },
     };
-    let mut stack = &mut current_frame.operand_stack;
+    let stack = &mut current_frame.operand_stack;
     stack.push(field_value);
 }
 

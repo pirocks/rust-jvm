@@ -31,7 +31,7 @@ pub mod dynamic {
     use crate::java::lang::string::JString;
     use crate::java::lang::invoke::method_handle::MethodHandle;
 
-    pub fn invoke_dynamic(jvm: &'static JVMState, frame: &StackEntry, cp: u16) {
+    pub fn invoke_dynamic(jvm: &'static JVMState, frame: &mut StackEntry, cp: u16) {
         let _method_handle_class = check_inited_class(
             jvm,
             &ClassName::method_handle().into(),
@@ -47,7 +47,8 @@ pub mod dynamic {
             &ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
             frame.class_pointer.loader(jvm).clone(),
         );
-        let invoke_dynamic_view = match frame.class_pointer.view().constant_pool_view(cp as usize) {
+        let class_pointer_view = frame.class_pointer.view().clone();
+        let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
@@ -60,15 +61,15 @@ pub mod dynamic {
                     match is {
                         InvokeStatic::Interface(_) => unimplemented!(),
                         InvokeStatic::Method(mr) => {
-                            let lookup = MethodHandle::public_lookup(jvm, &frame);
+                            let lookup = MethodHandle::public_lookup(jvm, frame);
                             // let _a_rando_class_object = lookup.get_class(state, frame.clone());
                             // dbg!(&a_rando_class_object.clone().java_value().unwrap_normal_object().fields);
                             // let loader = a_rando_class_object.get_class_loader(state, &frame);
                             let name = JString::from(jvm, &frame, mr.name_and_type().name());
                             let desc = JString::from(jvm, &frame, mr.name_and_type().desc_str());
-                            let method_type = MethodType::from_method_descriptor_string(jvm, &frame, desc, None);
-                            let target_class = JClass::from_name(jvm, &frame, mr.class());
-                            lookup.find_virtual(jvm, &frame, target_class, name, method_type)
+                            let method_type = MethodType::from_method_descriptor_string(jvm, frame, desc, None);
+                            let target_class = JClass::from_name(jvm, frame, mr.class());
+                            lookup.find_virtual(jvm, frame, target_class, name, method_type)
                         },
                     }
                 },

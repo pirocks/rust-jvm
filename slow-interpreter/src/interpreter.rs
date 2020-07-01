@@ -38,7 +38,7 @@ use crate::threading::monitors::Monitor;
 
 pub fn run_function(jvm: &'static JVMState, current_thread: &JavaThread) {
     let current_frame = current_thread.get_current_frame_mut();
-    let view = current_frame.class_pointer.view();
+    let view = current_frame.class_pointer.view().clone();
     let method = view.method_view_i(current_frame.method_i as usize);
     let synchronized = method.access_flags() & ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
@@ -203,7 +203,7 @@ fn run_single_instruction(
             let exception_obj = current_frame.pop().unwrap_object_nonnull();
             dbg!(exception_obj.lookup_field("detailMessage"));
             jvm.thread_state.get_current_thread().print_stack_trace();
-            *interpreter_state.throw.get_mut().unwrap() = exception_obj.into();
+            *interpreter_state.throw.write().unwrap() = exception_obj.into();
         }
         InstructionInfo::baload => baload(current_frame),
         InstructionInfo::bastore => bastore(current_frame),

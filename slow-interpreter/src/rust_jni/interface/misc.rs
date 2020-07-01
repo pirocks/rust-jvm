@@ -25,7 +25,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let state = get_state(env);
     let frame = get_frame(env);
     //todo maybe parse?
-    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))));
+    load_class_constant_by_type(state, frame, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))));
     let obj = frame.pop().unwrap_object();
     to_object(obj)
 }
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     };
 //    frame.print_stack_trace();
     let _inited_class = check_inited_class(jvm, &super_name.clone().into(), frame.class_pointer.loader(jvm).clone());
-    load_class_constant_by_type(jvm, &frame, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
+    load_class_constant_by_type(jvm, frame, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     to_object(frame.pop().unwrap_object())
 }
 
@@ -150,7 +150,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     }
     invoke_special_impl(
         jvm,
-        &mut frame,
+        frame,
         &parsed,
         method_i as usize,
         class.clone(),

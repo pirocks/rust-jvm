@@ -25,14 +25,9 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
 pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: *mut jint, threads_ptr: *mut *mut jthread) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
-    let mut res_ptr = vec![];
-    //todo why is main not an alive thread
-    // std::mem::drop(jvm.thread_state.alive_threads.read().unwrap().values()
-    //     .map(|v| {
-    //         let thread_object_arc = v.thread_object.borrow().as_ref().unwrap().clone();
-    //         res_ptr.push(to_object(thread_object_arc.object().into()));
-    //     }).collect::<Vec<()>>());
-    unimplemented!();
+    let mut res_ptr = jvm.thread_state.get_all_threads().map(|thread|{
+        to_object(thread.thread_object().object().into())
+    }).collect::<Vec<_>>();
     threads_count_ptr.write(res_ptr.len() as i32);
     threads_ptr.write(transmute(res_ptr.as_mut_ptr()));//todo fix these transmutes
     Vec::leak(res_ptr);//todo memory leak

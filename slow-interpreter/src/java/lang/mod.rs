@@ -89,7 +89,7 @@ pub mod class {
             self.normal_object.unwrap_normal_object().class_object_type.as_ref().unwrap().clone()
         }
 
-        pub fn get_class_loader(&self, state: &'static JVMState, frame: &StackEntry) -> Option<ClassLoader> {
+        pub fn get_class_loader(&self, state: &'static JVMState, frame: &mut StackEntry) -> Option<ClassLoader> {
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(
                 state,
@@ -102,10 +102,10 @@ pub mod class {
                 .map(|cl| JavaValue::Object(cl.into()).cast_class_loader())
         }
 
-        pub fn from_name(jvm: &'static JVMState, frame: &StackEntry, name: ClassName) -> JClass {
+        pub fn from_name(jvm: &'static JVMState, frame: &mut StackEntry, name: ClassName) -> JClass {
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
             let loader_arc = frame.class_pointer.loader(jvm).clone();
-            JavaValue::Object(get_or_create_class_object(jvm, &type_, frame.clone(), loader_arc).into()).cast_class()
+            JavaValue::Object(get_or_create_class_object(jvm, &type_, frame, loader_arc).into()).cast_class()
         }
 
         as_object_or_java_value!();

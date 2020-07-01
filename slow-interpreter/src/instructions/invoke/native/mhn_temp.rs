@@ -221,7 +221,7 @@ pub fn MHN_init(jvm: &'static JVMState, frame: &StackEntry, args: &mut Vec<JavaV
     None//this is a void method.
 }
 
-pub fn create_method_type(jvm: &'static JVMState, frame: &StackEntry, signature: &String) {
+pub fn create_method_type(jvm: &'static JVMState, frame: &mut StackEntry, signature: &String) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
     let loader_arc = frame.class_pointer.loader(jvm).clone();
@@ -229,10 +229,10 @@ pub fn create_method_type(jvm: &'static JVMState, frame: &StackEntry, signature:
     push_new_object(jvm, frame, &method_type_class,None);
     let this = frame.pop();
     let method_descriptor = parse_method_descriptor(signature).unwrap();
-    let rtype = JavaValue::Object(get_or_create_class_object(jvm, &PTypeView::from_ptype(&method_descriptor.return_type), frame.clone(), loader_arc.clone()).into());
+    let rtype = JavaValue::Object(get_or_create_class_object(jvm, &PTypeView::from_ptype(&method_descriptor.return_type), frame, loader_arc.clone()).into());
 
     let ptypes_as_classes: Vec<JavaValue> = method_descriptor.parameter_types.iter().map(|x| {
-        let res = get_or_create_class_object(jvm, &PTypeView::from_ptype(&x), frame.clone(), loader_arc.clone());
+        let res = get_or_create_class_object(jvm, &PTypeView::from_ptype(&x), frame, loader_arc.clone());
         res
     }).map(|x| {
         JavaValue::Object(x.into())

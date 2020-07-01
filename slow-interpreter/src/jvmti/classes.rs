@@ -50,11 +50,11 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
 pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
-    let frame = jvm.thread_state.get_current_thread().get_current_frame();
+    let frame = get_frame(env);
     let mut res_vec = vec![];
 //todo what about int.class and other primitive classes
     jvm.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
-        let class_object = get_or_create_class_object(jvm, &runtime_class.ptypeview(), frame.deref(), runtime_class.loader(jvm).clone());
+        let class_object = get_or_create_class_object(jvm, &runtime_class.ptypeview(), frame, runtime_class.loader(jvm).clone());
         res_vec.push(to_object(class_object.into()))
     });
     class_count_ptr.write(res_vec.len() as i32);
@@ -115,9 +115,9 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
 pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, classloader_ptr: *mut jobject ) -> jvmtiError{
     // assert_eq!(classloader_ptr, std::ptr::null_mut());//only implement bootstrap loader case
     let jvm = get_state(env);
-    let frame = jvm.thread_state.get_current_thread().get_current_frame();
+    let frame = get_frame(env);
     let class = from_jclass(klass);
-    let class_loader= class.get_class_loader(jvm,frame.deref());
+    let class_loader= class.get_class_loader(jvm,frame);
     let jobject_ = to_object(class_loader.map(|cl| cl.object()));
     classloader_ptr.write(jobject_);
     jvmtiError_JVMTI_ERROR_NONE

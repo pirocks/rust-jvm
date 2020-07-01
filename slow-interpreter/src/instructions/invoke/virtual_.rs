@@ -39,7 +39,8 @@ fn invoke_virtual_method_i_impl(
     target_method: &MethodView,
     debug: bool,
 ) -> () {
-    let current_frame = jvm.thread_state.get_current_thread().get_current_frame_mut();
+    let current_thread = jvm.thread_state.get_current_thread();
+    let current_frame = current_thread.get_current_frame_mut();
     if target_method.is_native() {
         run_native_method(jvm, current_frame, target_class, target_method_i, debug)
     } else if !target_method.is_abstract() {
@@ -54,7 +55,6 @@ fn invoke_virtual_method_i_impl(
             pc: 0,
             pc_offset: 0,
         };
-        let current_thread = jvm.thread_state.get_current_thread();
         current_thread.call_stack.write().unwrap().push(next_entry);
         run_function(jvm,&current_thread);
         current_thread.call_stack.write().unwrap().pop();

@@ -2,13 +2,13 @@
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
-pub fn dup(current_frame: &StackEntry) -> () {
+pub fn dup(current_frame: &mut StackEntry) -> () {
     let val = current_frame.pop();
     current_frame.push(val.clone());
     current_frame.push(val.clone());
 }
 
-pub fn dup_x1(current_frame: &StackEntry) -> () {
+pub fn dup_x1(current_frame: &mut StackEntry) -> () {
     let value1 = current_frame.pop();
     let value2 = current_frame.pop();
     current_frame.push(value1.clone());
@@ -18,7 +18,7 @@ pub fn dup_x1(current_frame: &StackEntry) -> () {
 
 //todo add impl methods on JavaValue to indicate size
 
-pub fn dup_x2(current_frame: &StackEntry) -> () {
+pub fn dup_x2(current_frame: &mut StackEntry) -> () {
     let value1 = current_frame.pop();
     let value2 = current_frame.pop();
     match value2{
@@ -39,7 +39,7 @@ pub fn dup_x2(current_frame: &StackEntry) -> () {
 
 
 
-pub fn dup2(current_frame: &StackEntry) -> () {
+pub fn dup2(current_frame: &mut StackEntry) -> () {
     let value1 = current_frame.pop();
     match value1.clone() {
         JavaValue::Long(_) | JavaValue::Double(_) => {
@@ -62,7 +62,7 @@ pub fn dup2(current_frame: &StackEntry) -> () {
 }
 
 
-pub fn dup2_x1(current_frame: &StackEntry) -> () {
+pub fn dup2_x1(current_frame: &mut StackEntry) -> () {
     let value1 = current_frame.pop();
     match value1.clone() {
         JavaValue::Long(_) | JavaValue::Double(_) => {

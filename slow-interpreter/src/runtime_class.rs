@@ -78,7 +78,7 @@ impl RuntimeClass{
         }
     }
 
-    pub fn loader(&self , jvm: &'static JVMState) -> LoaderArc{
+    pub fn loader(&self , jvm: & JVMState) -> LoaderArc{
         match self{
             RuntimeClass::Byte => jvm.bootstrap_loader.clone(),
             RuntimeClass::Boolean => jvm.bootstrap_loader.clone(),
@@ -132,7 +132,7 @@ impl PartialEq for RuntimeClassClass {
 
 impl Eq for RuntimeClass {}
 
-pub fn prepare_class(_jvm: &'static JVMState, classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
+pub fn prepare_class(_jvm: & JVMState, classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
     let mut res = HashMap::new();
     for field in &classfile.fields {
         if (field.access_flags & ACC_STATIC) > 0 {

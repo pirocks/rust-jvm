@@ -12,8 +12,7 @@ use crate::java::lang::class::JClass;
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let unwrapped = from_object(obj).unwrap();
     let jvm = get_state(env);
-    let frame_temp = get_frame(env);
-    let frame = frame_temp.deref();
+    let frame = get_frame(env);
     let class_object = match unwrapped.deref(){
         Object::Array(a) => {
             get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), frame, frame.class_pointer.loader(jvm).clone())

@@ -58,7 +58,7 @@ pub fn invoke_special_impl(
         if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
             return;
         }
-        let function_return = interpreter_state.function_return.write().unwrap();
+        let mut function_return = interpreter_state.function_return.write().unwrap();
         if *function_return {
             *function_return = false;
         }

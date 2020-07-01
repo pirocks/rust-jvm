@@ -12,17 +12,16 @@ use descriptor_parser::MethodDescriptor;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::run_function;
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView, ClassPoolElemView};
-use std::ops::Deref;
 
 
-fn load_class_constant(state: &'static JVMState, current_frame: &StackEntry, c: &ClassPoolElemView) {
+fn load_class_constant(state: &'static JVMState, current_frame: &mut StackEntry, c: &ClassPoolElemView) {
     let res_class_name = c.class_name();
     let type_ = PTypeView::Ref(res_class_name);
     load_class_constant_by_type(state, current_frame, &type_);
 }
 
-pub fn load_class_constant_by_type(jvm: &'static JVMState, current_frame: &StackEntry, res_class_type: &PTypeView) {
-    let object = get_or_create_class_object(jvm, res_class_type, current_frame.clone().into(), current_frame.class_pointer.loader(jvm).clone());
+pub fn load_class_constant_by_type(jvm: &'static JVMState, current_frame: &mut StackEntry, res_class_type: &PTypeView) {
+    let object = get_or_create_class_object(jvm, res_class_type, current_frame, current_frame.class_pointer.loader(jvm).clone());
     current_frame.push(JavaValue::Object(object.into()));
 }
 
@@ -34,8 +33,7 @@ fn load_string_constant(jvm: &'static JVMState, s: &StringView) {
 pub fn create_string_on_stack(jvm: &'static JVMState, res_string: String) {
     let java_lang_string = ClassName::string();
     let current_thread = jvm.thread_state.get_current_thread();
-    let frame_temp = current_thread.get_current_frame();
-    let current_frame = frame_temp.deref();
+    let current_frame = current_thread.get_current_frame_mut();
     let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let string_class = check_inited_class(
         jvm,
@@ -70,7 +68,7 @@ pub fn create_string_on_stack(jvm: &'static JVMState, res_string: String) {
     if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
         unimplemented!()
     }
-    let function_return = interpreter_state.function_return.write().unwrap();
+    let mut function_return = interpreter_state.function_return.write().unwrap();
     if *function_return {
         *function_return = false;
     }
@@ -80,7 +78,7 @@ pub fn create_string_on_stack(jvm: &'static JVMState, res_string: String) {
     current_frame.push(JavaValue::Object(interned));
 }
 
-pub fn ldc2_w(current_frame: &StackEntry, cp: u16) -> () {
+pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) -> () {
     let view = current_frame.class_pointer.view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
@@ -95,12 +93,12 @@ pub fn ldc2_w(current_frame: &StackEntry, cp: u16) -> () {
 }
 
 
-pub fn ldc_w(state: &'static JVMState, current_frame: &StackEntry, cp: u16) -> () {
+pub fn ldc_w(state: &'static JVMState, current_frame: &mut StackEntry, cp: u16) -> () {
     let view = &current_frame.class_pointer.view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::String(s) => load_string_constant(state, &s),
-        ConstantInfoView::Class(c) => load_class_constant(state, &current_frame, &c),
+        ConstantInfoView::Class(c) => load_class_constant(state, current_frame, &c),
         ConstantInfoView::Float(f) => {
             let float: f32 = f.float;
             current_frame.push(JavaValue::Float(float));
@@ -124,7 +122,7 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'static JVMState) ->
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, s);
-            let frame = jvm.thread_state.get_current_thread().get_current_frame();
+            let frame = jvm.thread_state.get_current_thread().get_current_frame_mut();
             frame.pop()
         }
         _ => panic!()

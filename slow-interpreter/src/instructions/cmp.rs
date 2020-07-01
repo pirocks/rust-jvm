@@ -2,7 +2,7 @@
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
-pub fn fcmpl(current_frame: &StackEntry) -> () {
+pub fn fcmpl(current_frame: &mut StackEntry) -> () {
     let value2 = current_frame.pop().unwrap_float();
     let value1 = current_frame.pop().unwrap_float();
     //todo check this actually handles Nan correctly
@@ -17,7 +17,7 @@ pub fn fcmpl(current_frame: &StackEntry) -> () {
     }
 }
 
-pub fn fcmpg(current_frame: &StackEntry) -> () {
+pub fn fcmpg(current_frame: &mut StackEntry) -> () {
     let value2 = current_frame.pop().unwrap_float();
     let value1 = current_frame.pop().unwrap_float();
     if value1 == value2 {

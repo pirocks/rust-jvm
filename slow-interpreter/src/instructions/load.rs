@@ -18,13 +18,13 @@ pub fn aload(current_frame: &mut StackEntry, n: usize) -> () {
 }
 
 pub fn iload(current_frame: &mut StackEntry, n: usize) {
-    let java_val = &current_frame.local_vars[n];
+    let java_val = current_frame.local_vars[n].clone();
     java_val.unwrap_int();
-    current_frame.push(java_val.clone())
+    current_frame.push(java_val)
 }
 
 pub fn lload(current_frame: &mut StackEntry, n: usize) {
-    let java_val = &current_frame.local_vars[n];
+    let java_val = current_frame.local_vars[n].clone();
     match java_val {
         JavaValue::Long(_) => {}
         _ => {
@@ -34,11 +34,11 @@ pub fn lload(current_frame: &mut StackEntry, n: usize) {
             panic!()
         }
     }
-    current_frame.push(java_val.clone())
+    current_frame.push(java_val)
 }
 
 pub fn fload(current_frame: &mut StackEntry, n: usize) {
-    let java_val = &current_frame.local_vars[n];
+    let java_val = current_frame.local_vars[n].clone();
     match java_val {
         JavaValue::Float(_) => {}
         _ => {
@@ -46,11 +46,11 @@ pub fn fload(current_frame: &mut StackEntry, n: usize) {
             panic!()
         }
     }
-    current_frame.push(java_val.clone())
+    current_frame.push(java_val)
 }
 
 pub fn dload(current_frame: &mut StackEntry, n: usize) {
-    let java_val = &current_frame.local_vars[n];
+    let java_val = current_frame.local_vars[n].clone();
     match java_val {
         JavaValue::Double(_) => {}
         _ => {
@@ -58,11 +58,11 @@ pub fn dload(current_frame: &mut StackEntry, n: usize) {
             panic!()
         }
     }
-    current_frame.push(java_val.clone())
+    current_frame.push(java_val)
 }
 
 
-pub fn aaload(current_frame: &StackEntry) -> () {
+pub fn aaload(current_frame: &mut StackEntry) -> () {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();

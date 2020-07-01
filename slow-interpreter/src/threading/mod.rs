@@ -15,13 +15,14 @@ use std::sync::mpsc::channel;
 use rust_jvm_common::classnames::ClassName;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::any::Any;
+use std::collections::hash_map::Values;
 
 pub struct ThreadState {
     threads: Threads,
     main_thread: RwLock<Option<Arc<JavaThread>>>,
     all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread>>>,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
-    system_thread_group: RwLock<Option<Arc<Object>>>,
+    pub system_thread_group: RwLock<Option<Arc<Object>>>,
     monitors: RwLock<Vec<Arc<Monitor>>>,
 }
 
@@ -38,7 +39,7 @@ impl ThreadState {
         }
     }
 
-    pub fn setup_main_thread(&self,jvm: &'static JVMState){
+    pub fn setup_main_thread(&'static self,jvm: &'static JVMState){
         let main_thread = ThreadState::bootstrap_main_thread(jvm,&jvm.thread_state.threads);
         *self.main_thread.write().unwrap().as_mut().unwrap() = main_thread.clone();
         self.all_java_threads.write().unwrap().insert(main_thread.java_tid,main_thread);
@@ -135,6 +136,11 @@ impl ThreadState {
         }, box ());//todo is this Data really needed since we have a closure
         recv.recv().unwrap()
     }
+
+
+    pub fn get_all_threads(&self)-> Values<'_,JavaThreadId,Arc<JavaThread> >{
+        self.all_java_threads.read().unwrap().values()
+    }
 }
 
 thread_local! {
@@ -180,6 +186,11 @@ impl JavaThread {
     pub fn get_previous_frame(&self) -> &StackEntry {
         let guard = self.call_stack.read().unwrap();
         &guard[guard.len()-2]
+    }
+
+    pub fn get_previous_frame_mut(&self) -> &mut StackEntry {
+        let guard = self.call_stack.read().unwrap();
+        &mut guard[guard.len()-2]
     }
 
 

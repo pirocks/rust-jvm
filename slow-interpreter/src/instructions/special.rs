@@ -12,14 +12,14 @@ use classfile_view::view::interface_view::InterfaceView;
 use rust_jvm_common::classfile::{Wide, IInc};
 
 
-pub fn arraylength(current_frame: &StackEntry) -> () {
+pub fn arraylength(current_frame: &mut StackEntry) -> () {
     let array_o = current_frame.pop().unwrap_object().unwrap();
     let array = array_o.unwrap_array();
     current_frame.push(JavaValue::Int(array.elems.borrow().len() as i32));
 }
 
 
-pub fn invoke_checkcast(jvm: &'static JVMState, current_frame: &StackEntry, cp: u16) {
+pub fn invoke_checkcast(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Object(possibly_null));
@@ -71,7 +71,7 @@ pub fn invoke_checkcast(jvm: &'static JVMState, current_frame: &StackEntry, cp: 
 }
 
 
-pub fn invoke_instanceof(state: &'static JVMState, current_frame: &StackEntry, cp: u16) {
+pub fn invoke_instanceof(state: &'static JVMState, current_frame: &mut StackEntry, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Int(0));
@@ -84,7 +84,7 @@ pub fn invoke_instanceof(state: &'static JVMState, current_frame: &StackEntry, c
     instance_of_impl(state, current_frame, unwrapped, instance_of_class_type);
 }
 
-pub fn instance_of_impl(jvm: &'static JVMState, current_frame: &StackEntry, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
+pub fn instance_of_impl(jvm: &'static JVMState, current_frame: &mut StackEntry, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {

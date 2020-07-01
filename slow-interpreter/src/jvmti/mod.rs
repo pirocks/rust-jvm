@@ -42,7 +42,8 @@ pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
 
 
 pub unsafe fn get_frame<'l>(env: *mut jvmtiEnv) -> &'l mut StackEntry {
-    get_state(env).thread_state.get_current_thread().get_current_frame_mut()
+    let thread = get_state(env).thread_state.get_current_thread();
+    thread.get_current_frame_mut()
 }
 
 thread_local! {
@@ -236,7 +237,7 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     let class_object = get_or_create_class_object(
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
-        jvm.thread_state.get_current_thread().get_current_frame().deref(),
+        jvm.thread_state.get_current_thread().get_current_frame_mut(),
         runtime_class.loader(jvm).clone(),
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(transmute(to_object(class_object.into())));
@@ -367,7 +368,7 @@ unsafe extern "C" fn get_implemented_interfaces(
         let interface_obj = get_or_create_class_object(
             jvm,
             &ClassName::Str(interface.interface_name()).into(),
-            get_frame(env).deref(),
+            get_frame(env),
             runtime_class.loader(jvm).clone(),
         );
         let interface_class = to_object(interface_obj.into());

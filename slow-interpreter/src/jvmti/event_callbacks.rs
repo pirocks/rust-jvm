@@ -153,7 +153,7 @@ impl SharedLibJVMTI {
                 let thread = to_object(current_thread.thread_object().object().into());
                 let klass_obj = get_or_create_class_object(jvm,
                                                            &class.clone().into(),
-                                                           current_thread.get_current_frame().deref(),
+                                                           current_thread.get_current_frame_mut(),
                                                            jvm.bootstrap_loader.clone());
                 let klass = to_object(klass_obj.into());
                 let event = JVMTIEvent::ClassPrepare(ClassPrepareEvent { thread, klass });

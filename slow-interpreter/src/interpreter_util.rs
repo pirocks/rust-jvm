@@ -14,7 +14,7 @@ use std::ops::Deref;
 
 //todo jni should really live in interpreter state
 
-pub fn push_new_object(jvm: &'static JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) {
+pub fn push_new_object(jvm: &'static JVMState, current_frame: &mut StackEntry, target_classfile: &Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) {
     let loader_arc = &current_frame.class_pointer.loader(jvm).clone();
     let object_pointer = JavaValue::new_object(jvm, target_classfile.clone(), class_object_type);
     let new_obj = JavaValue::Object(object_pointer.clone());
@@ -45,7 +45,7 @@ fn default_init_fields(jvm: &'static JVMState, loader_arc: LoaderArc, object_poi
     }
 }
 
-pub fn run_constructor(state: &'static JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
+pub fn run_constructor(state: &'static JVMState, frame: &mut StackEntry, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
     let method_view = target_classfile.view().lookup_method(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
     let md = method_view.desc();
     let this_ptr = full_args[0].clone();

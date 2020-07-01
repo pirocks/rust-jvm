@@ -13,7 +13,7 @@ use crate::runtime_class::{RuntimeClass};
 //todo do something about this class object crap
 pub fn get_or_create_class_object(state: &'static JVMState,
                                   type_: &PTypeView,
-                                  current_frame: &StackEntry,
+                                  current_frame: &mut StackEntry,
                                   loader_arc: LoaderArc,
 ) -> Arc<Object> {
     // match type_ {
@@ -49,7 +49,7 @@ pub fn get_or_create_class_object(state: &'static JVMState,
 //     }
 // }
 
-fn regular_object(state: &'static JVMState, ptype: &PTypeView, current_frame: &StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_object(state: &'static JVMState, ptype: &PTypeView, current_frame: &mut StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
     let runtime_class = check_inited_class(state, &ptype, loader_arc);
     let res = state.class_object_pool.read().unwrap().get(&runtime_class).cloned();
     match res {
@@ -69,7 +69,7 @@ fn regular_object(state: &'static JVMState, ptype: &PTypeView, current_frame: &S
     }
 }
 
-fn create_a_class_object(jvm: &'static JVMState, current_frame: &StackEntry, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
+fn create_a_class_object(jvm: &'static JVMState, current_frame: &mut StackEntry, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let class_class = check_inited_class(jvm, &java_lang_class.into(), current_loader.clone());
