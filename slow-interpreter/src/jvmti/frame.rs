@@ -15,9 +15,8 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameCount");
 
     let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
-    let tid = jthread.tid();
-    let java_thread = jvm.thread_state.alive_threads.read().unwrap().get(&tid).unwrap().clone();
-    let frame_count = java_thread.call_stack.borrow().len();
+    let java_thread = jthread.get_java_thread(jvm);
+    let frame_count = java_thread.call_stack.read().unwrap().len();
     count_ptr.write(frame_count as i32);
 
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameCount");
@@ -28,8 +27,8 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
 pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread, depth: jint, method_ptr: *mut jmethodID, location_ptr: *mut jlocation) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameLocation");
-    let tid = JavaValue::Object(from_object(transmute(thread))).cast_thread().tid();
-    let thread = jvm.thread_state.alive_threads.read().unwrap().get(&tid).unwrap().clone();
+    let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
+    let thread = jthread.get_java_thread(jvm);
     let call_stack_guard = thread.call_stack.borrow();
     let stack_entry = call_stack_guard[depth as usize].deref();
     let meth_id = jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer.clone(), stack_entry.method_i);

@@ -21,7 +21,7 @@ pub mod properties {
     }
 
     impl Properties {
-        pub fn set_property(&self, jvm: &JVMState, frame: &StackEntry, key: JString, value: JString) {
+        pub fn set_property(&self, jvm: &'static JVMState, frame: &StackEntry, key: JString, value: JString) {
             let properties_class = check_inited_class(jvm, &ClassName::properties().into(), frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             frame.push(key.java_value());

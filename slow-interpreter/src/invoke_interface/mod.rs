@@ -7,7 +7,7 @@ use crate::jvmti::get_jvmti_interface;
 use crate::rust_jni::interface::get_interface;
 
 
-pub fn get_invoke_interface(state: &JVMState) -> *const JNIInvokeInterface_ {
+pub fn get_invoke_interface(state: &'static JVMState) -> *const JNIInvokeInterface_ {
     let read_guard = state.invoke_interface.read().unwrap();
     match read_guard.as_ref() {
         None => {

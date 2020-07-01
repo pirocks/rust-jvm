@@ -78,7 +78,7 @@ impl RuntimeClass{
         }
     }
 
-    pub fn loader(&self , jvm: &JVMState) -> LoaderArc{
+    pub fn loader(&self , jvm: &'static JVMState) -> LoaderArc{
         match self{
             RuntimeClass::Byte => jvm.bootstrap_loader.clone(),
             RuntimeClass::Boolean => jvm.bootstrap_loader.clone(),
@@ -132,7 +132,7 @@ impl PartialEq for RuntimeClassClass {
 
 impl Eq for RuntimeClass {}
 
-pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
+pub fn prepare_class(_jvm: &'static JVMState, classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
     let mut res = HashMap::new();
     for field in &classfile.fields {
         if (field.access_flags & ACC_STATIC) > 0 {
@@ -160,7 +160,7 @@ impl std::convert::From<RuntimeClassClass> for RuntimeClass{
 }
 pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
-    jvm: &JVMState,
+    jvm: &'static JVMState,
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first

@@ -23,7 +23,7 @@ use crate::interpreter::monitor_for_function;
 use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 
 pub fn run_native_method(
-    jvm: & JVMState,
+    jvm: &'static JVMState,
     frame: &StackEntry,
     class: Arc<RuntimeClass>,
     method_i: usize,
@@ -170,7 +170,7 @@ pub fn run_native_method(
     // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
-fn patch_all(state: & JVMState, frame: & StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
+fn patch_all(state: &'static JVMState, frame: & StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| {
@@ -190,7 +190,7 @@ fn patch_all(state: & JVMState, frame: & StackEntry, args: &mut Vec<JavaValue>, 
 
 fn patch_single(
     patch: &Arc<Object>,
-    state: & JVMState,
+    state: &'static JVMState,
     _frame: & StackEntry,
     unpatched: &mut Classfile,
     i: usize,

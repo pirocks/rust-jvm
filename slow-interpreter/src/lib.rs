@@ -236,7 +236,7 @@ impl JVMState {
 
     }
 
-    pub fn get_or_create_bootstrap_object_loader(&self) -> JavaValue {//todo this should really take frame as a parameter
+    pub fn get_or_create_bootstrap_object_loader(&'static self) -> JavaValue {//todo this should really take frame as a parameter
         if !self.vm_live() {
             return JavaValue::Object(None);
         }
@@ -324,13 +324,13 @@ impl JVMState {
 pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
     let (args, mut jvm) = JVMState::new(opts);
     let jvmti = jvm.jvmti_state.as_ref();
-    jvm_run_system_init(&mut jvm)?;
+    jvm_run_system_init(&jvm)?;
     jvmti.map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm, jvm.thread_state.get_main_thread()));
 
     run_main(args, &mut jvm)
 }
 
-fn run_main(args: Vec<String>, jvm: &mut JVMState) -> Result<(), Box<dyn Error>> {
+fn run_main(args: Vec<String>, jvm: &'static mut JVMState) -> Result<(), Box<dyn Error>> {
     let jvmti = jvm.jvmti_state.as_ref();
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
@@ -392,7 +392,7 @@ fn run_main(args: Vec<String>, jvm: &mut JVMState) -> Result<(), Box<dyn Error>>
 }
 
 
-fn setup_program_args(jvm: &JVMState, args: Vec<String>) {
+fn setup_program_args(jvm: &'static JVMState, args: Vec<String>) {
     let current_frame = jvm.thread_state.get_main_thread().get_current_frame();
 
     let arg_strings:Vec<JavaValue> = args.iter().map(|arg_str| {
@@ -407,7 +407,7 @@ fn setup_program_args(jvm: &JVMState, args: Vec<String>) {
     local_vars[0] = arg_array;
 }
 
-fn jvm_run_system_init(jvm: &JVMState) -> Result<(), Box<dyn Error>>{
+fn jvm_run_system_init(jvm: &'static JVMState) -> Result<(), Box<dyn Error>>{
     let bl = &jvm.bootstrap_loader;
     let system_class = check_inited_class(jvm, &ClassName::system().into(), bl.clone());
     let init_method_view = locate_init_system_class(&system_class);
@@ -440,7 +440,7 @@ fn jvm_run_system_init(jvm: &JVMState) -> Result<(), Box<dyn Error>>{
     Result::Ok(())
 }
 
-fn set_properties(jvm: &JVMState) {
+fn set_properties(jvm: &'static JVMState) {
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm);
     assert_eq!(properties.len() % 2, 0);

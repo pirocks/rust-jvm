@@ -27,7 +27,7 @@ thread_local! {
 }
 
 //GetFieldID
-pub fn get_interface(state: &JVMState) -> *const JNINativeInterface_ {
+pub fn get_interface(state: &'static JVMState) -> *const JNINativeInterface_ {
     JNI_INTERFACE.with(|refcell| {
         {
             let first_borrow = refcell.borrow();
@@ -45,7 +45,7 @@ pub fn get_interface(state: &JVMState) -> *const JNINativeInterface_ {
     })
 }
 
-fn get_interface_impl(state: &JVMState) -> JNINativeInterface_ {
+fn get_interface_impl(state: &'static JVMState) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: std::ptr::null_mut(),

@@ -49,7 +49,8 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             // todo this isn't strictly a java thread so not alive?
             println!("start thread:{}", &thread_object.name().to_rust_string());
             // jvm.init_signal_handler();
-            jvm.set_current_thread(agent_thread.clone());
+            // jvm.set_current_thread(agent_thread.clone());
+            unimplemented!();
             let mut jvmti = get_jvmti_interface(jvm);
             let mut jni_env = get_interface(jvm);
             jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm,thread_object);

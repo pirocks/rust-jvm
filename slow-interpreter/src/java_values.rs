@@ -234,7 +234,7 @@ impl JavaValue {
         }
     }
 
-    pub fn deep_clone(&self, jvm: &JVMState) -> Self {
+    pub fn deep_clone(&self, jvm: &'static JVMState) -> Self {
         match &self {
             JavaValue::Long(_) => unimplemented!(),
             JavaValue::Int(_) => unimplemented!(),
@@ -255,14 +255,14 @@ impl JavaValue {
             JavaValue::Top => unimplemented!(),
         }
     }
-    pub fn empty_byte_array(jvm: &JVMState) -> JavaValue {
+    pub fn empty_byte_array(jvm: &'static JVMState) -> JavaValue {
         JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
             elems: RefCell::new(vec![]),
             elem_type: PTypeView::ByteType,
             monitor: jvm.thread_state.new_monitor("".to_string())
         }))))
     }
-    pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>,class_object_type : Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
+    pub fn new_object(jvm: &'static JVMState, runtime_class: Arc<RuntimeClass>,class_object_type : Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("".to_string()),
@@ -272,7 +272,7 @@ impl JavaValue {
         })).into()
     }
 
-    pub fn new_vec(jvm: &JVMState, len: usize, val: JavaValue, elem_type: PTypeView) -> Option<Arc<Object>> {
+    pub fn new_vec(jvm: &'static JVMState, len: usize, val: JavaValue, elem_type: PTypeView) -> Option<Arc<Object>> {
         let mut buf: Vec<JavaValue> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -447,7 +447,7 @@ impl Object {
         }
     }
 
-    pub fn deep_clone(&self, jvm: &JVMState) -> Self {
+    pub fn deep_clone(&self, jvm: &'static JVMState) -> Self {
         match &self {
             Object::Array(a) => {
                 let sub_array = a.elems.borrow().iter().map(|x| x.deep_clone(jvm )).collect();
@@ -472,7 +472,7 @@ impl Object {
         }
     }
 
-    pub fn object_array(jvm: &JVMState, object_array: Vec<JavaValue>, class_type: PTypeView) -> Object {
+    pub fn object_array(jvm: &'static JVMState, object_array: Vec<JavaValue>, class_type: PTypeView) -> Object {
         Object::Array(ArrayObject {
             elems: RefCell::new(object_array),
             elem_type: class_type,
@@ -487,11 +487,11 @@ impl Object {
         }
     }
 
-    pub fn monitor_unlock(&self, jvm :  &JVMState) {
+    pub fn monitor_unlock(&self, jvm: &'static JVMState) {
         self.monitor().unlock(jvm);
     }
 
-    pub fn monitor_lock(&self, jvm :  &JVMState) {
+    pub fn monitor_lock(&self, jvm: &'static JVMState) {
         self.monitor().lock(jvm);
     }
 }

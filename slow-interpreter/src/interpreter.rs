@@ -36,7 +36,7 @@ use crate::stack_entry::StackEntry;
 use crate::threading::JavaThread;
 use crate::threading::monitors::Monitor;
 
-pub fn run_function(jvm: &JVMState, current_thread: &JavaThread) {
+pub fn run_function(jvm: &'static JVMState, current_thread: &JavaThread) {
     let frame_temp = current_thread.get_current_frame();
     let current_frame = frame_temp.deref();
     let view = current_frame.class_pointer.view();
@@ -115,7 +115,7 @@ pub fn run_function(jvm: &JVMState, current_thread: &JavaThread) {
     )
 }
 
-fn breakpoint_check(jvm: &JVMState, methodid: usize, pc: isize) {
+fn breakpoint_check(jvm: &'static JVMState, methodid: usize, pc: isize) {
     let stop = match &jvm.jvmti_state {
         None => false,
         Some(jvmti) => {
@@ -150,7 +150,7 @@ fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &Stri
 }
 
 pub fn monitor_for_function(
-    jvm: &JVMState,
+    jvm: &'static JVMState,
     current_frame: &StackEntry,
     method: &MethodView,
     synchronized: bool,
@@ -176,7 +176,7 @@ pub fn monitor_for_function(
 }
 
 fn run_single_instruction(
-    jvm: &JVMState,
+    jvm: &'static JVMState,
     current_thread: &JavaThread,
     instruct: InstructionInfo,
 ) {

@@ -37,7 +37,7 @@ use std::rc::Rc;
 pub mod event_callbacks;
 
 
-pub unsafe fn get_state<'l>(env: *mut jvmtiEnv) -> &'l JVMState {
+pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
     transmute((**env).reserved1)
 }
 
@@ -50,7 +50,7 @@ thread_local! {
     static JVMTI_INTERFACE: RefCell<Option<jvmtiInterface_1_>> = RefCell::new(None);
 }
 
-pub fn get_jvmti_interface(jvm: &JVMState) -> jvmtiEnv {
+pub fn get_jvmti_interface(jvm: &'static JVMState) -> jvmtiEnv {
     JVMTI_INTERFACE.with(|refcell| {
         {
             let first_borrow = refcell.borrow();
@@ -68,7 +68,7 @@ pub fn get_jvmti_interface(jvm: &JVMState) -> jvmtiEnv {
     })
 }
 
-fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
+fn get_jvmti_interface_impl(jvm: &'static JVMState) -> jvmtiInterface_1_ {
     jvmtiInterface_1_ {
         reserved1: unsafe { transmute(jvm) },
         SetEventNotificationMode: Some(set_event_notification_mode),
@@ -247,9 +247,10 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
 
 pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobject, hash_code_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
+    let frame = get_frame(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
     let object = JavaValue::Object(from_object(transmute(object))).cast_object();
-    let res = object.hash_code(jvm, jvm.get_current_frame().deref());
+    let res = object.hash_code(jvm, frame.deref());
     hash_code_ptr.write(res);
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetObjectHashCode");
     jvmtiError_JVMTI_ERROR_NONE
@@ -431,12 +432,11 @@ pub mod locals{
 
     unsafe fn get_local_t(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint) -> JavaValue {
         let jthread = JavaValue::Object(from_object(thread)).cast_thread();
-        let tid = jthread.tid();
         let jvm = get_state(env);
-        let threads_guard = jvm.thread_state.alive_threads.read().unwrap();
-        let call_stack = threads_guard.get(&tid).unwrap().call_stack.borrow();
-        let stack_frame = &call_stack.deref()[depth as usize];
-        let var = stack_frame.local_vars.borrow().deref()[slot as usize].clone();
+        let java_thread = jthread.get_java_thread(jvm);
+        let call_stack = java_thread.call_stack.read().unwrap();
+        let stack_frame = &call_stack[depth as usize];
+        let var = stack_frame.local_vars.borrow()[slot as usize].clone();
         var
     }
 }

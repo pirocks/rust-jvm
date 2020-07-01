@@ -11,7 +11,7 @@ use rust_jvm_common::classnames::ClassName;
 use crate::runtime_class::{RuntimeClass};
 
 //todo do something about this class object crap
-pub fn get_or_create_class_object(state: &JVMState,
+pub fn get_or_create_class_object(state: &'static JVMState,
                                   type_: &PTypeView,
                                   current_frame: &StackEntry,
                                   loader_arc: LoaderArc,
@@ -29,12 +29,12 @@ pub fn get_or_create_class_object(state: &JVMState,
     regular_object(state, type_, current_frame, loader_arc)
 }
 
-// fn array_object(state: &JVMState, array_sub_type: &PTypeView, current_frame: &StackEntry) -> Arc<Object> {
+// fn array_object(state: &'static JVMState, array_sub_type: &PTypeView, current_frame: &StackEntry) -> Arc<Object> {
 //     let type_for_object= array_sub_type.to_ptype();
 //     array_of_type_class(state, current_frame, type_for_object)
 // }
 //
-// pub fn array_of_type_class(state: &JVMState, current_frame: &StackEntry, type_for_object: RuntimeClass) -> Arc<Object> {
+// pub fn array_of_type_class(state: &'static JVMState, current_frame: &StackEntry, type_for_object: RuntimeClass) -> Arc<Object> {
 //     //todo wrap in array and convert
 //     let array = RuntimeClass::Array(RuntimeClassArray { sub_class: Arc::new(type_for_object) });
 //     let res = state.class_object_pool.read().unwrap().get(&array).cloned();
@@ -49,7 +49,7 @@ pub fn get_or_create_class_object(state: &JVMState,
 //     }
 // }
 
-fn regular_object(state: &JVMState, ptype: &PTypeView, current_frame: &StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_object(state: &'static JVMState, ptype: &PTypeView, current_frame: &StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
     let runtime_class = check_inited_class(state, &ptype, loader_arc);
     let res = state.class_object_pool.read().unwrap().get(&runtime_class).cloned();
     match res {
@@ -69,7 +69,7 @@ fn regular_object(state: &JVMState, ptype: &PTypeView, current_frame: &StackEntr
     }
 }
 
-fn create_a_class_object(jvm: &JVMState, current_frame: &StackEntry, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
+fn create_a_class_object(jvm: &'static JVMState, current_frame: &StackEntry, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let class_class = check_inited_class(jvm, &java_lang_class.into(), current_loader.clone());

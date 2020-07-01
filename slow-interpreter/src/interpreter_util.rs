@@ -14,7 +14,7 @@ use std::ops::Deref;
 
 //todo jni should really live in interpreter state
 
-pub fn push_new_object(jvm: &JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) {
+pub fn push_new_object(jvm: &'static JVMState, current_frame: &StackEntry, target_classfile: &Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) {
     let loader_arc = &current_frame.class_pointer.loader(jvm).clone();
     let object_pointer = JavaValue::new_object(jvm, target_classfile.clone(), class_object_type);
     let new_obj = JavaValue::Object(object_pointer.clone());
@@ -22,7 +22,7 @@ pub fn push_new_object(jvm: &JVMState, current_frame: &StackEntry, target_classf
     current_frame.push(new_obj);
 }
 
-fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, view: &ClassView, bl: LoaderArc) {
+fn default_init_fields(jvm: &'static JVMState, loader_arc: LoaderArc, object_pointer: Option<Arc<Object>>, view: &ClassView, bl: LoaderArc) {
     if view.super_name().is_some() {
         let super_name = view.super_name();
         let loaded_super = loader_arc.load_class(loader_arc.clone(), &super_name.unwrap(), bl.clone(), jvm.get_live_object_pool_getter()).unwrap();
@@ -45,7 +45,7 @@ fn default_init_fields(jvm: &JVMState, loader_arc: LoaderArc, object_pointer: Op
     }
 }
 
-pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
+pub fn run_constructor(state: &'static JVMState, frame: &StackEntry, target_classfile: Arc<RuntimeClass>, full_args: Vec<JavaValue>, descriptor: String) {
     let method_view = target_classfile.view().lookup_method(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
     let md = method_view.desc();
     let this_ptr = full_args[0].clone();
@@ -62,7 +62,7 @@ pub fn run_constructor(state: &JVMState, frame: &StackEntry, target_classfile: A
 
 
 pub fn check_inited_class(
-    jvm: &JVMState,
+    jvm: &'static JVMState,
     ptype: &PTypeView,
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
@@ -167,7 +167,7 @@ pub fn check_inited_class(
 }
 
 fn check_inited_class_impl(
-    jvm: &JVMState,
+    jvm: &'static JVMState,
     class_name: &ClassName,
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass>{

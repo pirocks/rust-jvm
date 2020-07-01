@@ -105,7 +105,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 }
 
 
-fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
+fn init_system_thread_group(jvm: &'static JVMState, frame: &StackEntry) {
     let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), frame.class_pointer.loader(jvm).clone());
     push_new_object(jvm, frame.clone(), &thread_group_class, None);
     let object = frame.pop();
@@ -137,7 +137,7 @@ fn init_system_thread_group(jvm: &JVMState, frame: &StackEntry) {
     }
 }
 
-unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &JVMState, frame: &StackEntry) {
+unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &'static JVMState, frame: &StackEntry) {
     //todo refactor this at some point
     //first create thread group
     let match_guard = jvm.thread_state.system_thread_group.read().unwrap();

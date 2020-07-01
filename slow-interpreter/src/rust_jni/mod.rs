@@ -56,7 +56,7 @@ impl LibJavaLoading {
 
 
 pub fn call(
-    state: & JVMState,
+    state: &'static JVMState,
     current_frame: &StackEntry,
     classfile: Arc<RuntimeClass>,
     method_i: usize,
@@ -87,7 +87,7 @@ pub fn call(
     }
 }
 
-pub fn call_impl(jvm: & JVMState, current_frame: &StackEntry, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, _debug: bool) -> Option<JavaValue> {
+pub fn call_impl(jvm: &'static JVMState, current_frame: &StackEntry, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, _debug: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
@@ -217,7 +217,7 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
-pub fn get_all_methods(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_methods(jvm: &'static JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     // dbg!(&class.class_view.name());
     class.view().methods().enumerate().for_each(|(i, _)| {
@@ -240,7 +240,7 @@ pub fn get_all_methods(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeCl
 }
 
 //todo duplication with methods
-pub fn get_all_fields(jvm: & JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_fields(jvm: &'static JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));

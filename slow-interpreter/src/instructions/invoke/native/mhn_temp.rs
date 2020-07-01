@@ -21,7 +21,7 @@ use crate::runtime_class::RuntimeClass;
 use descriptor_parser::{parse_method_descriptor};
 use crate::class_objects::get_or_create_class_object;
 
-pub fn MHN_resolve(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_resolve(jvm: &'static JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
 //so as far as I can find this is undocumented.
 //so as far as I can figure out we have a method name and a class
@@ -169,7 +169,7 @@ pub const IS_FIELD_OR_METHOD: i32 = 327680;
 pub const SEARCH_ALL_SUPERS: i32 = 3145728;
 pub const REFERENCE_KIND_SHIFT: u32 = 24;
 
-pub fn MHN_init(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_init(jvm: &'static JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
     // init(MemberName mname, Object target);
     let mname = args[0].unwrap_normal_object();
@@ -221,7 +221,7 @@ pub fn MHN_init(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>) -
     None//this is a void method.
 }
 
-pub fn create_method_type(jvm: &JVMState, frame: &StackEntry, signature: &String) {
+pub fn create_method_type(jvm: &'static JVMState, frame: &StackEntry, signature: &String) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
     let loader_arc = frame.class_pointer.loader(jvm).clone();
@@ -253,7 +253,7 @@ pub fn create_method_type(jvm: &JVMState, frame: &StackEntry, signature: &String
 
 
 //todo this should go in some sort of utils
-pub fn run_static_or_virtual(jvm: &JVMState, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
+pub fn run_static_or_virtual(jvm: &'static JVMState, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
     let res_fun = class.view().lookup_method(&method_name, &parse_method_descriptor(desc_str.as_str()).unwrap());//todo move this into classview
     let method_view = res_fun.unwrap();//todo and if this fails
     let md = method_view.desc();

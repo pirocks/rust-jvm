@@ -13,7 +13,7 @@ use descriptor_parser::MethodDescriptor;
 use crate::interpreter::run_function;
 use std::ops::Deref;
 
-pub fn run_invoke_static(jvm: & JVMState, current_frame: &StackEntry, cp: u16) {
+pub fn run_invoke_static(jvm: &'static JVMState, current_frame: &StackEntry, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let view = &current_frame.class_pointer.view();
@@ -37,7 +37,7 @@ pub fn run_invoke_static(jvm: & JVMState, current_frame: &StackEntry, cp: u16) {
 }
 
 pub fn invoke_static_impl(
-    jvm: & JVMState,
+    jvm: &'static JVMState,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,

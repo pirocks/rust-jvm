@@ -74,7 +74,7 @@ pub fn aaload(current_frame: &StackEntry) -> () {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds(jvm: & JVMState, current_frame: & StackEntry) {
+fn throw_array_out_of_bounds(jvm: &'static JVMState, current_frame: & StackEntry) {
     let bounds_class = check_inited_class(
         jvm,
         &ClassName::new("java/lang/ArrayIndexOutOfBoundsException").into(),
@@ -86,7 +86,7 @@ fn throw_array_out_of_bounds(jvm: & JVMState, current_frame: & StackEntry) {
     *jvm.thread_state.get_current_thread().interpreter_state.throw.write().unwrap() = obj.unwrap_object().into();
 }
 
-pub fn caload(state: & JVMState, current_frame: & StackEntry) -> () {
+pub fn caload(state: &'static JVMState, current_frame: & StackEntry) -> () {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();

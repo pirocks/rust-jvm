@@ -15,23 +15,23 @@ use classfile_view::view::constant_info_view::{ConstantInfoView, StringView, Cla
 use std::ops::Deref;
 
 
-fn load_class_constant(state: &JVMState, current_frame: &StackEntry, c: &ClassPoolElemView) {
+fn load_class_constant(state: &'static JVMState, current_frame: &StackEntry, c: &ClassPoolElemView) {
     let res_class_name = c.class_name();
     let type_ = PTypeView::Ref(res_class_name);
     load_class_constant_by_type(state, current_frame, &type_);
 }
 
-pub fn load_class_constant_by_type(jvm: &JVMState, current_frame: &StackEntry, res_class_type: &PTypeView) {
+pub fn load_class_constant_by_type(jvm: &'static JVMState, current_frame: &StackEntry, res_class_type: &PTypeView) {
     let object = get_or_create_class_object(jvm, res_class_type, current_frame.clone().into(), current_frame.class_pointer.loader(jvm).clone());
     current_frame.push(JavaValue::Object(object.into()));
 }
 
-fn load_string_constant(jvm: &JVMState, s: &StringView) {
+fn load_string_constant(jvm: &'static JVMState, s: &StringView) {
     let res_string = s.string();
     create_string_on_stack(jvm, res_string);
 }
 
-pub fn create_string_on_stack(jvm: &JVMState, res_string: String) {
+pub fn create_string_on_stack(jvm: &'static JVMState, res_string: String) {
     let java_lang_string = ClassName::string();
     let current_thread = jvm.thread_state.get_current_thread();
     let frame_temp = current_thread.get_current_frame();
@@ -95,7 +95,7 @@ pub fn ldc2_w(current_frame: &StackEntry, cp: u16) -> () {
 }
 
 
-pub fn ldc_w(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
+pub fn ldc_w(state: &'static JVMState, current_frame: &StackEntry, cp: u16) -> () {
     let view = &current_frame.class_pointer.view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
@@ -116,7 +116,7 @@ pub fn ldc_w(state: &JVMState, current_frame: &StackEntry, cp: u16) -> () {
     }
 }
 
-pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState) -> JavaValue {
+pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'static JVMState) -> JavaValue {
     match &c {
         ConstantInfoView::Integer(i) => JavaValue::Int(i.int),
         ConstantInfoView::Float(f) => JavaValue::Float(f.float),

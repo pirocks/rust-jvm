@@ -40,7 +40,7 @@ impl ThreadState {
         }
     }
 
-    pub fn setup_main_thread(&self,jvm: &JVMState){
+    pub fn setup_main_thread(&self,jvm: &'static JVMState){
         let main_thread = ThreadState::bootstrap_main_thread(jvm,&jvm.thread_state.threads);
         *self.main_thread.write().unwrap().as_mut().unwrap() = main_thread.clone();
         self.all_java_threads.write().unwrap().insert(main_thread.java_tid,main_thread);
@@ -50,7 +50,7 @@ impl ThreadState {
         self.main_thread.read().unwrap().as_ref().unwrap().clone()
     }
 
-    fn bootstrap_main_thread(jvm: &JVMState,threads: &Threads) -> Arc<JavaThread> {
+    fn bootstrap_main_thread(jvm: &'static JVMState,threads: &Threads) -> Arc<JavaThread> {
         let bootstrap_underlying_thread = threads.create_thread();
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
@@ -115,7 +115,7 @@ impl ThreadState {
         self.all_java_threads.read().unwrap().get(&tid).unwrap().clone()
     }
 
-    pub fn start_thread_from_obj(&self, jvm: &JVMState, obj: JThread, frame: &StackEntry) -> Arc<JavaThread> {
+    pub fn start_thread_from_obj(&self, jvm: &'static JVMState, obj: JThread, frame: &StackEntry) -> Arc<JavaThread> {
         let underlying = self.threads.create_thread();
 
         let (send, recv) = channel();
@@ -151,7 +151,7 @@ pub type JavaThreadId = i64;
 pub struct JavaThread {
     pub java_tid: JavaThreadId,
     underlying_thread: Thread,
-    pub(crate) call_stack: RwLock<Vec<Rc<StackEntry>>>,
+    pub(crate) call_stack: RwLock<Vec<StackEntry>>,
     thread_object: RwLock<Option<JThread>>,
     pub(crate)interpreter_state: InterpreterState,
 }
@@ -171,11 +171,11 @@ impl JavaThread {
         self.current_java_thread.with(|x| x.replace(java_thread.into()));
     }*/
 
-    pub fn get_current_frame(&self) -> &Rc<StackEntry> {
+    pub fn get_current_frame(&self) -> &StackEntry {
         self.call_stack.read().unwrap().last().unwrap()
     }
 
-    pub fn get_previous_frame(&self) -> &Rc<StackEntry> {
+    pub fn get_previous_frame(&self) -> &StackEntry {
         let guard = self.call_stack.read().unwrap();
         &guard[guard.len()-2]
     }

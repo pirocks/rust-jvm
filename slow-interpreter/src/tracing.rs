@@ -80,37 +80,37 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_monitor_lock(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_lock(&self, m: &Monitor, jvm: &'static JVMState) {
         if self.trace_monitor_lock {
             println!("Monitor lock:{}/{}, thread:{} {}", m.name, m.monitor_i, std::thread::current().name().unwrap_or("unknown"), Monitor::get_tid(jvm));
         }
     }
 
-    pub fn trace_monitor_unlock(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_unlock(&self, m: &Monitor, jvm: &'static JVMState) {
         if self.trace_monitor_unlock {
             println!("Monitor unlock:{}/{}, thread:{} {}", m.name, m.monitor_i, jvm.thread_state.get_current_thread_name(), Monitor::get_tid(jvm));
         }
     }
 
-    pub fn trace_monitor_wait(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_wait(&self, m: &Monitor, jvm: &'static JVMState) {
         if self.trace_monitor_wait {
             println!("Monitor wait:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name());
         }
     }
 
-    pub fn trace_monitor_notify(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_notify(&self, m: &Monitor, jvm: &'static JVMState) {
         if self.trace_monitor_notify {
             println!("Monitor notify:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name());
         }
     }
 
-    pub fn trace_monitor_notify_all(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_notify_all(&self, m: &Monitor, jvm: &'static JVMState) {
         if self.trace_monitor_notify_all {
             println!("Monitor notify all:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name());
         }
     }
 
-    pub fn trace_jdwp_function_enter(&self, jvm: &JVMState, function_name: &str) {
+    pub fn trace_jdwp_function_enter(&self, jvm: &'static JVMState, function_name: &str) {
         if self.trace_jdwp_function_enter{
             let current_thread = std::thread::current();
             let vm_life = if jvm.vm_live() {
@@ -122,7 +122,7 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_jdwp_function_exit(&self, jvm: &JVMState, function_name: &str) {
+    pub fn trace_jdwp_function_exit(&self, jvm: &'static JVMState, function_name: &str) {
         if self.trace_jdwp_function_exit{
             let current_thread = std::thread::current();
             let vm_life = if jvm.vm_live() {

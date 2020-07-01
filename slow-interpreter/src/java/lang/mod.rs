@@ -28,7 +28,7 @@ pub mod member_name {
         // private String name;
         // private Object type;
         // private int flags;
-        pub fn get_name(&self, jvm: &JVMState, frame: &StackEntry) -> JString {
+        pub fn get_name(&self, jvm: &'static JVMState, frame: &StackEntry) -> JString {
             let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string());
@@ -39,14 +39,14 @@ pub mod member_name {
             self.normal_object.unwrap_normal_object().fields.borrow().get("clazz").unwrap().cast_class()
         }
 
-        pub fn get_method_type(&self, jvm: &JVMState, frame: &StackEntry) -> MethodType {
+        pub fn get_method_type(&self, jvm: &'static JVMState, frame: &StackEntry) -> MethodType {
             let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, &member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
             frame.pop().cast_method_type()
         }
 
-        pub fn get_field_type(&self, jvm: &JVMState, frame: &StackEntry) -> JClass {
+        pub fn get_field_type(&self, jvm: &'static JVMState, frame: &StackEntry) -> JClass {
             let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string());
@@ -89,7 +89,7 @@ pub mod class {
             self.normal_object.unwrap_normal_object().class_object_type.as_ref().unwrap().clone()
         }
 
-        pub fn get_class_loader(&self, state: &JVMState, frame: &StackEntry) -> Option<ClassLoader> {
+        pub fn get_class_loader(&self, state: &'static JVMState, frame: &StackEntry) -> Option<ClassLoader> {
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(
                 state,
@@ -102,7 +102,7 @@ pub mod class {
                 .map(|cl| JavaValue::Object(cl.into()).cast_class_loader())
         }
 
-        pub fn from_name(jvm: &JVMState, frame: &StackEntry, name: ClassName) -> JClass {
+        pub fn from_name(jvm: &'static JVMState, frame: &StackEntry, name: ClassName) -> JClass {
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
             let loader_arc = frame.class_pointer.loader(jvm).clone();
             JavaValue::Object(get_or_create_class_object(jvm, &type_, frame.clone(), loader_arc).into()).cast_class()
@@ -155,7 +155,7 @@ pub mod string {
             string_obj_to_string(self.normal_object.clone().into())
         }
 
-        pub fn from(state: &JVMState, current_frame: &StackEntry, rust_str: String) -> JString {
+        pub fn from(state: &'static JVMState, current_frame: &StackEntry, rust_str: String) -> JString {
             create_string_on_stack(state, rust_str);
             current_frame.pop().cast_string()
         }
@@ -182,7 +182,7 @@ pub mod integer {
     }
 
     impl Integer {
-        pub fn from(_state: &JVMState, _current_frame: &StackEntry, _i: jint) -> Integer {
+        pub fn from(_state: &'static JVMState, _current_frame: &StackEntry, _i: jint) -> Integer {
             unimplemented!()
         }
 
@@ -242,7 +242,7 @@ pub mod thread {
             self.normal_object.unwrap_normal_object().fields.borrow().get("tid").unwrap().unwrap_long()
         }
 
-        pub fn run(&self, jvm : &JVMState, frame: &StackEntry){
+        pub fn run(&self, jvm: &'static JVMState, frame: &StackEntry){
             let thread_class = check_inited_class(jvm,&ClassName::thread().into(),frame.class_pointer.loader(jvm).clone());
             frame.push(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm,&thread_class,"run".to_string(),"()V".to_string());
@@ -261,11 +261,11 @@ pub mod thread {
             self.normal_object.lookup_field("daemon").unwrap_int() != 0
         }
 
-        pub fn new(jvm : &JVMState, frame: &StackEntry) -> JThread {
+        pub fn new(jvm: &'static JVMState, frame: &StackEntry) -> JThread {
             unimplemented!()
         }
 
-        pub fn get_java_thread(&self, jvm : &JVMState) -> Arc<JavaThread>{
+        pub fn get_java_thread(&self, jvm: &'static JVMState) -> Arc<JavaThread>{
             let tid = self.tid();
             jvm.thread_state.get_thread_by_tid(tid)
         }
@@ -289,7 +289,7 @@ pub mod system {
     }
 
     impl System {
-        pub fn props(jvm : &JVMState) -> Properties{
+        pub fn props(jvm: &'static JVMState) -> Properties{
             let system_class = check_inited_class(jvm,&ClassName::system().into(),jvm.bootstrap_loader.clone());
             let prop_jv = system_class.static_vars().borrow().get("props").unwrap().clone();
             prop_jv.cast_properties()

@@ -94,12 +94,12 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     to_object(res)
 }
 
-fn get_signature(state: &JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
+fn get_signature(state: &'static JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
     create_string_on_stack(state, method_view.desc_str());
     frame.pop()
 }
 
-fn exception_types_table(jvm: &JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
+fn exception_types_table(jvm: &'static JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let exception_table: Vec<JavaValue> = method_view.code_attribute()
         .map(|x| &x.exception_table)
@@ -125,7 +125,7 @@ fn exception_types_table(jvm: &JVMState, frame: &StackEntry, method_view: &Metho
     }))))
 }
 
-fn parameters_type_objects(jvm: &JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
+fn parameters_type_objects(jvm: &'static JVMState, frame: &StackEntry, method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let mut res = vec![];
     let parsed = method_view.desc();

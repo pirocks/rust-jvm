@@ -7,7 +7,7 @@ use crate::instructions::invoke::virtual_::{setup_virtual_args, invoke_virtual_m
 use crate::instructions::invoke::find_target_method;
 use crate::{JVMState, StackEntry};
 
-pub fn invoke_interface(jvm: & JVMState, current_frame: &StackEntry, invoke_interface: InvokeInterface) {
+pub fn invoke_interface(jvm: &'static JVMState, current_frame: &StackEntry, invoke_interface: InvokeInterface) {
     invoke_interface.count;
     let view = &current_frame.class_pointer.view();
     let loader_arc = &current_frame.class_pointer.loader(jvm);

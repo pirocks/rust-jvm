@@ -48,7 +48,7 @@ pub fn allocate_memory(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 }
 
 
-pub fn shouldBeInitialized(state: &JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn shouldBeInitialized(state: &'static JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let class_name_to_check = args[1].cast_class().as_type();
     JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some() as u8).into()
 }

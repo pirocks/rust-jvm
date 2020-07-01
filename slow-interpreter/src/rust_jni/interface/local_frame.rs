@@ -19,7 +19,7 @@ pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> j
 
 pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint {
     // let frame = get_frame(env);
-    let state = get_state(env);
+    let jvm = get_state(env);
     let frame = get_frame(env);
     let mut new_local_vars = vec![];
     for i in 0..capacity {
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> j
         }
     }
     //todo so this what this should do. but different
-    state.get_current_thread().call_stack.borrow_mut().push(Rc::new(StackEntry {
+    jvm.thread_state.get_current_thread().call_stack.write().unwrap().push(Rc::new(StackEntry {
         class_pointer: frame.class_pointer.clone(),
         method_i: std::u16::MAX,
         local_vars: RefCell::new(new_local_vars),

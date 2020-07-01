@@ -6,7 +6,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::{JVMState, StackEntry};
 use crate::java::lang::class::JClass;
 
-pub fn class_object_to_runtime_class(obj: &JClass, jvm: & JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
+pub fn class_object_to_runtime_class(obj: &JClass, jvm: &'static JVMState, frame: &StackEntry) -> Option<Arc<RuntimeClass>> {
     if obj.as_type().is_primitive() {
         return None;
     }

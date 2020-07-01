@@ -19,7 +19,7 @@ pub fn arraylength(current_frame: &StackEntry) -> () {
 }
 
 
-pub fn invoke_checkcast(jvm: &JVMState, current_frame: &StackEntry, cp: u16) {
+pub fn invoke_checkcast(jvm: &'static JVMState, current_frame: &StackEntry, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Object(possibly_null));
@@ -71,7 +71,7 @@ pub fn invoke_checkcast(jvm: &JVMState, current_frame: &StackEntry, cp: u16) {
 }
 
 
-pub fn invoke_instanceof(state: &JVMState, current_frame: &StackEntry, cp: u16) {
+pub fn invoke_instanceof(state: &'static JVMState, current_frame: &StackEntry, cp: u16) {
     let possibly_null = current_frame.pop().unwrap_object();
     if possibly_null.is_none() {
         current_frame.push(JavaValue::Int(0));
@@ -84,7 +84,7 @@ pub fn invoke_instanceof(state: &JVMState, current_frame: &StackEntry, cp: u16) 
     instance_of_impl(state, current_frame, unwrapped, instance_of_class_type);
 }
 
-pub fn instance_of_impl(jvm: &JVMState, current_frame: &StackEntry, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
+pub fn instance_of_impl(jvm: &'static JVMState, current_frame: &StackEntry, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -120,7 +120,7 @@ pub fn instance_of_impl(jvm: &JVMState, current_frame: &StackEntry, unwrapped: A
     };
 }
 
-fn runtime_super_class(jvm: &JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
+fn runtime_super_class(jvm: &'static JVMState, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.view().super_name().is_some() {
         Some(check_inited_class(jvm, &inherits.view().super_name().unwrap().into(), inherits.loader(jvm).clone()))
     } else {
@@ -128,13 +128,13 @@ fn runtime_super_class(jvm: &JVMState, inherits: &Arc<RuntimeClass>) -> Option<A
     }
 }
 
-fn runtime_interface_class(jvm: &JVMState, class_: &Arc<RuntimeClass>, i: InterfaceView) -> Arc<RuntimeClass> {
+fn runtime_interface_class(jvm: &'static JVMState, class_: &Arc<RuntimeClass>, i: InterfaceView) -> Arc<RuntimeClass> {
     let intf_name = i.interface_name();
     check_inited_class(jvm, &ClassName::Str(intf_name).into(), class_.loader(jvm).clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from(state: &JVMState, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
+pub fn inherits_from(state: &'static JVMState, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
     if &inherits.view().name() == &parent.view().name() {
         return true;
     }
