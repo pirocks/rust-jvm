@@ -1,6 +1,5 @@
 use std::ffi::CStr;
-use std::intrinsics::transmute;
-use std::ops::Deref;
+use std::mem::transmute;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, jmethodID, JNIEnv, JNIInvokeInterface_, jobject, jthrowable};
@@ -71,8 +70,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     //todo dup
     let method_id: MethodId = transmute(jmethod_id );
     let jvm = get_state(env);
-    let frame_temp = get_frame(env);
-    let frame = frame_temp.deref();
+    let frame = get_frame(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = &class.view();
     let method = &classview.method_view_i(method_i as usize);
@@ -106,7 +104,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     }
     invoke_special_impl(
         jvm,
-        &frame,
+        frame,
         &parsed,
         method_i as usize,
         class.clone(),
@@ -118,14 +116,13 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
 pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
     let method_id: MethodId = transmute(jmethod_id);
     let jvm = get_state(env);
-    let frame_temp = get_frame(env);
-    let frame = frame_temp.deref();
+    let frame  = get_frame(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = &class.view();
     let method = &classview.method_view_i(method_i as usize);
     let _name = method.name();
     let parsed = method.desc();
-    push_new_object(jvm, frame.clone(), &class, None);
+    push_new_object(jvm, frame, &class, None);
     let obj = frame.pop();
     frame.push(obj.clone());
     for type_ in &parsed.parameter_types {
@@ -153,7 +150,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     }
     invoke_special_impl(
         jvm,
-        &frame,
+        &mut frame,
         &parsed,
         method_i as usize,
         class.clone(),

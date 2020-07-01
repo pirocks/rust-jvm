@@ -34,7 +34,6 @@ use std::time::{Instant};
 use crate::loading::{Classpath, BootstrapLoader};
 use crate::stack_entry::StackEntry;
 use std::thread::LocalKey;
-use std::rc::Rc;
 use jvmti_jni_bindings::JNIInvokeInterface_;
 use std::ffi::c_void;
 use jvmti_jni_bindings::jlong;
@@ -342,13 +341,12 @@ fn run_main(args: Vec<String>, jvm: &'static mut JVMState) -> Result<(), Box<dyn
     let stack_entry = StackEntry {
         class_pointer: Arc::new(main_class),
         method_i: main_i as u16,
-        local_vars: vec![JavaValue::Top; num_vars as usize].into(),//todo handle parameters, todo handle non-zero size locals
-        operand_stack: vec![].into(),
-        pc: RefCell::new(0),
-        pc_offset: 0.into(),
+        local_vars: vec![JavaValue::Top; num_vars as usize],//todo handle parameters, todo handle non-zero size locals
+        operand_stack: vec![],
+        pc: 0,
+        pc_offset: 0,
     };
-    let main_stack = Rc::new(stack_entry);
-    *main_thread.call_stack.write().unwrap() = vec![main_stack];
+    *main_thread.call_stack.write().unwrap() = vec![stack_entry];
     jvmti.map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, main_thread.thread_object()));
     //trigger breakpoint on thread.resume for debuggers that rely on that:
 
@@ -393,7 +391,7 @@ fn run_main(args: Vec<String>, jvm: &'static mut JVMState) -> Result<(), Box<dyn
 
 
 fn setup_program_args(jvm: &'static JVMState, args: Vec<String>) {
-    let current_frame = jvm.thread_state.get_main_thread().get_current_frame();
+    let current_frame = jvm.thread_state.get_main_thread().get_current_frame_mut();
 
     let arg_strings:Vec<JavaValue> = args.iter().map(|arg_str| {
         JString::from(jvm, current_frame.deref(), arg_str.clone()).java_value()
@@ -403,7 +401,7 @@ fn setup_program_args(jvm: &'static JVMState, args: Vec<String>) {
         elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
         monitor: jvm.thread_state.new_monitor( "arg array monitor".to_string())
     }))));
-    let mut local_vars = current_frame.local_vars.borrow_mut();
+    let mut local_vars = &mut current_frame.local_vars;
     local_vars[0] = arg_array;
 }
 
@@ -415,15 +413,15 @@ fn jvm_run_system_init(jvm: &'static JVMState) -> Result<(), Box<dyn Error>>{
     for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
         locals.push(JavaValue::Top);
     }
-    let initialize_system_frame = Rc::new(StackEntry {
+    let initialize_system_frame = StackEntry {
         class_pointer: system_class.clone(),
         method_i: init_method_view.method_i() as u16,
-        local_vars: RefCell::new(locals),
-        operand_stack: RefCell::new(vec![]),
-        pc: RefCell::new(0),
-        pc_offset: RefCell::new(0),
-    });
-    *jvm.thread_state.get_current_thread().call_stack.write().unwrap() = vec![initialize_system_frame.clone()];
+        local_vars: locals,
+        operand_stack: vec![],
+        pc: 0,
+        pc_offset: 0,
+    };
+    *jvm.thread_state.get_current_thread().call_stack.write().unwrap() = vec![initialize_system_frame];
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.thread_state.get_main_thread()));
 //todo technically this needs to before any bytecode is run.
     let main_thread = jvm.thread_state.get_main_thread();

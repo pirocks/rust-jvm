@@ -110,7 +110,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(jvm: &'static JVMState, current_frame: &StackEntry, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+fn resolved_class(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let view = current_frame.class_pointer.view();
     let loader_arc = &current_frame.class_pointer.loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);

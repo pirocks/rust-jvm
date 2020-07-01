@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use std::thread::LocalKey;
 
@@ -16,7 +15,6 @@ use std::sync::mpsc::channel;
 use rust_jvm_common::classnames::ClassName;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::any::Any;
-use std::ops::Deref;
 
 pub struct ThreadState {
     threads: Threads,
@@ -66,16 +64,16 @@ impl ThreadState {
                 &ClassName::thread().into(),
                 jvm.bootstrap_loader.clone()
             );
-            let frame = Rc::new(StackEntry {
+            let mut frame = StackEntry {
                 class_pointer: target_classfile.clone(),
                 method_i: std::u16::MAX,
-                local_vars: RefCell::new(vec![]),
-                operand_stack: RefCell::new(vec![]),
-                pc: RefCell::new(std::usize::MAX),
-                pc_offset: RefCell::new(-1),
-            });
-            bootstrap_thread.call_stack.write().unwrap().push(frame.clone());
-            push_new_object(jvm, frame.deref(), &target_classfile, None);
+                local_vars: vec![],
+                operand_stack: vec![],
+                pc: std::usize::MAX,
+                pc_offset: -1,
+            };
+            bootstrap_thread.call_stack.write().unwrap().push(frame);
+            push_new_object(jvm, &mut frame, &target_classfile, None);
             let jthread = frame.pop().cast_thread();
             main_thread_obj_send.send(jthread).unwrap();
         }, box ());
@@ -123,15 +121,15 @@ impl ThreadState {
         underlying.start_thread(box move |data|{
             let java_thread = Arc::new(JavaThread::new(obj, underlying));
             send.send(java_thread.clone()).unwrap();
-            let new_thread_frame = Rc::new(StackEntry {
+            let new_thread_frame = StackEntry {
                         class_pointer: thread_class.clone(),
                         method_i: std::u16::MAX,
-                        local_vars: RefCell::new(vec![]),
-                        operand_stack: RefCell::new(vec![]),
-                        pc: RefCell::new(std::usize::MAX),
-                        pc_offset: RefCell::new(-1),
-                    });
-            java_thread.call_stack.write().unwrap().push(new_thread_frame.clone());
+                        local_vars: vec![],
+                        operand_stack: vec![],
+                        pc: std::usize::MAX,
+                        pc_offset: -1,
+                    };
+            java_thread.call_stack.write().unwrap().push(new_thread_frame);
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &new_thread_frame);
             java_thread.call_stack.write().unwrap().pop();
         }, box ());//todo is this Data really needed since we have a closure
@@ -175,6 +173,10 @@ impl JavaThread {
         self.call_stack.read().unwrap().last().unwrap()
     }
 
+    pub fn get_current_frame_mut(&self) -> &mut StackEntry {
+        self.call_stack.write().unwrap().last_mut().unwrap()
+    }
+
     pub fn get_previous_frame(&self) -> &StackEntry {
         let guard = self.call_stack.read().unwrap();
         &guard[guard.len()-2]
@@ -185,7 +187,7 @@ impl JavaThread {
         self.call_stack.read().unwrap().iter().rev().enumerate().for_each(|(i, stack_entry)| {
             let name = stack_entry.class_pointer.view().name();
             let meth_name = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize).name();
-            println!("{}.{} {} pc: {}", name.get_referred_name(), meth_name, i, stack_entry.pc.borrow())
+            println!("{}.{} {} pc: {}", name.get_referred_name(), meth_name, i, stack_entry.pc)
         });
     }
 

@@ -200,11 +200,11 @@ pub fn initialize_class(
     let new_stack = StackEntry {
         class_pointer: class_arc.clone(),
         method_i: clinit.method_i() as u16,
-        local_vars: locals.into(),
-        operand_stack: vec![].into(),
-        pc: 0.into(),
-        pc_offset: 0.into(),
-    }.into();
+        local_vars: locals,
+        operand_stack: vec![],
+        pc: 0,
+        pc_offset: 0,
+    };
     let current_thread = jvm.thread_state.get_current_thread();
     current_thread.call_stack.write().unwrap().push(new_stack);
     run_function(jvm, &current_thread);

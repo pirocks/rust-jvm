@@ -11,7 +11,6 @@ use crate::{JVMState, StackEntry};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 use crate::interpreter::run_function;
-use std::ops::Deref;
 
 pub fn run_invoke_static(jvm: &'static JVMState, current_frame: &StackEntry, cp: u16) {
 //todo handle monitor enter and exit
@@ -44,8 +43,7 @@ pub fn invoke_static_impl(
     target_method: &MethodInfo,
 ) -> () {
     let mut args = vec![];
-    let frame_temp = jvm.thread_state.get_current_thread().get_current_frame();
-    let current_frame = frame_temp.deref();
+    let current_frame = jvm.thread_state.get_current_thread().get_current_frame_mut();
     if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
@@ -67,11 +65,11 @@ pub fn invoke_static_impl(
         let next_entry = StackEntry {
             class_pointer: target_class,
             method_i: target_method_i as u16,
-            local_vars: args.clone().into(),
-            operand_stack: vec![].into(),
-            pc: 0.into(),
-            pc_offset: 0.into(),
-        }.into();
+            local_vars: args.clone(),
+            operand_stack: vec![],
+            pc: 0,
+            pc_offset: 0,
+        };
         let current_thread = jvm.thread_state.get_current_thread();
         current_thread.call_stack.write().unwrap().push(next_entry);
         run_function(jvm,&current_thread);

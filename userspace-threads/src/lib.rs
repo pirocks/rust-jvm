@@ -82,7 +82,7 @@ impl Threads {
             func(data);
             join_status.read().unwrap().thread_finished.notify_all();
         });
-        res.thread_start_channel_send = thread_start_channel_send.into();
+        res.thread_start_channel_send = Mutex::new(thread_start_channel_send).into();
         res.pthread_id = thread_info_channel_recv.recv().unwrap().into();
         res.rust_join_handle = join_handle.into();
         res
@@ -105,7 +105,7 @@ pub struct Thread {
     pause: PauseStatus,
     pthread_id: Option<pthread_t>,
     rust_join_handle: Option<std::thread::JoinHandle<()>>,
-    thread_start_channel_send: Option<Sender<ThreadStartInfo>>,
+    thread_start_channel_send: Option<Mutex<Sender<ThreadStartInfo>>>,
 }
 
 #[derive(Debug)]
@@ -125,7 +125,7 @@ pub struct JoinStatus {
 
 impl Thread {
     pub fn start_thread<T: 'static>(&self, func: Box<T>, data: Box<dyn Any>)  where T: FnOnce(Box<dyn Any>) -> (){
-        self.thread_start_channel_send.as_ref().unwrap().send(ThreadStartInfo { func, data }).unwrap();
+        self.thread_start_channel_send.as_ref().unwrap().lock().unwrap().send(ThreadStartInfo { func, data }).unwrap();
         self.started.store(true,Ordering::SeqCst);
     }
 

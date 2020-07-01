@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::runtime_class::RuntimeClass;
 
 use crate::java_values::JavaValue;
-use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct StackEntry {
@@ -11,16 +10,16 @@ pub struct StackEntry {
     pub class_pointer: Arc<RuntimeClass>,
     pub method_i: CPIndex,
 
-    pub local_vars: RefCell<Vec<JavaValue>>,
-    pub operand_stack: RefCell<Vec<JavaValue>>,
-    pub pc: RefCell<usize>,
+    pub local_vars: Vec<JavaValue>,
+    pub operand_stack: Vec<JavaValue>,
+    pub pc: usize,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
-    pub pc_offset: RefCell<isize>,
+    pub pc_offset: isize,
 }
 
 impl StackEntry {
-    pub fn pop(&self) -> JavaValue {
-        self.operand_stack.borrow_mut().pop().unwrap_or_else(|| {
+    pub fn pop(&mut self) -> JavaValue {
+        self.operand_stack.pop().unwrap_or_else(|| {
             // let classfile = &self.class_pointer.classfile;
             // let method = &classfile.methods[self.method_i as usize];
             // dbg!(&method.method_name(&classfile));
@@ -29,8 +28,8 @@ impl StackEntry {
             panic!()
         })
     }
-    pub fn push(&self, j: JavaValue) {
-        self.operand_stack.borrow_mut().push(j)
+    pub fn push(&mut self, j: JavaValue) {
+        self.operand_stack.push(j)
     }
 
 

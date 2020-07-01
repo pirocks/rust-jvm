@@ -1,7 +1,5 @@
 use std::ffi::{VaList, VaListImpl};
 use std::mem::transmute;
-use std::ops::Deref;
-use std::rc::Rc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
@@ -18,7 +16,7 @@ use crate::StackEntry;
 
 pub mod call_nonstatic;
 
-unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
+unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> &'l mut StackEntry {
     let method_id: MethodId = transmute(method_id);
     let jvm = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
@@ -75,14 +73,13 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
 //     trace!("----NATIVE EXIT ----");
     invoke_virtual_method_i(state, parsed, class.clone(), method_i as usize, &method, false);
     // trace!("----NATIVE ENTER ----");
-    frame.clone()
+    frame
 }
 
-pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Rc<StackEntry> {
+pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) {
     let method_id = *(jmethod_id as *mut MethodId);
     let jvm = get_state(env);
-    let frame_rc = get_frame(env);
-    let frame = frame_rc.deref();
+    let frame = get_frame(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i as usize);
@@ -90,16 +87,15 @@ pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, 
     let _name = method.name();
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
 //todo dup
-    push_params_onto_frame(&mut l, &frame, &parsed);
+    push_params_onto_frame(&mut l, frame, &parsed);
     // trace!("----NATIVE EXIT ----");
     invoke_static_impl(jvm, parsed, class.clone(), method_i as usize, method.method_info());
     // trace!("----NATIVE ENTER----");
-    frame_rc.clone()
 }
 
 unsafe fn push_params_onto_frame(
     l: &mut VarargProvider,
-    frame: &StackEntry,
+    frame: &mut StackEntry,
     parsed: &MethodDescriptor,
 ) {
     for type_ in &parsed.parameter_types {

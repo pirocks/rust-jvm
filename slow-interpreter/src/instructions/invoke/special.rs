@@ -14,7 +14,7 @@ use descriptor_parser::MethodDescriptor;
 use crate::interpreter::run_function;
 use classfile_view::view::method_view::MethodView;
 
-pub fn invoke_special(jvm: &'static JVMState, current_frame: &StackEntry, cp: u16) -> () {
+pub fn invoke_special(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: u16) -> () {
     let loader_arc = current_frame.class_pointer.loader(jvm).clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, current_frame.class_pointer.view());
     let method_class_name = method_class_type.unwrap_class_type();
@@ -30,14 +30,14 @@ pub fn invoke_special(jvm: &'static JVMState, current_frame: &StackEntry, cp: u1
 
 pub fn invoke_special_impl(
     jvm: &'static JVMState,
-    current_frame: &StackEntry,
+    current_frame: &mut StackEntry,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,
     final_target_class: Arc<RuntimeClass>,
     target_m: &MethodView,
 ) -> () {
     if target_m.is_native() {
-        run_native_method(jvm, current_frame.clone(), final_target_class, target_m_i, false);
+        run_native_method(jvm, current_frame, final_target_class, target_m_i, false);
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;
@@ -45,11 +45,11 @@ pub fn invoke_special_impl(
         let next_entry = StackEntry {
             class_pointer: final_target_class.clone(),
             method_i: target_m_i as u16,
-            local_vars: args.into(),
-            operand_stack: vec![].into(),
-            pc: 0.into(),
-            pc_offset: 0.into(),
-        }.into();
+            local_vars: args,
+            operand_stack: vec![],
+            pc: 0,
+            pc_offset: 0,
+        };
         let current_thread = jvm.thread_state.get_current_thread();
         current_thread.call_stack.write().unwrap().push(next_entry);
         run_function(jvm,&current_thread);

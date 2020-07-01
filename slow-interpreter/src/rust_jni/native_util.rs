@@ -6,7 +6,6 @@ use std::ops::Deref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::{Object, JavaValue};
 use crate::class_objects::get_or_create_class_object;
-use std::rc::Rc;
 use crate::java::lang::class::JClass;
 
 
@@ -27,8 +26,8 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     to_object(class_object.into()) as jclass
 }
 
-pub unsafe extern "C" fn get_frame<'l>(env: *mut JNIEnv) -> &'l Rc<StackEntry> {
-    get_state(env).thread_state.get_current_thread().get_current_frame()
+pub unsafe extern "C" fn get_frame<'l>(env: *mut JNIEnv) -> &'l mut StackEntry {
+    get_state(env).thread_state.get_current_thread().get_current_frame_mut()
 }
 
 pub unsafe extern "C" fn get_state<'l>(env: *mut JNIEnv) -> &'l JVMState {

@@ -19,8 +19,8 @@ use classfile_view::view::method_view::MethodView;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
-pub fn invoke_virtual_instruction(state: &'static JVMState, current_frame: &StackEntry, cp: u16, debug: bool) {
-    let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, current_frame.clone(), cp) {
+pub fn invoke_virtual_instruction(state: &'static JVMState, current_frame: &mut StackEntry, cp: u16, debug: bool) {
+    let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, current_frame, cp) {
         None => return,
         Some(o) => { o }
     };
@@ -39,8 +39,7 @@ fn invoke_virtual_method_i_impl(
     target_method: &MethodView,
     debug: bool,
 ) -> () {
-    let frame_temp = jvm.thread_state.get_current_thread().get_current_frame();
-    let current_frame = frame_temp.deref();
+    let current_frame = jvm.thread_state.get_current_thread().get_current_frame_mut();
     if target_method.is_native() {
         run_native_method(jvm, current_frame, target_class, target_method_i, debug)
     } else if !target_method.is_abstract() {
@@ -50,11 +49,11 @@ fn invoke_virtual_method_i_impl(
         let next_entry = StackEntry {
             class_pointer: target_class.clone(),
             method_i: target_method_i as u16,
-            local_vars: args.into(),
-            operand_stack: vec![].into(),
-            pc: 0.into(),
-            pc_offset: 0.into(),
-        }.into();
+            local_vars: args,
+            operand_stack: vec![],
+            pc: 0,
+            pc_offset: 0,
+        };
         let current_thread = jvm.thread_state.get_current_thread();
         current_thread.call_stack.write().unwrap().push(next_entry);
         run_function(jvm,&current_thread);
@@ -102,7 +101,7 @@ pub fn setup_virtual_args(current_frame: &StackEntry, expected_descriptor: &Meth
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(jvm: &'static JVMState, current_frame: &StackEntry, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
+pub fn invoke_virtual(jvm: &'static JVMState, current_frame: &mut StackEntry, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -115,7 +114,7 @@ pub fn invoke_virtual(jvm: &'static JVMState, current_frame: &StackEntry, method
 
 //Let C be the class of objectref.
     let this_pointer = {
-        let operand_stack = current_frame.operand_stack.borrow();
+        let operand_stack = &current_frame.operand_stack;
         &operand_stack[operand_stack.len() - md.parameter_types.len() - 1].clone()
     };
     let c = match this_pointer.unwrap_object().unwrap().deref() {
@@ -162,7 +161,7 @@ pub fn virtual_method_lookup(state: &'static JVMState, current_frame: &StackEntr
                 md.parameter_types == cur_desc.parameter_types //we don't check return types b/c these could be subclassed
             }
     }).unwrap_or_else(|| {
-        dbg!(&current_frame.operand_stack.borrow());
+        dbg!(&current_frame.operand_stack);
         dbg!(&current_frame.local_vars);
         // current_frame.print_stack_trace();
         panic!()

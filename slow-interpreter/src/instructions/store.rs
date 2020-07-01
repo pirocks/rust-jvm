@@ -3,7 +3,7 @@ use crate::java_values::JavaValue;
 use crate::StackEntry;
 
 
-pub fn astore(current_frame: & StackEntry, n: usize) -> () {
+pub fn astore(current_frame: &mut StackEntry, n: usize) -> () {
     let object_ref = current_frame.pop();
     match object_ref.clone() {
         JavaValue::Object(_) => {}
@@ -12,10 +12,10 @@ pub fn astore(current_frame: & StackEntry, n: usize) -> () {
             panic!()
         }
     }
-    current_frame.local_vars.borrow_mut()[n] = object_ref;
+    current_frame.local_vars[n] = object_ref;
 }
 
-pub fn lstore(current_frame: & StackEntry, n: usize) -> () {
+pub fn lstore(current_frame: &mut StackEntry, n: usize) -> () {
     let val = current_frame.pop();
     match val.clone() {
         JavaValue::Long(_) => {}
@@ -24,10 +24,10 @@ pub fn lstore(current_frame: & StackEntry, n: usize) -> () {
             panic!()
         }
     }
-    current_frame.local_vars.borrow_mut()[n] = val;
+    current_frame.local_vars[n] = val;
 }
 
-pub fn dstore(current_frame: & StackEntry, n: usize) -> () {
+pub fn dstore(current_frame: &mut StackEntry, n: usize) -> () {
     let jv = current_frame.pop();
     match jv.clone() {
         JavaValue::Double(_) => {}
@@ -36,16 +36,16 @@ pub fn dstore(current_frame: & StackEntry, n: usize) -> () {
             panic!()
         }
     }
-    current_frame.local_vars.borrow_mut()[n] = jv;
+    current_frame.local_vars[n] = jv;
 }
 
-pub fn fstore(current_frame: & StackEntry, n: usize) -> () {
+pub fn fstore(current_frame: &mut StackEntry, n: usize) -> () {
     let jv = current_frame.pop();
     jv.unwrap_float();
-    current_frame.local_vars.borrow_mut()[n] = jv;
+    current_frame.local_vars[n] = jv;
 }
 
-pub fn castore(current_frame: & StackEntry) -> () {
+pub fn castore(current_frame: &mut StackEntry) -> () {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
@@ -54,7 +54,7 @@ pub fn castore(current_frame: & StackEntry) -> () {
     array_ref[index as usize] = JavaValue::Char(char_);
 }
 
-pub fn bastore(current_frame: & StackEntry) -> () {
+pub fn bastore(current_frame: &mut StackEntry) -> () {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = current_frame.pop().unwrap_object().unwrap();
@@ -64,7 +64,7 @@ pub fn bastore(current_frame: & StackEntry) -> () {
 }
 
 
-pub fn iastore(current_frame: & StackEntry) -> () {
+pub fn iastore(current_frame: &mut StackEntry) -> () {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
@@ -74,7 +74,7 @@ pub fn iastore(current_frame: & StackEntry) -> () {
 }
 
 
-pub fn aastore(current_frame: & StackEntry) -> () {
+pub fn aastore(current_frame: &mut StackEntry) -> () {
     let val = current_frame.pop();
     let index = current_frame.pop().unwrap_int();
     let arrary_ref_o = current_frame.pop().unwrap_object().unwrap();
@@ -87,13 +87,13 @@ pub fn aastore(current_frame: & StackEntry) -> () {
 }
 
 
-pub fn istore(current_frame: & StackEntry, n: u8) -> () {
+pub fn istore(current_frame: &mut StackEntry, n: u8) -> () {
     let object_ref = current_frame.pop();
-    current_frame.local_vars.borrow_mut()[n as usize] = JavaValue::Int(object_ref.unwrap_int());
+    current_frame.local_vars[n as usize] = JavaValue::Int(object_ref.unwrap_int());
 }
 
 
-pub fn lastore(current_frame: &StackEntry) -> () {
+pub fn lastore(current_frame: &mut StackEntry) -> () {
     let val = current_frame.pop().unwrap_long();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();

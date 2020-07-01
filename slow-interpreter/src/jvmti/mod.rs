@@ -32,7 +32,6 @@ use crate::jvmti::methods::*;
 use crate::jvmti::locals::{get_local_object, get_local_int, get_local_long, get_local_float, get_local_double};
 use std::ops::Deref;
 use crate::stack_entry::StackEntry;
-use std::rc::Rc;
 
 pub mod event_callbacks;
 
@@ -42,8 +41,8 @@ pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
 }
 
 
-pub unsafe fn get_frame<'l>(env: *mut jvmtiEnv) -> &'l Rc<StackEntry> {
-    get_state(env).thread_state.get_current_thread().get_current_frame()
+pub unsafe fn get_frame<'l>(env: *mut jvmtiEnv) -> &'l mut StackEntry {
+    get_state(env).thread_state.get_current_thread().get_current_frame_mut()
 }
 
 thread_local! {
@@ -250,7 +249,7 @@ pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobjec
     let frame = get_frame(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
     let object = JavaValue::Object(from_object(transmute(object))).cast_object();
-    let res = object.hash_code(jvm, frame.deref());
+    let res = object.hash_code(jvm, frame);
     hash_code_ptr.write(res);
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetObjectHashCode");
     jvmtiError_JVMTI_ERROR_NONE
@@ -434,9 +433,9 @@ pub mod locals{
         let jthread = JavaValue::Object(from_object(thread)).cast_thread();
         let jvm = get_state(env);
         let java_thread = jthread.get_java_thread(jvm);
-        let call_stack = java_thread.call_stack.read().unwrap();
-        let stack_frame = &call_stack[depth as usize];
-        let var = stack_frame.local_vars.borrow()[slot as usize].clone();
+        let call_stack = &mut java_thread.call_stack.write().unwrap();
+        let stack_frame = &mut call_stack[depth as usize];
+        let var = stack_frame.local_vars[slot as usize].clone();
         var
     }
 }

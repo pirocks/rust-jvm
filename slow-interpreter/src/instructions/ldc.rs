@@ -58,10 +58,10 @@ pub fn create_string_on_stack(jvm: &'static JVMState, res_string: String) {
     let next_entry = StackEntry {
         class_pointer: final_target_class,
         method_i: constructor_i as u16,
-        local_vars: args.into(),
-        operand_stack: vec![].into(),
-        pc: 0.into(),
-        pc_offset: 0.into(),
+        local_vars: args,
+        operand_stack: vec![],
+        pc: 0,
+        pc_offset: 0,
     }.into();
     current_thread.call_stack.write().unwrap().push(next_entry);
     run_function(jvm,&current_thread);

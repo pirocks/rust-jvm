@@ -24,7 +24,7 @@ use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 
 pub fn run_native_method(
     jvm: &'static JVMState,
-    frame: &StackEntry,
+    frame: &mut StackEntry,
     class: Arc<RuntimeClass>,
     method_i: usize,
     _debug: bool,
@@ -72,9 +72,9 @@ pub fn run_native_method(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().read().unwrap();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            call_impl(jvm, frame.clone(), class.clone(), args, parsed, &res_fn, !method.is_static(), debug)
+            call_impl(jvm, frame, class.clone(), args, parsed, &res_fn, !method.is_static(), debug)
         } else {
-            let res = match call(jvm, frame.clone(), class.clone(), method_i, args.clone(), parsed) {
+            let res = match call(jvm, frame, class.clone(), method_i, args.clone(), parsed) {
                 Ok(r) => r,
                 Err(_) => {
                     let mangled = mangling::mangle(class.clone(), method_i);
@@ -135,7 +135,7 @@ pub fn run_native_method(
                         let member_name = args[0].cast_member_name();
                         let name = member_name.get_name(jvm, frame);
                         let clazz = member_name.clazz();
-                        let field_type = member_name.get_field_type(jvm, frame.clone());
+                        let field_type = member_name.get_field_type(jvm, frame);
                         let empty_string = JString::from(jvm, &frame, "".to_string());
                         let field = Field::init(jvm, &frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
                         Unsafe::the_unsafe(jvm, &frame).object_field_offset(jvm,frame,field).into()
@@ -159,7 +159,7 @@ pub fn run_native_method(
             None => {}
             Some(res) => {
                 if debug {
-                    dbg!(frame.operand_stack.borrow());
+                    dbg!(frame.operand_stack);
                     dbg!(&res);
                 }
                 frame.push(res)

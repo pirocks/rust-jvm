@@ -153,7 +153,7 @@ pub fn inherits_from(state: &'static JVMState, inherits: &Arc<RuntimeClass>, par
     }) || interfaces_match
 }
 
-pub fn wide(current_frame: &StackEntry, w: Wide) {
+pub fn wide(current_frame: &mut StackEntry, w: Wide) {
     match w {
         Wide::Iload(_) => {
             unimplemented!()
@@ -187,9 +187,9 @@ pub fn wide(current_frame: &StackEntry, w: Wide) {
         }
         Wide::IInc(iinc) => {
             let IInc{ index, const_ } = iinc;
-            let mut  val = current_frame.local_vars.borrow()[index as usize].unwrap_int();
+            let mut  val = current_frame.local_vars[index as usize].unwrap_int();
             val += const_ as i32;
-            current_frame.local_vars.borrow_mut()[index as usize] = JavaValue::Int(val);
+            current_frame.local_vars[index as usize] = JavaValue::Int(val);
         }
     }
 }
