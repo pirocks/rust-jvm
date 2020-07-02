@@ -1,5 +1,5 @@
 use crate::rust_jni::interface::call::{call_static_method_impl, VarargProvider};
-use crate::rust_jni::native_util::{get_frame, to_object, get_thread};
+use crate::rust_jni::native_util::to_object;
 use jvmti_jni_bindings::{JNIEnv, jclass, jmethodID, jboolean, jbyte, jshort, jchar, jfloat, jlong, jint, jdouble, jobject, jvalue};
 use std::ffi::VaList;
 

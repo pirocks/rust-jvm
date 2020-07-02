@@ -93,10 +93,7 @@ pub unsafe extern "C" fn get_static_method_id(
     name: *const ::std::os::raw::c_char,
     sig: *const ::std::os::raw::c_char,
 ) -> jmethodID {
-    let jvm = get_state(env);
-    let mut thread = get_thread(env);
-    let mut frames = get_frames(&thread);
-    let frame = get_frame(&mut frames);
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let method_name = CStr::from_ptr(name).to_str().unwrap().to_string();
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = from_object(clazz);

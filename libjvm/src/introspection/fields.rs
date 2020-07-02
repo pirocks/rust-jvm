@@ -14,7 +14,6 @@ use descriptor_parser::parse_field_descriptor;
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::rust_jni::interface::string::STRING_INTERNMENT_CAMP;
-use slow_interpreter::monitor::Monitor;
 use classfile_view::view::HasAccessFlags;
 
 

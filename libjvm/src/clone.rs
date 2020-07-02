@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::ops::Deref;
 use std::cell::RefCell;
 use slow_interpreter::java_values::{Object, ArrayObject, NormalObject};
-use slow_interpreter::monitor::Monitor;
 
 
 #[no_mangle]

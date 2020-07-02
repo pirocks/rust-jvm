@@ -26,10 +26,7 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
     if method.is_static() {
         unimplemented!()
     }
-    let state = get_state(env);
-    let mut thread = get_thread(env);
-    let mut frames = get_frames(&thread);
-    let frame = get_frame(&mut frames);
+    get_state_thread_frame!(env,state,thread,frames,frame);
     let parsed = method.desc();
     frame.push(JavaValue::Object(from_object(obj)));
     //todo ducplication with push_params_onto_frame
@@ -85,10 +82,7 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
 
 pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
     let method_id = *(jmethod_id as *mut MethodId);
-    let jvm = get_state(env);
-    let mut thread = get_thread(env);
-    let mut frames = get_frames(&thread);
-    let frame = get_frame(&mut frames);
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i as usize);

@@ -52,12 +52,24 @@ use crate::native_allocation::{NativeAllocator};
 use crate::threading::{ThreadState, JavaThread};
 
 
+macro_rules! get_state_thread_frame {
+    ($env: expr, $jvm: ident, $thread: ident, $frames: ident, $frame: ident) => {
+        let $jvm = get_state($env);
+        let $thread = get_thread($env);
+        let mut $frames = get_frames(&$thread);
+        let $frame = get_frame(&mut $frames);
+    };
+}
+
+#[macro_use]
 pub mod java_values;
+#[macro_use]
 pub mod runtime_class;
 #[macro_use]
 pub mod java;
 #[macro_use]
 pub mod sun;
+#[macro_use]
 pub mod utils;
 
 

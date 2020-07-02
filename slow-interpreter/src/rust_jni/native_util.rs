@@ -10,12 +10,10 @@ use crate::java::lang::class::JClass;
 use crate::threading::JavaThread;
 
 
+#[macro_use]
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let unwrapped = from_object(obj).unwrap();
-    let jvm = get_state(env);
-    let mut thread = get_thread(env);
-    let mut frames = get_frames(&thread);
-    let frame = get_frame(&mut frames);
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let class_object = match unwrapped.deref(){
         Object::Array(a) => {
             get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), frame, frame.class_pointer.loader(jvm).clone())
@@ -41,18 +39,18 @@ pub unsafe fn get_thread<'l>(env: *mut JNIEnv) -> Arc<JavaThread> {
 }
 
 
-pub unsafe extern "C" fn get_state(env: *mut JNIEnv) -> &'static JVMState {
+pub unsafe  fn get_state(env: *mut JNIEnv) -> &'static JVMState {
     &(*((**env).reserved0 as *const JVMState))
 }
 
-pub unsafe extern "C" fn to_object(obj: Option<Arc<Object>>) -> jobject {
+pub unsafe fn to_object(obj: Option<Arc<Object>>) -> jobject {
     match obj {
         None => std::ptr::null_mut(),
         Some(o) => Box::into_raw(Box::new(o)) as *mut _jobject,
     }
 }
 
-pub unsafe extern "C" fn from_object(obj: jobject) -> Option<Arc<Object>> {
+pub unsafe  fn from_object(obj: jobject) -> Option<Arc<Object>> {
     if obj == std::ptr::null_mut() {
         None
     } else {

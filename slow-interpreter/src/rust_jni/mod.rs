@@ -283,11 +283,7 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
         method_descriptor_str.push(sig.offset(i as isize).read() as u8 as char);
     }
 
-    let jvm = get_state(env);
-    let mut thread = get_thread(env);
-    let mut frames = get_frames(&thread);
-    let frame_temp = get_frame(&mut frames);
-    let frame = frame_temp.deref();
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let class_obj= from_object(clazz);
     let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj).cast_class(), jvm, &frame).unwrap();
     let all_methods = get_all_methods(jvm, frame, runtime_class);

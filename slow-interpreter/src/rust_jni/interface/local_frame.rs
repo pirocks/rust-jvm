@@ -17,10 +17,7 @@ pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> j
 
 pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint {
     // let frame = get_frame(&mut get_frames(env));
-    let jvm = get_state(env);
-    let mut thread = get_thread(env);
-    let mut frames = get_frames(&thread);
-    let frame = get_frame(&mut frames);
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let mut new_local_vars = vec![];
     for i in 0..capacity {
         match frame.local_vars.get(i as usize) {

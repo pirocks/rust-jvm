@@ -16,7 +16,6 @@ use slow_interpreter::java_values::{JavaValue, Object, ArrayObject};
 use slow_interpreter::JVMState;
 use slow_interpreter::stack_entry::StackEntry;
 use std::ops::Deref;
-use slow_interpreter::monitor::Monitor;
 
 const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 
