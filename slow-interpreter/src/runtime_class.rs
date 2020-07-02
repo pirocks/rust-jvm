@@ -214,7 +214,7 @@ pub fn initialize_class(
         unimplemented!()
         //need to clear status after
     }
-    let function_return = current_thread.interpreter_state.function_return.write().unwrap();
+    let mut function_return = current_thread.interpreter_state.function_return.write().unwrap();
     if *function_return {
         *function_return = false;
         return class_arc;

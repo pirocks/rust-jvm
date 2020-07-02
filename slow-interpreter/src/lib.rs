@@ -50,7 +50,6 @@ use crate::java::lang::system::System;
 use crate::java_values::Object::Array;
 use crate::native_allocation::{NativeAllocator};
 use crate::threading::{ThreadState, JavaThread};
-use std::ops::Deref;
 
 
 pub mod java_values;
@@ -241,7 +240,7 @@ impl JVMState {
         match loader_guard.get(&self.bootstrap_loader.name()) {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-                let current_loader = self.thread_state.get_current_thread().get_current_frame().class_pointer.loader(self).clone();
+                let current_loader = self.thread_state.get_current_thread().get_frames().last().unwrap().class_pointer.loader(self).clone();
                 let class_loader_class = check_inited_class(self, &java_lang_class_loader.into(), current_loader.clone());
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
@@ -318,16 +317,6 @@ impl JVMState {
     }*/
 }
 
-pub fn run(opts: JVMOptions) -> Result<(), Box<dyn Error>> {
-    let (args, mut jvm) = JVMState::new(opts);
-    jvm.thread_state.setup_main_thread(&jvm);
-    let jvmti = jvm.jvmti_state.as_ref();
-    jvm_run_system_init(&jvm)?;
-    jvmti.map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm, jvm.thread_state.get_main_thread()));
-
-    run_main(args, &mut jvm)
-}
-
 fn run_main(args: Vec<String>, jvm: &'static JVMState) -> Result<(), Box<dyn Error>> {
     let jvmti = jvm.jvmti_state.as_ref();
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
@@ -381,7 +370,7 @@ fn run_main(args: Vec<String>, jvm: &'static JVMState) -> Result<(), Box<dyn Err
     }
 
     setup_program_args(&jvm, args);
-    run_function(&jvm,main_thread.deref());
+    run_function(&jvm,&main_thread);
     if main_thread.interpreter_state.throw.read().unwrap().is_some() || *main_thread.interpreter_state.terminate.read().unwrap() {
         unimplemented!()
     }
@@ -390,17 +379,19 @@ fn run_main(args: Vec<String>, jvm: &'static JVMState) -> Result<(), Box<dyn Err
 
 
 fn setup_program_args(jvm: &'static JVMState, args: Vec<String>) {
-    let current_frame = jvm.thread_state.get_main_thread().get_current_frame_mut();
+    let main_thread = jvm.thread_state.get_main_thread();
+    let mut frames_guard = main_thread.get_frames_mut();
+    let current_frame = frames_guard.last_mut().unwrap();
 
     let arg_strings:Vec<JavaValue> = args.iter().map(|arg_str| {
-        JString::from(jvm, current_frame.deref(), arg_str.clone()).java_value()
+        JString::from(jvm, current_frame, arg_str.clone()).java_value()
     }).collect();
     let arg_array = JavaValue::Object(Some(Arc::new(Array(ArrayObject {
         elems: RefCell::new(arg_strings),
         elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
         monitor: jvm.thread_state.new_monitor( "arg array monitor".to_string())
     }))));
-    let mut local_vars = &mut current_frame.local_vars;
+    let local_vars = &mut current_frame.local_vars;
     local_vars[0] = arg_array;
 }
 
@@ -425,7 +416,7 @@ fn jvm_run_system_init(jvm: &'static JVMState) -> Result<(), Box<dyn Error>>{
 //todo technically this needs to before any bytecode is run.
     let main_thread = jvm.thread_state.get_main_thread();
     run_function(&jvm,&main_thread);
-    let function_return = main_thread.interpreter_state.function_return.write().unwrap();
+    let mut function_return = main_thread.interpreter_state.function_return.write().unwrap();
     if *function_return {
         *function_return = false;
     }
@@ -444,7 +435,9 @@ fn set_properties(jvm: &'static JVMState) {
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
-        let current_frame = jvm.thread_state.get_main_thread().get_current_frame_mut();
+        let main_thread = jvm.thread_state.get_main_thread();
+        let mut frames_guard = main_thread.get_frames_mut();
+        let current_frame = frames_guard.last_mut().unwrap();
         let key = JString::from(jvm, current_frame, properties[key_i].clone());
         let value = JString::from(jvm, current_frame, properties[value_i].clone());
         prop_obj.set_property(jvm, current_frame, key, value);

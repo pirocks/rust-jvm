@@ -50,9 +50,9 @@ pub fn invoke_special_impl(
             pc: 0,
             pc_offset: 0,
         };
-        let current_thread = jvm.thread_state.get_current_thread();
+        let mut current_thread = jvm.thread_state.get_current_thread();
         current_thread.call_stack.write().unwrap().push(next_entry);
-        run_function(jvm,&current_thread);
+        run_function(jvm,&mut current_thread);
         current_thread.call_stack.write().unwrap().pop();
         let interpreter_state = &current_thread.interpreter_state;
         if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {

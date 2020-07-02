@@ -25,7 +25,7 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
 pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: *mut jint, threads_ptr: *mut *mut jthread) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
-    let mut res_ptr = jvm.thread_state.get_all_threads().map(|thread|{
+    let mut res_ptr = jvm.thread_state.get_all_threads().values().map(|thread|{
         to_object(thread.thread_object().object().into())
     }).collect::<Vec<_>>();
     threads_count_ptr.write(res_ptr.len() as i32);

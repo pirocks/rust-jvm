@@ -26,7 +26,7 @@ unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let jvm = get_state(env);
     let class_obj = from_jclass(ofClass).as_runtime_class();
     let mut object_array = vec![];

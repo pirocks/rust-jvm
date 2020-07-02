@@ -7,7 +7,7 @@ pub mod classpath_indexing;
 
 use argparse::{ArgumentParser, Store, StoreTrue, List};
 use std::path::Path;
-use slow_interpreter::{run, JVMOptions};
+use slow_interpreter::{run, JVMOptions, JVMState};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::loading::Classpath;
 
@@ -64,6 +64,12 @@ fn main() {
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
     let jvm_options = JVMOptions::new(main_class_name, classpath, args ,libjava, libjdwp,enable_tracing,enable_jvmti, properties);
 
-    run(jvm_options).unwrap();
+    let (args, mut jvm) = JVMState::new(opts);
+    jvm.thread_state.setup_main_thread(&jvm);
+    let jvmti = jvm.jvmti_state.as_ref();
+    jvm_run_system_init(&jvm)?;
+    jvmti.map(|jvmti| jvmti.built_in_jdwp.vm_inited(&jvm, jvm.thread_state.get_main_thread()));
+
+    run_main(args, &mut jvm);
 }
 

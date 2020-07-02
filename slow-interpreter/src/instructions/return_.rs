@@ -1,32 +1,41 @@
 use crate::{InterpreterState, JVMState, StackEntry};
 use crate::java_values::JavaValue;
 use crate::threading::JavaThread;
+use std::sync::RwLockWriteGuard;
 
-pub fn freturn(jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
+fn previous_frame<'l>(frames: &'l mut RwLockWriteGuard<Vec<StackEntry>>) -> &'l mut StackEntry {
+    let len = frames.len();
+    &mut frames[len - 2]
+}
+
+pub fn freturn(_jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
     let res = current_frame.pop();
     *current_thread.interpreter_state.function_return.write().unwrap() = true;
     match res {
         JavaValue::Float(_) => {}
         _ => panic!()
     }
-    current_thread.get_previous_frame_mut().push(res);
+    let mut frames = current_thread.get_frames_mut();
+    previous_frame(&mut frames).push(res);
 }
 
-pub fn dreturn(jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
+pub fn dreturn(_jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
     let res = current_frame.pop();
     *current_thread.interpreter_state.function_return.write().unwrap() = true;
     match res {
         JavaValue::Double(_) => {}
         _ => panic!()
     }
-    current_thread.get_previous_frame_mut().push(res);
+    let mut frames = current_thread.get_frames_mut();
+    previous_frame(&mut frames).push(res);
 }
 
 
-pub fn areturn(jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
+pub fn areturn(_jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
     let res = current_frame.pop();
     *current_thread.interpreter_state.function_return.write().unwrap() = true;
-    current_thread.get_previous_frame_mut().push(res);
+    let mut frames = current_thread.get_frames_mut();
+    previous_frame(&mut frames).push(res);
 }
 
 
@@ -35,15 +44,16 @@ pub fn return_(interpreter_state: &InterpreterState) {
 }
 
 
-pub fn ireturn(state: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
+pub fn ireturn(_jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
     let res = current_frame.pop();
     *current_thread.interpreter_state.function_return.write().unwrap() = true;
     res.unwrap_int();
-    current_thread.get_previous_frame_mut().push(res);
+    let mut frames = current_thread.get_frames_mut();
+    previous_frame(&mut frames).push(res);
 }
 
 
-pub fn lreturn(jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
+pub fn lreturn(_jvm: &'static JVMState, current_thread: &JavaThread, current_frame: &mut StackEntry) -> () {
     let res = current_frame.pop();
     *current_thread.interpreter_state.function_return.write().unwrap() = true;
     match res {
@@ -54,6 +64,7 @@ pub fn lreturn(jvm: &'static JVMState, current_thread: &JavaThread, current_fram
             panic!()
         }
     }
-    current_thread.get_previous_frame_mut().push(res);
+    let mut frames = current_thread.get_frames_mut();
+    previous_frame(&mut frames).push(res);
 }
 

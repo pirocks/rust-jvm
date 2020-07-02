@@ -1,4 +1,4 @@
-use crate::rust_jni::native_util::{from_object, to_object, get_state, get_frame, from_jclass};
+use crate::rust_jni::native_util::{from_object, to_object, get_state, get_frame, from_jclass, get_thread, get_frames};
 use jvmti_jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethodID, _jfieldID, _jobject, jboolean, jshort, jbyte, jchar, jfloat, jdouble};
 use std::ops::Deref;
 use std::ffi::CStr;
@@ -94,7 +94,9 @@ pub unsafe extern "C" fn get_static_method_id(
     sig: *const ::std::os::raw::c_char,
 ) -> jmethodID {
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     let method_name = CStr::from_ptr(name).to_str().unwrap().to_string();
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = from_object(clazz);
@@ -112,7 +114,7 @@ pub unsafe extern "C" fn get_static_method_id(
 
 
 pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: *const ::std::os::raw::c_char, sig: *const ::std::os::raw::c_char) -> jfieldID {
-//    get_frame(env).print_stack_trace();
+//    get_frame(&mut get_frames(env)).print_stack_trace();
     //todo should have its own impl
     get_field_id(env, clazz, name, sig)
 }

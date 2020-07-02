@@ -19,7 +19,7 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
-    let frame_temp = get_frame(env);
+    let frame_temp = get_frame(&mut get_frames(env));
     let frame = frame_temp.deref();
     let jvm = get_state(env);
     //todo need to convert lots of these to unwrap_or_throw
@@ -66,7 +66,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let signature_str_obj = constructor_obj.lookup_field("signature");
     let temp_4 = constructor_obj.lookup_field("clazz");
     let state = get_state(env);
-    let frame_temp = get_frame(env);
+    let frame_temp = get_frame(&mut get_frames(env));
     let frame = frame_temp.deref();
     let clazz = class_object_to_runtime_class(&temp_4.cast_class(), state, &frame).unwrap();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());

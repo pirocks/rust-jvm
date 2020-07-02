@@ -40,7 +40,8 @@ fn invoke_virtual_method_i_impl(
     debug: bool,
 ) -> () {
     let current_thread = jvm.thread_state.get_current_thread();
-    let current_frame = current_thread.get_current_frame_mut();
+    let mut frames_guard = current_thread.get_frames_mut();
+    let current_frame = frames_guard.last_mut().unwrap();
     if target_method.is_native() {
         run_native_method(jvm, current_frame, target_class, target_method_i, debug)
     } else if !target_method.is_abstract() {
@@ -62,7 +63,7 @@ fn invoke_virtual_method_i_impl(
         if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
             return;
         }
-        let function_return = interpreter_state.function_return.write().unwrap();
+        let mut function_return = interpreter_state.function_return.write().unwrap();
         if *function_return {
             *function_return = false;
             return;
@@ -72,7 +73,7 @@ fn invoke_virtual_method_i_impl(
     }
 }
 
-pub fn setup_virtual_args(current_frame: &StackEntry, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
+pub fn setup_virtual_args(current_frame: &mut StackEntry, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
     }

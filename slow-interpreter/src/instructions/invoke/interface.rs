@@ -16,7 +16,7 @@ pub fn invoke_interface(jvm: &'static JVMState, current_frame: &mut StackEntry, 
     let _target_class = check_inited_class(jvm, &class_name_.into(), loader_arc.clone());
     let mut args = vec![];
     let checkpoint = current_frame.operand_stack.clone();
-    setup_virtual_args(&current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);
+    setup_virtual_args(current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);
     let this_pointer_o = args[0].unwrap_object().unwrap();
     let this_pointer = this_pointer_o.unwrap_normal_object();
     current_frame.operand_stack= checkpoint;

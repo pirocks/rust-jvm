@@ -29,7 +29,7 @@ use slow_interpreter::threading::JavaThread;
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     //todo need to assert not on main thread
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
     jvm.thread_state.start_thread_from_obj(jvm,thread_object, frame.deref());
 }
@@ -89,7 +89,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     // match MAIN_THREAD.clone() {
     //     None => {
     //         let jvm = get_state(env);
-    //         let frame = get_frame(env);
+    //         let frame = get_frame(&mut get_frames(env));
     //         let runtime_thread_class = from_jclass(threadClass);
     //         make_thread(&runtime_thread_class.as_runtime_class(), jvm, &frame);
     //         let thread_object = frame.pop().unwrap_object();

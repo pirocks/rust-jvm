@@ -43,7 +43,9 @@ pub fn invoke_static_impl(
     target_method: &MethodInfo,
 ) -> () {
     let mut args = vec![];
-    let current_frame = jvm.thread_state.get_current_thread().get_current_frame_mut();
+    let current_thread = jvm.thread_state.get_current_thread();
+    let mut frames_guard = current_thread.get_frames_mut();
+    let current_frame = frames_guard.last_mut().unwrap();
     if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
@@ -70,7 +72,6 @@ pub fn invoke_static_impl(
             pc: 0,
             pc_offset: 0,
         };
-        let current_thread = jvm.thread_state.get_current_thread();
         current_thread.call_stack.write().unwrap().push(next_entry);
         run_function(jvm,&current_thread);
         current_thread.call_stack.write().unwrap().pop();
@@ -78,7 +79,7 @@ pub fn invoke_static_impl(
         if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
             return;
         }
-        let function_return = interpreter_state.function_return.write().unwrap();
+        let mut function_return = interpreter_state.function_return.write().unwrap();
         if *function_return {
             *function_return = false;
             return;

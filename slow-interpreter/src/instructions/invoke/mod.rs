@@ -65,8 +65,8 @@ pub mod dynamic {
                             // let _a_rando_class_object = lookup.get_class(state, frame.clone());
                             // dbg!(&a_rando_class_object.clone().java_value().unwrap_normal_object().fields);
                             // let loader = a_rando_class_object.get_class_loader(state, &frame);
-                            let name = JString::from(jvm, &frame, mr.name_and_type().name());
-                            let desc = JString::from(jvm, &frame, mr.name_and_type().desc_str());
+                            let name = JString::from(jvm, frame, mr.name_and_type().name());
+                            let desc = JString::from(jvm, frame, mr.name_and_type().desc_str());
                             let method_type = MethodType::from_method_descriptor_string(jvm, frame, desc, None);
                             let target_class = JClass::from_name(jvm, frame, mr.class());
                             lookup.find_virtual(jvm, frame, target_class, name, method_type)

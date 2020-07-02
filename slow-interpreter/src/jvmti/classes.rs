@@ -1,5 +1,5 @@
 use jvmti_jni_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE, jmethodID, jobject};
-use crate::jvmti::{get_state, get_frame};
+use crate::jvmti::{get_state, get_frame, get_thread, get_frames};
 use std::mem::{transmute, size_of};
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::class_objects::get_or_create_class_object;
@@ -50,7 +50,9 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
 pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
-    let frame = get_frame(env);
+    let thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     let mut res_vec = vec![];
 //todo what about int.class and other primitive classes
     jvm.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
@@ -91,7 +93,9 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
 
 pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, method_count_ptr: *mut jint, methods_ptr: *mut *mut jmethodID) -> jvmtiError {
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
     let class_object_wrapped = from_object(transmute(klass)).unwrap();
     let class = JavaValue::Object(class_object_wrapped.into()).cast_class();
@@ -112,12 +116,14 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
 }
 
 
-pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, classloader_ptr: *mut jobject ) -> jvmtiError{
+pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, classloader_ptr: *mut jobject) -> jvmtiError {
     // assert_eq!(classloader_ptr, std::ptr::null_mut());//only implement bootstrap loader case
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     let class = from_jclass(klass);
-    let class_loader= class.get_class_loader(jvm,frame);
+    let class_loader = class.get_class_loader(jvm, frame);
     let jobject_ = to_object(class_loader.map(|cl| cl.object()));
     classloader_ptr.write(jobject_);
     jvmtiError_JVMTI_ERROR_NONE

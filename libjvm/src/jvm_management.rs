@@ -46,7 +46,7 @@ unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::ra
 #[no_mangle]
 unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> jobject {
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let props = JavaValue::Object(from_object(agent_props)).cast_properties();
 
     let sun_java_command = JString::from(state, frame.deref(), "sun.java.command".to_string());

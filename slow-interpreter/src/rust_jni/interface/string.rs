@@ -3,7 +3,7 @@ use std::os::raw::c_char;
 use std::cell::Ref;
 use std::alloc::Layout;
 use std::mem::{size_of, transmute};
-use crate::rust_jni::native_util::{from_object, get_state, to_object, get_frame};
+use crate::rust_jni::native_util::{from_object, get_state, to_object, get_frame, get_thread, get_frames};
 use crate::instructions::ldc::create_string_on_stack;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -52,7 +52,9 @@ pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::
 
 pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jstring {
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     create_string_on_stack(jvm, owned_str);
     let string = frame.pop().unwrap_object();
     assert!(!string.is_none());

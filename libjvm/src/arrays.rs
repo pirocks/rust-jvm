@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
-    let frame_temp = get_frame(env);
+    let frame_temp = get_frame(&mut get_frames(env));
     let frame = frame_temp.deref();
     let state = get_state(env);
     //todo is this name even correct?

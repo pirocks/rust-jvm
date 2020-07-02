@@ -37,7 +37,8 @@ use crate::threading::JavaThread;
 use crate::threading::monitors::Monitor;
 
 pub fn run_function(jvm: &'static JVMState, current_thread: &JavaThread) {
-    let current_frame = current_thread.get_current_frame_mut();
+    let mut frames_guard = current_thread.get_frames_mut();
+    let current_frame = frames_guard.last_mut().unwrap();
     let view = current_frame.class_pointer.view().clone();
     let method = view.method_view_i(current_frame.method_i as usize);
     let synchronized = method.access_flags() & ACC_SYNCHRONIZED as u16 > 0;
@@ -61,7 +62,7 @@ pub fn run_function(jvm: &'static JVMState, current_thread: &JavaThread) {
         let (instruct, instruction_size) = current_instruction(current_frame, &code, &meth_name);
         current_frame.pc_offset = instruction_size as isize;
         breakpoint_check(jvm, method_id, current_frame.pc as isize);
-        run_single_instruction(jvm, &current_thread, instruct);
+        run_single_instruction(jvm, current_thread, instruct);
         if interpreter_state.throw.read().unwrap().is_some() {
             let throw_class = interpreter_state.throw.read().unwrap().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             for excep_table in &code.exception_table {
@@ -179,7 +180,8 @@ fn run_single_instruction(
     current_thread: &JavaThread,
     instruct: InstructionInfo,
 ) {
-    let current_frame = current_thread.get_current_frame_mut();
+    let mut frames_guard = current_thread.get_frames_mut();
+    let current_frame = frames_guard.last_mut().unwrap();
     let interpreter_state = &current_thread.interpreter_state;
     match instruct.clone() {
         InstructionInfo::aaload => aaload(current_frame),

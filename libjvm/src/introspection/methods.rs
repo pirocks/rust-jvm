@@ -11,7 +11,7 @@ unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobj
 #[no_mangle]
 unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     if from_jclass(ofClass).as_type().is_primitive(){
         return  std::ptr::null_mut();
     }

@@ -18,7 +18,7 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let obj = from_object(cls);
     let runtime_class = JavaValue::Object(obj).cast_class().as_runtime_class();
     (match runtime_class.deref() {

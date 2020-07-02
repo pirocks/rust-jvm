@@ -11,12 +11,13 @@ use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
-use crate::rust_jni::native_util::{from_object, get_frame, get_state};
+use crate::rust_jni::native_util::{from_object, get_frame, get_state, get_thread, get_frames};
 use crate::StackEntry;
+use rust_jvm_common::ptype::PType;
 
 pub mod call_nonstatic;
 
-unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> &'l mut StackEntry {
+unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
     let method_id: MethodId = transmute(method_id);
     let jvm = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
@@ -26,7 +27,9 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
         unimplemented!()
     }
     let state = get_state(env);
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     let parsed = method.desc();
     frame.push(JavaValue::Object(from_object(obj)));
     //todo ducplication with push_params_onto_frame
@@ -73,13 +76,19 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
 //     trace!("----NATIVE EXIT ----");
     invoke_virtual_method_i(state, parsed, class.clone(), method_i as usize, &method, false);
     // trace!("----NATIVE ENTER ----");
-    frame
+    if method.desc().return_type == PType::VoidType {
+        None
+    } else {
+        frame.pop().into()
+    }
 }
 
-pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) {
+pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
     let method_id = *(jmethod_id as *mut MethodId);
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i as usize);
@@ -91,6 +100,11 @@ pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, 
     // trace!("----NATIVE EXIT ----");
     invoke_static_impl(jvm, parsed, class.clone(), method_i as usize, method.method_info());
     // trace!("----NATIVE ENTER----");
+    if method.desc().return_type == PType::VoidType {
+        None
+    } else {
+        frame.pop().into()
+    }
 }
 
 unsafe fn push_params_onto_frame(

@@ -33,7 +33,8 @@ fn load_string_constant(jvm: &'static JVMState, s: &StringView) {
 pub fn create_string_on_stack(jvm: &'static JVMState, res_string: String) {
     let java_lang_string = ClassName::string();
     let current_thread = jvm.thread_state.get_current_thread();
-    let current_frame = current_thread.get_current_frame_mut();
+    let mut frames_guard = current_thread.get_frames_mut();
+    let current_frame = frames_guard.last_mut().unwrap();
     let current_loader = current_frame.class_pointer.loader(jvm).clone();
     let string_class = check_inited_class(
         jvm,
@@ -122,7 +123,9 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'static JVMState) ->
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, s);
-            let frame = jvm.thread_state.get_current_thread().get_current_frame_mut();
+            let thread = jvm.thread_state.get_current_thread();
+            let mut frames_guard = thread.get_frames_mut();
+            let frame = frames_guard.last_mut().unwrap();
             frame.pop()
         }
         _ => panic!()

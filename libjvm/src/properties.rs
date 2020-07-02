@@ -15,7 +15,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
 }
 
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jobject {
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let state = get_state(env);
     create_string_on_stack(state, key);
     let key = frame.pop();

@@ -13,7 +13,7 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_frame, get_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_frame, get_state, to_object, get_thread, get_frames};
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -23,7 +23,9 @@ pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jin
 pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::raw::c_char) -> jclass {
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let state = get_state(env);
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     //todo maybe parse?
     load_class_constant_by_type(state, frame, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))));
     let obj = frame.pop().unwrap_object();
@@ -32,7 +34,9 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
 
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     let jvm = get_state(env);
     let super_name = match from_jclass(sub).as_runtime_class().view().super_name() {
         None => { return to_object(None); }
@@ -48,7 +52,9 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
     //todo impl later
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
 
     let sub_not_null = from_object(sub).unwrap();
     let sup_not_null = from_object(sup).unwrap();
@@ -70,7 +76,9 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     //todo dup
     let method_id: MethodId = transmute(jmethod_id );
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = &class.view();
     let method = &classview.method_view_i(method_i as usize);
@@ -116,7 +124,9 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
 pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
     let method_id: MethodId = transmute(jmethod_id);
     let jvm = get_state(env);
-    let frame  = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame  = get_frame(&mut frames);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = &class.view();
     let method = &classview.method_view_i(method_i as usize);

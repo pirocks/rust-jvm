@@ -21,7 +21,7 @@ use std::mem::size_of;
 use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
 use jvmti_jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
-use crate::rust_jni::native_util::{get_state, get_frame, from_object, from_jclass};
+use crate::rust_jni::native_util::{get_state, get_frame, from_object, from_jclass, get_thread, get_frames};
 use crate::rust_jni::interface::get_interface;
 use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_type;
@@ -284,7 +284,9 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     }
 
     let jvm = get_state(env);
-    let frame_temp = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame_temp = get_frame(&mut frames);
     let frame = frame_temp.deref();
     let class_obj= from_object(clazz);
     let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj).cast_class(), jvm, &frame).unwrap();

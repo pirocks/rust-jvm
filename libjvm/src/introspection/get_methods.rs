@@ -23,7 +23,7 @@ const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Lja
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let jvm = get_state(env);
-    let frame_temp = get_frame(env);
+    let frame_temp = get_frame(&mut get_frames(env));
     let frame = frame_temp.deref();
     let loader = frame.class_pointer.loader(jvm).clone();
     let temp1 = from_object(ofClass);
@@ -146,7 +146,7 @@ const CONSTRUCTOR_SIGNATURE: &'static str = "(Ljava/lang/Class;[Ljava/lang/Class
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let jvm = get_state(env);
-    let frame_temp = get_frame(env);
+    let frame_temp = get_frame(&mut get_frames(env));
     let frame = frame_temp.deref();
     let temp1 = from_object(ofClass);
     let class_type = JavaValue::Object(temp1).cast_class().as_type();

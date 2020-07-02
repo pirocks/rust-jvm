@@ -1,7 +1,6 @@
 use jvmti_jni_bindings::{JNIEnv, jobject, jclass, jboolean};
-use crate::rust_jni::native_util::{get_state, from_object, get_frame};
+use crate::rust_jni::native_util::{get_state, from_object, get_frame, get_thread, get_frames};
 use crate::instructions::special::instance_of_impl;
-use std::ops::Deref;
 use crate::java_values::JavaValue;
 
 pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
@@ -13,7 +12,9 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         None => unimplemented!(),
         Some(ref_type) => ref_type,
     };
-    let frame = get_frame(env);
+    let mut thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     instance_of_impl(jvm, frame, java_obj.unwrap(), type_.clone());
     (frame.pop().unwrap_int() != 0) as jboolean
 }

@@ -48,7 +48,7 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
 #[no_mangle]
 unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) -> jclass {
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let object = from_object(cls);
     let temp = JavaValue::Object(object).cast_class().as_type();
     let object_class = temp.unwrap_ref_type();
@@ -57,7 +57,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -> jint {
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let jvm = get_state(env);
 
     let jclass = from_jclass(cls);
@@ -124,7 +124,7 @@ pub mod methods;
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
     /*todo, so this is needed for booting but it is what could best be described as an advanced feature.
     Therefore it only sorta works*/
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let state = get_state(env);
 
     load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(state.get_previous_frame().class_pointer.view().name())));
@@ -148,7 +148,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     caller: jclass,
 ) -> jclass {
     let jvm = get_state(env);
-    let frame_temp = get_frame(env);
+    let frame_temp = get_frame(&mut get_frames(env));
     let frame = frame_temp.deref();
 
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();

@@ -136,7 +136,7 @@ pub fn run_native_method(
                         let name = member_name.get_name(jvm, frame);
                         let clazz = member_name.clazz();
                         let field_type = member_name.get_field_type(jvm, frame);
-                        let empty_string = JString::from(jvm, &frame, "".to_string());
+                        let empty_string = JString::from(jvm, frame, "".to_string());
                         let field = Field::init(jvm, frame, clazz, name, field_type, 0, 0, empty_string, vec![]);
                         Unsafe::the_unsafe(jvm, frame).object_field_offset(jvm,frame,field).into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
@@ -159,7 +159,7 @@ pub fn run_native_method(
             None => {}
             Some(res) => {
                 if debug {
-                    dbg!(frame.operand_stack);
+                    dbg!(&frame.operand_stack);
                     dbg!(&res);
                 }
                 frame.push(res)

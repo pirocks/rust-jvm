@@ -12,7 +12,7 @@ use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 #[no_mangle]
 unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
     let state = get_state(env);
-    let frame = get_frame(env);
+    let frame = get_frame(&mut get_frames(env));
     let action = from_object(action);
     let unwrapped_action = action.clone().unwrap();
     let runtime_class = &unwrapped_action.unwrap_normal_object().class_pointer;

@@ -48,7 +48,7 @@ impl Monitor {
     }
 
     fn lock_impl(&self, jvm: &'static JVMState) {
-        let mut current_owners_guard = self.owned.read().unwrap();
+        let mut current_owners_guard = self.owned.write().unwrap();
         //first we check if we currently own the lock. If we do increment and return.
         //If we do not currently hold the lock then we will continue to not own the lock until
         // std::mem::forget(self.mutex.lock()); returns.

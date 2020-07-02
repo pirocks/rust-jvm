@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard, RwLockReadGuard};
 use std::thread::LocalKey;
 
 use jvmti_jni_bindings::jrawMonitorID;
@@ -15,7 +15,6 @@ use std::sync::mpsc::channel;
 use rust_jvm_common::classnames::ClassName;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::any::Any;
-use std::collections::hash_map::Values;
 
 pub struct ThreadState {
     threads: Threads,
@@ -50,6 +49,7 @@ impl ThreadState {
     }
 
     fn bootstrap_main_thread(jvm: &'static JVMState,threads: &Threads) -> Arc<JavaThread> {
+        let (main_thread_obj_send,main_thread_obj_recv) = channel();
         let bootstrap_underlying_thread = threads.create_thread();
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
@@ -58,14 +58,14 @@ impl ThreadState {
             thread_object: RwLock::new(None),
             interpreter_state: InterpreterState::default(),
         });
-        let (main_thread_obj_send,main_thread_obj_recv) = channel();
-        bootstrap_thread.underlying_thread.start_thread(box move |data: Box<dyn Any>|{
+        let underlying = &bootstrap_thread.clone().underlying_thread;
+        underlying.start_thread(box move |_data: Box<dyn Any>|{
             let target_classfile = check_inited_class(
                 jvm,
                 &ClassName::thread().into(),
                 jvm.bootstrap_loader.clone()
             );
-            let mut frame = StackEntry {
+            let frame = StackEntry {
                 class_pointer: target_classfile.clone(),
                 method_i: std::u16::MAX,
                 local_vars: vec![],
@@ -73,8 +73,10 @@ impl ThreadState {
                 pc: std::usize::MAX,
                 pc_offset: -1,
             };
-            bootstrap_thread.call_stack.write().unwrap().push(frame);
-            push_new_object(jvm, &mut frame, &target_classfile, None);
+            let mut frames_guard = bootstrap_thread.get_frames_mut();
+            frames_guard.push(frame);
+            let frame = frames_guard.last_mut().unwrap();
+            push_new_object(jvm, frame, &target_classfile, None);
             let jthread = frame.pop().cast_thread();
             main_thread_obj_send.send(jthread).unwrap();
         }, box ());
@@ -119,8 +121,8 @@ impl ThreadState {
 
         let (send, recv) = channel();
         let thread_class = check_inited_class(jvm, &ClassName::thread().into(), frame.class_pointer.loader(jvm).clone());
-        underlying.start_thread(box move |data|{
-            let java_thread = Arc::new(JavaThread::new(obj, underlying));
+        let java_thread = Arc::new(JavaThread::new(obj, underlying));
+        java_thread.clone().underlying_thread.start_thread(box move |_data|{
             send.send(java_thread.clone()).unwrap();
             let new_thread_frame = StackEntry {
                         class_pointer: thread_class.clone(),
@@ -131,15 +133,17 @@ impl ThreadState {
                         pc_offset: -1,
                     };
             java_thread.call_stack.write().unwrap().push(new_thread_frame);
-            java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &new_thread_frame);
+            let mut frames = java_thread.get_frames_mut();
+            let new_thread_frame_ = frames.last_mut().unwrap();
+            java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, new_thread_frame_);
             java_thread.call_stack.write().unwrap().pop();
         }, box ());//todo is this Data really needed since we have a closure
         recv.recv().unwrap()
     }
 
 
-    pub fn get_all_threads(&self)-> Values<'_,JavaThreadId,Arc<JavaThread> >{
-        self.all_java_threads.read().unwrap().values()
+    pub fn get_all_threads(&self)-> RwLockReadGuard<HashMap<JavaThreadId,Arc<JavaThread>>>{
+        self.all_java_threads.read().unwrap()
     }
 }
 
@@ -175,23 +179,32 @@ impl JavaThread {
         self.current_java_thread.with(|x| x.replace(java_thread.into()));
     }*/
 
-    pub fn get_current_frame(&self) -> &StackEntry {
+    /*pub fn get_current_frame(&self) -> &StackEntry {
         self.call_stack.read().unwrap().last().unwrap()
-    }
+    }*/
 
-    pub fn get_current_frame_mut(&self) -> &mut StackEntry {
+    /*pub fn get_current_frame_mut(&self) -> &mut StackEntry {
         self.call_stack.write().unwrap().last_mut().unwrap()
-    }
+    }*/
 
-    pub fn get_previous_frame(&self) -> &StackEntry {
+    /*pub fn get_previous_frame(&self) -> &StackEntry {
         let guard = self.call_stack.read().unwrap();
         &guard[guard.len()-2]
+    }*/
+
+    pub fn get_frames(&self) -> RwLockReadGuard<Vec<StackEntry>>{
+        self.call_stack.read().unwrap()
     }
 
-    pub fn get_previous_frame_mut(&self) -> &mut StackEntry {
-        let guard = self.call_stack.read().unwrap();
-        &mut guard[guard.len()-2]
+    pub fn get_frames_mut(&self) -> RwLockWriteGuard<Vec<StackEntry>>{
+        self.call_stack.write().unwrap()
     }
+
+    /*pub fn get_previous_frame_mut(&self) -> &mut StackEntry {
+        let mut guard = self.call_stack.write().unwrap();
+        let len = guard.len();
+        &mut guard[len -2]
+    }*/
 
 
     pub fn print_stack_trace(&self) {

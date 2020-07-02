@@ -21,7 +21,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     match loaded{
         Result::Err(_) => return to_object(None),
         Result::Ok(view) => {
-            let frame_temp = get_frame(env);
+            let frame_temp = get_frame(&mut get_frames(env));
             let frame = frame_temp.deref();
             to_object(get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,state.bootstrap_loader.clone()).into())
         },
@@ -50,7 +50,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     match loaded{
         None => return to_object(None),
         Some(view) => {
-            let frame_temp = get_frame(env);
+            let frame_temp = get_frame(&mut get_frames(env));
             let frame = frame_temp.deref();
             //todo what if name is long/int etc.
             get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,state.bootstrap_loader.clone());
@@ -107,7 +107,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     };
 
     let state = get_state(env);
-    let frame_temp = get_frame(env);
+    let frame_temp = get_frame(&mut get_frames(env));
     let frame = frame_temp.deref();
     let res = get_or_create_class_object(state, &ptype, frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
     return to_object(res.into());

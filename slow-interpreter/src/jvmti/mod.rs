@@ -30,8 +30,9 @@ use crate::rust_jni::interface::get_field::new_field_id;
 use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 use crate::jvmti::methods::*;
 use crate::jvmti::locals::{get_local_object, get_local_int, get_local_long, get_local_float, get_local_double};
-use std::ops::Deref;
 use crate::stack_entry::StackEntry;
+use std::sync::{RwLockWriteGuard, Arc};
+use crate::threading::JavaThread;
 
 pub mod event_callbacks;
 
@@ -41,9 +42,17 @@ pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
 }
 
 
-pub unsafe fn get_frame<'l>(env: *mut jvmtiEnv) -> &'l mut StackEntry {
-    let thread = get_state(env).thread_state.get_current_thread();
-    thread.get_current_frame_mut()
+pub unsafe fn get_thread<'l>(env: *mut jvmtiEnv) -> Arc<JavaThread> {
+    get_state(env).thread_state.get_current_thread()
+}
+
+
+pub unsafe fn get_frame<'l>(frames: &'l mut RwLockWriteGuard<Vec<StackEntry>>) -> &'l mut StackEntry {
+    frames.last_mut().unwrap()
+}
+
+fn get_frames(threads: &Arc<JavaThread>) -> RwLockWriteGuard<Vec<StackEntry>> {
+    threads.get_frames_mut()
 }
 
 thread_local! {
@@ -237,7 +246,7 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     let class_object = get_or_create_class_object(
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
-        jvm.thread_state.get_current_thread().get_current_frame_mut(),
+        jvm.thread_state.get_current_thread().get_frames_mut().last_mut().unwrap(),
         runtime_class.loader(jvm).clone(),
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(transmute(to_object(class_object.into())));
@@ -247,7 +256,9 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
 
 pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobject, hash_code_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    let frame = get_frame(env);
+    let thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let frame = get_frame(&mut frames);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
     let object = JavaValue::Object(from_object(transmute(object))).cast_object();
     let res = object.hash_code(jvm, frame);
@@ -365,10 +376,12 @@ unsafe extern "C" fn get_implemented_interfaces(
     interface_count_ptr.write(num_interfaces as i32);
     interfaces_ptr.write(libc::calloc(num_interfaces, size_of::<*mut jclass>()) as *mut jclass);
     for (i, interface) in class_view.interfaces().enumerate() {
+        let mut thread = get_thread(env);
+        let mut frames = get_frames(&thread);
         let interface_obj = get_or_create_class_object(
             jvm,
             &ClassName::Str(interface.interface_name()).into(),
-            get_frame(env),
+            get_frame(&mut frames),
             runtime_class.loader(jvm).clone(),
         );
         let interface_class = to_object(interface_obj.into());
@@ -393,37 +406,38 @@ pub mod version;
 pub mod properties;
 pub mod allocate;
 pub mod events;
-pub mod locals{
+
+pub mod locals {
     use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jobject, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jlong, jdouble, jfloat};
     use crate::rust_jni::native_util::{from_object, to_object};
     use crate::java_values::JavaValue;
     use crate::jvmti::get_state;
 
-    pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jobject) -> jvmtiError{
+    pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jobject) -> jvmtiError {
         let var = get_local_t(env, thread, depth, slot);
         value_ptr.write(to_object(var.unwrap_object()));
         jvmtiError_JVMTI_ERROR_NONE
     }
 
-    pub unsafe extern "C" fn get_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jint) -> jvmtiError{
+    pub unsafe extern "C" fn get_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jint) -> jvmtiError {
         let var = get_local_t(env, thread, depth, slot);
         value_ptr.write(var.unwrap_int());
         jvmtiError_JVMTI_ERROR_NONE
     }
 
-    pub unsafe extern "C" fn get_local_float(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jfloat) -> jvmtiError{
+    pub unsafe extern "C" fn get_local_float(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jfloat) -> jvmtiError {
         let var = get_local_t(env, thread, depth, slot);
         value_ptr.write(var.unwrap_float());
         jvmtiError_JVMTI_ERROR_NONE
     }
 
-    pub unsafe extern "C" fn get_local_double(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jdouble) -> jvmtiError{
+    pub unsafe extern "C" fn get_local_double(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jdouble) -> jvmtiError {
         let var = get_local_t(env, thread, depth, slot);
         value_ptr.write(var.unwrap_double());
         jvmtiError_JVMTI_ERROR_NONE
     }
 
-    pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jlong) -> jvmtiError{
+    pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jlong) -> jvmtiError {
         let var = get_local_t(env, thread, depth, slot);
         value_ptr.write(var.unwrap_long());
         jvmtiError_JVMTI_ERROR_NONE
@@ -440,7 +454,8 @@ pub mod locals{
         var
     }
 }
-pub mod methods{
+
+pub mod methods {
     use jvmti_jni_bindings::{jint, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
     use crate::jvmti::get_state;
     use crate::method_table::MethodId;
@@ -449,9 +464,9 @@ pub mod methods{
     use std::ffi::CString;
 
     pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
-                                         name_ptr: *mut *mut ::std::os::raw::c_char,
-                                         signature_ptr: *mut *mut ::std::os::raw::c_char,
-                                         generic_ptr: *mut *mut ::std::os::raw::c_char,
+                                             name_ptr: *mut *mut ::std::os::raw::c_char,
+                                             signature_ptr: *mut *mut ::std::os::raw::c_char,
+                                             generic_ptr: *mut *mut ::std::os::raw::c_char,
     ) -> jvmtiError {
         let jvm = get_state(env);
         jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
@@ -476,8 +491,8 @@ pub mod methods{
     pub unsafe extern "C" fn get_arguments_size(
         env: *mut jvmtiEnv,
         method: jmethodID,
-        size_ptr: *mut jint
-    ) -> jvmtiError{
+        size_ptr: *mut jint,
+    ) -> jvmtiError {
         let jvm = get_state(env);
         jvm.tracing.trace_jdwp_function_enter(jvm, "GetArgumentsSize");
         let method_id: MethodId = transmute(method);
@@ -487,5 +502,4 @@ pub mod methods{
         jvm.tracing.trace_jdwp_function_exit(jvm, "GetArgumentsSize");
         jvmtiError_JVMTI_ERROR_NONE
     }
-
 }
