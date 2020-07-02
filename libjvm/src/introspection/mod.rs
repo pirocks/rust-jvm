@@ -22,6 +22,9 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::get_state_thread_frame;
+use slow_interpreter::rust_jni::native_util::{ get_frames, get_thread};
+use slow_interpreter::threading::JavaThread;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -47,18 +50,16 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) -> jclass {
-    let state = get_state(env);
-    let frame = get_frame(&mut get_frames(env));
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let object = from_object(cls);
     let temp = JavaValue::Object(object).cast_class().as_type();
     let object_class = temp.unwrap_ref_type();
-    to_object(ptype_to_class_object(state, &frame, &object_class.unwrap_array().to_ptype()))
+    to_object(ptype_to_class_object(jvm, frame, &object_class.unwrap_array().to_ptype()))
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -> jint {
-    let frame = get_frame(&mut get_frames(env));
-    let jvm = get_state(env);
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
 
     let jclass = from_jclass(cls);
     let type_ = jclass.as_type();
@@ -124,10 +125,13 @@ pub mod methods;
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
     /*todo, so this is needed for booting but it is what could best be described as an advanced feature.
     Therefore it only sorta works*/
-    let frame = get_frame(&mut get_frames(env));
-    let state = get_state(env);
-
-    load_class_constant_by_type(state, &frame, &PTypeView::Ref(ReferenceTypeView::Class(state.get_previous_frame().class_pointer.view().name())));
+    let jvm = get_state(env);
+    let thread = get_thread(env);
+    let mut frames = get_frames(&thread);
+    let len = frames.len();
+    let type_ = PTypeView::Ref(ReferenceTypeView::Class(frames[len - 2].class_pointer.view().name()));
+    let frame = get_frame(&mut frames);
+    load_class_constant_by_type(jvm, frame, &type_);
     let jclass = frame.pop().unwrap_object();
     to_object(jclass)
 }
@@ -147,9 +151,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     loader: jobject,
     caller: jclass,
 ) -> jclass {
-    let jvm = get_state(env);
-    let frame_temp = get_frame(&mut get_frames(env));
-    let frame = frame_temp.deref();
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
 
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     to_object(Some(get_or_create_class_object(

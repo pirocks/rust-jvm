@@ -10,7 +10,6 @@ use crate::java::lang::class::JClass;
 use crate::threading::JavaThread;
 
 
-#[macro_use]
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let unwrapped = from_object(obj).unwrap();
     get_state_thread_frame!(env,jvm,thread,frames,frame);

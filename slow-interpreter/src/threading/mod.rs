@@ -59,12 +59,12 @@ impl ThreadState {
             interpreter_state: InterpreterState::default(),
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
+        let target_classfile = check_inited_class(
+            jvm,
+            &ClassName::thread().into(),
+            jvm.bootstrap_loader.clone()
+        );
         underlying.start_thread(box move |_data: Box<dyn Any>|{
-            let target_classfile = check_inited_class(
-                jvm,
-                &ClassName::thread().into(),
-                jvm.bootstrap_loader.clone()
-            );
             let frame = StackEntry {
                 class_pointer: target_classfile.clone(),
                 method_i: std::u16::MAX,
@@ -161,7 +161,7 @@ pub struct JavaThread {
     underlying_thread: Thread,
     pub(crate) call_stack: RwLock<Vec<StackEntry>>,
     thread_object: RwLock<Option<JThread>>,
-    pub(crate)interpreter_state: InterpreterState,
+    pub interpreter_state: InterpreterState,
 }
 
 impl JavaThread {

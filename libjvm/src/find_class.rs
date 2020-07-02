@@ -8,6 +8,8 @@ use libjvm_utils::jstring_to_string;
 use rust_jvm_common::ptype::PType::Ref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::get_state_thread_frame;
+use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
 use std::ops::Deref;
 
 #[no_mangle]
@@ -15,14 +17,12 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let name_str = CStr::from_ptr(name).to_str().unwrap().to_string();
     //todo duplication
     let class_name = ClassName::Str(name_str);
-    let state = get_state(env);
+    get_state_thread_frame!(env,state,thread,frames,frame);
     //todo not sure if this implementation is correct
     let loaded = state.bootstrap_loader.load_class(state.bootstrap_loader.clone(),&class_name,state.bootstrap_loader.clone(),state.get_live_object_pool_getter());
     match loaded{
         Result::Err(_) => return to_object(None),
         Result::Ok(view) => {
-            let frame_temp = get_frame(&mut get_frames(env));
-            let frame = frame_temp.deref();
             to_object(get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,state.bootstrap_loader.clone()).into())
         },
     }
@@ -45,15 +45,13 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     // dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
-    let state = get_state(env);
-    let loaded = state.bootstrap_loader.find_loaded_class(&class_name);
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let loaded = jvm.bootstrap_loader.find_loaded_class(&class_name);
     match loaded{
         None => return to_object(None),
         Some(view) => {
-            let frame_temp = get_frame(&mut get_frames(env));
-            let frame = frame_temp.deref();
             //todo what if name is long/int etc.
-            get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,state.bootstrap_loader.clone());
+            get_or_create_class_object(jvm,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,jvm.bootstrap_loader.clone());
             to_object(frame.pop().unwrap_object())
         },
     }
@@ -106,9 +104,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         unimplemented!()
     };
 
-    let state = get_state(env);
-    let frame_temp = get_frame(&mut get_frames(env));
-    let frame = frame_temp.deref();
-    let res = get_or_create_class_object(state, &ptype, frame, state.bootstrap_loader.clone());//todo what if not using bootstap loader
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let res = get_or_create_class_object(jvm, &ptype, frame, jvm.bootstrap_loader.clone());//todo what if not using bootstap loader
     return to_object(res.into());
 }

@@ -376,7 +376,7 @@ unsafe extern "C" fn get_implemented_interfaces(
     interface_count_ptr.write(num_interfaces as i32);
     interfaces_ptr.write(libc::calloc(num_interfaces, size_of::<*mut jclass>()) as *mut jclass);
     for (i, interface) in class_view.interfaces().enumerate() {
-        let mut thread = get_thread(env);
+        let thread = get_thread(env);
         let mut frames = get_frames(&thread);
         let interface_obj = get_or_create_class_object(
             jvm,

@@ -6,6 +6,7 @@ use slow_interpreter::java::lang::string::JString;
 use std::ops::Deref;
 use std::process::exit;
 use slow_interpreter::get_state_thread_frame;
+use slow_interpreter::rust_jni::native_util::{get_frames};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {
@@ -74,4 +75,10 @@ unsafe extern "system" fn JVM_GetVersionInfo(env: *mut JNIEnv, info: *mut jvm_ve
 unsafe extern "system" fn JVM_SupportsCX8() -> jboolean {
     false as jboolean//todo this is actually something that might be easy to support.
 }
+
+#[no_mangle]
+unsafe extern "system" fn JVM_BeforeHalt() {
+    unimplemented!()
+}
+
 

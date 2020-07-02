@@ -52,6 +52,7 @@ use crate::native_allocation::{NativeAllocator};
 use crate::threading::{ThreadState, JavaThread};
 
 
+#[macro_export]
 macro_rules! get_state_thread_frame {
     ($env: expr, $jvm: ident, $thread: ident, $frames: ident, $frame: ident) => {
         let $jvm = get_state($env);
@@ -329,7 +330,7 @@ impl JVMState {
     }*/
 }
 
-fn run_main(args: Vec<String>, jvm: &'static JVMState) -> Result<(), Box<dyn Error>> {
+pub fn run_main(args: Vec<String>, jvm: &'static JVMState) -> Result<(), Box<dyn Error>> {
     let jvmti = jvm.jvmti_state.as_ref();
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
@@ -407,7 +408,7 @@ fn setup_program_args(jvm: &'static JVMState, args: Vec<String>) {
     local_vars[0] = arg_array;
 }
 
-fn jvm_run_system_init(jvm: &'static JVMState) -> Result<(), Box<dyn Error>>{
+pub fn jvm_run_system_init(jvm: &'static JVMState) -> Result<(), Box<dyn Error>>{
     let bl = &jvm.bootstrap_loader;
     let system_class = check_inited_class(jvm, &ClassName::system().into(), bl.clone());
     let init_method_view = locate_init_system_class(&system_class);

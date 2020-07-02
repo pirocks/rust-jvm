@@ -6,6 +6,8 @@ use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use std::ops::Deref;
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 use slow_interpreter::utils::string_obj_to_string;
+use slow_interpreter::get_state_thread_frame;
+use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {
@@ -19,9 +21,7 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
-    let frame_temp = get_frame(&mut get_frames(env));
-    let frame = frame_temp.deref();
-    let jvm = get_state(env);
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     //todo need to convert lots of these to unwrap_or_throw
     // dbg!(args0);
     // dbg!(method);
@@ -54,6 +54,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jobject, args0: jobjectArray) -> jobject {
+    get_state_thread_frame!(env,state,thread,frames,frame);
     let args = if args0 == std::ptr::null_mut() {
         vec![]
     } else {
@@ -65,12 +66,9 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let constructor_obj = from_object(c).unwrap();
     let signature_str_obj = constructor_obj.lookup_field("signature");
     let temp_4 = constructor_obj.lookup_field("clazz");
-    let state = get_state(env);
-    let frame_temp = get_frame(&mut get_frames(env));
-    let frame = frame_temp.deref();
     let clazz = class_object_to_runtime_class(&temp_4.cast_class(), state, &frame).unwrap();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
-    push_new_object(state,frame.clone(), &clazz,None);
+    push_new_object(state,frame, &clazz,None);
     let obj = frame.pop();
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());

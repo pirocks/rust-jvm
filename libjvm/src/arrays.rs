@@ -2,6 +2,8 @@ use jvmti_jni_bindings::{jobject, jintArray, jclass, JNIEnv, jint, jvalue};
 use slow_interpreter::rust_jni::native_util::{get_frame, get_state, to_object, from_jclass};
 use slow_interpreter::instructions::new::a_new_array_from_name;
 use std::ops::Deref;
+use slow_interpreter::get_state_thread_frame;
+use slow_interpreter::rust_jni::native_util::{ get_frames, get_thread};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, currClass: jclass, length: jint) -> jobject {
@@ -35,12 +37,10 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
-    let frame_temp = get_frame(&mut get_frames(env));
-    let frame = frame_temp.deref();
-    let state = get_state(env);
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     //todo is this name even correct?
     let array_type_name = from_jclass(eltClass).as_runtime_class().view().name();//todo how does this handle nested arrays?
-    a_new_array_from_name(state,frame,length,&array_type_name);
+    a_new_array_from_name(jvm,frame,length,&array_type_name);
     to_object(frame.pop().unwrap_object())
 }
 

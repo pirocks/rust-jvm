@@ -2,6 +2,8 @@ use jvmti_jni_bindings::{JNIEnv, jobject, jobjectArray, jclass, jint};
 use slow_interpreter::rust_jni::native_util::{get_frame, get_state, from_jclass};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use num_cpus::get;
+use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
+use slow_interpreter::get_state_thread_frame;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobject) -> jobjectArray {
@@ -10,8 +12,7 @@ unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobj
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
-    let state = get_state(env);
-    let frame = get_frame(&mut get_frames(env));
+    get_state_thread_frame!(env,jvm,thread,frames,frame);
     if from_jclass(ofClass).as_type().is_primitive(){
         return  std::ptr::null_mut();
     }

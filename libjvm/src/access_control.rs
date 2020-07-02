@@ -8,11 +8,12 @@ use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use slow_interpreter::java_values::JavaValue;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use slow_interpreter::get_state_thread_frame;
+use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
-    let state = get_state(env);
-    let frame = get_frame(&mut get_frames(env));
+    get_state_thread_frame!(env,state,thread,frames,frame);
     let action = from_object(action);
     let unwrapped_action = action.clone().unwrap();
     let runtime_class = &unwrapped_action.unwrap_normal_object().class_pointer;
