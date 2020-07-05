@@ -25,6 +25,7 @@ use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_stat
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::threading::JavaThread;
 use slow_interpreter::java::lang::thread_group::JThreadGroup;
+use std::ptr::null_mut;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -89,34 +90,9 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     let jvm = get_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
     assert!(!current_thread.invisible_to_java);
-    to_object(current_thread.thread_object().object().into())
-}
-
-
-fn init_system_thread_group(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
-
-    let system_group = JThreadGroup::init(jvm,int_state);
-    *jvm.thread_state.system_thread_group.write().unwrap() = system_group.into();
-}
-
-unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
-    //todo refactor this at some point
-    //first create thread group
-    let match_guard = jvm.thread_state.system_thread_group.read().unwrap();
-    let thread_group_object = match match_guard.clone() {
-        None => {
-            std::mem::drop(match_guard);
-            init_system_thread_group(jvm, int_state);
-            jvm.thread_state.system_thread_group.read().unwrap().clone()
-        }
-        Some(_) => jvm.thread_state.system_thread_group.read().unwrap().clone(),
-    };
-
-
-    let thread_class = check_inited_class(jvm, int_state,&ClassName::Str("java/lang/Thread".to_string()).into(), int_state.current_loader(jvm).clone());
-    assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
-    let main_thread= jvm.thread_state.get_main_thread();
-    unimplemented!();
+    let res = to_object(current_thread.thread_object().object().into());
+    assert_ne!(res, null_mut());
+    res
 }
 
 

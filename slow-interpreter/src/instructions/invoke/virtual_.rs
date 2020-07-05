@@ -19,7 +19,7 @@ use classfile_view::view::method_view::MethodView;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
-pub fn invoke_virtual_instruction<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard, cp: u16, debug: bool) {
+pub fn invoke_virtual_instruction<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16, debug: bool) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, int_state, cp) {
         None => return,
         Some(o) => { o }
@@ -27,13 +27,13 @@ pub fn invoke_virtual_instruction<'l>(state: &'static JVMState, int_state: & mut
     invoke_virtual(state, int_state, &method_name, &expected_descriptor, debug)
 }
 
-pub fn invoke_virtual_method_i<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView, debug: bool) -> () {
+pub fn invoke_virtual_method_i<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView, debug: bool) -> () {
     invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method_i, target_method, debug)
 }
 
 fn invoke_virtual_method_i_impl<'l>(
     jvm: &'static JVMState,
-    interpreter_state: & mut InterpreterStateGuard,
+    interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
@@ -42,7 +42,7 @@ fn invoke_virtual_method_i_impl<'l>(
 ) -> () {
     let current_frame = interpreter_state.current_frame_mut();
     if target_method.is_native() {
-        run_native_method(jvm, interpreter_state,  target_class, target_method_i, debug)
+        run_native_method(jvm, interpreter_state, target_class, target_method_i, debug)
     } else if !target_method.is_abstract() {
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
@@ -100,7 +100,7 @@ pub fn setup_virtual_args(current_frame: &mut StackEntry, expected_descriptor: &
 /*
 args should be on the stack
 */
-pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
+pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -114,6 +114,8 @@ pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: & mut InterpreterSt
 //Let C be the class of objectref.
     let this_pointer = {
         let operand_stack = &int_state.current_frame().operand_stack;
+        int_state.print_stack_trace();
+        dbg!(&operand_stack);
         &operand_stack[operand_stack.len() - md.parameter_types.len() - 1].clone()
     };
     let c = match this_pointer.unwrap_object().unwrap().deref() {
@@ -132,7 +134,7 @@ pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: & mut InterpreterSt
         }
     };
 
-    let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state,  &method_name, md, c);
+    let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, &method_name, md, c);
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
     let final_descriptor = target_method.desc();
@@ -141,12 +143,12 @@ pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: & mut InterpreterSt
 
 pub fn virtual_method_lookup<'l>(
     state: &'static JVMState,
-    int_state: & mut InterpreterStateGuard,
+    int_state: &mut InterpreterStateGuard,
     method_name: &String,
     md: &MethodDescriptor,
-    c: Arc<RuntimeClass>
+    c: Arc<RuntimeClass>,
 ) -> (Arc<RuntimeClass>, usize) {
-    let all_methods = get_all_methods(state,  int_state, c.clone());
+    let all_methods = get_all_methods(state, int_state, c.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let method_view = c.view().method_view_i(*i);
         let cur_name = method_view.name();

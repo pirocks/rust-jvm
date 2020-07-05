@@ -102,20 +102,19 @@ impl Default for InterpreterState {
 
 pub struct InterpreterStateGuard<'l> {
     int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
-    thread: &'l Arc<JavaThread>
+    thread: &'l Arc<JavaThread>,
 }
 
-impl <'l> InterpreterStateGuard<'l> {
-
-    pub fn current_class_pointer(&self) -> &Arc<RuntimeClass>{
+impl<'l> InterpreterStateGuard<'l> {
+    pub fn current_class_pointer(&self) -> &Arc<RuntimeClass> {
         &self.current_frame().class_pointer
     }
 
-    pub fn current_loader(&self, jvm: &'static JVMState) -> LoaderArc{
+    pub fn current_loader(&self, jvm: &'static JVMState) -> LoaderArc {
         self.current_class_pointer().loader(jvm)
     }
 
-    pub fn current_class_view(&self) -> &Arc<ClassView>{
+    pub fn current_class_view(&self) -> &Arc<ClassView> {
         self.current_class_pointer().view()
     }
 
@@ -124,25 +123,25 @@ impl <'l> InterpreterStateGuard<'l> {
         self.int_state.as_ref().unwrap().call_stack.last().unwrap()
     }
 
-    pub fn current_frame_mut(&mut self) -> & mut StackEntry {
+    pub fn current_frame_mut(&mut self) -> &mut StackEntry {
         self.int_state.as_mut().unwrap().call_stack.last_mut().unwrap()
     }
 
-    pub fn push_current_operand_stack(&mut self, jval: JavaValue){
+    pub fn push_current_operand_stack(&mut self, jval: JavaValue) {
         self.current_frame_mut().push(jval)
     }
 
-    pub fn pop_current_operand_stack(&mut self) -> JavaValue{
+    pub fn pop_current_operand_stack(&mut self) -> JavaValue {
         self.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap()
     }
 
-    pub fn previous_frame_mut(&mut self) -> &mut StackEntry{
+    pub fn previous_frame_mut(&mut self) -> &mut StackEntry {
         let call_stack = &mut self.int_state.as_mut().unwrap().call_stack;
         let len = call_stack.len();
         &mut call_stack[len - 2]
     }
 
-    pub fn previous_frame(&mut self) -> &StackEntry{
+    pub fn previous_frame(&mut self) -> &StackEntry {
         let call_stack = &mut self.int_state.as_mut().unwrap().call_stack;
         let len = call_stack.len();
         &call_stack[len - 2]
@@ -156,7 +155,7 @@ impl <'l> InterpreterStateGuard<'l> {
         &mut self.int_state.as_mut().unwrap().function_return
     }
 
-    pub fn terminate_mut(&mut self) -> &mut bool{
+    pub fn terminate_mut(&mut self) -> &mut bool {
         &mut self.int_state.as_mut().unwrap().terminate
     }
 
@@ -169,7 +168,7 @@ impl <'l> InterpreterStateGuard<'l> {
         &self.int_state.as_ref().unwrap().function_return
     }
 
-    pub fn terminate(&self) -> &bool{
+    pub fn terminate(&self) -> &bool {
         &self.int_state.as_ref().unwrap().terminate
     }
 
@@ -177,34 +176,42 @@ impl <'l> InterpreterStateGuard<'l> {
         self.int_state.as_mut().unwrap().call_stack.push(frame);
     }
 
-    pub fn pop_frame(&mut self){
+    pub fn pop_frame(&mut self) {
         self.int_state.as_mut().unwrap().call_stack.pop();
     }
 
-    pub fn call_stack_depth(&self) -> usize{
+    pub fn call_stack_depth(&self) -> usize {
         self.int_state.as_ref().unwrap().call_stack.len()
     }
 
-    pub fn current_pc_mut(&mut self) -> &mut usize{
+    pub fn current_pc_mut(&mut self) -> &mut usize {
         &mut self.current_frame_mut().pc
     }
 
-    pub fn current_pc(&self) -> &usize{
+    pub fn current_pc(&self) -> &usize {
         &self.current_frame().pc
     }
 
-    pub fn current_pc_offset_mut(&mut self) -> &mut isize{
+    pub fn current_pc_offset_mut(&mut self) -> &mut isize {
         &mut self.current_frame_mut().pc_offset
     }
 
-    pub fn current_pc_offset(&'l self) -> &'l isize{
+    pub fn current_pc_offset(&'l self) -> &'l isize {
         &self.current_frame().pc_offset
     }
 
-    pub fn current_method_i(&self) -> CPIndex{
+    pub fn current_method_i(&self) -> CPIndex {
         self.current_frame().method_i
     }
 
+    pub fn print_stack_trace(&self) {
+        for (i,stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
+            let name = stack_entry.class_pointer.view().name();
+            let method_view = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize);
+            let meth_name = method_view.name();
+            println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(),  i, stack_entry.pc)
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -363,7 +370,7 @@ impl JVMState {
         (args, jvm)
     }
 
-    pub fn get_or_create_bootstrap_object_loader<'l>(&'static self, int_state: & mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
+    pub fn get_or_create_bootstrap_object_loader<'l>(&'static self, int_state: &mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
         if !self.vm_live() {
             return JavaValue::Object(None);
         }
@@ -448,7 +455,7 @@ impl JVMState {
     }*/
 }
 
-pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
+pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
     let jvmti = jvm.jvmti_state.as_ref();
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
@@ -469,7 +476,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: & mut 
     int_state.push_frame(stack_entry);
     jvmti.map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, main_thread.thread_object()));
 
-    setup_program_args(&jvm, int_state,args);
+    setup_program_args(&jvm, int_state, args);
     run_function(&jvm, int_state);
     if int_state.throw_mut().is_some() || *int_state.terminate_mut() {
         unimplemented!()
@@ -478,7 +485,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: & mut 
 }
 
 
-fn setup_program_args<'l>(jvm: &'static JVMState,int_state: & mut InterpreterStateGuard, args: Vec<String>) {
+fn setup_program_args<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, args: Vec<String>) {
     let mut arg_strings: Vec<JavaValue> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from(jvm, int_state, arg_str.clone()).java_value());
@@ -493,7 +500,7 @@ fn setup_program_args<'l>(jvm: &'static JVMState,int_state: & mut InterpreterSta
 }
 
 
-pub struct MainThreadInitializeInfo{
+pub struct MainThreadInitializeInfo {
     pub system_class: Arc<RuntimeClass>
 }
 
@@ -506,7 +513,7 @@ pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThread
     let bl = &jvm.bootstrap_loader;
     let main_thread = jvm.thread_state.get_main_thread();
 
-    let system_class = check_inited_class(jvm, &mut InterpreterStateGuard{ int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread }, &ClassName::system().into(), bl.clone());
+    let system_class = check_inited_class(jvm, &mut InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread }, &ClassName::system().into(), bl.clone());
 
     let init_method_view = locate_init_system_class(&system_class);
     let mut locals = vec![];
@@ -521,21 +528,21 @@ pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThread
         pc: 0,
         pc_offset: 0,
     };
-    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut InterpreterStateGuard{ int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread }, &jvm.thread_state.get_main_thread()));
+    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread }, &jvm.thread_state.get_main_thread()));
     main_thread.interpreter_state.write().unwrap().call_stack = vec![initialize_system_frame];
-    sender.send(MainThreadInitializeInfo{system_class }).unwrap();
+    sender.send(MainThreadInitializeInfo { system_class }).unwrap();
     Result::Ok(())
 }
 
-fn set_properties<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) {
+fn set_properties<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
     let properties = &jvm.properties;
-    let prop_obj = System::props(jvm,int_state);
+    let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
         let key = JString::from(jvm, int_state, properties[key_i].clone());
-        let value = JString::from(jvm,int_state, properties[value_i].clone());
+        let value = JString::from(jvm, int_state, properties[value_i].clone());
         prop_obj.set_property(jvm, int_state, key, value);
     }
 }

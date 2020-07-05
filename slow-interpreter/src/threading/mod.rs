@@ -119,8 +119,11 @@ impl ThreadState {
             };
             let mut new_int_state = InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread };
             new_int_state.push_frame(frame);
-            push_new_object(jvm, &mut new_int_state,  &target_classfile, None);
-            let jthread = new_int_state.pop_current_operand_stack().cast_thread();
+            // push_new_object(jvm, &mut new_int_state,  &target_classfile, None);
+            // let jthread = new_int_state.pop_current_operand_stack().cast_thread();
+            let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
+            *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
+            let jthread = JThread::new(jvm, &mut new_int_state,system_thread_group,"Main".to_string());
             main_thread_obj_send.send(jthread).unwrap();
         }, box ());
         let thread_obj: JThread = main_thread_obj_recv.recv().unwrap();
