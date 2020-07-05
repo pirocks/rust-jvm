@@ -79,6 +79,7 @@ impl Threads {
         let (thread_info_channel_send, thread_info_channel_recv) = std::sync::mpsc::channel();
         let (thread_start_channel_send, thread_start_channel_recv) = std::sync::mpsc::channel();
         let join_handle = std::thread::spawn(move || unsafe {
+            join_status.write().unwrap().alive.store(true, Ordering::SeqCst);
             thread_info_channel_send.send(pthread_self()).unwrap();
             let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();
             func(data);
@@ -145,7 +146,7 @@ impl Thread {
     }
 
     pub fn is_alive(&self) -> bool {
-        let guard = self.join_status.write().unwrap();
+        let guard = self.join_status.read().unwrap();
         guard.alive.load(Ordering::SeqCst)
     }
 
