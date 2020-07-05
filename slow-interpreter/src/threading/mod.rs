@@ -45,7 +45,7 @@ impl ThreadState {
 
     pub fn setup_main_thread(&'static self, jvm: &'static JVMState) -> (Arc<JavaThread>, Sender<MainThreadInitializeInfo>, Sender<MainThreadStartInfo>) {
         let main_thread = ThreadState::bootstrap_main_thread(jvm, &jvm.thread_state.threads);
-        *self.main_thread.write().unwrap().as_mut().unwrap() = main_thread.clone();
+        *self.main_thread.write().unwrap() = main_thread.clone().into();
         self.all_java_threads.write().unwrap().insert(main_thread.java_tid, main_thread.clone());
         let (init_send, init_recv) = channel();
         let (main_send, main_recv) = channel();
@@ -54,7 +54,7 @@ impl ThreadState {
             ThreadState::jvm_init_from_main_thread(jvm, init_recv);
             let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread.clone() };
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
-            run_main(args, jvm, &mut int_state);
+            run_main(args, jvm, &mut int_state).unwrap();
         }, box ());
         (main_thread_clone, init_send, main_send)
     }
