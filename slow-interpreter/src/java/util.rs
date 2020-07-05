@@ -3,7 +3,6 @@ pub mod properties {
     use crate::java_values::{Object, JavaValue};
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
-    use crate::stack_entry::StackEntry;
     use crate::{JVMState, InterpreterStateGuard};
     use crate::java::lang::string::JString;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;

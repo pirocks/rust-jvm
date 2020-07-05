@@ -215,7 +215,7 @@ pub fn initialize_class<'l>(
         unimplemented!()
         //need to clear status after
     }
-    let mut function_return = interpreter_state.function_return_mut();
+    let function_return = interpreter_state.function_return_mut();
     if *function_return {
         *function_return = false;
         return class_arc;

@@ -14,7 +14,6 @@ use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_state, to_object, get_interpreter_state};
-use crate::InterpreterStateGuard;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -58,7 +57,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sub_type = JavaValue::Object(sub_not_null.into()).cast_class().as_type();
     let sup_type = JavaValue::Object(sup_not_null.into()).cast_class().as_type();
 
-    let loader = &frame.class_pointer.loader(jvm);
+    let loader = &int_state.current_loader(jvm);
     let sub_vtype = sub_type.to_verification_type(loader);
     let sup_vtype = sup_type.to_verification_type(loader);
 

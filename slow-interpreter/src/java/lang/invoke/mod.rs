@@ -4,7 +4,6 @@ pub mod method_type {
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
     use crate::java::lang::class_loader::ClassLoader;
-    use crate::stack_entry::StackEntry;
     use crate::{JVMState, InterpreterStateGuard};
 
     pub struct MethodType {

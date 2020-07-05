@@ -61,11 +61,11 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 }
 
 
-pub static mut STRING_INTERNMENT_CAMP: Option<HashMap<String, Arc<Object>>> = None;
+pub static mut STRING_INTERNMENT: Option<HashMap<String, Arc<Object>>> = None;
 
 pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring {
-    match &STRING_INTERNMENT_CAMP {
-        None => { STRING_INTERNMENT_CAMP = Some(HashMap::new()) }
+    match &STRING_INTERNMENT {
+        None => { STRING_INTERNMENT = Some(HashMap::new()) }
         Some(_) => {}
     };
     let str_obj = from_object(str_unsafe);
@@ -75,11 +75,11 @@ pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring {
     for char_ in &*char_array {
         native_string.push(char_.unwrap_char() as u8 as char);
     }
-    if STRING_INTERNMENT_CAMP.as_ref().unwrap().contains_key(&native_string) {
-        let res = STRING_INTERNMENT_CAMP.as_ref().unwrap().get(&native_string).unwrap().clone();
+    if STRING_INTERNMENT.as_ref().unwrap().contains_key(&native_string) {
+        let res = STRING_INTERNMENT.as_ref().unwrap().get(&native_string).unwrap().clone();
         to_object(res.into())
     } else {
-        STRING_INTERNMENT_CAMP.as_mut().unwrap().insert(native_string, str_obj.as_ref().unwrap().clone());
+        STRING_INTERNMENT.as_mut().unwrap().insert(native_string, str_obj.as_ref().unwrap().clone());
         to_object(str_obj)
     }
 }

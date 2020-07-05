@@ -224,10 +224,10 @@ pub fn MHN_init<'l>(jvm: &'static JVMState,int_state: & mut InterpreterStateGuar
 pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard,frame: &mut StackEntry, signature: &String) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
-    let loader_arc = frame.class_pointer.loader(jvm).clone();
+    let loader_arc = int_state.current_loader(jvm).clone();
     let method_type_class = check_inited_class(jvm,int_state, &ClassName::method_type().into(), loader_arc.clone());
     push_new_object(jvm, int_state,&method_type_class,None);
-    let this = frame.pop();
+    let this =int_state.pop_current_operand_stack();
     let method_descriptor = parse_method_descriptor(signature).unwrap();
     let rtype = JavaValue::Object(get_or_create_class_object(jvm, &PTypeView::from_ptype(&method_descriptor.return_type), int_state, loader_arc.clone()).into());
 

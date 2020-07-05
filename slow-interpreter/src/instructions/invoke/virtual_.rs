@@ -61,7 +61,7 @@ fn invoke_virtual_method_i_impl<'l>(
         if interpreter_state.throw_mut().is_some() || *interpreter_state.terminate_mut() {
             return;
         }
-        let mut function_return = interpreter_state.function_return_mut();
+        let function_return = interpreter_state.function_return_mut();
         if *function_return {
             *function_return = false;
             return;

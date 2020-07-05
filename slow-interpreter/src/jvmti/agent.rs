@@ -1,14 +1,13 @@
 use jvmti_jni_bindings::{jvmtiEnv, jthread, jvmtiStartFunction, jint, jvmtiError, _jobject, jvmtiError_JVMTI_ERROR_NONE, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, JVMTI_THREAD_MIN_PRIORITY};
-use crate::jvmti::{get_state, get_jvmti_interface};
+use crate::jvmti::{get_state, get_jvmti_interface, get_interpreter_state};
 use crate::interpreter_util::check_inited_class;
 use rust_jvm_common::classnames::ClassName;
 use crate::rust_jni::interface::get_interface;
 use std::mem::transmute;
 use std::os::raw::c_void;
-use crate::rust_jni::native_util::from_object;
+use crate::rust_jni::native_util::{from_object};
 use crate::java_values::JavaValue;
 use thread_priority::*;
-use crate::InterpreterStateGuard;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
@@ -23,7 +22,7 @@ unsafe impl Sync for ThreadArgWrapper {}
 pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
     //todo implement thread priority
     let jvm = get_state(env);
-    let int_state: & mut InterpreterStateGuard = unimplemented!();
+    let int_state = get_interpreter_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
     let name = JavaValue::Object(from_object(transmute(thread)))
         .cast_thread()

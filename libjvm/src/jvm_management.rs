@@ -1,12 +1,11 @@
 use jvmti_jni_bindings::{jboolean, jint, jobject, JNIEnv, jvm_version_info};
-use slow_interpreter::rust_jni::native_util::{get_state, to_object, from_object, get_frame, get_thread};
+use slow_interpreter::rust_jni::native_util::{get_state, to_object, from_object, get_interpreter_state};
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::java::util::properties::Properties;
 use slow_interpreter::java::lang::string::JString;
 use std::ops::Deref;
 use std::process::exit;
-use slow_interpreter::get_state_thread_frame;
-use slow_interpreter::rust_jni::native_util::{get_frames};
+
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {
@@ -47,20 +46,21 @@ unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::ra
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> jobject {
-    get_state_thread_frame!(env,state,thread,frames,frame);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let props = JavaValue::Object(from_object(agent_props)).cast_properties();
 
-    let sun_java_command = JString::from(state, frame, "sun.java.command".to_string());
-    let sun_java_command_val = JString::from(state, frame, "command line not currently compatible todo".to_string());
-    props.set_property(state, frame, sun_java_command, sun_java_command_val);
+    let sun_java_command = JString::from(jvm, int_state, "sun.java.command".to_string());
+    let sun_java_command_val = JString::from(jvm, int_state, "command line not currently compatible todo".to_string());
+    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
-    let sun_java_command = JString::from(state, frame, "sun.jvm.flags".to_string());
-    let sun_java_command_val = JString::from(state, frame, "command line not currently compatible todo".to_string());
-    props.set_property(state, frame, sun_java_command, sun_java_command_val);
+    let sun_java_command = JString::from(jvm, int_state, "sun.jvm.flags".to_string());
+    let sun_java_command_val = JString::from(jvm, int_state, "command line not currently compatible todo".to_string());
+    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
-    let sun_java_command = JString::from(state, frame, "sun.jvm.args".to_string());
-    let sun_java_command_val = JString::from(state, frame, "command line not currently compatible todo".to_string());
-    props.set_property(state, frame, sun_java_command, sun_java_command_val);
+    let sun_java_command = JString::from(jvm, int_state, "sun.jvm.args".to_string());
+    let sun_java_command_val = JString::from(jvm, int_state, "command line not currently compatible todo".to_string());
+    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     agent_props
 }

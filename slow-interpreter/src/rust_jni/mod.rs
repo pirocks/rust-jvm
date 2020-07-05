@@ -28,7 +28,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::JavaValue;
-use crate::{JVMState, StackEntry, LibJavaLoading, InterpreterStateGuard};
+use crate::{JVMState, LibJavaLoading, InterpreterStateGuard};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 use classfile_view::view::HasAccessFlags;

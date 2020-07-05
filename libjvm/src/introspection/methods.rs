@@ -1,9 +1,7 @@
 use jvmti_jni_bindings::{JNIEnv, jobject, jobjectArray, jclass, jint};
-use slow_interpreter::rust_jni::native_util::{get_frame, get_state, from_jclass};
+use slow_interpreter::rust_jni::native_util::{ get_state, from_jclass};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use num_cpus::get;
-use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
-use slow_interpreter::get_state_thread_frame;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobject) -> jobjectArray {

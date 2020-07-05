@@ -1,12 +1,10 @@
 use jvmti_jni_bindings::{jobject, JNIEnv};
 use slow_interpreter::instructions::ldc::create_string_on_stack;
-use slow_interpreter::rust_jni::native_util::{get_state, get_frame, from_object};
+use slow_interpreter::rust_jni::native_util::{get_state, from_object, get_interpreter_state};
 
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use slow_interpreter::java_values::JavaValue;
 use descriptor_parser::parse_method_descriptor;
-use slow_interpreter::get_state_thread_frame;
-use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {
@@ -17,22 +15,23 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
 }
 
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jobject {
-    get_state_thread_frame!(env,state,thread,frames,frame);
-    create_string_on_stack(state, key);
-    let key = frame.pop();
-    create_string_on_stack(state, val);
-    let val = frame.pop();
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    create_string_on_stack(jvm, int_state,key);
+    let key = int_state.pop_current_operand_stack();
+    create_string_on_stack(jvm, int_state,val);
+    let val = int_state.pop_current_operand_stack();
     let prop_obj = from_object(p).unwrap();
     let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
     let class_view = &runtime_class.view();
     let candidate_meth = class_view.lookup_method_name(&"setProperty".to_string());
     let meth = candidate_meth.iter().next().unwrap();
     let md = meth.desc();
-    frame.push(JavaValue::Object(prop_obj.clone().into()));
-    frame.push(key);
-    frame.push(val);
-    invoke_virtual_method_i(state,  md, runtime_class.clone(), meth.method_i(), meth, false);
-    frame.pop();
+    int_state.push_current_operand_stack(JavaValue::Object(prop_obj.clone().into()));
+    int_state.push_current_operand_stack(key);
+    int_state.push_current_operand_stack(val);
+    invoke_virtual_method_i(jvm,int_state,  md, runtime_class.clone(), meth.method_i(), meth, false);
+    int_state.pop_current_operand_stack();
     p
 }
 
