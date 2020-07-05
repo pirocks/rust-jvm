@@ -51,6 +51,7 @@ impl ThreadState {
         let (main_send, main_recv) = channel();
         let main_thread_clone = main_thread.clone();
         main_thread.clone().underlying_thread.start_thread(box move |_| {
+            jvm.thread_state.set_current_thread(main_thread.clone());
             ThreadState::jvm_init_from_main_thread(jvm, init_recv);
             let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread.clone() };
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
@@ -62,6 +63,7 @@ impl ThreadState {
     fn jvm_init_from_main_thread(jvm: &'static JVMState, init_recv: Receiver<MainThreadInitializeInfo>) {
         let _init_info = init_recv.recv().unwrap();
         let main_thread = &jvm.thread_state.get_main_thread();
+        assert!(Arc::ptr_eq(main_thread ,&jvm.thread_state.get_current_thread()));
         let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: main_thread };
         run_function(&jvm, &mut int_state);
         let function_return = int_state.function_return_mut();
