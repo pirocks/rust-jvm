@@ -16,7 +16,7 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
 
     let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
     let java_thread = jthread.get_java_thread(jvm);
-    let frame_count = java_thread.call_stack.read().unwrap().len();
+    let frame_count = java_thread.interpreter_state.read().unwrap().call_stack.len();
     count_ptr.write(frame_count as i32);
 
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameCount");
@@ -29,8 +29,8 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameLocation");
     let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
     let thread = jthread.get_java_thread(jvm);
-    let mut call_stack_guard = thread.call_stack.write().unwrap();
-    let stack_entry = &mut call_stack_guard[depth as usize];
+    let call_stack_guard = &thread.interpreter_state.read().unwrap().call_stack;
+    let stack_entry = &call_stack_guard[depth as usize];
     let meth_id = jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer.clone(), stack_entry.method_i);
     method_ptr.write(transmute(meth_id));
     location_ptr.write(stack_entry.pc as i64);

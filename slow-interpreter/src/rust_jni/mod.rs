@@ -21,14 +21,14 @@ use std::mem::size_of;
 use crate::rust_jni::value_conversion::{to_native_type, to_native};
 use crate::interpreter_util::check_inited_class;
 use jvmti_jni_bindings::{jclass, JNIEnv, JNINativeMethod, jint, jstring, jboolean, jmethodID};
-use crate::rust_jni::native_util::{get_state, get_frame, from_object, from_jclass, get_thread, get_frames};
+use crate::rust_jni::native_util::{get_state, from_object, from_jclass, get_interpreter_state};
 use crate::rust_jni::interface::get_interface;
 use std::io::Error;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use crate::java_values::JavaValue;
-use crate::{JVMState, StackEntry, LibJavaLoading};
+use crate::{JVMState, StackEntry, LibJavaLoading, InterpreterStateGuard};
 use crate::runtime_class::RuntimeClass;
 use descriptor_parser::MethodDescriptor;
 use classfile_view::view::HasAccessFlags;
@@ -55,9 +55,9 @@ impl LibJavaLoading {
 }
 
 
-pub fn call(
+pub fn call<'l>(
     state: &'static JVMState,
-    current_frame: &mut StackEntry,
+    int_state: & mut InterpreterStateGuard,
     classfile: Arc<RuntimeClass>,
     method_i: usize,
     args: Vec<JavaValue>,
@@ -81,13 +81,22 @@ pub fn call(
         symbol.deref().clone()
     };
     if classfile.view().method_view_i(method_i).is_static() {
-        Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, false, false))
+        Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, false, false))
     } else {
-        Result::Ok(call_impl(state, current_frame, classfile, args, md, &raw, true, false))
+        Result::Ok(call_impl(state,int_state,  classfile, args, md, &raw, true, false))
     }
 }
 
-pub fn call_impl(jvm: &'static JVMState, current_frame: &mut StackEntry, classfile: Arc<RuntimeClass>, args: Vec<JavaValue>, md: MethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool, _debug: bool) -> Option<JavaValue> {
+pub fn call_impl<'l>(
+    jvm: &'static JVMState,
+    int_state: & mut InterpreterStateGuard,
+    classfile: Arc<RuntimeClass>,
+    args: Vec<JavaValue>,
+    md: MethodDescriptor,
+    raw: &unsafe extern "C" fn(),
+    suppress_runtime_class: bool,
+    _debug: bool
+) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
@@ -97,8 +106,8 @@ pub fn call_impl(jvm: &'static JVMState, current_frame: &mut StackEntry, classfi
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        load_class_constant_by_type(jvm, current_frame, &PTypeView::Ref(ReferenceTypeView::Class(classfile.view().name())));
-        let res = vec![Arg::new(&env), to_native(current_frame.pop(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
+        load_class_constant_by_type(jvm,int_state,  &PTypeView::Ref(ReferenceTypeView::Class(classfile.view().name())));
+        let res = vec![Arg::new(&env), to_native(int_state.pop_current_operand_stack(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
         res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
@@ -217,21 +226,21 @@ unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
     false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
 }
 
-pub fn get_all_methods(jvm: &'static JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_methods<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     // dbg!(&class.class_view.name());
     class.view().methods().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_inited_class(jvm, &ClassName::object().into(), class.loader(jvm).clone());
+        let object = check_inited_class(jvm, int_state,&ClassName::object().into(), class.loader(jvm).clone());
         object.view().methods().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name().unwrap();
-        let super_ = check_inited_class(jvm, &name.into(), class.loader(jvm).clone());
-        for (c, i) in get_all_methods(jvm, frame, super_) {
+        let super_ = check_inited_class(jvm, int_state,&name.into(), class.loader(jvm).clone());
+        for (c, i) in get_all_methods(jvm, int_state, super_) {
             res.push((c, i));
         }
     }
@@ -240,20 +249,20 @@ pub fn get_all_methods(jvm: &'static JVMState, frame: &StackEntry, class: Arc<Ru
 }
 
 //todo duplication with methods
-pub fn get_all_fields(jvm: &'static JVMState, frame: &StackEntry, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_fields<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_inited_class(jvm, &ClassName::object().into(), class.loader(jvm).clone());
+        let object = check_inited_class(jvm, int_state,&ClassName::object().into(), class.loader(jvm).clone());
         object.view().fields().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name();
-        let super_ = check_inited_class(jvm, &name.unwrap().into(), class.loader(jvm).clone());
-        for (c, i) in get_all_fields(jvm, frame, super_) {
+        let super_ = check_inited_class(jvm, int_state,&name.unwrap().into(), class.loader(jvm).clone());
+        for (c, i) in get_all_fields(jvm, int_state, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }
     }
@@ -270,6 +279,9 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
                                    name: *const c_char,
                                    sig: *const c_char)
                                    -> jmethodID {
+    let int_state = get_interpreter_state(env);
+    let frame = int_state.current_frame_mut();
+    let jvm = get_state(env);
     let name_len = libc::strlen(name);
     let mut method_name = String::with_capacity(name_len);
     for i in 0..name_len {
@@ -283,10 +295,9 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
         method_descriptor_str.push(sig.offset(i as isize).read() as u8 as char);
     }
 
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let class_obj= from_object(clazz);
-    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj).cast_class(), jvm, &frame).unwrap();
-    let all_methods = get_all_methods(jvm, frame, runtime_class);
+    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj).cast_class(), jvm, int_state).unwrap();
+    let all_methods = get_all_methods(jvm,  int_state,runtime_class);
 
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let method_view = &c.view().method_view_i(*i);

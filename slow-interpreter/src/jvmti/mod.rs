@@ -9,7 +9,7 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::class_objects::get_or_create_class_object;
 use crate::java_values::JavaValue;
-use crate::JVMState;
+use crate::{JVMState, InterpreterStateGuard};
 use crate::jvmti::agent::*;
 use crate::jvmti::allocate::{allocate, deallocate};
 use crate::jvmti::breakpoint::*;
@@ -30,9 +30,6 @@ use crate::rust_jni::interface::get_field::new_field_id;
 use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 use crate::jvmti::methods::*;
 use crate::jvmti::locals::{get_local_object, get_local_int, get_local_long, get_local_float, get_local_double};
-use crate::stack_entry::StackEntry;
-use std::sync::{RwLockWriteGuard, Arc};
-use crate::threading::JavaThread;
 
 pub mod event_callbacks;
 
@@ -42,18 +39,10 @@ pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
 }
 
 
-pub unsafe fn get_thread<'l>(env: *mut jvmtiEnv) -> Arc<JavaThread> {
-    get_state(env).thread_state.get_current_thread()
+pub fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l> {
+    unimplemented!()
 }
 
-
-pub unsafe fn get_frame<'l>(frames: &'l mut RwLockWriteGuard<Vec<StackEntry>>) -> &'l mut StackEntry {
-    frames.last_mut().unwrap()
-}
-
-fn get_frames(threads: &Arc<JavaThread>) -> RwLockWriteGuard<Vec<StackEntry>> {
-    threads.get_frames_mut()
-}
 
 thread_local! {
     static JVMTI_INTERFACE: RefCell<Option<jvmtiInterface_1_>> = RefCell::new(None);
@@ -240,13 +229,14 @@ fn get_jvmti_interface_impl(jvm: &'static JVMState) -> jvmtiInterface_1_ {
 
 pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: jmethodID, declaring_class_ptr: *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodDeclaringClass");
     let method_id: MethodId = transmute(method);
     let runtime_class = jvm.method_table.read().unwrap().lookup(method_id).0;
     let class_object = get_or_create_class_object(
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
-        jvm.thread_state.get_current_thread().get_frames_mut().last_mut().unwrap(),
+        int_state,
         runtime_class.loader(jvm).clone(),
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(transmute(to_object(class_object.into())));
@@ -256,12 +246,10 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
 
 pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobject, hash_code_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    let thread = get_thread(env);
-    let mut frames = get_frames(&thread);
-    let frame = get_frame(&mut frames);
+    let int_state = get_interpreter_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
     let object = JavaValue::Object(from_object(transmute(object))).cast_object();
-    let res = object.hash_code(jvm, frame);
+    let res = object.hash_code(jvm, int_state);
     hash_code_ptr.write(res);
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetObjectHashCode");
     jvmtiError_JVMTI_ERROR_NONE
@@ -368,6 +356,8 @@ unsafe extern "C" fn get_implemented_interfaces(
     interfaces_ptr: *mut *mut jclass,
 ) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let current_frame = int_state.current_frame_mut();
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
     let class_obj = from_jclass(klass);
     let runtime_class = class_obj.as_runtime_class();
@@ -376,12 +366,10 @@ unsafe extern "C" fn get_implemented_interfaces(
     interface_count_ptr.write(num_interfaces as i32);
     interfaces_ptr.write(libc::calloc(num_interfaces, size_of::<*mut jclass>()) as *mut jclass);
     for (i, interface) in class_view.interfaces().enumerate() {
-        let thread = get_thread(env);
-        let mut frames = get_frames(&thread);
         let interface_obj = get_or_create_class_object(
             jvm,
             &ClassName::Str(interface.interface_name()).into(),
-            get_frame(&mut frames),
+            int_state,
             runtime_class.loader(jvm).clone(),
         );
         let interface_class = to_object(interface_obj.into());
@@ -448,8 +436,8 @@ pub mod locals {
         let jthread = JavaValue::Object(from_object(thread)).cast_thread();
         let jvm = get_state(env);
         let java_thread = jthread.get_java_thread(jvm);
-        let call_stack = &mut java_thread.call_stack.write().unwrap();
-        let stack_frame = &mut call_stack[depth as usize];
+        let call_stack = &java_thread.interpreter_state.read().unwrap().call_stack;
+        let stack_frame = &call_stack[depth as usize];
         let var = stack_frame.local_vars[slot as usize].clone();
         var
     }

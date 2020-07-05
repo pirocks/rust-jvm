@@ -27,7 +27,7 @@ pub mod field {
     use crate::java::lang::string::JString;
     use crate::java::lang::class::JClass;
     use jvmti_jni_bindings::jint;
-    use crate::{JVMState, StackEntry};
+    use crate::{JVMState, InterpreterStateGuard};
 
     use crate::interpreter_util::{push_new_object, run_constructor, check_inited_class};
     use std::sync::Arc;
@@ -46,10 +46,20 @@ pub mod field {
     }
 
     impl Field {
-        pub fn init(jvm: &'static JVMState, frame: &mut StackEntry, clazz: JClass, name: JString, type_: JClass, modifiers: jint, slot: jint, signature: JString, annotations: Vec<JavaValue>) -> Self {
-            let field_classfile = check_inited_class(jvm, &ClassName::field().into(), frame.class_pointer.loader(jvm).clone());
-            push_new_object(jvm, frame, &field_classfile, None);
-            let field_object = frame.pop();
+        pub fn init<'l>(
+            jvm: &'static JVMState,
+            int_state: & mut InterpreterStateGuard,
+            clazz: JClass,
+            name: JString,
+            type_: JClass,
+            modifiers: jint,
+            slot: jint,
+            signature: JString,
+            annotations: Vec<JavaValue>
+        ) -> Self {
+            let field_classfile = check_inited_class(jvm,int_state, &ClassName::field().into(), int_state.current_loader(jvm));
+            push_new_object(jvm, int_state, &field_classfile, None);
+            let field_object = int_state.pop_current_operand_stack();
 
 
             let modifiers = JavaValue::Int(modifiers);
@@ -64,7 +74,7 @@ pub mod field {
 
             run_constructor(
                 jvm,
-                frame,
+                int_state,
                 field_classfile.clone(),
                 vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations],
                 "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),

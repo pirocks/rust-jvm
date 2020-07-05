@@ -1,4 +1,4 @@
-use crate::rust_jni::native_util::{from_object, to_object, get_state, get_frame, from_jclass, get_thread, get_frames};
+use crate::rust_jni::native_util::{from_object, to_object, get_state, from_jclass, get_interpreter_state};
 use jvmti_jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethodID, _jfieldID, _jobject, jboolean, jshort, jbyte, jchar, jfloat, jdouble};
 use std::ops::Deref;
 use std::ffi::CStr;
@@ -93,12 +93,14 @@ pub unsafe extern "C" fn get_static_method_id(
     name: *const ::std::os::raw::c_char,
     sig: *const ::std::os::raw::c_char,
 ) -> jmethodID {
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    // let frame = int_state.current_frame_mut();
     let method_name = CStr::from_ptr(name).to_str().unwrap().to_string();
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = from_object(clazz);
     //todo dup
-    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj_o).cast_class(), jvm, &frame).unwrap();
+    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj_o).cast_class(), jvm, int_state).unwrap();
     let view = &runtime_class.view();
     let method = view.lookup_method(&method_name, &parse_method_descriptor(method_descriptor_str.as_str()).unwrap()).unwrap();
     assert!(method.is_static());

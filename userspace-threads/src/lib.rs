@@ -50,8 +50,10 @@ impl Threads {
         }
         let res = Threads {
             all_threads: RwLock::new(HashMap::new()),
-            this_thread: &THIS_THREAD
+            this_thread: &THIS_THREAD,
         };
+
+
         res.init_signal_handler();
         res
     }
@@ -124,9 +126,9 @@ pub struct JoinStatus {
 
 
 impl Thread {
-    pub fn start_thread<T: 'static>(&self, func: Box<T>, data: Box<dyn Any>)  where T: FnOnce(Box<dyn Any>) -> (){
+    pub fn start_thread<T: 'static>(&self, func: Box<T>, data: Box<dyn Any>) where T: FnOnce(Box<dyn Any>) -> () {
         self.thread_start_channel_send.as_ref().unwrap().lock().unwrap().send(ThreadStartInfo { func, data }).unwrap();
-        self.started.store(true,Ordering::SeqCst);
+        self.started.store(true, Ordering::SeqCst);
     }
 
     pub fn pause(&self) {

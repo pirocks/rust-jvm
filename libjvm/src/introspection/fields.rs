@@ -26,7 +26,6 @@ unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let class_obj = from_jclass(ofClass).as_runtime_class();
     let mut object_array = vec![];
     // dbg!(unsafe {&STRING_INTERNMENT_CAMP});

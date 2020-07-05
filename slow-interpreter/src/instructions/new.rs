@@ -1,33 +1,33 @@
-use rust_jvm_common::classfile::{ Atype, MultiNewArray};
+use rust_jvm_common::classfile::{Atype, MultiNewArray};
 use crate::interpreter_util::{push_new_object, check_inited_class};
 use rust_jvm_common::classnames::ClassName;
 use std::sync::Arc;
 use std::cell::RefCell;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
-use crate::{JVMState, StackEntry};
+use crate::{JVMState, InterpreterStateGuard};
 use classfile_view::view::constant_info_view::ConstantInfoView;
 
-pub fn new(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: usize) -> () {
-    let loader_arc = &current_frame.class_pointer.loader(jvm);
-    let view = &current_frame.class_pointer.view();
+pub fn new<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: usize) -> () {
+    let loader_arc = &int_state.current_frame_mut().class_pointer.loader(jvm);
+    let view = &int_state.current_frame_mut().class_pointer.view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
-    let target_classfile = check_inited_class(jvm, &target_class_name.clone().into(), loader_arc.clone());
-    push_new_object(jvm, current_frame, &target_classfile, None);
+    let target_classfile = check_inited_class(jvm, int_state, &target_class_name.clone().into(), loader_arc.clone());
+    push_new_object(jvm, int_state, &target_classfile, None);
 }
 
 
-pub fn anewarray(state: &'static JVMState, current_frame: &mut StackEntry, cp: u16) -> () {
-    let len = match current_frame.pop() {
+pub fn anewarray<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+    let len = match int_state.current_frame_mut().pop() {
         JavaValue::Int(i) => i,
         _ => panic!()
     };
-    let view = &current_frame.class_pointer.view();
+    let view = &int_state.current_frame_mut().class_pointer.view();
     let cp_entry = &view.constant_pool_view(cp as usize);
     match cp_entry {
         ConstantInfoView::Class(c) => {
             let name = ClassName::Str(c.class_name().unwrap_name().clone().get_referred_name().to_string());//todo fix this jankyness
-            a_new_array_from_name(state, current_frame, len, &name)
+            a_new_array_from_name(state, int_state, len, &name)
         }
         _ => {
             dbg!(cp_entry);
@@ -36,19 +36,20 @@ pub fn anewarray(state: &'static JVMState, current_frame: &mut StackEntry, cp: u
     }
 }
 
-pub fn a_new_array_from_name(jvm: &'static JVMState, current_frame: &mut StackEntry, len: i32, name: &ClassName) -> () {
+pub fn a_new_array_from_name<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, len: i32, name: &ClassName) -> () {
     check_inited_class(
         jvm,
+        int_state,
         &name.clone().into(),
-        current_frame.class_pointer.loader(jvm).clone(),
+        int_state.current_loader(jvm).clone(),
     );
     let t = PTypeView::Ref(ReferenceTypeView::Class(name.clone()));
-    current_frame.push(JavaValue::Object(Some(JavaValue::new_vec(jvm, len as usize, JavaValue::Object(None), t).unwrap()).into()))
+    int_state.push_current_operand_stack(JavaValue::Object(Some(JavaValue::new_vec(jvm, len as usize, JavaValue::Object(None), t).unwrap()).into()))
 }
 
 
-pub fn newarray(jvm: &'static JVMState, current_frame: &mut StackEntry, a_type: Atype) -> () {
-    let count = match current_frame.pop() {
+pub fn newarray<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, a_type: Atype) -> () {
+    let count = match int_state.pop_current_operand_stack() {
         JavaValue::Int(i) => { i }
         _ => panic!()
     };
@@ -78,20 +79,20 @@ pub fn newarray(jvm: &'static JVMState, current_frame: &mut StackEntry, a_type: 
             PTypeView::FloatType
         }
     };
-    current_frame.push(JavaValue::Object(JavaValue::new_vec(jvm, count as usize, default_value(type_.clone()), type_)));
+    int_state.push_current_operand_stack(JavaValue::Object(JavaValue::new_vec(jvm, count as usize, default_value(type_.clone()), type_)));
 }
 
 
-pub fn multi_a_new_array(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: MultiNewArray) -> () {
+pub fn multi_a_new_array<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: MultiNewArray) -> () {
     let dims = cp.dims;
-    let temp = current_frame.class_pointer.view().constant_pool_view(cp.index as usize);
+    let temp = int_state.current_frame_mut().class_pointer.view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    check_inited_class(jvm, &PTypeView::Ref(type_), current_frame.class_pointer.loader(jvm).clone());
+    check_inited_class(jvm, int_state, &PTypeView::Ref(type_), int_state.current_loader(jvm).clone());
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     for _ in 0..dims {
-        dimensions.push(current_frame.pop().unwrap_int());
+        dimensions.push(int_state.current_frame_mut().pop().unwrap_int());
     }
     let mut current = JavaValue::Object(None);
     let mut current_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str("sketch hack".to_string())));//todo fix this as a matter of urgency
@@ -108,5 +109,5 @@ pub fn multi_a_new_array(jvm: &'static JVMState, current_frame: &mut StackEntry,
         })).into());
         current_type = next_type;
     }
-    current_frame.push(current);
+    int_state.push_current_operand_stack(current);
 }

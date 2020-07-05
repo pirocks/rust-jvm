@@ -7,7 +7,7 @@ use std::hash::{Hash, Hasher};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::loading::LoaderArc;
 
-use crate::{StackEntry, JVMState};
+use crate::{StackEntry, JVMState, InterpreterStateGuard};
 use crate::instructions::ldc::from_constant_pool_entry;
 use descriptor_parser::parse_field_descriptor;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -158,9 +158,10 @@ impl std::convert::From<RuntimeClassClass> for RuntimeClass{
         Self::Object(rcc)
     }
 }
-pub fn initialize_class(
+pub fn initialize_class<'l>(
     runtime_class: Arc<RuntimeClass>,
     jvm: &'static JVMState,
+    interpreter_state: & mut InterpreterStateGuard
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -174,7 +175,7 @@ pub fn initialize_class(
                     None => continue,
                     Some(i) => i,
                 };
-                let constant_value = from_constant_pool_entry(&constant_info_view, jvm);
+                let constant_value = from_constant_pool_entry(&constant_info_view, jvm, interpreter_state);
                 let name = field.field_name();
                 runtime_class.static_vars().insert(name, constant_value);
             }
@@ -206,15 +207,15 @@ pub fn initialize_class(
         pc_offset: 0,
     };
     let current_thread = jvm.thread_state.get_current_thread();
-    current_thread.call_stack.write().unwrap().push(new_stack);
-    run_function(jvm, &current_thread);
-    current_thread.call_stack.write().unwrap().pop();
-    if current_thread.interpreter_state.throw.read().unwrap().is_some() || *current_thread.interpreter_state.terminate.read().unwrap() {
+    interpreter_state.push_frame(new_stack);
+    run_function(jvm, interpreter_state);
+    interpreter_state.pop_frame();
+    if interpreter_state.throw_mut().is_some() || *interpreter_state.terminate_mut() {
         current_thread.print_stack_trace();
         unimplemented!()
         //need to clear status after
     }
-    let mut function_return = current_thread.interpreter_state.function_return.write().unwrap();
+    let mut function_return = interpreter_state.function_return_mut();
     if *function_return {
         *function_return = false;
         return class_arc;

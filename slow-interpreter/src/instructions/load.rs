@@ -1,7 +1,7 @@
 use crate::interpreter_util::{check_inited_class, run_constructor, push_new_object};
 use rust_jvm_common::classnames::ClassName;
 use crate::java_values::JavaValue;
-use crate::{StackEntry, JVMState};
+use crate::{StackEntry, JVMState, InterpreterStateGuard};
 
 pub fn aload(current_frame: &mut StackEntry, n: usize) -> () {
     let ref_ = current_frame.local_vars[n].clone();
@@ -74,32 +74,33 @@ pub fn aaload(current_frame: &mut StackEntry) -> () {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds(jvm: &'static JVMState, current_frame: &mut StackEntry) {
+fn throw_array_out_of_bounds<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) {
     let bounds_class = check_inited_class(
         jvm,
+        int_state,
         &ClassName::new("java/lang/ArrayIndexOutOfBoundsException").into(),
-        current_frame.class_pointer.loader(jvm).clone()
+        int_state.current_loader(jvm),
     );
-    push_new_object(jvm, current_frame, &bounds_class, None);
-    let obj = current_frame.pop();
-    run_constructor(jvm, current_frame, bounds_class, vec![obj.clone()], "()V".to_string());
-    *jvm.thread_state.get_current_thread().interpreter_state.throw.write().unwrap() = obj.unwrap_object().into();
+    push_new_object(jvm, int_state, &bounds_class, None);
+    let obj = int_state.current_frame_mut().pop();
+    run_constructor(jvm, int_state,  bounds_class, vec![obj.clone()], "()V".to_string());
+    *int_state.throw_mut() = obj.unwrap_object().into();
 }
 
-pub fn caload(state: &'static JVMState, current_frame: &mut StackEntry) -> () {
-    let index = current_frame.pop().unwrap_int();
-    let temp = current_frame.pop();
+pub fn caload<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard) -> () {
+    let index = int_state.pop_current_operand_stack().unwrap_int();
+    let temp = int_state.pop_current_operand_stack();
     let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.elems.borrow();
     if index < 0 || index >= array_refcell.len() as i32 {
-        throw_array_out_of_bounds(state, current_frame);
+        throw_array_out_of_bounds(state, int_state);
         return;
     }
     let as_int = match array_refcell[index as usize] {
         JavaValue::Char(c) => c as i32,
         _ => panic!(),
     };
-    current_frame.push(JavaValue::Int(as_int))
+    int_state.push_current_operand_stack(JavaValue::Int(as_int))
 }
 
 

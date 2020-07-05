@@ -37,7 +37,6 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
     //todo is this name even correct?
     let array_type_name = from_jclass(eltClass).as_runtime_class().view().name();//todo how does this handle nested arrays?
     a_new_array_from_name(jvm,frame,length,&array_type_name);

@@ -45,7 +45,6 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     // dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let loaded = jvm.bootstrap_loader.find_loaded_class(&class_name);
     match loaded{
         None => return to_object(None),
@@ -104,7 +103,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         unimplemented!()
     };
 
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let res = get_or_create_class_object(jvm, &ptype, frame, jvm.bootstrap_loader.clone());//todo what if not using bootstap loader
     return to_object(res.into());
 }

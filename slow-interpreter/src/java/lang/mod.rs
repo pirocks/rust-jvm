@@ -5,7 +5,7 @@ pub mod member_name {
     use crate::java_values::{JavaValue, Object};
     use crate::java::lang::string::JString;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-    use crate::{JVMState, StackEntry};
+    use crate::{JVMState, InterpreterStateGuard};
 
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
@@ -28,29 +28,29 @@ pub mod member_name {
         // private String name;
         // private Object type;
         // private int flags;
-        pub fn get_name(&self, jvm: &'static JVMState, frame: &mut StackEntry) -> JString {
-            let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
-            frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string());
-            frame.pop().cast_string()
+        pub fn get_name<'l>(&self, jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) -> JString {
+            let member_name_class = check_inited_class(jvm, int_state,&ClassName::member_name().into(), int_state.current_loader(jvm));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm, int_state,&member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string());
+            int_state.pop_current_operand_stack().cast_string()
         }
 
         pub fn clazz(&self) -> JClass {
             self.normal_object.unwrap_normal_object().fields.borrow().get("clazz").unwrap().cast_class()
         }
 
-        pub fn get_method_type(&self, jvm: &'static JVMState, frame: &mut StackEntry) -> MethodType {
-            let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
-            frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, &member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
-            frame.pop().cast_method_type()
+        pub fn get_method_type<'l>(&self, jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) -> MethodType {
+            let member_name_class = check_inited_class(jvm,int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm, int_state,&member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
+            int_state.pop_current_operand_stack().cast_method_type()
         }
 
-        pub fn get_field_type(&self, jvm: &'static JVMState, frame: &mut StackEntry) -> JClass {
-            let member_name_class = check_inited_class(jvm, &ClassName::member_name().into(), frame.class_pointer.loader(jvm).clone());
-            frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string());
-            frame.pop().cast_class()
+        pub fn get_field_type<'l>(&self, jvm: &'static JVMState,int_state: & mut InterpreterStateGuard) -> JClass {
+            let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm, int_state,&member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string());
+            int_state.pop_current_operand_stack().cast_class()
         }
     }
 }
@@ -62,7 +62,7 @@ pub mod class {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 
-    use crate::{StackEntry, JVMState};
+    use crate::{JVMState, InterpreterStateGuard};
     use rust_jvm_common::classnames::ClassName;
     use crate::class_objects::get_or_create_class_object;
     use crate::runtime_class::RuntimeClass;
@@ -89,23 +89,25 @@ pub mod class {
             self.normal_object.unwrap_normal_object().class_object_type.as_ref().unwrap().clone()
         }
 
-        pub fn get_class_loader(&self, state: &'static JVMState, frame: &mut StackEntry) -> Option<ClassLoader> {
-            frame.push(JavaValue::Object(self.normal_object.clone().into()));
+        pub fn get_class_loader<'l>(&self, state: &'static JVMState, int_state: & mut InterpreterStateGuard) -> Option<ClassLoader> {
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(
                 state,
+                int_state,
                 &self.normal_object.unwrap_normal_object().class_pointer,
                 "getClassLoader".to_string(),
                 "()Ljava/lang/ClassLoader;".to_string(),
             );
-            frame.pop()
+            int_state.pop_current_operand_stack()
                 .unwrap_object()
                 .map(|cl| JavaValue::Object(cl.into()).cast_class_loader())
         }
 
-        pub fn from_name(jvm: &'static JVMState, frame: &mut StackEntry, name: ClassName) -> JClass {
+        pub fn from_name<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, name: ClassName) -> JClass {
+            let frame = int_state.current_frame_mut();
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
             let loader_arc = frame.class_pointer.loader(jvm).clone();
-            JavaValue::Object(get_or_create_class_object(jvm, &type_, frame, loader_arc).into()).cast_class()
+            JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state,loader_arc).into()).cast_class()
         }
 
         as_object_or_java_value!();
@@ -137,7 +139,7 @@ pub mod string {
     use std::sync::Arc;
     use crate::java_values::JavaValue;
     use crate::instructions::ldc::create_string_on_stack;
-    use crate::{JVMState, StackEntry};
+    use crate::{JVMState, InterpreterStateGuard};
 
 
     pub struct JString {
@@ -155,9 +157,9 @@ pub mod string {
             string_obj_to_string(self.normal_object.clone().into())
         }
 
-        pub fn from(state: &'static JVMState, current_frame: &mut StackEntry, rust_str: String) -> JString {
-            create_string_on_stack(state, rust_str);
-            current_frame.pop().cast_string()
+        pub fn from<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard, rust_str: String) -> JString {
+            create_string_on_stack(state, int_state, rust_str);
+            int_state.pop_current_operand_stack().cast_string()
         }
 
         as_object_or_java_value!();
@@ -218,7 +220,7 @@ pub mod thread {
     use crate::java_values::Object;
     use std::sync::Arc;
     use crate::java_values::JavaValue;
-    use crate::JVMState;
+    use crate::{JVMState, InterpreterStateGuard};
     use crate::stack_entry::StackEntry;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::check_inited_class;
@@ -242,10 +244,10 @@ pub mod thread {
             self.normal_object.unwrap_normal_object().fields.borrow().get("tid").unwrap().unwrap_long()
         }
 
-        pub fn run(&self, jvm: &'static JVMState, frame: &mut StackEntry){
-            let thread_class = check_inited_class(jvm,&ClassName::thread().into(),frame.class_pointer.loader(jvm).clone());
-            frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm,&thread_class,"run".to_string(),"()V".to_string());
+        pub fn run<'l>(&self, jvm: &'static JVMState,int_state: & mut InterpreterStateGuard){
+            let thread_class = check_inited_class(jvm,int_state,&ClassName::thread().into(),int_state.current_loader(jvm).clone());
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm,int_state,&thread_class,"run".to_string(),"()V".to_string());
 
         }
 
@@ -275,28 +277,6 @@ pub mod thread {
 }
 
 
-pub mod system {
-    use std::sync::Arc;
-    use crate::java::util::properties::Properties;
-    use crate::JVMState;
-    use crate::interpreter_util::check_inited_class;
-    use rust_jvm_common::classnames::ClassName;
-    use std::borrow::Borrow;
-    use crate::java_values::{Object, JavaValue};
-
-    pub struct System {
-        normal_object: Arc<Object>
-    }
-
-    impl System {
-        pub fn props(jvm: &'static JVMState) -> Properties{
-            let system_class = check_inited_class(jvm,&ClassName::system().into(),jvm.bootstrap_loader.clone());
-            let prop_jv = system_class.static_vars().borrow().get("props").unwrap().clone();
-            prop_jv.cast_properties()
-        }
-
-        as_object_or_java_value!();
-    }
-}
+pub mod system;
 
 pub mod reflect;

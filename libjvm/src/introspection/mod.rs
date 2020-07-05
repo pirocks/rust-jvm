@@ -50,7 +50,6 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) -> jclass {
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
     let object = from_object(cls);
     let temp = JavaValue::Object(object).cast_class().as_type();
     let object_class = temp.unwrap_ref_type();
@@ -59,8 +58,6 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -> jint {
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
-
     let jclass = from_jclass(cls);
     let type_ = jclass.as_type();
     if type_.is_primitive() {
@@ -151,8 +148,6 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     loader: jobject,
     caller: jclass,
 ) -> jclass {
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
-
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     to_object(Some(get_or_create_class_object(
         jvm,

@@ -59,7 +59,7 @@ pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, t
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
     let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
     let thread = jthread.get_java_thread(jvm);
-    let suspended = thread.interpreter_state.suspended.read().unwrap().suspended;
+    let suspended = thread.suspended.read().unwrap().suspended;
     let state = JVMTI_THREAD_STATE_ALIVE | if suspended {
         JVMTI_THREAD_STATE_SUSPENDED
     } else {
@@ -91,7 +91,7 @@ fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
              jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
          }
          Some(java_thread) => {
-    */         let mut suspend_info = java_thread.interpreter_state.suspended.write().unwrap();
+    */         let mut suspend_info = java_thread.suspended.write().unwrap();
     if suspend_info.suspended {
         jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
     } else {
@@ -142,7 +142,7 @@ fn resume_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
             jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
         }
         Some(java_thread) => {*/
-    let mut suspend_info = java_thread.interpreter_state.suspended.write().unwrap();
+    let mut suspend_info = java_thread.suspended.write().unwrap();
     if !suspend_info.suspended {
         unimplemented!()
     } else {

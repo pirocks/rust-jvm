@@ -16,7 +16,7 @@ extern crate errno;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use rust_jvm_common::ptype::PType;
-use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classfile::{Classfile, CPIndex};
 use crate::runtime_class::RuntimeClass;
 use crate::java_values::{Object, JavaValue, NormalObject, ArrayObject};
 use crate::runtime_class::prepare_class;
@@ -25,7 +25,7 @@ use libloading::Library;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use classfile_view::loading::{LoaderArc, LivePoolGetter, LoaderName};
 use descriptor_parser::MethodDescriptor;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::sync::atomic::AtomicUsize;
 use std::error::Error;
 use std::collections::{HashMap, HashSet};
@@ -50,17 +50,20 @@ use crate::java::lang::system::System;
 use crate::java_values::Object::Array;
 use crate::native_allocation::{NativeAllocator};
 use crate::threading::{ThreadState, JavaThread};
+use std::sync::mpsc::Sender;
+use verification::verify;
+use classfile_view::view::ClassView;
 
 
-#[macro_export]
-macro_rules! get_state_thread_frame {
-    ($env: expr, $jvm: ident, $thread: ident, $frames: ident, $frame: ident) => {
-        let $jvm = get_state($env);
-        let $thread = get_thread($env);
-        let mut $frames = get_frames(&$thread);
-        let $frame = get_frame(&mut $frames);
-    };
-}
+// #[macro_export]
+// macro_rules! get_state_thread_frame {
+//     ($env: expr, $jvm: ident, $thread: ident, $frames: ident, $frame: ident) => {
+//         let $jvm = get_state($env);
+//         let $thread = get_thread($env);
+//         let mut $frames = get_frames(&$thread);
+//         let $frame = get_frame(&mut $frames);
+//     };
+// }
 
 #[macro_use]
 pub mod java_values;
@@ -76,25 +79,127 @@ pub mod utils;
 
 #[derive(Debug)]
 pub struct InterpreterState {
-    pub terminate: RwLock<bool>,
-    pub throw: RwLock<Option<Arc<Object>>>,
-    pub function_return: RwLock<bool>,
+    pub terminate: bool,
+    pub throw: Option<Arc<Object>>,
+    pub function_return: bool,
     //todo find some way of clarifying these can only be acessed from one thread
-    pub suspended: RwLock<SuspendedStatus>,
+    pub(crate) call_stack: Vec<StackEntry>,
 }
 
 impl Default for InterpreterState {
     fn default() -> Self {
         InterpreterState {
-            terminate: RwLock::new(false),
-            throw: RwLock::new(None),
-            function_return: RwLock::new(false),
-            suspended: RwLock::new(SuspendedStatus {
+            terminate: false,
+            throw: None,
+            function_return: false,
+            /*suspended: RwLock::new(SuspendedStatus {
                 suspended: false,
                 suspended_lock: Arc::new(Mutex::new(())),
-            }),
+            }),*/
+            call_stack: Default::default(),
         }
     }
+}
+
+pub struct InterpreterStateGuard<'l> {
+    int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
+    thread: &'l Arc<JavaThread>
+}
+
+impl <'l> InterpreterStateGuard<'l> {
+
+    pub fn current_class_pointer(&self) -> &Arc<RuntimeClass>{
+        &self.current_frame().class_pointer
+    }
+
+    pub fn current_loader(&self, jvm: &'static JVMState) -> LoaderArc{
+        self.current_class_pointer().loader(jvm)
+    }
+
+    pub fn current_class_view(&self) -> &Arc<ClassView>{
+        self.current_class_pointer().view()
+    }
+
+
+    pub fn current_frame(&'l self) -> &'l StackEntry {
+        self.int_state.as_ref().unwrap().call_stack.last().unwrap()
+    }
+
+    pub fn current_frame_mut(&mut self) -> & mut StackEntry {
+        self.int_state.as_mut().unwrap().call_stack.last_mut().unwrap()
+    }
+
+    pub fn push_current_operand_stack(&mut self, jval: JavaValue){
+        self.current_frame_mut().push(jval)
+    }
+
+    pub fn pop_current_operand_stack(&mut self) -> JavaValue{
+        self.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap()
+    }
+
+    pub fn previous_frame_mut(&mut self) -> &mut StackEntry{
+        let call_stack = &mut self.int_state.as_mut().unwrap().call_stack;
+        let len = call_stack.len();
+        &mut call_stack[len - 2]
+    }
+
+    pub fn throw_mut(&mut self) -> &mut Option<Arc<Object>> {
+        &mut self.int_state.as_mut().unwrap().throw
+    }
+
+    pub fn function_return_mut(&mut self) -> &mut bool {
+        &mut self.int_state.as_mut().unwrap().function_return
+    }
+
+    pub fn terminate_mut(&mut self) -> &mut bool{
+        &mut self.int_state.as_mut().unwrap().terminate
+    }
+
+
+    pub fn throw(&self) -> &Option<Arc<Object>> {
+        &self.int_state.as_ref().unwrap().throw
+    }
+
+    pub fn function_return(&self) -> &bool {
+        &self.int_state.as_ref().unwrap().function_return
+    }
+
+    pub fn terminate(&self) -> &bool{
+        &self.int_state.as_ref().unwrap().terminate
+    }
+
+    pub fn push_frame(&mut self, frame: StackEntry) {
+        self.int_state.as_mut().unwrap().call_stack.push(frame);
+    }
+
+    pub fn pop_frame(&mut self){
+        self.int_state.as_mut().unwrap().call_stack.pop();
+    }
+
+    pub fn call_stack_depth(&self) -> usize{
+        self.int_state.as_ref().unwrap().call_stack.len()
+    }
+
+    pub fn current_pc_mut(&mut self) -> &mut usize{
+        &mut self.current_frame_mut().pc
+    }
+
+    pub fn current_pc(&self) -> &usize{
+        &self.current_frame().pc
+    }
+
+    pub fn current_pc_offset_mut(&mut self) -> &mut isize{
+        &mut self.current_frame_mut().pc_offset
+    }
+
+    pub fn current_pc_offset(&'l self) -> &'l isize{
+        &self.current_frame().pc_offset
+    }
+
+    pub fn current_method_i(&self) -> CPIndex{
+        self.current_frame().method_i
+    }
+
 }
 
 #[derive(Debug)]
@@ -103,6 +208,16 @@ pub struct SuspendedStatus {
     pub suspended_lock: Arc<Mutex<RawMutex, ()>>,
     // pub suspend_critical_section_lock: Mutex<RawMutex,()>
 }
+
+impl Default for SuspendedStatus {
+    fn default() -> Self {
+        Self {
+            suspended: false,
+            suspended_lock: Arc::new(Default::default()),
+        }
+    }
+}
+
 
 pub struct SharedLibraryPaths {
     libjava: String,
@@ -168,7 +283,7 @@ pub struct JVMState {
     pub tracing: TracingSettings,
     pub method_table: RwLock<MethodTable>,
     pub field_table: RwLock<FieldTable>,
-    pub native_interface_allocations : NativeAllocator,
+    pub native_interface_allocations: NativeAllocator,
     live: RwLock<bool>,
 }
 
@@ -180,7 +295,6 @@ thread_local! {
 
 
 impl JVMState {
-
     /*pub fn get_current_frame(&self) -> Rc<StackEntry> {
         let current_thread = self.get_current_thread();
         let temp = current_thread.call_stack.borrow();
@@ -242,10 +356,9 @@ impl JVMState {
             live: RwLock::new(false),
         };
         (args, jvm)
-
     }
 
-    pub fn get_or_create_bootstrap_object_loader(&'static self) -> JavaValue {//todo this should really take frame as a parameter
+    pub fn get_or_create_bootstrap_object_loader<'l>(&'static self, int_state: & mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
         if !self.vm_live() {
             return JavaValue::Object(None);
         }
@@ -253,8 +366,8 @@ impl JVMState {
         match loader_guard.get(&self.bootstrap_loader.name()) {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-                let current_loader = self.thread_state.get_current_thread().get_frames().last().unwrap().class_pointer.loader(self).clone();
-                let class_loader_class = check_inited_class(self, &java_lang_class_loader.into(), current_loader.clone());
+                let current_loader = int_state.current_frame_mut().class_pointer.loader(self).clone();
+                let class_loader_class = check_inited_class(self, int_state, &java_lang_class_loader.into(), current_loader.clone());
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
                     fields: RefCell::new(HashMap::new()),
@@ -330,13 +443,14 @@ impl JVMState {
     }*/
 }
 
-pub fn run_main(args: Vec<String>, jvm: &'static JVMState) -> Result<(), Box<dyn Error>> {
+pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
     let jvmti = jvm.jvmti_state.as_ref();
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
+    // assert!(main_thread.get_underlying())//todo check we are running on underlying thread for main
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
     // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
     let stack_entry = StackEntry {
@@ -347,70 +461,48 @@ pub fn run_main(args: Vec<String>, jvm: &'static JVMState) -> Result<(), Box<dyn
         pc: 0,
         pc_offset: 0,
     };
-    *main_thread.call_stack.write().unwrap() = vec![stack_entry];
+    int_state.push_frame(stack_entry);
     jvmti.map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, main_thread.thread_object()));
-    //trigger breakpoint on thread.resume for debuggers that rely on that:
 
-    let thread_class = check_inited_class(
-        &jvm,
-        &ClassName::thread().into(),
-        jvm.bootstrap_loader.clone(),
-    );
-    //todo is firing a resume breakpoint event really needed?
-    let method_i = thread_class
-        .view()
-        .lookup_method(&"resume".to_string(),
-                       &MethodDescriptor {
-                           parameter_types: vec![],
-                           return_type: PType::VoidType,
-                       })
-        .unwrap()
-        .method_i();
-    let thread_resume_id = jvm.method_table.write().unwrap().get_method_id(thread_class, method_i as u16);
-    match &jvm.jvmti_state {
-        None => {}
-        Some(jvmti) => {
-            let breakpoints = jvmti.break_points.read().unwrap();
-            let breakpoint_offsets = breakpoints.get(&thread_resume_id);
-            std::mem::drop(breakpoint_offsets
-                .map(|x| x.iter().for_each(|i| {
-                    //todo handle this breakpoint the usual way
-                    jvmti.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), *i as i64);
-                })));
-            std::mem::drop(breakpoints);
-            jvmti.built_in_jdwp.breakpoint(&jvm, thread_resume_id.clone(), 0);
-        }
-    }
-
-    setup_program_args(&jvm, args);
-    run_function(&jvm,&main_thread);
-    if main_thread.interpreter_state.throw.read().unwrap().is_some() || *main_thread.interpreter_state.terminate.read().unwrap() {
+    setup_program_args(&jvm, int_state,args);
+    run_function(&jvm, int_state);
+    if int_state.throw_mut().is_some() || *int_state.terminate_mut() {
         unimplemented!()
     }
     Result::Ok(())
 }
 
 
-fn setup_program_args(jvm: &'static JVMState, args: Vec<String>) {
-    let main_thread = jvm.thread_state.get_main_thread();
-    let mut frames_guard = main_thread.get_frames_mut();
-    let current_frame = frames_guard.last_mut().unwrap();
-
-    let arg_strings:Vec<JavaValue> = args.iter().map(|arg_str| {
-        JString::from(jvm, current_frame, arg_str.clone()).java_value()
-    }).collect();
+fn setup_program_args<'l>(jvm: &'static JVMState,int_state: & mut InterpreterStateGuard, args: Vec<String>) {
+    let mut arg_strings: Vec<JavaValue> = vec![];
+    for arg_str in args {
+        arg_strings.push(JString::from(jvm, int_state, arg_str.clone()).java_value());
+    }
     let arg_array = JavaValue::Object(Some(Arc::new(Array(ArrayObject {
         elems: RefCell::new(arg_strings),
         elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
-        monitor: jvm.thread_state.new_monitor( "arg array monitor".to_string())
+        monitor: jvm.thread_state.new_monitor("arg array monitor".to_string()),
     }))));
-    let local_vars = &mut current_frame.local_vars;
+    let local_vars = &mut int_state.current_frame_mut().local_vars;
     local_vars[0] = arg_array;
 }
 
-pub fn jvm_run_system_init(jvm: &'static JVMState) -> Result<(), Box<dyn Error>>{
+
+pub struct MainThreadInitializeInfo{
+    pub system_class: Arc<RuntimeClass>
+}
+
+
+/*
+Runs System.initializeSystemClass, which initializes the entire vm. This function is run on the main rust thread, which is different from the main java thread.
+This means that the needed state needs to be transferred over.
+ */
+pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThreadInitializeInfo>) -> Result<(), Box<dyn Error>> {
     let bl = &jvm.bootstrap_loader;
-    let system_class = check_inited_class(jvm, &ClassName::system().into(), bl.clone());
+    let main_thread = jvm.thread_state.get_main_thread();
+
+    let system_class = check_inited_class(jvm, &mut InterpreterStateGuard{ int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread }, &ClassName::system().into(), bl.clone());
+
     let init_method_view = locate_init_system_class(&system_class);
     let mut locals = vec![];
     for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
@@ -424,36 +516,22 @@ pub fn jvm_run_system_init(jvm: &'static JVMState) -> Result<(), Box<dyn Error>>
         pc: 0,
         pc_offset: 0,
     };
-    *jvm.thread_state.get_current_thread().call_stack.write().unwrap() = vec![initialize_system_frame];
     jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &jvm.thread_state.get_main_thread()));
-//todo technically this needs to before any bytecode is run.
-    let main_thread = jvm.thread_state.get_main_thread();
-    run_function(&jvm,&main_thread);
-    let mut function_return = main_thread.interpreter_state.function_return.write().unwrap();
-    if *function_return {
-        *function_return = false;
-    }
-    if main_thread.interpreter_state.throw.read().unwrap().is_some() || *main_thread.interpreter_state.terminate.read().unwrap() {
-        unimplemented!()
-    }
-    *jvm.live.write().unwrap() = true;
-    set_properties(jvm);
+    main_thread.interpreter_state.write().unwrap().call_stack = vec![initialize_system_frame];
+    sender.send(MainThreadInitializeInfo{system_class }).unwrap();
     Result::Ok(())
 }
 
-fn set_properties(jvm: &'static JVMState) {
+fn set_properties<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) {
     let properties = &jvm.properties;
-    let prop_obj = System::props(jvm);
+    let prop_obj = System::props(jvm,int_state);
     assert_eq!(properties.len() % 2, 0);
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
-        let main_thread = jvm.thread_state.get_main_thread();
-        let mut frames_guard = main_thread.get_frames_mut();
-        let current_frame = frames_guard.last_mut().unwrap();
-        let key = JString::from(jvm, current_frame, properties[key_i].clone());
-        let value = JString::from(jvm, current_frame, properties[value_i].clone());
-        prop_obj.set_property(jvm, current_frame, key, value);
+        let key = JString::from(jvm, int_state, properties[key_i].clone());
+        let value = JString::from(jvm,int_state, properties[value_i].clone());
+        prop_obj.set_property(jvm, int_state, key, value);
     }
 }
 

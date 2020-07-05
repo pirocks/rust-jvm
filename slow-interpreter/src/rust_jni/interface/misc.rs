@@ -13,7 +13,8 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_frame, get_state, to_object, get_thread, get_frames};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_state, to_object, get_interpreter_state};
+use crate::InterpreterStateGuard;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -22,30 +23,34 @@ pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jin
 
 pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::raw::c_char) -> jclass {
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    get_state_thread_frame!(env,state,thread,frames,frame);
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
     //todo maybe parse?
-    load_class_constant_by_type(state, frame, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))));
-    let obj = frame.pop().unwrap_object();
+    load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))));
+    let obj = int_state.pop_current_operand_stack().unwrap_object();
     to_object(obj)
 }
 
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
     let super_name = match from_jclass(sub).as_runtime_class().view().super_name() {
         None => { return to_object(None); }
         Some(n) => n,
     };
+    // let frame = int_state.current_frame_mut();
 //    frame.print_stack_trace();
-    let _inited_class = check_inited_class(jvm, &super_name.clone().into(), frame.class_pointer.loader(jvm).clone());
-    load_class_constant_by_type(jvm, frame, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
-    to_object(frame.pop().unwrap_object())
+    let _inited_class = check_inited_class(jvm, int_state,&super_name.clone().into(), int_state.current_loader(jvm));
+    load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
+    to_object(int_state.pop_current_operand_stack().unwrap_object())
 }
 
 
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
-    //todo impl later
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let frame = int_state.current_frame_mut();
 
     let sub_not_null = from_object(sub).unwrap();
     let sup_not_null = from_object(sup).unwrap();
@@ -66,15 +71,16 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ::va_list::VaList) -> jobject {
     //todo dup
     let method_id: MethodId = transmute(jmethod_id );
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = &class.view();
     let method = &classview.method_view_i(method_i as usize);
     let _name = method.name();
     let parsed = method.desc();
-    push_new_object(jvm, frame, &class, None);
-    let obj = frame.pop();
-    frame.push(obj.clone());
+    push_new_object(jvm, int_state, &class, None);
+    let obj = int_state.pop_current_operand_stack();
+    int_state.push_current_operand_stack(obj.clone());
     for type_ in &parsed.parameter_types {
         match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => unimplemented!(),
@@ -86,7 +92,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
             PTypeView::Ref(_) => {
                 let native_object: jobject = transmute(l.get::<usize>());
                 let o = from_object(native_object);
-                frame.push(JavaValue::Object(o));
+                int_state.push_current_operand_stack(JavaValue::Object(o));
             }
             PTypeView::ShortType => unimplemented!(),
             PTypeView::BooleanType => unimplemented!(),
@@ -100,7 +106,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     }
     invoke_special_impl(
         jvm,
-        frame,
+        int_state,
         &parsed,
         method_i as usize,
         class.clone(),
@@ -111,15 +117,16 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
 
 pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
     let method_id: MethodId = transmute(jmethod_id);
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = &class.view();
     let method = &classview.method_view_i(method_i as usize);
     let _name = method.name();
     let parsed = method.desc();
-    push_new_object(jvm, frame, &class, None);
-    let obj = frame.pop();
-    frame.push(obj.clone());
+    push_new_object(jvm, int_state, &class, None);
+    let obj = int_state.pop_current_operand_stack();
+    int_state.push_current_operand_stack(obj.clone());
     for type_ in &parsed.parameter_types {
         match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => unimplemented!(),
@@ -131,7 +138,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
             PTypeView::Ref(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);
-                frame.push(JavaValue::Object(o));
+                int_state.push_current_operand_stack(JavaValue::Object(o));
             }
             PTypeView::ShortType => unimplemented!(),
             PTypeView::BooleanType => unimplemented!(),
@@ -145,7 +152,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     }
     invoke_special_impl(
         jvm,
-        frame,
+        int_state,
         &parsed,
         method_i as usize,
         class.clone(),
@@ -165,6 +172,7 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
 
 pub(crate) unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
     let jvm = get_state(env);
-    *jvm.thread_state.get_current_thread().interpreter_state.throw.write().unwrap() = from_object(obj);
+    let interpreter_state = get_interpreter_state(env);
+    *interpreter_state.throw_mut() = from_object(obj);
     0 as jint
 }

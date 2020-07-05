@@ -11,7 +11,7 @@ use crate::JVMState;
 use classfile_view::view::HasAccessFlags;
 use crate::threading::monitors::Monitor;
 
-//#[derive(Debug)]
+// #[derive(Copy)]
 pub enum JavaValue {
     Long(i64),
     Int(i32),

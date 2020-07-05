@@ -1,4 +1,4 @@
-use crate::{JVMState, StackEntry};
+use crate::{JVMState,  InterpreterStateGuard};
 
 use verification::verifier::instructions::branches::get_method_descriptor;
 use std::sync::Arc;
@@ -19,35 +19,36 @@ pub mod virtual_;
 pub mod static_;
 
 pub mod dynamic {
-
-
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
     use classfile_view::view::constant_info_view::{ConstantInfoView, ReferenceData, InvokeStatic};
-    use crate::{JVMState, StackEntry};
+    use crate::{JVMState,  InterpreterStateGuard};
     use classfile_view::view::attribute_view::BootstrapArgView;
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::string::JString;
     use crate::java::lang::invoke::method_handle::MethodHandle;
 
-    pub fn invoke_dynamic(jvm: &'static JVMState, frame: &mut StackEntry, cp: u16) {
+    pub fn invoke_dynamic<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, cp: u16) {
         let _method_handle_class = check_inited_class(
             jvm,
+            int_state,
             &ClassName::method_handle().into(),
-            frame.class_pointer.loader(jvm).clone(),
+            int_state.current_loader(jvm).clone(),
         );
         let _method_type_class = check_inited_class(
             jvm,
+            int_state,
             &ClassName::method_type().into(),
-            frame.class_pointer.loader(jvm).clone(),
+            int_state.current_loader(jvm).clone(),
         );
         let _call_site_class = check_inited_class(
             jvm,
+            int_state,
             &ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
-            frame.class_pointer.loader(jvm).clone(),
+            int_state.current_loader(jvm).clone(),
         );
-        let class_pointer_view = frame.class_pointer.view().clone();
+        let class_pointer_view = int_state.current_class_view().clone();
         let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
@@ -56,28 +57,27 @@ pub mod dynamic {
         let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
         let _method_handle = {
             let methodref_view = bootstrap_method_view.bootstrap_method_ref();
-            match methodref_view.get_reference_data(){
+            match methodref_view.get_reference_data() {
                 ReferenceData::InvokeStatic(is) => {
                     match is {
                         InvokeStatic::Interface(_) => unimplemented!(),
                         InvokeStatic::Method(mr) => {
-                            let lookup = MethodHandle::public_lookup(jvm, frame);
+                            let lookup = MethodHandle::public_lookup(jvm, int_state);
                             // let _a_rando_class_object = lookup.get_class(state, frame.clone());
                             // dbg!(&a_rando_class_object.clone().java_value().unwrap_normal_object().fields);
                             // let loader = a_rando_class_object.get_class_loader(state, &frame);
-                            let name = JString::from(jvm, frame, mr.name_and_type().name());
-                            let desc = JString::from(jvm, frame, mr.name_and_type().desc_str());
-                            let method_type = MethodType::from_method_descriptor_string(jvm, frame, desc, None);
-                            let target_class = JClass::from_name(jvm, frame, mr.class());
-                            lookup.find_virtual(jvm, frame, target_class, name, method_type)
-                        },
+                            let name = JString::from(jvm, int_state, mr.name_and_type().name());
+                            let desc = JString::from(jvm, int_state, mr.name_and_type().desc_str());
+                            let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None);
+                            let target_class = JClass::from_name(jvm, int_state, mr.class());
+                            lookup.find_virtual(jvm, int_state,target_class, name, method_type)
+                        }
                     }
-                },
+                }
             }
-
         };
         let arg_iterator = bootstrap_method_view.bootstrap_args();
-        arg_iterator.for_each(|x|{
+        arg_iterator.for_each(|x| {
             match x {
                 BootstrapArgView::String(_) => unimplemented!(),
                 BootstrapArgView::Class(_) => unimplemented!(),
@@ -111,9 +111,9 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
-    let view = current_frame.class_pointer.view();
-    let loader_arc = &current_frame.class_pointer.loader(jvm);
+fn resolved_class<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard,  cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+    let view = int_state.current_class_view();
+    let loader_arc = &int_state.current_loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => {
@@ -122,12 +122,12 @@ fn resolved_class(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: u1
                 ReferenceTypeView::Array(_a) => {
                     if expected_method_name == "clone".to_string() {
                         //todo replace with proper native impl
-                        let temp = current_frame.pop().unwrap_object().unwrap();
+                        let temp = int_state.pop_current_operand_stack().unwrap_object().unwrap();
                         let to_clone_array = temp.unwrap_array();
-                        current_frame.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
+                        int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
                             elems: to_clone_array.elems.clone(),
                             elem_type: to_clone_array.elem_type.clone(),
-                            monitor: jvm.thread_state.new_monitor("monitor for cloned object".to_string())
+                            monitor: jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
                         })))));
                         return None;
                     } else {
@@ -141,8 +141,9 @@ fn resolved_class(jvm: &'static JVMState, current_frame: &mut StackEntry, cp: u1
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
     let resolved_class = check_inited_class(
         jvm,
+        int_state,
         &class_name_.into(),
-        loader_arc.clone()
+        loader_arc.clone(),
     );
     (resolved_class, expected_method_name, expected_descriptor).into()
 }

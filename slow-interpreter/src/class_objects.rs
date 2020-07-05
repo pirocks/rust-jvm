@@ -1,9 +1,8 @@
-use crate::JVMState;
+use crate::{JVMState, InterpreterStateGuard};
 use classfile_view::view::ptype_view::PTypeView;
 use crate::java_values::{Object, JavaValue};
 use std::sync::Arc;
 use classfile_view::loading::LoaderArc;
-use crate::stack_entry::StackEntry;
 
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::instructions::ldc::create_string_on_stack;
@@ -13,7 +12,7 @@ use crate::runtime_class::{RuntimeClass};
 //todo do something about this class object crap
 pub fn get_or_create_class_object(state: &'static JVMState,
                                   type_: &PTypeView,
-                                  current_frame: &mut StackEntry,
+                                  int_state: &mut InterpreterStateGuard,
                                   loader_arc: LoaderArc,
 ) -> Arc<Object> {
     // match type_ {
@@ -26,7 +25,7 @@ pub fn get_or_create_class_object(state: &'static JVMState,
     //     _ => {}
     // }
 
-    regular_object(state, type_, current_frame, loader_arc)
+    regular_object(state, type_.clone(), int_state, loader_arc)
 }
 
 // fn array_object(state: &'static JVMState, array_sub_type: &PTypeView, current_frame: &StackEntry) -> Arc<Object> {
@@ -49,19 +48,20 @@ pub fn get_or_create_class_object(state: &'static JVMState,
 //     }
 // }
 
-fn regular_object(state: &'static JVMState, ptype: &PTypeView, current_frame: &mut StackEntry, loader_arc: LoaderArc) -> Arc<Object> {
-    let runtime_class = check_inited_class(state, &ptype, loader_arc);
+fn regular_object<'l>(state: &'static JVMState, ptype: PTypeView,int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Arc<Object> {
+    // let current_frame = int_state.current_frame_mut();
+    let runtime_class = check_inited_class(state,int_state, &ptype, loader_arc);
     let res = state.class_object_pool.read().unwrap().get(&runtime_class).cloned();
     match res {
         None => {
-            let r = create_a_class_object(state, current_frame, runtime_class.clone());
+            let r = create_a_class_object(state, int_state, runtime_class.clone());
             //todo likely race condition created by expectation that Integer.class == Integer.class, maybe let it happen anyway?
             state.class_object_pool.write().unwrap().insert(runtime_class.clone(), r.clone());
             if runtime_class.ptypeview().is_primitive() {
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
-                create_string_on_stack(state, runtime_class.ptypeview().primitive_name().to_string());
-                r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), current_frame.pop());
+                create_string_on_stack(state, int_state,runtime_class.ptypeview().primitive_name().to_string());
+                r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), int_state.pop_current_operand_stack());
             }
             r
         }
@@ -69,15 +69,16 @@ fn regular_object(state: &'static JVMState, ptype: &PTypeView, current_frame: &m
     }
 }
 
-fn create_a_class_object(jvm: &'static JVMState, current_frame: &mut StackEntry, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
+fn create_a_class_object(jvm: &'static JVMState,int_state: &mut InterpreterStateGuard, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
     let java_lang_class = ClassName::class();
-    let current_loader = current_frame.class_pointer.loader(jvm).clone();
-    let class_class = check_inited_class(jvm, &java_lang_class.into(), current_loader.clone());
-    let boostrap_loader_object = jvm.get_or_create_bootstrap_object_loader();
+    // let current_frame = int_state.current_frame_mut();
+    let current_loader = int_state.current_loader(jvm).clone();
+    let class_class = check_inited_class(jvm, int_state,&java_lang_class.into(), current_loader.clone());
+    let boostrap_loader_object = jvm.get_or_create_bootstrap_object_loader(int_state);
     //the above would only be required for higher jdks where a class loader object is part of Class.
     //as it stands we can just push to operand stack
-    push_new_object(jvm, current_frame, &class_class, ptypev.into());
-    let object = current_frame.pop();
+    push_new_object(jvm,int_state,  &class_class, ptypev.into());
+    let object = int_state.pop_current_operand_stack();
     match object.clone() {
         JavaValue::Object(o) => {
             let bootstrap_arc = boostrap_loader_object.clone();

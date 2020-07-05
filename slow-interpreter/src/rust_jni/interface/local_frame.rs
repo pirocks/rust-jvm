@@ -1,23 +1,24 @@
 use jvmti_jni_bindings::{JNIEnv, jint, jobject, JNI_OK};
-use crate::rust_jni::native_util::{get_state, get_frame, to_object, get_thread, get_frames};
+use crate::rust_jni::native_util::{get_state, to_object, get_interpreter_state};
 use crate::java_values::JavaValue;
-use crate::stack_entry::StackEntry;
 
 pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> jobject {
     assert_eq!(result, std::ptr::null_mut());
     // let jv = from_object(result);
 
     let jvm = get_state(env);
+    unimplemented!();
     //todo this is wrong
-    jvm.thread_state.get_current_thread().call_stack.write().unwrap().pop();
+    // jvm.thread_state.get_current_thread().call_stack.write().unwrap().pop();
 
     to_object(None);
     unimplemented!();
 }
 
 pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint {
-    // let frame = get_frame(&mut get_frames(env));
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let frame = int_state.current_frame_mut();
     let mut new_local_vars = vec![];
     for i in 0..capacity {
         match frame.local_vars.get(i as usize) {
@@ -26,13 +27,14 @@ pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> j
         }
     }
     //todo so this what this should do. but different
-    jvm.thread_state.get_current_thread().call_stack.write().unwrap().push(StackEntry {
+    unimplemented!("get clarity on what this actually does");
+    /*jvm.thread_state.get_current_thread().call_stack.write().unwrap().push(StackEntry {
         class_pointer: frame.class_pointer.clone(),
         method_i: std::u16::MAX,
         local_vars: new_local_vars,
         operand_stack: vec![],
         pc: std::usize::MAX,
-        pc_offset: std::isize::MAX
-    });
+        pc_offset: std::isize::MAX,
+    });*/
     JNI_OK as i32
 }

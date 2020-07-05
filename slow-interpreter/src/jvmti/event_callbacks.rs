@@ -1,7 +1,7 @@
 use libloading::Library;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use jvmti_jni_bindings::*;
-use crate::{JVMState, JavaThread};
+use crate::{JVMState, JavaThread, InterpreterStateGuard};
 use crate::threading::JavaThreadId;
 use crate::rust_jni::interface::get_interface;
 use crate::jvmti::{get_jvmti_interface, get_state};
@@ -146,21 +146,19 @@ impl SharedLibJVMTI {
     }
 
 
-    pub fn class_prepare(&self, jvm: &'static JVMState, class: &ClassName) {
-        let event_getter = &|| {
-            unsafe {
-                let current_thread = jvm.thread_state.get_current_thread();
-                let thread = to_object(current_thread.thread_object().object().into());
-                let klass_obj = get_or_create_class_object(jvm,
-                                                           &class.clone().into(),
-                                                           current_thread.get_frames_mut().last_mut().unwrap(),
-                                                           jvm.bootstrap_loader.clone());
-                let klass = to_object(klass_obj.into());
-                let event = JVMTIEvent::ClassPrepare(ClassPrepareEvent { thread, klass });
-                // jvm.tracing.trace_event_trigger("")
-                event
-            }
-        };
+    pub fn class_prepare<'l>(&self, jvm: &'static JVMState, class: &ClassName, int_state: & mut InterpreterStateGuard) {
+        unsafe {
+            let thread = to_object(jvm.thread_state.get_current_thread().thread_object().object().into());
+            let klass_obj = get_or_create_class_object(jvm,
+                                                       &class.clone().into(),
+                                                       int_state,
+                                                       jvm.bootstrap_loader.clone());
+            let klass = to_object(klass_obj.into());
+            let event = JVMTIEvent::ClassPrepare(ClassPrepareEvent { thread, klass });
+            // jvm.tracing.trace_event_trigger("")
+            // event
+            unimplemented!()
+        }
         unimplemented!()
         // SharedLibJVMTI::trigger_event_threads(jvm, &self.class_prepare_enabled.read().unwrap(), event_getter);
     }

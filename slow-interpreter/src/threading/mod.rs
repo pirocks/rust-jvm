@@ -1,20 +1,21 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockWriteGuard, RwLockReadGuard};
+use std::sync::{Arc, RwLock,  RwLockReadGuard};
 use std::thread::LocalKey;
 
 use jvmti_jni_bindings::jrawMonitorID;
 use userspace_threads::{Thread, Threads};
 
-use crate::{InterpreterState, JVMState};
+use crate::{InterpreterState, JVMState, InterpreterStateGuard, SuspendedStatus, MainThreadInitializeInfo, set_properties, run_main};
 use crate::java::lang::thread::JThread;
 use crate::java_values::Object;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Sender, Receiver};
 use rust_jvm_common::classnames::ClassName;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::any::Any;
+use crate::interpreter::run_function;
 
 pub struct ThreadState {
     threads: Threads,
@@ -25,8 +26,12 @@ pub struct ThreadState {
     monitors: RwLock<Vec<Arc<Monitor>>>,
 }
 
-impl ThreadState {
 
+pub struct MainThreadStartInfo {
+    args: Vec<String>
+}
+
+impl ThreadState {
     pub fn new() -> Self {
         Self {
             threads: Threads::new(),
@@ -38,33 +43,61 @@ impl ThreadState {
         }
     }
 
-    pub fn setup_main_thread(&'static self,jvm: &'static JVMState){
-        let main_thread = ThreadState::bootstrap_main_thread(jvm,&jvm.thread_state.threads);
+    pub fn setup_main_thread(&'static self, jvm: &'static JVMState) -> (Arc<JavaThread>, Sender<MainThreadInitializeInfo>, Sender<MainThreadStartInfo>) {
+        let main_thread = ThreadState::bootstrap_main_thread(jvm, &jvm.thread_state.threads);
         *self.main_thread.write().unwrap().as_mut().unwrap() = main_thread.clone();
-        self.all_java_threads.write().unwrap().insert(main_thread.java_tid,main_thread);
+        self.all_java_threads.write().unwrap().insert(main_thread.java_tid, main_thread.clone());
+        let (init_send, init_recv) = channel();
+        let (main_send, main_recv) = channel();
+        let main_thread_clone = main_thread.clone();
+        main_thread.clone().underlying_thread.start_thread(box move |_| {
+            ThreadState::jvm_init_from_main_thread(jvm, init_recv);
+            let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread.clone() };
+            let MainThreadStartInfo { args } = main_recv.recv().unwrap();
+            run_main(args, jvm, &mut int_state);
+        }, box ());
+        (main_thread_clone, init_send, main_send)
     }
 
-    pub fn get_main_thread(&self) -> Arc<JavaThread>{
+    fn jvm_init_from_main_thread(jvm: &'static JVMState, init_recv: Receiver<MainThreadInitializeInfo>) {
+        let _init_info = init_recv.recv().unwrap();
+        let main_thread = &jvm.thread_state.get_main_thread();
+        let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: main_thread };
+        run_function(&jvm, &mut int_state);
+        let mut function_return = int_state.function_return_mut();
+        if *function_return {
+            *function_return = false;
+        }
+        if int_state.throw_mut().is_some() || *int_state.terminate_mut() {
+            unimplemented!()
+        }
+        *jvm.live.write().unwrap() = true;
+        set_properties(jvm, &mut int_state);
+        jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, jvm.thread_state.get_main_thread()));
+        // drop(int_state);
+    }
+
+    pub fn get_main_thread(&self) -> Arc<JavaThread> {
         self.main_thread.read().unwrap().as_ref().unwrap().clone()
     }
 
-    fn bootstrap_main_thread(jvm: &'static JVMState,threads: &Threads) -> Arc<JavaThread> {
-        let (main_thread_obj_send,main_thread_obj_recv) = channel();
+    fn bootstrap_main_thread<'l>(jvm: &'static JVMState, threads: &Threads) -> Arc<JavaThread> {
+        let (main_thread_obj_send, main_thread_obj_recv) = channel();
         let bootstrap_underlying_thread = threads.create_thread();
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
             underlying_thread: bootstrap_underlying_thread,
-            call_stack: RwLock::new(vec![]),
             thread_object: RwLock::new(None),
-            interpreter_state: InterpreterState::default(),
+            interpreter_state: RwLock::new(InterpreterState::default()),
+            suspended: RwLock::new(SuspendedStatus::default()),
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
-        let target_classfile = check_inited_class(
-            jvm,
+        let target_classfile = check_inited_class(jvm,
+            &mut InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread },
             &ClassName::thread().into(),
-            jvm.bootstrap_loader.clone()
+            jvm.bootstrap_loader.clone(),
         );
-        underlying.start_thread(box move |_data: Box<dyn Any>|{
+        underlying.start_thread(box move |_data: Box<dyn Any>| {
             let frame = StackEntry {
                 class_pointer: target_classfile.clone(),
                 method_i: std::u16::MAX,
@@ -73,15 +106,14 @@ impl ThreadState {
                 pc: std::usize::MAX,
                 pc_offset: -1,
             };
-            let mut frames_guard = bootstrap_thread.get_frames_mut();
-            frames_guard.push(frame);
-            let frame = frames_guard.last_mut().unwrap();
-            push_new_object(jvm, frame, &target_classfile, None);
-            let jthread = frame.pop().cast_thread();
+            let mut new_int_state = InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread };
+            new_int_state.push_frame(frame);
+            push_new_object(jvm, &mut new_int_state,  &target_classfile, None);
+            let jthread = new_int_state.pop_current_operand_stack().cast_thread();
             main_thread_obj_send.send(jthread).unwrap();
         }, box ());
         let thread_obj: JThread = main_thread_obj_recv.recv().unwrap();
-        Arc::new(JavaThread::new(thread_obj,threads.create_thread()))
+        Arc::new(JavaThread::new(thread_obj, threads.create_thread()))
     }
 
     pub fn get_current_thread_name(&self) -> String {
@@ -112,37 +144,36 @@ impl ThreadState {
         monitor
     }
 
-    pub fn get_thread_by_tid(&self, tid: JavaThreadId) -> Arc<JavaThread>{
+    pub fn get_thread_by_tid(&self, tid: JavaThreadId) -> Arc<JavaThread> {
         self.all_java_threads.read().unwrap().get(&tid).unwrap().clone()
     }
 
-    pub fn start_thread_from_obj(&self, jvm: &'static JVMState, obj: JThread, frame: &StackEntry) -> Arc<JavaThread> {
+    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: & mut InterpreterStateGuard, frame: &StackEntry) -> Arc<JavaThread> {
         let underlying = self.threads.create_thread();
 
         let (send, recv) = channel();
-        let thread_class = check_inited_class(jvm, &ClassName::thread().into(), frame.class_pointer.loader(jvm).clone());
+        let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), frame.class_pointer.loader(jvm).clone());
         let java_thread = Arc::new(JavaThread::new(obj, underlying));
-        java_thread.clone().underlying_thread.start_thread(box move |_data|{
+        java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
             let new_thread_frame = StackEntry {
-                        class_pointer: thread_class.clone(),
-                        method_i: std::u16::MAX,
-                        local_vars: vec![],
-                        operand_stack: vec![],
-                        pc: std::usize::MAX,
-                        pc_offset: -1,
-                    };
-            java_thread.call_stack.write().unwrap().push(new_thread_frame);
-            let mut frames = java_thread.get_frames_mut();
-            let new_thread_frame_ = frames.last_mut().unwrap();
-            java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, new_thread_frame_);
-            java_thread.call_stack.write().unwrap().pop();
+                class_pointer: thread_class.clone(),
+                method_i: std::u16::MAX,
+                local_vars: vec![],
+                operand_stack: vec![],
+                pc: std::usize::MAX,
+                pc_offset: -1,
+            };
+            let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
+            interpreter_state_guard.push_frame(new_thread_frame);
+            java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);
+            interpreter_state_guard.pop_frame();
         }, box ());//todo is this Data really needed since we have a closure
         recv.recv().unwrap()
     }
 
 
-    pub fn get_all_threads(&self)-> RwLockReadGuard<HashMap<JavaThreadId,Arc<JavaThread>>>{
+    pub fn get_all_threads(&self) -> RwLockReadGuard<HashMap<JavaThreadId, Arc<JavaThread>>> {
         self.all_java_threads.read().unwrap()
     }
 }
@@ -159,9 +190,9 @@ pub type JavaThreadId = i64;
 pub struct JavaThread {
     pub java_tid: JavaThreadId,
     underlying_thread: Thread,
-    pub(crate) call_stack: RwLock<Vec<StackEntry>>,
     thread_object: RwLock<Option<JThread>>,
-    pub interpreter_state: InterpreterState,
+    pub interpreter_state: RwLock<InterpreterState>,
+    pub suspended: RwLock<SuspendedStatus>,
 }
 
 impl JavaThread {
@@ -169,15 +200,15 @@ impl JavaThread {
         JavaThread {
             java_tid: thread_obj.tid(),
             underlying_thread: underlying,
-            call_stack: RwLock::new(vec![]),
             thread_object: RwLock::new(thread_obj.into()),
-            interpreter_state: InterpreterState::default(),
+            interpreter_state: RwLock::new(InterpreterState::default()),
+            suspended: RwLock::new(SuspendedStatus::default()),
         }
     }
 
- /*   fn set_current_thread(&self, java_thread: Arc<JavaThread>) {
-        self.current_java_thread.with(|x| x.replace(java_thread.into()));
-    }*/
+    /*   fn set_current_thread(&self, java_thread: Arc<JavaThread>) {
+           self.current_java_thread.with(|x| x.replace(java_thread.into()));
+       }*/
 
     /*pub fn get_current_frame(&self) -> &StackEntry {
         self.call_stack.read().unwrap().last().unwrap()
@@ -192,13 +223,13 @@ impl JavaThread {
         &guard[guard.len()-2]
     }*/
 
-    pub fn get_frames(&self) -> RwLockReadGuard<Vec<StackEntry>>{
+    /*pub fn get_frames(&self) -> RwLockReadGuard<Vec<StackEntry>>{
         self.call_stack.read().unwrap()
     }
 
     pub fn get_frames_mut(&self) -> RwLockWriteGuard<Vec<StackEntry>>{
         self.call_stack.write().unwrap()
-    }
+    }*/
 
     /*pub fn get_previous_frame_mut(&self) -> &mut StackEntry {
         let mut guard = self.call_stack.write().unwrap();
@@ -207,15 +238,21 @@ impl JavaThread {
     }*/
 
 
-    pub fn print_stack_trace(&self) {
-        self.call_stack.read().unwrap().iter().rev().enumerate().for_each(|(i, stack_entry)| {
-            let name = stack_entry.class_pointer.view().name();
-            let meth_name = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize).name();
-            println!("{}.{} {} pc: {}", name.get_referred_name(), meth_name, i, stack_entry.pc)
-        });
+    pub fn get_underlying(&self) -> &Thread {
+        &self.underlying_thread
     }
 
-    pub fn thread_object(&self) -> JThread{
+    pub fn print_stack_trace(&self) {
+        //todo handle case when thread not paused
+        unimplemented!()
+        // self.interpreter_state.read().unwrap().call_stack.read().unwrap().iter().rev().enumerate().for_each(|(i, stack_entry)| {
+        //     let name = stack_entry.class_pointer.view().name();
+        //     let meth_name = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize).name();
+        //     println!("{}.{} {} pc: {}", name.get_referred_name(), meth_name, i, stack_entry.pc)
+        // });
+    }
+
+    pub fn thread_object(&self) -> JThread {
         self.thread_object.read().unwrap().as_ref().unwrap().clone()
     }
 }

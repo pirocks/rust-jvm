@@ -8,6 +8,7 @@ use std::os::raw::c_void;
 use crate::rust_jni::native_util::from_object;
 use crate::java_values::JavaValue;
 use thread_priority::*;
+use crate::InterpreterStateGuard;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
@@ -22,13 +23,14 @@ unsafe impl Sync for ThreadArgWrapper {}
 pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
     //todo implement thread priority
     let jvm = get_state(env);
+    let int_state: & mut InterpreterStateGuard = unimplemented!();
     jvm.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
     let name = JavaValue::Object(from_object(transmute(thread)))
         .cast_thread()
         .name()
         .to_rust_string();
     let args = ThreadArgWrapper { proc_, arg, thread };
-    let system_class = check_inited_class(jvm, &ClassName::system().into(), jvm.bootstrap_loader.clone());
+    let system_class = check_inited_class(jvm,int_state, &ClassName::system().into(), jvm.bootstrap_loader.clone());
 //TODO ADD THREAD TO JVM STATE STRUCT
     //todo handle join handles somehow
     let _join_handle = std::thread::Builder::new()

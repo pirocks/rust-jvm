@@ -1,7 +1,7 @@
 pub mod unsafe_ {
     use crate::java_values::{Object, JavaValue};
     use std::sync::Arc;
-    use crate::{JVMState, StackEntry};
+    use crate::{JVMState, InterpreterStateGuard};
 
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
@@ -19,19 +19,19 @@ pub mod unsafe_ {
     }
 
     impl Unsafe {
-        pub fn the_unsafe(jvm: &'static JVMState, frame: &mut StackEntry) -> Unsafe {
-            let unsafe_class = check_inited_class(jvm, &ClassName::unsafe_().into(), frame.class_pointer.loader(jvm).clone());
+        pub fn the_unsafe<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) -> Unsafe {
+            let unsafe_class = check_inited_class(jvm, int_state,&ClassName::unsafe_().into(), int_state.current_loader(jvm));
             let static_vars = unsafe_class.static_vars();
             static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
         }
 
-        pub fn object_field_offset(&self,jvm: &'static JVMState, frame: &mut StackEntry, field: Field) -> JavaValue{
+        pub fn object_field_offset<'l>(&self,jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, field: Field) -> JavaValue{
             let desc_str =  "(Ljava/lang/reflect/Field;)J";
-            frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            frame.push(field.java_value());
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(field.java_value());
             let rc = self.normal_object.unwrap_normal_object().class_pointer.clone();
-            run_static_or_virtual(jvm,&rc,"objectFieldOffset".to_string(),desc_str.to_string());
-            frame.pop()
+            run_static_or_virtual(jvm,int_state,&rc,"objectFieldOffset".to_string(),desc_str.to_string());
+            int_state.pop_current_operand_stack()
         }
 
         as_object_or_java_value!();

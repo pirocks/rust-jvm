@@ -10,6 +10,8 @@ use std::path::Path;
 use slow_interpreter::{JVMOptions, JVMState, jvm_run_system_init, run_main};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::loading::Classpath;
+use std::sync::Arc;
+use slow_interpreter::threading::MainThreadStartInfo;
 
 
 extern crate classfile_parser;
@@ -70,11 +72,13 @@ fn main() {
     unsafe {JVM = (jvm).into()}
     let jvm : &'static JVMState = unsafe {JVM.as_ref().unwrap()};
     let thread_state = &jvm.thread_state;
-    thread_state.setup_main_thread(jvm);
-    let jvmti = &jvm.jvmti_state.as_ref();
-    jvm_run_system_init(jvm).expect("Couldn't init jvm");
-    jvmti.map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, thread_state.get_main_thread()));
+    let (main_thread, init_send, main_send) = thread_state.setup_main_thread(jvm);
+    assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));
 
-    run_main(args, jvm).unwrap();
+    let jvmti = &jvm.jvmti_state.as_ref();
+    jvm_run_system_init(jvm,init_send).expect("Couldn't init jvm");
+
+    main_send.send(MainThreadStartInfo{ args }).unwrap();
+    main_thread.get_underlying().join();
 }
 

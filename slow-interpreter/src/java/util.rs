@@ -4,7 +4,7 @@ pub mod properties {
     use crate::interpreter_util::check_inited_class;
     use rust_jvm_common::classnames::ClassName;
     use crate::stack_entry::StackEntry;
-    use crate::JVMState;
+    use crate::{JVMState, InterpreterStateGuard};
     use crate::java::lang::string::JString;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 
@@ -21,13 +21,13 @@ pub mod properties {
     }
 
     impl Properties {
-        pub fn set_property(&self, jvm: &'static JVMState, frame: &mut StackEntry, key: JString, value: JString) {
-            let properties_class = check_inited_class(jvm, &ClassName::properties().into(), frame.class_pointer.loader(jvm).clone());
-            frame.push(JavaValue::Object(self.normal_object.clone().into()));
-            frame.push(key.java_value());
-            frame.push(value.java_value());
-            run_static_or_virtual(jvm, &properties_class, "setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string());
-            frame.pop();
+        pub fn set_property<'l>(&self, jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, key: JString, value: JString) {
+            let properties_class = check_inited_class(jvm, int_state,&ClassName::properties().into(), int_state.current_loader(jvm).clone());
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(key.java_value());
+            int_state.push_current_operand_stack(value.java_value());
+            run_static_or_virtual(jvm, int_state,&properties_class, "setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string());
+            int_state.pop_current_operand_stack();
         }
     }
 }

@@ -21,7 +21,6 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
     //todo need to convert lots of these to unwrap_or_throw
     // dbg!(args0);
     // dbg!(method);

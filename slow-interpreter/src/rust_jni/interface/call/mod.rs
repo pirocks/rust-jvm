@@ -11,7 +11,7 @@ use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
-use crate::rust_jni::native_util::{from_object, get_frame, get_state, get_thread, get_frames};
+use crate::rust_jni::native_util::{from_object, get_state, get_interpreter_state};
 use crate::StackEntry;
 use rust_jvm_common::ptype::PType;
 
@@ -20,46 +20,46 @@ pub mod call_nonstatic;
 unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
     let method_id: MethodId = transmute(method_id);
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classview = class.view().clone();
     let method = &classview.method_view_i(method_i as usize);
     if method.is_static() {
         unimplemented!()
     }
-    get_state_thread_frame!(env,state,thread,frames,frame);
     let parsed = method.desc();
-    frame.push(JavaValue::Object(from_object(obj)));
+    int_state.push_current_operand_stack(JavaValue::Object(from_object(obj)));
     //todo ducplication with push_params_onto_frame
     for type_ in &parsed.parameter_types {
         match PTypeView::from_ptype(type_) {
             PTypeView::ByteType => {
-                frame.push(JavaValue::Byte(l.arg_byte()))
+                int_state.push_current_operand_stack(JavaValue::Byte(l.arg_byte()))
             }
             PTypeView::CharType => {
-                frame.push(JavaValue::Char(l.arg_char()))
+                int_state.push_current_operand_stack(JavaValue::Char(l.arg_char()))
             }
             PTypeView::DoubleType => {
-                frame.push(JavaValue::Double(l.arg_double()))
+                int_state.push_current_operand_stack(JavaValue::Double(l.arg_double()))
             }
             PTypeView::FloatType => {
-                frame.push(JavaValue::Float(l.arg_float()))
+                int_state.push_current_operand_stack(JavaValue::Float(l.arg_float()))
             }
             PTypeView::IntType => {
-                frame.push(JavaValue::Int(l.arg_int()))
+                int_state.push_current_operand_stack(JavaValue::Int(l.arg_int()))
             }
             PTypeView::LongType => {
-                frame.push(JavaValue::Long(l.arg_long()))
+                int_state.push_current_operand_stack(JavaValue::Long(l.arg_long()))
             }
             PTypeView::Ref(_) => {
                 let native_object: jobject = l.arg_ptr() as jobject;
                 let o = from_object(native_object);
-                frame.push(JavaValue::Object(o));
+                int_state.push_current_operand_stack(JavaValue::Object(o));
             }
             PTypeView::ShortType => {
-                frame.push(JavaValue::Short(l.arg_short()))
+                int_state.push_current_operand_stack(JavaValue::Short(l.arg_short()))
             }
             PTypeView::BooleanType => {
-                frame.push(JavaValue::Boolean(l.arg_bool()))
+                int_state.push_current_operand_stack(JavaValue::Boolean(l.arg_bool()))
             }
             PTypeView::VoidType => unimplemented!(),
             PTypeView::TopType => unimplemented!(),
@@ -71,18 +71,19 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
     }
 //todo add params into operand stack;
 //     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i(state, parsed, class.clone(), method_i as usize, &method, false);
+    invoke_virtual_method_i(jvm, int_state,parsed, class.clone(), method_i as usize, &method, false);
     // trace!("----NATIVE ENTER ----");
     if method.desc().return_type == PType::VoidType {
         None
     } else {
-        frame.pop().into()
+        int_state.pop_current_operand_stack().into()
     }
 }
 
-pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
+pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
     let method_id = *(jmethod_id as *mut MethodId);
-    get_state_thread_frame!(env,jvm,thread,frames,frame);
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i as usize);
@@ -90,14 +91,14 @@ pub unsafe fn call_static_method_impl<'l>(env: *mut *const JNINativeInterface_, 
     let _name = method.name();
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
 //todo dup
-    push_params_onto_frame(&mut l, frame, &parsed);
+    push_params_onto_frame(&mut l, int_state.current_frame_mut(), &parsed);
     // trace!("----NATIVE EXIT ----");
-    invoke_static_impl(jvm, parsed, class.clone(), method_i as usize, method.method_info());
+    invoke_static_impl(jvm,int_state, parsed, class.clone(), method_i as usize, method.method_info());
     // trace!("----NATIVE ENTER----");
     if method.desc().return_type == PType::VoidType {
         None
     } else {
-        frame.pop().into()
+        int_state.pop_current_operand_stack().into()
     }
 }
 
