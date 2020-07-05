@@ -10,13 +10,12 @@ use std::ptr::null_mut;
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
-use std::thread::LocalKey;
+use std::thread::{LocalKey, Builder};
 
 use nix::errno::errno;
 use nix::sys::signal::{SigAction, sigaction, SigHandler, SigSet};
 use nix::sys::signal::Signal;
 use nix::unistd::gettid;
-
 use crate::handlers::{handle_event, handle_pause};
 use crate::signal::{pthread_self, pthread_sigqueue, pthread_t, siginfo_t, sigval, SI_QUEUE};
 
@@ -78,13 +77,15 @@ impl Threads {
         };
         let (thread_info_channel_send, thread_info_channel_recv) = std::sync::mpsc::channel();
         let (thread_start_channel_send, thread_start_channel_recv) = std::sync::mpsc::channel();
-        let join_handle = std::thread::spawn(move || unsafe {
-            join_status.write().unwrap().alive.store(true, Ordering::SeqCst);
-            thread_info_channel_send.send(pthread_self()).unwrap();
-            let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();
-            func(data);
-            join_status.read().unwrap().thread_finished.notify_all();
-        });
+        let join_handle = Builder::new()
+            .stack_size(1024 * 1024 * 256)// verifier makes heavy use of recursion.
+            .spawn(move || unsafe {
+                join_status.write().unwrap().alive.store(true, Ordering::SeqCst);
+                thread_info_channel_send.send(pthread_self()).unwrap();
+                let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();
+                func(data);
+                join_status.read().unwrap().thread_finished.notify_all();
+            }).unwrap();
         res.thread_start_channel_send = Mutex::new(thread_start_channel_send).into();
         res.pthread_id = thread_info_channel_recv.recv().unwrap().into();
         res.rust_join_handle = join_handle.into();
