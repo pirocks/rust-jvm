@@ -137,6 +137,12 @@ impl ThreadState {
             .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
     }
 
+    pub fn try_get_current_thread(&self) -> Option<Arc<JavaThread>> {
+        self.current_java_thread.with(|thread_refcell| {
+            thread_refcell.borrow().clone()
+        })
+    }
+
     pub fn new_monitor(&self, name: String) -> Arc<Monitor> {
         let mut monitor_guard = self.monitors.write().unwrap();
         let index = monitor_guard.len();
@@ -146,9 +152,7 @@ impl ThreadState {
     }
 
     pub fn get_current_thread(&self) -> Arc<JavaThread> {
-        self.current_java_thread.with(|thread_refcell| {
-            thread_refcell.borrow().as_ref().unwrap().clone()
-        })
+        self.try_get_current_thread().unwrap()
     }
 
     pub fn get_monitor(&self, monitor: jrawMonitorID) -> Arc<Monitor> {

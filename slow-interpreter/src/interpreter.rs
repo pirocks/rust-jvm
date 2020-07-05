@@ -46,7 +46,7 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: & mut Interpr
 
     let method_desc = method.desc_str();
     let current_depth = interpreter_state.call_stack_depth();
-    let current_thread_tid = jvm.thread_state.get_current_thread().java_tid;
+    let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t|t.java_tid).unwrap_or(-1);
     jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
     assert!(!*interpreter_state.function_return_mut());
     let class_pointer = interpreter_state.current_class_pointer().clone();
