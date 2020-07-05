@@ -14,7 +14,7 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetTopThreadGroups");
     group_count_ptr.write(1);
-    let mut res = vec![to_object(jvm.thread_state.system_thread_group.read().unwrap().clone())];
+    let mut res = vec![to_object(jvm.thread_state.system_thread_group.read().unwrap().clone().unwrap().object().into())];
     groups_ptr.write(transmute(res.as_mut_ptr()));//todo fix this bs that requires a transmute
     Vec::leak(res);
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetTopThreadGroups");
@@ -39,7 +39,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadInfo");
     let thread_object = JavaValue::Object(from_object(transmute(thread))).cast_thread();
-    (*info_ptr).thread_group = transmute(to_object(jvm.thread_state.system_thread_group.read().unwrap().clone()));//todo get thread groups working at some point
+    (*info_ptr).thread_group = transmute(to_object(jvm.thread_state.system_thread_group.read().unwrap().clone().unwrap().object().into()));//todo get thread groups working at some point
     (*info_ptr).context_class_loader = transmute(to_object(
         jvm
             .class_object_pool

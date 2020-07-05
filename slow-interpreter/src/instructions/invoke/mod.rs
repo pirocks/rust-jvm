@@ -97,7 +97,7 @@ pub mod dynamic {
         // invoke_dynamic_view.name_and_type()
         // let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
         // invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
-        // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_ current_frame.class_pointer.loader(jvm).clone());
+        // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_ current_int_state.current_loader(jvm).clone());
         // dbg!(invoke_dynamic_view.name_and_type().name());
         // dbg!(invoke_dynamic_view.name_and_type().desc());
         // dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().name_and_type());

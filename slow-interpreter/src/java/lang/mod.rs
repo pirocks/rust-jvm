@@ -106,7 +106,7 @@ pub mod class {
         pub fn from_name<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, name: ClassName) -> JClass {
             let frame = int_state.current_frame_mut();
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
-            let loader_arc = frame.class_pointer.loader(jvm).clone();
+            let loader_arc = int_state.current_loader(jvm).clone();
             JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state,loader_arc).into()).cast_class()
         }
 
@@ -270,6 +270,40 @@ pub mod thread {
         pub fn get_java_thread(&self, jvm: &'static JVMState) -> Arc<JavaThread>{
             let tid = self.tid();
             jvm.thread_state.get_thread_by_tid(tid)
+        }
+
+        as_object_or_java_value!();
+    }
+}
+
+pub mod thread_group{
+    use crate::java_values::{JavaValue, Object};
+    use std::sync::Arc;
+    use crate::interpreter_util::{push_new_object, check_inited_class, run_constructor};
+    use rust_jvm_common::classnames::ClassName;
+    use crate::{JVMState, InterpreterStateGuard};
+
+    #[derive(Debug,Clone)]
+    pub struct JThreadGroup {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_thread_group(&self) -> JThreadGroup {
+            JThreadGroup { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl JThreadGroup {
+        pub fn init<'l> (jvm: &'static JVMState,
+                         int_state: & mut InterpreterStateGuard) -> JThreadGroup{
+            let thread_group_class = check_inited_class(jvm,int_state, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), int_state.current_loader(jvm).clone());
+            push_new_object(jvm, int_state, &thread_group_class, None);
+            let thread_group_object = int_state.pop_current_operand_stack();
+            run_constructor(jvm,int_state,thread_group_class,vec![thread_group_object.clone()],
+                            "()V".to_string());
+            thread_group_object.cast_thread_group()
+
         }
 
         as_object_or_java_value!();

@@ -1,6 +1,6 @@
 use jvmti_jni_bindings::{jclass, jstring, jobject, JNIEnv, jboolean};
 use rust_jvm_common::classnames::ClassName;
-use slow_interpreter::rust_jni::native_util::{to_object, get_state, get_frame, from_object};
+use slow_interpreter::rust_jni::native_util::{to_object, get_state,  from_object, get_interpreter_state};
 use std::ffi::{CStr, CString};
 
 use libjvm_utils::jstring_to_string;
@@ -8,22 +8,21 @@ use libjvm_utils::jstring_to_string;
 use rust_jvm_common::ptype::PType::Ref;
 use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
 use slow_interpreter::class_objects::get_or_create_class_object;
-use slow_interpreter::get_state_thread_frame;
-use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
 use std::ops::Deref;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
     let name_str = CStr::from_ptr(name).to_str().unwrap().to_string();
     //todo duplication
     let class_name = ClassName::Str(name_str);
-    get_state_thread_frame!(env,state,thread,frames,frame);
     //todo not sure if this implementation is correct
-    let loaded = state.bootstrap_loader.load_class(state.bootstrap_loader.clone(),&class_name,state.bootstrap_loader.clone(),state.get_live_object_pool_getter());
+    let loaded = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(),&class_name,jvm.bootstrap_loader.clone(),jvm.get_live_object_pool_getter());
     match loaded{
         Result::Err(_) => return to_object(None),
         Result::Ok(view) => {
-            to_object(get_or_create_class_object(state,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,state.bootstrap_loader.clone()).into())
+            to_object(get_or_create_class_object(jvm,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),int_state,jvm.bootstrap_loader.clone()).into())
         },
     }
 }
@@ -40,6 +39,8 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
     let name_str = jstring_to_string(name);
     assert!(&name_str != "int");
     // dbg!(&name_str);
@@ -50,8 +51,8 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         None => return to_object(None),
         Some(view) => {
             //todo what if name is long/int etc.
-            get_or_create_class_object(jvm,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),frame,jvm.bootstrap_loader.clone());
-            to_object(frame.pop().unwrap_object())
+            get_or_create_class_object(jvm,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),int_state,jvm.bootstrap_loader.clone());
+            to_object(int_state.pop_current_operand_stack().unwrap_object())
         },
     }
 
@@ -62,6 +63,8 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
 #[no_mangle]
 unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char) -> jclass {
     assert_ne!(utf, std::ptr::null());
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let float = CString::new("float").unwrap();
     let float_cstr = float.into_raw();
     let double = CString::new("double").unwrap();
@@ -103,6 +106,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         unimplemented!()
     };
 
-    let res = get_or_create_class_object(jvm, &ptype, frame, jvm.bootstrap_loader.clone());//todo what if not using bootstap loader
+    let res = get_or_create_class_object(jvm, &ptype, int_state, jvm.bootstrap_loader.clone());//todo what if not using bootstap loader
     return to_object(res.into());
 }

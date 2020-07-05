@@ -16,13 +16,14 @@ use rust_jvm_common::classnames::ClassName;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::any::Any;
 use crate::interpreter::run_function;
+use crate::java::lang::thread_group::JThreadGroup;
 
 pub struct ThreadState {
     threads: Threads,
     main_thread: RwLock<Option<Arc<JavaThread>>>,
     all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread>>>,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
-    pub system_thread_group: RwLock<Option<Arc<Object>>>,
+    pub system_thread_group: RwLock<Option<JThreadGroup>>,
     monitors: RwLock<Vec<Arc<Monitor>>>,
 }
 
@@ -64,7 +65,7 @@ impl ThreadState {
         let main_thread = &jvm.thread_state.get_main_thread();
         let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: main_thread };
         run_function(&jvm, &mut int_state);
-        let mut function_return = int_state.function_return_mut();
+        let function_return = int_state.function_return_mut();
         if *function_return {
             *function_return = false;
         }
@@ -148,11 +149,11 @@ impl ThreadState {
         self.all_java_threads.read().unwrap().get(&tid).unwrap().clone()
     }
 
-    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: & mut InterpreterStateGuard, frame: &StackEntry) -> Arc<JavaThread> {
+    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: & mut InterpreterStateGuard) -> Arc<JavaThread> {
         let underlying = self.threads.create_thread();
 
         let (send, recv) = channel();
-        let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), frame.class_pointer.loader(jvm).clone());
+        let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm).clone());
         let java_thread = Arc::new(JavaThread::new(obj, underlying));
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();

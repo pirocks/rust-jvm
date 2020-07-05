@@ -1,7 +1,7 @@
 use jvmti_jni_bindings::{jdouble, jboolean, JNIEnv, jclass, JVM_Available};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
-use slow_interpreter::rust_jni::native_util::{from_object, get_state, get_frame};
+use slow_interpreter::rust_jni::native_util::{from_object, get_state};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use std::intrinsics::transmute;
@@ -9,8 +9,6 @@ use slow_interpreter::jvmti::is::is_array_impl;
 use slow_interpreter::java_values::JavaValue;
 use std::ops::Deref;
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::get_state_thread_frame;
-use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -19,7 +17,6 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    get_state_thread_frame!(env,state,thread,frames,frame);
     let obj = from_object(cls);
     let runtime_class = JavaValue::Object(obj).cast_class().as_runtime_class();
     (match runtime_class.deref() {

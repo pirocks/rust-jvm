@@ -16,23 +16,23 @@ use descriptor_parser::MethodDescriptor;
 use jvmti_jni_bindings::{jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
-use slow_interpreter::{InterpreterState, JVMState, SuspendedStatus};
+use slow_interpreter::{InterpreterState, JVMState, SuspendedStatus, InterpreterStateGuard};
 use slow_interpreter::interpreter::run_function;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object};
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_frame, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_state, to_object, get_interpreter_state};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::threading::JavaThread;
-use slow_interpreter::get_state_thread_frame;
-use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
+use slow_interpreter::java::lang::thread_group::JThreadGroup;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     //todo need to assert not on main thread
-    get_state_thread_frame!(env,jvm,t_,frames,frame);
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
-    jvm.thread_state.start_thread_from_obj(jvm,thread_object, frame);
+    jvm.thread_state.start_thread_from_obj(jvm,thread_object, int_state);
 }
 
 #[no_mangle]
@@ -94,7 +94,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     //         let frame = get_frame(&mut get_frames(env));
     //         let runtime_thread_class = from_jclass(threadClass);
     //         make_thread(&runtime_thread_class.as_runtime_class(), jvm, &frame);
-    //         let thread_object = frame.pop().unwrap_object();
+    //         let thread_object = int_state.pop_current_operand_stack().unwrap_object();
     //         MAIN_THREAD = thread_object.clone();
     //         todo get rid of that jankyness as well:
     // jvm.main_thread().thread_object.borrow_mut().replace(JavaValue::Object(MAIN_THREAD.clone()).cast_thread().into());
@@ -108,87 +108,30 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 }
 
 
-fn init_system_thread_group(jvm: &'static JVMState, frame: &mut StackEntry) {
-    let thread_group_class = check_inited_class(jvm, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), frame.class_pointer.loader(jvm).clone());
-    push_new_object(jvm, frame, &thread_group_class, None);
-    let object = frame.pop();
-    let init = thread_group_class
-        .view()
-        .lookup_method(&"<init>".to_string(),
-                       &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType })
-        .unwrap();
-    let init_i = init.method_i();
-    let new_frame = StackEntry {
-        class_pointer: thread_group_class.clone(),
-        method_i: init_i as u16,
-        local_vars: vec![object.clone()],
-        operand_stack: vec![],
-        pc: 0,
-        pc_offset:0,
-    };
-    jvm.thread_state.system_thread_group.write().unwrap().replace(object.unwrap_object().unwrap());
-    // unsafe { SYSTEM_THREAD_GROUP = object.unwrap_object(); }
-    let current_thread = jvm.thread_state.get_current_thread();
-    current_thread.get_frames_mut().push(new_frame);
-    run_function(jvm,&current_thread);
-    current_thread.get_frames_mut().pop().unwrap();
-    let interpreter_state = &current_thread.interpreter_state;
-    if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
-        unimplemented!()
-    }
-    if *interpreter_state.function_return.read().unwrap() {
-        *interpreter_state.function_return.write().unwrap() = false;
-    }
+fn init_system_thread_group(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
+
+    let system_group = JThreadGroup::init(jvm,int_state);
+    *jvm.thread_state.system_thread_group.write().unwrap() = system_group.into();
 }
 
-unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &'static JVMState, frame: &mut StackEntry) {
+unsafe fn make_thread(runtime_thread_class: &Arc<RuntimeClass>, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
     //todo refactor this at some point
     //first create thread group
     let match_guard = jvm.thread_state.system_thread_group.read().unwrap();
     let thread_group_object = match match_guard.clone() {
         None => {
             std::mem::drop(match_guard);
-            init_system_thread_group(jvm, frame);
+            init_system_thread_group(jvm, int_state);
             jvm.thread_state.system_thread_group.read().unwrap().clone()
         }
         Some(_) => jvm.thread_state.system_thread_group.read().unwrap().clone(),
     };
 
 
-    let thread_class = check_inited_class(jvm, &ClassName::Str("java/lang/Thread".to_string()).into(), frame.class_pointer.loader(jvm).clone());
-    // if !Arc::ptr_eq(&thread_class, &runtime_thread_class) {
-    // frame.print_stack_trace();
-    // }
+    let thread_class = check_inited_class(jvm, int_state,&ClassName::Str("java/lang/Thread".to_string()).into(), int_state.current_loader(jvm).clone());
     assert!(Arc::ptr_eq(&thread_class, &runtime_thread_class));
     let main_thread= jvm.thread_state.get_main_thread();
     unimplemented!();
-    // let init = thread_class.view().lookup_method(&"<init>".to_string(), &MethodDescriptor { parameter_types: vec![], return_type: PType::VoidType }).unwrap();
-    // let init_i = init.method_i();
-    // let new_frame = StackEntry {
-    //     class_pointer: thread_class.clone(),
-    //     method_i: init_i as u16,
-    //     local_vars: vec![object.clone()],
-    //     operand_stack:vec![],
-    //     pc: 0,
-    //     pc_offset: 0,
-    // };
-    // MAIN_THREAD = object.unwrap_object().clone();
-    // MAIN_THREAD.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert("group".to_string(), JavaValue::Object(thread_group_object));
-    // //for some reason the constructor doesn't handle priority.
-    // let NORM_PRIORITY = 5;
-    // MAIN_THREAD.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert("priority".to_string(), JavaValue::Int(NORM_PRIORITY));
-    // let current_thread = jvm.thread_state.get_current_thread();
-    // current_thread.get_frames_mut().push(new_frame);
-    // run_function(jvm,&current_thread);
-    // current_thread.get_frames_mut().pop();
-    // frame.push(JavaValue::Object(MAIN_THREAD.clone()));
-    // let interpreter_state = &current_thread.interpreter_state;
-    // if interpreter_state.throw.read().unwrap().is_some() || *interpreter_state.terminate.read().unwrap() {
-    //     unimplemented!()
-    // }
-    // if *interpreter_state.function_return.read().unwrap() {
-    //     *interpreter_state.function_return.write().unwrap() = false;
-    // }
 }
 
 

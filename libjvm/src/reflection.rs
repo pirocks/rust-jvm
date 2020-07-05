@@ -1,13 +1,11 @@
 use std::borrow::Borrow;
-use slow_interpreter::rust_jni::native_util::{get_state, get_frame, to_object, from_object};
+use slow_interpreter::rust_jni::native_util::{get_state,  to_object, from_object, get_interpreter_state};
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor, check_inited_class};
 use jvmti_jni_bindings::{jobject, jobjectArray, JNIEnv, jclass};
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use std::ops::Deref;
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 use slow_interpreter::utils::string_obj_to_string;
-use slow_interpreter::get_state_thread_frame;
-use slow_interpreter::rust_jni::native_util::{get_frames, get_thread};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {
@@ -25,6 +23,8 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     // dbg!(args0);
     // dbg!(method);
     // dbg!(obj);
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
     assert_eq!(obj, std::ptr::null_mut());//non-static methods not supported atm.
     let method_obj = from_object(method).unwrap();
     let args_not_null = from_object(args0).unwrap();
@@ -39,21 +39,22 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_inited_class(jvm, &target_class_name.into(), frame.class_pointer.loader(jvm).clone());
+    let target_runtime_class = check_inited_class(jvm, int_state,&target_class_name.into(), int_state.current_loader(jvm).clone());
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {
         dbg!(arg);
-        frame.push(arg.clone());
+        int_state.push_current_operand_stack(arg.clone());
     }
 
-    run_static_or_virtual(jvm, &target_runtime_class, method_name, signature);
-    to_object(frame.pop().unwrap_object())
+    run_static_or_virtual(jvm, int_state,&target_runtime_class, method_name, signature);
+    to_object(int_state.pop_current_operand_stack().unwrap_object())
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jobject, args0: jobjectArray) -> jobject {
-    get_state_thread_frame!(env,state,thread,frames,frame);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let args = if args0 == std::ptr::null_mut() {
         vec![]
     } else {
@@ -65,13 +66,13 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let constructor_obj = from_object(c).unwrap();
     let signature_str_obj = constructor_obj.lookup_field("signature");
     let temp_4 = constructor_obj.lookup_field("clazz");
-    let clazz = class_object_to_runtime_class(&temp_4.cast_class(), state, &frame).unwrap();
+    let clazz = class_object_to_runtime_class(&temp_4.cast_class(), jvm, int_state).unwrap();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
-    push_new_object(state,frame, &clazz,None);
-    let obj = frame.pop();
+    push_new_object(jvm,int_state, &clazz,None);
+    let obj = int_state.pop_current_operand_stack();
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());
-    run_constructor(state, frame, clazz, full_args, signature);
+    run_constructor(jvm, int_state, clazz, full_args, signature);
     to_object(obj.unwrap_object())
 }
 

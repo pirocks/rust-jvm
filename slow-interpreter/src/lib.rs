@@ -143,6 +143,12 @@ impl <'l> InterpreterStateGuard<'l> {
         &mut call_stack[len - 2]
     }
 
+    pub fn previous_frame(&mut self) -> &StackEntry{
+        let call_stack = &mut self.int_state.as_mut().unwrap().call_stack;
+        let len = call_stack.len();
+        &call_stack[len - 2]
+    }
+
     pub fn throw_mut(&mut self) -> &mut Option<Arc<Object>> {
         &mut self.int_state.as_mut().unwrap().throw
     }

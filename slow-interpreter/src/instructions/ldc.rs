@@ -121,7 +121,7 @@ pub fn from_constant_pool_entry<'l>(c: &ConstantInfoView, jvm: &'static JVMState
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
             let frame = int_state.current_frame_mut();
-            frame.pop()
+           int_state.pop_current_operand_stack()
         }
         _ => panic!()
     }

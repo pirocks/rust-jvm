@@ -4,17 +4,17 @@ use std::sync::Arc;
 
 use jvmti_jni_bindings::jstring;
 use classfile_view::view::ptype_view::PTypeView;
-use slow_interpreter::JVMState;
+use slow_interpreter::{JVMState, InterpreterStateGuard};
 use slow_interpreter::java_values::Object;
 use slow_interpreter::utils::string_obj_to_string;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::rust_jni::native_util::from_object;
 use slow_interpreter::stack_entry::StackEntry;
 
-pub fn ptype_to_class_object(state: &'static JVMState, frame: &mut StackEntry, ptype: &PType) -> Option<Arc<Object>> {
+pub fn ptype_to_class_object(state: &'static JVMState, int_state: &mut InterpreterStateGuard, ptype: &PType) -> Option<Arc<Object>> {
     // dbg!(ptype);
-    load_class_constant_by_type(state, frame, &PTypeView::from_ptype(ptype));
-    let res = frame.pop().unwrap_object();
+    load_class_constant_by_type(state, int_state, &PTypeView::from_ptype(ptype));
+    let res = int_state.pop_current_operand_stack().unwrap_object();
     // dbg!(&res);
     res
 }
