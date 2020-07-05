@@ -66,7 +66,7 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: & m
     if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
         unimplemented!()
     }
-    let mut function_return = interpreter_state.function_return_mut();
+    let function_return = interpreter_state.function_return_mut();
     if *function_return {
         *function_return = false;
     }

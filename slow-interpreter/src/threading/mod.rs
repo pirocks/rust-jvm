@@ -18,7 +18,7 @@ use crate::interpreter::run_function;
 use crate::java::lang::thread_group::JThreadGroup;
 
 pub struct ThreadState {
-    threads: Threads,
+    pub(crate) threads: Threads,
     main_thread: RwLock<Option<Arc<JavaThread>>>,
     all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread>>>,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
@@ -97,6 +97,7 @@ impl ThreadState {
             thread_object: RwLock::new(None),
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
+            invisible_to_java: true
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
@@ -121,7 +122,7 @@ impl ThreadState {
             main_thread_obj_send.send(jthread).unwrap();
         }, box ());
         let thread_obj: JThread = main_thread_obj_recv.recv().unwrap();
-        Arc::new(JavaThread::new(thread_obj, threads.create_thread()))
+        JavaThread::new(jvm, thread_obj, threads.create_thread(), false)
     }
 
     pub fn get_current_thread_name(&self) -> String {
@@ -161,7 +162,7 @@ impl ThreadState {
 
         let (send, recv) = channel();
         let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm).clone());
-        let java_thread = Arc::new(JavaThread::new(obj, underlying));
+        let java_thread = JavaThread::new(jvm,obj, underlying, invisible_to_java);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
             let new_thread_frame = StackEntry {
@@ -205,15 +206,17 @@ pub struct JavaThread {
 }
 
 impl JavaThread {
-    pub fn new(thread_obj: JThread, underlying: Thread,invisible_to_java : bool) -> JavaThread {
-        JavaThread {
+    pub fn new(jvm: &'static JVMState, thread_obj: JThread, underlying: Thread,invisible_to_java : bool) -> Arc<JavaThread> {
+        let res = Arc::new(JavaThread {
             java_tid: thread_obj.tid(),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
             invisible_to_java
-        }
+        });
+        jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid,res.clone());
+        res
     }
 
     /*   fn set_current_thread(&self, java_thread: Arc<JavaThread>) {
