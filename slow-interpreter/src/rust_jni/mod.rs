@@ -102,7 +102,7 @@ pub fn call_impl<'l>(
     } else {
         vec![Type::pointer(), Type::pointer()]
     };
-    let env = &get_interface(jvm);
+    let env = &get_interface(jvm, int_state);
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {

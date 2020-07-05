@@ -164,7 +164,8 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
 pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
     //todo get rid of this transmute
     let state = get_state(env);
-    let interface = get_invoke_interface(state);
+    let int_state = get_interpreter_state(env);
+    let interface = get_invoke_interface(state, int_state);
     *vm = Box::into_raw(Box::new(transmute::<_, *mut JNIInvokeInterface_>(Box::leak(Box::new(interface)))));//todo do something about this leak
     0 as jint
 }

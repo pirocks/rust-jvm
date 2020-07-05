@@ -9,7 +9,6 @@ use slow_interpreter::java_values::Object;
 use slow_interpreter::utils::string_obj_to_string;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::rust_jni::native_util::from_object;
-use slow_interpreter::stack_entry::StackEntry;
 
 pub fn ptype_to_class_object(state: &'static JVMState, int_state: &mut InterpreterStateGuard, ptype: &PType) -> Option<Arc<Object>> {
     // dbg!(ptype);

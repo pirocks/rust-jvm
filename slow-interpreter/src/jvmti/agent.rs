@@ -8,6 +8,7 @@ use std::os::raw::c_void;
 use crate::rust_jni::native_util::{from_object};
 use crate::java_values::JavaValue;
 use thread_priority::*;
+use crate::threading::JavaThread;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
@@ -30,6 +31,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         .to_rust_string();
     let args = ThreadArgWrapper { proc_, arg, thread };
     let system_class = check_inited_class(jvm,int_state, &ClassName::system().into(), jvm.bootstrap_loader.clone());
+
 //TODO ADD THREAD TO JVM STATE STRUCT
     //todo handle join handles somehow
     let _join_handle = std::thread::Builder::new()
@@ -38,12 +40,13 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             if priority == JVMTI_THREAD_MAX_PRIORITY as i32 {
                 set_current_thread_priority(ThreadPriority::Max).unwrap();
             } else if priority == JVMTI_THREAD_NORM_PRIORITY as i32 {
-                // unimplemented!()
+
             } else if priority == JVMTI_THREAD_MIN_PRIORITY as i32 {
                 set_current_thread_priority(ThreadPriority::Min).unwrap();
             }
             let ThreadArgWrapper { proc_, arg, thread } = args;
             let thread_object = JavaValue::Object(from_object(transmute(thread))).cast_thread();
+            JavaThread::new(thread_object,)
             // let agent_thread =
             // let result = jvm.thread_state.alive_threads.write();
             // result.unwrap().insert(agent_thread.java_tid, agent_thread.clone());//todo needs to be done via JavaThread constructor

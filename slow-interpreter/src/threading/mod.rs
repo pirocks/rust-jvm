@@ -81,6 +81,13 @@ impl ThreadState {
         self.main_thread.read().unwrap().as_ref().unwrap().clone()
     }
 
+    fn set_current_thread(&'static self, thread: Arc<JavaThread>){
+        self.current_java_thread.with(|refcell|{
+            assert!(refcell.borrow().is_none());
+            *refcell.borrow_mut() = thread.into();
+        })
+    }
+
     fn bootstrap_main_thread<'l>(jvm: &'static JVMState, threads: &Threads) -> Arc<JavaThread> {
         let (main_thread_obj_send, main_thread_obj_recv) = channel();
         let bootstrap_underlying_thread = threads.create_thread();
@@ -92,6 +99,7 @@ impl ThreadState {
             suspended: RwLock::new(SuspendedStatus::default()),
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
+        jvm.thread_state.set_current_thread(bootstrap_thread.clone());
         let target_classfile = check_inited_class(jvm,
             &mut InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread },
             &ClassName::thread().into(),
@@ -148,7 +156,7 @@ impl ThreadState {
         self.all_java_threads.read().unwrap().get(&tid).unwrap().clone()
     }
 
-    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: & mut InterpreterStateGuard) -> Arc<JavaThread> {
+    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: & mut InterpreterStateGuard, invisible_to_java: bool) -> Arc<JavaThread> {
         let underlying = self.threads.create_thread();
 
         let (send, recv) = channel();
@@ -193,16 +201,18 @@ pub struct JavaThread {
     thread_object: RwLock<Option<JThread>>,
     pub interpreter_state: RwLock<InterpreterState>,
     pub suspended: RwLock<SuspendedStatus>,
+    pub invisible_to_java: bool
 }
 
 impl JavaThread {
-    pub fn new(thread_obj: JThread, underlying: Thread) -> JavaThread {
+    pub fn new(thread_obj: JThread, underlying: Thread,invisible_to_java : bool) -> JavaThread {
         JavaThread {
             java_tid: thread_obj.tid(),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
+            invisible_to_java
         }
     }
 

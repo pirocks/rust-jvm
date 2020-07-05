@@ -10,7 +10,7 @@ use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::exception::*;
 use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::array::*;
-use crate::JVMState;
+use crate::{JVMState, InterpreterStateGuard};
 use std::cell::RefCell;
 use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
 use std::sync::Arc;
@@ -27,7 +27,7 @@ thread_local! {
 }
 
 //GetFieldID
-pub fn get_interface(state: &'static JVMState) -> *const JNINativeInterface_ {
+pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *const JNINativeInterface_ {
     JNI_INTERFACE.with(|refcell| {
         {
             let first_borrow = refcell.borrow();
@@ -38,17 +38,17 @@ pub fn get_interface(state: &'static JVMState) -> *const JNINativeInterface_ {
                 }
             }
         }
-        let new = get_interface_impl(state);
+        let new = get_interface_impl(state, int_state);
         refcell.replace(new.into());
         let new_borrow = refcell.borrow();
         new_borrow.as_ref().unwrap() as *const JNINativeInterface_
     })
 }
 
-fn get_interface_impl(state: &'static JVMState) -> JNINativeInterface_ {
+fn get_interface_impl(state: &'static JVMState,int_state: &mut InterpreterStateGuard) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
-        reserved1: std::ptr::null_mut(),
+        reserved1: unsafe {transmute(int_state)},
         reserved2: std::ptr::null_mut(),
         reserved3: std::ptr::null_mut(),
         GetVersion: None,

@@ -206,11 +206,11 @@ pub fn initialize_class<'l>(
         pc: 0,
         pc_offset: 0,
     };
-    let current_thread = jvm.thread_state.get_current_thread();
     interpreter_state.push_frame(new_stack);
     run_function(jvm, interpreter_state);
     interpreter_state.pop_frame();
     if interpreter_state.throw_mut().is_some() || *interpreter_state.terminate_mut() {
+        let current_thread = jvm.thread_state.get_current_thread();
         current_thread.print_stack_trace();
         unimplemented!()
         //need to clear status after
