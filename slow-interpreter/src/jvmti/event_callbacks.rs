@@ -124,45 +124,40 @@ impl SharedLibJVMTI {
          });
      }*/
 
-    pub fn vm_inited(&self, jvm: &'static JVMState, main_thread: Arc<JavaThread>) {
+    pub fn vm_inited(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, main_thread: Arc<JavaThread>) {
         if *self.vm_init_enabled.read().unwrap() {
-            let main_thread_object = main_thread.thread_object();
-            let jvmti_event = JVMTIEvent::VMInit(
-                VMInitEvent {
-                    thread: unsafe { transmute(to_object(main_thread_object.object().into())) }
-                });
-            unimplemented!()
-            // SharedLibJVMTI::trigger_event_all_threads(jvm, &jvmti_event)
+            unsafe {
+                let main_thread_object = main_thread.thread_object();
+                let event = VMInitEvent {
+                    thread: transmute(to_object(main_thread_object.object().into()))
+                };
+                self.VMInit(jvm, int_state, event);
+            }
         }
     }
 
-    pub fn thread_start(&self, jvm: &'static JVMState, jthread: JThread) {
+    pub fn thread_start(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, jthread: JThread) {
         if *self.thread_start_enabled.read().unwrap() {
             unsafe {
                 let thread = to_object(jthread.object().into());
-                let event = JVMTIEvent::ThreadStart(ThreadStartEvent { thread });
-                // SharedLibJVMTI::trigger_event_all_threads(jvm, &event);
+                let event = ThreadStartEvent { thread };
+                self.ThreadStart(jvm, int_state, event);
             }
-            unimplemented!()
         }
     }
 
 
     pub fn class_prepare<'l>(&self, jvm: &'static JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
         unsafe {
-            let thread = to_object(jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt|jt.object().into()));
+            let thread = to_object(jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt| jt.object().into()));
             let klass_obj = get_or_create_class_object(jvm,
                                                        &class.clone().into(),
                                                        int_state,
                                                        jvm.bootstrap_loader.clone());
             let klass = to_object(klass_obj.into());
-            let event = JVMTIEvent::ClassPrepare(ClassPrepareEvent { thread, klass });
-            // jvm.tracing.trace_event_trigger("")
-            // event
-            unimplemented!()
+            let event = ClassPrepareEvent { thread, klass };
+            self.ClassPrepare(jvm, int_state, event)
         }
-        unimplemented!()
-        // SharedLibJVMTI::trigger_event_threads(jvm, &self.class_prepare_enabled.read().unwrap(), event_getter);
     }
 
     pub fn breakpoint(&self, jvm: &'static JVMState, method: MethodId, location: i64) {
@@ -318,7 +313,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 
     unsafe fn ClassPrepare(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, event: ClassPrepareEvent) {
         jvm.tracing.trace_event_trigger("ClassPrepare");
-        let jvmti_env = Box::leak(box get_jvmti_interface(jvm));
+        let jvmti_env = Box::leak(box get_jvmti_interface(jvm));//todo deal with these leaks
         let jni_env = Box::leak(box get_interface(jvm, int_state));
         let ClassPrepareEvent { thread, klass } = event;
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);

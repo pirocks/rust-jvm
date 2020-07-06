@@ -476,7 +476,6 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
         pc_offset: 0,
     };
     int_state.push_frame(stack_entry);
-    jvmti.map(|jvmti| jvmti.built_in_jdwp.thread_start(&jvm, main_thread.thread_object()));
 
     setup_program_args(&jvm, int_state, args);
     run_function(&jvm, int_state);

@@ -54,7 +54,11 @@ impl ThreadState {
             jvm.thread_state.set_current_thread(main_thread.clone());
             ThreadState::jvm_init_from_main_thread(jvm, init_recv);
             let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread.clone() };
+            jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, main_thread.clone()));
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
+            //from the jvmti spec:
+            //"he thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
+            jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object()));
             run_main(args, jvm, &mut int_state).unwrap();
         }, box ());
         (main_thread_clone, init_send, main_send)
@@ -75,8 +79,7 @@ impl ThreadState {
         }
         *jvm.live.write().unwrap() = true;
         set_properties(jvm, &mut int_state);
-        jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, jvm.thread_state.get_main_thread()));
-        // drop(int_state);
+        jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, jvm.thread_state.get_main_thread()));
     }
 
     pub fn get_main_thread(&self) -> Arc<JavaThread> {
@@ -195,6 +198,7 @@ impl ThreadState {
             };
             let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
             interpreter_state_guard.push_frame(new_thread_frame);
+            jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object()));
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);
             interpreter_state_guard.pop_frame();
         }, box ());//todo is this Data really needed since we have a closure

@@ -35,12 +35,13 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         } else if priority == JVMTI_THREAD_NORM_PRIORITY as i32 {} else if priority == JVMTI_THREAD_MIN_PRIORITY as i32 {
             set_current_thread_priority(ThreadPriority::Min).unwrap();
         }
-        jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, java_thread.thread_object());
+
 
         let mut guard = InterpreterStateGuard {
             int_state: java_thread.interpreter_state.write().unwrap().into(),
             thread: &java_thread,
         };
+        jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());
 
         let mut jvmti = get_jvmti_interface(jvm);
         let mut jni_env = get_interface(jvm, &mut guard);
