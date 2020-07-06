@@ -50,7 +50,7 @@ thread_local! {
 
 pub fn get_jvmti_interface(jvm: &'static JVMState) -> jvmtiEnv {
     JVMTI_INTERFACE.with(|refcell| {
-        {
+      /*  {
             let first_borrow = refcell.borrow();
             match first_borrow.as_ref() {
                 None => {}
@@ -58,7 +58,7 @@ pub fn get_jvmti_interface(jvm: &'static JVMState) -> jvmtiEnv {
                     return interface as jvmtiEnv;
                 }
             }
-        }
+        }*/
         let new = get_jvmti_interface_impl(jvm);
         refcell.replace(new.into());
         let new_borrow = refcell.borrow();

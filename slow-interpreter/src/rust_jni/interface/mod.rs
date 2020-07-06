@@ -29,7 +29,7 @@ thread_local! {
 //GetFieldID
 pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *const JNINativeInterface_ {
     JNI_INTERFACE.with(|refcell| {
-        {
+        /*{
             let first_borrow = refcell.borrow();
             match first_borrow.as_ref() {
                 None => {}
@@ -37,7 +37,7 @@ pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateG
                     return interface as *const JNINativeInterface_;
                 }
             }
-        }
+        }*/
         let new = get_interface_impl(state, int_state);
         refcell.replace(new.into());
         let new_borrow = refcell.borrow();
