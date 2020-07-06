@@ -17,8 +17,7 @@ use crate::rust_jni::interface::exception::*;
 use crate::rust_jni::interface::get_field::*;
 use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::instance_of::is_instance_of;
-use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
-use crate::rust_jni::interface::local_ref::new_local_ref;
+use crate::rust_jni::interface::local_frame::{delete_local_ref, new_local_ref, pop_local_frame, push_local_frame};
 use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
@@ -33,7 +32,7 @@ thread_local! {
 pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *mut *const JNINativeInterface_ {
     JNI_INTERFACE.with(|refcell| {
         unsafe {
-            let mut first_borrow = refcell.borrow_mut();
+            let first_borrow = refcell.borrow_mut();
             match first_borrow.as_mut() {
                 None => {}
                 Some(interface) => {
@@ -308,7 +307,6 @@ pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: 
 }
 
 pub mod instance_of;
-pub mod local_ref;
 pub mod local_frame;
 pub mod call;
 pub mod array;

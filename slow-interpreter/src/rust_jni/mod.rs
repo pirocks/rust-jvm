@@ -31,6 +31,7 @@ use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
+use crate::rust_jni::interface::local_frame::{clear_local_refs, local_refs_len};
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
@@ -103,6 +104,7 @@ pub fn call_impl<'l>(
     } else {
         vec![Type::pointer(), Type::pointer()]
     };
+    let local_refs_len = local_refs_len();
     let env = get_interface(jvm, int_state);
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
@@ -134,6 +136,7 @@ pub fn call_impl<'l>(
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
+    clear_local_refs(local_refs_len);
     // trace!("----NATIVE EXIT ----");
     match PTypeView::from_ptype(&md.return_type) {
         PTypeView::VoidType => {

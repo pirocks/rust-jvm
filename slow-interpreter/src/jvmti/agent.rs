@@ -9,6 +9,7 @@ use crate::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
+use crate::rust_jni::interface::local_frame::{clear_local_refs, local_refs_len};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::JavaThread;
 
@@ -44,8 +45,10 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());
 
         let jvmti = get_jvmti_interface(jvm, &mut guard);
-        let mut jni_env = get_interface(jvm, &mut guard);
+        let jni_env = get_interface(jvm, &mut guard);
+        let local_refs_len = local_refs_len();
         proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
+        clear_local_refs(local_refs_len);
     }, box ());
 
     //todo handle join handles somehow
