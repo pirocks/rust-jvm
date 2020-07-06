@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::ffi::CString;
 use std::mem::{size_of, transmute};
+use std::ptr::null_mut;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -39,38 +40,40 @@ pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
 }
 
 
-pub fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l> {
-    unimplemented!()
+pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l> {
+    transmute((**env).reserved3)
 }
 
 
 thread_local! {
-    static JVMTI_INTERFACE: RefCell<Option<jvmtiInterface_1_>> = RefCell::new(None);
+    static JVMTI_INTERFACE: RefCell<*mut jvmtiEnv> = RefCell::new(null_mut());
 }
 
-pub fn get_jvmti_interface(jvm: &'static JVMState) -> jvmtiEnv {
+pub fn get_jvmti_interface(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *mut jvmtiEnv {
     JVMTI_INTERFACE.with(|refcell| {
-        /*  {
-              let first_borrow = refcell.borrow();
-              match first_borrow.as_ref() {
-                  None => {}
-                  Some(interface) => {
-                      return interface as jvmtiEnv;
-                  }
-              }
-          }*/
-        let new = get_jvmti_interface_impl(jvm);
-        refcell.replace(new.into());
+        unsafe {
+            let first_borrow = refcell.borrow_mut();
+            match first_borrow.as_mut() {
+                None => {}
+                Some(interface) => {
+                    (*((*interface) as *mut jvmtiInterface_1_)).reserved3 = transmute(int_state);//todo technically this is wrong, see "JNI Interface Functions and Pointers" in jni spec
+                    return interface as *mut *const jvmtiInterface_1_;
+                }
+            }
+        }
+        let new = get_jvmti_interface_impl(jvm, int_state);
+        let jni_data_structure_ptr = Box::leak(box new) as *const jvmtiInterface_1_;
+        refcell.replace(Box::leak(box (jni_data_structure_ptr)) as *mut *const jvmtiInterface_1_);//todo leak
         let new_borrow = refcell.borrow();
-        new_borrow.as_ref().unwrap() as jvmtiEnv
+        *new_borrow as *mut *const jvmtiInterface_1_
     })
 }
 
-fn get_jvmti_interface_impl(jvm: &'static JVMState) -> jvmtiInterface_1_ {
+fn get_jvmti_interface_impl(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jvmtiInterface_1_ {
     jvmtiInterface_1_ {
         reserved1: unsafe { transmute(jvm) },
         SetEventNotificationMode: Some(set_event_notification_mode),
-        reserved3: std::ptr::null_mut(),
+        reserved3: unsafe { transmute(int_state) },
         GetAllThreads: Some(get_all_threads),
         SuspendThread: Some(suspend_thread),
         ResumeThread: None,

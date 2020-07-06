@@ -46,7 +46,7 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
     // assert_eq!(version, JVMTI_VERSION_1_0 as i32);
     if version == JVMTI_VERSION_1_0 as i32 || version == JVMTI_VERSION_1_2 as i32 {
         //todo do a proper jvmti check
-        *(penv as *mut *mut jvmtiEnv) = Box::leak((get_jvmti_interface(state)).into()) as *mut jvmtiEnv;
+        (penv as *mut *mut jvmtiEnv).write(get_jvmti_interface(state, int_state));
     } else {
         let res_ptr = get_interface(state, int_state);
         (penv as *mut *mut *const JNINativeInterface_).write(res_ptr);

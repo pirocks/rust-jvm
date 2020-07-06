@@ -244,7 +244,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn VMInit(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, vminit: VMInitEvent) {
         jvm.tracing.trace_event_trigger("VMInit");
         let VMInitEvent { thread } = vminit;
-        let jvmti = Box::leak(box get_jvmti_interface(jvm));
+        let jvmti = get_jvmti_interface(jvm, int_state);
         let jni = get_interface(jvm, int_state);//todo deal with leak
         let guard = self.vm_init_callback.read().unwrap();
         let f_pointer = *guard.as_ref().unwrap();
@@ -278,7 +278,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 
     unsafe fn ThreadStart(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, event: ThreadStartEvent) {
         jvm.tracing.trace_event_trigger("ThreadStart");
-        let jvmti_env = Box::leak(box get_jvmti_interface(jvm));
+        let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);//fix these leaks
         let ThreadStartEvent { thread } = event;
         (self.thread_start_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread);
@@ -295,7 +295,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 
     unsafe fn Exception(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, event: ExceptionEvent) {
         let jni_env = get_interface(jvm, int_state);
-        let jvmti_env = Box::leak(box get_jvmti_interface(jvm));
+        let jvmti_env = get_jvmti_interface(jvm, int_state);
         let ExceptionEvent { thread, method, location, exception, catch_method, catch_location } = event;
         (self.exception_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location, exception, catch_method, catch_location);
     }
@@ -331,7 +331,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 
     unsafe fn ClassPrepare(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, event: ClassPrepareEvent) {
         jvm.tracing.trace_event_trigger("ClassPrepare");
-        let jvmti_env = Box::leak(box get_jvmti_interface(jvm));//todo deal with these leaks
+        let jvmti_env = get_jvmti_interface(jvm, int_state);//todo deal with these leaks
         let jni_env = get_interface(jvm, int_state);
         let ClassPrepareEvent { thread, klass } = event;
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
@@ -373,7 +373,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 
     unsafe fn Breakpoint(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, event: BreakpointEvent) {
         jvm.tracing.trace_event_trigger("Breakpoint");
-        let jvmti_env = Box::leak(box get_jvmti_interface(jvm));
+        let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
         let BreakpointEvent { thread, method, location } = event;
         (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location);
@@ -629,10 +629,10 @@ impl SharedLibJVMTI {
                 for java_thread in jvm.thread_state.all_java_threads.read().unwrap().values() {
                     disabler(&mut java_thread.jvmti_event_status_mut());
                 }
-            },
+            }
             Some(java_thread) => {
                 disabler(&mut java_thread.jvmti_event_status_mut());
-            },
+            }
         }
     }
 
@@ -643,10 +643,10 @@ impl SharedLibJVMTI {
                 for java_thread in jvm.thread_state.all_java_threads.read().unwrap().values() {
                     enabler(&mut java_thread.jvmti_event_status_mut());
                 }
-            },
+            }
             Some(java_thread) => {
                 enabler(&mut java_thread.jvmti_event_status_mut());
-            },
+            }
         }
     }
 }
