@@ -1,7 +1,9 @@
-use rust_jvm_common::classfile::{Classfile, FieldInfo, ConstantInfo, ConstantKind, String_, Class, NameAndType, Utf8, Fieldref, ACC_INTERFACE, ACC_ABSTRACT, ACC_ANNOTATION, ACC_FINAL, ACC_SUPER, ACC_ENUM, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_VOLATILE, MethodInfo, AttributeInfo, AttributeType, InterfaceMethodref, Methodref};
-use crate::EXPECTED_CLASSFILE_MAGIC;
-use std::ops::Range;
 use std::collections::HashMap;
+use std::ops::Range;
+
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, AttributeInfo, AttributeType, Class, Classfile, ConstantInfo, ConstantKind, FieldInfo, Fieldref, InterfaceMethodref, MethodInfo, Methodref, NameAndType, String_, Utf8};
+
+use crate::EXPECTED_CLASSFILE_MAGIC;
 
 pub const MAX_ARRAY_DIMENSIONS: usize = 255;
 

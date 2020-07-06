@@ -5,10 +5,8 @@
 //all of these functions should be implemented in libjvm
 use std::mem::transmute;
 
+use crate::JVMState;
 use crate::java_values::JavaValue;
-use crate::{JVMState};
-
-
 
 pub fn get_object_volatile(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let temp = args[1].unwrap_object().unwrap();

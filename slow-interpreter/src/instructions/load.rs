@@ -1,7 +1,8 @@
-use crate::interpreter_util::{check_inited_class, run_constructor, push_new_object};
 use rust_jvm_common::classnames::ClassName;
+
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use crate::java_values::JavaValue;
-use crate::{StackEntry, JVMState, InterpreterStateGuard};
 
 pub fn aload(current_frame: &mut StackEntry, n: usize) -> () {
     let ref_ = current_frame.local_vars[n].clone();
@@ -74,7 +75,7 @@ pub fn aaload(current_frame: &mut StackEntry) -> () {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) {
+fn throw_array_out_of_bounds<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
     let bounds_class = check_inited_class(
         jvm,
         int_state,
@@ -83,11 +84,11 @@ fn throw_array_out_of_bounds<'l>(jvm: &'static JVMState, int_state: & mut Interp
     );
     push_new_object(jvm, int_state, &bounds_class, None);
     let obj = int_state.current_frame_mut().pop();
-    run_constructor(jvm, int_state,  bounds_class, vec![obj.clone()], "()V".to_string());
+    run_constructor(jvm, int_state, bounds_class, vec![obj.clone()], "()V".to_string());
     *int_state.throw_mut() = obj.unwrap_object().into();
 }
 
-pub fn caload<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard) -> () {
+pub fn caload<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> () {
     let index = int_state.pop_current_operand_stack().unwrap_int();
     let temp = int_state.pop_current_operand_stack();
     let unborrowed = temp.unwrap_array();

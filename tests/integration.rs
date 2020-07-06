@@ -1,6 +1,5 @@
-use std::process::Command;
 use std::env::{current_dir, var};
-
+use std::process::Command;
 
 const DEFAULT_LIBJAVA_LOCATION: &'static str = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so";
 const DEFAULT_RT_JAR_LOCATION: &'static str = "/home/francis/Desktop/jdk8u232-b09/jre/lib/rt.jar";

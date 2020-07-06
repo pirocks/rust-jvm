@@ -1,13 +1,16 @@
-use jvmti_jni_bindings::{jvmtiEnv, jthread, jvmtiStartFunction, jint, jvmtiError,  jvmtiError_JVMTI_ERROR_NONE, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, JVMTI_THREAD_MIN_PRIORITY};
-use crate::jvmti::{get_state, get_jvmti_interface};
-use crate::rust_jni::interface::get_interface;
-use std::mem::{transmute};
+use std::mem::transmute;
 use std::os::raw::c_void;
-use crate::rust_jni::native_util::{from_object};
-use crate::java_values::JavaValue;
+
 use thread_priority::*;
-use crate::threading::JavaThread;
+
+use jvmti_jni_bindings::{jint, jthread, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_MIN_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiStartFunction};
+
 use crate::InterpreterStateGuard;
+use crate::java_values::JavaValue;
+use crate::jvmti::{get_jvmti_interface, get_state};
+use crate::rust_jni::interface::get_interface;
+use crate::rust_jni::native_util::from_object;
+use crate::threading::JavaThread;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
@@ -40,7 +43,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         };
 
         let mut jvmti = get_jvmti_interface(jvm);
-        let mut jni_env = get_interface(jvm,&mut guard);
+        let mut jni_env = get_interface(jvm, &mut guard);
         proc_.unwrap()(&mut jvmti, transmute(&mut jni_env), arg as *mut c_void);
     }, box ());
 

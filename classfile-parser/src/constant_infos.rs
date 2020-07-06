@@ -1,7 +1,8 @@
-use crate::parsing_util::ParsingContext;
-use rust_jvm_common::classfile::{ConstantKind, Utf8, Integer, Float, Long, Fieldref, Methodref, MethodType, NameAndType, InterfaceMethodref, MethodHandle, InvokeDynamic, ConstantInfo, InvalidConstant, Class, String_};
+use rust_jvm_common::classfile::{Class, ConstantInfo, ConstantKind, Fieldref, Float, Integer, InterfaceMethodref, InvalidConstant, InvokeDynamic, Long, MethodHandle, Methodref, MethodType, NameAndType, String_, Utf8};
 use rust_jvm_common::classfile::Double;
-use rust_jvm_common::classfile::ReferenceKind::{InvokeStatic, InvokeInterface, InvokeSpecial, InvokeVirtual};
+use rust_jvm_common::classfile::ReferenceKind::{InvokeInterface, InvokeSpecial, InvokeStatic, InvokeVirtual};
+
+use crate::parsing_util::ParsingContext;
 
 pub(crate) fn is_utf8(utf8: &ConstantKind) -> Option<&Utf8> {
     return match utf8 {

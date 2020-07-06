@@ -1,14 +1,13 @@
-use jvmti_jni_bindings::{jclass, jstring, jobject, JNIEnv, jboolean};
-use rust_jvm_common::classnames::ClassName;
-use slow_interpreter::rust_jni::native_util::{to_object, get_state,  from_object, get_interpreter_state};
 use std::ffi::{CStr, CString};
-
-use libjvm_utils::jstring_to_string;
-
-use rust_jvm_common::ptype::PType::Ref;
-use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use slow_interpreter::class_objects::get_or_create_class_object;
 use std::ops::Deref;
+
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring};
+use libjvm_utils::jstring_to_string;
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ptype::PType::Ref;
+use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -18,12 +17,12 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     //todo duplication
     let class_name = ClassName::Str(name_str);
     //todo not sure if this implementation is correct
-    let loaded = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(),&class_name,jvm.bootstrap_loader.clone(),jvm.get_live_object_pool_getter());
-    match loaded{
+    let loaded = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter());
+    match loaded {
         Result::Err(_) => return to_object(None),
         Result::Ok(view) => {
-            to_object(get_or_create_class_object(jvm,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),int_state,jvm.bootstrap_loader.clone()).into())
-        },
+            to_object(get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone()).into())
+        }
     }
 }
 
@@ -47,16 +46,14 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
     let loaded = jvm.bootstrap_loader.find_loaded_class(&class_name);
-    match loaded{
+    match loaded {
         None => return to_object(None),
         Some(view) => {
             //todo what if name is long/int etc.
-            get_or_create_class_object(jvm,&PTypeView::Ref(ReferenceTypeView::Class(class_name)),int_state,jvm.bootstrap_loader.clone());
+            get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone());
             to_object(int_state.pop_current_operand_stack().unwrap_object())
-        },
+        }
     }
-
-
 }
 
 
@@ -83,24 +80,24 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     let short_cstr = short.into_raw();
     let void = CString::new("void").unwrap();
     let void_cstr = void.into_raw();
-    let (class_name,as_str, ptype) = if libc::strncmp(float_cstr,utf,libc::strlen(float_cstr) + 1) == 0{
-        (ClassName::float(),"float",PTypeView::FloatType)
-    } else if libc::strncmp(double_cstr,utf,libc::strlen(double_cstr) + 1) == 0 {
-        (ClassName::double(),"double",PTypeView::DoubleType)
-    } else if libc::strncmp(int_cstr,utf,libc::strlen(int_cstr) + 1) == 0 {
-        (ClassName::int(),"int",PTypeView::IntType)
-    } else if libc::strncmp(boolean_cstr,utf,libc::strlen(boolean_cstr) + 1) == 0 {
-        (ClassName::boolean(),"boolean",PTypeView::BooleanType)
-    } else if libc::strncmp(char_cstr,utf,libc::strlen(char_cstr) + 1) == 0{
-        (ClassName::character(),"character",PTypeView::CharType)
-    } else if libc::strncmp(long_cstr,utf,libc::strlen(long_cstr) + 1) == 0 {
-        (ClassName::long(),"long",PTypeView::LongType)
-    } else if libc::strncmp(byte_cstr,utf,libc::strlen(byte_cstr) + 1) == 0 {
-        (ClassName::byte(),"byte",PTypeView::ByteType)
-    } else if libc::strncmp(short_cstr,utf,libc::strlen(short_cstr) + 1) == 0 {
-        (ClassName::short(),"short",PTypeView::ShortType)
-    }else if libc::strncmp(void_cstr,utf,libc::strlen(void_cstr) + 1) == 0 {
-        (ClassName::void(),"void",PTypeView::VoidType)
+    let (class_name, as_str, ptype) = if libc::strncmp(float_cstr, utf, libc::strlen(float_cstr) + 1) == 0 {
+        (ClassName::float(), "float", PTypeView::FloatType)
+    } else if libc::strncmp(double_cstr, utf, libc::strlen(double_cstr) + 1) == 0 {
+        (ClassName::double(), "double", PTypeView::DoubleType)
+    } else if libc::strncmp(int_cstr, utf, libc::strlen(int_cstr) + 1) == 0 {
+        (ClassName::int(), "int", PTypeView::IntType)
+    } else if libc::strncmp(boolean_cstr, utf, libc::strlen(boolean_cstr) + 1) == 0 {
+        (ClassName::boolean(), "boolean", PTypeView::BooleanType)
+    } else if libc::strncmp(char_cstr, utf, libc::strlen(char_cstr) + 1) == 0 {
+        (ClassName::character(), "character", PTypeView::CharType)
+    } else if libc::strncmp(long_cstr, utf, libc::strlen(long_cstr) + 1) == 0 {
+        (ClassName::long(), "long", PTypeView::LongType)
+    } else if libc::strncmp(byte_cstr, utf, libc::strlen(byte_cstr) + 1) == 0 {
+        (ClassName::byte(), "byte", PTypeView::ByteType)
+    } else if libc::strncmp(short_cstr, utf, libc::strlen(short_cstr) + 1) == 0 {
+        (ClassName::short(), "short", PTypeView::ShortType)
+    } else if libc::strncmp(void_cstr, utf, libc::strlen(void_cstr) + 1) == 0 {
+        (ClassName::void(), "void", PTypeView::VoidType)
     } else {
         dbg!((*utf) as u8 as char);
         unimplemented!()

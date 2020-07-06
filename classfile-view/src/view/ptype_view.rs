@@ -1,10 +1,11 @@
 use std::ops::Deref;
+
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use crate::vtype::VType;
 use rust_jvm_common::ptype::{PType, ReferenceType};
-use crate::loading::{ClassWithLoader, LoaderArc};
 
+use crate::loading::{ClassWithLoader, LoaderArc};
+use crate::vtype::VType;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -160,16 +161,16 @@ impl PTypeView {
             PTypeView::IntType => res.push_str("I"),
             PTypeView::LongType => res.push_str("J"),
             PTypeView::Ref(ref_) => {
-                match ref_{
+                match ref_ {
                     ReferenceTypeView::Class(c) => {
                         res.push_str("L");
                         res.push_str(c.get_referred_name());
                         res.push_str(";")
-                    },
+                    }
                     ReferenceTypeView::Array(subtype) => {
                         res.push_str("[");
                         res.push_str(&subtype.deref().jvm_representation())
-                    },
+                    }
                 }
             }
             PTypeView::ShortType => res.push_str("S"),
@@ -190,14 +191,14 @@ impl PTypeView {
             PTypeView::IntType => res.push_str("int"),
             PTypeView::LongType => res.push_str("long"),
             PTypeView::Ref(ref_) => {
-                match ref_{
+                match ref_ {
                     ReferenceTypeView::Class(c) => {
-                        res.push_str(c.get_referred_name().replace("/",".").as_str());
-                    },
+                        res.push_str(c.get_referred_name().replace("/", ".").as_str());
+                    }
                     ReferenceTypeView::Array(subtype) => {
                         res.push_str(&subtype.deref().java_source_representation());
                         res.push_str("[]");
-                    },
+                    }
                 }
             }
             PTypeView::ShortType => res.push_str("S"),
@@ -208,8 +209,8 @@ impl PTypeView {
         res
     }
 
-    pub fn primitive_to_non_primitive_equiv(&self) -> ClassName{
-        match self{
+    pub fn primitive_to_non_primitive_equiv(&self) -> ClassName {
+        match self {
             PTypeView::ByteType => ClassName::byte(),
             PTypeView::CharType => ClassName::character(),
             PTypeView::DoubleType => ClassName::double(),
@@ -399,8 +400,7 @@ impl PTypeView {
 }
 
 
-
-impl From<ClassName> for PTypeView{
+impl From<ClassName> for PTypeView {
     fn from(cn: ClassName) -> Self {
         Self::Ref(ReferenceTypeView::Class(cn))
     }

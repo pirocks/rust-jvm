@@ -1,24 +1,24 @@
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::sync::Arc;
-use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use rust_jvm_common::classnames::{class_name, ClassName};
-use slow_interpreter::rust_jni::native_util::{to_object, get_state, from_object, from_jclass, get_interpreter_state};
-use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
-use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
-use rust_jvm_common::classfile::ACC_PUBLIC;
-use jvmti_jni_bindings::{JNIEnv, jclass, jboolean, jobjectArray, jio_vfprintf};
-use slow_interpreter::rust_jni::get_all_methods;
-use libjvm_utils::ptype_to_class_object;
+
+use classfile_view::loading::{Loader, LoaderArc};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-
-use slow_interpreter::java_values::{JavaValue, Object, ArrayObject};
-use slow_interpreter::{JVMState, InterpreterStateGuard};
-use slow_interpreter::stack_entry::StackEntry;
-use std::ops::Deref;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use jvmti_jni_bindings::{jboolean, jclass, jio_vfprintf, JNIEnv, jobjectArray};
+use libjvm_utils::ptype_to_class_object;
+use rust_jvm_common::classfile::ACC_PUBLIC;
+use rust_jvm_common::classnames::{class_name, ClassName};
+use slow_interpreter::{InterpreterStateGuard, JVMState};
+use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
+use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
-use classfile_view::loading::{Loader, LoaderArc};
+use slow_interpreter::rust_jni::get_all_methods;
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::stack_entry::StackEntry;
 
 const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 
@@ -39,7 +39,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut Inte
     }
     let runtime_class = of_class_obj.as_runtime_class();
     let methods = get_all_methods(jvm, int_state, runtime_class);
-    let method_class = check_inited_class(jvm, int_state,&ClassName::method().into(), loader.clone());
+    let method_class = check_inited_class(jvm, int_state, &ClassName::method().into(), loader.clone());
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {
@@ -76,7 +76,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut Inte
         };
         let name = {
             let name = method_view.name();
-            create_string_on_stack(jvm, int_state,name);
+            create_string_on_stack(jvm, int_state, name);
             int_state.pop_current_operand_stack()
         };
         let parameterTypes = parameters_type_objects(jvm, int_state, &method_view);
@@ -102,7 +102,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut Inte
 
 fn get_signature(state: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
     create_string_on_stack(state, int_state, method_view.desc_str());
-   int_state.pop_current_operand_stack()
+    int_state.pop_current_operand_stack()
 }
 
 fn exception_types_table(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
@@ -178,7 +178,7 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &'static JVMState, int_state: &mut
         }
     }).for_each(|m| {
         push_new_object(jvm, int_state, &constructor_class, None);
-        let constructor_object =int_state.pop_current_operand_stack();
+        let constructor_object = int_state.pop_current_operand_stack();
         object_array.push(constructor_object.clone());
 
         let method_view = m;
@@ -187,7 +187,7 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &'static JVMState, int_state: &mut
             let field_class_name = class_obj.view().name();
             //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
             load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name.clone())));
-           int_state.pop_current_operand_stack()
+            int_state.pop_current_operand_stack()
         };
 
         let parameter_types = parameters_type_objects(jvm, int_state, &method_view);

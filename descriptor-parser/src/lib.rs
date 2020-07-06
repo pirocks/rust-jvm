@@ -1,16 +1,15 @@
 #![feature(box_syntax)]
 
+use rust_jvm_common::classfile::{Classfile, MethodInfo};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::classfile::{MethodInfo, Classfile};
 use rust_jvm_common::ptype::{PType, ReferenceType};
-
 
 #[derive(Debug, Hash, Eq, Clone)]
 pub struct MethodDescriptor { pub parameter_types: Vec<PType>, pub return_type: PType }
 
 impl MethodDescriptor {
     pub fn from_legacy(method_info: &MethodInfo, classfile: &Classfile) -> Self {
-        parse_method_descriptor( method_info.descriptor_str(classfile).as_str()).unwrap()
+        parse_method_descriptor(method_info.descriptor_str(classfile).as_str()).unwrap()
     }
 
     /*pub fn from(method_info: &MethodView) -> Self {
@@ -18,7 +17,7 @@ impl MethodDescriptor {
     }*/
 }
 
-impl PartialEq for MethodDescriptor{
+impl PartialEq for MethodDescriptor {
     fn eq(&self, other: &Self) -> bool {
         self.parameter_types == other.parameter_types &&
             self.return_type == other.return_type
@@ -76,10 +75,9 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, PType)> {
                 PType::VoidType
             } else if class_name == "short" {
                 PType::ShortType
-            } else if class_name == "char"{
+            } else if class_name == "char" {
                 PType::CharType
-            }
-            else {
+            } else {
                 let class_name = ClassName::Str(class_name.to_string());
                 PType::Ref(ReferenceType::Class(class_name))
             };
@@ -103,10 +101,10 @@ pub fn parse_array_type(str_: &str) -> Option<(&str, PType)> {
 }
 
 pub fn parse_field_type(str_: &str) -> Option<(&str, PType)> {
-    parse_array_type( str_).or_else(|| {
+    parse_array_type(str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
-            parse_object_type( str_).or_else(|| {
-                ("",PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))).into()//todo fallback for when parsing maformedtypes names
+            parse_object_type(str_).or_else(|| {
+                ("", PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))).into()//todo fallback for when parsing maformedtypes names
 //                panic!("{}", str_)
             })
         })
@@ -145,7 +143,7 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
         }
     }
     remaining_to_parse = eat_one(remaining_to_parse);
-    if let Some((should_be_empty, return_type)) = parse_return_descriptor( remaining_to_parse) {
+    if let Some((should_be_empty, return_type)) = parse_return_descriptor(remaining_to_parse) {
         if should_be_empty.is_empty() {
             Some(MethodDescriptor { return_type, parameter_types })
         } else {
@@ -157,7 +155,7 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
 }
 
 pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, PType)> {
-    parse_field_type( str_)
+    parse_field_type(str_)
 }
 
 pub fn parse_void_descriptor(str_: &str) -> Option<(&str, PType)> {
@@ -169,19 +167,17 @@ pub fn parse_void_descriptor(str_: &str) -> Option<(&str, PType)> {
 
 pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PType)> {
     parse_void_descriptor(str_).or_else(|| {
-        parse_field_type( str_)
+        parse_field_type(str_)
     })
 }
 
-pub fn parse_class_name(str_: &str) -> PType{
-    if str_.starts_with("["){
+pub fn parse_class_name(str_: &str) -> PType {
+    if str_.starts_with("[") {
         let field_descriptor = parse_field_descriptor(&str_[1..]).unwrap().field_type;
         PType::Ref(ReferenceType::Array(box field_descriptor))
-    }
-    else if str_.ends_with(";"){
+    } else if str_.ends_with(";") {
         parse_field_descriptor(&str_).unwrap().field_type
-    }
-    else {
+    } else {
         PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))
     }
 }

@@ -7,9 +7,9 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 
+use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::java_values::JavaValue;
-use crate::{JVMState, InterpreterStateGuard};
 use crate::jvmti::agent::*;
 use crate::jvmti::allocate::{allocate, deallocate};
 use crate::jvmti::breakpoint::*;
@@ -18,7 +18,9 @@ use crate::jvmti::classes::*;
 use crate::jvmti::event_callbacks::set_event_callbacks;
 use crate::jvmti::events::set_event_notification_mode;
 use crate::jvmti::frame::*;
-use crate::jvmti::is::{is_array_class, is_interface, is_method_obsolete, is_method_native};
+use crate::jvmti::is::{is_array_class, is_interface, is_method_native, is_method_obsolete};
+use crate::jvmti::locals::{get_local_double, get_local_float, get_local_int, get_local_long, get_local_object};
+use crate::jvmti::methods::*;
 use crate::jvmti::monitor::*;
 use crate::jvmti::properties::get_system_property;
 use crate::jvmti::tags::*;
@@ -28,8 +30,6 @@ use crate::jvmti::version::get_version_number;
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::get_field::new_field_id;
 use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
-use crate::jvmti::methods::*;
-use crate::jvmti::locals::{get_local_object, get_local_int, get_local_long, get_local_float, get_local_double};
 
 pub mod event_callbacks;
 
@@ -50,15 +50,15 @@ thread_local! {
 
 pub fn get_jvmti_interface(jvm: &'static JVMState) -> jvmtiEnv {
     JVMTI_INTERFACE.with(|refcell| {
-      /*  {
-            let first_borrow = refcell.borrow();
-            match first_borrow.as_ref() {
-                None => {}
-                Some(interface) => {
-                    return interface as jvmtiEnv;
-                }
-            }
-        }*/
+        /*  {
+              let first_borrow = refcell.borrow();
+              match first_borrow.as_ref() {
+                  None => {}
+                  Some(interface) => {
+                      return interface as jvmtiEnv;
+                  }
+              }
+          }*/
         let new = get_jvmti_interface_impl(jvm);
         refcell.replace(new.into());
         let new_borrow = refcell.borrow();
@@ -395,10 +395,11 @@ pub mod allocate;
 pub mod events;
 
 pub mod locals {
-    use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jobject, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jlong, jdouble, jfloat};
-    use crate::rust_jni::native_util::{from_object, to_object};
+    use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+
     use crate::java_values::JavaValue;
     use crate::jvmti::get_state;
+    use crate::rust_jni::native_util::{from_object, to_object};
 
     pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jobject) -> jvmtiError {
         let var = get_local_t(env, thread, depth, slot);
@@ -443,12 +444,14 @@ pub mod locals {
 }
 
 pub mod methods {
-    use jvmti_jni_bindings::{jint, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
-    use crate::jvmti::get_state;
-    use crate::method_table::MethodId;
+    use std::ffi::CString;
     use std::mem::transmute;
     use std::ptr::null_mut;
-    use std::ffi::CString;
+
+    use jvmti_jni_bindings::{jint, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+
+    use crate::jvmti::get_state;
+    use crate::method_table::MethodId;
 
     pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
                                              name_ptr: *mut *mut ::std::os::raw::c_char,

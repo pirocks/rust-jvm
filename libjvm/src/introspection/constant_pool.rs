@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{JNIEnv, jclass, jobject, jint, jobjectArray, jfloat, jlong, jdouble, jstring};
+use jvmti_jni_bindings::{jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass) -> jobject {

@@ -1,10 +1,11 @@
 use std::borrow::Borrow;
-use slow_interpreter::rust_jni::native_util::{get_state,  to_object, from_object, get_interpreter_state};
-use slow_interpreter::interpreter_util::{push_new_object, run_constructor, check_inited_class};
-use jvmti_jni_bindings::{jobject, jobjectArray, JNIEnv, jclass};
-use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use std::ops::Deref;
+
+use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::string_obj_to_string;
 
 #[no_mangle]
@@ -39,7 +40,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_inited_class(jvm, int_state,&target_class_name.into(), int_state.current_loader(jvm).clone());
+    let target_runtime_class = check_inited_class(jvm, int_state, &target_class_name.into(), int_state.current_loader(jvm).clone());
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {
@@ -47,7 +48,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         int_state.push_current_operand_stack(arg.clone());
     }
 
-    run_static_or_virtual(jvm, int_state,&target_runtime_class, method_name, signature);
+    run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, signature);
     to_object(int_state.pop_current_operand_stack().unwrap_object())
 }
 
@@ -68,7 +69,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let temp_4 = constructor_obj.lookup_field("clazz");
     let clazz = class_object_to_runtime_class(&temp_4.cast_class(), jvm, int_state).unwrap();
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
-    push_new_object(jvm,int_state, &clazz,None);
+    push_new_object(jvm, int_state, &clazz, None);
     let obj = int_state.pop_current_operand_stack();
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());

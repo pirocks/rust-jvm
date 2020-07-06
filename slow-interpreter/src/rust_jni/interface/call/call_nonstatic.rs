@@ -1,7 +1,9 @@
-use crate::rust_jni::interface::call::{call_nonstatic_method, VarargProvider};
-use jvmti_jni_bindings::{JNIEnv, jobject, jmethodID, jbyte, jboolean, jshort, jchar, jfloat, jint, jdouble, jlong, jvalue};
-use crate::rust_jni::native_util::to_object;
 use std::ffi::VaList;
+
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
+
+use crate::rust_jni::interface::call::{call_nonstatic_method, VarargProvider};
+use crate::rust_jni::native_util::to_object;
 
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
     let res = call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)).unwrap().unwrap_object();
@@ -10,7 +12,7 @@ pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, meth
 
 pub unsafe extern "C" fn call_void_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) {
     let res = call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l));
-    assert_eq!(res,None);
+    assert_eq!(res, None);
 }
 
 
@@ -92,11 +94,6 @@ pub unsafe extern "C" fn call_long_method_a(env: *mut JNIEnv, obj: jobject, meth
 }
 
 
-
-
-
-
-
 pub unsafe extern "C" fn call_object_method_v(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut args: VaList) -> jobject {
     let res = call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)).unwrap().unwrap_object();
     to_object(res)
@@ -104,7 +101,7 @@ pub unsafe extern "C" fn call_object_method_v(env: *mut JNIEnv, obj: jobject, me
 
 pub unsafe extern "C" fn call_void_method_v(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut args: VaList) {
     let res = call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args));
-    assert_eq!(res,None);
+    assert_eq!(res, None);
 }
 
 pub unsafe extern "C" fn call_byte_method_v(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut args: VaList) -> jbyte {

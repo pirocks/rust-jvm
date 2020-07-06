@@ -1,7 +1,7 @@
 use classfile_view::view::ptype_view::PTypeView;
+
 use crate::java_values::JavaValue;
 use crate::StackEntry;
-
 
 pub fn astore(current_frame: &mut StackEntry, n: usize) -> () {
     let object_ref = current_frame.pop();

@@ -1,16 +1,17 @@
-use std::sync::{Arc, RwLock};
-use crate::view::method_view::{MethodIterator, MethodView};
-use rust_jvm_common::classfile::{ACC_FINAL, ACC_STATIC, ACC_NATIVE, ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_ABSTRACT, Classfile, ACC_INTERFACE, ConstantKind, AttributeType, ACC_VARARGS, ACC_SYNTHETIC};
-use rust_jvm_common::classnames::{ClassName, class_name};
-use crate::view::constant_info_view::{ConstantInfoView, ClassPoolElemView, NameAndTypeView, MethodrefView, StringView, IntegerView, FieldrefView, InterfaceMethodrefView, InvokeDynamicView, FloatView, LongView, DoubleView, MethodHandleView};
-use crate::view::field_view::{FieldIterator, FieldView};
-use crate::view::interface_view::InterfaceIterator;
-use crate::view::attribute_view::{EnclosingMethodView, BootstrapMethodsView, SourceFileView};
 use std::collections::HashMap;
-use descriptor_parser::MethodDescriptor;
 use std::iter::FromIterator;
 use std::mem::transmute;
+use std::sync::{Arc, RwLock};
 
+use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind};
+use rust_jvm_common::classnames::{class_name, ClassName};
+
+use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, SourceFileView};
+use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, DoubleView, FieldrefView, FloatView, IntegerView, InterfaceMethodrefView, InvokeDynamicView, LongView, MethodHandleView, MethodrefView, NameAndTypeView, StringView};
+use crate::view::field_view::{FieldIterator, FieldView};
+use crate::view::interface_view::InterfaceIterator;
+use crate::view::method_view::{MethodIterator, MethodView};
 
 pub trait HasAccessFlags {
     fn access_flags(&self) -> u16;
@@ -41,7 +42,7 @@ pub trait HasAccessFlags {
     fn is_interface(&self) -> bool {
         self.access_flags() & ACC_INTERFACE > 0
     }
-    fn is_synthetic(&self) -> bool{
+    fn is_synthetic(&self) -> bool {
         self.access_flags() & ACC_SYNTHETIC > 0
     }
 }
@@ -50,13 +51,13 @@ pub trait HasAccessFlags {
 pub struct ClassView {
     backing_class: Arc<Classfile>,
     method_index: RwLock<Option<Arc<MethodIndex>>>,
-    descriptor_index: RwLock<Vec<Option<MethodDescriptor>>>
+    descriptor_index: RwLock<Vec<Option<MethodDescriptor>>>,
 }
 
 
 impl ClassView {
     pub fn from(c: Arc<Classfile>) -> ClassView {
-        ClassView { backing_class: c.clone(), method_index: RwLock::new(None), descriptor_index: RwLock::new(vec![None;c.methods.len()]) }
+        ClassView { backing_class: c.clone(), method_index: RwLock::new(None), descriptor_index: RwLock::new(vec![None; c.methods.len()]) }
     }
     pub fn name(&self) -> ClassName {
         class_name(&self.backing_class)
@@ -95,7 +96,7 @@ impl ClassView {
             }),//todo
             ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
             ConstantKind::String(s) => ConstantInfoView::String(StringView { class_view: self, string_index: s.string_index as usize }),//todo
-            ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { class_view:self , i }),
+            ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { class_view: self, i }),
             ConstantKind::Methodref(_) => ConstantInfoView::Methodref(MethodrefView { class_view: self, i }),
             ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { class_view: self, i }),
             ConstantKind::NameAndType(_) => ConstantInfoView::NameAndType(NameAndTypeView { class_view: self, i }),
@@ -141,7 +142,7 @@ impl ClassView {
         BootstrapMethodsView { backing_class: self, attr_i: i }
     }
     pub fn sourcefile_attr(&self) -> SourceFileView {
-        let i= self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
+        let i = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
             match &x.attribute_type {
                 AttributeType::SourceFile(_) => Some(i),
                 _ => None
@@ -159,10 +160,10 @@ impl ClassView {
     }
 
     pub fn lookup_method(&self, name: &String, desc: &MethodDescriptor) -> Option<MethodView> {
-        self.method_index().lookup(self,name,desc)
+        self.method_index().lookup(self, name, desc)
     }
-    pub fn lookup_method_name(&self, name: &String) -> Vec<MethodView>{
-        self.method_index().lookup_method_name(self,name)
+    pub fn lookup_method_name(&self, name: &String) -> Vec<MethodView> {
+        self.method_index().lookup_method_name(self, name)
     }
 
     fn method_index(&self) -> Arc<MethodIndex> {
@@ -205,7 +206,7 @@ impl MethodIndex {
         }
         res
     }
-    fn lookup<'cl>(&self,c: &'cl ClassView, name: &String, desc: &MethodDescriptor) -> Option<MethodView<'cl>> {
+    fn lookup<'cl>(&self, c: &'cl ClassView, name: &String, desc: &MethodDescriptor) -> Option<MethodView<'cl>> {
         self.index.get(name)
             .and_then(|x| x.get(desc))
             .map(

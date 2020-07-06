@@ -1,15 +1,16 @@
-use std::sync::{RwLock, Arc};
-use std::path::Path;
-use rust_jvm_common::classnames::{ClassName, class_name};
 use std::collections::HashMap;
-use rust_jvm_common::classfile::Classfile;
-use classfile_parser::parse_class_file;
 use std::fs::File;
-use classfile_view::view::ClassView;
-use verification::{verify, VerifierContext};
-use classfile_view::loading::{LoaderName, ClassLoadingError, Loader, LoaderArc, LivePoolGetter};
-use jar_manipulation::JarHandle;
+use std::path::Path;
+use std::sync::{Arc, RwLock};
+
+use classfile_parser::parse_class_file;
+use classfile_view::loading::{ClassLoadingError, LivePoolGetter, Loader, LoaderArc, LoaderName};
 use classfile_view::loading::ClassLoadingError::ClassNotFoundException;
+use classfile_view::view::ClassView;
+use jar_manipulation::JarHandle;
+use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classnames::{class_name, ClassName};
+use verification::{VerifierContext, verify};
 
 #[derive(Debug)]
 pub struct Classpath {
@@ -23,7 +24,7 @@ impl Classpath {
         for x in &self.classpath_base {
             for dir_member in x.read_dir().unwrap() {
                 let dir_member = dir_member.unwrap();
-                let is_jar = dir_member.path().extension().map(|x|{&x.to_string_lossy() == "jar"}).unwrap_or(false);
+                let is_jar = dir_member.path().extension().map(|x| { &x.to_string_lossy() == "jar" }).unwrap_or(false);
                 if is_jar {
                     let mut cache_write_guard = self.jar_cache.write().unwrap();
                     let boxed_path = dir_member.path().into_boxed_path();
@@ -35,18 +36,18 @@ impl Classpath {
         }
         let mut cache_read_guard = self.jar_cache.write().unwrap();
         for jar in cache_read_guard.values_mut() {
-            match jar.lookup(class_name){
-                Ok(c) =>{return Result::Ok(c);},
-                Err(_) => {},
+            match jar.lookup(class_name) {
+                Ok(c) => { return Result::Ok(c); }
+                Err(_) => {}
             }
         };
         for path in &self.classpath_base {
             let mut new_path = path.clone().into_path_buf();
-            new_path.push(format!("{}.class",class_name.get_referred_name()));
-            if new_path.is_file(){
+            new_path.push(format!("{}.class", class_name.get_referred_name()));
+            if new_path.is_file() {
                 let file_read = &mut File::open(new_path).unwrap();
                 let classfile = parse_class_file(file_read);
-                return Result::Ok(Arc::new(classfile))
+                return Result::Ok(Arc::new(classfile));
             }
         }
         Result::Err(ClassNotFoundException)
@@ -67,8 +68,8 @@ impl Classpath {
 
 #[derive(Debug)]
 pub struct BootstrapLoader {
-    pub loaded: RwLock<HashMap<ClassName, (Arc<ClassView>,Arc<Classfile>)>>,
-    pub parsed: RwLock<HashMap<ClassName, (Arc<ClassView>,Arc<Classfile>)>>,
+    pub loaded: RwLock<HashMap<ClassName, (Arc<ClassView>, Arc<Classfile>)>>,
+    pub parsed: RwLock<HashMap<ClassName, (Arc<ClassView>, Arc<Classfile>)>>,
     pub name: RwLock<LoaderName>,
     //for now the classpath is immutable so no locks are needed.
     pub classpath: Arc<Classpath>,
@@ -109,7 +110,7 @@ impl Loader for BootstrapLoader {
                 Ok(_) => {}
                 Err(_) => panic!(),
             };
-            self.loaded.write().unwrap().insert(class.clone(), (Arc::new(ClassView::from(backing_class.clone())),backing_class));
+            self.loaded.write().unwrap().insert(class.clone(), (Arc::new(ClassView::from(backing_class.clone())), backing_class));
         }
         let c = self.loaded.read().unwrap().get(class).unwrap().clone();
         Result::Ok(c.0)
@@ -149,7 +150,7 @@ impl Loader for BootstrapLoader {
 
     fn add_pre_loaded(&self, name: &ClassName, classfile: &Arc<Classfile>) {
         self.parsed.write().unwrap().insert(name.clone(),
-                                            (Arc::new(ClassView::from(classfile.clone())),classfile.clone()));
+                                            (Arc::new(ClassView::from(classfile.clone())), classfile.clone()));
     }
 }
 

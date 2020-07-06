@@ -1,12 +1,14 @@
-use jvmti_jni_bindings::{JNIEnv, jclass, jobject, jint, JVM_CALLER_DEPTH, jlong, jboolean, jbyte};
-use crate::introspection::JVM_GetCallerClass;
-use slow_interpreter::rust_jni::native_util::{from_object, get_state};
-use std::ptr::null_mut;
 use std::intrinsics::transmute;
-use classfile_view::view::ptype_view::PTypeView;
 use std::ops::Deref;
+use std::ptr::null_mut;
+
+use classfile_view::view::ptype_view::PTypeView;
+use jvmti_jni_bindings::{jboolean, jbyte, jclass, jint, jlong, JNIEnv, jobject, JVM_CALLER_DEPTH};
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
+use slow_interpreter::rust_jni::native_util::{from_object, get_state};
+
+use crate::introspection::JVM_GetCallerClass;
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(
@@ -96,10 +98,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putByte__JB(env: *mut JNIEnv,
 }
 
 pub mod compare_and_swap {
-    use jvmti_jni_bindings::{jboolean, jlong, jint, jobject, JNIEnv};
-    use slow_interpreter::rust_jni::native_util::{from_object, get_state};
     use std::mem::transmute;
+
+    use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
     use slow_interpreter::java_values::JavaValue;
+    use slow_interpreter::rust_jni::native_util::{from_object, get_state};
 
     #[no_mangle]
     unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEnv, the_unsafe: jobject,
@@ -176,11 +179,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(
     env: *mut JNIEnv,
     the_unsafe: jobject,
     obj: jobject,
-    offset: jlong
-)-> jint{
+    offset: jlong,
+) -> jint {
     let jvm = get_state(env);
     let notnull = from_object(obj).unwrap();
-    let (rc,field_i ) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+    let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
     let field_name = rc.view().field(field_i as usize).field_name();
     let field_borrow = notnull.unwrap_normal_object().fields.borrow();
     field_borrow.get(&field_name).unwrap().unwrap_int()

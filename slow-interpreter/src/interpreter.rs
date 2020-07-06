@@ -8,7 +8,7 @@ use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::{JVMState, InterpreterStateGuard};
+use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::arithmetic::*;
 use crate::instructions::branch::*;
@@ -35,7 +35,7 @@ use crate::java_values::JavaValue;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 
-pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: & mut InterpreterStateGuard) {
+pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let view = interpreter_state.current_class_view().clone();
     let method_i = interpreter_state.current_method_i();
     let method = view.method_view_i(method_i as usize);
@@ -46,7 +46,7 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: & mut Interpr
 
     let method_desc = method.desc_str();
     let current_depth = interpreter_state.call_stack_depth();
-    let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t|t.java_tid).unwrap_or(-1);
+    let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t| t.java_tid).unwrap_or(-1);
     jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
     assert!(!*interpreter_state.function_return_mut());
     let class_pointer = interpreter_state.current_class_pointer().clone();
@@ -108,7 +108,7 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: & mut Interpr
     )
 }
 
-fn update_pc_for_next_instruction<'l>(interpreter_state: & mut InterpreterStateGuard) {
+fn update_pc_for_next_instruction<'l>(interpreter_state: &mut InterpreterStateGuard) {
     let offset = *interpreter_state.current_pc_offset();
     let mut pc = *interpreter_state.current_pc();
     if offset > 0 {
@@ -181,7 +181,7 @@ pub fn monitor_for_function(
 
 fn run_single_instruction<'l>(
     jvm: &'static JVMState,
-    interpreter_state: & mut InterpreterStateGuard,
+    interpreter_state: &mut InterpreterStateGuard,
     instruct: InstructionInfo,
 ) {
     match instruct.clone() {
@@ -403,9 +403,9 @@ fn run_single_instruction<'l>(
     }
 }
 
-fn athrow<'l>(jvm: &'static JVMState, interpreter_state: & mut InterpreterStateGuard) {
+fn athrow<'l>(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard) {
     println!("EXCEPTION:");
-    let exception_obj =  {
+    let exception_obj = {
         let value = interpreter_state.pop_current_operand_stack();
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.unwrap_object_nonnull()

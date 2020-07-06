@@ -1,14 +1,15 @@
-pub mod attribute_infos;
-pub mod code;
-pub mod constant_infos;
+use std::io::{BufReader, Read};
 
-use rust_jvm_common::classfile::{Code, AttributeType, StackMapTable, MethodInfo, FieldInfo, Classfile};
+use rust_jvm_common::classfile::{AttributeType, Classfile, Code, FieldInfo, MethodInfo, StackMapTable};
+
 use crate::attribute_infos::parse_attributes;
 use crate::constant_infos::parse_constant_infos;
 use crate::parsing_util::ParsingContext;
 use crate::parsing_util::ReadParsingContext;
-use std::io::{Read, BufReader};
 
+pub mod attribute_infos;
+pub mod code;
+pub mod constant_infos;
 
 pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
     for attr in code.attributes.iter() {

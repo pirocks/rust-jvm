@@ -1,13 +1,15 @@
-use jvmti_jni_bindings::{JNIEnv, jstring, jboolean, jchar, jsize, JNI_TRUE};
-use std::os::raw::c_char;
-use std::cell::Ref;
 use std::alloc::Layout;
-use std::mem::{size_of, transmute};
-use crate::rust_jni::native_util::{from_object, get_state, to_object, get_interpreter_state};
-use crate::instructions::ldc::create_string_on_stack;
+use std::cell::Ref;
 use std::collections::HashMap;
+use std::mem::{size_of, transmute};
+use std::os::raw::c_char;
 use std::sync::Arc;
+
+use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
+
+use crate::instructions::ldc::create_string_on_stack;
 use crate::java_values::{JavaValue, Object};
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 //todo shouldn't this be handled by a registered native
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
@@ -54,7 +56,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     // let frame = int_state.current_frame_mut();
-    create_string_on_stack(jvm,int_state, owned_str);
+    create_string_on_stack(jvm, int_state, owned_str);
     let string = int_state.pop_current_operand_stack().unwrap_object();
     assert!(!string.is_none());
     to_object(string)

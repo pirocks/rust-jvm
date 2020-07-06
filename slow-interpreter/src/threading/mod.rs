@@ -1,21 +1,21 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock,  RwLockReadGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::LocalKey;
 
 use jvmti_jni_bindings::jrawMonitorID;
+use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
 
-use crate::{InterpreterState, JVMState, InterpreterStateGuard, SuspendedStatus, MainThreadInitializeInfo, set_properties, run_main};
+use crate::{InterpreterState, InterpreterStateGuard, JVMState, MainThreadInitializeInfo, run_main, set_properties, SuspendedStatus};
+use crate::interpreter::run_function;
+use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::thread::JThread;
+use crate::java::lang::thread_group::JThreadGroup;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
-use std::sync::mpsc::{channel, Sender, Receiver};
-use rust_jvm_common::classnames::ClassName;
-use crate::interpreter_util::{check_inited_class, push_new_object};
-use std::any::Any;
-use crate::interpreter::run_function;
-use crate::java::lang::thread_group::JThreadGroup;
 
 pub struct ThreadState {
     pub(crate) threads: Threads,
@@ -63,7 +63,7 @@ impl ThreadState {
     fn jvm_init_from_main_thread(jvm: &'static JVMState, init_recv: Receiver<MainThreadInitializeInfo>) {
         let _init_info = init_recv.recv().unwrap();
         let main_thread = &jvm.thread_state.get_main_thread();
-        assert!(Arc::ptr_eq(main_thread ,&jvm.thread_state.get_current_thread()));
+        assert!(Arc::ptr_eq(main_thread, &jvm.thread_state.get_current_thread()));
         let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: main_thread };
         run_function(&jvm, &mut int_state);
         let function_return = int_state.function_return_mut();
@@ -83,8 +83,8 @@ impl ThreadState {
         self.main_thread.read().unwrap().as_ref().unwrap().clone()
     }
 
-    fn set_current_thread(&'static self, thread: Arc<JavaThread>){
-        self.current_java_thread.with(|refcell|{
+    fn set_current_thread(&'static self, thread: Arc<JavaThread>) {
+        self.current_java_thread.with(|refcell| {
             assert!(refcell.borrow().is_none());
             *refcell.borrow_mut() = thread.into();
         })
@@ -99,14 +99,14 @@ impl ThreadState {
             thread_object: RwLock::new(None),
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
-            invisible_to_java: true
+            invisible_to_java: true,
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
         let target_classfile = check_inited_class(jvm,
-            &mut InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread },
-            &ClassName::thread().into(),
-            jvm.bootstrap_loader.clone(),
+                                                  &mut InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread },
+                                                  &ClassName::thread().into(),
+                                                  jvm.bootstrap_loader.clone(),
         );
 
 
@@ -130,7 +130,7 @@ impl ThreadState {
             // let jthread = new_int_state.pop_current_operand_stack().cast_thread();
             let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
             *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
-            let jthread = JThread::new(jvm, &mut new_int_state,system_thread_group,"Main".to_string());
+            let jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
             main_thread_obj_send.send(jthread).unwrap();
         }, box ());
         let thread_obj: JThread = main_thread_obj_recv.recv().unwrap();
@@ -177,12 +177,12 @@ impl ThreadState {
         self.all_java_threads.read().unwrap().get(&tid).cloned()
     }
 
-    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: & mut InterpreterStateGuard, invisible_to_java: bool) -> Arc<JavaThread> {
+    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: &mut InterpreterStateGuard, invisible_to_java: bool) -> Arc<JavaThread> {
         let underlying = self.threads.create_thread();
 
         let (send, recv) = channel();
         let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm).clone());
-        let java_thread = JavaThread::new(jvm,obj, underlying, invisible_to_java);
+        let java_thread = JavaThread::new(jvm, obj, underlying, invisible_to_java);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
             let new_thread_frame = StackEntry {
@@ -222,20 +222,20 @@ pub struct JavaThread {
     thread_object: RwLock<Option<JThread>>,
     pub interpreter_state: RwLock<InterpreterState>,
     pub suspended: RwLock<SuspendedStatus>,
-    pub invisible_to_java: bool
+    pub invisible_to_java: bool,
 }
 
 impl JavaThread {
-    pub fn new(jvm: &'static JVMState, thread_obj: JThread, underlying: Thread,invisible_to_java : bool) -> Arc<JavaThread> {
+    pub fn new(jvm: &'static JVMState, thread_obj: JThread, underlying: Thread, invisible_to_java: bool) -> Arc<JavaThread> {
         let res = Arc::new(JavaThread {
             java_tid: thread_obj.tid(),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
-            invisible_to_java
+            invisible_to_java,
         });
-        jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid,res.clone());
+        jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         res
     }
 

@@ -1,26 +1,27 @@
-use crate::verifier::{Frame, ClassWithLoaderMethod, get_class};
-use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
-use crate::verifier::stackmapframes::get_stack_map_frames;
-use crate::verifier::instructions::{handlers_are_legal, FrameResult};
-use crate::verifier::instructions::merged_code_is_type_safe;
-
-use std::option::Option::Some;
-use rust_jvm_common::classfile::{InstructionInfo, Instruction, Code};
-use crate::verifier::TypeSafetyError;
-use crate::{StackMap, VerifierContext};
-use rust_jvm_common::classnames::ClassName;
-use crate::OperandStack;
 use std::ops::Deref;
-use classfile_view::vtype::VType;
-use classfile_view::view::HasAccessFlags;
-use classfile_view::loading::*;
-use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::view::constant_info_view::ConstantInfoView;
-use descriptor_parser::MethodDescriptor;
+use std::option::Option::Some;
 use std::rc::Rc;
 
+use classfile_view::loading::*;
+use classfile_view::view::constant_info_view::ConstantInfoView;
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::vtype::VType;
+use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
+use rust_jvm_common::classnames::ClassName;
+
+use crate::{StackMap, VerifierContext};
+use crate::OperandStack;
+use crate::verifier::{ClassWithLoaderMethod, Frame, get_class};
+use crate::verifier::filecorrectness::{does_not_override_final_method, is_assignable, super_class_chain};
+use crate::verifier::instructions::{FrameResult, handlers_are_legal};
+use crate::verifier::instructions::merged_code_is_type_safe;
+use crate::verifier::stackmapframes::get_stack_map_frames;
+use crate::verifier::TypeSafetyError;
+
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
-    let Frame { locals,  stack_map:input_operand_stack, flag_this_uninit } = input_frame;
+    let Frame { locals, stack_map: input_operand_stack, flag_this_uninit } = input_frame;
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&env.vf, interim_operand_stack, &result_type);
     if operand_stack_has_legal_length(env, &next_operand_stack) {

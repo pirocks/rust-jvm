@@ -1,6 +1,7 @@
 pub mod method {
-    use crate::java_values::{JavaValue, Object};
     use std::sync::Arc;
+
+    use crate::java_values::{JavaValue, Object};
 
     pub struct Method {
         normal_object: Arc<Object>
@@ -23,17 +24,18 @@ pub mod method {
 }
 
 pub mod field {
-    use crate::java_values::{JavaValue, Object, ArrayObject};
-    use crate::java::lang::string::JString;
-    use crate::java::lang::class::JClass;
-    use jvmti_jni_bindings::jint;
-    use crate::{JVMState, InterpreterStateGuard};
-
-    use crate::interpreter_util::{push_new_object, run_constructor, check_inited_class};
-    use std::sync::Arc;
-    use classfile_view::view::ptype_view::PTypeView;
     use std::cell::RefCell;
+    use std::sync::Arc;
+
+    use classfile_view::view::ptype_view::PTypeView;
+    use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+
+    use crate::{InterpreterStateGuard, JVMState};
+    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::java::lang::class::JClass;
+    use crate::java::lang::string::JString;
+    use crate::java_values::{ArrayObject, JavaValue, Object};
 
     pub struct Field {
         normal_object: Arc<Object>
@@ -48,16 +50,16 @@ pub mod field {
     impl Field {
         pub fn init<'l>(
             jvm: &'static JVMState,
-            int_state: & mut InterpreterStateGuard,
+            int_state: &mut InterpreterStateGuard,
             clazz: JClass,
             name: JString,
             type_: JClass,
             modifiers: jint,
             slot: jint,
             signature: JString,
-            annotations: Vec<JavaValue>
+            annotations: Vec<JavaValue>,
         ) -> Self {
-            let field_classfile = check_inited_class(jvm,int_state, &ClassName::field().into(), int_state.current_loader(jvm));
+            let field_classfile = check_inited_class(jvm, int_state, &ClassName::field().into(), int_state.current_loader(jvm));
             push_new_object(jvm, int_state, &field_classfile, None);
             let field_object = int_state.pop_current_operand_stack();
 
@@ -82,11 +84,11 @@ pub mod field {
             field_object.cast_field()
         }
 
-        pub fn name(&self)-> JString{
+        pub fn name(&self) -> JString {
             self.normal_object.lookup_field("name").cast_string()
         }
 
-        pub fn clazz(&self)-> JClass{
+        pub fn clazz(&self) -> JClass {
             self.normal_object.lookup_field("clazz").cast_class()
         }
 

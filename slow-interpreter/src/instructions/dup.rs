@@ -1,4 +1,3 @@
-
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
@@ -21,22 +20,21 @@ pub fn dup_x1(current_frame: &mut StackEntry) -> () {
 pub fn dup_x2(current_frame: &mut StackEntry) -> () {
     let value1 = current_frame.pop();
     let value2 = current_frame.pop();
-    match value2{
+    match value2 {
         JavaValue::Long(_) | JavaValue::Double(_) => {
             current_frame.push(value1.clone());
             current_frame.push(value2);
             current_frame.push(value1);
-        },
+        }
         _ => {
             let value3 = current_frame.pop();
             current_frame.push(value1.clone());
             current_frame.push(value3);
             current_frame.push(value2);
             current_frame.push(value1);
-        },
+        }
     }
 }
-
 
 
 pub fn dup2(current_frame: &mut StackEntry) -> () {
@@ -45,20 +43,19 @@ pub fn dup2(current_frame: &mut StackEntry) -> () {
         JavaValue::Long(_) | JavaValue::Double(_) => {
             current_frame.push(value1.clone());
             current_frame.push(value1);
-        },
+        }
         _ => {
             let value2 = current_frame.pop();
-            match value2.clone(){
+            match value2.clone() {
                 JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
-                _ => {},
+                _ => {}
             };
             current_frame.push(value2.clone());
             current_frame.push(value1.clone());
             current_frame.push(value2.clone());
             current_frame.push(value1.clone());
-        },
+        }
     }
-
 }
 
 
@@ -70,24 +67,23 @@ pub fn dup2_x1(current_frame: &mut StackEntry) -> () {
             current_frame.push(value1.clone());
             current_frame.push(value2);
             current_frame.push(value1);
-        },
+        }
         _ => {
             let value2 = current_frame.pop();
             let value3 = current_frame.pop();
-            match value2.clone(){
+            match value2.clone() {
                 JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
-                _ => {},
+                _ => {}
             };
-            match value3.clone(){
+            match value3.clone() {
                 JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
-                _ => {},
+                _ => {}
             };
             current_frame.push(value2.clone());
             current_frame.push(value1.clone());
             current_frame.push(value3);
             current_frame.push(value2.clone());
             current_frame.push(value1.clone());
-        },
+        }
     }
-
 }

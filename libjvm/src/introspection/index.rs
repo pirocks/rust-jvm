@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{JNIEnv, jclass, jint, JVM_ExceptionTableEntryType};
+use jvmti_jni_bindings::{jclass, jint, JNIEnv, JVM_ExceptionTableEntryType};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {

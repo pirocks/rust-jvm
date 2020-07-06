@@ -1,14 +1,14 @@
+use std::ffi::CString;
 use std::mem::{size_of, transmute};
+use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{_jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiLocalVariableEntry, jvmtiLineNumberEntry, _jvmtiLineNumberEntry, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION};
+use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_NONE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
 
 use crate::java_values::JavaValue;
 use crate::jvmti::get_state;
 use crate::method_table::MethodId;
 use crate::rust_jni::native_util::from_object;
-use std::ffi::CString;
-use std::ptr::null_mut;
 
 pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, count_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
@@ -51,14 +51,14 @@ pub unsafe extern "C" fn get_local_variable_table(
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let method_view = class.view().method_view_i(method_i as usize);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
-    let local_vars = match method_view.local_variable_attribute(){
+    let local_vars = match method_view.local_variable_attribute() {
         None => return jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION,
         Some(lva) => lva,
     };
     entry_count_ptr.write(num_locals as i32);
-    let res_table = jvm.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLocalVariableEntry>()* num_locals) as *mut _jvmtiLocalVariableEntry;
+    let res_table = jvm.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLocalVariableEntry>() * num_locals) as *mut _jvmtiLocalVariableEntry;
     assert_eq!(num_locals, local_vars.len());
-    for (i,local_variable_view) in local_vars.iter().enumerate() {
+    for (i, local_variable_view) in local_vars.iter().enumerate() {
         let name = local_variable_view.name();
         let allocated_name = jvm.native_interface_allocations.allocate_cstring(CString::new(name).unwrap());
         let signature = local_variable_view.desc_str();
@@ -68,8 +68,8 @@ pub unsafe extern "C" fn get_local_variable_table(
             length: local_variable_view.variable_length() as i32,
             name: allocated_name,
             signature: allocated_signature,
-            generic_signature :null_mut(),//todo impl
-            slot: local_variable_view.local_var_slot() as i32
+            generic_signature: null_mut(),//todo impl
+            slot: local_variable_view.local_var_slot() as i32,
         };
         res_table.offset(i as isize).write(entry);
     }
@@ -79,21 +79,21 @@ pub unsafe extern "C" fn get_local_variable_table(
 }
 
 
-pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmethodID, entry_count_ptr: *mut jint, table_ptr: *mut *mut jvmtiLineNumberEntry) -> jvmtiError{
+pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmethodID, entry_count_ptr: *mut jint, table_ptr: *mut *mut jvmtiLineNumberEntry) -> jvmtiError {
     let jvm = get_state(env);
-    let method_id : MethodId = transmute(method);
+    let method_id: MethodId = transmute(method);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetLineNumberTable");
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let method_view = class.view().method_view_i(method_i as usize);
     let table = &method_view.line_number_table().unwrap().line_number_table;
     entry_count_ptr.write(table.len() as i32);
-    let res_table = jvm.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLineNumberEntry>()* table.len()) as *mut _jvmtiLineNumberEntry;
-    for (i,entry) in table.iter().enumerate() {
+    let res_table = jvm.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLineNumberEntry>() * table.len()) as *mut _jvmtiLineNumberEntry;
+    for (i, entry) in table.iter().enumerate() {
         let start = entry.start_pc;
         let line_number = entry.line_number;
         res_table.offset(i as isize).write(_jvmtiLineNumberEntry {
             start_location: start as i64,
-            line_number: line_number as i32
+            line_number: line_number as i32,
         })
     }
     table_ptr.write(res_table);

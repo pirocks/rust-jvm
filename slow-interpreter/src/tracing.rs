@@ -1,13 +1,15 @@
 use rust_jvm_common::classnames::ClassName;
+
 use crate::JVMState;
-use crate::threading::monitors::Monitor;
 use crate::threading::JavaThreadId;
+use crate::threading::monitors::Monitor;
 
 pub struct TracingSettings {
     trace_function_end: bool,
     trace_function_start: bool,
     trace_jni_register: bool,
-    _trace_jni_dynamic_link: bool, //todo implement this trace
+    _trace_jni_dynamic_link: bool,
+    //todo implement this trace
     trace_class_loads: bool,
     trace_jdwp_events: bool,
     trace_jdwp_function_enter: bool,
@@ -38,8 +40,8 @@ impl TracingSettings {
         }
     }
 
-    pub fn disabled() -> Self{
-        Self{
+    pub fn disabled() -> Self {
+        Self {
             trace_function_end: false,
             trace_function_start: false,
             trace_jni_register: false,
@@ -52,7 +54,7 @@ impl TracingSettings {
             trace_monitor_unlock: false,
             trace_monitor_wait: false,
             trace_monitor_notify: false,
-            trace_monitor_notify_all: false
+            trace_monitor_notify_all: false,
         }
     }
 
@@ -111,26 +113,26 @@ impl TracingSettings {
     }
 
     pub fn trace_jdwp_function_enter(&self, jvm: &'static JVMState, function_name: &str) {
-        if self.trace_jdwp_function_enter{
+        if self.trace_jdwp_function_enter {
             let current_thread = std::thread::current();
             let vm_life = if jvm.vm_live() {
                 current_thread.name().unwrap_or("unknown thread")
-            }else {
+            } else {
                 "VM not live"
             };
-            println!("JVMTI [{}] {} {{ ",vm_life, function_name);
+            println!("JVMTI [{}] {} {{ ", vm_life, function_name);
         }
     }
 
     pub fn trace_jdwp_function_exit(&self, jvm: &'static JVMState, function_name: &str) {
-        if self.trace_jdwp_function_exit{
+        if self.trace_jdwp_function_exit {
             let current_thread = std::thread::current();
             let vm_life = if jvm.vm_live() {
                 current_thread.name().unwrap_or("unknown thread")
-            }else {
+            } else {
                 "VM not live"
             };
-            println!("JVMTI [{}] {} }}",vm_life, function_name);
+            println!("JVMTI [{}] {} }}", vm_life, function_name);
         }
     }
 
@@ -139,22 +141,22 @@ impl TracingSettings {
             println!("JVMTI [ALL] # user enabled event {}
 JVMTI [-] # recompute enabled - before 0
 JVMTI [-] # Enabling event {}
-JVMTI [-] # recompute enabled - after 0", event_name,event_name);
+JVMTI [-] # recompute enabled - after 0", event_name, event_name);
         }
     }
 
-    pub fn trace_event_disable_global(&self, event_name: &str){
+    pub fn trace_event_disable_global(&self, event_name: &str) {
         if self.trace_jdwp_events {
             println!("JVMTI [ALL] # user disabled event {}
 JVMTI [-] # recompute enabled - before 0
 JVMTI [-] # Disabling event {}
-JVMTI [-] # recompute enabled - after 0", event_name,event_name);
+JVMTI [-] # recompute enabled - after 0", event_name, event_name);
         }
     }
 
-    pub fn trace_event_trigger(&self, event_name: &str){
-        if self.trace_jdwp_events{
-            println!("JVMTI Trg {} triggered",event_name)
+    pub fn trace_event_trigger(&self, event_name: &str) {
+        if self.trace_jdwp_events {
+            println!("JVMTI Trg {} triggered", event_name)
         }
     }
 }

@@ -1,12 +1,14 @@
-use rust_jvm_common::classfile::{Atype, MultiNewArray};
-use crate::interpreter_util::{push_new_object, check_inited_class};
-use rust_jvm_common::classnames::ClassName;
-use std::sync::Arc;
 use std::cell::RefCell;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::java_values::{JavaValue, Object, ArrayObject, default_value};
-use crate::{JVMState, InterpreterStateGuard};
+use std::sync::Arc;
+
 use classfile_view::view::constant_info_view::ConstantInfoView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classfile::{Atype, MultiNewArray};
+use rust_jvm_common::classnames::ClassName;
+
+use crate::{InterpreterStateGuard, JVMState};
+use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
 pub fn new<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: usize) -> () {
     let loader_arc = &int_state.current_frame_mut().class_pointer.loader(jvm);

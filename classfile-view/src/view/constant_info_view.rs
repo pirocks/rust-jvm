@@ -1,10 +1,12 @@
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::classfile::{Classfile, CPIndex, ConstantKind, NameAndType, InterfaceMethodref, Fieldref, MethodHandle, ReferenceKind, Methodref};
 use std::sync::Arc;
-use crate::view::ClassView;
+
+use descriptor_parser::{MethodDescriptor, parse_class_name, parse_method_descriptor};
+use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, NameAndType, ReferenceKind};
+use rust_jvm_common::classnames::ClassName;
+
 use crate::view::attribute_view::BootstrapMethodView;
-use crate::view::ptype_view::{ReferenceTypeView, PTypeView};
-use descriptor_parser::{parse_method_descriptor, MethodDescriptor, parse_class_name};
+use crate::view::ClassView;
+use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[derive(Debug)]
 pub struct Utf8View {
@@ -18,7 +20,7 @@ pub struct IntegerView {
 
 #[derive(Debug)]
 pub struct FloatView {
-    pub float:f32
+    pub float: f32
 }
 
 #[derive(Debug)]
@@ -55,8 +57,8 @@ pub struct StringView<'l> {
     pub(crate) string_index: usize,
 }
 
-impl StringView<'_>{
-    pub fn string(&self) -> String{
+impl StringView<'_> {
+    pub fn string(&self) -> String {
         self.class_view.backing_class.constant_pool[self.string_index].extract_string_from_utf8()
     }
 }
@@ -161,7 +163,7 @@ impl NameAndTypeView<'_> {
     pub fn name(&self) -> String {
         self.class_view.backing_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8()
     }
-    pub fn desc_str(&self) -> String{
+    pub fn desc_str(&self) -> String {
         self.class_view.backing_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8()
     }
     pub fn desc_method(&self) -> MethodDescriptor {

@@ -1,15 +1,17 @@
 extern crate elapsed;
 
+use std::collections::vec_deque::VecDeque;
+use std::sync::Arc;
+
 use elapsed::measure_time;
+
+use classfile_view::loading::{ClassWithLoader, LivePoolGetter, LoaderArc};
+use classfile_view::view::ClassView;
+use classfile_view::vtype::VType;
+
 use crate::verifier::class_is_type_safe;
 use crate::verifier::Frame;
 use crate::verifier::TypeSafetyError;
-use std::collections::vec_deque::VecDeque;
-use classfile_view::vtype::VType;
-use classfile_view::view::ClassView;
-use classfile_view::loading::{LoaderArc, ClassWithLoader, LivePoolGetter};
-use std::sync::Arc;
-
 
 pub mod verifier;
 
@@ -49,7 +51,7 @@ pub struct StackMap {
 
 pub struct VerifierContext {
     pub live_pool_getter: Arc<dyn LivePoolGetter>,
-    pub bootstrap_loader: LoaderArc
+    pub bootstrap_loader: LoaderArc,
 }
 
 impl Clone for VerifierContext {

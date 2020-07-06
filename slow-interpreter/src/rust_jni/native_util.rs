@@ -1,13 +1,13 @@
-use std::sync::{Arc};
-use crate::{JVMState, InterpreterStateGuard};
-use jvmti_jni_bindings::{jclass, JNIEnv, jobject, _jobject};
-
 use std::ops::Deref;
-use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use crate::java_values::{Object, JavaValue};
+use std::sync::Arc;
+
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
+
+use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::java::lang::class::JClass;
-
+use crate::java_values::{JavaValue, Object};
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);

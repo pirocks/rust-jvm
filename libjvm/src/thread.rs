@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Condvar, RwLock, RwLockWriteGuard};
 use std::thread::sleep;
@@ -16,16 +17,15 @@ use descriptor_parser::MethodDescriptor;
 use jvmti_jni_bindings::{jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
-use slow_interpreter::{InterpreterState, JVMState, SuspendedStatus, InterpreterStateGuard};
+use slow_interpreter::{InterpreterState, InterpreterStateGuard, JVMState, SuspendedStatus};
 use slow_interpreter::interpreter::run_function;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object};
+use slow_interpreter::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_state, to_object, get_interpreter_state};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::threading::JavaThread;
-use slow_interpreter::java::lang::thread_group::JThreadGroup;
-use std::ptr::null_mut;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -47,7 +47,7 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
 
     let int_state = get_interpreter_state(env);
     // int_state.print_stack_trace();
-    let java_thread = match JavaValue::Object(from_object(thread)).cast_thread().try_get_java_thread(jvm){
+    let java_thread = match JavaValue::Object(from_object(thread)).cast_thread().try_get_java_thread(jvm) {
         None => return 0 as jboolean,
         Some(jt) => jt,
     };

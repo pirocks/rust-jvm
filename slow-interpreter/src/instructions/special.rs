@@ -1,16 +1,17 @@
-use crate::interpreter_util::check_inited_class;
-use rust_jvm_common::classnames::{ClassName};
-use std::sync::Arc;
 use std::ops::Deref;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::java_values::JavaValue;
-use crate::{JVMState, StackEntry, InterpreterStateGuard};
-use crate::runtime_class::RuntimeClass;
-use crate::java_values::Object::{Array, Object};
-use crate::java_values;
-use classfile_view::view::interface_view::InterfaceView;
-use rust_jvm_common::classfile::{Wide, IInc};
+use std::sync::Arc;
 
+use classfile_view::view::interface_view::InterfaceView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classfile::{IInc, Wide};
+use rust_jvm_common::classnames::ClassName;
+
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::interpreter_util::check_inited_class;
+use crate::java_values;
+use crate::java_values::JavaValue;
+use crate::java_values::Object::{Array, Object};
+use crate::runtime_class::RuntimeClass;
 
 pub fn arraylength(current_frame: &mut StackEntry) -> () {
     let array_o = current_frame.pop().unwrap_object().unwrap();
@@ -19,7 +20,7 @@ pub fn arraylength(current_frame: &mut StackEntry) -> () {
 }
 
 
-pub fn invoke_checkcast<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_checkcast<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let possibly_null = int_state.current_frame_mut().pop().unwrap_object();
     if possibly_null.is_none() {
         int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
@@ -71,7 +72,7 @@ pub fn invoke_checkcast<'l>(jvm: &'static JVMState, int_state: & mut Interpreter
 }
 
 
-pub fn invoke_instanceof<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_instanceof<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let possibly_null = int_state.pop_current_operand_stack().unwrap_object();
     if possibly_null.is_none() {
         int_state.push_current_operand_stack(JavaValue::Int(0));
@@ -84,7 +85,7 @@ pub fn invoke_instanceof<'l>(state: &'static JVMState, int_state: & mut Interpre
     instance_of_impl(state, int_state, unwrapped, instance_of_class_type);
 }
 
-pub fn instance_of_impl<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
+pub fn instance_of_impl<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -120,7 +121,7 @@ pub fn instance_of_impl<'l>(jvm: &'static JVMState, int_state: & mut Interpreter
     };
 }
 
-fn runtime_super_class<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
+fn runtime_super_class<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.view().super_name().is_some() {
         Some(check_inited_class(jvm, int_state, &inherits.view().super_name().unwrap().into(), inherits.loader(jvm).clone()))
     } else {
@@ -128,13 +129,13 @@ fn runtime_super_class<'l>(jvm: &'static JVMState, int_state: & mut InterpreterS
     }
 }
 
-fn runtime_interface_class<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, class_: &Arc<RuntimeClass>, i: InterfaceView) -> Arc<RuntimeClass> {
+fn runtime_interface_class<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class_: &Arc<RuntimeClass>, i: InterfaceView) -> Arc<RuntimeClass> {
     let intf_name = i.interface_name();
     check_inited_class(jvm, int_state, &ClassName::Str(intf_name).into(), class_.loader(jvm).clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
+pub fn inherits_from<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
     if &inherits.view().name() == &parent.view().name() {
         return true;
     }

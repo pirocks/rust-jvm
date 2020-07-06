@@ -1,8 +1,9 @@
-use rust_jvm_common::classfile::CPIndex;
 use std::sync::Arc;
-use crate::runtime_class::RuntimeClass;
+
+use rust_jvm_common::classfile::CPIndex;
 
 use crate::java_values::JavaValue;
+use crate::runtime_class::RuntimeClass;
 
 #[derive(Debug)]
 pub struct StackEntry {
@@ -34,12 +35,12 @@ impl StackEntry {
 
 
 
-   /* pub fn depth(&self) -> usize {
-        match &self.last_call_stack {
-            None => 0,
-            Some(last) => last.depth() + 1,
-        }
-    }*/
+    /* pub fn depth(&self) -> usize {
+         match &self.last_call_stack {
+             None => 0,
+             Some(last) => last.depth() + 1,
+         }
+     }*/
 
     /*pub fn print_stack_trace(&self) {
         let class_file = &self.class_pointer.classfile;

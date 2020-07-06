@@ -1,11 +1,12 @@
-use rust_jvm_common::classfile::{AttributeInfo, NestHost, AttributeType, BootstrapMethods, ConstantValue, BootstrapMethod, InnerClass, InnerClasses, Deprecated, Exceptions, Signature, ElementValue, ElementValuePair, Annotation, RuntimeVisibleAnnotations, StackMapTable, StackMapFrame, SameFrame, AppendFrame, FullFrame, SameLocals1StackItemFrameExtended, ConstantKind, SourceFile, LocalVariableTable, LocalVariableTableEntry, LineNumberTable, LineNumberTableEntry, ExceptionTableElem, Code, SameFrameExtended, ChopFrame, SameLocals1StackItemFrame, NestMembers, UninitializedVariableInfo, ArrayValue};
-use crate::constant_infos::is_utf8;
-use crate::code::parse_code_raw;
-use rust_jvm_common::classnames::ClassName;
-use crate::parsing_util::ParsingContext;
-use rust_jvm_common::classfile::EnclosingMethod;
-use rust_jvm_common::ptype::{PType, ReferenceType};
 use descriptor_parser::parse_field_descriptor;
+use rust_jvm_common::classfile::{Annotation, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, NestHost, NestMembers, RuntimeVisibleAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceFile, StackMapFrame, StackMapTable, UninitializedVariableInfo};
+use rust_jvm_common::classfile::EnclosingMethod;
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ptype::{PType, ReferenceType};
+
+use crate::code::parse_code_raw;
+use crate::constant_infos::is_utf8;
+use crate::parsing_util::ParsingContext;
 
 pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
     let attribute_name_index = p.read16();
@@ -151,10 +152,10 @@ fn parse_element_value(p: &mut dyn ParsingContext) -> ElementValue {
         '[' => {
             let num_values = p.read16();
             let mut values = vec![];
-            for _ in 0..num_values{
+            for _ in 0..num_values {
                 values.push(parse_element_value(p));
             }
-            ElementValue::ArrayType(ArrayValue{ values })
+            ElementValue::ArrayType(ArrayValue { values })
         }
         _ => { unimplemented!("{}", tag) }
     }

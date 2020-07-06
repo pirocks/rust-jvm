@@ -3,56 +3,58 @@
 #![feature(vec_leak)]
 #![feature(box_syntax)]
 #![feature(vec_into_raw_parts)]
-extern crate libloading;
+extern crate errno;
+extern crate futures_intrusive;
 extern crate libc;
+extern crate libloading;
+extern crate lock_api;
+extern crate nix;
+extern crate parking_lot;
 extern crate regex;
 extern crate va_list;
-extern crate lock_api;
-extern crate parking_lot;
-extern crate futures_intrusive;
-extern crate nix;
-extern crate errno;
 
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::string_pool::StringPool;
-use rust_jvm_common::ptype::PType;
-use rust_jvm_common::classfile::{Classfile, CPIndex};
-use crate::runtime_class::RuntimeClass;
-use crate::java_values::{Object, JavaValue, NormalObject, ArrayObject};
-use crate::runtime_class::prepare_class;
-use crate::interpreter_util::check_inited_class;
-use libloading::Library;
-use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use classfile_view::loading::{LoaderArc, LivePoolGetter, LoaderName};
-use descriptor_parser::MethodDescriptor;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::error::Error;
+use std::ffi::c_void;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::sync::atomic::AtomicUsize;
-use std::error::Error;
-use std::collections::{HashMap, HashSet};
-use std::cell::RefCell;
-use std::time::{Instant};
-use crate::loading::{Classpath, BootstrapLoader};
-use crate::stack_entry::StackEntry;
+use std::sync::mpsc::Sender;
 use std::thread::LocalKey;
-use jvmti_jni_bindings::JNIInvokeInterface_;
-use std::ffi::c_void;
-use jvmti_jni_bindings::jlong;
+use std::time::Instant;
+
+use libloading::Library;
 use lock_api::Mutex;
 use parking_lot::RawMutex;
-use crate::tracing::TracingSettings;
-use crate::interpreter::run_function;
+
+use classfile_view::loading::{LivePoolGetter, LoaderArc, LoaderName};
+use classfile_view::view::ClassView;
 use classfile_view::view::method_view::MethodView;
-use crate::jvmti::event_callbacks::SharedLibJVMTI;
-use crate::method_table::{MethodTable, MethodId};
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use descriptor_parser::MethodDescriptor;
+use jvmti_jni_bindings::jlong;
+use jvmti_jni_bindings::JNIInvokeInterface_;
+use rust_jvm_common::classfile::{Classfile, CPIndex};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ptype::PType;
+use rust_jvm_common::string_pool::StringPool;
+
 use crate::field_table::FieldTable;
+use crate::interpreter::run_function;
+use crate::interpreter_util::check_inited_class;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
+use crate::java_values::{ArrayObject, JavaValue, NormalObject, Object};
 use crate::java_values::Object::Array;
-use crate::native_allocation::{NativeAllocator};
-use crate::threading::{ThreadState, JavaThread};
-use std::sync::mpsc::Sender;
-use classfile_view::view::ClassView;
-
+use crate::jvmti::event_callbacks::SharedLibJVMTI;
+use crate::loading::{BootstrapLoader, Classpath};
+use crate::method_table::{MethodId, MethodTable};
+use crate::native_allocation::NativeAllocator;
+use crate::runtime_class::prepare_class;
+use crate::runtime_class::RuntimeClass;
+use crate::stack_entry::StackEntry;
+use crate::threading::{JavaThread, ThreadState};
+use crate::tracing::TracingSettings;
 
 // #[macro_export]
 // macro_rules! get_state_thread_frame {
@@ -205,11 +207,11 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn print_stack_trace(&self) {
-        for (i,stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
+        for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
             let name = stack_entry.class_pointer.view().name();
             let method_view = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize);
             let meth_name = method_view.name();
-            println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(),  i, stack_entry.pc)
+            println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(), i, stack_entry.pc)
         }
     }
 }

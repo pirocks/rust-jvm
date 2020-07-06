@@ -1,6 +1,7 @@
-use std::os::raw::{c_int, c_void};
-use jvmti_jni_bindings::{JNI_VERSION_1_8, JavaVM};
 use std::mem::transmute;
+use std::os::raw::{c_int, c_void};
+
+use jvmti_jni_bindings::{JavaVM, JNI_VERSION_1_8};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_void {

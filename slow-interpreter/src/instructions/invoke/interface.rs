@@ -1,13 +1,12 @@
-use crate::interpreter_util::check_inited_class;
-
 use rust_jvm_common::classfile::InvokeInterface;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
-use crate::instructions::invoke::virtual_::{setup_virtual_args, invoke_virtual_method_i};
+use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::find_target_method;
-use crate::{JVMState, InterpreterStateGuard};
+use crate::instructions::invoke::virtual_::{invoke_virtual_method_i, setup_virtual_args};
+use crate::interpreter_util::check_inited_class;
 
-pub fn invoke_interface<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, invoke_interface: InvokeInterface) {
+pub fn invoke_interface<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, invoke_interface: InvokeInterface) {
     invoke_interface.count;
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);

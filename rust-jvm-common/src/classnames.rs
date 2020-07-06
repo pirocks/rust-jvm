@@ -1,11 +1,12 @@
-use std::sync::{Weak, Arc};
-use crate::classfile::Classfile;
-use std::fmt::Formatter;
 use std::fmt;
+use std::fmt::Formatter;
 use std::hash::Hash;
 use std::hash::Hasher;
-use crate::string_pool::StringPoolEntry;
 use std::ops::Deref;
+use std::sync::{Arc, Weak};
+
+use crate::classfile::Classfile;
+use crate::string_pool::StringPoolEntry;
 
 #[derive(Debug)]
 pub struct NameReference {
@@ -32,16 +33,16 @@ pub enum ClassName {
 }
 
 impl ClassName {
-    pub fn is_raw(&self) -> bool{
+    pub fn is_raw(&self) -> bool {
         &Self::raw_byte() == self ||
-        &Self::raw_char() == self ||
-        &Self::raw_double() == self ||
-        &Self::raw_float() == self ||
-        &Self::raw_int() == self ||
-        &Self::raw_long() == self ||
-        &Self::raw_short() == self ||
-        &Self::raw_boolean() == self ||
-        &Self::raw_void() == self
+            &Self::raw_char() == self ||
+            &Self::raw_double() == self ||
+            &Self::raw_float() == self ||
+            &Self::raw_int() == self ||
+            &Self::raw_long() == self ||
+            &Self::raw_short() == self ||
+            &Self::raw_boolean() == self ||
+            &Self::raw_void() == self
     }
 
     pub fn raw_byte() -> Self {
@@ -186,7 +187,6 @@ impl ClassName {
     pub fn thread() -> Self {
         Self::new("java/lang/Thread")
     }
-
 }
 
 impl Hash for ClassName {

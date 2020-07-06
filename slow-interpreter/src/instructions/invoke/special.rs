@@ -1,20 +1,19 @@
-use crate::interpreter_util::check_inited_class;
+use std::sync::Arc;
 
-use crate::instructions::invoke::virtual_::setup_virtual_args;
-use crate::instructions::invoke::find_target_method;
-
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
+use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
-use std::sync::Arc;
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
-use classfile_view::view::{HasAccessFlags};
-use crate::{JVMState, StackEntry, InterpreterStateGuard};
-use crate::runtime_class::RuntimeClass;
-use descriptor_parser::MethodDescriptor;
+use crate::instructions::invoke::virtual_::setup_virtual_args;
 use crate::interpreter::run_function;
-use classfile_view::view::method_view::MethodView;
+use crate::interpreter_util::check_inited_class;
+use crate::runtime_class::RuntimeClass;
 
-pub fn invoke_special<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, cp: u16) -> () {
+pub fn invoke_special<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
     let loader_arc = int_state.current_frame_mut().class_pointer.loader(jvm).clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, int_state.current_frame_mut().class_pointer.view());
     let method_class_name = method_class_type.unwrap_class_type();
@@ -31,7 +30,7 @@ pub fn invoke_special<'l>(jvm: &'static JVMState, int_state: & mut InterpreterSt
 
 pub fn invoke_special_impl<'l>(
     jvm: &'static JVMState,
-    interpreter_state: & mut InterpreterStateGuard,
+    interpreter_state: &mut InterpreterStateGuard,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,
     final_target_class: Arc<RuntimeClass>,

@@ -1,8 +1,9 @@
 #![allow(non_upper_case_globals)]
 
 use std::hash::Hasher;
-use crate::ptype::PType;
+
 use crate::classnames::class_name;
+use crate::ptype::PType;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -518,7 +519,7 @@ pub struct NameAndType {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub enum ReferenceKind{
+pub enum ReferenceKind {
     //1 REF_getField getfield C.f:T
     // 2 REF_getStatic getstatic C.f:T
     // 3 REF_putField putfield C.f:T
@@ -540,7 +541,7 @@ pub enum ReferenceKind{
     InvokeStatic,
     InvokeSpecial,
     NewInvokeSpecial,
-    InvokeInterface
+    InvokeInterface,
 }
 
 #[derive(Debug)]
@@ -607,7 +608,7 @@ pub enum ConstantKind {
     Module(Module),
     Package(Package),
     InvalidConstant(InvalidConstant),
-    LiveObject(usize)//live object pool index
+    LiveObject(usize),//live object pool index
 }
 
 
@@ -720,7 +721,7 @@ pub enum Wide {
     Astore(WideAstore),
     Lstore(WideLstore),
     Ret(WideRet),
-    IInc(IInc)
+    IInc(IInc),
 }
 //iload, fload, aload, lload, dload, istore, fstore, astore,
 // lstore, dstore, or ret
@@ -728,74 +729,52 @@ pub enum Wide {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideIload{
-
-}
+pub struct WideIload {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideFload{
-
-}
+pub struct WideFload {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideAload{
-
-}
+pub struct WideAload {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideLload{
-
-}
+pub struct WideLload {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideDload{
-
-}
+pub struct WideDload {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideIstore{
-
-}
+pub struct WideIstore {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideFstore{
-
-}
+pub struct WideFstore {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideAstore{
-
-}
+pub struct WideAstore {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideLstore{
-
-}
+pub struct WideLstore {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideRet{
-
-}
-
-
+pub struct WideRet {}
 
 
 #[derive(Debug)]
@@ -1035,7 +1014,7 @@ pub const ACC_SUPER: u16 = 0x0020;
 pub const ACC_BRIDGE: u16 = 0x0040;
 pub const ACC_VOLATILE: u16 = 0x0040;
 pub const ACC_TRANSIENT: u16 = 0x0080;
-pub const ACC_VARARGS:u16 = 0x0080;
+pub const ACC_VARARGS: u16 = 0x0080;
 pub const ACC_NATIVE: u16 = 0x0100;
 pub const ACC_INTERFACE: u16 = 0x0200;
 pub const ACC_ABSTRACT: u16 = 0x0400;
@@ -1046,15 +1025,15 @@ pub const ACC_ENUM: u16 = 0x4000;
 pub const ACC_MODULE: u16 = 0x8000;
 //}
 
-pub const REF_getField: u8                = 1;
-pub const REF_getStatic: u8               = 2;
-pub const REF_putField: u8                = 3;
-pub const REF_putStatic: u8               = 4;
-pub const REF_invokeVirtual: u8           = 5;
-pub const REF_invokeStatic: u8            = 6;
-pub const REF_invokeSpecial: u8           = 7;
-pub const REF_newInvokeSpecial: u8        = 8;
-pub const REF_invokeInterface: u8         = 9;
+pub const REF_getField: u8 = 1;
+pub const REF_getStatic: u8 = 2;
+pub const REF_putField: u8 = 3;
+pub const REF_putStatic: u8 = 4;
+pub const REF_invokeVirtual: u8 = 5;
+pub const REF_invokeStatic: u8 = 6;
+pub const REF_invokeSpecial: u8 = 7;
+pub const REF_newInvokeSpecial: u8 = 8;
+pub const REF_invokeInterface: u8 = 9;
 
 #[derive(Debug)]
 //#[derive(Eq)]
@@ -1068,7 +1047,8 @@ pub struct Classfile {
     pub access_flags: u16,
     pub this_class: CPIndex,
     pub super_class: CPIndex,
-    pub interfaces: Vec<Interface>,//todo why is this only used 3 times?
+    pub interfaces: Vec<Interface>,
+    //todo why is this only used 3 times?
     pub fields: Vec<FieldInfo>,
     pub methods: Vec<MethodInfo>,
     pub attributes: Vec<AttributeInfo>,
@@ -1112,7 +1092,7 @@ impl std::hash::Hash for Classfile {
 }
 
 
-impl From<ConstantKind> for ConstantInfo{
+impl From<ConstantKind> for ConstantInfo {
     fn from(kind: ConstantKind) -> Self {
         Self { kind }
     }

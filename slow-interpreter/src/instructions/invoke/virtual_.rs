@@ -1,19 +1,20 @@
-use crate::instructions::invoke::resolved_class;
-use std::sync::Arc;
-use crate::rust_jni::get_all_methods;
-use crate::interpreter_util::check_inited_class;
-use rust_jvm_common::classnames::ClassName;
 use std::ops::Deref;
-use crate::instructions::invoke::native::run_native_method;
-use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::PTypeView;
-use crate::java_values::{JavaValue, Object};
-use crate::{StackEntry, JVMState, InterpreterStateGuard};
-use crate::runtime_class::RuntimeClass;
-use descriptor_parser::{MethodDescriptor};
-use crate::interpreter::run_function;
-use classfile_view::view::method_view::MethodView;
+use std::sync::Arc;
 
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::PTypeView;
+use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::classnames::ClassName;
+
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::instructions::invoke::native::run_native_method;
+use crate::instructions::invoke::resolved_class;
+use crate::interpreter::run_function;
+use crate::interpreter_util::check_inited_class;
+use crate::java_values::{JavaValue, Object};
+use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::get_all_methods;
 
 /**
 Should only be used for an actual invoke_virtual instruction.

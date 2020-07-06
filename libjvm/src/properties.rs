@@ -1,10 +1,9 @@
-use jvmti_jni_bindings::{jobject, JNIEnv};
-use slow_interpreter::instructions::ldc::create_string_on_stack;
-use slow_interpreter::rust_jni::native_util::{get_state, from_object, get_interpreter_state};
-
-use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
-use slow_interpreter::java_values::JavaValue;
 use descriptor_parser::parse_method_descriptor;
+use jvmti_jni_bindings::{JNIEnv, jobject};
+use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
+use slow_interpreter::instructions::ldc::create_string_on_stack;
+use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {
@@ -17,9 +16,9 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    create_string_on_stack(jvm, int_state,key);
+    create_string_on_stack(jvm, int_state, key);
     let key = int_state.pop_current_operand_stack();
-    create_string_on_stack(jvm, int_state,val);
+    create_string_on_stack(jvm, int_state, val);
     let val = int_state.pop_current_operand_stack();
     let prop_obj = from_object(p).unwrap();
     let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
@@ -30,7 +29,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jo
     int_state.push_current_operand_stack(JavaValue::Object(prop_obj.clone().into()));
     int_state.push_current_operand_stack(key);
     int_state.push_current_operand_stack(val);
-    invoke_virtual_method_i(jvm,int_state,  md, runtime_class.clone(), meth.method_i(), meth, false);
+    invoke_virtual_method_i(jvm, int_state, md, runtime_class.clone(), meth.method_i(), meth, false);
     int_state.pop_current_operand_stack();
     p
 }

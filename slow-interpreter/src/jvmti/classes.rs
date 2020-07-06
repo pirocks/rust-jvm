@@ -1,12 +1,14 @@
-use jvmti_jni_bindings::{jvmtiEnv, jclass, jint, jvmtiError, JVMTI_CLASS_STATUS_INITIALIZED, jvmtiError_JVMTI_ERROR_NONE, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_VERIFIED, JVMTI_CLASS_STATUS_PRIMITIVE, jmethodID, jobject};
-use crate::jvmti::{get_state, get_interpreter_state};
-use std::mem::{transmute, size_of};
-use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
+use std::ffi::{c_void, CString};
+use std::mem::{size_of, transmute};
+
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+
 use crate::class_objects::get_or_create_class_object;
-use crate::rust_jni::native_util::{to_object, from_object, from_jclass};
-use std::ffi::{CString, c_void};
-use crate::java_values::JavaValue;
 use crate::interpreter_util::check_inited_class;
+use crate::java_values::JavaValue;
+use crate::jvmti::{get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
@@ -96,7 +98,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     let class_object_wrapped = from_object(transmute(klass)).unwrap();
     let class = JavaValue::Object(class_object_wrapped.into()).cast_class();
     let class_type = class.as_type();
-    let loaded_class = check_inited_class(jvm,int_state, &class_type, int_state.current_loader(jvm).clone());
+    let loaded_class = check_inited_class(jvm, int_state, &class_type, int_state.current_loader(jvm).clone());
     method_count_ptr.write(loaded_class.view().num_methods() as i32);
     //todo use Layout instead of whatever this is.
     *methods_ptr = libc::malloc((size_of::<*mut c_void>()) * (*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;

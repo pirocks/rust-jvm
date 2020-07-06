@@ -23,7 +23,7 @@ impl<'l> InterfaceView<'l> {
 }
 
 
-impl <'l> Iterator for InterfaceIterator<'l> {
+impl<'l> Iterator for InterfaceIterator<'l> {
     type Item = InterfaceView<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {

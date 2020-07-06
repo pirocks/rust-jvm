@@ -1,18 +1,19 @@
-use rust_jvm_common::classnames::ClassName;
-use crate::{StackEntry, JVMState, InterpreterStateGuard};
-use crate::interpreter_util::{check_inited_class, push_new_object};
-use std::sync::Arc;
-use crate::instructions::invoke::find_target_method;
 use std::cell::RefCell;
-use crate::rust_jni::native_util::{to_object, from_object};
-use crate::rust_jni::interface::string::intern_impl;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::java_values::{JavaValue, Object, ArrayObject};
-use descriptor_parser::MethodDescriptor;
-use crate::class_objects::get_or_create_class_object;
-use crate::interpreter::run_function;
-use classfile_view::view::constant_info_view::{ConstantInfoView, StringView, ClassPoolElemView};
+use std::sync::Arc;
 
+use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::classnames::ClassName;
+
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::class_objects::get_or_create_class_object;
+use crate::instructions::invoke::find_target_method;
+use crate::interpreter::run_function;
+use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::java_values::{ArrayObject, JavaValue, Object};
+use crate::rust_jni::interface::string::intern_impl;
+use crate::rust_jni::native_util::{from_object, to_object};
 
 fn load_class_constant<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
     let res_class_name = c.class_name();

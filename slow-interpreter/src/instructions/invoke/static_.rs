@@ -1,17 +1,18 @@
+use std::sync::Arc;
+
+use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_NATIVE, ACC_STATIC, MethodInfo};
 use verification::verifier::instructions::branches::get_method_descriptor;
 
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::invoke::find_target_method;
-use crate::interpreter_util::check_inited_class;
-use std::sync::Arc;
-use rust_jvm_common::classfile::{ACC_NATIVE, ACC_STATIC, ACC_ABSTRACT, MethodInfo};
 use crate::instructions::invoke::native::run_native_method;
-use crate::java_values::JavaValue;
-use crate::{JVMState, StackEntry, InterpreterStateGuard};
-use crate::runtime_class::RuntimeClass;
-use descriptor_parser::MethodDescriptor;
 use crate::interpreter::run_function;
+use crate::interpreter_util::check_inited_class;
+use crate::java_values::JavaValue;
+use crate::runtime_class::RuntimeClass;
 
-pub fn run_invoke_static<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, cp: u16) {
+pub fn run_invoke_static<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let view = int_state.current_class_view();
@@ -38,7 +39,7 @@ pub fn run_invoke_static<'l>(jvm: &'static JVMState, int_state: & mut Interprete
 
 pub fn invoke_static_impl<'l>(
     jvm: &'static JVMState,
-    interpreter_state: & mut InterpreterStateGuard,
+    interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
@@ -84,6 +85,6 @@ pub fn invoke_static_impl<'l>(
             return;
         }
     } else {
-        run_native_method(jvm, interpreter_state,  target_class.clone(), target_method_i, false);
+        run_native_method(jvm, interpreter_state, target_class.clone(), target_method_i, false);
     }
 }

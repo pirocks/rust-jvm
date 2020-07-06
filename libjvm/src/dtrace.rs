@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{jboolean, JNIEnv, jint, jlong, jmethodID};
+use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNIEnv};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DTraceGetVersion(env: *mut JNIEnv) -> jint {

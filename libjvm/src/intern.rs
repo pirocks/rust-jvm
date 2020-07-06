@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{jstring, JNIEnv};
+use jvmti_jni_bindings::{JNIEnv, jstring};
 use slow_interpreter::rust_jni::interface::string::intern_impl;
 
 #[no_mangle]

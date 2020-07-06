@@ -1,14 +1,17 @@
 use std::sync::Arc;
+
 use regex::Regex;
-use crate::runtime_class::RuntimeClass;
+
 use classfile_view::view::HasAccessFlags;
+
+use crate::runtime_class::RuntimeClass;
 
 pub fn mangle(classfile: Arc<RuntimeClass>, method_i: usize) -> String {
     let method = &classfile.view().method_view_i(method_i);
     let method_name = method.name();
     let class_name_ = classfile.view().name();
     let class_name = class_name_.get_referred_name();
-    if classfile.view().lookup_method_name(&method_name).iter().filter(|m|{
+    if classfile.view().lookup_method_name(&method_name).iter().filter(|m| {
         m.is_native()
     }).count() > 1 {
         let descriptor_str = method.desc_str();
@@ -26,9 +29,9 @@ pub fn escape(s: &String) -> String {
         .replace("_", "_1")
         .replace(";", "_2")
         .replace("[", "_3")
-        .replace("(","")
-        .replace(")","")
-        .replace("$","_00024")
+        .replace("(", "")
+        .replace(")", "")
+        .replace("$", "_00024")
         .replace("/", "_");
     //todo need to handle unicode but shouldn't be an issue for now.
     initial_replace

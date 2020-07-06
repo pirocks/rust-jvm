@@ -1,9 +1,10 @@
+use classfile_view::vtype::VType;
+
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::instructions::InstructionTypeSafe;
-use crate::verifier::TypeSafetyError;
 use crate::verifier::instructions::type_transition;
-use classfile_view::vtype::VType;
+use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe_d2f(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VType::DoubleType], VType::FloatType)

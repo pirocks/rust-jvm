@@ -1,10 +1,9 @@
-use jvmti_jni_bindings::{jobject, JNIEnv, jintArray, jobjectArray};
+use jvmti_jni_bindings::{jintArray, JNIEnv, jobject, jobjectArray};
 use slow_interpreter::rust_jni::native_util::to_object;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetResourceLookupCacheURLs(env: *mut JNIEnv, loader: jobject) -> jobjectArray {
     to_object(None)//todo not implemented for now
-
 }
 
 

@@ -1,16 +1,15 @@
-use crate::{JVMState,  InterpreterStateGuard};
-
-use verification::verifier::instructions::branches::get_method_descriptor;
 use std::sync::Arc;
 
-use crate::interpreter_util::check_inited_class;
-use crate::utils::lookup_method_parsed;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::loading::LoaderArc;
-use crate::java_values::{JavaValue, Object, ArrayObject};
-use crate::runtime_class::RuntimeClass;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
+use verification::verifier::instructions::branches::get_method_descriptor;
 
+use crate::{InterpreterStateGuard, JVMState};
+use crate::interpreter_util::check_inited_class;
+use crate::java_values::{ArrayObject, JavaValue, Object};
+use crate::runtime_class::RuntimeClass;
+use crate::utils::lookup_method_parsed;
 
 pub mod special;
 pub mod native;
@@ -19,17 +18,18 @@ pub mod virtual_;
 pub mod static_;
 
 pub mod dynamic {
-    use crate::interpreter_util::check_inited_class;
-    use rust_jvm_common::classnames::ClassName;
-    use classfile_view::view::constant_info_view::{ConstantInfoView, ReferenceData, InvokeStatic};
-    use crate::{JVMState,  InterpreterStateGuard};
     use classfile_view::view::attribute_view::BootstrapArgView;
+    use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeStatic, ReferenceData};
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::{InterpreterStateGuard, JVMState};
+    use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
+    use crate::java::lang::invoke::method_handle::MethodHandle;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::string::JString;
-    use crate::java::lang::invoke::method_handle::MethodHandle;
 
-    pub fn invoke_dynamic<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, cp: u16) {
+    pub fn invoke_dynamic<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
         let _method_handle_class = check_inited_class(
             jvm,
             int_state,
@@ -70,7 +70,7 @@ pub mod dynamic {
                             let desc = JString::from(jvm, int_state, mr.name_and_type().desc_str());
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None);
                             let target_class = JClass::from_name(jvm, int_state, mr.class());
-                            lookup.find_virtual(jvm, int_state,target_class, name, method_type)
+                            lookup.find_virtual(jvm, int_state, target_class, name, method_type)
                         }
                     }
                 }
@@ -111,7 +111,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard,  cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+fn resolved_class<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let view = int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);

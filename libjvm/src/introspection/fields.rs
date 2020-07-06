@@ -1,20 +1,20 @@
-use jvmti_jni_bindings::{JNIEnv, jclass, jint, jboolean, jobjectArray};
-use slow_interpreter::rust_jni::native_util::{get_state, to_object, from_jclass, get_interpreter_state};
-use slow_interpreter::interpreter_util::{push_new_object, check_inited_class, run_constructor};
-use rust_jvm_common::classnames::{ClassName, class_name};
-use slow_interpreter::instructions::ldc::{load_class_constant_by_type, create_string_on_stack};
-
-use std::sync::Arc;
 use std::cell::RefCell;
-use rust_jvm_common::ptype::{PType, ReferenceType};
-use libjvm_utils::ptype_to_class_object;
-use classfile_view::view::ptype_view::{ReferenceTypeView, PTypeView};
-use slow_interpreter::java_values::{JavaValue, Object, ArrayObject};
+use std::sync::Arc;
+
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;
+use jvmti_jni_bindings::{jboolean, jclass, jint, JNIEnv, jobjectArray};
+use libjvm_utils::ptype_to_class_object;
+use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::ptype::{PType, ReferenceType};
+use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
+use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::rust_jni::interface::string::STRING_INTERNMENT;
-use classfile_view::view::HasAccessFlags;
+use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
@@ -58,14 +58,14 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             modifiers,
             slot,
             signature,
-            annotations_
+            annotations_,
         ).java_value())
     });
     let res = Some(Arc::new(
         Object::Array(ArrayObject {
             elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
             elems: RefCell::new(object_array),
-            monitor: jvm.thread_state.new_monitor("".to_string())
+            monitor: jvm.thread_state.new_monitor("".to_string()),
         })));
     to_object(res)
 }

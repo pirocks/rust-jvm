@@ -1,63 +1,65 @@
-use crate::rust_jni::native_util::{from_object, to_object, get_state, from_jclass, get_interpreter_state};
-use jvmti_jni_bindings::{jint, jfieldID, jobject, JNIEnv, jlong, jclass, jmethodID, _jfieldID, _jobject, jboolean, jshort, jbyte, jchar, jfloat, jdouble};
-use std::ops::Deref;
 use std::ffi::CStr;
 use std::mem::transmute;
-use crate::rust_jni::interface::util::class_object_to_runtime_class;
-use descriptor_parser::parse_method_descriptor;
-use crate::java_values::JavaValue;
-use crate::runtime_class::RuntimeClass;
+use std::ops::Deref;
 use std::sync::Arc;
-use crate::JVMState;
+
 use classfile_view::view::HasAccessFlags;
+use descriptor_parser::parse_method_descriptor;
+use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
+
+use crate::java_values::JavaValue;
+use crate::JVMState;
+use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::interface::util::class_object_to_runtime_class;
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     java_value.unwrap_boolean()
 }
 
 pub unsafe extern "C" fn get_byte_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jbyte {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     java_value.unwrap_byte()
 }
 
 pub unsafe extern "C" fn get_short_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jshort {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     java_value.unwrap_short()
 }
 
 pub unsafe extern "C" fn get_char_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jchar {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     java_value.unwrap_char()
 }
 
 pub unsafe extern "C" fn get_int_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jint {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     java_value.unwrap_int() as jint
 }
 
 pub unsafe extern "C" fn get_long_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jlong {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     java_value.unwrap_long() as jlong
 }
 
 pub unsafe extern "C" fn get_float_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jfloat {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     java_value.unwrap_float()
 }
 
 pub unsafe extern "C" fn get_double_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jdouble {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     java_value.unwrap_double()
 }
 
 pub unsafe extern "C" fn get_object_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jobject {
-    let java_value = get_java_value_field(env,obj, field_id_raw);
+    let java_value = get_java_value_field(env, obj, field_id_raw);
     to_object(java_value.unwrap_object())
 }
 
 
-unsafe fn get_java_value_field(env: *mut JNIEnv,obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> JavaValue {
+unsafe fn get_java_value_field(env: *mut JNIEnv, obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> JavaValue {
     let (rc, field_i) = get_state(env).field_table.read().unwrap().lookup(transmute(field_id_raw));
     let view = &rc.view();
     let name = view.field(field_i as usize).field_name();
@@ -83,7 +85,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
 
 pub fn new_field_id(jvm: &'static JVMState, runtime_class: Arc<RuntimeClass>, field_i: usize) -> jfieldID {
     let id = jvm.field_table.write().unwrap().register_with_table(runtime_class, field_i as u16);
-    unsafe {transmute(id)}
+    unsafe { transmute(id) }
 }
 
 

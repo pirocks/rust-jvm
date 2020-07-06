@@ -1,14 +1,15 @@
+use std::ops::Deref;
+
+use classfile_view::loading::*;
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::vtype::VType;
+use descriptor_parser::{Descriptor, parse_field_descriptor};
+use rust_jvm_common::classnames::ClassName;
+
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use crate::verifier::TypeSafetyError;
-use rust_jvm_common::classnames::ClassName;
 use crate::VerifierContext;
-use std::ops::Deref;
-use classfile_view::vtype::VType;
-use classfile_view::view::HasAccessFlags;
-use classfile_view::loading::*;
-use classfile_view::view::ptype_view::PTypeView;
-use descriptor_parser::{ Descriptor, parse_field_descriptor};
-
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
     return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(vf, class1, class2);
@@ -50,7 +51,7 @@ pub fn loaded_class(_vf: &VerifierContext, class_name: ClassName, loader: Loader
     if loader.initiating_loader_of(&class_name) {
         Result::Ok(ClassWithLoader { class_name, loader })
     } else {
-        match loader.pre_load( &class_name) {
+        match loader.pre_load(&class_name) {
             Ok(_) => Result::Ok(ClassWithLoader { class_name, loader }),
             Err(_) => unimplemented!(),
         }
@@ -76,7 +77,7 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
             // dbg!(&to.class_name);
             // dbg!(&chain);
             // panic!();
-           Result::Err(unknown_error_verifying!())
+            Result::Err(unknown_error_verifying!())
         }
         Some(c) => {
             loaded_class(vf, c.class_name.clone(), to.loader.clone())?;
@@ -84,7 +85,6 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
         }
     }
 }
-
 
 
 //todo why is this in this file?
@@ -180,7 +180,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             VType::Class(_) => {
                 // dbg!(c);
                 // panic!()
-               Result::Err(unknown_error_verifying!())
+                Result::Err(unknown_error_verifying!())
             }
             _ => {
                 Result::Err(unknown_error_verifying!())

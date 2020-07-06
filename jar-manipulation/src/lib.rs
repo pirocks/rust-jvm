@@ -1,13 +1,15 @@
-use rust_jvm_common::classnames::ClassName;
-use std::path::Path;
-use zip::ZipArchive;
-use rust_jvm_common::classfile::Classfile;
-use std::sync::Arc;
-use std::fs::File;
 use std::error::Error;
-use std::fmt::Formatter;
 use std::fmt;
+use std::fmt::Formatter;
+use std::fs::File;
+use std::path::Path;
+use std::sync::Arc;
+
+use zip::ZipArchive;
+
 use classfile_parser::parse_class_file;
+use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classnames::ClassName;
 
 #[derive(Debug)]
 pub struct JarHandle {
@@ -15,14 +17,14 @@ pub struct JarHandle {
     pub zip_archive: ZipArchive<File>,//todo what if loaded from something other than file?
 }
 
-impl Clone for JarHandle{
+impl Clone for JarHandle {
     fn clone(&self) -> Self {
         let f = File::open(&self.path).unwrap();
         let zip_archive = zip::ZipArchive::new(f).unwrap();
         Self
         {
             path: self.path.clone(),
-            zip_archive
+            zip_archive,
         }
     }
 }

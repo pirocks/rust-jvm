@@ -1,9 +1,11 @@
-use jvmti_jni_bindings::{jvmtiError_JVMTI_ERROR_NONE, jvmtiEnv, jlocation, jvmtiError, jmethodID};
-use crate::jvmti::get_state;
 use std::collections::HashSet;
-use std::iter::FromIterator;
-use crate::method_table::MethodId;
 use std::intrinsics::transmute;
+use std::iter::FromIterator;
+
+use jvmti_jni_bindings::{jlocation, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+
+use crate::jvmti::get_state;
+use crate::method_table::MethodId;
 
 pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);
@@ -24,7 +26,7 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
 }
 
 
-pub unsafe extern "C" fn clear_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError{
+pub unsafe extern "C" fn clear_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "ClearBreakpoint");
     let method_id: MethodId = transmute(method);

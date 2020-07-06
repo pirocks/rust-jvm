@@ -2,6 +2,7 @@ extern crate ntest_timeout;
 extern crate timebomb;
 
 use std::path::Path;
+
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classnames::ClassName;
 

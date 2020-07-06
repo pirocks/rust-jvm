@@ -1,14 +1,15 @@
-use jvmti_jni_bindings::{jdouble, jboolean, JNIEnv, jclass, JVM_Available};
-use rust_jvm_common::classfile::ACC_INTERFACE;
-use rust_jvm_common::classnames::class_name;
-use slow_interpreter::rust_jni::native_util::{from_object, get_state};
+use std::intrinsics::transmute;
+use std::ops::Deref;
+
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use std::intrinsics::transmute;
-use slow_interpreter::jvmti::is::is_array_impl;
+use jvmti_jni_bindings::{jboolean, jclass, jdouble, JNIEnv, JVM_Available};
+use rust_jvm_common::classfile::ACC_INTERFACE;
+use rust_jvm_common::classnames::class_name;
 use slow_interpreter::java_values::JavaValue;
-use std::ops::Deref;
+use slow_interpreter::jvmti::is::is_array_impl;
 use slow_interpreter::runtime_class::RuntimeClass;
+use slow_interpreter::rust_jni::native_util::{from_object, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -32,16 +33,14 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
         RuntimeClass::Array(_) => false,
         RuntimeClass::Object(_) => {
             runtime_class.view().is_interface()
-        },
+        }
     }) as jboolean
-
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     is_array_impl(transmute(cls))
 }
-
 
 
 #[no_mangle]

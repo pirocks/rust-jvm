@@ -1,7 +1,8 @@
-use jvmti_jni_bindings::{JNIEnv, jobject, jclass, jboolean};
-use crate::rust_jni::native_util::{get_state, from_object, get_interpreter_state};
+use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
+
 use crate::instructions::special::instance_of_impl;
 use crate::java_values::JavaValue;
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
     let int_state = get_interpreter_state(env);
@@ -13,6 +14,6 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         None => unimplemented!(),
         Some(ref_type) => ref_type,
     };
-    instance_of_impl(jvm, int_state,  java_obj.unwrap(), type_.clone());
+    instance_of_impl(jvm, int_state, java_obj.unwrap(), type_.clone());
     (int_state.pop_current_operand_stack().unwrap_int() != 0) as jboolean
 }

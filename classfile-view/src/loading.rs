@@ -1,20 +1,19 @@
-use std::sync::Arc;
-use std::fs::File;
-
-use rust_jvm_common::classnames::ClassName;
-
-use rust_jvm_common::classfile::Classfile;
-use std::fmt::Debug;
 use core::fmt;
+use std::fmt::Debug;
 use std::fmt::Display;
 use std::fmt::Error;
 use std::fmt::Formatter;
+use std::fs::File;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
+
+use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classnames::ClassName;
+
 use crate::view::ClassView;
 use crate::view::ptype_view::ReferenceTypeView;
 
-
-pub trait LivePoolGetter{
+pub trait LivePoolGetter {
     fn elem_type(&self, idx: usize) -> ReferenceTypeView;
 }
 
@@ -53,7 +52,7 @@ impl PartialEq for LoaderName {
                 LoaderName::BootstrapLoader => true,
                 LoaderName::Class(_) => false
             },
-            LoaderName::Class(c1) => match other{
+            LoaderName::Class(c1) => match other {
                 LoaderName::Str(_) => false,
                 LoaderName::Class(c2) => c1 == c2,
                 LoaderName::BootstrapLoader => false,

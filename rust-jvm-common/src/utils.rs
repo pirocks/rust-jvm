@@ -1,13 +1,13 @@
-use crate::classfile::{ConstantInfo, ConstantKind, MethodInfo, FieldInfo, CPIndex, ACC_STATIC};
-use crate::classfile::Classfile;
+use crate::classfile::{ACC_STATIC, ConstantInfo, ConstantKind, CPIndex, FieldInfo, MethodInfo};
+use crate::classfile::ACC_ABSTRACT;
 use crate::classfile::ACC_FINAL;
 use crate::classfile::ACC_INTERFACE;
-use crate::classfile::Class;
-use crate::classnames::ClassName;
-use crate::classfile::Code;
 use crate::classfile::ACC_NATIVE;
 use crate::classfile::AttributeType;
-use crate::classfile::ACC_ABSTRACT;
+use crate::classfile::Class;
+use crate::classfile::Classfile;
+use crate::classfile::Code;
+use crate::classnames::ClassName;
 
 impl ConstantInfo {
     pub fn extract_string_from_utf8(&self) -> String {
@@ -99,10 +99,10 @@ impl Classfile {
 
     pub fn lookup_method(&self, name: String, descriptor: String) -> Option<(usize, &MethodInfo)> {
         for (i, m) in self.methods.iter().enumerate() {
-           // dbg!(&name);
-           // dbg!(&m.method_name(self));
-           // dbg!(&descriptor);
-           // dbg!(&m.descriptor_str(self));
+            // dbg!(&name);
+            // dbg!(&m.method_name(self));
+            // dbg!(&descriptor);
+            // dbg!(&m.descriptor_str(self));
             if m.method_name(self) == name && m.descriptor_str(self) == descriptor {
                 return Some((i, m));
             }

@@ -1,7 +1,7 @@
 extern crate bindgen;
 
-use std::path::PathBuf;
 use std::fs::create_dir;
+use std::path::PathBuf;
 
 fn main() {
     let dl_bindings = bindgen::Builder::default()
@@ -31,6 +31,4 @@ fn main() {
     std_arg
         .write_to_file(PathBuf::from("gen/stdarg.rs"))
         .expect("Couldn't write bindings!");
-
-
 }

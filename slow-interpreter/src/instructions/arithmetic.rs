@@ -1,4 +1,5 @@
 use std::num::Wrapping;
+
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
@@ -109,6 +110,7 @@ pub fn ishl(current_frame: &mut StackEntry) -> () {
     let value1 = current_frame.pop().unwrap_int();
     current_frame.push(JavaValue::Int(value1 << (value2 & 63)));
 }
+
 pub fn ishr(current_frame: &mut StackEntry) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
@@ -139,17 +141,16 @@ pub fn lsub(current_frame: &mut StackEntry) -> () {
 pub fn lcmp(current_frame: &mut StackEntry) -> () {
     let value2 = current_frame.pop().unwrap_long();
     let value1 = current_frame.pop().unwrap_long();
-    if value1 == value2{
+    if value1 == value2 {
         current_frame.push(JavaValue::Int(0))
     }
-    if value1 > value2{
+    if value1 > value2 {
         current_frame.push(JavaValue::Int(1))
     }
-    if value1 < value2{
+    if value1 < value2 {
         current_frame.push(JavaValue::Int(-1))
     }
 }
-
 
 
 pub fn ladd(current_frame: &mut StackEntry) -> () {
@@ -197,6 +198,7 @@ pub fn lshr(current_frame: &mut StackEntry) -> () {
     let value1 = current_frame.pop().unwrap_long();
     current_frame.push(JavaValue::Long(value1 >> ((value2 & 0x7F) as i64)));
 }
+
 pub fn lushr(current_frame: &mut StackEntry) -> () {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_long() as u64;

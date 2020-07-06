@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{jclass, jstring, jobject, JNIEnv, jint};
+use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
@@ -25,6 +25,7 @@ unsafe extern "system" fn JVM_LoadClass0(env: *mut JNIEnv, obj: jobject, currCla
 unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobject {
     unimplemented!()
 }
+
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassLoader(env: *mut JNIEnv, cls: jclass) -> jobject {
     unimplemented!()

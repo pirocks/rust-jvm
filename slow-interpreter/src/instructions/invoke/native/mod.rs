@@ -1,30 +1,30 @@
-use rust_jvm_common::classnames::ClassName;
-use crate::rust_jni::{mangling, call_impl, call};
-use rust_jvm_common::classfile::{ConstantInfo, ConstantKind, Class, Utf8, Classfile};
-
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
-use crate::instructions::invoke::native::system_temp::system_array_copy;
-use crate::instructions::invoke::native::mhn_temp::*;
-use crate::instructions::invoke::native::unsafe_temp::*;
 use classfile_parser::parse_class_file;
-use verification::{verify, VerifierContext};
 use classfile_view::view::{ClassView, HasAccessFlags};
-use crate::instructions::ldc::load_class_constant_by_type;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::{JVMState, StackEntry, InterpreterStateGuard};
-use crate::runtime_class::RuntimeClass;
-use crate::java_values::{Object, JavaValue};
+use jvmti_jni_bindings::ACC_SYNCHRONIZED;
+use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
+use rust_jvm_common::classnames::ClassName;
+use verification::{VerifierContext, verify};
+
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::instructions::invoke::native::mhn_temp::*;
+use crate::instructions::invoke::native::system_temp::system_array_copy;
+use crate::instructions::invoke::native::unsafe_temp::*;
+use crate::instructions::ldc::load_class_constant_by_type;
+use crate::interpreter::monitor_for_function;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
+use crate::java_values::{JavaValue, Object};
+use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::{call, call_impl, mangling};
 use crate::sun::misc::unsafe_::Unsafe;
-use std::sync::atomic::Ordering;
-use crate::interpreter::monitor_for_function;
-use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 
 pub fn run_native_method<'l>(
     jvm: &'static JVMState,
-    int_state: & mut InterpreterStateGuard,
+    int_state: &mut InterpreterStateGuard,
     class: Arc<RuntimeClass>,
     method_i: usize,
     _debug: bool,
@@ -49,8 +49,8 @@ pub fn run_native_method<'l>(
     } else {
         panic!();
     }
-    let monitor = monitor_for_function(jvm, int_state,method, method.access_flags() & ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
-    monitor.as_ref().map(|m|m.lock(jvm));
+    let monitor = monitor_for_function(jvm, int_state, method, method.access_flags() & ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
+    monitor.as_ref().map(|m| m.lock(jvm));
     if _debug {
         // dbg!(&args);
         // dbg!(&frame.operand_stack);
@@ -135,10 +135,10 @@ pub fn run_native_method<'l>(
                         let member_name = args[0].cast_member_name();
                         let name = member_name.get_name(jvm, int_state);
                         let clazz = member_name.clazz();
-                        let field_type = member_name.get_field_type(jvm,int_state);
-                        let empty_string = JString::from(jvm, int_state,"".to_string());
+                        let field_type = member_name.get_field_type(jvm, int_state);
+                        let empty_string = JString::from(jvm, int_state, "".to_string());
                         let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, empty_string, vec![]);
-                        Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm,int_state,field).into()
+                        Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field).into()
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
 //static native int getMembers(Class<?> defc, String matchName, String matchSig,
 // //          int matchFlags, Class<?> caller, int skip, MemberName[] results);
@@ -166,11 +166,11 @@ pub fn run_native_method<'l>(
             }
         }
     }
-    monitor.as_ref().map(|m|m.unlock(jvm));
+    monitor.as_ref().map(|m| m.unlock(jvm));
     // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
-fn patch_all(state: &'static JVMState, frame: & StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
+fn patch_all(state: &'static JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| {
@@ -181,7 +181,7 @@ fn patch_all(state: &'static JVMState, frame: & StackEntry, args: &mut Vec<JavaV
             }
         }
     });
-    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", state.anon_class_counter.fetch_add(1,Ordering::SeqCst));
+    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", state.anon_class_counter.fetch_add(1, Ordering::SeqCst));
     let name_index = unpatched.constant_pool.len() as u16;
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
@@ -191,7 +191,7 @@ fn patch_all(state: &'static JVMState, frame: & StackEntry, args: &mut Vec<JavaV
 fn patch_single(
     patch: &Arc<Object>,
     state: &'static JVMState,
-    _frame: & StackEntry,
+    _frame: &StackEntry,
     unpatched: &mut Classfile,
     i: usize,
 ) {

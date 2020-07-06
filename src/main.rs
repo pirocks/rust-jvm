@@ -1,24 +1,24 @@
 extern crate argparse;
+extern crate classfile_parser;
+extern crate classfile_view;
+extern crate jar_manipulation;
 extern crate rust_jvm_common;
+extern crate slow_interpreter;
+extern crate verification;
+
+use std::path::Path;
+use std::sync::Arc;
+
+use argparse::{ArgumentParser, List, Store, StoreTrue};
+
+use rust_jvm_common::classnames::ClassName;
+use slow_interpreter::{jvm_run_system_init, JVMOptions, JVMState};
+use slow_interpreter::loading::Classpath;
+use slow_interpreter::threading::MainThreadStartInfo;
 
 pub mod class_loading;
 pub mod classpath_indexing;
 
-
-use argparse::{ArgumentParser, Store, StoreTrue, List};
-use std::path::Path;
-use slow_interpreter::{JVMOptions, JVMState, jvm_run_system_init};
-use rust_jvm_common::classnames::ClassName;
-use slow_interpreter::loading::Classpath;
-use std::sync::Arc;
-use slow_interpreter::threading::MainThreadStartInfo;
-
-
-extern crate classfile_parser;
-extern crate verification;
-extern crate slow_interpreter;
-extern crate jar_manipulation;
-extern crate classfile_view;
 
 static mut JVM: Option<JVMState> = None;
 
@@ -53,31 +53,31 @@ fn main() {
             .add_option(&["--args"], List, "A list of args to pass to main");
         ap.refer(&mut libjava).add_option(&["--libjava"], Store, "");
         ap.refer(&mut libjdwp).add_option(&["--libjdwp"], Store, "");
-        ap.refer(&mut enable_tracing).add_option(&["--tracing"],StoreTrue,"Enable debug tracing");
-        ap.refer(&mut enable_jvmti).add_option(&["--jvmti"],StoreTrue,"Enable JVMTI");
-        ap.refer(&mut properties).add_option(&["--properties"],List,"Set JVM Properties");
+        ap.refer(&mut enable_tracing).add_option(&["--tracing"], StoreTrue, "Enable debug tracing");
+        ap.refer(&mut enable_jvmti).add_option(&["--jvmti"], StoreTrue, "Enable JVMTI");
+        ap.refer(&mut properties).add_option(&["--properties"], List, "Set JVM Properties");
         ap.parse_args_or_exit();
     }
 
     // if verbose {
-        // info!("in verbose mode, which currently doesn't really do anything, b/c I'm always verbose, since I program in java a lot.");
+    // info!("in verbose mode, which currently doesn't really do anything, b/c I'm always verbose, since I program in java a lot.");
     // }
 
 
     let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
-    let jvm_options = JVMOptions::new(main_class_name, classpath, args ,libjava, libjdwp,enable_tracing,enable_jvmti, properties);
+    let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties);
 
     let (args, jvm) = JVMState::new(jvm_options);
-    unsafe {JVM = (jvm).into()}
-    let jvm : &'static JVMState = unsafe {JVM.as_ref().unwrap()};
+    unsafe { JVM = (jvm).into() }
+    let jvm: &'static JVMState = unsafe { JVM.as_ref().unwrap() };
     let thread_state = &jvm.thread_state;
     let (main_thread, init_send, main_send) = thread_state.setup_main_thread(jvm);
     assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));
 
-    jvm_run_system_init(jvm,init_send).expect("Couldn't init jvm");
+    jvm_run_system_init(jvm, init_send).expect("Couldn't init jvm");
 
-    main_send.send(MainThreadStartInfo{ args }).unwrap();
+    main_send.send(MainThreadStartInfo { args }).unwrap();
     main_thread.get_underlying().join();
 }
 

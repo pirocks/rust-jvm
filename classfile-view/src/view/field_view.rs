@@ -1,8 +1,9 @@
+use descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::classfile::FieldInfo;
-use crate::view::{HasAccessFlags, ClassView};
+
+use crate::view::{ClassView, HasAccessFlags};
 use crate::view::constant_info_view::ConstantInfoView;
 use crate::view::ptype_view::PTypeView;
-use descriptor_parser::parse_field_descriptor;
 
 pub struct FieldView<'l> {
     view: &'l ClassView,
@@ -20,16 +21,16 @@ impl FieldView<'_> {
         self.view.backing_class.constant_pool[self.field_info().descriptor_index as usize].extract_string_from_utf8()
     }
     pub fn constant_value_attribute(&self) -> Option<ConstantInfoView> {
-           self.field_info().constant_value_attribute_i().map(|i| { self.view.constant_pool_view(i as usize) })
+        self.field_info().constant_value_attribute_i().map(|i| { self.view.constant_pool_view(i as usize) })
     }
     //todo deprecate this b/c messy
     pub fn from(c: &ClassView, i: usize) -> FieldView {
         FieldView { view: c, i }
     }
-    pub fn field_type(&self) -> PTypeView{
+    pub fn field_type(&self) -> PTypeView {
         PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)
     }
-    pub fn fields(&self) -> FieldIterator{
+    pub fn fields(&self) -> FieldIterator {
         unimplemented!()
     }
 }
@@ -48,7 +49,7 @@ pub struct FieldIterator<'l> {
 }
 
 
-impl <'l> Iterator  for FieldIterator<'l> {
+impl<'l> Iterator for FieldIterator<'l> {
     type Item = FieldView<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {

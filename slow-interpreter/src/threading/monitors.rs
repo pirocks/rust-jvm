@@ -1,7 +1,9 @@
-use parking_lot::{FairMutex, const_fair_mutex};
-use std::sync::{Condvar, RwLock, Mutex, Arc};
+use std::fmt::{Debug, Error, Formatter};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::time::Duration;
-use std::fmt::{Debug, Formatter, Error};
+
+use parking_lot::{const_fair_mutex, FairMutex};
+
 use crate::JVMState;
 
 #[derive(Debug)]
@@ -76,7 +78,7 @@ impl Monitor {
     }
 
     pub fn wait(&self, millis: i64, jvm: &'static JVMState) {
-        jvm.tracing.trace_monitor_wait(self,jvm );
+        jvm.tracing.trace_monitor_wait(self, jvm);
         let mut count_and_owner = self.owned.write().unwrap();
         if count_and_owner.owner != Monitor::get_tid(jvm).into() {
             // in java this throws an illegal monitor exception.
@@ -114,7 +116,7 @@ impl Monitor {
     }
 
     pub fn notify(&self, jvm: &'static JVMState) {
-        jvm.tracing.trace_monitor_notify(self,jvm);
+        jvm.tracing.trace_monitor_notify(self, jvm);
         self.condvar.notify_one();
     }
 }

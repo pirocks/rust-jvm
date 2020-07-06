@@ -1,19 +1,21 @@
-use rust_jvm_common::classnames::ClassName;
-use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
-use crate::verifier::filecorrectness::{super_class_chain, class_is_final, is_bootstrap_loader, get_class_methods};
-use crate::VerifierContext;
-use crate::verifier::filecorrectness::loaded_class;
-use crate::OperandStack;
-use crate::verifier::filecorrectness::different_runtime_package;
-use crate::verifier::filecorrectness::is_protected;
-use crate::verifier::instructions::{InstructionTypeSafe, exception_stack_frame, ResultFrames};
-use classfile_view::vtype::VType;
-use classfile_view::view::ClassView;
-use classfile_view::loading::*;
-use classfile_view::view::ptype_view::PTypeView;
-use descriptor_parser::Descriptor;
 use std::rc::Rc;
 use std::sync::Arc;
+
+use classfile_view::loading::*;
+use classfile_view::view::ClassView;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::vtype::VType;
+use descriptor_parser::Descriptor;
+use rust_jvm_common::classnames::ClassName;
+
+use crate::OperandStack;
+use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
+use crate::verifier::filecorrectness::{class_is_final, get_class_methods, is_bootstrap_loader, super_class_chain};
+use crate::verifier::filecorrectness::different_runtime_package;
+use crate::verifier::filecorrectness::is_protected;
+use crate::verifier::filecorrectness::loaded_class;
+use crate::verifier::instructions::{exception_stack_frame, InstructionTypeSafe, ResultFrames};
+use crate::VerifierContext;
 
 macro_rules! unknown_error_verifying {
     () => {
@@ -39,7 +41,7 @@ pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) ->
     if class.loader.initiating_loader_of(&class.class_name) {
         // verifier_context.jvm
         //todo maybe trace load here
-        match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.bootstrap_loader.clone(),verifier_context.live_pool_getter.clone()) {
+        match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.bootstrap_loader.clone(), verifier_context.live_pool_getter.clone()) {
             Ok(c) => c,
             Err(_) => panic!(),
         }
@@ -66,12 +68,12 @@ pub struct Frame {
 }
 
 //todo in future get rid of this clone implementation
-impl Clone for Frame{
+impl Clone for Frame {
     fn clone(&self) -> Self {
-        Self{
+        Self {
             locals: self.locals.clone(),
             stack_map: self.stack_map.clone(),
-            flag_this_uninit: self.flag_this_uninit
+            flag_this_uninit: self.flag_this_uninit,
         }
     }
 }
@@ -192,7 +194,7 @@ fn classes_in_other_pkg_with_protected_member_impl(
 
 
 pub fn standard_exception_frame(stack_frame_locals: Rc<Vec<VType>>, stack_frame_flag: bool, next_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let exception_frame = exception_stack_frame(stack_frame_locals,stack_frame_flag);
+    let exception_frame = exception_stack_frame(stack_frame_locals, stack_frame_flag);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
 }
 

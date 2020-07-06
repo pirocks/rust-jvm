@@ -1,15 +1,16 @@
-use rust_jvm_common::classfile::{StackMapTable, StackMapFrame, SameFrameExtended, ChopFrame, SameLocals1StackItemFrameExtended, AppendFrame, SameFrame, SameLocals1StackItemFrame, FullFrame};
-use classfile_parser::stack_map_table_attribute;
-use crate::{StackMap, VerifierContext};
-use crate::OperandStack;
-use crate::verifier::codecorrectness::expand_to_length;
-use classfile_view::view::HasAccessFlags;
-use classfile_view::loading::*;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::view::method_view::MethodView;
-use crate::verifier::{Frame, InternalFrame};
 use std::rc::Rc;
 
+use classfile_parser::stack_map_table_attribute;
+use classfile_view::loading::*;
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classfile::{AppendFrame, ChopFrame, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable};
+
+use crate::{StackMap, VerifierContext};
+use crate::OperandStack;
+use crate::verifier::{Frame, InternalFrame};
+use crate::verifier::codecorrectness::expand_to_length;
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodView) -> Vec<StackMap> {
     let mut res = vec![];
@@ -24,7 +25,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
     } else {
         Some(PTypeView::Ref(ReferenceTypeView::Class(class.class_name.clone())))
     };
-    let mut frame = init_frame(parsed_descriptor.parameter_types.iter().map(|x|PTypeView::from_ptype(x)).collect(), this_pointer, code.max_locals);
+    let mut frame = init_frame(parsed_descriptor.parameter_types.iter().map(|x| PTypeView::from_ptype(x)).collect(), this_pointer, code.max_locals);
 
     let mut previous_frame_is_first_frame = true;
     for (_, entry) in stack_map.entries.iter().enumerate() {

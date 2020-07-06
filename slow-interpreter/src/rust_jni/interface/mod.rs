@@ -1,25 +1,27 @@
-use jvmti_jni_bindings::{JNINativeInterface_, JNIEnv, jobject,  jboolean, JNI_FALSE, JNI_TRUE};
-use std::mem::transmute;
-use std::ffi::c_void;
-use crate::rust_jni::{exception_check, register_natives, release_string_utfchars, get_method_id};
-use crate::rust_jni::native_util::{get_object_class, from_object};
-use crate::rust_jni::interface::string::*;
-use crate::rust_jni::interface::misc::*;
-use crate::rust_jni::interface::get_field::*;
-use crate::rust_jni::interface::set_field::*;
-use crate::rust_jni::interface::exception::*;
-use crate::rust_jni::interface::global_ref::*;
-use crate::rust_jni::interface::array::*;
-use crate::{JVMState, InterpreterStateGuard};
 use std::cell::RefCell;
-use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
+use std::ffi::c_void;
+use std::mem::transmute;
 use std::sync::Arc;
-use crate::rust_jni::interface::local_ref::new_local_ref;
-use crate::rust_jni::interface::instance_of::is_instance_of;
+
+use jvmti_jni_bindings::{jboolean, JNI_FALSE, JNI_TRUE, JNIEnv, JNINativeInterface_, jobject};
+
+use crate::{InterpreterStateGuard, JVMState};
+use crate::rust_jni::{exception_check, get_method_id, register_natives, release_string_utfchars};
+use crate::rust_jni::interface::array::*;
 use crate::rust_jni::interface::array::array_region::*;
 use crate::rust_jni::interface::array::new::*;
-use crate::rust_jni::interface::call::call_static::*;
 use crate::rust_jni::interface::call::call_nonstatic::*;
+use crate::rust_jni::interface::call::call_static::*;
+use crate::rust_jni::interface::exception::*;
+use crate::rust_jni::interface::get_field::*;
+use crate::rust_jni::interface::global_ref::*;
+use crate::rust_jni::interface::instance_of::is_instance_of;
+use crate::rust_jni::interface::local_frame::{pop_local_frame, push_local_frame};
+use crate::rust_jni::interface::local_ref::new_local_ref;
+use crate::rust_jni::interface::misc::*;
+use crate::rust_jni::interface::set_field::*;
+use crate::rust_jni::interface::string::*;
+use crate::rust_jni::native_util::{from_object, get_object_class};
 
 //todo this should be in state impl
 thread_local! {
@@ -45,10 +47,10 @@ pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateG
     })
 }
 
-fn get_interface_impl(state: &'static JVMState,int_state: &mut InterpreterStateGuard) -> JNINativeInterface_ {
+fn get_interface_impl(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
-        reserved1: unsafe {transmute(int_state)},
+        reserved1: unsafe { transmute(int_state) },
         reserved2: std::ptr::null_mut(),
         reserved3: std::ptr::null_mut(),
         GetVersion: None,
@@ -82,34 +84,34 @@ fn get_interface_impl(state: &'static JVMState,int_state: &mut InterpreterStateG
         IsInstanceOf: Some(is_instance_of),
         GetMethodID: Some(get_method_id),
         CallObjectMethod: Some(call_object_method),
-        CallObjectMethodV: Some(unsafe{ transmute(call_object_method_v as *mut c_void)}),
+        CallObjectMethodV: Some(unsafe { transmute(call_object_method_v as *mut c_void) }),
         CallObjectMethodA: Some(call_object_method_a),
         CallBooleanMethod: Some(call_boolean_method),
-        CallBooleanMethodV: Some(unsafe{ transmute(call_boolean_method_v as *mut c_void)}),
+        CallBooleanMethodV: Some(unsafe { transmute(call_boolean_method_v as *mut c_void) }),
         CallBooleanMethodA: Some(call_boolean_method_a),
         CallByteMethod: Some(call_byte_method),
-        CallByteMethodV: Some(unsafe{ transmute(call_byte_method_v as *mut c_void)}),
+        CallByteMethodV: Some(unsafe { transmute(call_byte_method_v as *mut c_void) }),
         CallByteMethodA: Some(call_byte_method_a),
         CallCharMethod: Some(call_char_method),
-        CallCharMethodV: Some(unsafe{ transmute(call_char_method_v as *mut c_void)}),
+        CallCharMethodV: Some(unsafe { transmute(call_char_method_v as *mut c_void) }),
         CallCharMethodA: Some(call_char_method_a),
         CallShortMethod: Some(call_short_method),
-        CallShortMethodV: Some(unsafe{ transmute(call_short_method_v as *mut c_void)}),
+        CallShortMethodV: Some(unsafe { transmute(call_short_method_v as *mut c_void) }),
         CallShortMethodA: Some(call_short_method_a),
         CallIntMethod: Some(call_int_method),
-        CallIntMethodV: Some(unsafe{ transmute(call_int_method_v as *mut c_void)}),
+        CallIntMethodV: Some(unsafe { transmute(call_int_method_v as *mut c_void) }),
         CallIntMethodA: Some(call_int_method_a),
         CallLongMethod: Some(call_long_method),
-        CallLongMethodV: Some(unsafe{ transmute(call_long_method_v as *mut c_void)}),
+        CallLongMethodV: Some(unsafe { transmute(call_long_method_v as *mut c_void) }),
         CallLongMethodA: Some(call_long_method_a),
         CallFloatMethod: Some(call_float_method),
-        CallFloatMethodV: Some(unsafe{ transmute(call_float_method_v as *mut c_void)}),
+        CallFloatMethodV: Some(unsafe { transmute(call_float_method_v as *mut c_void) }),
         CallFloatMethodA: Some(call_float_method_a),
         CallDoubleMethod: Some(call_double_method),
-        CallDoubleMethodV: Some(unsafe{ transmute(call_double_method_v as *mut c_void)}),
+        CallDoubleMethodV: Some(unsafe { transmute(call_double_method_v as *mut c_void) }),
         CallDoubleMethodA: Some(call_double_method_a),
         CallVoidMethod: Some(call_void_method),
-        CallVoidMethodV: Some(unsafe{ transmute(call_void_method_v as *mut c_void)}),
+        CallVoidMethodV: Some(unsafe { transmute(call_void_method_v as *mut c_void) }),
         CallVoidMethodA: Some(call_void_method_a),
         CallNonvirtualObjectMethod: None,
         CallNonvirtualObjectMethodV: None,

@@ -5,15 +5,15 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
+use rust_jvm_common::ptype::PType;
 
 // use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
-use crate::rust_jni::native_util::{from_object, get_state, get_interpreter_state};
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 use crate::StackEntry;
-use rust_jvm_common::ptype::PType;
 
 pub mod call_nonstatic;
 
@@ -71,7 +71,7 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
     }
 //todo add params into operand stack;
 //     trace!("----NATIVE EXIT ----");
-    invoke_virtual_method_i(jvm, int_state,parsed, class.clone(), method_i as usize, &method, false);
+    invoke_virtual_method_i(jvm, int_state, parsed, class.clone(), method_i as usize, &method, false);
     // trace!("----NATIVE ENTER ----");
     if method.desc().return_type == PType::VoidType {
         None
@@ -93,7 +93,7 @@ pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmet
 //todo dup
     push_params_onto_frame(&mut l, int_state.current_frame_mut(), &parsed);
     // trace!("----NATIVE EXIT ----");
-    invoke_static_impl(jvm,int_state, parsed, class.clone(), method_i as usize, method.method_info());
+    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i as usize, method.method_info());
     // trace!("----NATIVE ENTER----");
     if method.desc().return_type == PType::VoidType {
         None

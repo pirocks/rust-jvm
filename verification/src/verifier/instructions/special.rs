@@ -1,25 +1,27 @@
-use crate::verifier::codecorrectness::{Environment, valid_type_transition};
-use crate::verifier::{Frame, standard_exception_frame};
-use crate::verifier::instructions::{InstructionTypeSafe, AfterGotoFrames, exception_stack_frame};
-use crate::verifier::TypeSafetyError;
-use crate::verifier::get_class;
-use rust_jvm_common::classfile::{UninitializedVariableInfo};
-use rust_jvm_common::classnames::ClassName;
-use crate::verifier::codecorrectness::can_pop;
-use crate::verifier::passes_protected_check;
-use rust_jvm_common::classfile::CPIndex;
-use crate::verifier::instructions::branches::substitute;
-use crate::OperandStack;
-use crate::verifier::instructions::type_transition;
-use crate::verifier::instructions::target_is_type_safe;
 use std::ops::Deref;
-use classfile_view::vtype::VType;
-use classfile_view::view::ClassView;
-use classfile_view::loading::ClassWithLoader;
-use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::view::constant_info_view::ConstantInfoView;
-use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_descriptor};
 use std::rc::Rc;
+
+use classfile_view::loading::ClassWithLoader;
+use classfile_view::view::ClassView;
+use classfile_view::view::constant_info_view::ConstantInfoView;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::vtype::VType;
+use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_descriptor};
+use rust_jvm_common::classfile::UninitializedVariableInfo;
+use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::classnames::ClassName;
+
+use crate::OperandStack;
+use crate::verifier::{Frame, standard_exception_frame};
+use crate::verifier::codecorrectness::{Environment, valid_type_transition};
+use crate::verifier::codecorrectness::can_pop;
+use crate::verifier::get_class;
+use crate::verifier::instructions::{AfterGotoFrames, exception_stack_frame, InstructionTypeSafe};
+use crate::verifier::instructions::branches::substitute;
+use crate::verifier::instructions::target_is_type_safe;
+use crate::verifier::instructions::type_transition;
+use crate::verifier::passes_protected_check;
+use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
@@ -52,7 +54,7 @@ pub fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, env: &Environme
     for t in targets {
         target_is_type_safe(env, &branch_frame, t)?;
     }
-    let exception_frame = exception_stack_frame(locals,flag);
+    let exception_frame = exception_stack_frame(locals, flag);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
@@ -102,7 +104,7 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, stack_frame: Frame) ->
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![VType::Class(to_pop)])?;
-    let exception_frame = exception_stack_frame(locals,flag);
+    let exception_frame = exception_stack_frame(locals, flag);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
@@ -151,7 +153,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame.clone(), vec![field_type, VType::UninitializedThis])?;
-    standard_exception_frame(locals,flag, next_frame)
+    standard_exception_frame(locals, flag, next_frame)
 }
 
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -164,7 +166,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), &stack_frame)?;
     let current_loader = env.class_loader.clone();
     let next_frame = can_pop(&env.vf, stack_frame.clone(), vec![field_type, VType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
-    standard_exception_frame(locals,flag, next_frame)
+    standard_exception_frame(locals, flag, next_frame)
 }
 
 //todo maybe move to impl
@@ -193,7 +195,7 @@ pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, stack_
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![field_type])?;
-    standard_exception_frame(locals,flag, next_frame)
+    standard_exception_frame(locals, flag, next_frame)
 }
 
 
@@ -201,13 +203,13 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: Fra
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::Reference])?;
-    standard_exception_frame(locals,flag, next_frame)
+    standard_exception_frame(locals, flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let classfile = get_class(&env.vf, env.method.class);
     let expected_type = PTypeView::Ref(classfile.constant_pool_view(cp).unwrap_class().class_name().clone());//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
-    if class_dimension(env,&expected_type.to_verification_type(&env.class_loader)) != dim {
+    if class_dimension(env, &expected_type.to_verification_type(&env.class_loader)) != dim {
         return Result::Err(unknown_error_verifying!());
     }
     let dim_list = dim_list(dim);
@@ -222,10 +224,10 @@ fn dim_list(dim: usize) -> Vec<VType> {
     res
 }
 
-fn class_dimension(env: &Environment,v: &VType) -> usize {
+fn class_dimension(env: &Environment, v: &VType) -> usize {
     match v {
         VType::ArrayReferenceType(sub) => {
-            class_dimension(env,&sub.to_verification_type(&env.class_loader)) + 1
+            class_dimension(env, &sub.to_verification_type(&env.class_loader)) + 1
         }
         _ => 0,
 //        _ => unimplemented!()
@@ -253,7 +255,7 @@ pub fn instruction_is_type_safe_new(cp: usize, offset: usize, env: &Environment,
         stack_map: operand_stack.clone(),
         flag_this_uninit: flags,
     })?;
-    standard_exception_frame(locals.clone(),flags, next_frame)
+    standard_exception_frame(locals.clone(), flags, next_frame)
 }
 
 pub fn instruction_is_type_safe_newarray(type_code: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -297,6 +299,6 @@ pub fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<i32>
     for t in targets {
         target_is_type_safe(env, &branch_frame, t)?;
     }
-    let exception_frame = exception_stack_frame(locals,flag);
+    let exception_frame = exception_stack_frame(locals, flag);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }

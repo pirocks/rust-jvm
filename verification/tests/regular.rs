@@ -1,24 +1,25 @@
 extern crate ntest_timeout;
-extern crate timebomb;
 extern crate rust_jvm_common;
+extern crate timebomb;
 
-use ntest_timeout::timeout;
 use std::collections::HashMap;
-use verification::verifier::TypeSafetyError;
-use std::sync::Arc;
 use std::path::Path;
 use std::path::PathBuf;
-use loading::BootstrapLoader;
+use std::sync::Arc;
 use std::sync::RwLock;
-use loading::Classpath;
-use verification::verify;
-use verification::VerifierContext;
-use rust_jvm_common::classnames::class_name;
-use jar_manipulation::JarHandle;
-use rust_jvm_common::classnames::ClassName;
+
+use ntest_timeout::timeout;
+
 use classfile_view::loading::LoaderName;
 use classfile_view::view::ClassView;
-
+use jar_manipulation::JarHandle;
+use loading::BootstrapLoader;
+use loading::Classpath;
+use rust_jvm_common::classnames::class_name;
+use rust_jvm_common::classnames::ClassName;
+use verification::verifier::TypeSafetyError;
+use verification::VerifierContext;
+use verification::verify;
 
 //#[test]
 //#[timeout(10000)]

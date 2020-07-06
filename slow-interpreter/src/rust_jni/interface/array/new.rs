@@ -1,12 +1,14 @@
-use jvmti_jni_bindings::{JNIEnv, jsize, jbyteArray, jbooleanArray, jshortArray, jcharArray, jintArray, jlongArray, jfloatArray, jdoubleArray, jarray, jobject, jobjectArray, jclass};
-use classfile_view::view::ptype_view::PTypeView;
-use crate::java_values::{default_value, Object, ArrayObject, JavaValue};
-use crate::rust_jni::native_util::{to_object, get_state, from_jclass, from_object};
 use std::cell::RefCell;
 use std::sync::Arc;
 
-pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray{
-    let type_= from_jclass(clazz).as_type();
+use classfile_view::view::ptype_view::PTypeView;
+use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
+
+use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_state, to_object};
+
+pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
+    let type_ = from_jclass(clazz).as_type();
     let res = new_array(env, len, type_);
     let res_safe = from_object(res).unwrap();
     for jv in res_safe.unwrap_array().elems.borrow_mut().iter_mut() {
@@ -14,6 +16,7 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
     }
     res
 }
+
 pub unsafe extern "C" fn new_boolean_array(env: *mut JNIEnv, len: jsize) -> jbooleanArray {
     new_array(env, len, PTypeView::BooleanType)
 }
@@ -55,6 +58,6 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: PTypeView) -> jarray 
     to_object(Some(Arc::new(Object::Array(ArrayObject {
         elems: RefCell::new(the_vec),
         elem_type,
-        monitor: jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())
+        monitor: jvm.thread_state.new_monitor("monitor for jni created byte array".to_string()),
     }))))
 }

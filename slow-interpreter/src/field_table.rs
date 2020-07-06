@@ -1,6 +1,7 @@
-use std::sync::Arc;
-use crate::runtime_class::RuntimeClass;
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use crate::runtime_class::RuntimeClass;
 
 pub type FieldTableIndex = usize;
 pub type FieldId = usize;

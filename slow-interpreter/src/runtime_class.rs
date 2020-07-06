@@ -1,20 +1,21 @@
-use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::collections::HashMap;
-use std::fmt::{Formatter, Debug, Error};
-use crate::java_values::{JavaValue, default_value};
-use rust_jvm_common::classfile::{Classfile, ACC_STATIC};
+use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
-use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::loading::LoaderArc;
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
-use crate::{StackEntry, JVMState, InterpreterStateGuard};
-use crate::instructions::ldc::from_constant_pool_entry;
-use descriptor_parser::parse_field_descriptor;
+use classfile_view::loading::LoaderArc;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use descriptor_parser::parse_field_descriptor;
+use rust_jvm_common::classfile::{ACC_STATIC, Classfile};
+
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::run_function;
+use crate::java_values::{default_value, JavaValue};
 
 #[derive(Debug, PartialEq, Hash)]
-pub enum RuntimeClass{
+pub enum RuntimeClass {
     Byte,
     Boolean,
     Short,
@@ -25,11 +26,11 @@ pub enum RuntimeClass{
     Double,
     Void,
     Array(RuntimeClassArray),
-    Object(RuntimeClassClass)
+    Object(RuntimeClassClass),
 }
 
 #[derive(Debug, PartialEq, Hash, Eq)]
-pub struct RuntimeClassArray{
+pub struct RuntimeClassArray {
     pub sub_class: Arc<RuntimeClass>
 }
 
@@ -41,10 +42,9 @@ pub struct RuntimeClassClass {
     static_vars: RwLock<HashMap<String, JavaValue>>,
 }
 
-impl RuntimeClass{
-
-    pub fn ptypeview(&self) -> PTypeView{
-        match self{
+impl RuntimeClass {
+    pub fn ptypeview(&self) -> PTypeView {
+        match self {
             RuntimeClass::Byte => PTypeView::ByteType,
             RuntimeClass::Boolean => PTypeView::BooleanType,
             RuntimeClass::Short => PTypeView::ShortType,
@@ -56,14 +56,14 @@ impl RuntimeClass{
             RuntimeClass::Void => PTypeView::VoidType,
             RuntimeClass::Array(arr) => {
                 PTypeView::Ref(ReferenceTypeView::Array(box arr.sub_class.ptypeview()))
-            },
+            }
             RuntimeClass::Object(o) => {
                 PTypeView::Ref(ReferenceTypeView::Class(o.class_view.name()))
-            },
+            }
         }
     }
-    pub fn view(&self) -> &Arc<ClassView>{
-        match self{
+    pub fn view(&self) -> &Arc<ClassView> {
+        match self {
             RuntimeClass::Byte => unimplemented!(),
             RuntimeClass::Boolean => unimplemented!(),
             RuntimeClass::Short => unimplemented!(),
@@ -78,8 +78,8 @@ impl RuntimeClass{
         }
     }
 
-    pub fn loader(&self , jvm: & JVMState) -> LoaderArc{
-        match self{
+    pub fn loader(&self, jvm: &JVMState) -> LoaderArc {
+        match self {
             RuntimeClass::Byte => jvm.bootstrap_loader.clone(),
             RuntimeClass::Boolean => jvm.bootstrap_loader.clone(),
             RuntimeClass::Short => jvm.bootstrap_loader.clone(),
@@ -95,7 +95,7 @@ impl RuntimeClass{
     }
 
     pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue>> {
-        match self{
+        match self {
             RuntimeClass::Byte => unimplemented!(),
             RuntimeClass::Boolean => unimplemented!(),
             RuntimeClass::Short => unimplemented!(),
@@ -132,7 +132,7 @@ impl PartialEq for RuntimeClassClass {
 
 impl Eq for RuntimeClass {}
 
-pub fn prepare_class(_jvm: & JVMState, classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
+pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
     let mut res = HashMap::new();
     for field in &classfile.fields {
         if (field.access_flags & ACC_STATIC) > 0 {
@@ -153,15 +153,16 @@ pub fn prepare_class(_jvm: & JVMState, classfile: Arc<Classfile>, loader: Loader
 }
 
 
-impl std::convert::From<RuntimeClassClass> for RuntimeClass{
+impl std::convert::From<RuntimeClassClass> for RuntimeClass {
     fn from(rcc: RuntimeClassClass) -> Self {
         Self::Object(rcc)
     }
 }
+
 pub fn initialize_class<'l>(
     runtime_class: Arc<RuntimeClass>,
     jvm: &'static JVMState,
-    interpreter_state: & mut InterpreterStateGuard
+    interpreter_state: &mut InterpreterStateGuard,
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -186,7 +187,7 @@ pub fn initialize_class<'l>(
     let view = &class_arc.view();
     let lookup_res = view.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
-    let  clinit = match lookup_res.iter().nth(0) {
+    let clinit = match lookup_res.iter().nth(0) {
         None => return class_arc,
         Some(x) => x,
     };

@@ -1,5 +1,6 @@
-use jvmti_jni_bindings::{jint, jobject, JNIEnv};
 use std::mem::transmute;
+
+use jvmti_jni_bindings::{jint, JNIEnv, jobject};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IHashCode(env: *mut JNIEnv, obj: jobject) -> jint {

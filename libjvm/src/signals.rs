@@ -1,6 +1,7 @@
-use jvmti_jni_bindings::{jboolean, jint};
 use std::mem::transmute;
 use std::os::raw::c_char;
+
+use jvmti_jni_bindings::{jboolean, jint};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_RegisterSignal(sig: jint, handler: *mut ::std::os::raw::c_void) -> *mut ::std::os::raw::c_void {

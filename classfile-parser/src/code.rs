@@ -1,7 +1,6 @@
 use std::slice::Iter;
-use rust_jvm_common::classfile::{IInc, InvokeInterface, MultiNewArray, LookupSwitch, TableSwitch, Atype, Wide, Instruction, InstructionInfo};
 
-
+use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray, TableSwitch, Wide};
 
 fn read_iinc(c: &mut CodeParserContext) -> Option<IInc> {
     let index = read_u8(c)?;
@@ -74,7 +73,7 @@ fn read_table_switch(c: &mut CodeParserContext) -> Option<TableSwitch> {
 fn read_wide(c: &mut CodeParserContext) -> Option<Wide> {
     let opcode = read_opcode(read_u8(c)?);
 
-    if opcode == InstructionTypeNum::iinc{
+    if opcode == InstructionTypeNum::iinc {
         let index = read_u16(c)?;
         let const_ = read_i16(c)?;
         Some(Wide::IInc(IInc { index, const_ }))

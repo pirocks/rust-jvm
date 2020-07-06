@@ -1,7 +1,9 @@
-use crate::view::ClassView;
-use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, SourceFile};
-use crate::view::constant_info_view::{ConstantInfoView, StringView, IntegerView, LongView, FloatView, DoubleView, MethodHandleView, MethodTypeView};
 use std::sync::Arc;
+
+use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, SourceFile};
+
+use crate::view::ClassView;
+use crate::view::constant_info_view::{ConstantInfoView, DoubleView, FloatView, IntegerView, LongView, MethodHandleView, MethodTypeView, StringView};
 
 #[derive(Clone)]
 pub struct BootstrapMethodIterator<'cl> {
@@ -9,7 +11,7 @@ pub struct BootstrapMethodIterator<'cl> {
     pub(crate) i: usize,
 }
 
-impl <'cl> Iterator for BootstrapMethodIterator<'cl> {
+impl<'cl> Iterator for BootstrapMethodIterator<'cl> {
     type Item = BootstrapMethodView<'cl>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -42,6 +44,7 @@ impl BootstrapMethodsView<'_> {
         unimplemented!()
     }
 }
+
 #[derive(Clone)]
 pub struct BootstrapMethodView<'cl> {
     pub(crate) backing: BootstrapMethodsView<'cl>,
@@ -67,24 +70,25 @@ impl BootstrapMethodView<'_> {
         BootstrapArgViewIterator {
             backing_class: self.backing.backing_class,
             bootstrap_args: self.get_raw().bootstrap_arguments.clone(),
-            i: 0
+            i: 0,
         }
     }
 }
 
 pub struct BootstrapArgViewIterator<'cl> {
     backing_class: &'cl ClassView,
-    bootstrap_args : Vec<CPIndex>,//todo get rid of clone for this
-    i : usize
+    bootstrap_args: Vec<CPIndex>,
+    //todo get rid of clone for this
+    i: usize,
 }
 
 
-impl <'cl> Iterator for BootstrapArgViewIterator<'cl>{
+impl<'cl> Iterator for BootstrapArgViewIterator<'cl> {
     type Item = BootstrapArgView<'cl>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let arg = self.bootstrap_args[self.i];
-        let res = match self.backing_class.constant_pool_view(arg as usize){
+        let res = match self.backing_class.constant_pool_view(arg as usize) {
             ConstantInfoView::Integer(i) => BootstrapArgView::Integer(i),
             _ => unimplemented!()
         }.into();
@@ -103,42 +107,40 @@ pub enum BootstrapArgView<'cl> {
     Float(FloatView),
     Double(DoubleView),
     MethodHandle(MethodHandleView<'cl>),
-    MethodType(MethodTypeView)
+    MethodType(MethodTypeView),
 }
 
 
 #[allow(dead_code)]
-pub struct EnclosingMethodView{
-    pub(crate) backing_class : ClassView ,
-    pub(crate) i : usize
+pub struct EnclosingMethodView {
+    pub(crate) backing_class: ClassView,
+    pub(crate) i: usize,
 }
 
-impl EnclosingMethodView{
+impl EnclosingMethodView {
     // fn get_raw(&self) -> &EnclosingMethod{
     //     match &self.backing_class.backing_class.attributes[self.i].attribute_type{
     //         AttributeType::EnclosingMethod(em) => em,
     //         _ => panic!()
     //     }
     // }
-
-
 }
 
 
-pub struct SourceFileView<'l>{
-    pub(crate) backing_class : &'l ClassView ,
-    pub(crate) i : usize
+pub struct SourceFileView<'l> {
+    pub(crate) backing_class: &'l ClassView,
+    pub(crate) i: usize,
 }
 
-impl SourceFileView<'_>{
-    fn source_file_attr(&self) -> &SourceFile{
-        match &self.backing_class.backing_class.attributes[self.i].attribute_type{
+impl SourceFileView<'_> {
+    fn source_file_attr(&self) -> &SourceFile {
+        match &self.backing_class.backing_class.attributes[self.i].attribute_type {
             AttributeType::SourceFile(sf) => sf,
             _ => panic!(),
         }
     }
 
-    pub fn file(&self) -> String{
+    pub fn file(&self) -> String {
         let si = self.source_file_attr().sourcefile_index;
         self.backing_class.backing_class.constant_pool[si as usize].extract_string_from_utf8()
     }

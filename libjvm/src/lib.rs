@@ -3,32 +3,34 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 
-extern crate regex;
-extern crate num_cpus;
 extern crate libc;
 extern crate nix;
+extern crate num_cpus;
+extern crate regex;
 
-use std::str::from_utf8;
 use std::borrow::Borrow;
-use rust_jvm_common::classnames::{ClassName, class_name};
-
-use std::intrinsics::transmute;
-use slow_interpreter::rust_jni::native_util::{get_state, to_object, from_object};
-use jvmti_jni_bindings::{JNIEnv, jclass, jstring, jobject, jlong, jint, jboolean, jobjectArray, jvalue, jbyte, jsize, jbyteArray, jfloat, jdouble, jmethodID, sockaddr, jintArray, jvm_version_info, getc, __va_list_tag, FILE, JVM_ExceptionTableEntryType, vsnprintf, JVM_CALLER_DEPTH, JavaVM, JNI_VERSION_1_8};
-use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
-use slow_interpreter::instructions::ldc::{load_class_constant_by_type, create_string_on_stack};
-use rust_jvm_common::ptype::PType;
-use slow_interpreter::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
-use std::sync::Arc;
 use std::cell::RefCell;
-use std::thread::Thread;
-use std::ffi::{CStr, c_void};
-use std::ops::Deref;
-use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
+use std::collections::HashMap;
+use std::ffi::{c_void, CStr};
+use std::intrinsics::transmute;
+use std::ops::Deref;
+use std::os::raw::{c_char, c_int};
+use std::str::from_utf8;
+use std::sync::Arc;
+use std::thread::Thread;
+
+use jvmti_jni_bindings::{__va_list_tag, FILE, getc, JavaVM, jboolean, jbyte, jbyteArray, jclass, jdouble, jfloat, jint, jintArray, jlong, jmethodID, JNI_VERSION_1_8, JNIEnv, jobject, jobjectArray, jsize, jstring, jvalue, JVM_CALLER_DEPTH, JVM_ExceptionTableEntryType, jvm_version_info, sockaddr, vsnprintf};
 use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
+use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::ptype::PType;
+use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use slow_interpreter::rust_jni::native_util::{from_object, get_state, to_object};
+use slow_interpreter::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
+
 use crate::introspection::JVM_GetCallerClass;
-use std::os::raw::{c_int, c_char};
+
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");
 //but in reality I don't?

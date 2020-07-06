@@ -1,8 +1,9 @@
-use crate::classnames::ClassName;
-use crate::classfile::UninitializedVariableInfo;
 use std::fmt::Debug;
-use std::ops::Deref;
 use std::hash::Hash;
+use std::ops::Deref;
+
+use crate::classfile::UninitializedVariableInfo;
+use crate::classnames::ClassName;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -37,9 +38,9 @@ pub enum ReferenceType {
     Array(Box<PType>),
 }
 
-impl Clone for ReferenceType{
+impl Clone for ReferenceType {
     fn clone(&self) -> Self {
-        match self{
+        match self {
             ReferenceType::Class(c) => ReferenceType::Class(c.clone()),
             ReferenceType::Array(a) => ReferenceType::Array(a.clone()),
         }

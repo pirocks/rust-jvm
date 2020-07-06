@@ -1,6 +1,4 @@
-use jvmti_jni_bindings::{jlong, jint};
-
-
+use jvmti_jni_bindings::{jint, jlong};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NativePath(arg1: *mut ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char {

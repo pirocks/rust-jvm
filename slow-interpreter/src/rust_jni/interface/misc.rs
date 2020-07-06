@@ -13,7 +13,7 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_state, to_object, get_interpreter_state};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     };
     // let frame = int_state.current_frame_mut();
 //    frame.print_stack_trace();
-    let _inited_class = check_inited_class(jvm, int_state,&super_name.clone().into(), int_state.current_loader(jvm));
+    let _inited_class = check_inited_class(jvm, int_state, &super_name.clone().into(), int_state.current_loader(jvm));
     load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     to_object(int_state.pop_current_operand_stack().unwrap_object())
 }
@@ -69,7 +69,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ::va_list::VaList) -> jobject {
     //todo dup
-    let method_id: MethodId = transmute(jmethod_id );
+    let method_id: MethodId = transmute(jmethod_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);

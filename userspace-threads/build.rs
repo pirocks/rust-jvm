@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-
 fn main() {
     let signal = bindgen::Builder::default()
         .header("signals-wrapper.h")
@@ -27,6 +26,4 @@ fn main() {
     ucontext
         .write_to_file(PathBuf::from("gen/ucontext.rs"))
         .expect("Couldn't write bindings!");
-
-
 }

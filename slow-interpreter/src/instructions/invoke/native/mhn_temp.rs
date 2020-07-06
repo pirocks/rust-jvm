@@ -3,25 +3,27 @@
 #![allow(non_snake_case)]
 
 
-use std::sync::Arc;
-use rust_jvm_common::classnames::ClassName;
 use std::cell::RefCell;
-use crate::interpreter_util::{check_inited_class, run_constructor, push_new_object};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::rust_jni::{get_all_methods, get_all_fields};
-use crate::utils::string_obj_to_string;
+use std::sync::Arc;
+
 use classfile_view::view::HasAccessFlags;
-use rust_jvm_common::classfile::{REF_invokeVirtual, REF_invokeStatic, REF_invokeInterface, ACC_STATIC};
-use crate::{JVMState, StackEntry, InterpreterStateGuard};
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::classfile::{ACC_STATIC, REF_invokeInterface, REF_invokeStatic, REF_invokeVirtual};
+use rust_jvm_common::classnames::ClassName;
+
+use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use crate::java_values::{JavaValue, NormalObject, ArrayObject};
-use crate::java_values::Object::{Object, Array};
+use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use crate::java_values::{ArrayObject, JavaValue, NormalObject};
+use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
-use descriptor_parser::{parse_method_descriptor};
-use crate::class_objects::get_or_create_class_object;
+use crate::rust_jni::{get_all_fields, get_all_methods};
+use crate::utils::string_obj_to_string;
 
-pub fn MHN_resolve<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_resolve<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
 //so as far as I can find this is undocumented.
 //so as far as I can figure out we have a method name and a class
@@ -58,7 +60,7 @@ pub fn MHN_resolve<'l>(jvm: &'static JVMState, int_state: & mut InterpreterState
     let resolution_object = JavaValue::Object(Arc::new(Object(NormalObject {
         monitor: jvm.thread_state.new_monitor("monitor for a resolution object".to_string()),
         fields: RefCell::new(Default::default()),
-        class_pointer: check_inited_class(jvm, int_state,&ClassName::object().into(), int_state.current_loader(jvm)),
+        class_pointer: check_inited_class(jvm, int_state, &ClassName::object().into(), int_state.current_loader(jvm)),
         class_object_type: None,
     })).into());
     member_name.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), resolution_object);
@@ -80,7 +82,7 @@ pub fn MHN_resolve<'l>(jvm: &'static JVMState, int_state: & mut InterpreterState
     let type_ = type_java_value.unwrap_normal_object();
     if is_field {
         assert!(!is_method);
-        let all_fields = get_all_fields(jvm, int_state,clazz_as_runtime_class);
+        let all_fields = get_all_fields(jvm, int_state, clazz_as_runtime_class);
         dbg!(&type_);
         if type_.class_pointer.view().name() == ClassName::class() {
             let typejclass = type_java_value.cast_class();
@@ -103,7 +105,7 @@ pub fn MHN_resolve<'l>(jvm: &'static JVMState, int_state: & mut InterpreterState
         assert!(!is_constructor);//todo not implemented yet
         assert!(!is_field);
         // frame.print_stack_trace();
-        let all_methods = get_all_methods(jvm,  int_state,clazz_as_runtime_class);
+        let all_methods = get_all_methods(jvm, int_state, clazz_as_runtime_class);
         if type_.class_pointer.view().name() == ClassName::method_type() {
             let r_type_class = type_java_value.unwrap_object_nonnull().lookup_field("rtype").unwrap_object_nonnull();
             let param_types_class = type_java_value.unwrap_object_nonnull().lookup_field("ptypes").unwrap_array().unwrap_object_array_nonnull();
@@ -169,7 +171,7 @@ pub const IS_FIELD_OR_METHOD: i32 = 327680;
 pub const SEARCH_ALL_SUPERS: i32 = 3145728;
 pub const REFERENCE_KIND_SHIFT: u32 = 24;
 
-pub fn MHN_init<'l>(jvm: &'static JVMState,int_state: & mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_init<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
     // init(MemberName mname, Object target);
     let mname = args[0].unwrap_normal_object();
@@ -189,7 +191,7 @@ pub fn MHN_init<'l>(jvm: &'static JVMState,int_state: & mut InterpreterStateGuar
         } else {
             let class_ptye = clazz.as_type();
             let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-            let inited_class = check_inited_class(jvm, int_state,&class_name.into(), int_state.current_loader(jvm));
+            let inited_class = check_inited_class(jvm, int_state, &class_name.into(), int_state.current_loader(jvm));
             if inited_class.view().is_interface() {
                 REF_invokeInterface
             } else {
@@ -221,17 +223,17 @@ pub fn MHN_init<'l>(jvm: &'static JVMState,int_state: & mut InterpreterStateGuar
     None//this is a void method.
 }
 
-pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard,frame: &mut StackEntry, signature: &String) {
+pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, frame: &mut StackEntry, signature: &String) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
     let loader_arc = int_state.current_loader(jvm).clone();
-    let method_type_class = check_inited_class(jvm,int_state, &ClassName::method_type().into(), loader_arc.clone());
-    push_new_object(jvm, int_state,&method_type_class,None);
-    let this =int_state.pop_current_operand_stack();
+    let method_type_class = check_inited_class(jvm, int_state, &ClassName::method_type().into(), loader_arc.clone());
+    push_new_object(jvm, int_state, &method_type_class, None);
+    let this = int_state.pop_current_operand_stack();
     let method_descriptor = parse_method_descriptor(signature).unwrap();
     let rtype = JavaValue::Object(get_or_create_class_object(jvm, &PTypeView::from_ptype(&method_descriptor.return_type), int_state, loader_arc.clone()).into());
 
-    let mut ptypes_as_classes: Vec<JavaValue> =vec![];
+    let mut ptypes_as_classes: Vec<JavaValue> = vec![];
     for x in method_descriptor.parameter_types.iter() {
         let class_object = get_or_create_class_object(jvm, &PTypeView::from_ptype(&x), int_state, loader_arc.clone());
         ptypes_as_classes.push(JavaValue::Object(class_object.into()))
@@ -252,13 +254,13 @@ pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: & mut Interpret
 
 
 //todo this should go in some sort of utils
-pub fn run_static_or_virtual<'l>(jvm: &'static JVMState,int_state: & mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
+pub fn run_static_or_virtual<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
     let res_fun = class.view().lookup_method(&method_name, &parse_method_descriptor(desc_str.as_str()).unwrap());//todo move this into classview
     let method_view = res_fun.unwrap();//todo and if this fails
     let md = method_view.desc();
     if method_view.is_static() {
-        invoke_static_impl(jvm,int_state, md, class.clone(), method_view.method_i(), method_view.method_info())
+        invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info())
     } else {
-        invoke_virtual_method_i(jvm,int_state, md, class.clone(), method_view.method_i(), &method_view, false);
+        invoke_virtual_method_i(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view, false);
     }
 }

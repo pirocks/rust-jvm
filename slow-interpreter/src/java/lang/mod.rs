@@ -2,16 +2,17 @@ pub mod invoke;
 
 
 pub mod member_name {
-    use crate::java_values::{JavaValue, Object};
-    use crate::java::lang::string::JString;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-    use crate::{JVMState, InterpreterStateGuard};
-
-    use crate::interpreter_util::check_inited_class;
-    use rust_jvm_common::classnames::ClassName;
     use std::sync::Arc;
+
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::{InterpreterStateGuard, JVMState};
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
+    use crate::java::lang::string::JString;
+    use crate::java_values::{JavaValue, Object};
 
     pub struct MemberName {
         normal_object: Arc<Object>
@@ -56,15 +57,16 @@ pub mod member_name {
 }
 
 pub mod class {
-    use crate::java_values::{JavaValue, Object};
-    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use std::sync::Arc;
-    use crate::java::lang::class_loader::ClassLoader;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 
-    use crate::{JVMState, InterpreterStateGuard};
+    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use rust_jvm_common::classnames::ClassName;
+
+    use crate::{InterpreterStateGuard, JVMState};
     use crate::class_objects::get_or_create_class_object;
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::java::lang::class_loader::ClassLoader;
+    use crate::java_values::{JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
 
     #[derive(Debug, Clone)]
@@ -115,7 +117,8 @@ pub mod class {
 
 pub mod class_loader {
     use std::sync::Arc;
-    use crate::java_values::{Object, JavaValue};
+
+    use crate::java_values::{JavaValue, Object};
 
     pub struct ClassLoader {
         normal_object: Arc<Object>
@@ -133,13 +136,13 @@ pub mod class_loader {
 }
 
 pub mod string {
-    use crate::utils::string_obj_to_string;
-    use crate::java_values::Object;
     use std::sync::Arc;
-    use crate::java_values::JavaValue;
-    use crate::instructions::ldc::create_string_on_stack;
-    use crate::{JVMState, InterpreterStateGuard};
 
+    use crate::{InterpreterStateGuard, JVMState};
+    use crate::instructions::ldc::create_string_on_stack;
+    use crate::java_values::JavaValue;
+    use crate::java_values::Object;
+    use crate::utils::string_obj_to_string;
 
     pub struct JString {
         normal_object: Arc<Object>
@@ -166,11 +169,12 @@ pub mod string {
 }
 
 pub mod integer {
-    use jvmti_jni_bindings::jint;
-    use crate::{JVMState, StackEntry};
-
-    use crate::java_values::{JavaValue, Object};
     use std::sync::Arc;
+
+    use jvmti_jni_bindings::jint;
+
+    use crate::{JVMState, StackEntry};
+    use crate::java_values::{JavaValue, Object};
 
     pub struct Integer {
         normal_object: Arc<Object>
@@ -196,9 +200,10 @@ pub mod integer {
 }
 
 pub mod object {
-    use crate::java_values::Object;
     use std::sync::Arc;
+
     use crate::java_values::JavaValue;
+    use crate::java_values::Object;
 
     pub struct JObject {
         normal_object: Arc<Object>
@@ -216,18 +221,20 @@ pub mod object {
 }
 
 pub mod thread {
-    use crate::java_values::{Object, NormalObject};
+    use std::cell::RefCell;
     use std::sync::Arc;
-    use crate::java_values::JavaValue;
-    use crate::{JVMState, InterpreterStateGuard};
+
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::{InterpreterStateGuard, JVMState};
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
-    use rust_jvm_common::classnames::ClassName;
     use crate::java::lang::string::JString;
-    use crate::threading::{JavaThreadId, JavaThread};
     use crate::java::lang::thread_group::JThreadGroup;
+    use crate::java_values::{NormalObject, Object};
+    use crate::java_values::JavaValue;
     use crate::runtime_class::RuntimeClass;
-    use std::cell::RefCell;
+    use crate::threading::{JavaThread, JavaThreadId};
 
     #[derive(Debug, Clone)]
     pub struct JThread {
@@ -241,13 +248,15 @@ pub mod thread {
     }
 
     impl JThread {
-        pub fn invalid_thread(jvm: &'static JVMState) -> JThread{
-            JThread{ normal_object: Arc::new(Object::Object(NormalObject{
-                monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
-                fields: RefCell::new(Default::default()),
-                class_pointer: Arc::new(RuntimeClass::Byte),
-                class_object_type: None
-            })) }
+        pub fn invalid_thread(jvm: &'static JVMState) -> JThread {
+            JThread {
+                normal_object: Arc::new(Object::Object(NormalObject {
+                    monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
+                    fields: RefCell::new(Default::default()),
+                    class_pointer: Arc::new(RuntimeClass::Byte),
+                    class_object_type: None,
+                }))
+            }
         }
 
         pub fn tid(&self) -> JavaThreadId {
@@ -268,8 +277,8 @@ pub mod thread {
             self.normal_object.lookup_field("priority").unwrap_int()
         }
 
-        pub fn set_priority(&self, priority:i32) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("priority".to_string(),JavaValue::Int(priority));
+        pub fn set_priority(&self, priority: i32) {
+            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("priority".to_string(), JavaValue::Int(priority));
         }
 
         pub fn daemon(&self) -> bool {
@@ -287,11 +296,11 @@ pub mod thread {
             thread_object.cast_thread()
         }
 
-        pub fn get_java_thread(&self, jvm: &'static JVMState) -> Arc<JavaThread>{
+        pub fn get_java_thread(&self, jvm: &'static JVMState) -> Arc<JavaThread> {
             self.try_get_java_thread(jvm).unwrap()
         }
 
-        pub fn try_get_java_thread(&self, jvm: &'static JVMState) -> Option<Arc<JavaThread>>{
+        pub fn try_get_java_thread(&self, jvm: &'static JVMState) -> Option<Arc<JavaThread>> {
             let tid = self.tid();
             jvm.thread_state.try_get_thread_by_tid(tid)
         }
@@ -301,11 +310,13 @@ pub mod thread {
 }
 
 pub mod thread_group {
-    use crate::java_values::{JavaValue, Object};
     use std::sync::Arc;
-    use crate::interpreter_util::{push_new_object, check_inited_class, run_constructor};
+
     use rust_jvm_common::classnames::ClassName;
-    use crate::{JVMState, InterpreterStateGuard};
+
+    use crate::{InterpreterStateGuard, JVMState};
+    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::java_values::{JavaValue, Object};
 
     #[derive(Debug, Clone)]
     pub struct JThreadGroup {

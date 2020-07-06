@@ -1,7 +1,9 @@
-use jvmti_jni_bindings::{jvmtiEnv, jthread, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
-use crate::jvmti::get_state;
 use std::cell::RefMut;
 use std::os::raw::c_void;
+
+use jvmti_jni_bindings::{jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+
+use crate::jvmti::get_state;
 
 pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, _thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);

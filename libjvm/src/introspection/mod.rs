@@ -1,27 +1,25 @@
-use jvmti_jni_bindings::{jobjectArray, jclass, JNIEnv, jobject, jint, jstring, jbyteArray, jboolean, JVM_ExceptionTableEntryType, jvmtiCapabilities};
-use slow_interpreter::rust_jni::native_util::{to_object, get_state, from_object, from_jclass, get_interpreter_state};
-use std::sync::Arc;
-use std::cell::RefCell;
-use rust_jvm_common::ptype::{PType, ReferenceType};
-use rust_jvm_common::classnames::{class_name, ClassName};
-use slow_interpreter::interpreter_util::{run_constructor, push_new_object, check_inited_class};
-use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
-
-use rust_jvm_common::classfile::{ACC_PUBLIC, ACC_ABSTRACT};
-use std::ops::Deref;
-use std::ffi::CStr;
-use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
-use slow_interpreter::rust_jni::interface::string::new_string_with_string;
-
-
-use libjvm_utils::ptype_to_class_object;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use std::borrow::Borrow;
-use slow_interpreter::rust_jni::get_all_methods;
+use std::cell::RefCell;
+use std::ffi::CStr;
+use std::ops::Deref;
+use std::sync::Arc;
+
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
+use libjvm_utils::ptype_to_class_object;
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
+use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::rust_jni::get_all_methods;
+use slow_interpreter::rust_jni::interface::string::new_string_with_string;
+use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::threading::JavaThread;
 
 pub mod constant_pool;
@@ -69,7 +67,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
         let obj = from_object(cls);
         let type_ = JavaValue::Object(obj).cast_class().as_type();
         let name = type_.unwrap_type_to_name().unwrap();
-        let class_for_access_flags = check_inited_class(jvm,int_state, &name.into(), int_state.current_loader(jvm).clone());
+        let class_for_access_flags = check_inited_class(jvm, int_state, &name.into(), int_state.current_loader(jvm).clone());
         (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
     } else {
         jclass.as_runtime_class().view().access_flags() as jint

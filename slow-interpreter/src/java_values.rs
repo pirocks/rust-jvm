@@ -1,14 +1,15 @@
-use crate::runtime_class::RuntimeClass;
-use std::sync::Arc;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter, Error};
+use std::fmt::{Debug, Error, Formatter};
+use std::ops::Deref;
+use std::sync::Arc;
+
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
 
-use std::ops::Deref;
-use classfile_view::view::ptype_view::PTypeView;
 use crate::JVMState;
-use classfile_view::view::HasAccessFlags;
+use crate::runtime_class::RuntimeClass;
 use crate::threading::monitors::Monitor;
 
 // #[derive(Copy)]

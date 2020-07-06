@@ -1,15 +1,18 @@
+use std::ffi::c_void;
+use std::ops::Deref;
+use std::sync::Arc;
+
 use libffi::middle::Arg;
 use libffi::middle::Type;
-use crate::rust_jni::native_util::to_object;
-use std::ffi::c_void;
-use jvmti_jni_bindings::jclass;
-use std::sync::Arc;
-use std::ops::Deref;
-use rust_jvm_common::ptype::PType;
-use crate::runtime_class::RuntimeClass;
-use crate::java_values::{Object, JavaValue};
 
-pub fn runtime_class_to_native(runtime_class : Arc<RuntimeClass>) -> Arg{
+use jvmti_jni_bindings::jclass;
+use rust_jvm_common::ptype::PType;
+
+use crate::java_values::{JavaValue, Object};
+use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::native_util::to_object;
+
+pub fn runtime_class_to_native(runtime_class: Arc<RuntimeClass>) -> Arg {
     let boxed_arc = Box::new(runtime_class);
     let arc_pointer = Box::into_raw(boxed_arc);
     let pointer_ref = Box::leak(Box::new(arc_pointer));
@@ -17,7 +20,7 @@ pub fn runtime_class_to_native(runtime_class : Arc<RuntimeClass>) -> Arg{
 }
 
 
-pub unsafe fn native_to_runtime_class(clazz: jclass) -> Arc<RuntimeClass>{
+pub unsafe fn native_to_runtime_class(clazz: jclass) -> Arc<RuntimeClass> {
     let boxed_arc = Box::from_raw(clazz as *mut Arc<RuntimeClass>);
     boxed_arc.deref().clone()
 }
@@ -59,24 +62,24 @@ pub fn to_native(j: JavaValue, t: &PType) -> Arg {
     match t {
         PType::ByteType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as i8)))//todo free after call
-        },
+        }
         PType::CharType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as u16)))//todo free after call
-        },
+        }
         PType::DoubleType => {
             Arg::new(Box::leak(Box::new(j.unwrap_double())))//todo free after call
-        },
+        }
         PType::FloatType => {
             Arg::new(Box::leak(Box::new(j.unwrap_float())))//todo free after call
-        },
+        }
         PType::IntType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int())))//todo free after call
-        },
+        }
         PType::LongType => {
             Arg::new(Box::leak(Box::new(j.unwrap_long())))//todo free after call
-        },
+        }
         PType::Ref(_) => {
-            match j.unwrap_object(){
+            match j.unwrap_object() {
                 None => Arg::new(&(std::ptr::null() as *const Object)),
                 Some(op) => {
                     unsafe {
@@ -87,13 +90,13 @@ pub fn to_native(j: JavaValue, t: &PType) -> Arg {
                     }
                 }
             }
-        },
+        }
         PType::ShortType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as i16)))//todo free after call
-        },
+        }
         PType::BooleanType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as u8)))//todo free after call
-        },
+        }
         PType::VoidType => panic!(),
         PType::TopType => panic!(),
         PType::NullType => panic!(),

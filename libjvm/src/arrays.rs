@@ -1,7 +1,8 @@
-use jvmti_jni_bindings::{jobject, jintArray, jclass, JNIEnv, jint, jvalue};
-use slow_interpreter::rust_jni::native_util::{get_state, to_object, from_jclass, get_interpreter_state};
-use slow_interpreter::instructions::new::a_new_array_from_name;
 use std::ops::Deref;
+
+use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
+use slow_interpreter::instructions::new::a_new_array_from_name;
+use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, currClass: jclass, length: jint) -> jobject {
@@ -39,7 +40,7 @@ unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, lengt
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let array_type_name = from_jclass(eltClass).as_runtime_class().view().name();//todo how does this handle nested arrays?
-    a_new_array_from_name(jvm,int_state,length,&array_type_name);
+    a_new_array_from_name(jvm, int_state, length, &array_type_name);
     to_object(int_state.pop_current_operand_stack().unwrap_object())
 }
 

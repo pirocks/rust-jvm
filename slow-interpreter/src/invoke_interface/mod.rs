@@ -1,29 +1,31 @@
-use jvmti_jni_bindings::{JNIInvokeInterface_, JavaVM, jint, JVMTI_VERSION_1_0, jvmtiEnv,  JVMTI_VERSION_1_2};
-use crate::{JVMState, InterpreterStateGuard};
-
-use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
 use std::intrinsics::transmute;
+
+use jvmti_jni_bindings::{JavaVM, jint, JNIInvokeInterface_, JVMTI_VERSION_1_0, JVMTI_VERSION_1_2, jvmtiEnv};
+use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
+
+use crate::{InterpreterStateGuard, JVMState};
 use crate::jvmti::get_jvmti_interface;
 use crate::rust_jni::interface::get_interface;
 
-
-pub fn get_invoke_interface(state: &'static JVMState,int_state: &mut InterpreterStateGuard) -> *const JNIInvokeInterface_ {
+pub fn get_invoke_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *const JNIInvokeInterface_ {
     let read_guard = state.invoke_interface.read().unwrap();
     match read_guard.as_ref() {
         None => {
             std::mem::drop(read_guard);
-            state.invoke_interface.write().unwrap().replace(unsafe {transmute::<_,jvmti_jni_bindings::JNIInvokeInterface_>(JNIInvokeInterface_ {
-                reserved0:  transmute(state) ,
-                reserved1: transmute(int_state),
-                reserved2: std::ptr::null_mut(),
-                DestroyJavaVM: None,
-                AttachCurrentThread: None,
-                DetachCurrentThread: None,
-                GetEnv: Some(get_env),
-                AttachCurrentThreadAsDaemon: None,
-            })}.into());
-        },
-        Some(_) => {},
+            state.invoke_interface.write().unwrap().replace(unsafe {
+                transmute::<_, jvmti_jni_bindings::JNIInvokeInterface_>(JNIInvokeInterface_ {
+                    reserved0: transmute(state),
+                    reserved1: transmute(int_state),
+                    reserved2: std::ptr::null_mut(),
+                    DestroyJavaVM: None,
+                    AttachCurrentThread: None,
+                    DetachCurrentThread: None,
+                    GetEnv: Some(get_env),
+                    AttachCurrentThreadAsDaemon: None,
+                })
+            }.into());
+        }
+        Some(_) => {}
     }
     state.invoke_interface.read().unwrap().as_ref().unwrap() as *const jvmti_jni_bindings::JNIInvokeInterface_ as *const JNIInvokeInterface_
 }
@@ -44,8 +46,8 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
     if version == JVMTI_VERSION_1_0 as i32 || version == JVMTI_VERSION_1_2 as i32 {
         //todo do a proper jvmti check
         *(penv as *mut *mut jvmtiEnv) = Box::leak((get_jvmti_interface(state)).into()) as *mut jvmtiEnv;
-    }else {
-        let res_ptr = get_interface(state,int_state) ;
+    } else {
+        let res_ptr = get_interface(state, int_state);
         (penv as *mut *mut *const JNINativeInterface_).write(Box::into_raw(Box::new(res_ptr)));
     }
 

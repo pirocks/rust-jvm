@@ -7,7 +7,7 @@ unsafe extern "system" fn JVM_InitializeSocketLibrary() -> jint {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Socket(domain: jint, type_: jint, protocol: jint) -> jint {
-    libc::socket(domain,type_,protocol)
+    libc::socket(domain, type_, protocol)
 }
 
 #[no_mangle]
@@ -71,13 +71,13 @@ unsafe extern "system" fn JVM_GetHostName(name: *mut ::std::os::raw::c_char, nam
 }
 
 #[no_mangle]
-unsafe extern "system"  fn JVM_GetSockOpt(
+unsafe extern "system" fn JVM_GetSockOpt(
     fd: jint,
     level: ::std::os::raw::c_int,
     optname: ::std::os::raw::c_int,
     optval: *mut ::std::os::raw::c_char,
     optlen: *mut ::std::os::raw::c_int,
-) -> jint{
+) -> jint {
     unimplemented!()
 }
 
@@ -88,7 +88,7 @@ unsafe extern "system" fn JVM_SetSockOpt(
     optname: ::std::os::raw::c_int,
     optval: *const ::std::os::raw::c_char,
     optlen: ::std::os::raw::c_int,
-) -> jint{
+) -> jint {
     unimplemented!()
 }
 
