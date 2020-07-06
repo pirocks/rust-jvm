@@ -114,8 +114,8 @@ pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
 //Let C be the class of objectref.
     let this_pointer = {
         let operand_stack = &int_state.current_frame().operand_stack;
-        int_state.print_stack_trace();
-        dbg!(&operand_stack);
+        // int_state.print_stack_trace();
+        // dbg!(&operand_stack);
         &operand_stack[operand_stack.len() - md.parameter_types.len() - 1].clone()
     };
     let c = match this_pointer.unwrap_object().unwrap().deref() {

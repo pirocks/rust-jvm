@@ -210,8 +210,7 @@ pub fn initialize_class<'l>(
     run_function(jvm, interpreter_state);
     interpreter_state.pop_frame();
     if interpreter_state.throw_mut().is_some() || *interpreter_state.terminate_mut() {
-        let current_thread = jvm.thread_state.get_current_thread();
-        current_thread.print_stack_trace();
+        interpreter_state.print_stack_trace();
         unimplemented!()
         //need to clear status after
     }

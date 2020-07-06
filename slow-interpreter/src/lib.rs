@@ -141,8 +141,8 @@ impl<'l> InterpreterStateGuard<'l> {
         &mut call_stack[len - 2]
     }
 
-    pub fn previous_frame(&mut self) -> &StackEntry {
-        let call_stack = &mut self.int_state.as_mut().unwrap().call_stack;
+    pub fn previous_frame(&self) -> &StackEntry {
+        let call_stack = &self.int_state.as_ref().unwrap().call_stack;
         let len = call_stack.len();
         &call_stack[len - 2]
     }

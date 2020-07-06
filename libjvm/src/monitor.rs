@@ -1,11 +1,12 @@
 use jvmti_jni_bindings::{jobject, JNIEnv, jlong};
-use slow_interpreter::rust_jni::native_util::{get_state, from_object};
+use slow_interpreter::rust_jni::native_util::{get_state, from_object, get_interpreter_state};
 use slow_interpreter::jvmti::get_jvmti_interface;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jlong) {
     let jvm= get_state(env);
-    jvm.thread_state.get_current_thread().print_stack_trace();
+    let int_state = get_interpreter_state(env);
+    int_state.print_stack_trace();
     from_object(obj).unwrap().monitor().wait(ms,jvm);
 }
 

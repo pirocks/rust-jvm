@@ -404,13 +404,13 @@ fn run_single_instruction<'l>(
 }
 
 fn athrow<'l>(jvm: &'static JVMState, interpreter_state: & mut InterpreterStateGuard) {
-    // println!("EXCEPTION:");
+    println!("EXCEPTION:");
     let exception_obj =  {
         let value = interpreter_state.pop_current_operand_stack();
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.unwrap_object_nonnull()
     }.clone();
-    // dbg!(exception_obj.lookup_field("detailMessage"));
-    jvm.thread_state.get_current_thread().print_stack_trace();
+    dbg!(exception_obj.lookup_field("detailMessage"));
+    interpreter_state.print_stack_trace();
     *(interpreter_state.throw_mut()) = exception_obj.into();
 }

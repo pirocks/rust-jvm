@@ -217,7 +217,7 @@ pub mod object {
 }
 
 pub mod thread {
-    use crate::java_values::Object;
+    use crate::java_values::{Object, NormalObject};
     use std::sync::Arc;
     use crate::java_values::JavaValue;
     use crate::{JVMState, InterpreterStateGuard};
@@ -228,6 +228,9 @@ pub mod thread {
     use crate::java::lang::string::JString;
     use crate::threading::{JavaThreadId, JavaThread};
     use crate::java::lang::thread_group::JThreadGroup;
+    use crate::runtime_class::RuntimeClass;
+    use std::cell::RefCell;
+    use crate::threading::monitors::Monitor;
 
     #[derive(Debug, Clone)]
     pub struct JThread {
@@ -241,6 +244,15 @@ pub mod thread {
     }
 
     impl JThread {
+        pub fn invalid_thread(jvm: &'static JVMState) -> JThread{
+            JThread{ normal_object: Arc::new(Object::Object(NormalObject{
+                monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
+                fields: RefCell::new(Default::default()),
+                class_pointer: Arc::new(RuntimeClass::Byte),
+                class_object_type: None
+            })) }
+        }
+
         pub fn tid(&self) -> JavaThreadId {
             self.normal_object.unwrap_normal_object().fields.borrow().get("tid").unwrap().unwrap_long()
         }
@@ -259,6 +271,10 @@ pub mod thread {
             self.normal_object.lookup_field("priority").unwrap_int()
         }
 
+        pub fn set_priority(&self, priority:i32) {
+            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("priority".to_string(),JavaValue::Int(priority));
+        }
+
         pub fn daemon(&self) -> bool {
             self.normal_object.lookup_field("daemon").unwrap_int() != 0
         }
@@ -275,8 +291,12 @@ pub mod thread {
         }
 
         pub fn get_java_thread(&self, jvm: &'static JVMState) -> Arc<JavaThread>{
+            self.try_get_java_thread(jvm).unwrap()
+        }
+
+        pub fn try_get_java_thread(&self, jvm: &'static JVMState) -> Option<Arc<JavaThread>>{
             let tid = self.tid();
-            jvm.thread_state.get_thread_by_tid(tid)
+            jvm.thread_state.try_get_thread_by_tid(tid)
         }
 
         as_object_or_java_value!();

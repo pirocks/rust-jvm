@@ -184,7 +184,16 @@ impl JavaValue {
             JavaValue::Boolean(b) => {
                 *b
             }
-            _ => panic!()
+            JavaValue::Int(i) => {
+                *i as u8
+            }
+            JavaValue::Byte(b) => {
+                *b as u8
+            }
+            _ => {
+                dbg!(self);
+                panic!()
+            }
         }
     }
 
@@ -259,16 +268,16 @@ impl JavaValue {
         JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
             elems: RefCell::new(vec![]),
             elem_type: PTypeView::ByteType,
-            monitor: jvm.thread_state.new_monitor("".to_string())
+            monitor: jvm.thread_state.new_monitor("".to_string()),
         }))))
     }
-    pub fn new_object(jvm: &'static JVMState, runtime_class: Arc<RuntimeClass>,class_object_type : Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
+    pub fn new_object(jvm: &'static JVMState, runtime_class: Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("".to_string()),
             class_pointer: runtime_class,
             fields: RefCell::new(HashMap::new()),
-            class_object_type
+            class_object_type,
         })).into()
     }
 
@@ -280,7 +289,7 @@ impl JavaValue {
         Some(Arc::new(Object::Array(ArrayObject {
             elems: buf.into(),
             elem_type,
-            monitor: jvm.thread_state.new_monitor("array object monitor".to_string())
+            monitor: jvm.thread_state.new_monitor("array object monitor".to_string()),
         })))
     }
 
@@ -418,8 +427,9 @@ pub enum Object {
     Object(NormalObject),
 }
 
-unsafe impl Send for Object{}
-unsafe impl Sync for Object{}
+unsafe impl Send for Object {}
+
+unsafe impl Sync for Object {}
 
 impl Object {
     pub fn lookup_field(&self, s: &str) -> JavaValue {
@@ -450,7 +460,7 @@ impl Object {
     pub fn deep_clone(&self, jvm: &'static JVMState) -> Self {
         match &self {
             Object::Array(a) => {
-                let sub_array = a.elems.borrow().iter().map(|x| x.deep_clone(jvm )).collect();
+                let sub_array = a.elems.borrow().iter().map(|x| x.deep_clone(jvm)).collect();
                 Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.thread_state.new_monitor("".to_string()) })
             }
             Object::Object(o) => {
@@ -459,7 +469,7 @@ impl Object {
                     monitor: jvm.thread_state.new_monitor("".to_string()),
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
-                    class_object_type: o.class_object_type.clone()
+                    class_object_type: o.class_object_type.clone(),
                 })
             }
         }
@@ -506,8 +516,10 @@ pub struct ArrayObject {
 pub struct NormalObject {
     pub monitor: Arc<Monitor>,
     //I guess this never changes so unneeded?
-    pub fields: RefCell<HashMap<String, JavaValue>>,//todo this refcell should be for the elememts.
-    pub class_pointer: Arc<RuntimeClass>, //todo this should just point to the actual class object.
+    pub fields: RefCell<HashMap<String, JavaValue>>,
+    //todo this refcell should be for the elememts.
+    pub class_pointer: Arc<RuntimeClass>,
+    //todo this should just point to the actual class object.
     pub class_object_type: Option<Arc<RuntimeClass>>, //points to the object represented by this class object of relevant
 }
 

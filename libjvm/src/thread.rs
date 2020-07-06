@@ -33,7 +33,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
-    jvm.thread_state.start_thread_from_obj(jvm,thread_object, int_state, false);
+    jvm.thread_state.start_thread_from_obj(jvm, thread_object, int_state, false);
 }
 
 #[no_mangle]
@@ -44,14 +44,21 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
 #[no_mangle]
 unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -> jboolean {
     let jvm = get_state(env);
-    unimplemented!()
-    // let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
-    // let tid = thread_object.tid();
-    // let mut alive = jvm.thread_state.alive_threads.read().unwrap().get(&tid)
-    //     //todo this is jank.
-    //     .map(|thread| !thread.interpreter_state.suspended.read().unwrap().suspended)
-    //     .unwrap_or(false);
-    // alive as jboolean
+
+    let int_state = get_interpreter_state(env);
+    int_state.print_stack_trace();
+    let java_thread = match JavaValue::Object(from_object(thread)).cast_thread().try_get_java_thread(jvm){
+        None => return 0 as jboolean,
+        Some(jt) => jt,
+    };
+    assert!(!java_thread.invisible_to_java);
+    let alive = !java_thread.suspended.read().unwrap().suspended &&
+        java_thread.get_underlying().is_alive();
+        // let mut alive = jvm.thread_state.alive_threads.read().unwrap().get(&tid)
+        // //todo this is jank.
+        // .map(|thread| !thread.interpreter_state.suspended.read().unwrap().suspended)
+        // .unwrap_or(false);
+    alive as jboolean
 }
 
 #[no_mangle]
@@ -88,8 +95,12 @@ unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, _threadClass: jclass, mill
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclass) -> jobject {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
-    assert!(!current_thread.invisible_to_java);
+    // if current_thread.invisible_to_java {
+    //     int_state.print_stack_trace();
+    // }
+    // assert!(!current_thread.invisible_to_java);
     let res = to_object(current_thread.thread_object().object().into());
     assert_ne!(res, null_mut());
     res

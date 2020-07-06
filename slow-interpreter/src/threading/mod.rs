@@ -16,6 +16,7 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::any::Any;
 use crate::interpreter::run_function;
 use crate::java::lang::thread_group::JThreadGroup;
+use crate::java_values::JavaValue;
 
 pub struct ThreadState {
     pub(crate) threads: Threads,
@@ -108,6 +109,8 @@ impl ThreadState {
             &ClassName::thread().into(),
             jvm.bootstrap_loader.clone(),
         );
+
+
         underlying.start_thread(box move |_data: Box<dyn Any>| {
             let frame = StackEntry {
                 class_pointer: target_classfile.clone(),
@@ -119,6 +122,11 @@ impl ThreadState {
             };
             let mut new_int_state = InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread };
             new_int_state.push_frame(frame);
+            push_new_object(jvm, &mut new_int_state, &target_classfile, None);
+            let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
+            thread_object.set_priority(5);
+            *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
+            jvm.thread_state.set_current_thread(bootstrap_thread.clone());
             // push_new_object(jvm, &mut new_int_state,  &target_classfile, None);
             // let jthread = new_int_state.pop_current_operand_stack().cast_thread();
             let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
@@ -163,7 +171,11 @@ impl ThreadState {
     }
 
     pub fn get_thread_by_tid(&self, tid: JavaThreadId) -> Arc<JavaThread> {
-        self.all_java_threads.read().unwrap().get(&tid).unwrap().clone()
+        self.try_get_thread_by_tid(tid).unwrap()
+    }
+
+    pub fn try_get_thread_by_tid(&self, tid: JavaThreadId) -> Option<Arc<JavaThread>> {
+        self.all_java_threads.read().unwrap().get(&tid).cloned()
     }
 
     pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: & mut InterpreterStateGuard, invisible_to_java: bool) -> Arc<JavaThread> {
@@ -262,16 +274,6 @@ impl JavaThread {
 
     pub fn get_underlying(&self) -> &Thread {
         &self.underlying_thread
-    }
-
-    pub fn print_stack_trace(&self) {
-        //todo handle case when thread not paused
-        unimplemented!()
-        // self.interpreter_state.read().unwrap().call_stack.read().unwrap().iter().rev().enumerate().for_each(|(i, stack_entry)| {
-        //     let name = stack_entry.class_pointer.view().name();
-        //     let meth_name = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize).name();
-        //     println!("{}.{} {} pc: {}", name.get_referred_name(), meth_name, i, stack_entry.pc)
-        // });
     }
 
     pub fn thread_object(&self) -> JThread {
