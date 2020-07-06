@@ -6,7 +6,7 @@ pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> j
     assert_eq!(result, std::ptr::null_mut());
     // let jv = from_object(result);
 
-    let jvm = get_state(env);
+    // let jvm = get_state(env);
     unimplemented!();
     //todo this is wrong
     // jvm.thread_state.get_current_thread().call_stack.write().unwrap().pop();
@@ -16,7 +16,7 @@ pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> j
 }
 
 pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, capacity: jint) -> jint {
-    let jvm = get_state(env);
+    // let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let frame = int_state.current_frame_mut();
     let mut new_local_vars = vec![];

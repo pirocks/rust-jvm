@@ -104,7 +104,6 @@ pub mod class {
         }
 
         pub fn from_name<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, name: ClassName) -> JClass {
-            let frame = int_state.current_frame_mut();
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
             let loader_arc = int_state.current_loader(jvm).clone();
             JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state, loader_arc).into()).cast_class()
@@ -221,7 +220,6 @@ pub mod thread {
     use std::sync::Arc;
     use crate::java_values::JavaValue;
     use crate::{JVMState, InterpreterStateGuard};
-    use crate::stack_entry::StackEntry;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
     use rust_jvm_common::classnames::ClassName;
@@ -230,7 +228,6 @@ pub mod thread {
     use crate::java::lang::thread_group::JThreadGroup;
     use crate::runtime_class::RuntimeClass;
     use std::cell::RefCell;
-    use crate::threading::monitors::Monitor;
 
     #[derive(Debug, Clone)]
     pub struct JThread {

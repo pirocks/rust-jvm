@@ -49,7 +49,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let frame = int_state.current_frame_mut();
+    // let frame = int_state.current_frame_mut();
 
     let sub_not_null = from_object(sub).unwrap();
     let sup_not_null = from_object(sup).unwrap();
@@ -171,7 +171,7 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
 }
 
 pub(crate) unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
-    let jvm = get_state(env);
+    // let jvm = get_state(env);
     let interpreter_state = get_interpreter_state(env);
     *interpreter_state.throw_mut() = from_object(obj);
     0 as jint

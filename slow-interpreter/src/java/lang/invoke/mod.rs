@@ -32,7 +32,7 @@ pub mod method_type {
 
 pub mod method_handle {
     use crate::java_values::{JavaValue, Object};
-    use crate::{JVMState, StackEntry, InterpreterStateGuard};
+    use crate::{JVMState, InterpreterStateGuard};
 
     use crate::java::lang::string::JString;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
@@ -53,7 +53,7 @@ pub mod method_handle {
     }
 
     impl MethodHandle {
-        pub fn lookup<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard,frame: &mut StackEntry) -> Lookup {
+        pub fn lookup<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) -> Lookup {
             let method_handles_class = check_inited_class(jvm, int_state,&ClassName::method_handles().into(), int_state.current_loader(jvm));
             run_static_or_virtual(jvm, int_state,&method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             int_state.pop_current_operand_stack().cast_lookup()

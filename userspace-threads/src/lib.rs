@@ -2,7 +2,6 @@
 
 use std::any::Any;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::ffi::c_void;
 use std::mem::transmute;
@@ -22,7 +21,7 @@ use crate::signal::{pthread_self, pthread_sigqueue, pthread_t, siginfo_t, sigval
 type TID = usize;
 
 pub struct Threads {
-    all_threads: RwLock<HashMap<TID, Arc<Thread>>>,
+    // all_threads: RwLock<HashMap<TID, Arc<Thread>>>,
     this_thread: &'static LocalKey<RefCell<Option<Arc<Thread>>>>,
 }
 
@@ -48,7 +47,7 @@ impl Threads {
             THERE_CAN_ONLY_BE_ONE_THREADS = true;
         }
         let res = Threads {
-            all_threads: RwLock::new(HashMap::new()),
+            // all_threads: RwLock::new(HashMap::new()),
             this_thread: &THIS_THREAD,
         };
 
@@ -157,9 +156,9 @@ impl Thread {
         std::mem::drop(guard.thread_finished.wait(guard.finished_mutex.lock().unwrap()).unwrap());
     }
 
-    fn rust_thread(&self) -> &std::thread::Thread {
-        self.rust_join_handle.as_ref().unwrap().thread()
-    }
+    // fn rust_thread(&self) -> &std::thread::Thread {
+    //     self.rust_join_handle.as_ref().unwrap().thread()
+    // }
 }
 
 pub enum SignalReason {

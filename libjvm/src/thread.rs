@@ -46,7 +46,7 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     let jvm = get_state(env);
 
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
+    // int_state.print_stack_trace();
     let java_thread = match JavaValue::Object(from_object(thread)).cast_thread().try_get_java_thread(jvm){
         None => return 0 as jboolean,
         Some(jt) => jt,
@@ -54,10 +54,6 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     assert!(!java_thread.invisible_to_java);
     let alive = !java_thread.suspended.read().unwrap().suspended &&
         java_thread.get_underlying().is_alive();
-        // let mut alive = jvm.thread_state.alive_threads.read().unwrap().get(&tid)
-        // //todo this is jank.
-        // .map(|thread| !thread.interpreter_state.suspended.read().unwrap().suspended)
-        // .unwrap_or(false);
     alive as jboolean
 }
 

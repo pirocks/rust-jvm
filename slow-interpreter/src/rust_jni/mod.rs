@@ -280,7 +280,6 @@ unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
                                    sig: *const c_char)
                                    -> jmethodID {
     let int_state = get_interpreter_state(env);
-    let frame = int_state.current_frame_mut();
     let jvm = get_state(env);
     let name_len = libc::strlen(name);
     let mut method_name = String::with_capacity(name_len);

@@ -1,16 +1,12 @@
-use jvmti_jni_bindings::{jvmtiEnv, jthread, jvmtiStartFunction, jint, jvmtiError, _jobject, jvmtiError_JVMTI_ERROR_NONE, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, JVMTI_THREAD_MIN_PRIORITY, scanf};
-use crate::jvmti::{get_state, get_jvmti_interface, get_interpreter_state};
-use crate::interpreter_util::check_inited_class;
-use rust_jvm_common::classnames::ClassName;
+use jvmti_jni_bindings::{jvmtiEnv, jthread, jvmtiStartFunction, jint, jvmtiError,  jvmtiError_JVMTI_ERROR_NONE, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, JVMTI_THREAD_MIN_PRIORITY};
+use crate::jvmti::{get_state, get_jvmti_interface};
 use crate::rust_jni::interface::get_interface;
-use std::mem::{transmute, transmute_copy};
+use std::mem::{transmute};
 use std::os::raw::c_void;
 use crate::rust_jni::native_util::{from_object};
 use crate::java_values::JavaValue;
 use thread_priority::*;
 use crate::threading::JavaThread;
-use userspace_threads::Threads;
-use std::sync::Arc;
 use crate::InterpreterStateGuard;
 
 struct ThreadArgWrapper {

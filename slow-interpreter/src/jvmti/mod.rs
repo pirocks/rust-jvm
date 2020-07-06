@@ -357,7 +357,6 @@ unsafe extern "C" fn get_implemented_interfaces(
 ) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let current_frame = int_state.current_frame_mut();
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
     let class_obj = from_jclass(klass);
     let runtime_class = class_obj.as_runtime_class();

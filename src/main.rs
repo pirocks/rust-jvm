@@ -7,7 +7,7 @@ pub mod classpath_indexing;
 
 use argparse::{ArgumentParser, Store, StoreTrue, List};
 use std::path::Path;
-use slow_interpreter::{JVMOptions, JVMState, jvm_run_system_init, run_main};
+use slow_interpreter::{JVMOptions, JVMState, jvm_run_system_init};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::loading::Classpath;
 use std::sync::Arc;
@@ -75,7 +75,6 @@ fn main() {
     let (main_thread, init_send, main_send) = thread_state.setup_main_thread(jvm);
     assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));
 
-    let jvmti = &jvm.jvmti_state.as_ref();
     jvm_run_system_init(jvm,init_send).expect("Couldn't init jvm");
 
     main_send.send(MainThreadStartInfo{ args }).unwrap();

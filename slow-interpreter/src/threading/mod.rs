@@ -16,7 +16,6 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use std::any::Any;
 use crate::interpreter::run_function;
 use crate::java::lang::thread_group::JThreadGroup;
-use crate::java_values::JavaValue;
 
 pub struct ThreadState {
     pub(crate) threads: Threads,

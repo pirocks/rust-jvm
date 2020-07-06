@@ -1,11 +1,5 @@
-use crate::{JVMState, StackEntry, InterpreterStateGuard};
+use crate::{JVMState, InterpreterStateGuard};
 use crate::java_values::JavaValue;
-use std::sync::RwLockWriteGuard;
-
-fn previous_frame<'l>(frames: &'l mut RwLockWriteGuard<Vec<StackEntry>>) -> &'l mut StackEntry {
-    let len = frames.len();
-    &mut frames[len - 2]
-}
 
 pub fn freturn<'l>(_jvm: &'static JVMState, interpreter_state: & mut InterpreterStateGuard) -> () {
     let res = interpreter_state.current_frame_mut().pop();

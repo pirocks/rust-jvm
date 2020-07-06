@@ -6,7 +6,7 @@ use slow_interpreter::jvmti::get_jvmti_interface;
 unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jlong) {
     let jvm= get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
+    // int_state.print_stack_trace();
     from_object(obj).unwrap().monitor().wait(ms,jvm);
 }
 

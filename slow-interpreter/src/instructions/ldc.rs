@@ -14,23 +14,23 @@ use crate::interpreter::run_function;
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView, ClassPoolElemView};
 
 
-fn load_class_constant<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard, c: &ClassPoolElemView) {
+fn load_class_constant<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
     let res_class_name = c.class_name();
     let type_ = PTypeView::Ref(res_class_name);
-    load_class_constant_by_type(state, int_state,  &type_);
+    load_class_constant_by_type(state, int_state, &type_);
 }
 
-pub fn load_class_constant_by_type<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, res_class_type: &PTypeView) {
+pub fn load_class_constant_by_type<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, res_class_type: &PTypeView) {
     let object = get_or_create_class_object(jvm, res_class_type, int_state, int_state.current_frame().class_pointer.loader(jvm).clone());
     int_state.current_frame_mut().push(JavaValue::Object(object.into()));
 }
 
-fn load_string_constant<'l>(jvm: &'static JVMState, int_state: & mut InterpreterStateGuard, s: &StringView) {
+fn load_string_constant<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
     let res_string = s.string();
     create_string_on_stack(jvm, int_state, res_string);
 }
 
-pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: & mut InterpreterStateGuard, res_string: String) {
+pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
     let java_lang_string = ClassName::string();
     let current_loader = interpreter_state.current_loader(jvm).clone();
     let string_class = check_inited_class(
@@ -41,7 +41,7 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: & m
     );
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
-    push_new_object(jvm, interpreter_state,  &string_class, None);//todo what if stack overflows here?
+    push_new_object(jvm, interpreter_state, &string_class, None);//todo what if stack overflows here?
     let string_object = interpreter_state.pop_current_operand_stack();
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
@@ -91,12 +91,12 @@ pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) -> () {
 }
 
 
-pub fn ldc_w<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuard, cp: u16) -> () {
+pub fn ldc_w<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
     let view = int_state.current_class_view().clone();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::String(s) => load_string_constant(state, int_state, &s),
-        ConstantInfoView::Class(c) => load_class_constant(state, int_state,  &c),
+        ConstantInfoView::Class(c) => load_class_constant(state, int_state, &c),
         ConstantInfoView::Float(f) => {
             let float: f32 = f.float;
             int_state.push_current_operand_stack(JavaValue::Float(float));
@@ -112,7 +112,7 @@ pub fn ldc_w<'l>(state: &'static JVMState, int_state: & mut InterpreterStateGuar
     }
 }
 
-pub fn from_constant_pool_entry<'l>(c: &ConstantInfoView, jvm: &'static JVMState, int_state: & mut InterpreterStateGuard) -> JavaValue {
+pub fn from_constant_pool_entry<'l>(c: &ConstantInfoView, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
     match &c {
         ConstantInfoView::Integer(i) => JavaValue::Int(i.int),
         ConstantInfoView::Float(f) => JavaValue::Float(f.float),
@@ -120,8 +120,7 @@ pub fn from_constant_pool_entry<'l>(c: &ConstantInfoView, jvm: &'static JVMState
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
-            let frame = int_state.current_frame_mut();
-           int_state.pop_current_operand_stack()
+            int_state.pop_current_operand_stack()
         }
         _ => panic!()
     }
