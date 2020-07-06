@@ -150,7 +150,7 @@ impl SharedLibJVMTI {
 
     pub fn class_prepare<'l>(&self, jvm: &'static JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
         unsafe {
-            let thread = to_object(jvm.thread_state.get_current_thread().thread_object().object().into());
+            let thread = to_object(jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt|jt.object().into()));
             let klass_obj = get_or_create_class_object(jvm,
                                                        &class.clone().into(),
                                                        int_state,

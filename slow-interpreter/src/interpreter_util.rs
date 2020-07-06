@@ -195,10 +195,10 @@ fn check_inited_class_impl(
     let ptype = PTypeView::Ref(ReferenceTypeView::Class(class_name.clone()));
     let prepared = Arc::new(prepare_class(jvm, target_classfile.backing_class(), loader_arc.clone()));
     let jvmti = jvm.jvmti_state.as_ref();
-    jvmti.map(|jvmti| jvmti.built_in_jdwp.class_prepare(&jvm, class_name, int_state));
+    // jvmti.map(|jvmti| jvmti.built_in_jdwp.class_prepare(&jvm, class_name, int_state));
     jvm.initialized_classes.write().unwrap().insert(ptype.clone(), prepared.clone());//must be before, otherwise infinite recurse
     let inited_target = initialize_class(prepared, jvm, int_state);
-    jvm.initialized_classes.write().unwrap().insert(ptype.clone(), inited_target);
+    jvm.initialized_classes.write().unwrap().insert(ptype.clone(), inited_target);//todo need to refactor to have prepared and intialized
     match &jvm.jvmti_state {
         None => {}
         Some(jvmti) => {

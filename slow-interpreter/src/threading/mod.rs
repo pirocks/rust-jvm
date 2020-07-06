@@ -276,7 +276,11 @@ impl JavaThread {
     }
 
     pub fn thread_object(&self) -> JThread {
-        self.thread_object.read().unwrap().as_ref().unwrap().clone()
+        self.try_thread_object().unwrap()
+    }
+
+    pub fn try_thread_object(&self) -> Option<JThread> {
+        self.thread_object.read().unwrap().clone()
     }
 }
 
