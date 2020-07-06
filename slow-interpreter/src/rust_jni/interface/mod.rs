@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::mem::transmute;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use jvmti_jni_bindings::{jboolean, JNI_FALSE, JNI_TRUE, JNIEnv, JNINativeInterface_, jobject};
@@ -25,25 +26,27 @@ use crate::rust_jni::native_util::{from_object, get_object_class};
 
 //todo this should be in state impl
 thread_local! {
-    static JNI_INTERFACE: RefCell<Option<JNINativeInterface_>> = RefCell::new(None);
+    static JNI_INTERFACE: RefCell<*mut *const JNINativeInterface_> = RefCell::new(null_mut());
 }
 
 //GetFieldID
-pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *const JNINativeInterface_ {
+pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *mut *const JNINativeInterface_ {
     JNI_INTERFACE.with(|refcell| {
-        /*{
-            let first_borrow = refcell.borrow();
-            match first_borrow.as_ref() {
+        unsafe {
+            let mut first_borrow = refcell.borrow_mut();
+            match first_borrow.as_mut() {
                 None => {}
                 Some(interface) => {
-                    return interface as *const JNINativeInterface_;
+                    (*((*interface) as *mut JNINativeInterface_)).reserved1 = transmute(int_state);//todo technically this is wrong, see "JNI Interface Functions and Pointers" in jni spec
+                    return interface as *mut *const JNINativeInterface_;
                 }
             }
-        }*/
+        }
         let new = get_interface_impl(state, int_state);
-        refcell.replace(new.into());
+        let jni_data_structure_ptr = Box::leak(box new) as *const JNINativeInterface_;
+        refcell.replace(Box::leak(box (jni_data_structure_ptr)) as *mut *const JNINativeInterface_);//todo leak
         let new_borrow = refcell.borrow();
-        new_borrow.as_ref().unwrap() as *const JNINativeInterface_
+        *new_borrow as *mut *const JNINativeInterface_
     })
 }
 

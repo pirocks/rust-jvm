@@ -49,7 +49,7 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
         *(penv as *mut *mut jvmtiEnv) = Box::leak((get_jvmti_interface(state)).into()) as *mut jvmtiEnv;
     } else {
         let res_ptr = get_interface(state, int_state);
-        (penv as *mut *mut *const JNINativeInterface_).write(Box::into_raw(Box::new(res_ptr)));
+        (penv as *mut *mut *const JNINativeInterface_).write(res_ptr);
     }
 
     JNI_OK as i32
