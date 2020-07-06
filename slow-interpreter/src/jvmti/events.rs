@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::sync::Arc;
 
 use jvmti_jni_bindings::*;
 
@@ -6,7 +7,7 @@ use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::DebuggerEventConsumer;
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::from_object;
-use crate::threading::JavaThreadId;
+use crate::threading::JavaThread;
 
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {
     let jvm = get_state(env);
@@ -16,7 +17,7 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
     } else {
         JavaValue::Object(from_object(event_thread)).cast_thread().into()
     };
-    let tid: Option<JavaThreadId> = thread_obj.map(|it| it.tid());
+    let tid: Option<Arc<JavaThread>> = thread_obj.map(|it| it.get_java_thread(jvm));
     let jdwp_copy = jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.clone();
     // does not support per thread notification
     // VMInit
@@ -54,8 +55,8 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             }
             */
             match mode {
-                0 => jdwp_copy.deref().Exception_disable(&jvm.tracing, tid),
-                1 => jdwp_copy.deref().Exception_enable(&jvm.tracing, tid),
+                0 => jdwp_copy.deref().Exception_disable(&jvm, tid),
+                1 => jdwp_copy.deref().Exception_enable(&jvm, tid),
                 _ => unimplemented!()
             }
             jvmtiError_JVMTI_ERROR_NONE
@@ -81,8 +82,8 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             }
             */
             match mode {
-                0 => jdwp_copy.deref().ThreadEnd_disable(&jvm.tracing, tid),
-                1 => jdwp_copy.deref().ThreadEnd_enable(&jvm.tracing, tid),
+                0 => jdwp_copy.deref().ThreadEnd_disable(&jvm, tid),
+                1 => jdwp_copy.deref().ThreadEnd_enable(&jvm, tid),
                 _ => unimplemented!()
             }
             jvmtiError_JVMTI_ERROR_NONE
@@ -94,8 +95,8 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             }
             */
             match mode {
-                0 => jdwp_copy.deref().ClassPrepare_disable(&jvm.tracing, tid),
-                1 => jdwp_copy.deref().ClassPrepare_enable(&jvm.tracing, tid),
+                0 => jdwp_copy.deref().ClassPrepare_disable(&jvm, tid),
+                1 => jdwp_copy.deref().ClassPrepare_enable(&jvm, tid),
                 _ => unimplemented!()
             }
             jvmtiError_JVMTI_ERROR_NONE
@@ -107,8 +108,8 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             }
             */
             match mode {
-                0 => jdwp_copy.deref().GarbageCollectionFinish_disable(&jvm.tracing, tid),
-                1 => jdwp_copy.deref().GarbageCollectionFinish_enable(&jvm.tracing, tid),
+                0 => jdwp_copy.deref().GarbageCollectionFinish_disable(&jvm, tid),
+                1 => jdwp_copy.deref().GarbageCollectionFinish_enable(&jvm, tid),
                 _ => unimplemented!()
             }
             jvmtiError_JVMTI_ERROR_NONE
@@ -120,8 +121,8 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             }
             */
             match mode {
-                0 => jdwp_copy.deref().Breakpoint_disable(&jvm.tracing, tid),
-                1 => jdwp_copy.deref().Breakpoint_enable(&jvm.tracing, tid),
+                0 => jdwp_copy.deref().Breakpoint_disable(&jvm, tid),
+                1 => jdwp_copy.deref().Breakpoint_enable(&jvm, tid),
                 _ => unimplemented!()
             }
             jvmtiError_JVMTI_ERROR_NONE

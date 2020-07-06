@@ -529,7 +529,6 @@ pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThread
         pc: 0,
         pc_offset: 0,
     };
-    jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread }, &jvm.thread_state.get_main_thread()));
     main_thread.interpreter_state.write().unwrap().call_stack = vec![initialize_system_frame];
     sender.send(MainThreadInitializeInfo { system_class }).unwrap();
     Result::Ok(())

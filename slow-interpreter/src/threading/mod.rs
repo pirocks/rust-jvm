@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::LocalKey;
 
@@ -14,13 +14,14 @@ use crate::interpreter::run_function;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
+use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 
 pub struct ThreadState {
     pub(crate) threads: Threads,
     main_thread: RwLock<Option<Arc<JavaThread>>>,
-    all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread>>>,
+    pub(crate) all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread>>>,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
     pub system_thread_group: RwLock<Option<JThreadGroup>>,
     monitors: RwLock<Vec<Arc<Monitor>>>,
@@ -103,6 +104,7 @@ impl ThreadState {
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
             invisible_to_java: true,
+            jvmti_events_enabled: Default::default()
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
@@ -227,6 +229,7 @@ pub struct JavaThread {
     pub interpreter_state: RwLock<InterpreterState>,
     pub suspended: RwLock<SuspendedStatus>,
     pub invisible_to_java: bool,
+    jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
 }
 
 impl JavaThread {
@@ -238,6 +241,7 @@ impl JavaThread {
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
             invisible_to_java,
+            jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default())
         });
         jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         res
@@ -274,6 +278,13 @@ impl JavaThread {
         &mut guard[len -2]
     }*/
 
+    pub fn jvmti_event_status(&self) -> RwLockReadGuard<ThreadJVMTIEnabledStatus> {
+        self.jvmti_events_enabled.read().unwrap()
+    }
+
+    pub fn jvmti_event_status_mut(&self) -> RwLockWriteGuard<ThreadJVMTIEnabledStatus> {
+        self.jvmti_events_enabled.write().unwrap()
+    }
 
     pub fn get_underlying(&self) -> &Thread {
         &self.underlying_thread

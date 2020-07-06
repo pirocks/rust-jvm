@@ -19,10 +19,9 @@ use nix::unistd::gettid;
 use crate::handlers::{handle_event, handle_pause};
 use crate::signal::{pthread_self, pthread_sigqueue, pthread_t, SI_QUEUE, siginfo_t, sigval};
 
-type TID = usize;
+// type TID = usize;
 
 pub struct Threads {
-    // all_threads: RwLock<HashMap<TID, Arc<Thread>>>,
     this_thread: &'static LocalKey<RefCell<Option<Arc<Thread>>>>,
 }
 
@@ -48,7 +47,6 @@ impl Threads {
             THERE_CAN_ONLY_BE_ONE_THREADS = true;
         }
         let res = Threads {
-            // all_threads: RwLock::new(HashMap::new()),
             this_thread: &THIS_THREAD,
         };
 
