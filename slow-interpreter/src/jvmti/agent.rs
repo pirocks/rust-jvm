@@ -4,13 +4,16 @@ use std::os::raw::c_void;
 use thread_priority::*;
 
 use jvmti_jni_bindings::{jint, jthread, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_MIN_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiStartFunction};
+use rust_jvm_common::classnames::ClassName;
 
+use crate::interpreter_util::check_inited_class;
 use crate::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::interface::local_frame::{clear_local_refs, local_refs_len};
 use crate::rust_jni::native_util::from_object;
+use crate::stack_entry::StackEntry;
 use crate::threading::JavaThread;
 
 struct ThreadArgWrapper {
@@ -42,7 +45,17 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             int_state: java_thread.interpreter_state.write().unwrap().into(),
             thread: &java_thread,
         };
+        jvm.thread_state.set_current_thread(java_thread.clone());
         jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());
+        let thread_class = check_inited_class(jvm, &mut guard, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
+        guard.push_frame(StackEntry {
+            class_pointer: thread_class,
+            method_i: 0,
+            local_vars: vec![],
+            operand_stack: vec![],
+            pc: 0,
+            pc_offset: 0,
+        });
 
         let jvmti = get_jvmti_interface(jvm, &mut guard);
         let jni_env = get_interface(jvm, &mut guard);

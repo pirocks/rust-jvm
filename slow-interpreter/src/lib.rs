@@ -13,10 +13,12 @@ extern crate parking_lot;
 extern crate regex;
 extern crate va_list;
 
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::ffi::c_void;
+use std::intrinsics::transmute;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::Sender;
@@ -113,7 +115,8 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn current_loader(&self, jvm: &'static JVMState) -> LoaderArc {
-        self.current_class_pointer().loader(jvm)
+        let cp = self.current_class_pointer();
+        cp.loader(jvm)
     }
 
     pub fn current_class_view(&self) -> &Arc<ClassView> {
@@ -209,9 +212,11 @@ impl<'l> InterpreterStateGuard<'l> {
     pub fn print_stack_trace(&self) {
         for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
             let name = stack_entry.class_pointer.view().name();
-            let method_view = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize);
-            let meth_name = method_view.name();
-            println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(), i, stack_entry.pc)
+            if stack_entry.method_i > 0 && stack_entry.method_i != u16::MAX {
+                let method_view = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize);
+                let meth_name = method_view.name();
+                println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(), i, stack_entry.pc)
+            }
         }
     }
 }
@@ -299,12 +304,18 @@ pub struct JVMState {
     pub field_table: RwLock<FieldTable>,
     pub native_interface_allocations: NativeAllocator,
     live: RwLock<bool>,
+    pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>//so technically isn't 'static, but we need to be able to store this in a localkey
 }
 
 pub mod threading;
 
 thread_local! {
     static JVMTI_TLS: RefCell<*mut c_void> = RefCell::new(std::ptr::null_mut());
+}
+
+
+thread_local! {
+    static INT_STATE_GUARD : RefCell<Option<*mut InterpreterStateGuard<'static>>> = RefCell::new(None);
 }
 
 
@@ -368,6 +379,7 @@ impl JVMState {
             field_table: RwLock::new(FieldTable::new()),
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: RwLock::new(false),
+            int_state_guard: &INT_STATE_GUARD
         };
         (args, jvm)
     }
@@ -393,6 +405,18 @@ impl JVMState {
             }
             Some(res) => { JavaValue::Object(res.clone().into()) }
         }
+    }
+
+    pub unsafe fn get_int_state_guard<'l>(&'static self) -> &'l mut InterpreterStateGuard<'l> {
+        let ptr = self.int_state_guard.with(|refcell| refcell.borrow().unwrap());
+        &mut *transmute::<_, *mut InterpreterStateGuard<'l>>(ptr)
+    }
+
+    pub unsafe fn set_int_state(&'static self, int_state: &mut InterpreterStateGuard) {
+        self.int_state_guard.with(|refcell| {
+            let ptr = int_state as *mut InterpreterStateGuard;
+            refcell.replace(transmute::<_, *mut InterpreterStateGuard<'static>>(ptr).into())
+        });
     }
 }
 
@@ -458,7 +482,6 @@ impl JVMState {
 }
 
 pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
-    let jvmti = jvm.jvmti_state.as_ref();
     let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
     let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());

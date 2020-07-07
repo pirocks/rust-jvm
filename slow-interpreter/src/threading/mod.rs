@@ -15,6 +15,7 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
+use crate::jvmti::get_jvmti_interface;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 
@@ -53,8 +54,10 @@ impl ThreadState {
         let main_thread_clone = main_thread.clone();
         main_thread.clone().underlying_thread.start_thread(box move |_| {
             jvm.thread_state.set_current_thread(main_thread.clone());
-            ThreadState::jvm_init_from_main_thread(jvm, init_recv);
-            let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread.clone() };
+            let _init_info = init_recv.recv().unwrap();
+            let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread };
+            // jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_start(jvm, &mut int_state));
+            ThreadState::jvm_init_from_main_thread(jvm, init_recv, &mut int_state);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, main_thread.clone()));
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
             //from the jvmti spec:
@@ -65,12 +68,12 @@ impl ThreadState {
         (main_thread_clone, init_send, main_send)
     }
 
-    fn jvm_init_from_main_thread(jvm: &'static JVMState, init_recv: Receiver<MainThreadInitializeInfo>) {
-        let _init_info = init_recv.recv().unwrap();
+    fn jvm_init_from_main_thread(jvm: &'static JVMState, init_recv: Receiver<MainThreadInitializeInfo>, int_state: &mut InterpreterStateGuard) {
         let main_thread = &jvm.thread_state.get_main_thread();
         assert!(Arc::ptr_eq(main_thread, &jvm.thread_state.get_current_thread()));
-        let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: main_thread };
-        run_function(&jvm, &mut int_state);
+        get_jvmti_interface(jvm, int_state);//this has the side effect off getting the right int_state for agent__load, but this is yuck todo
+        jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
+        run_function(&jvm, int_state);
         let function_return = int_state.function_return_mut();
         if *function_return {
             *function_return = false;
@@ -79,15 +82,14 @@ impl ThreadState {
             unimplemented!()
         }
         *jvm.live.write().unwrap() = true;
-        set_properties(jvm, &mut int_state);
-        jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, jvm.thread_state.get_main_thread()));
+        set_properties(jvm, int_state);
     }
 
     pub fn get_main_thread(&self) -> Arc<JavaThread> {
         self.main_thread.read().unwrap().as_ref().unwrap().clone()
     }
 
-    fn set_current_thread(&'static self, thread: Arc<JavaThread>) {
+    pub(crate) fn set_current_thread(&'static self, thread: Arc<JavaThread>) {
         self.current_java_thread.with(|refcell| {
             assert!(refcell.borrow().is_none());
             *refcell.borrow_mut() = thread.into();

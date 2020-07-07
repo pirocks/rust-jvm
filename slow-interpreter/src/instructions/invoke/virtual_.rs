@@ -41,6 +41,7 @@ fn invoke_virtual_method_i_impl<'l>(
     target_method: &MethodView,
     debug: bool,
 ) -> () {
+    // interpreter_state.print_stack_trace();
     let current_frame = interpreter_state.current_frame_mut();
     if target_method.is_native() {
         run_native_method(jvm, interpreter_state, target_class, target_method_i, debug)

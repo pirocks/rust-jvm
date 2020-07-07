@@ -36,7 +36,7 @@ pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState/*<
 }
 
 pub unsafe fn get_interpreter_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l mut InterpreterStateGuard<'l> {
-    transmute((**vm).reserved1)
+    get_state_invoke_interface(vm).get_int_state_guard()
 }
 
 

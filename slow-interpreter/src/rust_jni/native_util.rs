@@ -31,7 +31,7 @@ pub unsafe fn get_state(env: *mut JNIEnv) -> &'static JVMState {
 }
 
 pub unsafe fn get_interpreter_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l> {
-    &mut *((**env).reserved1 as *mut InterpreterStateGuard)
+    get_state(env).get_int_state_guard()
 }
 
 pub unsafe fn to_object(obj: Option<Arc<Object>>) -> jobject {

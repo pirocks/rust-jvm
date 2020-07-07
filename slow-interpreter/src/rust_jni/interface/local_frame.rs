@@ -4,7 +4,6 @@ use std::ops::DerefMut;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use classfile_parser::code::InstructionTypeNum::drem;
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 
 use crate::java_values::Object;

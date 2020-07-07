@@ -137,7 +137,7 @@ pub unsafe extern "C" fn add_capabilities(
         (*capabilities_ptr).can_generate_compiled_method_load_events() > 0 ||
         (*capabilities_ptr).can_generate_vm_object_alloc_events() > 0 ||
         (*capabilities_ptr).can_generate_native_method_bind_events() > 0 ||
-        (*capabilities_ptr).can_generate_object_free_events() > 0 ||
+        // (*capabilities_ptr).can_generate_object_free_events() > 0 ||//todo needed for some reason. As we have no gc we def can't do this yet
         (*capabilities_ptr).can_force_early_return() > 0 ||
         (*capabilities_ptr).can_get_owned_monitor_stack_depth_info() > 0 ||
         (*capabilities_ptr).can_get_constant_pool() > 0 ||

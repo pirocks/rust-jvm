@@ -30,6 +30,7 @@ thread_local! {
 
 //GetFieldID
 pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *mut *const JNINativeInterface_ {
+    unsafe { state.set_int_state(int_state) };
     JNI_INTERFACE.with(|refcell| {
         unsafe {
             let first_borrow = refcell.borrow_mut();

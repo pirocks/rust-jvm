@@ -127,6 +127,10 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             }
             jvmtiError_JVMTI_ERROR_NONE
         }
+        83 => {
+            //todo object free tracking, we have no gc
+            jvmtiError_JVMTI_ERROR_NONE
+        }
         _ => {
             dbg!(event_type);
             unimplemented!();

@@ -16,6 +16,7 @@ use crate::java::lang::thread::JThread;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::get_interface;
+use crate::rust_jni::interface::local_frame::{clear_local_refs, local_refs_len};
 use crate::rust_jni::native_util::to_object;
 use crate::tracing::TracingSettings;
 
@@ -245,11 +246,13 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         jvm.tracing.trace_event_trigger("VMInit");
         let VMInitEvent { thread } = vminit;
         let jvmti = get_jvmti_interface(jvm, int_state);
-        let jni = get_interface(jvm, int_state);//todo deal with leak
+        let jni = get_interface(jvm, int_state);
         let guard = self.vm_init_callback.read().unwrap();
         let f_pointer = *guard.as_ref().unwrap();
         std::mem::drop(guard);
+        let local_refs_len = local_refs_len();
         f_pointer(jvmti, jni, thread);
+        clear_local_refs(local_refs_len);
     }
 
     fn VMInit_enable(&self, trace: &TracingSettings) {
@@ -279,9 +282,11 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn ThreadStart(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, event: ThreadStartEvent) {
         jvm.tracing.trace_event_trigger("ThreadStart");
         let jvmti_env = get_jvmti_interface(jvm, int_state);
-        let jni_env = get_interface(jvm, int_state);//fix these leaks
+        let jni_env = get_interface(jvm, int_state);
         let ThreadStartEvent { thread } = event;
+        let local_refs_len = local_refs_len();
         (self.thread_start_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread);
+        clear_local_refs(local_refs_len);
     }
 
     fn ThreadStart_enable(&self, trace: &TracingSettings) {
@@ -297,7 +302,9 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jni_env = get_interface(jvm, int_state);
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let ExceptionEvent { thread, method, location, exception, catch_method, catch_location } = event;
+        let local_refs_len = local_refs_len();
         (self.exception_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location, exception, catch_method, catch_location);
+        clear_local_refs(local_refs_len);
     }
 
     fn Exception_enable(&self, jvm: &'static JVMState, tid: Option<Arc<JavaThread>>) {
@@ -334,7 +341,9 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jvmti_env = get_jvmti_interface(jvm, int_state);//todo deal with these leaks
         let jni_env = get_interface(jvm, int_state);
         let ClassPrepareEvent { thread, klass } = event;
+        let local_refs_len = local_refs_len();
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
+        clear_local_refs(local_refs_len);
     }
 
     fn ClassPrepare_enable(&self, jvm: &'static JVMState, tid: Option<Arc<JavaThread>>) {
@@ -376,7 +385,9 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
         let BreakpointEvent { thread, method, location } = event;
+        let local_refs_len = local_refs_len();
         (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location);
+        clear_local_refs(local_refs_len);
     }
 
     fn Breakpoint_enable(&self, jvm: &'static JVMState, tid: Option<Arc<JavaThread>>) {
@@ -396,12 +407,12 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 
 
 impl SharedLibJVMTI {
-    pub fn agent_load(&self, jvm: &'static JVMState) -> jvmtiError {
+    pub fn agent_load(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jvmtiError {
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
             let args = CString::new("transport=dt_socket,server=y,suspend=y,address=5005").unwrap().into_raw();//todo parse these at jvm startup
-            let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, None);
+            let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state.into());
             agent_load_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError//todo leak
         }
     }
@@ -611,7 +622,8 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
         *jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.garbage_collection_finish_callback.write().unwrap() = GarbageCollectionFinish;
     }
     if ObjectFree.is_some() {
-        unimplemented!()
+        //todo no gc, ignore
+        // unimplemented!()
     }
     if VMObjectAlloc.is_some() {
         unimplemented!()

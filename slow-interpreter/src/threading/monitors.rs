@@ -93,8 +93,8 @@ impl Monitor {
         unsafe { self.mutex.force_unlock_fair(); }
         std::mem::drop(count_and_owner);
         //after this line any other thread can now lock.
-        assert!(millis >= 0);// would throw an illegal argument exception.
-        if millis == 0 {
+        // assert!(millis >= 0);// would throw an illegal argument exception, however the java agent seems to use -1 instead of 0
+        if millis <= 0 {
             std::mem::drop(self.condvar.wait(guard1).unwrap());
         } else {
             std::mem::drop(self.condvar.wait_timeout(guard1, Duration::from_millis(millis as u64)).unwrap());

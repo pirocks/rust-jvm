@@ -41,7 +41,7 @@ pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
 
 
 pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l> {
-    transmute((**env).reserved3)
+    get_state(env).get_int_state_guard()
 }
 
 
@@ -50,6 +50,7 @@ thread_local! {
 }
 
 pub fn get_jvmti_interface(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *mut jvmtiEnv {
+    unsafe { jvm.set_int_state(int_state) };
     JVMTI_INTERFACE.with(|refcell| {
         unsafe {
             let first_borrow = refcell.borrow_mut();
