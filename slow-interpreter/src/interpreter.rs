@@ -55,9 +55,13 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized, &class_name__);
     while !*interpreter_state.terminate() && !*interpreter_state.function_return() && !interpreter_state.throw().is_some() {
         let read_guard = interpreter_state.thread.suspended.read().unwrap();
-        let suspension_lock = read_guard.suspended_lock.clone();
-        std::mem::drop(read_guard);
-        std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
+        if read_guard.suspended {
+            let suspension_lock = read_guard.suspended_lock.clone();
+            std::mem::drop(read_guard);
+            std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
+        } else {
+            std::mem::drop(read_guard);
+        }
         let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code, &meth_name);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, method_id, *interpreter_state.current_pc_mut() as isize);

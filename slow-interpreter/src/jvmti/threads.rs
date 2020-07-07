@@ -95,8 +95,8 @@ fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
     if suspend_info.suspended {
         jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
     } else {
-        suspend_info.suspended = true;
         std::mem::forget(suspend_info.suspended_lock.lock());
+        suspend_info.suspended = true;
         jvmtiError_JVMTI_ERROR_NONE
     }
     /*   }
