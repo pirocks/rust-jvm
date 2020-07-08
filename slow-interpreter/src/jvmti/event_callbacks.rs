@@ -147,12 +147,14 @@ impl SharedLibJVMTI {
                     thread: transmute(to_object(main_thread_object.object().into()))
                 };
                 self.VMInit(jvm, int_state, event);
+                assert!(self.thread_start_callback.read().unwrap().is_some());
             }
         }
     }
 
     pub fn thread_start(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, jthread: JThread) {
         if *self.thread_start_enabled.read().unwrap() {
+            while !jvm.vm_live() {};//todo ofc theres a better way of doing this, but we are required to wait for vminit by the spec.
             unsafe {
                 let thread = to_object(jthread.object().into());
                 let event = ThreadStartEvent { thread };
@@ -162,7 +164,7 @@ impl SharedLibJVMTI {
     }
 
 
-    pub fn class_prepare<'l>(&self, jvm: &'static JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
+    pub fn class_prepare(&self, jvm: &'static JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             unsafe {
                 let thread = to_object(jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt| jt.object().into()));

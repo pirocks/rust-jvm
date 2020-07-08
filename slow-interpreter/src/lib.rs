@@ -20,7 +20,7 @@ use std::error::Error;
 use std::ffi::c_void;
 use std::intrinsics::transmute;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::Sender;
 use std::thread::LocalKey;
 use std::time::Instant;
@@ -303,7 +303,7 @@ pub struct JVMState {
     pub method_table: RwLock<MethodTable>,
     pub field_table: RwLock<FieldTable>,
     pub native_interface_allocations: NativeAllocator,
-    live: RwLock<bool>,
+    live: AtomicBool,
     pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>//so technically isn't 'static, but we need to be able to store this in a localkey
 }
 
@@ -378,7 +378,7 @@ impl JVMState {
             method_table: RwLock::new(MethodTable::new()),
             field_table: RwLock::new(FieldTable::new()),
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
-            live: RwLock::new(false),
+            live: AtomicBool::new(false),
             int_state_guard: &INT_STATE_GUARD
         };
         (args, jvm)
@@ -460,7 +460,7 @@ impl LivePoolGetter for NoopLivePoolGetter {
 
 impl JVMState {
     pub fn vm_live(&self) -> bool {
-        *self.live.read().unwrap()
+        self.live.load(Ordering::SeqCst)
     }
 
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter> {

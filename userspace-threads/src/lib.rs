@@ -55,7 +55,7 @@ impl Threads {
         res
     }
 
-    pub fn create_thread(&self) -> Thread {
+    pub fn create_thread(&self, name: Option<String>) -> Thread {
         let join_status = Arc::new(RwLock::new(JoinStatus {
             finished_mutex: Mutex::new(()),
             alive: AtomicBool::new(false),
@@ -75,7 +75,12 @@ impl Threads {
         };
         let (thread_info_channel_send, thread_info_channel_recv) = std::sync::mpsc::channel();
         let (thread_start_channel_send, thread_start_channel_recv) = std::sync::mpsc::channel();
-        let join_handle = Builder::new()
+        let mut builder = Builder::new();
+        builder = match name {
+            None => builder,
+            Some(name) => builder.name(name),
+        };
+        let join_handle = builder
             .stack_size(1024 * 1024 * 256)// verifier makes heavy use of recursion.
             .spawn(move || unsafe {
                 join_status.write().unwrap().alive.store(true, Ordering::SeqCst);

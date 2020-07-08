@@ -28,34 +28,37 @@ public class DebuggingClass {
         }
         attached.suspend();
         for (ThreadReference thread : threads) {
-            thread.interrupt();
-            thread.suspend();
-            System.out.println(thread.name());
-            System.out.println(thread.status());
-            try {
-                System.out.println(thread.frameCount());
+            if(thread.name().equals("Main")) {
+//                thread.interrupt();
+                thread.suspend();
+                System.out.println(thread.name());
+                System.out.println(thread.status());
                 System.out.println(thread.isSuspended());
-                for (StackFrame frame : thread.frames()) {
-                    try {
-                        for (LocalVariable variable : frame.visibleVariables()) {
-                            System.out.println(variable.name());
-                            System.out.println(frame.getValue(variable));
-                            System.out.println(variable.isArgument());
-                            System.out.println(variable.genericSignature());
+                try {
+                    System.out.println(thread.frameCount());
+                    System.out.println(thread.isSuspended());
+                    for (StackFrame frame : thread.frames()) {
+                        try {
+                            for (LocalVariable variable : frame.visibleVariables()) {
+                                System.out.println(variable.name());
+                                System.out.println(frame.getValue(variable));
+                                System.out.println(variable.isArgument());
+                                System.out.println(variable.genericSignature());
 
+                            }
+                        } catch (AbsentInformationException e) {
+                            e.printStackTrace();
                         }
-                    } catch (AbsentInformationException e) {
-                        e.printStackTrace();
+                        System.out.println(frame.thisObject());
+                        System.out.println(frame.thread());
+                        System.out.println(frame.location().lineNumber());
                     }
-                    System.out.println(frame.thisObject());
-                    System.out.println(frame.thread());
-                    System.out.println(frame.location().lineNumber());
+                } catch (IncompatibleThreadStateException e) {
+                    e.printStackTrace();
                 }
-            } catch (IncompatibleThreadStateException e) {
-                e.printStackTrace();
-            }
 
-            System.out.println(thread.name());
+                System.out.println(thread.name());
+            }
         }
 
 
