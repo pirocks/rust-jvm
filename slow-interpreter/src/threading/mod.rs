@@ -2,8 +2,11 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::LocalKey;
+
+use num::abs_sub;
 
 use jvmti_jni_bindings::jrawMonitorID;
 use rust_jvm_common::classnames::ClassName;
@@ -59,6 +62,9 @@ impl ThreadState {
             // jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_start(jvm, &mut int_state));
             ThreadState::jvm_init_from_main_thread(jvm, init_recv, &mut int_state);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, main_thread.clone()));
+            assert!(!jvm.live.load(Ordering::SeqCst));
+            assert!(jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start_callback.read().unwrap().is_some());
+            jvm.live.store(true, Ordering::SeqCst);
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
             //from the jvmti spec:
             //"he thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
@@ -81,7 +87,6 @@ impl ThreadState {
         if int_state.throw_mut().is_some() || *int_state.terminate_mut() {
             unimplemented!()
         }
-        *jvm.live.write().unwrap() = true;
         set_properties(jvm, int_state);
     }
 
@@ -98,7 +103,7 @@ impl ThreadState {
 
     fn bootstrap_main_thread<'l>(jvm: &'static JVMState, threads: &Threads) -> Arc<JavaThread> {
         let (main_thread_obj_send, main_thread_obj_recv) = channel();
-        let bootstrap_underlying_thread = threads.create_thread();
+        let bootstrap_underlying_thread = threads.create_thread("Bootstrap Thread".to_string().into());
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
             underlying_thread: bootstrap_underlying_thread,
@@ -106,7 +111,7 @@ impl ThreadState {
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
             invisible_to_java: true,
-            jvmti_events_enabled: Default::default()
+            jvmti_events_enabled: Default::default(),
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
@@ -141,7 +146,7 @@ impl ThreadState {
             main_thread_obj_send.send(jthread).unwrap();
         }, box ());
         let thread_obj: JThread = main_thread_obj_recv.recv().unwrap();
-        JavaThread::new(jvm, thread_obj, threads.create_thread(), false)
+        JavaThread::new(jvm, thread_obj, threads.create_thread("Main Java Thread".to_string().into()), false)
     }
 
     pub fn get_current_thread_name(&self) -> String {
@@ -185,7 +190,7 @@ impl ThreadState {
     }
 
     pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: &mut InterpreterStateGuard, invisible_to_java: bool) -> Arc<JavaThread> {
-        let underlying = self.threads.create_thread();
+        let underlying = self.threads.create_thread(obj.name().to_rust_string().into());
 
         let (send, recv) = channel();
         let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm).clone());

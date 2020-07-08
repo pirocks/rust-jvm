@@ -58,7 +58,9 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
         if read_guard.suspended {
             let suspension_lock = read_guard.suspended_lock.clone();
             std::mem::drop(read_guard);
+            std::mem::drop(interpreter_state.int_state.take());
             std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
+            interpreter_state.int_state = interpreter_state.thread.interpreter_state.write().unwrap().into();
         } else {
             std::mem::drop(read_guard);
         }

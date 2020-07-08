@@ -86,12 +86,7 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
 }
 
 fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
-    /* match java_thread {
-         None => {
-             jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
-         }
-         Some(java_thread) => {
-    */         let mut suspend_info = java_thread.suspended.write().unwrap();
+   let mut suspend_info = java_thread.suspended.write().unwrap();
     if suspend_info.suspended {
         jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
     } else {

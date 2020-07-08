@@ -16,7 +16,9 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
 
     let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
     let java_thread = jthread.get_java_thread(jvm);
+    assert!(java_thread.suspended.read().unwrap().suspended);
     let frame_count = java_thread.interpreter_state.read().unwrap().call_stack.len();
+    dbg!(java_thread.thread_object().name().to_rust_string());
     count_ptr.write(frame_count as i32);
 
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameCount");
