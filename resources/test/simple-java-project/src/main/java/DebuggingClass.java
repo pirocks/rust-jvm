@@ -34,9 +34,8 @@ public class DebuggingClass {
                 thread.suspend();
                 System.out.println(thread.name());
                 System.out.println(thread.status());
-                System.out.println(thread.isSuspended());
+                System.out.println("Suspended:" + thread.isSuspended());
                 try {
-                    System.out.println(thread.frameCount());
                     System.out.println(thread.isSuspended());
                     for (StackFrame frame : thread.frames()) {
                         try {
@@ -54,6 +53,7 @@ public class DebuggingClass {
                         System.out.println(frame.thread());
                         System.out.println(frame.location().lineNumber());
                     }
+                    System.out.println(thread.frameCount());
                 } catch (IncompatibleThreadStateException e) {
                     e.printStackTrace();
                 }

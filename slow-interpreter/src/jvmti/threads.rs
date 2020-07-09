@@ -26,6 +26,7 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
     let mut res_ptr = jvm.thread_state.get_all_threads().values().map(|thread| {
+        dbg!(thread.thread_object().name().to_rust_string());
         to_object(thread.thread_object().object().into())
     }).collect::<Vec<_>>();
     threads_count_ptr.write(res_ptr.len() as i32);
@@ -94,8 +95,6 @@ fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
         suspend_info.suspended = true;
         jvmtiError_JVMTI_ERROR_NONE
     }
-    /*   }
-   }*/
 }
 
 pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
@@ -132,11 +131,6 @@ pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: j
 
 
 fn resume_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
-    /*match java_thread {
-        None => {
-            jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
-        }
-        Some(java_thread) => {*/
     let mut suspend_info = java_thread.suspended.write().unwrap();
     if !suspend_info.suspended {
         unimplemented!()
@@ -145,8 +139,6 @@ fn resume_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
         unsafe { suspend_info.suspended_lock.force_unlock() };
         jvmtiError_JVMTI_ERROR_NONE
     }
-    /*}
-}*/
 }
 
 pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, _group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError {

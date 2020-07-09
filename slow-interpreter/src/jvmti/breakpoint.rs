@@ -12,6 +12,10 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
     jvm.tracing.trace_jdwp_function_enter(jvm, "SetBreakpoint");
     let method_id: MethodId = transmute(method);
     dbg!(&method_id);
+    let lookup_res = jvm.method_table.read().unwrap().lookup(method_id);
+    let mv = lookup_res.0.view().method_view_i(lookup_res.1 as usize);
+    dbg!(mv.name());
+    dbg!(mv.classview().name());
     let mut breakpoint_guard = jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap();
     match breakpoint_guard.get_mut(&method_id) {
         None => {

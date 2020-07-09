@@ -288,7 +288,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jni_env = get_interface(jvm, int_state);
         let ThreadStartEvent { thread } = event;
         let local_refs_len = local_refs_len();
-        (self.thread_start_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread);
+        (self.thread_start_callback.read().unwrap().as_ref().map(|callback| callback(jvmti_env, jni_env, thread)));
         clear_local_refs(local_refs_len);
     }
 

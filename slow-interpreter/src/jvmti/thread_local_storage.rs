@@ -5,7 +5,7 @@ use jvmti_jni_bindings::{jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_N
 
 use crate::jvmti::get_state;
 
-pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, _thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
+pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
     //todo this is wrong b/c it ignores thread
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadLocalStorage");
