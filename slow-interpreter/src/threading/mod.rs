@@ -1,6 +1,8 @@
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::os::raw::c_void;
+use std::ptr::null_mut;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -112,6 +114,7 @@ impl ThreadState {
             suspended: RwLock::new(SuspendedStatus::default()),
             invisible_to_java: true,
             jvmti_events_enabled: Default::default(),
+            thread_local_storage: RwLock::new(null_mut())
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
@@ -237,6 +240,7 @@ pub struct JavaThread {
     pub suspended: RwLock<SuspendedStatus>,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
+    pub thread_local_storage: RwLock<*mut c_void>
 }
 
 impl JavaThread {
@@ -248,7 +252,8 @@ impl JavaThread {
             interpreter_state: RwLock::new(InterpreterState::default()),
             suspended: RwLock::new(SuspendedStatus::default()),
             invisible_to_java,
-            jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default())
+            jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
+            thread_local_storage: RwLock::new(null_mut()),
         });
         jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         res
