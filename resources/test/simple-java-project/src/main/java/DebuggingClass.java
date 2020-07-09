@@ -51,7 +51,11 @@ public class DebuggingClass {
                         }
                         System.out.println(frame.thisObject());
                         System.out.println(frame.thread());
-                        System.out.println(frame.location().lineNumber());
+                        try {
+                            System.out.println(frame.location().lineNumber());
+                        } catch (InternalError e) {
+                            e.printStackTrace();
+                        }
                     }
                     System.out.println(thread.frameCount());
                 } catch (IncompatibleThreadStateException e) {

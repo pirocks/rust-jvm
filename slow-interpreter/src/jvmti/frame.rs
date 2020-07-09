@@ -54,7 +54,12 @@ pub unsafe extern "C" fn get_local_variable_table(
     let method_view = class.view().method_view_i(method_i as usize);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
     let local_vars = match method_view.local_variable_attribute() {
-        None => return jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION,
+        None => {
+            dbg!(method_view.name());
+            dbg!(class.view().name());
+
+            return jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION;
+        }
         Some(lva) => lva,
     };
     entry_count_ptr.write(num_locals as i32);
