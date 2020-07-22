@@ -271,7 +271,7 @@ pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethod
         }
         Some(code) => {
             start_location_ptr.write(0);
-            end_location_ptr.write((code.code.len() - 1) as i64);
+            end_location_ptr.write(code.code_raw.len() as i64);
         }
     };
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
