@@ -1,4 +1,3 @@
-use std::cell::RefMut;
 use std::os::raw::c_void;
 
 use jvmti_jni_bindings::{jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};

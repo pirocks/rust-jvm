@@ -482,8 +482,10 @@ impl JVMState {
 }
 
 pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
-    let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
-    let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
+    // let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
+    // let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
+    let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone());
+    let main_view = main.view();
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
@@ -491,7 +493,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
     // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
     let stack_entry = StackEntry {
-        class_pointer: Arc::new(main_class),
+        class_pointer: main,
         method_i: main_i as u16,
         local_vars: vec![JavaValue::Top; num_vars as usize],//todo handle parameters, todo handle non-zero size locals
         operand_stack: vec![],

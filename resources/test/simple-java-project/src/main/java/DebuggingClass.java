@@ -1,5 +1,7 @@
 import com.sun.jdi.*;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
+import com.sun.jdi.event.*;
+import com.sun.jdi.request.BreakpointRequest;
 import com.sun.tools.jdi.GenericAttachingConnector;
 import com.sun.tools.jdi.SocketAttachingConnector;
 
@@ -7,7 +9,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class DebuggingClass {
-    public static void main(String[] args) throws IOException, IllegalConnectorArgumentsException {
+    public static void main(String[] args) throws IOException, IllegalConnectorArgumentsException, AbsentInformationException {
         final GenericAttachingConnector connector = new SocketAttachingConnector();
         final VirtualMachine attached = connector.attach("localhost:5005", connector.defaultArguments());
         for (ReferenceType aClass : attached.allClasses()) {
@@ -26,8 +28,31 @@ public class DebuggingClass {
             System.out.println(aClass.name());
         }
 //        attached.setDebugTraceMode(VirtualMachine.TRACE_ALL);
-        attached.suspend();
-        final List<ThreadReference> threads = attached.allThreads();
+//        attached.suspend();
+        final ReferenceType swing = attached.classesByName("Swing").get(0);
+        final Method method = swing.methods().stream().filter(method1 -> method1.name().equals("main")).findFirst().get();
+        final Location location = method.allLineLocations().get(1);
+        final BreakpointRequest breakpointRequest = attached.eventRequestManager().createBreakpointRequest(location);
+        breakpointRequest.enable();
+
+        attached.resume();
+        EventQueue queue = attached.eventQueue();
+        while (true) {
+            EventSet eventSet = null;
+            try {
+                eventSet = queue.remove();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            EventIterator it = eventSet.eventIterator();
+            while (it.hasNext()) {
+                Event event = it.nextEvent();
+                if (event instanceof BreakpointEvent){
+                    final BreakpointEvent event1 = (BreakpointEvent) event;
+                    System.out.println(event1.thread().name());
+                }
+            }
+        }
 //        for (ThreadReference thread : threads) {
 //            if(thread.name().equals("Main")) {
 ////                thread.interrupt();
