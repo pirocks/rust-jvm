@@ -1,5 +1,5 @@
 use std::alloc::Layout;
-use std::cell::Ref;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
@@ -17,9 +17,16 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
                                              is_copy: *mut jboolean) -> *const c_char {
     //todo this could be replaced with string_obj_to_string, though prob wise to have some kind of streaming impl or something
     let str_obj_o = from_object(name).unwrap();
-    let string_chars_o = str_obj_o.lookup_field("value").unwrap_object().unwrap();
-    let unwrapped = string_chars_o.unwrap_array().elems.borrow();
-    let char_array: &Ref<Vec<JavaValue>> = &unwrapped;
+    let possibly_uninit = str_obj_o.lookup_field("value").unwrap_object();
+    let char_array: Vec<JavaValue> = match possibly_uninit {
+        None => {
+            "<invalid string>".chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>()
+        }
+        Some(string_chars_o) => {
+            let unwrapped = string_chars_o.unwrap_array().elems.borrow();
+            unwrapped.clone()
+        }
+    };
     let chars_layout = Layout::from_size_align((char_array.len() + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
     let res = std::alloc::alloc(chars_layout) as *mut c_char;
     char_array.iter().enumerate().for_each(|(i, j)| {
