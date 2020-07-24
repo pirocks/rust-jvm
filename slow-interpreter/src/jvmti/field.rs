@@ -3,15 +3,12 @@ use std::intrinsics::transmute;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use classfile_parser::code::InstructionTypeNum::l2d;
 use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::field_view::FieldView;
 use jvmti_jni_bindings::{jboolean, jclass, jfieldID, jint, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::field_table::FieldId;
 use crate::JVMState;
 use crate::jvmti::get_state;
-use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::native_util::from_jclass;
 
 pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, field: jfieldID, is_synthetic_ptr: *mut jboolean) -> jvmtiError {

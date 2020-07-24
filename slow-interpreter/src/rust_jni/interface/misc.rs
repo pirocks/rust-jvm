@@ -173,6 +173,6 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
 pub(crate) unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
     // let jvm = get_state(env);
     let interpreter_state = get_interpreter_state(env);
-    *interpreter_state.throw_mut() = from_object(obj);
+    interpreter_state.set_throw(from_object(obj));
     0 as jint
 }

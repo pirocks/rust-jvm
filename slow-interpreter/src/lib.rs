@@ -150,9 +150,21 @@ impl<'l> InterpreterStateGuard<'l> {
         &call_stack[len - 2]
     }
 
-    pub fn throw_mut(&mut self) -> &mut Option<Arc<Object>> {
-        &mut self.int_state.as_mut().unwrap().throw
+    // pub fn throw_mut(&mut self) -> &mut Option<Arc<Object>> {
+    //     &mut self.int_state.as_mut().unwrap().throw
+    // }
+
+    pub fn set_throw(&mut self, val: Option<Arc<Object>>) {
+        match self.int_state.as_mut() {
+            None => {
+                self.thread.interpreter_state.write().unwrap().throw = val
+            },
+            Some(val_mut) => {
+                val_mut.throw = val;
+            },
+        }
     }
+
 
     pub fn function_return_mut(&mut self) -> &mut bool {
         &mut self.int_state.as_mut().unwrap().function_return
@@ -163,8 +175,13 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
 
-    pub fn throw(&self) -> &Option<Arc<Object>> {
-        &self.int_state.as_ref().unwrap().throw
+    pub fn throw(&self) -> Option<Arc<Object>> {
+        match self.int_state.as_ref() {
+            None => {
+                self.thread.interpreter_state.read().unwrap().throw.clone()
+            },
+            Some(int_state) => int_state.throw.clone(),
+        }
     }
 
     pub fn function_return(&self) -> &bool {
@@ -502,7 +519,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
 
     setup_program_args(&jvm, int_state, args);
     run_function(&jvm, int_state);
-    if int_state.throw_mut().is_some() || *int_state.terminate_mut() {
+    if int_state.throw().is_some() || *int_state.terminate() {
         unimplemented!()
     }
     Result::Ok(())

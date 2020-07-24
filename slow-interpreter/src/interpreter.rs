@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_parser::code::{CodeParserContext, parse_instruction};
@@ -58,26 +57,17 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
         let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code, &meth_name);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
+        suspend_check(interpreter_state);
         run_single_instruction(jvm, interpreter_state, instruct);
-        let read_guard = interpreter_state.thread.suspended.read().unwrap();
-        if read_guard.suspended {
-            let suspension_lock = read_guard.suspended_lock.clone();
-            std::mem::drop(read_guard);
-            std::mem::drop(interpreter_state.int_state.take());
-            std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
-            interpreter_state.int_state = interpreter_state.thread.interpreter_state.write().unwrap().into();
-        } else {
-            std::mem::drop(read_guard);
-        }
         if interpreter_state.throw().is_some() {
-            let throw_class = interpreter_state.throw_mut().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
+            let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             for excep_table in &code.exception_table {
                 let pc = *interpreter_state.current_pc();
                 if excep_table.start_pc as usize <= pc && pc < (excep_table.end_pc as usize) {//todo exclusive
                     if excep_table.catch_type == 0 {
                         //todo dup
-                        interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw().deref().clone()));
-                        *interpreter_state.throw_mut() = None;
+                        interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
+                        interpreter_state.set_throw(None);
                         *interpreter_state.current_pc_mut() = excep_table.handler_pc as usize;
                         // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
                         break;
@@ -85,8 +75,8 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
                         let catch_runtime_name = interpreter_state.current_class_view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_name().unwrap_name();
                         let catch_class = check_inited_class(jvm, interpreter_state, &catch_runtime_name.into(), interpreter_state.current_loader(jvm).clone());
                         if inherits_from(jvm, interpreter_state, &throw_class, &catch_class) {
-                            interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw().deref().clone()));
-                            *interpreter_state.throw_mut() = None;
+                            interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
+                            interpreter_state.set_throw(None);
                             *interpreter_state.current_pc_mut() = excep_table.handler_pc as usize;
                             // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
                             break;
@@ -94,7 +84,7 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
                     }
                 }
             }
-            if interpreter_state.throw_mut().is_some() {
+            if interpreter_state.throw().is_some() {
                 //need to propogate to caller
                 break;
             }
@@ -113,6 +103,19 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
         current_depth,
         current_thread_tid,
     )
+}
+
+fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {
+    let read_guard = interpreter_state.thread.suspended.read().unwrap();
+    if read_guard.suspended {
+        let suspension_lock = read_guard.suspended_lock.clone();
+        std::mem::drop(read_guard);
+        std::mem::drop(interpreter_state.int_state.take());
+        std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
+        interpreter_state.int_state = interpreter_state.thread.interpreter_state.write().unwrap().into();
+    } else {
+        std::mem::drop(read_guard);
+    }
 }
 
 fn update_pc_for_next_instruction<'l>(interpreter_state: &mut InterpreterStateGuard) {
@@ -139,9 +142,16 @@ fn breakpoint_check(jvm: &'static JVMState, interpreter_state: &mut InterpreterS
         }
     };
     if stop {
-        interpreter_state.thread.suspended.write().unwrap().suspended = true;
+        let mut suspension_state_guard = interpreter_state.thread.suspended.write().unwrap();
+        suspension_state_guard.suspended = true;
+        let suspension_lock = suspension_state_guard.suspended_lock.clone();
+        std::mem::drop(suspension_state_guard);
+        std::mem::drop(interpreter_state.int_state.take());//drop the guard on the thread state to let the breakpoint handler do stuff
+        std::mem::forget(suspension_lock.lock());//needed for suspendsion check to actually suspend
+        //todo is the above technically a memory leak?
         let jdwp = &jvm.jvmti_state.as_ref().unwrap().built_in_jdwp;
-        jdwp.breakpoint(jvm, methodid, pc as i64, interpreter_state)
+        jdwp.breakpoint(jvm, methodid, pc as i64, interpreter_state);
+        interpreter_state.int_state = interpreter_state.thread.interpreter_state.write().unwrap().into();
     }
 }
 
@@ -422,5 +432,5 @@ fn athrow<'l>(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGu
     }.clone();
     dbg!(exception_obj.lookup_field("detailMessage"));
     interpreter_state.print_stack_trace();
-    *(interpreter_state.throw_mut()) = exception_obj.into();
+    interpreter_state.set_throw(exception_obj.into());
 }

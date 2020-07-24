@@ -76,7 +76,7 @@ pub fn invoke_static_impl<'l>(
         interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
         interpreter_state.pop_frame();
-        if interpreter_state.throw_mut().is_some() || *interpreter_state.terminate_mut() {
+        if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
             return;
         }
         let function_return = interpreter_state.function_return_mut();

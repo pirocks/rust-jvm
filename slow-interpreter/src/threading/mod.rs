@@ -8,8 +8,6 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::LocalKey;
 
-use num::abs_sub;
-
 use jvmti_jni_bindings::jrawMonitorID;
 use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
@@ -86,7 +84,7 @@ impl ThreadState {
         if *function_return {
             *function_return = false;
         }
-        if int_state.throw_mut().is_some() || *int_state.terminate_mut() {
+        if int_state.throw().is_some() || *int_state.terminate() {
             unimplemented!()
         }
         set_properties(jvm, int_state);

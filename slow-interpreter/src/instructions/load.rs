@@ -85,7 +85,7 @@ fn throw_array_out_of_bounds<'l>(jvm: &'static JVMState, int_state: &mut Interpr
     push_new_object(jvm, int_state, &bounds_class, None);
     let obj = int_state.current_frame_mut().pop();
     run_constructor(jvm, int_state, bounds_class, vec![obj.clone()], "()V".to_string());
-    *int_state.throw_mut() = obj.unwrap_object().into();
+    int_state.set_throw(obj.unwrap_object().into());
 }
 
 pub fn caload<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> () {

@@ -210,7 +210,7 @@ pub fn initialize_class<'l>(
     interpreter_state.push_frame(new_stack);
     run_function(jvm, interpreter_state);
     interpreter_state.pop_frame();
-    if interpreter_state.throw_mut().is_some() || *interpreter_state.terminate_mut() {
+    if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
         interpreter_state.print_stack_trace();
         unimplemented!()
         //need to clear status after

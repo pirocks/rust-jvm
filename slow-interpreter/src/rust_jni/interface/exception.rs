@@ -9,6 +9,6 @@ pub unsafe extern "C" fn exception_occured(env: *mut JNIEnv) -> jthrowable {
 
 pub unsafe extern "C" fn exception_clear(env: *mut JNIEnv) {
     let int_state = get_interpreter_state(env);
-    *int_state.throw_mut() = None;
-    assert!(int_state.throw_mut().is_none());
+    int_state.set_throw(None);
+    assert!(int_state.throw().is_none());
 }
