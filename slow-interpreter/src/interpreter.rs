@@ -32,6 +32,8 @@ use crate::instructions::store::*;
 use crate::instructions::switch::*;
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
+use crate::jvmti::event_callbacks::DebuggerEventConsumer;
+use crate::method_table::MethodId;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 
@@ -54,6 +56,10 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized, &class_name__);
     while !*interpreter_state.terminate() && !*interpreter_state.function_return() && !interpreter_state.throw().is_some() {
+        let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code, &meth_name);
+        *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
+        breakpoint_check(jvm, interpreter_state, method_id);
+        run_single_instruction(jvm, interpreter_state, instruct);
         let read_guard = interpreter_state.thread.suspended.read().unwrap();
         if read_guard.suspended {
             let suspension_lock = read_guard.suspended_lock.clone();
@@ -64,10 +70,6 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
         } else {
             std::mem::drop(read_guard);
         }
-        let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code, &meth_name);
-        *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
-        breakpoint_check(jvm, method_id, *interpreter_state.current_pc_mut() as isize);
-        run_single_instruction(jvm, interpreter_state, instruct);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw_mut().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             for excep_table in &code.exception_table {
@@ -125,7 +127,8 @@ fn update_pc_for_next_instruction<'l>(interpreter_state: &mut InterpreterStateGu
     *interpreter_state.current_pc_mut() = pc;
 }
 
-fn breakpoint_check(jvm: &'static JVMState, methodid: usize, pc: isize) {
+fn breakpoint_check(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard, methodid: MethodId) {
+    let pc = *interpreter_state.current_pc_mut() as isize;
     let stop = match &jvm.jvmti_state {
         None => false,
         Some(jvmti) => {
@@ -137,7 +140,9 @@ fn breakpoint_check(jvm: &'static JVMState, methodid: usize, pc: isize) {
         }
     };
     if stop {
-        unimplemented!()
+        interpreter_state.thread.suspended.write().unwrap().suspended = true;
+        let jdwp = &jvm.jvmti_state.as_ref().unwrap().built_in_jdwp;
+        jdwp.breakpoint(jvm, methodid, pc as i64, interpreter_state)
     }
 }
 

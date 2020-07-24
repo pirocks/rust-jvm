@@ -180,21 +180,18 @@ impl SharedLibJVMTI {
         }
     }
 
-    pub fn breakpoint(&self, jvm: &'static JVMState, method: MethodId, location: i64) {
-        unsafe {
-            let event_getter = &|| {
+    pub fn breakpoint(&self, jvm: &'static JVMState, method: MethodId, location: i64, int_state: &mut InterpreterStateGuard) {
+        if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
+            unsafe {
                 let thread = to_object(jvm.thread_state.get_current_thread().thread_object().object().into());
                 let native_method_id = jvm.native_interface_allocations.allocate_box(method.clone());//todo use a vtable based methodId
                 let method = transmute(native_method_id);
-                let jvmti_event = JVMTIEvent::Breakpoint(BreakpointEvent {
+                self.Breakpoint(jvm, int_state, BreakpointEvent {
                     thread,
                     method,
                     location,
-                });
-                jvmti_event
-            };
-            unimplemented!()
-            // SharedLibJVMTI::trigger_event_threads(jvm, &self.breakpoint_enabled.read().unwrap(), event_getter);
+                })
+            }
         }
     }
 }

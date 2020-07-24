@@ -316,7 +316,9 @@ pub mod thread_group {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::java::lang::thread::JThread;
     use crate::java_values::{JavaValue, Object};
+    use crate::threading::JavaThread;
 
     #[derive(Debug, Clone)]
     pub struct JThreadGroup {
@@ -338,6 +340,21 @@ pub mod thread_group {
             run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.clone()],
                             "()V".to_string());
             thread_group_object.cast_thread_group()
+        }
+
+        pub fn threads(&self) -> Vec<Option<JThread>> {
+            self.normal_object.lookup_field("threads").unwrap_array().elems.borrow().iter().map(|thread|
+                {
+                    match thread.unwrap_object() {
+                        None => None,
+                        Some(t) => JavaValue::Object(t.into()).cast_thread().into(),
+                    }
+                }
+            ).collect()
+        }
+
+        pub fn threads_non_null(&self) -> Vec<JThread> {
+            self.threads().into_iter().flat_map(|maybe_t| maybe_t).collect()
         }
 
         as_object_or_java_value!();
