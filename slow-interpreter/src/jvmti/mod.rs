@@ -18,7 +18,7 @@ use crate::jvmti::capabilities::{add_capabilities, get_capabilities, get_potenti
 use crate::jvmti::classes::*;
 use crate::jvmti::event_callbacks::set_event_callbacks;
 use crate::jvmti::events::set_event_notification_mode;
-use crate::jvmti::field::is_field_synthetic;
+use crate::jvmti::field::{get_field_modifiers, get_field_name, is_field_synthetic};
 use crate::jvmti::frame::*;
 use crate::jvmti::is::{is_array_class, is_interface, is_method_native, is_method_obsolete};
 use crate::jvmti::locals::{get_local_double, get_local_float, get_local_int, get_local_long, get_local_object};
@@ -132,9 +132,9 @@ fn get_jvmti_interface_impl(jvm: &'static JVMState, int_state: &mut InterpreterS
         GetClassLoader: Some(get_class_loader),
         GetObjectHashCode: Some(get_object_hash_code),
         GetObjectMonitorUsage: None,
-        GetFieldName: None,
+        GetFieldName: Some(get_field_name),
         GetFieldDeclaringClass: None,
-        GetFieldModifiers: None,
+        GetFieldModifiers: Some(get_field_modifiers),
         IsFieldSynthetic: Some(is_field_synthetic),
         GetMethodName: Some(get_method_name),
         GetMethodDeclaringClass: Some(get_method_declaring_class),
