@@ -32,7 +32,6 @@ use crate::instructions::store::*;
 use crate::instructions::switch::*;
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
-use crate::jvmti::event_callbacks::DebuggerEventConsumer;
 use crate::method_table::MethodId;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;

@@ -184,8 +184,7 @@ impl SharedLibJVMTI {
         if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
             unsafe {
                 let thread = to_object(jvm.thread_state.get_current_thread().thread_object().object().into());
-                let native_method_id = jvm.native_interface_allocations.allocate_box(method.clone());//todo use a vtable based methodId
-                let method = transmute(native_method_id);
+                let method = transmute(method);
                 self.Breakpoint(jvm, int_state, BreakpointEvent {
                     thread,
                     method,

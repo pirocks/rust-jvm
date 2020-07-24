@@ -13,7 +13,6 @@ extern crate parking_lot;
 extern crate regex;
 extern crate va_list;
 
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
@@ -52,7 +51,6 @@ use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::{BootstrapLoader, Classpath};
 use crate::method_table::{MethodId, MethodTable};
 use crate::native_allocation::NativeAllocator;
-use crate::runtime_class::prepare_class;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntry;
 use crate::threading::{JavaThread, ThreadState};

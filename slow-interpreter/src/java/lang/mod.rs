@@ -318,7 +318,6 @@ pub mod thread_group {
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
     use crate::java::lang::thread::JThread;
     use crate::java_values::{JavaValue, Object};
-    use crate::threading::JavaThread;
 
     #[derive(Debug, Clone)]
     pub struct JThreadGroup {
