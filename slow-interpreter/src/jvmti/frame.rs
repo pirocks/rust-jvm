@@ -32,7 +32,7 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
     let thread = jthread.get_java_thread(jvm);
     let call_stack_guard = &thread.interpreter_state.read().unwrap().call_stack;
-    let stack_entry = &call_stack_guard[depth as usize];
+    let stack_entry = &call_stack_guard[call_stack_guard.len() - 1 - depth as usize];
     let meth_id = jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer.clone(), stack_entry.method_i);
     method_ptr.write(transmute(meth_id));
     location_ptr.write(stack_entry.pc as i64);
