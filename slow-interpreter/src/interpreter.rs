@@ -142,16 +142,8 @@ fn breakpoint_check(jvm: &'static JVMState, interpreter_state: &mut InterpreterS
         }
     };
     if stop {
-        let mut suspension_state_guard = interpreter_state.thread.suspended.write().unwrap();
-        suspension_state_guard.suspended = true;
-        let suspension_lock = suspension_state_guard.suspended_lock.clone();
-        std::mem::drop(suspension_state_guard);
-        std::mem::drop(interpreter_state.int_state.take());//drop the guard on the thread state to let the breakpoint handler do stuff
-        std::mem::forget(suspension_lock.lock());//needed for suspendsion check to actually suspend
-        //todo is the above technically a memory leak?
         let jdwp = &jvm.jvmti_state.as_ref().unwrap().built_in_jdwp;
         jdwp.breakpoint(jvm, methodid, pc as i64, interpreter_state);
-        interpreter_state.int_state = interpreter_state.thread.interpreter_state.write().unwrap().into();
     }
 }
 

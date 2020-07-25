@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::ffi::CStr;
 use std::mem::transmute;
 use std::ops::Deref;
@@ -120,5 +121,50 @@ pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, na
     get_field_id(env, clazz, name, sig)
 }
 
+unsafe fn get_static_field(env: *mut JNIEnv, klass: jclass, field_id_raw: jfieldID) -> JavaValue {
+    let jvm = get_state(env);
+    let (rc, field_i) = jvm.field_table.write().unwrap().lookup(transmute(field_id_raw));
+    let view = rc.view();
+    let name = view.field(field_i as usize).field_name();
+    let jclass = from_jclass(klass);
+    jclass.as_runtime_class().static_vars().borrow().get(&name).unwrap().clone()
+}
+
+
+pub unsafe extern "C" fn get_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jobject {
+    to_object(get_static_field(env, clazz, field_id).unwrap_object())
+}
+
+pub unsafe extern "C" fn get_static_boolean_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jboolean {
+    get_static_field(env, clazz, field_id).unwrap_boolean()
+}
+
+pub unsafe extern "C" fn get_static_byte_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jbyte {
+    get_static_field(env, clazz, field_id).unwrap_byte()
+}
+
+pub unsafe extern "C" fn get_static_short_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jshort {
+    get_static_field(env, clazz, field_id).unwrap_short()
+}
+
+pub unsafe extern "C" fn get_static_char_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jchar {
+    get_static_field(env, clazz, field_id).unwrap_char()
+}
+
+pub unsafe extern "C" fn get_static_int_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jint {
+    get_static_field(env, clazz, field_id).unwrap_int()
+}
+
+pub unsafe extern "C" fn get_static_long_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jlong {
+    get_static_field(env, clazz, field_id).unwrap_long()
+}
+
+pub unsafe extern "C" fn get_static_float_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jfloat {
+    get_static_field(env, clazz, field_id).unwrap_float()
+}
+
+pub unsafe extern "C" fn get_static_double_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jdouble {
+    get_static_field(env, clazz, field_id).unwrap_double()
+}
 
 
