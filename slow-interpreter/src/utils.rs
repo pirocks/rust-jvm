@@ -25,7 +25,7 @@ pub fn lookup_method_parsed_impl(state: &'static JVMState, class: Arc<RuntimeCla
         None => {
             let class_name = class.view().super_name().unwrap();
             let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));
-            let super_class = state.initialized_classes.read().unwrap().get(&lookup_type).unwrap().clone();
+            let super_class = state.classes.initialized_classes.read().unwrap().get(&lookup_type).unwrap().clone(); //todo this unwrap could fail, and this should really be using check_inited_class
             lookup_method_parsed_impl(state, super_class, name, descriptor, loader)
         }
         Some(method_view) => {

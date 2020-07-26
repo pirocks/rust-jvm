@@ -301,11 +301,7 @@ pub struct JVMState {
     //todo needs to be used for all instances of getClass
     pub libjava: LibJavaLoading,
 
-    pub initialized_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub class_object_pool: RwLock<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
-    //anon classes
-    pub anon_class_counter: AtomicUsize,
-    pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
+    pub classes: Classes,
 
     pub main_class_name: ClassName,
 
@@ -319,7 +315,18 @@ pub struct JVMState {
     pub field_table: RwLock<FieldTable>,
     pub native_interface_allocations: NativeAllocator,
     live: AtomicBool,
-    pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>//so technically isn't 'static, but we need to be able to store this in a localkey
+    pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,//so technically isn't 'static, but we need to be able to store this in a localkey
+}
+
+pub struct Classes {
+    //todo maybe switch to coarser locking due to probabilty of races here
+    pub prepared_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub initializing_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub initialized_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub class_object_pool: RwLock<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
+    //anon classes
+    pub anon_class_counter: AtomicUsize,
+    pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
 }
 
 pub mod threading;
@@ -374,16 +381,20 @@ impl JVMState {
             properties,
             loaders: RwLock::new(HashMap::new()),
             bootstrap_loader,
-            initialized_classes: RwLock::new(HashMap::new()),
-            class_object_pool: RwLock::new(HashMap::new()),
             system_domain_loader: true,
             libjava: LibJavaLoading::new_java_loading(libjava),
             string_pool: StringPool {
                 entries: HashSet::new()
             },
             start_instant: Instant::now(),
-            anon_class_live_object_ldc_pool: Arc::new(RwLock::new(vec![])),
-            anon_class_counter: AtomicUsize::new(0),
+            classes: Classes {
+                prepared_classes: RwLock::new(HashMap::new()),
+                initializing_classes: RwLock::new(HashMap::new()),
+                initialized_classes: RwLock::new(HashMap::new()),
+                class_object_pool: RwLock::new(HashMap::new()),
+                anon_class_live_object_ldc_pool: Arc::new(RwLock::new(vec![])),
+                anon_class_counter: AtomicUsize::new(0),
+            },
             main_class_name,
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
@@ -479,7 +490,7 @@ impl JVMState {
     }
 
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter> {
-        Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.anon_class_live_object_ldc_pool.clone() })
+        Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.classes.anon_class_live_object_ldc_pool.clone() })
     }
 
     /*pub fn register_main_thread(&self, main_thread: Arc<JavaThread>) {

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::LocalKey;
 
@@ -112,7 +112,8 @@ impl ThreadState {
             suspended: RwLock::new(SuspendedStatus::default()),
             invisible_to_java: true,
             jvmti_events_enabled: Default::default(),
-            thread_local_storage: RwLock::new(null_mut())
+            java_alive: AtomicBool::new(false),
+            thread_local_storage: RwLock::new(null_mut()),
         });
         let underlying = &bootstrap_thread.clone().underlying_thread;
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
@@ -139,12 +140,14 @@ impl ThreadState {
             thread_object.set_priority(5);
             *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
             jvm.thread_state.set_current_thread(bootstrap_thread.clone());
+            bootstrap_thread.java_alive.store(true, Ordering::SeqCst);
             // push_new_object(jvm, &mut new_int_state,  &target_classfile, None);
             // let jthread = new_int_state.pop_current_operand_stack().cast_thread();
             let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
             *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
             let jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
             main_thread_obj_send.send(jthread).unwrap();
+            bootstrap_thread.java_alive.store(false, Ordering::SeqCst);
         }, box ());
         let thread_obj: JThread = main_thread_obj_recv.recv().unwrap();
         JavaThread::new(jvm, thread_obj, threads.create_thread("Main Java Thread".to_string().into()), false)
@@ -209,8 +212,10 @@ impl ThreadState {
             let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
             interpreter_state_guard.push_frame(new_thread_frame);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object()));
+            java_thread.java_alive.store(true, Ordering::SeqCst);
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);
             interpreter_state_guard.pop_frame();
+            java_thread.java_alive.store(false, Ordering::SeqCst);
         }, box ());//todo is this Data really needed since we have a closure
         recv.recv().unwrap()
     }
@@ -238,7 +243,8 @@ pub struct JavaThread {
     pub suspended: RwLock<SuspendedStatus>,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
-    pub thread_local_storage: RwLock<*mut c_void>
+    java_alive: AtomicBool,
+    pub thread_local_storage: RwLock<*mut c_void>,
 }
 
 impl JavaThread {
@@ -251,12 +257,17 @@ impl JavaThread {
             suspended: RwLock::new(SuspendedStatus::default()),
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
+            java_alive: AtomicBool::new(false),
             thread_local_storage: RwLock::new(null_mut()),
         });
         jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         res
     }
 
+
+    pub fn is_java_alive(&self) -> bool {
+        self.java_alive.load(Ordering::SeqCst)
+    }
     /*   fn set_current_thread(&self, java_thread: Arc<JavaThread>) {
            self.current_java_thread.with(|x| x.replace(java_thread.into()));
        }*/

@@ -78,7 +78,7 @@ fn get_jvmti_interface_impl(jvm: &'static JVMState, int_state: &mut InterpreterS
         reserved3: unsafe { transmute(int_state) },
         GetAllThreads: Some(get_all_threads),
         SuspendThread: Some(suspend_thread),
-        ResumeThread: None,
+        ResumeThread: Some(resume_thread),
         StopThread: None,
         InterruptThread: Some(interrupt_thread),//todo technically these are different.For now should be fine though
         GetThreadInfo: Some(get_thread_info),

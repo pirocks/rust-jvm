@@ -146,6 +146,27 @@ pub fn run_native_method<'l>(
                         //todo nyi
                         // unimplemented!()
                         Some(JavaValue::Int(0))
+                    } else if &mangled == "Java_java_lang_Thread_currentThread" {
+                        Some(jvm.thread_state.get_current_thread().thread_object().java_value())
+                    } else if &mangled == "Java_java_lang_Thread_setPriority0" {
+                        None//todo for now unimplemented
+                    } else if &mangled == "Java_java_lang_Thread_isAlive" {
+                        let maybe_java_thread = args[0].cast_thread().try_get_java_thread(jvm);
+                        match maybe_java_thread {
+                            None => {
+                                Some(JavaValue::Boolean(false as u8))
+                            },
+                            Some(java_thread) => {
+                                let is_alive = java_thread.is_java_alive();
+                                Some(JavaValue::Boolean(is_alive as u8))
+                            },
+                        }
+                    } else if &mangled == "Java_java_lang_Thread_start0" {
+                        int_state.print_stack_trace();
+                        let java_thread = args[0].cast_thread().get_java_thread(jvm);
+                        dbg!(args[0].cast_thread().name().to_rust_string());
+                        jvm.thread_state.start_thread_from_obj(jvm, java_thread.thread_object(), int_state, false);
+                        None
                     } else {
                         int_state.print_stack_trace();
                         dbg!(mangled);
@@ -181,7 +202,7 @@ fn patch_all(state: &'static JVMState, frame: &StackEntry, args: &mut Vec<JavaVa
             }
         }
     });
-    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", state.anon_class_counter.fetch_add(1, Ordering::SeqCst));
+    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", state.classes.anon_class_counter.fetch_add(1, Ordering::SeqCst));
     let name_index = unpatched.constant_pool.len() as u16;
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
@@ -278,7 +299,7 @@ fn patch_single(
     }*/ else {
         // dbg!(&class_name);
         // assert!(class_name == ClassName::unsafe_() || class_name == ClassName::direct_method_handle());//for now keep a white list of allowed classes here until the above are properly implemented
-        let mut anon_class_write_guard = state.anon_class_live_object_ldc_pool.write().unwrap();
+        let mut anon_class_write_guard = state.classes.anon_class_live_object_ldc_pool.write().unwrap();
         let live_object_i = anon_class_write_guard.len();
         anon_class_write_guard.push(patch.clone());
         unpatched.constant_pool[i] = ConstantKind::LiveObject(live_object_i).into();

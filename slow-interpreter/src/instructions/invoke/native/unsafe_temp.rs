@@ -5,8 +5,8 @@
 //all of these functions should be implemented in libjvm
 use std::mem::transmute;
 
-use crate::JVMState;
 use crate::java_values::JavaValue;
+use crate::JVMState;
 
 pub fn get_object_volatile(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let temp = args[1].unwrap_object().unwrap();
@@ -48,5 +48,5 @@ pub fn allocate_memory(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 
 pub fn shouldBeInitialized(state: &'static JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let class_name_to_check = args[1].cast_class().as_type();
-    JavaValue::Boolean(state.initialized_classes.read().unwrap().get(&class_name_to_check).is_some() as u8).into()
+    JavaValue::Boolean(state.classes.initialized_classes.read().unwrap().get(&class_name_to_check).is_some() as u8).into()
 }

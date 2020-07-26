@@ -85,7 +85,7 @@ pub fn check_inited_class(
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
-    if !jvm.initialized_classes.read().unwrap().contains_key(&ptype) {
+    if !jvm.classes.initialized_classes.read().unwrap().contains_key(&ptype) && !jvm.classes.initializing_classes.read().unwrap().contains_key(&ptype) {
         //todo the below is jank
         match ptype.try_unwrap_ref_type() {
             None => {}
@@ -176,11 +176,16 @@ pub fn check_inited_class(
             PTypeView::TopType | PTypeView::NullType | PTypeView::Uninitialized(_) | PTypeView::UninitializedThis |
             PTypeView::UninitializedThisOrClass(_) => panic!(),
         };
-        jvm.initialized_classes.write().unwrap().insert(ptype.clone(), new_rclass);
+        jvm.classes.initialized_classes.write().unwrap().insert(ptype.clone(), new_rclass);
         // jvm.jvmti_state.built_in_jdwp.class_prepare(jvm, ptype)//todo this should really happen in the function that actually does preparing
     } else {}
     //todo race?
-    let res = jvm.initialized_classes.read().unwrap().get(ptype).unwrap().clone();
+    let res = match jvm.classes.initialized_classes.read().unwrap().get(ptype) {
+        None => {
+            jvm.classes.initializing_classes.read().unwrap().get(ptype).unwrap().clone()
+        },
+        Some(class) => class.clone(),
+    };
     res
 }
 
@@ -194,15 +199,24 @@ fn check_inited_class_impl(
     let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, jvm.get_live_object_pool_getter()).unwrap();
     let ptype = PTypeView::Ref(ReferenceTypeView::Class(class_name.clone()));
     let prepared = Arc::new(prepare_class(jvm, target_classfile.backing_class(), loader_arc.clone()));
-    jvm.initialized_classes.write().unwrap().insert(ptype.clone(), prepared.clone());//must be before, otherwise infinite recurse
-    let inited_target = initialize_class(prepared, jvm, int_state);
-    jvm.initialized_classes.write().unwrap().insert(ptype.clone(), inited_target);//todo need to refactor to have prepared and intialized
+    jvm.classes.prepared_classes.write().unwrap().insert(ptype.clone(), prepared.clone());
+    jvm.classes.initializing_classes.write().unwrap().insert(ptype.clone(), prepared.clone());
+    match prepared.view().super_name() {
+        None => {},
+        Some(super_name) => { check_inited_class_impl(jvm, int_state, &super_name, loader_arc); },
+    };
     match &jvm.jvmti_state {
         None => {}
         Some(jvmti) => {
+            if class_name == &ClassName::Str("java/awt/Toolkit".to_string()) {
+                println!("here")
+            }
             jvmti.built_in_jdwp.class_prepare(jvm, &class_name, int_state);
         }
     }
-    let res = jvm.initialized_classes.read().unwrap().get(&ptype).unwrap().clone();
+
+    let inited_target = initialize_class(prepared, jvm, int_state);
+    jvm.classes.initialized_classes.write().unwrap().insert(ptype.clone(), inited_target);
+    let res = jvm.classes.initialized_classes.read().unwrap().get(&ptype).unwrap().clone();
     res
 }

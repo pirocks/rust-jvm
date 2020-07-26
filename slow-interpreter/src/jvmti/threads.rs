@@ -47,6 +47,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     (*info_ptr).thread_group = transmute(to_object(jvm.thread_state.system_thread_group.read().unwrap().clone().unwrap().object().into()));//todo get thread groups working at some point
     (*info_ptr).context_class_loader = transmute(to_object(
         jvm
+            .classes
             .class_object_pool
             .read().unwrap()
             .get(&RuntimeClass::Int).unwrap()//todo technically this needs a check inited class
@@ -112,13 +113,25 @@ pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> 
     //todo this part is not correct: If the calling thread is specified, this function will not return until some other thread calls ResumeThread. If the thread is currently suspended, this function does nothing and returns an error.
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
-    let thread_object_raw = from_object(transmute(thread));//todo this transmute bs will sone have gone too far
+    let thread_object_raw = from_object(thread);
     let jthread = JavaValue::Object(thread_object_raw).cast_thread();
     let java_thread = jthread.get_java_thread(jvm);
     let res = suspend_thread_impl(java_thread);
     jvm.tracing.trace_jdwp_function_exit(jvm, "SuspendThread");
     res
 }
+
+pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
+    let jvm = get_state(env);
+    jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThread");
+    let thread_object_raw = from_object(thread);
+    let jthread = JavaValue::Object(thread_object_raw).cast_thread();
+    let java_thread = jthread.get_java_thread(jvm);
+    let res = resume_thread_impl(java_thread);
+    jvm.tracing.trace_jdwp_function_exit(jvm, "ResumeThread");
+    res
+}
+
 
 pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);

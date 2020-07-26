@@ -52,12 +52,12 @@ pub fn get_or_create_class_object(state: &'static JVMState,
 fn regular_object<'l>(state: &'static JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Arc<Object> {
     // let current_frame = int_state.current_frame_mut();
     let runtime_class = check_inited_class(state, int_state, &ptype, loader_arc);
-    let res = state.class_object_pool.read().unwrap().get(&runtime_class).cloned();
+    let res = state.classes.class_object_pool.read().unwrap().get(&runtime_class).cloned();
     match res {
         None => {
             let r = create_a_class_object(state, int_state, runtime_class.clone());
             //todo likely race condition created by expectation that Integer.class == Integer.class, maybe let it happen anyway?
-            state.class_object_pool.write().unwrap().insert(runtime_class.clone(), r.clone());
+            state.classes.class_object_pool.write().unwrap().insert(runtime_class.clone(), r.clone());
             if runtime_class.ptypeview().is_primitive() {
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
