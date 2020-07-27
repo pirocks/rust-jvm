@@ -203,12 +203,12 @@ fn check_inited_class_impl(
     jvm.classes.initializing_classes.write().unwrap().insert(ptype.clone(), prepared.clone());
     match prepared.view().super_name() {
         None => {},
-        Some(super_name) => { check_inited_class_impl(jvm, int_state, &super_name, loader_arc); },
+        Some(super_name) => { check_inited_class(jvm, int_state, &super_name.into(), loader_arc); },
     };
     match &jvm.jvmti_state {
         None => {}
         Some(jvmti) => {
-            if class_name == &ClassName::Str("java/awt/Toolkit".to_string()) {
+            if class_name == &ClassName::Str("java/lang/Thread".to_string()) {
                 println!("here")
             }
             jvmti.built_in_jdwp.class_prepare(jvm, &class_name, int_state);

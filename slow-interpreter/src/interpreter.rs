@@ -255,7 +255,7 @@ fn run_single_instruction<'l>(
         InstructionInfo::f2d => f2d(interpreter_state.current_frame_mut()),
         InstructionInfo::f2i => f2i(interpreter_state.current_frame_mut()),
         InstructionInfo::f2l => unimplemented!(),
-        InstructionInfo::fadd => unimplemented!(),
+        InstructionInfo::fadd => fadd(interpreter_state.current_frame_mut()),
         InstructionInfo::faload => unimplemented!(),
         InstructionInfo::fastore => unimplemented!(),
         InstructionInfo::fcmpg => fcmpg(interpreter_state.current_frame_mut()),

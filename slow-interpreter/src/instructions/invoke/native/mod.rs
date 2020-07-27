@@ -15,6 +15,7 @@ use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::monitor_for_function;
+use crate::interpreter_util::check_inited_class;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, Object};
@@ -30,6 +31,7 @@ pub fn run_native_method<'l>(
     _debug: bool,
 ) {
     let view = &class.view();
+    check_inited_class(jvm, int_state, &view.name().into(), class.loader(jvm));
     let method = &view.method_view_i(method_i);
     assert!(method.is_native());
     let parsed = method.desc();
@@ -146,11 +148,12 @@ pub fn run_native_method<'l>(
                         //todo nyi
                         // unimplemented!()
                         Some(JavaValue::Int(0))
-                    } else if &mangled == "Java_java_lang_Thread_currentThread" {
+                    } /*else if &mangled == "Java_java_lang_Thread_currentThread" {
                         Some(jvm.thread_state.get_current_thread().thread_object().java_value())
                     } else if &mangled == "Java_java_lang_Thread_setPriority0" {
                         None//todo for now unimplemented
                     } else if &mangled == "Java_java_lang_Thread_isAlive" {
+                        //todo dup with libjvm
                         let maybe_java_thread = args[0].cast_thread().try_get_java_thread(jvm);
                         match maybe_java_thread {
                             None => {
@@ -162,12 +165,12 @@ pub fn run_native_method<'l>(
                             },
                         }
                     } else if &mangled == "Java_java_lang_Thread_start0" {
+                        //todo dup with libjvm
                         int_state.print_stack_trace();
-                        let java_thread = args[0].cast_thread().get_java_thread(jvm);
-                        dbg!(args[0].cast_thread().name().to_rust_string());
-                        jvm.thread_state.start_thread_from_obj(jvm, java_thread.thread_object(), int_state, false);
+                        let java_thread = args[0].cast_thread();
+                        jvm.thread_state.start_thread_from_obj(jvm, java_thread, int_state, false);
                         None
-                    } else {
+                    } */else {
                         int_state.print_stack_trace();
                         dbg!(mangled);
                         panic!()

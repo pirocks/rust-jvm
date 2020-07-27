@@ -9,6 +9,12 @@ pub fn fmul(current_frame: &mut StackEntry) -> () {
     current_frame.push(JavaValue::Float(value2 * value1));
 }
 
+pub fn fadd(current_frame: &mut StackEntry) -> () {
+    let value2 = current_frame.pop().unwrap_float();
+    let value1 = current_frame.pop().unwrap_float();
+    current_frame.push(JavaValue::Float(value2 + value1));
+}
+
 pub fn fdiv(current_frame: &mut StackEntry) -> () {
     let value2 = current_frame.pop().unwrap_float();
     let value1 = current_frame.pop().unwrap_float();
