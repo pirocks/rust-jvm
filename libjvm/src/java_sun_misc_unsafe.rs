@@ -2,6 +2,7 @@ use std::intrinsics::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
 
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jbyte, jclass, jint, jlong, JNIEnv, jobject, JVM_CALLER_DEPTH};
 use slow_interpreter::java_values::JavaValue;
@@ -23,6 +24,13 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_arrayBaseOffset(env: *mut JNIEnv,
                                                                cb: jclass) -> jint {
     0//unimplemented but can't return nothing.
     //essentially the amount at the beginning of the array which is reserved
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldBase(env: *mut JNIEnv,
+                                                               field: jobject) -> jobject {
+    null_mut()//unimplemented but can't return nothing.
 }
 
 
@@ -165,6 +173,26 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
     let mut field_i = None;
     &class_view.fields().enumerate().for_each(|(i, f)| {
         if f.field_name() == name {
+            field_i = Some(i);
+        }
+    });
+    let jvm = get_state(env);
+    let field_id = new_field_id(jvm, clazz, field_i.unwrap());
+    transmute(field_id)
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEnv, the_unsafe: jobject,
+                                                                 field_obj: jobject,
+) -> jlong {
+    //todo major duplication
+    let jfield = JavaValue::Object(from_object(field_obj)).cast_field();
+    let name = jfield.name().to_rust_string();
+    let clazz = jfield.clazz().as_runtime_class();
+    let class_view = clazz.view();
+    let mut field_i = None;
+    &class_view.fields().enumerate().for_each(|(i, f)| {
+        if f.field_name() == name && f.is_static() {
             field_i = Some(i);
         }
     });

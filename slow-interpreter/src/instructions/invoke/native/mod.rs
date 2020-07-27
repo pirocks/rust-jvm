@@ -92,7 +92,7 @@ pub fn run_native_method<'l>(
                         freeMemory(&mut args)
                         //todo all these unsafe function thingys are getting a tad excessive
                     } else if mangled == "Java_sun_misc_Unsafe_getObjectVolatile".to_string() {
-                        get_object_volatile(&mut args)
+                        get_object_volatile(jvm, &mut args)
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
                         //todo
                         None
@@ -170,7 +170,8 @@ pub fn run_native_method<'l>(
                         let java_thread = args[0].cast_thread();
                         jvm.thread_state.start_thread_from_obj(jvm, java_thread, int_state, false);
                         None
-                    } */else {
+                    } */
+                    else {
                         int_state.print_stack_trace();
                         dbg!(mangled);
                         panic!()

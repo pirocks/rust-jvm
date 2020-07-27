@@ -4,15 +4,38 @@
 
 //all of these functions should be implemented in libjvm
 use std::mem::transmute;
+use std::ops::Deref;
+use std::sync::Arc;
 
-use crate::java_values::JavaValue;
-use crate::JVMState;
+use classfile_view::view::HasAccessFlags;
+use jvmti_jni_bindings::jfieldID;
 
-pub fn get_object_volatile(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
-    let temp = args[1].unwrap_object().unwrap();
-    let array_idx = args[2].unwrap_long() as usize;
-    let res = &temp.unwrap_array().elems.borrow()[array_idx];
-    res.clone().into()
+use crate::{InterpreterStateGuard, JVMState};
+use crate::field_table::FieldId;
+use crate::java_values::{JavaValue, Object};
+
+pub fn get_object_volatile(jvm: &'static JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+    match args[1].unwrap_object() {
+        None => {
+            let field_id = args[2].unwrap_long() as FieldId;
+            let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
+            let field_view = runtime_class.view().field(i as usize);
+            assert!(field_view.is_static());
+            let name = field_view.field_name();
+            let res = runtime_class.static_vars().get(&name).unwrap().clone();
+            res.into()
+        }
+        Some(object_to_read) => {
+            match object_to_read.deref() {
+                Object::Array(arr) => {
+                    let array_idx = args[2].unwrap_long() as usize;
+                    let res = &arr.elems.borrow()[array_idx];
+                    res.clone().into()
+                }
+                Object::Object(_) => unimplemented!(),
+            }
+        }
+    }
 }
 
 pub fn freeMemory(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
