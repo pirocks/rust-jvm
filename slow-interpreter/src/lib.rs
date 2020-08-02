@@ -25,8 +25,6 @@ use std::thread::LocalKey;
 use std::time::Instant;
 
 use libloading::Library;
-use lock_api::Mutex;
-use parking_lot::RawMutex;
 
 use classfile_view::loading::{LivePoolGetter, LoaderArc, LoaderName};
 use classfile_view::view::ClassView;
@@ -238,16 +236,15 @@ impl<'l> InterpreterStateGuard<'l> {
 
 #[derive(Debug)]
 pub struct SuspendedStatus {
-    pub suspended: bool,
-    pub suspended_lock: Arc<Mutex<RawMutex, ()>>,
-    // pub suspend_critical_section_lock: Mutex<RawMutex,()>
+    pub suspended: std::sync::Mutex<bool>,
+    pub suspend_condvar: std::sync::Condvar,
 }
 
 impl Default for SuspendedStatus {
     fn default() -> Self {
         Self {
-            suspended: false,
-            suspended_lock: Arc::new(Default::default()),
+            suspended: std::sync::Mutex::new(false),
+            suspend_condvar: Default::default(),
         }
     }
 }

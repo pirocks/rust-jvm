@@ -7,7 +7,7 @@ use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{InterpreterStateGuard, JVMState, SuspendedStatus};
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::arithmetic::*;
 use crate::instructions::branch::*;
@@ -106,15 +106,12 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
 }
 
 fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {
-    let read_guard = interpreter_state.thread.suspended.read().unwrap();
-    if read_guard.suspended {
-        let suspension_lock = read_guard.suspended_lock.clone();
-        std::mem::drop(read_guard);
+    let SuspendedStatus { suspended, suspend_condvar } = &interpreter_state.thread.suspended;
+    let suspended_guard = suspended.lock().unwrap();
+    if *suspended_guard {
         std::mem::drop(interpreter_state.int_state.take());
-        std::mem::drop(suspension_lock.lock());//so this will block when threads are suspended
+        suspend_condvar.wait(suspended_guard);
         interpreter_state.int_state = interpreter_state.thread.interpreter_state.write().unwrap().into();
-    } else {
-        std::mem::drop(read_guard);
     }
 }
 

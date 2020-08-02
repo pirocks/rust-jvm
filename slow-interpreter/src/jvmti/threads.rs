@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use jvmti_jni_bindings::*;
 
+use crate::{JavaThread, SuspendedStatus};
 use crate::java_values::JavaValue;
-use crate::JavaThread;
 use crate::jvmti::get_state;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::native_util::{from_object, to_object};
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, t
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
     let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
     let thread = jthread.get_java_thread(jvm);
-    let suspended = thread.suspended.read().unwrap().suspended;
+    let suspended = *thread.suspended.suspended.lock().unwrap();
     let state = JVMTI_THREAD_STATE_ALIVE | if suspended {
         JVMTI_THREAD_STATE_SUSPENDED
     } else {
@@ -92,12 +92,12 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
 }
 
 fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
-   let mut suspend_info = java_thread.suspended.write().unwrap();
-    if suspend_info.suspended {
+    let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
+    let mut suspended_guard = suspended.lock().unwrap();
+    if *suspended_guard {
         jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
     } else {
-        std::mem::forget(suspend_info.suspended_lock.lock());
-        suspend_info.suspended = true;
+        *suspended_guard = true;
         jvmtiError_JVMTI_ERROR_NONE
     }
 }
@@ -148,12 +148,13 @@ pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: j
 
 
 fn resume_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
-    let mut suspend_info = java_thread.suspended.write().unwrap();
-    if !suspend_info.suspended {
+    let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
+    let mut suspend_guard = suspended.lock().unwrap();
+    if !*suspend_guard {
         unimplemented!()
     } else {
-        suspend_info.suspended = false;
-        unsafe { suspend_info.suspended_lock.force_unlock() };
+        *suspend_guard = false;
+        suspend_condvar.notify_one();//notify one and notify all should be the same here
         jvmtiError_JVMTI_ERROR_NONE
     }
 }

@@ -5,12 +5,10 @@
 //all of these functions should be implemented in libjvm
 use std::mem::transmute;
 use std::ops::Deref;
-use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::jfieldID;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::JVMState;
 use crate::field_table::FieldId;
 use crate::java_values::{JavaValue, Object};
 
