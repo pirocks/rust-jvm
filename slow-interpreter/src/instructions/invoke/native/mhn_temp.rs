@@ -239,11 +239,13 @@ pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: &mut Interprete
         ptypes_as_classes.push(JavaValue::Object(class_object.into()))
     }
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));
-    let ptypes = JavaValue::Object(Arc::new(Array(ArrayObject {
-        elems: RefCell::new(ptypes_as_classes),
-        elem_type: class_type,
-        monitor: jvm.thread_state.new_monitor("monitor for a method type".to_string()),
-    })).into());
+    let ptypes = JavaValue::Object(Arc::new(Array(ArrayObject::new_array(
+        jvm,
+        int_state,
+        ptypes_as_classes,
+        class_type,
+        jvm.thread_state.new_monitor("monitor for a method type".to_string()),
+    ))).into());
     run_constructor(jvm, int_state, method_type_class, vec![this.clone(), rtype, ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
     frame.push(this.clone());
     // let method_type_form_class = check_inited_class(state,&ClassName::method_type_form(),loader_arc.clone());

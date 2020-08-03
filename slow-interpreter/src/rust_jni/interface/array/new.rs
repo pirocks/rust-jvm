@@ -1,11 +1,10 @@
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
-use crate::rust_jni::native_util::{from_jclass, from_object, get_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
     let type_ = from_jclass(clazz).as_type();
@@ -51,13 +50,14 @@ pub unsafe extern "C" fn new_double_array(env: *mut JNIEnv, len: jsize) -> jdoub
 
 unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: PTypeView) -> jarray {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let mut the_vec = vec![];
     for _ in 0..len {
         the_vec.push(default_value(elem_type.clone()))
     }
-    to_object(Some(Arc::new(Object::Array(ArrayObject {
-        elems: RefCell::new(the_vec),
-        elem_type,
-        monitor: jvm.thread_state.new_monitor("monitor for jni created byte array".to_string()),
-    }))))
+    to_object(Some(Arc::new(Object::Array(ArrayObject::new_array(jvm, int_state,
+                                                                 the_vec,
+                                                                 elem_type,
+                                                                 jvm.thread_state.new_monitor("monitor for jni created byte array".to_string()),
+    )))))
 }

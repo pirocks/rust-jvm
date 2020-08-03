@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use classfile_view::view::constant_info_view::ConstantInfoView;
@@ -46,7 +45,8 @@ pub fn a_new_array_from_name<'l>(jvm: &'static JVMState, int_state: &mut Interpr
         int_state.current_loader(jvm).clone(),
     );
     let t = PTypeView::Ref(ReferenceTypeView::Class(name.clone()));
-    int_state.push_current_operand_stack(JavaValue::Object(Some(JavaValue::new_vec(jvm, len as usize, JavaValue::Object(None), t).unwrap()).into()))
+    let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t);
+    int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap()).into()))
 }
 
 
@@ -81,7 +81,8 @@ pub fn newarray<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuar
             PTypeView::FloatType
         }
     };
-    int_state.push_current_operand_stack(JavaValue::Object(JavaValue::new_vec(jvm, count as usize, default_value(type_.clone()), type_)));
+    let new_array = JavaValue::new_vec(jvm, int_state, count as usize, default_value(type_.clone()), type_);
+    int_state.push_current_operand_stack(JavaValue::Object(new_array));
 }
 
 
@@ -90,25 +91,29 @@ pub fn multi_a_new_array<'l>(jvm: &'static JVMState, int_state: &mut Interpreter
     let temp = int_state.current_frame_mut().class_pointer.view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    check_inited_class(jvm, int_state, &PTypeView::Ref(type_), int_state.current_loader(jvm).clone());
+    check_inited_class(jvm, int_state, &PTypeView::Ref(type_.clone()), int_state.current_loader(jvm).clone());
     //todo need to start doing this at some point
     let mut dimensions = vec![];
+    let mut unwrapped_type = type_.clone();
     for _ in 0..dims {
         dimensions.push(int_state.current_frame_mut().pop().unwrap_int());
+        unwrapped_type = unwrapped_type.unwrap_array().unwrap_ref_type().clone()
     }
     let mut current = JavaValue::Object(None);
-    let mut current_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str("sketch hack".to_string())));//todo fix this as a matter of urgency
+    let mut current_type = PTypeView::Ref(unwrapped_type);//todo fix this as a matter of urgency
     for len in dimensions {
         let next_type = PTypeView::Ref(ReferenceTypeView::Array(Box::new(current_type)));
         let mut new_vec = vec![];
         for _ in 0..len {
             new_vec.push(current.deep_clone(jvm))
         }
-        current = JavaValue::Object(Arc::new(Object::Array(ArrayObject {
-            elems: RefCell::new(new_vec),
-            elem_type: next_type.clone(),
-            monitor: jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string()),
-        })).into());
+        current = JavaValue::Object(Arc::new(Object::Array(ArrayObject::new_array(
+            jvm,
+            int_state,
+            new_vec,
+            next_type.clone(),
+            jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string()),
+        ))).into());
         current_type = next_type;
     }
     int_state.push_current_operand_stack(current);

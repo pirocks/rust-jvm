@@ -62,11 +62,13 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         ).java_value())
     });
     let res = Some(Arc::new(
-        Object::Array(ArrayObject {
-            elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
-            elems: RefCell::new(object_array),
-            monitor: jvm.thread_state.new_monitor("".to_string()),
-        })));
+        Object::Array(ArrayObject::new_array(
+            jvm,
+            int_state,
+            object_array,
+            PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
+            jvm.thread_state.new_monitor("".to_string()),
+        ))));
     to_object(res)
 }
 

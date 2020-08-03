@@ -53,7 +53,7 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
     let int_state = get_interpreter_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
     let mut res_vec = vec![];
-//todo what about int.class and other primitive classes
+
     jvm.classes.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
         let class_object = get_or_create_class_object(jvm, &runtime_class.ptypeview(), int_state, runtime_class.loader(jvm).clone());
         res_vec.push(to_object(class_object.into()))

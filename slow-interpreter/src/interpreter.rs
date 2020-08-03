@@ -110,7 +110,7 @@ fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {
     let suspended_guard = suspended.lock().unwrap();
     if *suspended_guard {
         std::mem::drop(interpreter_state.int_state.take());
-        suspend_condvar.wait(suspended_guard);
+        drop(suspend_condvar.wait(suspended_guard).unwrap());
         interpreter_state.int_state = interpreter_state.thread.interpreter_state.write().unwrap().into();
     }
 }

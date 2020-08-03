@@ -204,13 +204,14 @@ impl ThreadState {
             let new_thread_frame = StackEntry {
                 class_pointer: thread_class.clone(),
                 method_i: std::u16::MAX,
-                local_vars: vec![],
+                local_vars: vec![java_thread.thread_object.read().unwrap().as_ref().unwrap().clone().java_value()],
                 operand_stack: vec![],
                 pc: std::usize::MAX,
                 pc_offset: -1,
             };
             let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
             interpreter_state_guard.push_frame(new_thread_frame);
+            jvm.thread_state.set_current_thread(java_thread.clone());
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object()));
             java_thread.java_alive.store(true, Ordering::SeqCst);
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);

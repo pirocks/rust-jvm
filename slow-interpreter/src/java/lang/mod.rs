@@ -264,7 +264,7 @@ pub mod thread {
         }
 
         pub fn run<'l>(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm).clone());
+            let thread_class = self.normal_object.unwrap_normal_object().class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &thread_class, "run".to_string(), "()V".to_string());
         }

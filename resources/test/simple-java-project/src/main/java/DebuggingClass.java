@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class DebuggingClass {
-    public static void main(String[] args) throws IOException, IllegalConnectorArgumentsException, AbsentInformationException {
+    public static void main(String[] args) throws IOException, IllegalConnectorArgumentsException, AbsentInformationException, IncompatibleThreadStateException {
         final GenericAttachingConnector connector = new SocketAttachingConnector();
         final VirtualMachine attached = connector.attach("localhost:5005", connector.defaultArguments());
         for (ReferenceType aClass : attached.allClasses()) {
@@ -47,9 +47,73 @@ public class DebuggingClass {
             EventIterator it = eventSet.eventIterator();
             while (it.hasNext()) {
                 Event event = it.nextEvent();
-                if (event instanceof BreakpointEvent){
+                if (event instanceof BreakpointEvent) {
                     final BreakpointEvent event1 = (BreakpointEvent) event;
                     System.out.println(event1.thread().name());
+                    final List<StackFrame> frames = event1.thread().frames();
+                    frames.forEach(stackFrame -> {
+                        final List<LocalVariable> localVariableList;
+                        try {
+                            localVariableList = stackFrame.visibleVariables();
+                            localVariableList.forEach(localVariable -> {
+                                System.out.println(localVariable.name());
+                                try {
+                                    System.out.println(localVariable.type());
+                                } catch (ClassNotLoadedException e) {
+                                    e.printStackTrace();
+                                }
+                                System.out.println(((ArrayReference) stackFrame.getValue(localVariable)).getValue(1));
+                                try {
+                                    System.out.println(stackFrame.visibleVariableByName("args"));
+                                } catch (AbsentInformationException e) {
+                                    e.printStackTrace();
+                                }
+                            });
+                        } catch (AbsentInformationException e) {
+                            e.printStackTrace();
+                        }
+
+                    });
+
+
+                    attached.allThreads().forEach(threadReference -> {
+                        final String name = threadReference.name();
+                        System.out.println(name);
+                        if (name.equals("Reference Handler")){
+                            threadReference.interrupt();
+                            threadReference.suspend();
+                            try {
+                                System.out.println(threadReference.frameCount());
+                            } catch (IncompatibleThreadStateException e) {
+                                e.printStackTrace();
+                            }
+
+                            try {
+                                threadReference.frames().forEach(stackFrame -> {
+                                    System.out.println(stackFrame.location());
+                                    System.out.println(stackFrame.thisObject());
+                                });
+                            } catch (IncompatibleThreadStateException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        try {
+                            threadReference.frames().forEach(stackFrame -> {
+                                try {
+                                    stackFrame.visibleVariables().forEach(localVariable -> {
+                                        System.out.println(localVariable.name());
+                                    });
+                                } catch (AbsentInformationException e) {
+                                    e.printStackTrace();
+                                }
+                                stackFrame.getArgumentValues().forEach(value -> {
+                                    System.out.println(value.type());
+                                });
+                            });
+                        } catch (IncompatibleThreadStateException e) {
+                            e.printStackTrace();
+                        }
+                    });
                 }
             }
         }

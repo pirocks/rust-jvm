@@ -89,14 +89,14 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut Inte
         //todo what does slot do?
         let slot = JavaValue::Int(-1);
         let signature = get_signature(jvm, int_state, &method_view);
-        let annotations = JavaValue::empty_byte_array(jvm);
-        let parameterAnnotations = JavaValue::empty_byte_array(jvm);
-        let annotationDefault = JavaValue::empty_byte_array(jvm);
+        let annotations = JavaValue::empty_byte_array(jvm, int_state);
+        let parameterAnnotations = JavaValue::empty_byte_array(jvm, int_state);
+        let annotationDefault = JavaValue::empty_byte_array(jvm, int_state);
         let full_args = vec![method_object, clazz, name, parameterTypes, returnType, exceptionTypes, modifiers, slot, signature, annotations, parameterAnnotations, annotationDefault];
         //todo replace with wrapper object
         run_constructor(jvm, int_state, method_class.clone(), full_args, METHOD_SIGNATURE.to_string());
     });
-    let res = Arc::new(Object::object_array(jvm, object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.view().name())))).into();
+    let res = Arc::new(Object::object_array(jvm, int_state, object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.view().name())))).into();
     unsafe { to_object(res) }
 }
 
@@ -124,11 +124,13 @@ fn exception_types_table(jvm: &'static JVMState, int_state: &mut InterpreterStat
             ptype_to_class_object(jvm, int_state, &x.to_ptype()).into()
         })
         .collect();
-    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
-        elems: RefCell::new(exception_table),
-        elem_type: class_type.clone(),
-        monitor: jvm.thread_state.new_monitor("".to_string()),
-    }))))
+    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+        jvm,
+        int_state,
+        exception_table,
+        class_type,
+        jvm.thread_state.new_monitor("".to_string()),
+    )))))
 }
 
 fn parameters_type_objects(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
@@ -139,11 +141,13 @@ fn parameters_type_objects(jvm: &'static JVMState, int_state: &mut InterpreterSt
         res.push(JavaValue::Object(ptype_to_class_object(jvm, int_state, &param_type)));
     }
 
-    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
-        elems: RefCell::new(res),
-        elem_type: class_type.clone(),
-        monitor: jvm.thread_state.new_monitor("".to_string()),
-    }))))
+    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+        jvm,
+        int_state,
+        res,
+        class_type,
+        jvm.thread_state.new_monitor("".to_string()),
+    )))))
 }
 
 
@@ -198,12 +202,12 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &'static JVMState, int_state: &mut
         let signature = get_signature(jvm, int_state, &method_view);
 
         //todo impl these
-        let empty_byte_array = JavaValue::empty_byte_array(jvm);
+        let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state);
 
         let full_args = vec![constructor_object, clazz, parameter_types, exceptionTypes, modifiers, slot, signature, empty_byte_array.clone(), empty_byte_array];
         run_constructor(jvm, int_state, constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
     });
-    let res = Arc::new(Object::object_array(jvm, object_array, PTypeView::Ref(ReferenceTypeView::Class(constructor_class.view().name())))).into();
+    let res = Arc::new(Object::object_array(jvm, int_state, object_array, PTypeView::Ref(ReferenceTypeView::Class(constructor_class.view().name())))).into();
     unsafe { to_object(res) }
 }
 

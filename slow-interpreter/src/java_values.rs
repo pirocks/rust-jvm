@@ -5,10 +5,11 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::JVMState;
+use crate::{InterpreterStateGuard, JVMState};
+use crate::interpreter_util::check_inited_class;
 use crate::runtime_class::RuntimeClass;
 use crate::threading::monitors::Monitor;
 
@@ -265,12 +266,14 @@ impl JavaValue {
             JavaValue::Top => unimplemented!(),
         }
     }
-    pub fn empty_byte_array(jvm: &'static JVMState) -> JavaValue {
-        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
-            elems: RefCell::new(vec![]),
-            elem_type: PTypeView::ByteType,
-            monitor: jvm.thread_state.new_monitor("".to_string()),
-        }))))
+    pub fn empty_byte_array(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
+        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+            jvm,
+            int_state,
+            vec![],
+            PTypeView::ByteType,
+            jvm.thread_state.new_monitor("".to_string()),
+        )))))
     }
     pub fn new_object(jvm: &'static JVMState, runtime_class: Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
@@ -282,16 +285,18 @@ impl JavaValue {
         })).into()
     }
 
-    pub fn new_vec(jvm: &'static JVMState, len: usize, val: JavaValue, elem_type: PTypeView) -> Option<Arc<Object>> {
+    pub fn new_vec(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, len: usize, val: JavaValue, elem_type: PTypeView) -> Option<Arc<Object>> {
         let mut buf: Vec<JavaValue> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Some(Arc::new(Object::Array(ArrayObject {
-            elems: buf.into(),
+        Some(Arc::new(Object::Array(ArrayObject::new_array(
+            jvm,
+            int_state,
+            buf,
             elem_type,
-            monitor: jvm.thread_state.new_monitor("array object monitor".to_string()),
-        })))
+            jvm.thread_state.new_monitor("array object monitor".to_string()),
+        ))))
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {
@@ -483,12 +488,8 @@ impl Object {
         }
     }
 
-    pub fn object_array(jvm: &'static JVMState, object_array: Vec<JavaValue>, class_type: PTypeView) -> Object {
-        Object::Array(ArrayObject {
-            elems: RefCell::new(object_array),
-            elem_type: class_type,
-            monitor: jvm.thread_state.new_monitor("".to_string()),
-        })
+    pub fn object_array(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, object_array: Vec<JavaValue>, class_type: PTypeView) -> Object {
+        Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string())))
     }
 
     pub fn monitor(&self) -> &Monitor {
@@ -514,6 +515,17 @@ pub struct ArrayObject {
     pub monitor: Arc<Monitor>,
 }
 
+impl ArrayObject {
+    pub fn new_array(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>) -> Self {
+        check_inited_class(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())), int_state.current_loader(jvm));
+        Self {
+            elems: RefCell::new(elems),
+            elem_type: type_,
+            monitor,
+        }
+    }
+}
+
 pub struct NormalObject {
     pub monitor: Arc<Monitor>,
     //I guess this never changes so unneeded?
@@ -523,7 +535,6 @@ pub struct NormalObject {
     //todo this should just point to the actual class object.
     pub class_object_type: Option<Arc<RuntimeClass>>, //points to the object represented by this class object of relevant
 }
-
 
 impl Debug for NormalObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -550,7 +561,6 @@ pub fn default_value(type_: PTypeView) -> JavaValue {
         PTypeView::UninitializedThisOrClass(_) => panic!(),
     }
 }
-
 
 impl ArrayObject {
     pub fn unwrap_object_array(&self) -> Vec<Option<Arc<Object>>> {

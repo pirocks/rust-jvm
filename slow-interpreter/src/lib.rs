@@ -101,8 +101,8 @@ impl Default for InterpreterState {
 }
 
 pub struct InterpreterStateGuard<'l> {
-    int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
-    thread: &'l Arc<JavaThread>,
+    pub int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
+    pub thread: &'l Arc<JavaThread>,
 }
 
 impl<'l> InterpreterStateGuard<'l> {
@@ -523,6 +523,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
         pc: 0,
         pc_offset: 0,
     };
+    int_state.pop_frame();
     int_state.push_frame(stack_entry);
 
     setup_program_args(&jvm, int_state, args);
@@ -539,11 +540,13 @@ fn setup_program_args<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
     for arg_str in args {
         arg_strings.push(JString::from(jvm, int_state, arg_str.clone()).java_value());
     }
-    let arg_array = JavaValue::Object(Some(Arc::new(Array(ArrayObject {
-        elems: RefCell::new(arg_strings),
-        elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
-        monitor: jvm.thread_state.new_monitor("arg array monitor".to_string()),
-    }))));
+    let arg_array = JavaValue::Object(Some(Arc::new(Array(ArrayObject::new_array(
+        jvm,
+        int_state,
+        arg_strings,
+        PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
+        jvm.thread_state.new_monitor("arg array monitor".to_string()),
+    )))));
     let local_vars = &mut int_state.current_frame_mut().local_vars;
     local_vars[0] = arg_array;
 }

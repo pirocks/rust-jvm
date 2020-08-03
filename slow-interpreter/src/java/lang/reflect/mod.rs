@@ -24,7 +24,6 @@ pub mod method {
 }
 
 pub mod field {
-    use std::cell::RefCell;
     use std::sync::Arc;
 
     use classfile_view::view::ptype_view::PTypeView;
@@ -68,11 +67,13 @@ pub mod field {
             let slot = JavaValue::Int(slot);
 
             //todo impl annotations.
-            let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
-                elems: RefCell::new(annotations),
-                elem_type: PTypeView::ByteType,
-                monitor: jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
-            }))));
+            let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+                jvm,
+                int_state,
+                annotations,
+                PTypeView::ByteType,
+                jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
+            )))));
 
             run_constructor(
                 jvm,

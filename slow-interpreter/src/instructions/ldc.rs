@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
@@ -45,11 +44,13 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mu
     push_new_object(jvm, interpreter_state, &string_class, None);//todo what if stack overflows here?
     let string_object = interpreter_state.pop_current_operand_stack();
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
-        elems: RefCell::new(chars),
-        elem_type: PTypeView::CharType,
-        monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
-    })))));
+    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+        jvm,
+        interpreter_state,
+        chars,
+        PTypeView::CharType,
+        jvm.thread_state.new_monitor("monitor for a string".to_string()),
+    ))))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);

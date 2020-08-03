@@ -116,26 +116,25 @@ fn resolved_class<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGu
     let loader_arc = &int_state.current_loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);
     let class_name_ = match class_name_type {
-        PTypeView::Ref(r) => {
-            match r {
-                ReferenceTypeView::Class(c) => c,
-                ReferenceTypeView::Array(_a) => {
-                    if expected_method_name == "clone".to_string() {
-                        //todo replace with proper native impl
-                        let temp = int_state.pop_current_operand_stack().unwrap_object().unwrap();
-                        let to_clone_array = temp.unwrap_array();
-                        int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
-                            elems: to_clone_array.elems.clone(),
-                            elem_type: to_clone_array.elem_type.clone(),
-                            monitor: jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
-                        })))));
-                        return None;
-                    } else {
-                        unimplemented!();
-                    }
-                }
-            }
-        }
+        PTypeView::Ref(r) => match r {
+            ReferenceTypeView::Class(c) => c,
+            ReferenceTypeView::Array(_a) => if expected_method_name == "clone".to_string() {
+                //todo replace with proper native impl
+                let temp = int_state.pop_current_operand_stack().unwrap_object().unwrap();
+                let ArrayObject { elems, elem_type, monitor: _monitor } = temp.unwrap_array();
+                let array_object = ArrayObject::new_array(
+                    jvm,
+                    int_state,
+                    elems.borrow().clone(),
+                    elem_type.clone(),
+                    jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
+                );
+                int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(array_object)))));
+                return None;
+            } else {
+                unimplemented!();
+            },
+        },
         _ => panic!()
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
