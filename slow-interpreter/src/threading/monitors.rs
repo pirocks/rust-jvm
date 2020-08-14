@@ -20,7 +20,7 @@ pub struct Monitor {
     pub owned: RwLock<OwningThreadAndCount>,
     pub mutex: Arc<FairMutex<()>>,
 
-    //condvar
+    //condvar for notify/wait
     pub condvar: Condvar,
     pub condvar_mutex: std::sync::Mutex<()>,
 }
@@ -81,7 +81,7 @@ impl Monitor {
         jvm.tracing.trace_monitor_wait(self, jvm);
         let mut count_and_owner = self.owned.write().unwrap();
         if count_and_owner.owner != Monitor::get_tid(jvm).into() {
-            // in java this throws an illegal monitor exception.
+            // in javaspace this throws an illegal monitor exception.
             unimplemented!()
         }
         // wait requires us to release hold on reentrant lock, but reacquire same count on notify
