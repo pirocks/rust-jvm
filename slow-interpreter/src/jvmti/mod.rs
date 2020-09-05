@@ -35,6 +35,15 @@ use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 
 pub mod event_callbacks;
 
+#[macro_export]
+macro_rules! null_check {
+    ($ptr: expr) => {
+        if $ptr == std::ptr::null_mut() {
+            return jvmtiError_JVMTI_ERROR_NULL_POINTER
+        }
+    };
+}
+
 
 pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
     transmute((**env).reserved1)
