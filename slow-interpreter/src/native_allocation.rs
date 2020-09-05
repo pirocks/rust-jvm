@@ -21,13 +21,6 @@ pub struct NativeAllocator {
 unsafe impl Send for NativeAllocator {}
 
 impl NativeAllocator {
-    /* pub fn allocate_vec<'life, ElemType>(&self, vec: Vec<ElemType>) -> &'life mut [ElemType] {
-         let res = Vec::leak(vec);
-         let mut guard = self.allocations.write().unwrap();
-         guard.insert(unsafe { transmute(res as *mut ElemType as *mut c_void) }, AllocationType::VecLeak);
-         res
-     }
- */
     pub unsafe fn allocate_malloc(&self, size: libc::size_t) -> *mut c_void {
         let res = libc::malloc(size);
         let mut guard = self.allocations.write().unwrap();
@@ -52,9 +45,6 @@ impl NativeAllocator {
     pub unsafe fn free(&self, ptr: *mut c_void) {
         let allocation_type = self.allocations.read().unwrap().get(&transmute(ptr)).unwrap().clone();
         match allocation_type {
-            /* AllocationType::VecLeak => {
-                 unimplemented!()
-             },*/
             AllocationType::BoxLeak => {
                 unimplemented!()
             }

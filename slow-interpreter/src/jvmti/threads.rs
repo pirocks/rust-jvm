@@ -1,5 +1,6 @@
 use std::ffi::{c_void, CString};
 use std::intrinsics::transmute;
+use std::mem::size_of;
 use std::sync::Arc;
 
 use jvmti_jni_bindings::*;
@@ -10,17 +11,53 @@ use crate::jvmti::get_state;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::native_util::{from_object, to_object};
 
+///Get Top Thread Groups
+///
+///     jvmtiError
+///     GetTopThreadGroups(jvmtiEnv* env,
+///                 jint* group_count_ptr,
+///                 jthreadGroup** groups_ptr)
+///
+/// Return all top-level (parentless) thread groups in the VM.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	13	1.0
+///
+/// Capabilities
+/// Required Functionality
+///
+/// Parameters
+/// Name 	Type 	Description
+/// group_count_ptr	jint*	On return, points to the number of top-level thread groups.
+///
+/// Agent passes a pointer to a jint. On return, the jint has been set.
+/// groups_ptr	jthreadGroup**	On return, refers to a pointer to the top-level thread group array.
+///
+/// Agent passes a pointer to a jthreadGroup*. On return, the jthreadGroup* points to a newly allocated array of size *group_count_ptr. The array should be freed with Deallocate. The objects returned by groups_ptr are JNI local references and must be managed.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_NULL_POINTER	group_count_ptr is NULL.
+/// JVMTI_ERROR_NULL_POINTER	groups_ptr is NULL.
+// todo handle jni local references part
 pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_ptr: *mut jint, groups_ptr: *mut *mut jthreadGroup) -> jvmtiError {
     let jvm = get_state(env);
     jvm.tracing.trace_jdwp_function_enter(jvm, "GetTopThreadGroups");
+    null_check!(group_count_ptr);
+    null_check!(groups_ptr);
+    assert!(jvm.vm_live());
+    //There is only one top level thread group in this JVM.
     group_count_ptr.write(1);
-    let j_thread_group = jvm.thread_state.system_thread_group.read().unwrap().clone().unwrap();
+    let system_j_thread_group = jvm.thread_state.system_thread_group.read().unwrap().clone().unwrap();
 
-    dbg!(j_thread_group.threads_non_null().iter().map(|thread| thread.name().to_rust_string()).collect::<Vec<_>>());
-    let thread_group_object = j_thread_group.object();
-    let mut res = vec![to_object(thread_group_object.into())];
-    groups_ptr.write(transmute(res.as_mut_ptr()));//todo fix this bs that requires a transmute
-    Vec::leak(res);
+    dbg!(system_j_thread_group.threads_non_null().iter().map(|thread| thread.name().to_rust_string()).collect::<Vec<_>>());// todo should include Main thread
+    let thread_group_object = system_j_thread_group.object();
+    let mut res = to_object(thread_group_object.into());
+
+    let memory_allocation = jvm.native_interface_allocations.allocate_malloc(1 * size_of::<jobject>()) as *mut jobject;
+    groups_ptr.write(memory_allocation);
+    groups_ptr.read().write(res);
     jvm.tracing.trace_jdwp_function_exit(jvm, "GetTopThreadGroups");
     jvmtiError_JVMTI_ERROR_NONE
 }
@@ -33,7 +70,7 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         threads_count_ptr.write(0);
         threads_ptr.write(jvm.native_interface_allocations.allocate_box(()) as *mut () as *mut c_void as *mut jthread);
         jvm.tracing.trace_jdwp_function_exit(jvm, "GetAllThreads");
-        return jvmtiError_JVMTI_ERROR_NONE
+        return jvmtiError_JVMTI_ERROR_NONE;
     }
     let mut res_ptr = jvm.thread_state.get_all_threads().values().map(|thread| {
         dbg!(thread.thread_object().name().to_rust_string());
