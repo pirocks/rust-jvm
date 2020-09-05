@@ -56,7 +56,7 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mu
     let (constructor_i, final_target_class) = find_target_method(jvm, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry {
         class_pointer: final_target_class,
-        method_i: constructor_i as u16,
+        method_i: Option::from(constructor_i as u16),
         local_vars: args,
         operand_stack: vec![],
         pc: 0,

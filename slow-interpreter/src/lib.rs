@@ -218,14 +218,14 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn current_method_i(&self) -> CPIndex {
-        self.current_frame().method_i
+        self.current_frame().method_i.unwrap()
     }
 
     pub fn print_stack_trace(&self) {
         for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
             let name = stack_entry.class_pointer.view().name();
-            if stack_entry.method_i > 0 && stack_entry.method_i != u16::MAX {
-                let method_view = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i as usize);
+            if stack_entry.method_i.is_some() && stack_entry.method_i.unwrap() > 0 {
+                let method_view = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i.unwrap() as usize);
                 let meth_name = method_view.name();
                 println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(), i, stack_entry.pc)
             }
@@ -516,7 +516,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
     // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
     let stack_entry = StackEntry {
         class_pointer: main,
-        method_i: main_i as u16,
+        method_i: Option::from(main_i as u16),
         local_vars: vec![JavaValue::Top; num_vars as usize],//todo handle parameters, todo handle non-zero size locals
         operand_stack: vec![],
         pc: 0,
@@ -573,7 +573,7 @@ pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThread
     }
     let initialize_system_frame = StackEntry {
         class_pointer: system_class.clone(),
-        method_i: init_method_view.method_i() as u16,
+        method_i: Option::from(init_method_view.method_i() as u16),
         local_vars: locals,
         operand_stack: vec![],
         pc: 0,

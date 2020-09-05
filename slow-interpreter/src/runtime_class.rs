@@ -201,7 +201,7 @@ pub fn initialize_class<'l>(
 
     let new_stack = StackEntry {
         class_pointer: class_arc.clone(),
-        method_i: clinit.method_i() as u16,
+        method_i: Option::from(clinit.method_i() as u16),
         local_vars: locals,
         operand_stack: vec![],
         pc: 0,

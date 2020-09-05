@@ -44,7 +44,7 @@ pub fn invoke_special_impl<'l>(
         setup_virtual_args(interpreter_state.current_frame_mut(), &parsed_descriptor, &mut args, max_locals);
         let next_entry = StackEntry {
             class_pointer: final_target_class.clone(),
-            method_i: target_m_i as u16,
+            method_i: Option::from(target_m_i as u16),
             local_vars: args,
             operand_stack: vec![],
             pc: 0,

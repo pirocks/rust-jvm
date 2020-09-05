@@ -30,6 +30,7 @@ pub struct MethodTable {
 
 impl MethodTable {
     pub fn get_method_id(&mut self, rc: Arc<RuntimeClass>, index: u16) -> MethodTableIndex {
+        assert_ne!(index, u16::max_value());
         match match self.index.get(&RuntimeClassWrapper(rc.clone())) {
             Some(x) => x,
             None => {
@@ -42,6 +43,7 @@ impl MethodTable {
     }
 
     pub fn register_with_table(&mut self, rc: Arc<RuntimeClass>, method_index: u16) -> MethodTableIndex {
+        assert_ne!(method_index, u16::max_value());
         let res = self.table.len();
         self.table.push((rc.clone(), method_index));
         match self.index.get_mut(&RuntimeClassWrapper(rc.clone())) {

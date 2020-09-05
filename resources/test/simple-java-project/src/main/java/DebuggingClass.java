@@ -76,30 +76,12 @@ public class DebuggingClass {
                     });
 
 
-                    attached.allThreads().forEach(threadReference -> {
+                    final List<ThreadReference> allThreads = attached.allThreads();
+                    allThreads.forEach(threadReference -> {
                         final String name = threadReference.name();
                         System.out.println(name);
-                        if (name.equals("Reference Handler")){
-                            threadReference.interrupt();
-                            threadReference.suspend();
-                            try {
-                                System.out.println(threadReference.frameCount());
-                            } catch (IncompatibleThreadStateException e) {
-                                e.printStackTrace();
-                            }
 
-                            try {
-                                threadReference.frames().forEach(stackFrame -> {
-                                    final Method method1 = stackFrame.location().method();
-                                    System.out.println(method1.name());
-                                    System.out.println(method1.isNative());
-//                                    stackFrame.
-                                    System.out.println(stackFrame.thisObject());
-                                });
-                            } catch (IncompatibleThreadStateException e) {
-                                e.printStackTrace();
-                            }
-                        }
+
                         try {
                             threadReference.frames().forEach(stackFrame -> {
                                 try {

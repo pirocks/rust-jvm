@@ -127,7 +127,7 @@ impl ThreadState {
         underlying.start_thread(box move |_data: Box<dyn Any>| {
             let frame = StackEntry {
                 class_pointer: target_classfile.clone(),
-                method_i: std::u16::MAX,
+                method_i: None,
                 local_vars: vec![],
                 operand_stack: vec![],
                 pc: std::usize::MAX,
@@ -203,7 +203,7 @@ impl ThreadState {
             send.send(java_thread.clone()).unwrap();
             let new_thread_frame = StackEntry {
                 class_pointer: thread_class.clone(),
-                method_i: std::u16::MAX,
+                method_i: None,
                 local_vars: vec![java_thread.thread_object.read().unwrap().as_ref().unwrap().clone().java_value()],
                 operand_stack: vec![],
                 pc: std::usize::MAX,

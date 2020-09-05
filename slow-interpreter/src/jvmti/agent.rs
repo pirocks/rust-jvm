@@ -50,7 +50,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         let thread_class = check_inited_class(jvm, &mut guard, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
         guard.push_frame(StackEntry {
             class_pointer: thread_class,
-            method_i: 0,
+            method_i: None,
             local_vars: vec![],
             operand_stack: vec![],
             pc: 0,

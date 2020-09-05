@@ -9,7 +9,7 @@ use crate::runtime_class::RuntimeClass;
 pub struct StackEntry {
     // pub last_call_stack: Option<&StackEntry>,
     pub class_pointer: Arc<RuntimeClass>,
-    pub method_i: CPIndex,
+    pub method_i: Option<CPIndex>,
 
     pub local_vars: Vec<JavaValue>,
     pub operand_stack: Vec<JavaValue>,

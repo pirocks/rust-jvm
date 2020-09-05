@@ -67,7 +67,7 @@ pub fn invoke_static_impl<'l>(
         args[0..i].reverse();
         let next_entry = StackEntry {
             class_pointer: target_class,
-            method_i: target_method_i as u16,
+            method_i: Option::from(target_method_i as u16),
             local_vars: args.clone(),
             operand_stack: vec![],
             pc: 0,
