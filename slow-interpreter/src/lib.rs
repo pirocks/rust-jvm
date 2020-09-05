@@ -1,6 +1,5 @@
 #![feature(c_variadic)]
 #![feature(thread_local)]
-#![feature(vec_leak)]
 #![feature(box_syntax)]
 #![feature(vec_into_raw_parts)]
 extern crate errno;

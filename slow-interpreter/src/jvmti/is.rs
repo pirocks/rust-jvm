@@ -51,6 +51,8 @@ pub unsafe extern "C" fn is_method_native(
     let method_id: MethodId = transmute(method);
     let (rc, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let mv = rc.view().method_view_i(method_i as usize);
+    dbg!(mv.name());
+    dbg!(mv.is_native());
     is_native_ptr.write(mv.is_native() as jboolean);
     jvmtiError_JVMTI_ERROR_NONE
 }

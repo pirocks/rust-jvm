@@ -90,7 +90,10 @@ public class DebuggingClass {
 
                             try {
                                 threadReference.frames().forEach(stackFrame -> {
-                                    System.out.println(stackFrame.location());
+                                    final Method method1 = stackFrame.location().method();
+                                    System.out.println(method1.name());
+                                    System.out.println(method1.isNative());
+//                                    stackFrame.
                                     System.out.println(stackFrame.thisObject());
                                 });
                             } catch (IncompatibleThreadStateException e) {
