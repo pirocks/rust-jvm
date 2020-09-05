@@ -338,18 +338,6 @@ thread_local! {
 
 
 impl JVMState {
-    /*pub fn get_current_frame(&self) -> Rc<StackEntry> {
-        let current_thread = self.get_current_thread();
-        let temp = current_thread.call_stack.borrow();
-        temp.last().unwrap().clone()
-    }
-
-    pub fn get_previous_frame(&self) -> Rc<StackEntry> {
-        let thread = self.get_current_thread();
-        let call_stack = thread.call_stack.borrow();
-        call_stack.get(call_stack.len() - 2).unwrap().clone()
-    }
-*/
     pub fn new(jvm_options: JVMOptions) -> (Vec<String>, Self) {
         let JVMOptions { main_class_name, classpath, args, shared_libs, enable_tracing, enable_jvmti, properties } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
@@ -488,32 +476,15 @@ impl JVMState {
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter> {
         Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.classes.anon_class_live_object_ldc_pool.clone() })
     }
-
-    /*pub fn register_main_thread(&self, main_thread: Arc<JavaThread>) {
-        //todo perhaps there should be a single rw lock for this
-        self.thread_state.alive_threads.write().unwrap().insert(1, main_thread.clone());
-        let mut main_thread_writer = self.thread_state.main_thread.write().unwrap();
-        main_thread_writer.replace(main_thread.clone().into());
-        self.set_current_thread(main_thread);
-    }*/
-
-    /*pub fn main_thread(&self) -> Arc<JavaThread> {
-        let read_guard = self.thread_state.main_thread.read().unwrap();
-        read_guard.as_ref().unwrap().clone()
-    }*/
 }
 
 pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
-    // let main_view = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &jvm.main_class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter())?;
-    // let main_class = prepare_class(&jvm, main_view.backing_class(), jvm.bootstrap_loader.clone());
     let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone());
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
-    // assert!(main_thread.get_underlying())//todo check we are running on underlying thread for main
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
-    // jvm.jvmti_state.built_in_jdwp.vm_start(&jvm);
     let stack_entry = StackEntry {
         class_pointer: main,
         method_i: Option::from(main_i as u16),
