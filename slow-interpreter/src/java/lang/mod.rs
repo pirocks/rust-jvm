@@ -224,6 +224,7 @@ pub mod thread {
     use std::cell::RefCell;
     use std::sync::Arc;
 
+    use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -303,6 +304,19 @@ pub mod thread {
         pub fn try_get_java_thread(&self, jvm: &'static JVMState) -> Option<Arc<JavaThread>> {
             let tid = self.tid();
             jvm.thread_state.try_get_thread_by_tid(tid)
+        }
+
+        pub fn is_alive(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jboolean {
+            int_state.push_current_operand_stack(self.java_value());
+            run_static_or_virtual(
+                jvm,
+                int_state,
+                &self.normal_object.unwrap_normal_object().class_pointer,
+                "isAlive".to_string(),
+                "()Z".to_string(),
+            );
+            int_state.pop_current_operand_stack()
+                .unwrap_boolean()
         }
 
         as_object_or_java_value!();

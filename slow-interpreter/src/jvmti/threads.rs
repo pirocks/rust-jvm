@@ -41,7 +41,6 @@ use crate::rust_jni::native_util::{from_object, to_object};
 /// Error 	Description
 /// JVMTI_ERROR_NULL_POINTER	group_count_ptr is NULL.
 /// JVMTI_ERROR_NULL_POINTER	groups_ptr is NULL.
-// todo handle jni local references part
 pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_ptr: *mut jint, groups_ptr: *mut *mut jthreadGroup) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -57,28 +56,57 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
     let thread_group_object = system_j_thread_group.object();
     let res = new_local_ref_internal(to_object(thread_group_object.into()), int_state);
 
-    let memory_allocation = jvm.native_interface_allocations.allocate_malloc(1 * size_of::<jobject>()) as *mut jobject;
-    groups_ptr.write(memory_allocation);
-    groups_ptr.read().write(res);
+    jvm.native_interface_allocations.allocate_and_write_vec(vec![res], group_count_ptr, groups_ptr);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-
+///Get All Threads
+///
+///     jvmtiError
+///     GetAllThreads(jvmtiEnv* env,
+///                 jint* threads_count_ptr,
+///                 jthread** threads_ptr)
+///
+/// Get all live threads. The threads are Java programming language threads; that is, threads that are attached to the VM.
+/// A thread is live if java.lang.Thread.isAlive() would return true, that is, the thread has been started and has not yet died.
+/// The universe of threads is determined by the context of the JVM TI environment, which typically is all threads attached to the VM.
+/// Note that this includes JVM TI agent threads (see RunAgentThread).
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	4	1.0
+///
+/// Capabilities
+/// Required Functionality
+///
+/// Parameters
+/// Name 	Type 	Description
+/// threads_count_ptr	jint*	On return, points to the number of running threads.
+///
+/// Agent passes a pointer to a jint. On return, the jint has been set.
+/// threads_ptr	jthread**	On return, points to an array of references, one for each running thread.
+///
+/// Agent passes a pointer to a jthread*. On return, the jthread* points to a newly allocated array of size *threads_count_ptr.
+/// The array should be freed with Deallocate. The objects returned by threads_ptr are JNI local references and must be managed.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_NULL_POINTER	threads_count_ptr is NULL.
+/// JVMTI_ERROR_NULL_POINTER	threads_ptr is NULL.
 pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: *mut jint, threads_ptr: *mut *mut jthread) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
-    if !jvm.vm_live() {
-        threads_count_ptr.write(0);
-        threads_ptr.write(jvm.native_interface_allocations.allocate_box(()) as *mut () as *mut c_void as *mut jthread);
-        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-    }
-    let mut res_ptr = jvm.thread_state.get_all_threads().values().map(|thread| {
-        dbg!(thread.thread_object().name().to_rust_string());
-        to_object(thread.thread_object().object().into())
-    }).collect::<Vec<_>>();
-    threads_count_ptr.write(res_ptr.len() as i32);
-    threads_ptr.write(transmute(res_ptr.as_mut_ptr()));//todo fix these transmutes
-    Vec::leak(res_ptr);//todo memory leak
+    null_check!(threads_count_ptr);
+    null_check!(threads_ptr);
+    assert!(jvm.vm_live());
+    let mut res_ptrs = jvm.thread_state.get_all_threads().values().filter(|thread| {
+        thread.thread_object().is_alive(jvm, int_state) != 0
+    }).map(|thread| {
+        let thread_ptr = to_object(thread.thread_object().object().into());
+        new_local_ref_internal(thread_ptr, int_state)
+    }).collect::<Vec<jobject>>();
+    jvm.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

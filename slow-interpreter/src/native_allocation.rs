@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::intrinsics::transmute;
+use std::mem::size_of;
 use std::os::raw::c_void;
 use std::sync::RwLock;
+
+use jvmti_jni_bindings::jint;
 
 #[derive(Clone)]
 pub enum AllocationType {
@@ -21,6 +24,17 @@ pub struct NativeAllocator {
 unsafe impl Send for NativeAllocator {}
 
 impl NativeAllocator {
+    pub unsafe fn allocate_and_write_vec<T>(&self, data: Vec<T>, len_ptr: *mut jint, data_ptr: *mut *mut T) {
+        let len = data.len();
+        let size = size_of::<T>() * len;
+        data_ptr.write(self.allocate_malloc(size));
+        assert!(len < i32::MAX as usize);
+        len_ptr.write(len as i32);
+        for elem in data {
+            data_ptr.read().write(elem)
+        }
+    }
+
     pub unsafe fn allocate_malloc(&self, size: libc::size_t) -> *mut c_void {
         let res = libc::malloc(size);
         let mut guard = self.allocations.write().unwrap();
