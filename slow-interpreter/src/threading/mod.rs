@@ -227,6 +227,10 @@ impl ThreadState {
     pub fn get_all_threads(&self) -> RwLockReadGuard<HashMap<JavaThreadId, Arc<JavaThread>>> {
         self.all_java_threads.read().unwrap()
     }
+
+    pub fn get_system_thread_group(&self) -> JThreadGroup {
+        self.system_thread_group.read().unwrap().as_ref().unwrap().clone()
+    }
 }
 
 thread_local! {

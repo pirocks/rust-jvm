@@ -243,8 +243,21 @@ pub mod thread {
     }
 
     impl JavaValue {
+        //todo these shouldn't silently error
         pub fn cast_thread(&self) -> JThread {
             JThread { normal_object: self.unwrap_object_nonnull() }
+        }
+
+        pub fn try_cast_thread(&self) -> Option<JThread> {
+            match self.try_unwrap_normal_object() {
+                Some(normal_object) => {
+                    if normal_object.class_pointer.view().name() == ClassName::thread() {
+                        return JThread { normal_object: self.unwrap_object_nonnull() }.into();
+                    }
+                    None
+                }
+                None => None
+            }
         }
     }
 

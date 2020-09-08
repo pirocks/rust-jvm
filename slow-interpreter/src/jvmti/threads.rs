@@ -3,9 +3,12 @@ use std::intrinsics::transmute;
 use std::mem::size_of;
 use std::sync::Arc;
 
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::*;
 
 use crate::{JavaThread, SuspendedStatus};
+use crate::interpreter_util::check_inited_class;
+use crate::java::lang::thread::JThread;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::runtime_class::RuntimeClass;
@@ -50,7 +53,7 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
     assert!(jvm.vm_live());
     //There is only one top level thread group in this JVM.
     group_count_ptr.write(1);
-    let system_j_thread_group = jvm.thread_state.system_thread_group.read().unwrap().clone().unwrap();
+    let system_j_thread_group = jvm.thread_state.get_system_thread_group();
 
     dbg!(system_j_thread_group.threads_non_null().iter().map(|thread| thread.name().to_rust_string()).collect::<Vec<_>>());// todo should include Main thread
     let thread_group_object = system_j_thread_group.object();
@@ -110,21 +113,77 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
+///Get Thread Info
+///
+///     typedef struct {
+///         char* name;
+///         jint priority;
+///         jboolean is_daemon;
+///         jthreadGroup thread_group;
+///         jobject context_class_loader;
+///     } jvmtiThreadInfo;
+///
+///     jvmtiError
+///     GetThreadInfo(jvmtiEnv* env,
+///                 jthread thread,
+///                 jvmtiThreadInfo* info_ptr)
+///
+/// Get thread information. The fields of the jvmtiThreadInfo structure are filled in with details of the specified thread.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	9	1.0
+///
+/// Capabilities
+/// Required Functionality
+///
+/// jvmtiThreadInfo - Thread information structure
+/// Field 	Type 	Description
+/// name	char*	The thread name, encoded as a modified UTF-8 string.
+/// priority	jint	The thread priority. See the thread priority constants: jvmtiThreadPriority.
+/// is_daemon	jboolean	Is this a daemon thread?
+/// thread_group	jthreadGroup	The thread group to which this thread belongs. NULL if the thread has died.
+/// context_class_loader	jobject	The context class loader associated with this thread.
+///
+/// Parameters
+/// Name 	Type 	Description
+/// thread	jthread	The thread to query. If thread is NULL, the current thread is used.
+/// info_ptr	jvmtiThreadInfo*	On return, filled with information describing the specified thread.
+///
+/// For JDK 1.1 implementations that don't recognize context class loaders, the context_class_loader field will be NULL.
+///
+/// Agent passes a pointer to a jvmtiThreadInfo. On return, the jvmtiThreadInfo has been set.
+/// The pointer returned in the field name of jvmtiThreadInfo is a newly allocated array.
+/// The array should be freed with Deallocate.
+/// The object returned in the field thread_group of jvmtiThreadInfo is a JNI local reference and must be managed.
+/// The object returned in the field context_class_loader of jvmtiThreadInfo is a JNI local reference and must be managed.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
+/// JVMTI_ERROR_NULL_POINTER	info_ptr is NULL.
+///
 pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, info_ptr: *mut jvmtiThreadInfo) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadInfo");
-    let thread_object = JavaValue::Object(from_object(transmute(thread))).cast_thread();
-    (*info_ptr).thread_group = transmute(to_object(jvm.thread_state.system_thread_group.read().unwrap().clone().unwrap().object().into()));//todo get thread groups working at some point
-    (*info_ptr).context_class_loader = transmute(to_object(
-        jvm
-            .classes
-            .class_object_pool
-            .read().unwrap()
-            .get(&RuntimeClass::Int).unwrap()//todo technically this needs a check inited class
-            .lookup_field("classLoader")
-            .unwrap_object()));//todo deal with this whole loader situation
+    let thread_object = match JavaValue::Object(from_object(thread)).try_cast_thread() {
+        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
+        Some(thread) => thread,
+    };
+
+    //todo get thread groups other than system thread group working at some point
+    let thread_group_object = to_object(jvm.thread_state.get_system_thread_group().object().into());
+    (*info_ptr).thread_group = new_local_ref_internal(thread_group_object, int_state);
+    //todo deal with this whole context loader situation
+    let class_loader = thread_object
+        .get_class(jvm, int_state)
+        .get_class_loader(jvm, int_state)
+        .expect("Expected thread class to have a class loader");
+    let context_class_loader = new_local_ref_internal(to_object(class_loader.object().into()), int_state);
+    (*info_ptr).context_class_loader = context_class_loader;
     (*info_ptr).name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_object.name().to_rust_string()).unwrap());
-    (*info_ptr).is_daemon = thread_object.daemon() as u8;//todo this issue again
+    (*info_ptr).is_daemon = thread_object.daemon() as u8;
     (*info_ptr).priority = thread_object.priority();
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

@@ -301,14 +301,18 @@ impl JavaValue {
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {
         //todo these are longer than ideal
+        self.try_unwrap_normal_object().unwrap()
+    }
+
+
+    pub fn try_unwrap_normal_object(&self) -> Option<&NormalObject> {
+        //todo these are longer than ideal
         match self {
-            JavaValue::Object(ref_) => {
-                match ref_.as_ref().unwrap().deref() {
-                    Object::Array(_) => panic!(),
-                    Object::Object(o) => { o }
-                }
-            }
-            _ => panic!()
+            JavaValue::Object(ref_) => match ref_.as_ref().unwrap().deref() {
+                Object::Array(_) => None,
+                Object::Object(o) => o,
+            },
+            _ => None
         }
     }
 
