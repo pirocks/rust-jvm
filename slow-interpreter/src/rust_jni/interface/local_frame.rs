@@ -47,6 +47,10 @@ pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, _capacity: jint) -> 
 ///
 pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobject {
     let interpreter_state = get_interpreter_state(env);
+    new_local_ref_internal(ref_, interpreter_state)
+}
+
+pub fn new_local_ref_internal(ref_: jobject, interpreter_state: &mut InterpreterStateGuard) -> jobject {
     get_top_local_ref_frame(interpreter_state).insert(ref_);
     ref_
 }

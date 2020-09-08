@@ -7,8 +7,9 @@ use jvmti_jni_bindings::*;
 
 use crate::{JavaThread, SuspendedStatus};
 use crate::java_values::JavaValue;
-use crate::jvmti::get_state;
+use crate::jvmti::{get_interpreter_state, get_state};
 use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::interface::local_frame::{new_local_ref, new_local_ref_internal};
 use crate::rust_jni::native_util::{from_object, to_object};
 
 ///Get Top Thread Groups
@@ -43,6 +44,7 @@ use crate::rust_jni::native_util::{from_object, to_object};
 // todo handle jni local references part
 pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_ptr: *mut jint, groups_ptr: *mut *mut jthreadGroup) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetTopThreadGroups");
     null_check!(group_count_ptr);
     null_check!(groups_ptr);
@@ -53,7 +55,7 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
 
     dbg!(system_j_thread_group.threads_non_null().iter().map(|thread| thread.name().to_rust_string()).collect::<Vec<_>>());// todo should include Main thread
     let thread_group_object = system_j_thread_group.object();
-    let res = to_object(thread_group_object.into());
+    let res = new_local_ref_internal(to_object(thread_group_object.into()), int_state);
 
     let memory_allocation = jvm.native_interface_allocations.allocate_malloc(1 * size_of::<jobject>()) as *mut jobject;
     groups_ptr.write(memory_allocation);
