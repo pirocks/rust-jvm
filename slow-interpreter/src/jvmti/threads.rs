@@ -43,7 +43,7 @@ use crate::rust_jni::native_util::{from_object, to_object};
 // todo handle jni local references part
 pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_ptr: *mut jint, groups_ptr: *mut *mut jthreadGroup) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetTopThreadGroups");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetTopThreadGroups");
     null_check!(group_count_ptr);
     null_check!(groups_ptr);
     assert!(jvm.vm_live());
@@ -53,24 +53,22 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
 
     dbg!(system_j_thread_group.threads_non_null().iter().map(|thread| thread.name().to_rust_string()).collect::<Vec<_>>());// todo should include Main thread
     let thread_group_object = system_j_thread_group.object();
-    let mut res = to_object(thread_group_object.into());
+    let res = to_object(thread_group_object.into());
 
     let memory_allocation = jvm.native_interface_allocations.allocate_malloc(1 * size_of::<jobject>()) as *mut jobject;
     groups_ptr.write(memory_allocation);
     groups_ptr.read().write(res);
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetTopThreadGroups");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
 pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: *mut jint, threads_ptr: *mut *mut jthread) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
     if !jvm.vm_live() {
         threads_count_ptr.write(0);
         threads_ptr.write(jvm.native_interface_allocations.allocate_box(()) as *mut () as *mut c_void as *mut jthread);
-        jvm.tracing.trace_jdwp_function_exit(jvm, "GetAllThreads");
-        return jvmtiError_JVMTI_ERROR_NONE;
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
     }
     let mut res_ptr = jvm.thread_state.get_all_threads().values().map(|thread| {
         dbg!(thread.thread_object().name().to_rust_string());
@@ -79,13 +77,12 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
     threads_count_ptr.write(res_ptr.len() as i32);
     threads_ptr.write(transmute(res_ptr.as_mut_ptr()));//todo fix these transmutes
     Vec::leak(res_ptr);//todo memory leak
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetAllThreads");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, info_ptr: *mut jvmtiThreadInfo) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadInfo");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadInfo");
     let thread_object = JavaValue::Object(from_object(transmute(thread))).cast_thread();
     (*info_ptr).thread_group = transmute(to_object(jvm.thread_state.system_thread_group.read().unwrap().clone().unwrap().object().into()));//todo get thread groups working at some point
     (*info_ptr).context_class_loader = transmute(to_object(
@@ -99,13 +96,12 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     (*info_ptr).name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_object.name().to_rust_string()).unwrap());
     (*info_ptr).is_daemon = thread_object.daemon() as u8;//todo this issue again
     (*info_ptr).priority = thread_object.priority();
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetThreadInfo");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, thread_state_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
     let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
     let thread = jthread.get_java_thread(jvm);
     let suspended = *thread.suspended.suspended.lock().unwrap();
@@ -115,13 +111,12 @@ pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, t
         JVMTI_THREAD_STATE_ALIVE//todo this is not always correct
     };
     thread_state_ptr.write(state as i32);
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetThreadState");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThreadList");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThreadList");
     // dbg!(jvm.thread_state.alive_threads.read().unwrap().keys());
     // dbg!(jvm.thread_state.main_thread.read().unwrap().as_ref().unwrap().java_tid);
     for i in 0..request_count {
@@ -130,8 +125,7 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
         let java_thread = jthread.get_java_thread(jvm);
         results.offset(i as isize).write(suspend_thread_impl(java_thread));
     }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "SuspendThreadList");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
@@ -146,47 +140,44 @@ fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
 }
 
 pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
-    let _jvm = get_state(env);
-    suspend_thread(env, thread);//todo this is an ugly hack.
-    jvmtiError_JVMTI_ERROR_NONE
+    let jvm = get_state(env);
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, suspend_thread(env, thread))//todo this is an ugly hack.
 }
 
 pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
     //todo dubplication
     //todo this part is not correct: If the calling thread is specified, this function will not return until some other thread calls ResumeThread. If the thread is currently suspended, this function does nothing and returns an error.
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
     let thread_object_raw = from_object(thread);
     let jthread = JavaValue::Object(thread_object_raw).cast_thread();
     let java_thread = jthread.get_java_thread(jvm);
     let res = suspend_thread_impl(java_thread);
-    jvm.tracing.trace_jdwp_function_exit(jvm, "SuspendThread");
-    res
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThread");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThread");
     let thread_object_raw = from_object(thread);
     let jthread = JavaValue::Object(thread_object_raw).cast_thread();
     let java_thread = jthread.get_java_thread(jvm);
     let res = resume_thread_impl(java_thread);
-    jvm.tracing.trace_jdwp_function_exit(jvm, "ResumeThread");
-    res
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 
 pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThreadList");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThreadList");
     for i in 0..request_count {
         let jthreadp = request_list.offset(i as isize).read();
         let jthread = JavaValue::Object(from_object(jthreadp)).cast_thread();
         let java_thread = jthread.get_java_thread(jvm);
         results.offset(i as isize).write(resume_thread_impl(java_thread));
     }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "ResumeThreadList");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
@@ -204,7 +195,7 @@ fn resume_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
 
 pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, _group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadGroupInfo");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadGroupInfo");
     //todo thread groups not implemented atm.
     let boxed_string = CString::new("main").unwrap().into_boxed_c_str();
     let info_pointer_writer = info_ptr.as_mut().unwrap();
@@ -212,6 +203,5 @@ pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, _group: jthre
     info_pointer_writer.is_daemon = false as jboolean;
     info_pointer_writer.max_priority = 0;
     info_pointer_writer.parent = std::ptr::null_mut();
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetThreadGroupInfo");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

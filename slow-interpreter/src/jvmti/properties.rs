@@ -10,7 +10,7 @@ pub unsafe extern "C" fn get_system_property(
     value_ptr: *mut *mut ::std::os::raw::c_char,
 ) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetSystemProperty");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetSystemProperty");
     let property_name = CStr::from_ptr(property).to_str().unwrap();
 
     //apparently different from System.getProperty()?
@@ -23,12 +23,12 @@ pub unsafe extern "C" fn get_system_property(
     if property_name == "java.vm.name" {
         let leaked_name = CString::new("TODO: Get a better VM Name").unwrap().into_raw();//todo name and avoid all this leaking
         value_ptr.write(leaked_name);
-        return jvmtiError_JVMTI_ERROR_NONE;
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);
     }
     if property_name == "java.vm.info" {
         let leaked_name = CString::new("TODO: Get better VM Info").unwrap().into_raw();//todo
         value_ptr.write(leaked_name);
-        return jvmtiError_JVMTI_ERROR_NONE;
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);
     }
     if property_name == "java.library.path" {
         unimplemented!()
@@ -37,9 +37,8 @@ pub unsafe extern "C" fn get_system_property(
         let jvm = get_state(env);
         let leaked_str = CString::new(jvm.classpath.classpath_string()).unwrap().into_raw();
         value_ptr.write(leaked_str);
-        return jvmtiError_JVMTI_ERROR_NONE;//todo duplication
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
     }
 
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetSystemProperty");
-    jvmtiError_JVMTI_ERROR_NOT_AVAILABLE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NOT_AVAILABLE)
 }

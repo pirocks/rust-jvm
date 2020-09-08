@@ -47,7 +47,7 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
     let method_desc = method.desc_str();
     let current_depth = interpreter_state.call_stack_depth();
     let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t| t.java_tid).unwrap_or(-1);
-    jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
+    let function_enter_guard = jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
     assert!(!*interpreter_state.function_return_mut());
     let class_pointer = interpreter_state.current_class_pointer().clone();
     let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
@@ -96,13 +96,14 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
     if synchronized {//todo synchronize better so that natives are synced
         monitor.unwrap().unlock(jvm);
     }
-    jvm.tracing.trace_function_exit(
-        &class_name__,
-        &meth_name,
-        &method_desc,
-        current_depth,
-        current_thread_tid,
-    )
+    jvm.tracing.function_exit_guard(function_enter_guard);
+    // jvm.tracing.trace_function_exit(
+    //     &class_name__,
+    //     &meth_name,
+    //     &method_desc,
+    //     current_depth,
+    //     current_thread_tid,
+    // )
 }
 
 fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {

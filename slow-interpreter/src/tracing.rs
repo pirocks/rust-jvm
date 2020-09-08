@@ -1,3 +1,4 @@
+use jvmti_jni_bindings::jvmtiError;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::JVMState;
@@ -58,16 +59,18 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_function_enter(&self, classname: &ClassName, meth_name: &str, method_desc: &str, current_depth: usize, threadtid: JavaThreadId) {
+    pub fn trace_function_enter<'l>(&self, classname: &'l ClassName, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
         if self.trace_function_start {
             println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
         }
-    }
-
-    pub fn trace_function_exit(&self, classname: &ClassName, meth_name: &str, method_desc: &str, current_depth: usize, threadtid: JavaThreadId) {
-        if self.trace_function_end {
-            println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
-        }
+        return FunctionEnterExitTraceGuard {
+            classname,
+            meth_name,
+            method_desc,
+            current_depth,
+            threadtid,
+            trace_function_end: self.trace_function_end,
+        };
     }
 
     pub fn trace_jni_register(&self, classname: &ClassName, meth_name: &str) {
@@ -112,28 +115,30 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_jdwp_function_enter(&self, jvm: &'static JVMState, function_name: &str) {
+    pub fn trace_jdwp_function_enter(&self, jvm: &'static JVMState, function_name: &'static str) -> JVMTIEnterExitTraceGuard {
+        let current_thread = std::thread::current();
+        let thread_name = if jvm.vm_live() {
+            current_thread.name().unwrap_or("unknown thread")
+        } else {
+            "VM not live"
+        }.to_string();
         if self.trace_jdwp_function_enter {
-            let current_thread = std::thread::current();
-            let vm_life = if jvm.vm_live() {
-                current_thread.name().unwrap_or("unknown thread")
-            } else {
-                "VM not live"
-            };
-            println!("JVMTI [{}] {} {{ ", vm_life, function_name);
+            println!("JVMTI [{}] {} {{ ", thread_name, function_name);
+        }
+        JVMTIEnterExitTraceGuard {
+            thread_name,
+            function_name,
+            trace_jdwp_function_exit: self.trace_jdwp_function_exit,
         }
     }
 
-    pub fn trace_jdwp_function_exit(&self, jvm: &'static JVMState, function_name: &str) {
-        if self.trace_jdwp_function_exit {
-            let current_thread = std::thread::current();
-            let vm_life = if jvm.vm_live() {
-                current_thread.name().unwrap_or("unknown thread")
-            } else {
-                "VM not live"
-            };
-            println!("JVMTI [{}] {} }}", vm_life, function_name);
-        }
+    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard) {
+        drop(guard);
+    }
+
+    pub fn trace_jdwp_function_exit(&self, guard: JVMTIEnterExitTraceGuard, error: jvmtiError) -> jvmtiError {
+        drop(guard);
+        error
     }
 
     pub fn trace_event_enable_global(&self, event_name: &str) {
@@ -157,6 +162,35 @@ JVMTI [-] # recompute enabled - after 0", event_name, event_name);
     pub fn trace_event_trigger(&self, event_name: &str) {
         if self.trace_jdwp_events {
             println!("JVMTI Trg {} triggered", event_name)
+        }
+    }
+}
+
+pub struct JVMTIEnterExitTraceGuard {
+    pub thread_name: String,
+    pub function_name: &'static str,
+    pub trace_jdwp_function_exit: bool,
+}
+
+impl Drop for JVMTIEnterExitTraceGuard {
+    fn drop(&mut self) {
+        println!("JVMTI [{}] {} }}", self.thread_name, self.function_name);
+    }
+}
+
+pub struct FunctionEnterExitTraceGuard<'l> {
+    classname: &'l ClassName,
+    meth_name: &'l str,
+    method_desc: &'l str,
+    current_depth: usize,
+    threadtid: JavaThreadId,
+    trace_function_end: bool,
+}
+
+impl Drop for FunctionEnterExitTraceGuard<'_> {
+    fn drop(&mut self) {
+        if self.trace_function_end {
+            println!("CALL END:{:?} {} {} {} {}", self.classname, self.meth_name, self.method_desc, self.current_depth, self.threadtid);
         }
     }
 }

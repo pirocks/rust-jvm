@@ -11,7 +11,7 @@ use crate::threading::JavaThread;
 
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "SetEventNotificationMode");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SetEventNotificationMode");
     let thread_obj = if event_thread.is_null() {
         None
     } else {
@@ -136,7 +136,6 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             unimplemented!();
         }
     };
-    jvm.tracing.trace_jdwp_function_exit(jvm, "SetEventNotificationMode");//todo maybe there should be a macro or similar layer for this so that I don't have early return issues
-    res
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 

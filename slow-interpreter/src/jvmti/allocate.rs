@@ -4,7 +4,7 @@ use crate::jvmti::get_state;
 
 pub unsafe extern "C" fn allocate(env: *mut jvmtiEnv, size: jlong, mem_ptr: *mut *mut ::std::os::raw::c_uchar) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "Allocate");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "Allocate");
     if size == 0 {
         unimplemented!()
         // *mem_ptr = transmute(0xDEADDEADBEAF as usize);//just need to return a non-zero address//todo how isfreeing this handled?
@@ -16,14 +16,13 @@ pub unsafe extern "C" fn allocate(env: *mut jvmtiEnv, size: jlong, mem_ptr: *mut
     } else {
         jvmtiError_JVMTI_ERROR_NONE
     };
-    jvm.tracing.trace_jdwp_function_exit(jvm, "Allocate");
-    res
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 pub unsafe extern "C" fn deallocate(env: *mut jvmtiEnv, _mem: *mut ::std::os::raw::c_uchar) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "Deallocate");
-    jvm.tracing.trace_jdwp_function_exit(jvm, "Deallocate");
-    jvmtiError_JVMTI_ERROR_NONE//todo currently leaks a lot
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "Deallocate");
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    //todo currently leaks a lot
 }
 

@@ -35,6 +35,7 @@ use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 
 pub mod event_callbacks;
 
+//todo handle early return message here?
 #[macro_export]
 macro_rules! null_check {
     ($ptr: expr) => {
@@ -244,7 +245,7 @@ fn get_jvmti_interface_impl(jvm: &'static JVMState, int_state: &mut InterpreterS
 pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: jmethodID, declaring_class_ptr: *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodDeclaringClass");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodDeclaringClass");
     let method_id: MethodId = transmute(method);
     let runtime_class = jvm.method_table.read().unwrap().lookup(method_id).0;
     let class_object = get_or_create_class_object(
@@ -254,24 +255,22 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
         runtime_class.loader(jvm).clone(),
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(transmute(to_object(class_object.into())));
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodDeclaringClass");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobject, hash_code_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
     let object = JavaValue::Object(from_object(transmute(object))).cast_object();
     let res = object.hash_code(jvm, int_state);
     hash_code_ptr.write(res);
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetObjectHashCode");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
     let method_id: MethodId = transmute(method);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     match class.view().method_view_i(method_i as usize).code_attribute() {
@@ -284,15 +283,13 @@ pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethod
             end_location_ptr.write(code.code_raw.len() as i64);
         }
     };
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "DisposeEnvironment");
-    jvm.tracing.trace_jdwp_function_exit(jvm, "DisposeEnvironment");
-    jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "DisposeEnvironment");
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY)
 }
 
 pub unsafe extern "C" fn is_method_synthetic(
@@ -301,13 +298,12 @@ pub unsafe extern "C" fn is_method_synthetic(
     is_synthetic_ptr: *mut jboolean,
 ) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodSynthetic");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodSynthetic");
     let method_id: MethodId = transmute(method);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let synthetic = class.view().method_view_i(method_i as usize).is_synthetic();
     is_synthetic_ptr.write(synthetic as u8);
-    jvm.tracing.trace_jdwp_function_exit(jvm, "IsMethodSynthetic");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 unsafe extern "C" fn get_method_modifiers(
@@ -316,13 +312,12 @@ unsafe extern "C" fn get_method_modifiers(
     modifiers_ptr: *mut jint,
 ) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodModifiers");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodModifiers");
     let method_id: MethodId = transmute(method);
     let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
     let modifiers = class.view().method_view_i(method_i as usize).access_flags();
     modifiers_ptr.write(modifiers as jint);
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodModifiers");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
@@ -332,13 +327,12 @@ unsafe extern "C" fn get_source_file_name(
     source_name_ptr: *mut *mut ::std::os::raw::c_char,
 ) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetSourceFileName");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetSourceFileName");
     let class_obj = from_jclass(klass);
     let runtime_class = class_obj.as_runtime_class();
     let class_view = runtime_class.view();
     source_name_ptr.write(CString::new(class_view.sourcefile_attr().file()).unwrap().into_raw());
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetSourceFileName");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
@@ -349,7 +343,7 @@ unsafe extern "C" fn get_class_fields(
     fields_ptr: *mut *mut jfieldID,
 ) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
     let class_obj = from_jclass(klass);
     let runtime_class = class_obj.as_runtime_class();
     let class_view = runtime_class.view();
@@ -359,8 +353,7 @@ unsafe extern "C" fn get_class_fields(
     for i in 0..num_fields {
         fields_ptr.read().offset(i as isize).write(new_field_id(jvm, runtime_class.clone(), i))
     }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetClassFields");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 unsafe extern "C" fn get_implemented_interfaces(
@@ -371,7 +364,7 @@ unsafe extern "C" fn get_implemented_interfaces(
 ) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
     let class_obj = from_jclass(klass);
     let runtime_class = class_obj.as_runtime_class();
     let class_view = runtime_class.view();
@@ -388,8 +381,7 @@ unsafe extern "C" fn get_implemented_interfaces(
         let interface_class = to_object(interface_obj.into());
         interfaces_ptr.read().offset(i as isize).write(interface_class)
     }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "GetImplementedInterfaces");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
@@ -428,7 +420,7 @@ pub mod methods {
                                              generic_ptr: *mut *mut ::std::os::raw::c_char,
     ) -> jvmtiError {
         let jvm = get_state(env);
-        jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
+        let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
         let method_id: MethodId = transmute(method);
         let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
         let mv = class.view().method_view_i(method_i as usize);
@@ -443,8 +435,7 @@ pub mod methods {
         if name_ptr != null_mut() {
             name_ptr.write(CString::new(name).unwrap().into_raw())
         }
-        jvm.tracing.trace_jdwp_function_exit(jvm, "GetMethodName");
-        jvmtiError_JVMTI_ERROR_NONE
+        jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
     }
 
     pub unsafe extern "C" fn get_arguments_size(
@@ -453,12 +444,11 @@ pub mod methods {
         size_ptr: *mut jint,
     ) -> jvmtiError {
         let jvm = get_state(env);
-        jvm.tracing.trace_jdwp_function_enter(jvm, "GetArgumentsSize");
+        let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetArgumentsSize");
         let method_id: MethodId = transmute(method);
         let (rc, i) = jvm.method_table.read().unwrap().lookup(method_id);
         let mv = rc.view().method_view_i(i as usize);
         size_ptr.write(mv.num_args() as i32);
-        jvm.tracing.trace_jdwp_function_exit(jvm, "GetArgumentsSize");
-        jvmtiError_JVMTI_ERROR_NONE
+        jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
     }
 }

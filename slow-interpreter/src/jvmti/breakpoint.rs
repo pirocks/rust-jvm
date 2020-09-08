@@ -9,7 +9,7 @@ use crate::method_table::MethodId;
 
 pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "SetBreakpoint");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SetBreakpoint");
     let method_id: MethodId = transmute(method);
     dbg!(&method_id);
     let lookup_res = jvm.method_table.read().unwrap().lookup(method_id);
@@ -25,16 +25,14 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
             breakpoints.insert(location as isize);//todo should I cast here?
         }
     }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "SetBreakpoint");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
 pub unsafe extern "C" fn clear_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "ClearBreakpoint");
+    let tracig_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ClearBreakpoint");
     let method_id: MethodId = transmute(method);
     jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap().get_mut(&method_id).unwrap().remove(&(location as isize));
-    jvm.tracing.trace_jdwp_function_exit(jvm, "ClearBreakpoint");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracig_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

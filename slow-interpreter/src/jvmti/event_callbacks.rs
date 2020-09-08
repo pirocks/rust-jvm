@@ -453,7 +453,7 @@ impl SharedLibJVMTI {
 pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *const jvmtiEventCallbacks, _size_of_callbacks: jint) -> jvmtiError {
 //todo use size_of_callbacks ?
     let jvm = get_state(env);
-    jvm.tracing.trace_jdwp_function_enter(jvm, "SetEventCallbacks");
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SetEventCallbacks");
     let mut callback_copy = jvmtiEventCallbacks {
         VMInit: None,
         VMDeath: None,
@@ -627,8 +627,7 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
     if VMObjectAlloc.is_some() {
         unimplemented!()
     }
-    jvm.tracing.trace_jdwp_function_exit(jvm, "SetEventCallbacks");
-    jvmtiError_JVMTI_ERROR_NONE
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 impl SharedLibJVMTI {
