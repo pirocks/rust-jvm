@@ -27,7 +27,7 @@ impl NativeAllocator {
     pub unsafe fn allocate_and_write_vec<T>(&self, data: Vec<T>, len_ptr: *mut jint, data_ptr: *mut *mut T) {
         let len = data.len();
         let size = size_of::<T>() * len;
-        data_ptr.write(self.allocate_malloc(size));
+        data_ptr.write(self.allocate_malloc(size) as *mut T);
         assert!(len < i32::MAX as usize);
         len_ptr.write(len as i32);
         for elem in data {

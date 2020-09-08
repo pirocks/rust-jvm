@@ -310,7 +310,7 @@ impl JavaValue {
         match self {
             JavaValue::Object(ref_) => match ref_.as_ref().unwrap().deref() {
                 Object::Array(_) => None,
-                Object::Object(o) => o,
+                Object::Object(o) => o.into(),
             },
             _ => None
         }

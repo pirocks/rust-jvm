@@ -24,7 +24,7 @@ macro_rules! as_object_or_java_value {
 
         }
 
-        pub fn get_class<'l>(&self, state: &'static crate::JVMState, int_state: &'l mut crate::InterpreterStateGuard<'l>) -> crate::java::lang::class::JClass {
+        pub fn get_class<'l>(&self, state: &'static crate::JVMState, int_state: &'l mut crate::InterpreterStateGuard) -> crate::java::lang::class::JClass {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
             crate::instructions::invoke::virtual_::invoke_virtual(state, int_state,&"getClass".to_string(), &descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::class()))}, false);
             int_state.current_frame_mut().pop().cast_class()

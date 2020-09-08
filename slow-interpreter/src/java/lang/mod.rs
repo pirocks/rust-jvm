@@ -224,7 +224,7 @@ pub mod thread {
     use std::cell::RefCell;
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::jboolean;
+    use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -299,6 +299,10 @@ pub mod thread {
             self.normal_object.lookup_field("daemon").unwrap_int() != 0
         }
 
+        pub fn set_thread_status(&self, thread_status: jint) {
+            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("threadStatus".to_string(), JavaValue::Int(thread_status));
+        }
+
 
         pub fn new(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, thread_group: JThreadGroup, thread_name: String) -> JThread {
             let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm).clone());
@@ -320,7 +324,7 @@ pub mod thread {
         }
 
         pub fn is_alive(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jboolean {
-            int_state.push_current_operand_stack(self.java_value());
+            int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(
                 jvm,
                 int_state,
