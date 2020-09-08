@@ -72,6 +72,7 @@ pub fn invoke_static_impl<'l>(
             operand_stack: vec![],
             pc: 0,
             pc_offset: 0,
+            native_local_refs: vec![]
         };
         interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);

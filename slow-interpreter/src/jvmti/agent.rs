@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::mem::transmute;
 use std::os::raw::c_void;
 
@@ -11,7 +12,6 @@ use crate::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::interface::local_frame::{clear_local_refs, local_refs_len};
 use crate::rust_jni::native_util::from_object;
 use crate::stack_entry::StackEntry;
 use crate::threading::JavaThread;
@@ -46,7 +46,6 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             thread: &java_thread,
         };
         jvm.thread_state.set_current_thread(java_thread.clone());
-        jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());
         let thread_class = check_inited_class(jvm, &mut guard, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
         guard.push_frame(StackEntry {
             class_pointer: thread_class,
@@ -55,13 +54,15 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             operand_stack: vec![],
             pc: 0,
             pc_offset: 0,
+            native_local_refs: vec![HashSet::new()],
         });
+
+        jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());
 
         let jvmti = get_jvmti_interface(jvm, &mut guard);
         let jni_env = get_interface(jvm, &mut guard);
-        let local_refs_len = local_refs_len();
         proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
-        clear_local_refs(local_refs_len);
+        guard.pop_frame();
     }, box ());
 
     //todo handle join handles somehow

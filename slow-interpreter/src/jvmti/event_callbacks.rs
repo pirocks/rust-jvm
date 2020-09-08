@@ -16,8 +16,8 @@ use crate::java::lang::thread::JThread;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::interface::local_frame::{clear_local_refs, local_refs_len};
 use crate::rust_jni::native_util::to_object;
+use crate::stack_entry::StackEntry;
 use crate::tracing::TracingSettings;
 
 // does not support per thread notification
@@ -249,9 +249,10 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let guard = self.vm_init_callback.read().unwrap();
         let f_pointer = *guard.as_ref().unwrap();
         std::mem::drop(guard);
-        let local_refs_len = local_refs_len();
+        let class_pointer = int_state.current_frame().class_pointer.clone();
+        int_state.push_frame(StackEntry::new_native_frame(class_pointer));
         f_pointer(jvmti, jni, thread);
-        clear_local_refs(local_refs_len);
+        int_state.pop_frame();
     }
 
     fn VMInit_enable(&self, trace: &TracingSettings) {
@@ -283,9 +284,10 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
         let ThreadStartEvent { thread } = event;
-        let local_refs_len = local_refs_len();
+        let class_pointer = int_state.current_frame().class_pointer.clone();
+        int_state.push_frame(StackEntry::new_native_frame(class_pointer));
         (self.thread_start_callback.read().unwrap().as_ref().map(|callback| callback(jvmti_env, jni_env, thread)));
-        clear_local_refs(local_refs_len);
+        int_state.pop_frame();
     }
 
     fn ThreadStart_enable(&self, trace: &TracingSettings) {
@@ -301,9 +303,10 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jni_env = get_interface(jvm, int_state);
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let ExceptionEvent { thread, method, location, exception, catch_method, catch_location } = event;
-        let local_refs_len = local_refs_len();
+        let class_pointer = int_state.current_frame().class_pointer.clone();
+        int_state.push_frame(StackEntry::new_native_frame(class_pointer));
         (self.exception_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location, exception, catch_method, catch_location);
-        clear_local_refs(local_refs_len);
+        int_state.pop_frame();
     }
 
     fn Exception_enable(&self, jvm: &'static JVMState, tid: Option<Arc<JavaThread>>) {
@@ -340,9 +343,10 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jvmti_env = get_jvmti_interface(jvm, int_state);//todo deal with these leaks
         let jni_env = get_interface(jvm, int_state);
         let ClassPrepareEvent { thread, klass } = event;
-        let local_refs_len = local_refs_len();
+        let class_pointer = int_state.current_frame().class_pointer.clone();
+        int_state.push_frame(StackEntry::new_native_frame(class_pointer));
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
-        clear_local_refs(local_refs_len);
+        int_state.pop_frame();
     }
 
     fn ClassPrepare_enable(&self, jvm: &'static JVMState, tid: Option<Arc<JavaThread>>) {
@@ -384,9 +388,10 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
         let BreakpointEvent { thread, method, location } = event;
-        let local_refs_len = local_refs_len();
+        let class_pointer = int_state.current_frame().class_pointer.clone();
+        int_state.push_frame(StackEntry::new_native_frame(class_pointer));
         (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location);
-        clear_local_refs(local_refs_len);
+        int_state.pop_frame();
     }
 
     fn Breakpoint_enable(&self, jvm: &'static JVMState, tid: Option<Arc<JavaThread>>) {
@@ -660,3 +665,5 @@ impl SharedLibJVMTI {
         }
     }
 }
+
+impl StackEntry {}

@@ -1,5 +1,7 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
+use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classfile::CPIndex;
 
 use crate::java_values::JavaValue;
@@ -7,7 +9,6 @@ use crate::runtime_class::RuntimeClass;
 
 #[derive(Debug)]
 pub struct StackEntry {
-    // pub last_call_stack: Option<&StackEntry>,
     pub class_pointer: Arc<RuntimeClass>,
     pub method_i: Option<CPIndex>,
 
@@ -16,9 +17,22 @@ pub struct StackEntry {
     pub pc: usize,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
     pub pc_offset: isize,
+    pub native_local_refs: Vec<HashSet<jobject>>
 }
 
 impl StackEntry {
+    pub(crate) fn new_native_frame(class_pointer: Arc<RuntimeClass>) -> StackEntry {
+        StackEntry {
+            class_pointer,
+            method_i: None,
+            local_vars: vec![],
+            operand_stack: vec![],
+            pc: 0,
+            pc_offset: 0,
+            native_local_refs: vec![HashSet::new()],
+        }
+    }
+
     pub fn pop(&mut self) -> JavaValue {
         self.operand_stack.pop().unwrap_or_else(|| {
             // let classfile = &self.class_pointer.classfile;

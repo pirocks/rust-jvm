@@ -2,7 +2,7 @@ extern crate libc;
 extern crate libloading;
 
 use std::alloc::Layout;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::CStr;
 use std::io::Error;
 use std::mem::size_of;
@@ -31,7 +31,6 @@ use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::interface::local_frame::{clear_local_refs, local_refs_len};
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
@@ -104,7 +103,6 @@ pub fn call_impl<'l>(
     } else {
         vec![Type::pointer(), Type::pointer()]
     };
-    let local_refs_len = local_refs_len();
     let env = get_interface(jvm, int_state);
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
@@ -114,6 +112,7 @@ pub fn call_impl<'l>(
         res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
+    int_state.current_frame_mut().native_local_refs.push(HashSet::new());
     if suppress_runtime_class {
         for (j, t) in args
             .iter()
@@ -136,7 +135,7 @@ pub fn call_impl<'l>(
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
-    clear_local_refs(local_refs_len);
+    int_state.current_frame_mut().native_local_refs.clear();
     // trace!("----NATIVE EXIT ----");
     match PTypeView::from_ptype(&md.return_type) {
         PTypeView::VoidType => {

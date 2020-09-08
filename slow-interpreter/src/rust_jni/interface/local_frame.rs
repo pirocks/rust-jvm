@@ -1,68 +1,71 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ops::DerefMut;
+use std::collections::HashSet;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 
-use crate::java_values::Object;
-use crate::rust_jni::native_util::from_object;
+use crate::InterpreterStateGuard;
+use crate::rust_jni::native_util::get_interpreter_state;
 
-thread_local! {
-static JNI_INTERFACE_LOCAL_REF: RefCell<Vec<HashMap<jobject,Arc<Object>>>> = RefCell::new(vec![HashMap::new()]);
+///PopLocalFrame
+///
+/// jobject PopLocalFrame(JNIEnv *env, jobject result);
+///
+/// Pops off the current local reference frame, frees all the local references, and returns a local reference in the previous local reference frame for the given result object.
+///
+/// Pass NULL as result if you do not need to return a reference to the previous frame.
+///
+pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> jobject {
+    let interpreter_state = get_interpreter_state(env);
+    let popped = current_native_local_refs(interpreter_state).pop().expect("Attempted to pop local native frame, but no such local frame exists");
+    if result == null_mut() {
+        null_mut()
+    } else {
+        let to_be_preserved = popped.get(&result).unwrap();//todo in future might need something more complex here
+        get_top_local_ref_frame(interpreter_state).insert(to_be_preserved.clone());
+        to_be_preserved.clone()
+    }
 }
 
-
-pub fn get_local_refs<T>(to_run: &dyn Fn(&mut Vec<HashMap<jobject, Arc<Object>>>) -> T) -> T {
-    JNI_INTERFACE_LOCAL_REF.with(|refcell| {
-        to_run(refcell.borrow_mut().deref_mut())
-    })
+///PushLocalFrame
+///
+/// jint PushLocalFrame(JNIEnv *env, jint capacity);
+///
+/// Creates a new local reference frame, in which at least a given number of local references can be created. Returns 0 on success, a negative number and a pending OutOfMemoryError on failure.
+///
+/// Note that local references already created in previous local frames are still valid in the current local frame.
+pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, _capacity: jint) -> jint {
+    let interpreter_state = get_interpreter_state(env);
+    current_native_local_refs(interpreter_state).push(HashSet::new());
+    JNI_OK as jint
 }
 
-pub fn clear_local_refs(up_to_len: usize) {
-    get_local_refs(&move |local_frames| {
-        drop(local_frames.drain(up_to_len..).collect::<Vec<_>>());
-    })
+/// NewLocalRef
+///
+/// jobject NewLocalRef(JNIEnv *env, jobject ref);
+///
+/// Creates a new local reference that refers to the same object as ref. The given ref may be a global or local reference. Returns NULL if ref refers to null.
+///
+pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobject {
+    let interpreter_state = get_interpreter_state(env);
+    get_top_local_ref_frame(interpreter_state).insert(ref_);
+    ref_
 }
 
-pub fn local_refs_len() -> usize {
-    get_local_refs(&move |local_frames| {
-        local_frames.len()
-    })
+/// DeleteLocalRef
+///
+/// void DeleteLocalRef(JNIEnv *env, jobject localRef);
+///
+/// Deletes the local reference pointed to by localRef.
+///
+pub unsafe extern "C" fn delete_local_ref(env: *mut JNIEnv, obj: jobject) {
+    let interpreter_state = get_interpreter_state(env);
+    get_top_local_ref_frame(interpreter_state).remove(&obj);
 }
 
-pub unsafe extern "C" fn pop_local_frame(_env: *mut JNIEnv, result: jobject) -> jobject {
-    get_local_refs(&move |local_frames| {
-        let popped = local_frames.pop().unwrap();
-        if result == std::ptr::null_mut() {
-            null_mut()
-        } else {
-            let to_be_preserved = popped.get(&result).unwrap();
-            local_frames.last_mut().unwrap().insert(result, to_be_preserved.clone());
-            result
-        }
-    })
+fn get_top_local_ref_frame<'l>(interpreter_state: &'l mut InterpreterStateGuard) -> &'l mut HashSet<jobject> {
+    current_native_local_refs(interpreter_state).last_mut().unwrap()
 }
 
-pub unsafe extern "C" fn push_local_frame(_env: *mut JNIEnv, _capacity: jint) -> jint {
-    get_local_refs(&move |local_frames| {
-        local_frames.push(HashMap::new());
-        JNI_OK as i32
-    })
-}
-
-
-pub unsafe extern "C" fn new_local_ref(_env: *mut JNIEnv, ref_: jobject) -> jobject {
-    get_local_refs(&move |local_frames| {
-        local_frames.last_mut().unwrap().insert(ref_, from_object(ref_).unwrap());
-        ref_
-    })
-}
-
-
-pub unsafe extern "C" fn delete_local_ref(_env: *mut JNIEnv, obj: jobject) {
-    get_local_refs(&move |local_frames| {
-        local_frames.last_mut().unwrap().remove(&obj);
-    })
+fn current_native_local_refs<'l>(interpreter_state: &'l mut InterpreterStateGuard) -> &'l mut Vec<HashSet<jobject>> {
+    &mut interpreter_state.current_frame_mut().native_local_refs
 }
