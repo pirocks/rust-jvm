@@ -414,13 +414,8 @@ pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, t
         Some(thread) => thread,
     };
     let thread = jthread.get_java_thread(jvm);
-    let suspended = *thread.suspended.suspended.lock().unwrap();
-    let state = JVMTI_THREAD_STATE_ALIVE | if suspended {
-        JVMTI_THREAD_STATE_SUSPENDED
-    } else {
-        JVMTI_THREAD_STATE_ALIVE//todo this is not always correct
-    };
-    thread_state_ptr.write(state as i32);
+    let state = thread.status_number();
+    thread_state_ptr.write(state);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

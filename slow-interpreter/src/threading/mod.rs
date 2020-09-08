@@ -253,13 +253,13 @@ pub struct ThreadStatus {
     sleeping: bool,
     in_object_wait: bool,
     parked: bool,
-    suspended: bool,
+    // suspended: bool,
     interrupted: bool,
     //todo how to handle native?
 }
 
 impl ThreadStatus {
-    fn get_thread_status_number(&self) -> jint {
+    fn get_thread_status_number(&self, thread: &JavaThread) -> jint {
         let mut res = 0;
         if self.alive {
             res |= JVMTI_THREAD_STATE_ALIVE;
@@ -291,7 +291,7 @@ impl ThreadStatus {
         if self.parked {
             res |= JVMTI_THREAD_STATE_PARKED;
         }
-        if self.suspended {
+        if *thread.suspended.suspended.lock().unwrap() {
             res |= JVMTI_THREAD_STATE_SUSPENDED;
         }
         if self.interrupted {
@@ -314,7 +314,7 @@ impl Default for ThreadStatus {
             sleeping: false,
             in_object_wait: false,
             parked: false,
-            suspended: false,
+            // suspended: false,
             interrupted: false,
         }
     }
@@ -350,11 +350,6 @@ impl JavaThread {
         res
     }
 
-
-    // pub fn is_java_alive(&self) -> bool {
-    //     self.java_alive.load(Ordering::SeqCst)
-    // }
-
     pub fn jvmti_event_status(&self) -> RwLockReadGuard<ThreadJVMTIEnabledStatus> {
         self.jvmti_events_enabled.read().unwrap()
     }
@@ -380,14 +375,14 @@ impl JavaThread {
         status.alive = true;
         status.runnable = true;//when a thread becomes alive it defaults to runnable
         let obj = self.thread_object();
-        obj.set_thread_status(status.get_thread_status_number())
+        obj.set_thread_status(status.get_thread_status_number(self))
     }
 
     pub fn notify_terminated(&self) {
         let mut status = self.status.write().unwrap();
 
         status.alive = false;
-        status.suspended = false;
+        // status.suspended = false;
         status.interrupted = false;
         status.runnable = false;
         status.blocked_on_monitor_enter = false;
@@ -400,7 +395,11 @@ impl JavaThread {
         status.terminated = true;
 
         let obj = self.thread_object();
-        obj.set_thread_status(status.get_thread_status_number())
+        obj.set_thread_status(status.get_thread_status_number(self))
+    }
+
+    pub fn status_number(&self) -> jint {
+        self.status.read().unwrap().get_thread_status_number(self)
     }
 }
 

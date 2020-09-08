@@ -2,7 +2,7 @@ extern crate libc;
 extern crate libloading;
 
 use std::alloc::Layout;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::CStr;
 use std::io::Error;
 use std::mem::size_of;
