@@ -51,7 +51,7 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
         None => return 0 as jboolean,
         Some(jt) => jt,
     };
-    assert!(!java_thread.invisible_to_java);
+    // assert!(!java_thread.invisible_to_java);
     let alive = !*java_thread.suspended.suspended.lock().unwrap() &&
         java_thread.get_underlying().is_alive();
     alive as jboolean

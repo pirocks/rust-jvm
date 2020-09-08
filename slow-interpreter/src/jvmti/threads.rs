@@ -97,10 +97,12 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
     null_check!(threads_ptr);
     assert!(jvm.vm_live());
     let res_ptrs = jvm.thread_state.get_all_threads().values().filter(|thread| {
-        thread.thread_object().is_alive(jvm, get_interpreter_state(env)) != 0
+        let int_state = get_interpreter_state(env);
+        thread.thread_object().is_alive(jvm, int_state) != 0
     }).map(|thread| {
         let thread_ptr = to_object(thread.thread_object().object().into());
-        new_local_ref_internal(thread_ptr, get_interpreter_state(env))
+        let int_state = get_interpreter_state(env);
+        new_local_ref_internal(thread_ptr, int_state)
     }).collect::<Vec<jobject>>();
     jvm.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)

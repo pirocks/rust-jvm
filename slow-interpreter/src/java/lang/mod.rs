@@ -324,11 +324,13 @@ pub mod thread {
         }
 
         pub fn is_alive(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jboolean {
+            // assert_eq!(self.normal_object.unwrap_normal_object().class_pointer.view().name(), ClassName::thread());
             int_state.push_current_operand_stack(self.clone().java_value());
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
             run_static_or_virtual(
                 jvm,
                 int_state,
-                &self.normal_object.unwrap_normal_object().class_pointer,
+                &thread_class,
                 "isAlive".to_string(),
                 "()Z".to_string(),
             );

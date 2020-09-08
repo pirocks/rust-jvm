@@ -112,7 +112,7 @@ pub fn call_impl<'l>(
         res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
-    int_state.current_frame_mut().native_local_refs.push(HashSet::new());
+
     if suppress_runtime_class {
         for (j, t) in args
             .iter()
@@ -135,7 +135,6 @@ pub fn call_impl<'l>(
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
-    int_state.current_frame_mut().native_local_refs.clear();
     // trace!("----NATIVE EXIT ----");
     match PTypeView::from_ptype(&md.return_type) {
         PTypeView::VoidType => {

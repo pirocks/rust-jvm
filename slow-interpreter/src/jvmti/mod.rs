@@ -40,7 +40,7 @@ pub mod event_callbacks;
 macro_rules! null_check {
     ($ptr: expr) => {
         if $ptr == std::ptr::null_mut() {
-            return jvmtiError_JVMTI_ERROR_NULL_POINTER
+            return crate::jvmti::jvmtiError_JVMTI_ERROR_NULL_POINTER
         }
     };
 }

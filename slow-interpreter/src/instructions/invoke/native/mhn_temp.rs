@@ -257,7 +257,8 @@ pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: &mut Interprete
 
 //todo this should go in some sort of utils
 pub fn run_static_or_virtual<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
-    let res_fun = class.view().lookup_method(&method_name, &parse_method_descriptor(desc_str.as_str()).unwrap());//todo move this into classview
+    let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
+    let res_fun = class.view().lookup_method(&method_name, &parsed_desc);//todo move this into classview
     let method_view = res_fun.unwrap();//todo and if this fails
     let md = method_view.desc();
     if method_view.is_static() {

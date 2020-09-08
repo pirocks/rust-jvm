@@ -30,8 +30,8 @@ impl NativeAllocator {
         data_ptr.write(self.allocate_malloc(size) as *mut T);
         assert!(len < i32::MAX as usize);
         len_ptr.write(len as i32);
-        for elem in data {
-            data_ptr.read().write(elem)
+        for (i, elem) in data.into_iter().enumerate() {
+            data_ptr.read().offset(i as isize).write(elem)
         }
     }
 

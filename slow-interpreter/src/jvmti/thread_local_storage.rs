@@ -8,7 +8,7 @@ use crate::rust_jni::native_util::from_object;
 
 pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
-    //todo this is wrong b/c it ignores thread
+    null_check!(thread);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadLocalStorage");
     let java_thread = JavaValue::Object(from_object(thread)).cast_thread().get_java_thread(jvm);
     data_ptr.write(*java_thread.thread_local_storage.read().unwrap());

@@ -8,7 +8,7 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::LocalKey;
 
-use jvmti_jni_bindings::{jint, jrawMonitorID};
+use jvmti_jni_bindings::{jint, jrawMonitorID, JVMTI_JAVA_LANG_THREAD_STATE_WAITING, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER, JVMTI_THREAD_STATE_IN_OBJECT_WAIT, JVMTI_THREAD_STATE_INTERRUPTED, JVMTI_THREAD_STATE_PARKED, JVMTI_THREAD_STATE_RUNNABLE, JVMTI_THREAD_STATE_SLEEPING, JVMTI_THREAD_STATE_SUSPENDED, JVMTI_THREAD_STATE_TERMINATED, JVMTI_THREAD_STATE_WAITING, JVMTI_THREAD_STATE_WAITING_INDEFINITELY, JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT};
 use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
 
@@ -243,7 +243,7 @@ pub type JavaThreadId = i64;
 
 #[derive(Debug)]
 pub struct ThreadStatus {
-    java_alive: bool,
+    alive: bool,
     terminated: bool,
     runnable: bool,
     blocked_on_monitor_enter: bool,
@@ -253,21 +253,58 @@ pub struct ThreadStatus {
     sleeping: bool,
     in_object_wait: bool,
     parked: bool,
-    //todo not implemented yet
     suspended: bool,
     interrupted: bool,
+    //todo how to handle native?
 }
 
 impl ThreadStatus {
-    fn get_java_thread_status(&self) -> jint {
-        unimplemented!()
+    fn get_thread_status_number(&self) -> jint {
+        let mut res = 0;
+        if self.alive {
+            res |= JVMTI_THREAD_STATE_ALIVE;
+        }
+        if self.terminated {
+            res |= JVMTI_THREAD_STATE_TERMINATED;
+        }
+        if self.runnable {
+            res |= JVMTI_THREAD_STATE_RUNNABLE;
+        }
+        if self.blocked_on_monitor_enter {
+            res |= JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER;
+        }
+        if self.waiting {
+            res |= JVMTI_THREAD_STATE_WAITING;
+        }
+        if self.waiting_indefinitely {
+            res |= JVMTI_THREAD_STATE_WAITING_INDEFINITELY;
+        }
+        if self.waiting_timeout {
+            res |= JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
+        }
+        if self.sleeping {
+            res |= JVMTI_THREAD_STATE_SLEEPING;
+        }
+        if self.in_object_wait {
+            res |= JVMTI_THREAD_STATE_IN_OBJECT_WAIT;
+        }
+        if self.parked {
+            res |= JVMTI_THREAD_STATE_PARKED;
+        }
+        if self.suspended {
+            res |= JVMTI_THREAD_STATE_SUSPENDED;
+        }
+        if self.interrupted {
+            res |= JVMTI_THREAD_STATE_INTERRUPTED;
+        }
+        res as jint
     }
 }
 
 impl Default for ThreadStatus {
     fn default() -> Self {
         Self {
-            java_alive: false,
+            alive: false,
             terminated: false,
             runnable: false,
             blocked_on_monitor_enter: false,
@@ -340,16 +377,16 @@ impl JavaThread {
 
     pub fn notify_alive(&self) {
         let mut status = self.status.write().unwrap();
-        status.java_alive = true;
+        status.alive = true;
         status.runnable = true;//when a thread becomes alive it defaults to runnable
         let obj = self.thread_object();
-        obj.set_thread_status(status.get_java_thread_status())
+        obj.set_thread_status(status.get_thread_status_number())
     }
 
     pub fn notify_terminated(&self) {
         let mut status = self.status.write().unwrap();
 
-        status.java_alive = false;
+        status.alive = false;
         status.suspended = false;
         status.interrupted = false;
         status.runnable = false;
@@ -363,7 +400,7 @@ impl JavaThread {
         status.terminated = true;
 
         let obj = self.thread_object();
-        obj.set_thread_status(status.get_java_thread_status())
+        obj.set_thread_status(status.get_thread_status_number())
     }
 }
 

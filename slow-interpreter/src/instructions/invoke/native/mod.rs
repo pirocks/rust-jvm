@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -30,6 +31,7 @@ pub fn run_native_method<'l>(
     method_i: usize,
     _debug: bool,
 ) {
+    int_state.current_frame_mut().native_local_refs.push(HashSet::new());
     let view = &class.view();
     check_inited_class(jvm, int_state, &view.name().into(), class.loader(jvm));
     let method = &view.method_view_i(method_i);
@@ -192,6 +194,7 @@ pub fn run_native_method<'l>(
         }
     }
     monitor.as_ref().map(|m| m.unlock(jvm));
+    int_state.current_frame_mut().native_local_refs.pop();//todo technivally this should be a clear and we should have a new native frame.
     // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
