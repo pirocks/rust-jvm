@@ -68,8 +68,10 @@ impl ThreadState {
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
             //from the jvmti spec:
             //"he thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
+            main_thread.notify_alive();
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object()));
             run_main(args, jvm, &mut int_state).unwrap();
+            main_thread.notify_terminated()
         }, box ());
         (main_thread_clone, init_send, main_send)
     }
@@ -218,8 +220,8 @@ impl ThreadState {
             let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
             interpreter_state_guard.push_frame(new_thread_frame);
             jvm.thread_state.set_current_thread(java_thread.clone());
-            jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object()));
             java_thread.notify_alive();
+            jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object()));
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);
             interpreter_state_guard.pop_frame();
             java_thread.notify_terminated();

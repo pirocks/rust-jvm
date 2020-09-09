@@ -57,12 +57,14 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             native_local_refs: vec![HashSet::new()],
         });
 
+        java_thread.notify_alive();
         jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());
 
         let jvmti = get_jvmti_interface(jvm, &mut guard);
         let jni_env = get_interface(jvm, &mut guard);
         proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
         guard.pop_frame();
+        java_thread.notify_terminated()
     }, box ());
 
     //todo handle join handles somehow

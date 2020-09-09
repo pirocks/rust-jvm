@@ -38,8 +38,7 @@ public class DebuggingClass {
         final List<ThreadReference> threadReferences = attached.allThreads();
         for (ThreadReference thread : threadReferences) {
             System.out.println(thread.name());
-            for (StackFrame frame : thread.frames()) {
-                System.out.println(frame.location());
+            for (StackFrame frame : thread.frames()) {System.out.println(frame.location());
             }
             thread.resume();
         }
