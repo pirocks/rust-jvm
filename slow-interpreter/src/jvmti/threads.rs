@@ -6,6 +6,7 @@ use jvmti_jni_bindings::*;
 use crate::{InterpreterStateGuard, JavaThread, SuspendedStatus};
 use crate::interpreter::suspend_check;
 use crate::java::lang::thread::JThread;
+use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_internal;
@@ -589,10 +590,53 @@ pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> j
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
-
+/// Resume Thread List
+///
+/// jvmtiError
+/// ResumeThreadList(jvmtiEnv* env,
+/// jint request_count,
+/// const jthread* request_list,
+/// jvmtiError* results)
+///
+/// Resume the request_count threads specified in the request_list array. Any thread suspended through a JVM TI suspend function (eg. SuspendThreadList) or java.lang.Thread.suspend() will resume execution.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	93	1.0
+///
+/// Capabilities
+/// Optional Functionality: might not be implemented for all virtual machines. The following capability (as returned by GetCapabilities) must be true to use this function.
+/// Capability 	Effect
+/// can_suspend	Can suspend and resume threads
+///
+/// Parameters
+/// Name 	Type 	Description
+/// request_count	jint	The number of threads to resume.
+/// request_list	const jthread*	The threads to resume.
+///
+/// Agent passes in an array of request_count elements of jthread.
+/// results	jvmtiError*	An agent supplied array of request_count elements.
+/// On return, filled with the error code for the resume of the corresponding thread.
+/// The error code will be JVMTI_ERROR_NONE if the thread was suspended by this call. Possible error codes are those specified for ResumeThread.
+///
+/// Agent passes an array large enough to hold request_count elements of jvmtiError. The incoming values of the elements of the array are ignored. On return, the elements are set.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_suspend. Use AddCapabilities.
+/// JVMTI_ERROR_ILLEGAL_ARGUMENT	request_count is less than 0.
+/// JVMTI_ERROR_NULL_POINTER	request_list is NULL.
+/// JVMTI_ERROR_NULL_POINTER	results is NULL.
 pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThreadList");
+    assert!(jvm.vm_live());
+    null_check!(request_list);
+    null_check!(results);
+    if request_count < 0 {
+        return jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT;
+    }
+    //todo handle capabilities;
     for i in 0..request_count {
         let jthreadp = request_list.offset(i as isize).read();
         results.offset(i as isize).write(resume_thread_impl(jthreadp));
@@ -605,8 +649,8 @@ unsafe fn resume_thread_impl(thread_raw: jthread) -> jvmtiError {
     let thread_object_raw = from_object(thread_raw);
     let jthread = match JavaValue::Object(thread_object_raw).try_cast_thread() {
         None => {
-            return jvmtiError_JVMTI_ERROR_INVALID_THREAD
-        },
+            return jvmtiError_JVMTI_ERROR_INVALID_THREAD;
+        }
         Some(jthread) => jthread,
     };
     let java_thread = jthread.get_java_thread(jvm);
@@ -621,15 +665,66 @@ unsafe fn resume_thread_impl(thread_raw: jthread) -> jvmtiError {
     }
 }
 
-pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, _group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError {
+///Get Thread Group Info
+///
+///     typedef struct {
+///         jthreadGroup parent;
+///         char* name;
+///         jint max_priority;
+///         jboolean is_daemon;
+///     } jvmtiThreadGroupInfo;
+///
+///     jvmtiError
+///     GetThreadGroupInfo(jvmtiEnv* env,
+///                 jthreadGroup group,
+///                 jvmtiThreadGroupInfo* info_ptr)
+///
+/// Get information about the thread group. The fields of the jvmtiThreadGroupInfo structure are filled in with details of the specified thread group.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	14	1.0
+///
+/// Capabilities
+/// Required Functionality
+///
+/// jvmtiThreadGroupInfo - Thread group information structure
+/// Field 	Type 	Description
+/// parent	jthreadGroup	The parent thread group.
+/// name	char*	The thread group's name, encoded as a modified UTF-8 string.
+/// max_priority	jint	The maximum priority for this thread group.
+/// is_daemon	jboolean	Is this a daemon thread group?
+///
+/// Parameters
+/// Name 	Type 	Description
+/// group	jthreadGroup	The thread group to query.
+/// info_ptr	jvmtiThreadGroupInfo*	On return, filled with information describing the specified thread group.
+///
+/// Agent passes a pointer to a jvmtiThreadGroupInfo. On return, the jvmtiThreadGroupInfo has been set.
+/// The object returned in the field parent of jvmtiThreadGroupInfo is a JNI local reference and must be managed.
+/// The pointer returned in the field name of jvmtiThreadGroupInfo is a newly allocated array.
+/// The array should be freed with Deallocate.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_INVALID_THREAD_GROUP	group is not a thread group object.
+/// JVMTI_ERROR_NULL_POINTER	info_ptr is NULL.
+pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadGroupInfo");
-    //todo thread groups not implemented atm.
-    let boxed_string = CString::new("main").unwrap().into_boxed_c_str();
+    assert!(jvm.vm_live());
+    let thread_group = match JavaValue::Object(from_object(group)).try_cast_thread_group() {
+        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD_GROUP),
+        Some(thread_group) => thread_group,
+    };
+    null_check!(info_ptr);
+
+    let name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_group.name().to_rust_string()).unwrap());
     let info_pointer_writer = info_ptr.as_mut().unwrap();
-    info_pointer_writer.name = Box::leak(boxed_string).as_ptr() as *mut i8;
-    info_pointer_writer.is_daemon = false as jboolean;
-    info_pointer_writer.max_priority = 0;
-    info_pointer_writer.parent = std::ptr::null_mut();
+    info_pointer_writer.name = name;
+    info_pointer_writer.is_daemon = thread_group.daemon();
+    info_pointer_writer.max_priority = thread_group.max_priority();
+    info_pointer_writer.parent = new_local_ref_internal(to_object(thread_group.parent().object().into()), int_state);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

@@ -345,10 +345,12 @@ pub mod thread {
 pub mod thread_group {
     use std::sync::Arc;
 
+    use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
     use crate::java_values::{JavaValue, Object};
 
@@ -360,6 +362,18 @@ pub mod thread_group {
     impl JavaValue {
         pub fn cast_thread_group(&self) -> JThreadGroup {
             JThreadGroup { normal_object: self.unwrap_object_nonnull() }
+        }
+
+        pub fn try_cast_thread_group(&self) -> Option<JThreadGroup> {
+            match self.try_unwrap_normal_object() {
+                Some(normal_object) => {
+                    if normal_object.class_pointer.view().name() == ClassName::thread_group() {
+                        return JThreadGroup { normal_object: self.unwrap_object_nonnull() }.into();
+                    }
+                    None
+                }
+                None => None
+            }
         }
     }
 
@@ -387,6 +401,22 @@ pub mod thread_group {
 
         pub fn threads_non_null(&self) -> Vec<JThread> {
             self.threads().into_iter().flat_map(|maybe_t| maybe_t).collect()
+        }
+
+        pub fn name(&self) -> JString {
+            self.normal_object.lookup_field("name").cast_string()
+        }
+
+        pub fn daemon(&self) -> jboolean {
+            self.normal_object.lookup_field("daemon").unwrap_boolean()
+        }
+
+        pub fn max_priority(&self) -> jint {
+            self.normal_object.lookup_field("maxPriority").unwrap_int()
+        }
+
+        pub fn parent(&self) -> JThreadGroup {
+            self.normal_object.lookup_field("parent").cast_thread_group()
         }
 
         as_object_or_java_value!();

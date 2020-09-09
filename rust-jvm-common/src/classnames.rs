@@ -187,6 +187,10 @@ impl ClassName {
     pub fn thread() -> Self {
         Self::new("java/lang/Thread")
     }
+
+    pub fn thread_group() -> Self {
+        Self::new("java/lang/ThreadGroup")
+    }
 }
 
 impl Hash for ClassName {
