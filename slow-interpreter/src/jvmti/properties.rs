@@ -1,5 +1,4 @@
-use std::ffi::{CStr, CString};
-use std::ptr::null_mut;
+use std::ffi::CStr;
 
 use jvmti_jni_bindings::{jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_NOT_AVAILABLE};
 

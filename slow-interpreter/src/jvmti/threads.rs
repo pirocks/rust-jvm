@@ -1,12 +1,10 @@
-use std::ffi::{c_void, CString};
+use std::ffi::CString;
 use std::sync::Arc;
 
 use jvmti_jni_bindings::*;
 
-use crate::{InterpreterStateGuard, JavaThread, SuspendedStatus};
+use crate::{InterpreterStateGuard, JVMState, SuspendedStatus};
 use crate::interpreter::suspend_check;
-use crate::java::lang::thread::JThread;
-use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_internal;
@@ -476,13 +474,13 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
     //todo handle checking capabilities
     for i in 0..request_count {
         let thread_object_raw = request_list.offset(i as isize).read();
-        let suspend_res = suspend_thread_impl(thread_object_raw, int_state);
+        let suspend_res = suspend_thread_impl(thread_object_raw, jvm, int_state);
         results.offset(i as isize).write(suspend_res);
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-unsafe fn suspend_thread_impl(thread_object_raw: jthread, int_state: &mut InterpreterStateGuard) -> jvmtiError {
+unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jvmtiError {
     match JavaValue::Object(from_object(thread_object_raw)).try_cast_thread() {
         None => jvmtiError_JVMTI_ERROR_INVALID_THREAD,
         Some(jthread) => {
@@ -549,7 +547,7 @@ pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
-    let res = suspend_thread_impl(thread, int_state);
+    let res = suspend_thread_impl(thread, jvm, int_state);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
@@ -586,7 +584,7 @@ pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> j
     //todo handle capabilities for this
     assert!(jvm.vm_live());
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThread");
-    let res = resume_thread_impl(thread);
+    let res = resume_thread_impl(jvm, thread);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
@@ -639,13 +637,13 @@ pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: j
     //todo handle capabilities;
     for i in 0..request_count {
         let jthreadp = request_list.offset(i as isize).read();
-        results.offset(i as isize).write(resume_thread_impl(jthreadp));
+        results.offset(i as isize).write(resume_thread_impl(jvm, jthreadp));
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
-unsafe fn resume_thread_impl(thread_raw: jthread) -> jvmtiError {
+unsafe fn resume_thread_impl(jvm: &'static JVMState, thread_raw: jthread) -> jvmtiError {
     let thread_object_raw = from_object(thread_raw);
     let jthread = match JavaValue::Object(thread_object_raw).try_cast_thread() {
         None => {

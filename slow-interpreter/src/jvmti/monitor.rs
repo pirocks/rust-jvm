@@ -1,7 +1,6 @@
 use std::ffi::CStr;
 use std::intrinsics::transmute;
 use std::os::raw::c_char;
-use std::sync::Arc;
 
 use jvmti_jni_bindings::{jlong, jrawMonitorID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_MONITOR, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_NOT_MONITOR_OWNER};
 
@@ -257,10 +256,10 @@ pub unsafe extern "C" fn raw_monitor_notify_all(env: *mut jvmtiEnv, monitor_id: 
 /// Error 	Description
 /// JVMTI_ERROR_NOT_MONITOR_OWNER	Not monitor owner
 /// JVMTI_ERROR_INVALID_MONITOR	monitor is not a jrawMonitorID.
-pub unsafe extern "C" fn destroy_raw_monitor(_env: *mut jvmtiEnv, _monitor: jrawMonitorID) -> jvmtiError {
+pub unsafe extern "C" fn destroy_raw_monitor(env: *mut jvmtiEnv, monitor: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RawMonitorNotifyAll");
-    let monitor = match jvm.thread_state.try_get_monitor(monitor_id) {
+    let monitor = match jvm.thread_state.try_get_monitor(monitor) {
         None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };

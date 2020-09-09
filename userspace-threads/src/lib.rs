@@ -183,17 +183,17 @@ impl Threads {
         };
     }
 
-    unsafe fn trigger_signal(&self, t: &Thread, reason: SignalReason) {
-        let metadata_void_ptr = Box::leak(box reason) as *mut SignalReason as *mut c_void;
-        let sigval_ = sigval { sival_ptr: metadata_void_ptr };
-        let res = pthread_sigqueue(*t.pthread_id.as_ref().unwrap(), transmute(Signal::SIGUSR1), sigval_);
-        if res != 0 {
-            dbg!(gettid());
-            dbg!(errno());
-            dbg!(res);
-            panic!()
-        }
-    }
+    // unsafe fn trigger_signal(&self, t: &Thread, reason: SignalReason) {
+    //     let metadata_void_ptr = Box::leak(box reason) as *mut SignalReason as *mut c_void;
+    //     let sigval_ = sigval { sival_ptr: metadata_void_ptr };
+    //     let res = pthread_sigqueue(*t.pthread_id.as_ref().unwrap(), transmute(Signal::SIGUSR1), sigval_);
+    //     if res != 0 {
+    //         dbg!(gettid());
+    //         dbg!(errno());
+    //         dbg!(res);
+    //         panic!()
+    //     }
+    // }
 
     /*pub fn await_all_threads_death(&self) {
         let all_threads_read_guard = self.all_threads.read().unwrap();

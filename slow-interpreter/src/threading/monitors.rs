@@ -132,6 +132,6 @@ impl Monitor {
     }
 }
 
-struct MonitorOwnedBySomeoneElse {}
+pub struct MonitorOwnedBySomeoneElse {}
 
 

@@ -2,7 +2,6 @@ use std::os::raw::c_void;
 
 use jvmti_jni_bindings::{jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE};
 
-use crate::java::lang::thread::JThread;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::from_object;
@@ -38,12 +37,15 @@ pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jt
     assert!(jvm.vm_live());
     null_check!(data_ptr);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadLocalStorage");
-
+    let java_thread = match JavaValue::Object(from_object(thread)).try_cast_thread() {
+        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
+        Some(jt) => jt,//todo duplication with get_thread_local_storage and like the entire threads file
+    }.get_java_thread(jvm);
     data_ptr.write(*java_thread.thread_local_storage.read().unwrap());
     //todo so I'm not sure thread's aliveness is all that relevant in this implementation
-    if !java_thread.is_alive() {
-        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE);
-    }
+    // if !java_thread.is_alive() {
+    //     return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE);
+    // }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
@@ -92,8 +94,8 @@ pub unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, thread: jt
     }.get_java_thread(jvm);
     *java_thread.thread_local_storage.write().unwrap() = data as *mut c_void;
     //todo so I'm not sure thread's aliveness is all that relevant in this implementation
-    if !java_thread.is_alive() {
-        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE);
-    }
+    // if !java_thread.is_alive() {
+    //     return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE);
+    // }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
