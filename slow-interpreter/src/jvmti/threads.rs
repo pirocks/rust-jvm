@@ -4,6 +4,7 @@ use std::sync::Arc;
 use jvmti_jni_bindings::*;
 
 use crate::{JavaThread, SuspendedStatus};
+use crate::interpreter::suspend_check;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_internal;
@@ -419,15 +420,66 @@ pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, t
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
+
+///Suspend Thread List
+///
+///     jvmtiError
+///     SuspendThreadList(jvmtiEnv* env,
+///                 jint request_count,
+///                 const jthread* request_list,
+///                 jvmtiError* results)
+///
+/// Suspend the request_count threads specified in the request_list array. Threads may be resumed with ResumeThreadList or ResumeThread.
+/// If the calling thread is specified in the request_list array, this function will not return until some other thread resumes it.
+/// Errors encountered in the suspension of a thread are returned in the results array, not in the return value of this function.
+/// Threads that are currently suspended do not change state.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	92	1.0
+///
+/// Capabilities
+/// Optional Functionality: might not be implemented for all virtual machines. The following capability (as returned by GetCapabilities) must be true to use this function.
+/// Capability 	Effect
+/// can_suspend	Can suspend and resume threads
+///
+/// Parameters
+/// Name 	Type 	Description
+/// request_count	jint	The number of threads to suspend.
+/// request_list	const jthread*	The list of threads to suspend.
+///
+/// Agent passes in an array of request_count elements of jthread.
+/// results	jvmtiError*	An agent supplied array of request_count elements. On return, filled with the error code for the suspend of the corresponding thread.
+/// The error code will be JVMTI_ERROR_NONE if the thread was suspended by this call. Possible error codes are those specified for SuspendThread.
+///
+/// Agent passes an array large enough to hold request_count elements of jvmtiError.
+/// The incoming values of the elements of the array are ignored. On return, the elements are set.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_suspend. Use AddCapabilities.
+/// JVMTI_ERROR_ILLEGAL_ARGUMENT	request_count is less than 0.
+/// JVMTI_ERROR_NULL_POINTER	request_list is NULL.
+/// JVMTI_ERROR_NULL_POINTER	results is NULL.
 pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThreadList");
-    // dbg!(jvm.thread_state.alive_threads.read().unwrap().keys());
-    // dbg!(jvm.thread_state.main_thread.read().unwrap().as_ref().unwrap().java_tid);
+    null_check!(request_list);
+    null_check!(results);
+    assert!(jvm.vm_live());
+    if request_count < 0 {
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
+    }
+    //todo handle checking capabilities
     for i in 0..request_count {
-        let thread_object_raw = from_object(request_list.offset(i as isize).read());//todo this transmute bs will sone have gone too far
+        let thread_object_raw = from_object(request_list.offset(i as isize).read());
         let jthread = JavaValue::Object(thread_object_raw).cast_thread();
         let java_thread = jthread.get_java_thread(jvm);
+        if Arc::ptr_eq(&java_thread, int_state.thread) {
+            assert_eq!(java_thread.java_tid, int_state.thread.java_tid);
+            suspend_check(int_state)
+        }
         results.offset(i as isize).write(suspend_thread_impl(java_thread));
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -447,7 +499,8 @@ fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
 pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, suspend_thread(env, thread))//todo this is an ugly hack.
+    unimplemented!();
+    // jvm.tracing.trace_jdwp_function_exit(tracing_guard, suspend_thread(env, thread))//todo this is an ugly hack.
 }
 
 pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {

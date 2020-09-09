@@ -106,7 +106,7 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
     // )
 }
 
-fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {
+pub fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {
     let SuspendedStatus { suspended, suspend_condvar } = &interpreter_state.thread.suspended;
     let suspended_guard = suspended.lock().unwrap();
     if *suspended_guard {
