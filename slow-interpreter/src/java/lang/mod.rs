@@ -250,11 +250,11 @@ pub mod thread {
 
         pub fn try_cast_thread(&self) -> Option<JThread> {
             match self.try_unwrap_normal_object() {
-                Some(normal_object) => {
-                    if normal_object.class_pointer.view().name() == ClassName::thread() {
-                        return JThread { normal_object: self.unwrap_object_nonnull() }.into();
-                    }
-                    None
+                Some(_normal_object) => {
+                    // if normal_object.class_pointer.view().name() == ClassName::thread() { //todo add this kind of check back at some point
+                    return JThread { normal_object: self.unwrap_object_nonnull() }.into();
+                    // }
+                    // None
                 }
                 None => None
             }
@@ -415,8 +415,8 @@ pub mod thread_group {
             self.normal_object.lookup_field("maxPriority").unwrap_int()
         }
 
-        pub fn parent(&self) -> JThreadGroup {
-            self.normal_object.lookup_field("parent").cast_thread_group()
+        pub fn parent(&self) -> Option<JThreadGroup> {
+            self.normal_object.lookup_field("parent").try_cast_thread_group()
         }
 
         as_object_or_java_value!();

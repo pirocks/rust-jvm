@@ -308,7 +308,10 @@ impl JavaValue {
     pub fn try_unwrap_normal_object(&self) -> Option<&NormalObject> {
         //todo these are longer than ideal
         match self {
-            JavaValue::Object(ref_) => match ref_.as_ref().unwrap().deref() {
+            JavaValue::Object(ref_) => match match ref_.as_ref() {
+                None => return None,
+                Some(obj) => obj.deref(),
+            } {
                 Object::Array(_) => None,
                 Object::Object(o) => o.into(),
             },
