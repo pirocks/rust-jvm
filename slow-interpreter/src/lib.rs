@@ -30,7 +30,7 @@ use classfile_view::view::ClassView;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
-use jvmti_jni_bindings::jlong;
+use jvmti_jni_bindings::{jlong, jobject};
 use jvmti_jni_bindings::JNIInvokeInterface_;
 use rust_jvm_common::classfile::{Classfile, CPIndex};
 use rust_jvm_common::classnames::ClassName;
@@ -432,13 +432,12 @@ impl JVMState {
 
 
 type CodeIndex = isize;
-type TransmutedObjectPointer = usize;
 
 pub struct JVMTIState {
     pub built_in_jdwp: Arc<SharedLibJVMTI>,
     jvmti_thread_local_storage: &'static LocalKey<RefCell<*mut c_void>>,
     pub break_points: RwLock<HashMap<MethodId, HashSet<CodeIndex>>>,
-    pub tags: RwLock<HashMap<TransmutedObjectPointer, jlong>>,
+    pub tags: RwLock<HashMap<jobject, jlong>>,
 }
 
 struct LivePoolGetterImpl {
