@@ -97,6 +97,8 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
     assert!(jvm.vm_live());
     let res_ptrs = jvm.thread_state.get_all_threads().values().filter(|thread| {
         let int_state = get_interpreter_state(env);
+        dbg!(thread.clone().thread_object().name().to_rust_string());
+        dbg!(thread.clone().thread_object().is_alive(jvm, int_state));
         thread.thread_object().is_alive(jvm, int_state) != 0
     }).map(|thread| {
         let thread_ptr = to_object(thread.thread_object().object().into());
