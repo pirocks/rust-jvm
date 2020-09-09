@@ -106,6 +106,17 @@ impl Monitor {
         write_guard.count = count;
     }
 
+    pub fn destroy(&self, jvm: &'static JVMState) -> Result<(), MonitorOwnedBySomeoneElse> {
+        let mut current_owners_guard = self.owned.write().unwrap();
+        if current_owners_guard.owner != Monitor::get_tid(jvm).into() {
+            return Result::Err(MonitorOwnedBySomeoneElse {})
+        }
+        current_owners_guard.count = 0;
+        current_owners_guard.owner = None;
+        unsafe { self.mutex.force_unlock_fair(); }
+        Result::Ok(())
+    }
+
     pub fn get_tid(jvm: &'static JVMState) -> usize {
         jvm.thread_state.get_current_thread().java_tid as usize
     }
@@ -120,3 +131,7 @@ impl Monitor {
         self.condvar.notify_one();
     }
 }
+
+struct MonitorOwnedBySomeoneElse {}
+
+

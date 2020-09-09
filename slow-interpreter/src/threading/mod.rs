@@ -180,8 +180,12 @@ impl ThreadState {
     }
 
     pub fn get_monitor(&self, monitor: jrawMonitorID) -> Arc<Monitor> {
+        self.try_get_monitor(monitor).unwrap()
+    }
+
+    pub fn try_get_monitor(&self, monitor: jrawMonitorID) -> Option<Arc<Monitor>> {
         let monitors_read_guard = self.monitors.read().unwrap();
-        let monitor = monitors_read_guard[monitor as usize].clone();
+        let monitor = monitors_read_guard.get(monitor as usize).cloned();
         std::mem::drop(monitors_read_guard);
         monitor
     }
