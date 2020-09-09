@@ -49,8 +49,6 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
     //There is only one top level thread group in this JVM.
     group_count_ptr.write(1);
     let system_j_thread_group = jvm.thread_state.get_system_thread_group();
-
-    dbg!(system_j_thread_group.threads_non_null().iter().map(|thread| thread.name().to_rust_string()).collect::<Vec<_>>());// todo should include Main thread
     let thread_group_object = system_j_thread_group.object();
     let res = new_local_ref_internal(to_object(thread_group_object.into()), int_state);
 
@@ -177,9 +175,9 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     let thread_class_object = thread_object
         .get_class(jvm, int_state);
     let class_loader = thread_class_object
-        .get_class_loader(jvm, int_state)
-        .expect("Expected thread class to have a class loader");
-    let context_class_loader = new_local_ref_internal(to_object(class_loader.object().into()), int_state);
+        .get_class_loader(jvm, int_state);
+    // .expect("Expected thread class to have a class loader");
+    let context_class_loader = new_local_ref_internal(to_object(class_loader.map(|x| x.object())), int_state);
     (*info_ptr).context_class_loader = context_class_loader;
     (*info_ptr).name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_object.name().to_rust_string()).unwrap());
     (*info_ptr).is_daemon = thread_object.daemon() as u8;
@@ -723,6 +721,6 @@ pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthrea
     info_pointer_writer.name = name;
     info_pointer_writer.is_daemon = thread_group.daemon();
     info_pointer_writer.max_priority = thread_group.max_priority();
-    info_pointer_writer.parent = new_local_ref_internal(to_object(thread_group.parent().object().into()), int_state);
+    info_pointer_writer.parent = new_local_ref_internal(to_object(thread_group.parent().map(|x| x.object())), int_state);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
