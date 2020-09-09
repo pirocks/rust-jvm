@@ -552,13 +552,40 @@ pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> 
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
+///Resume Thread
+///
+///     jvmtiError
+///     ResumeThread(jvmtiEnv* env,
+///                 jthread thread)
+///
+/// Resume a suspended thread. Any threads currently suspended through a JVM TI suspend function (eg. SuspendThread) or java.lang.Thread.suspend() will resume execution; all other threads are unaffected.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	6	1.0
+///
+/// Capabilities
+/// Optional Functionality: might not be implemented for all virtual machines. The following capability (as returned by GetCapabilities) must be true to use this function.
+/// Capability 	Effect
+/// can_suspend	Can suspend and resume threads
+///
+/// Parameters
+/// Name 	Type 	Description
+/// thread	jthread	The thread to resume.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_suspend. Use AddCapabilities.
+/// JVMTI_ERROR_THREAD_NOT_SUSPENDED	Thread was not suspended.
+/// JVMTI_ERROR_INVALID_TYPESTATE	The state of the thread has been modified, and is now inconsistent.
+/// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
+/// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
 pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
     let jvm = get_state(env);
+    //todo handle capabilities for this
+    assert!(jvm.vm_live());
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThread");
-    let thread_object_raw = from_object(thread);
-    let jthread = JavaValue::Object(thread_object_raw).cast_thread();
-    let java_thread = jthread.get_java_thread(jvm);
-    let res = resume_thread_impl(java_thread);
+    let res = resume_thread_impl(thread);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
@@ -568,19 +595,25 @@ pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: j
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThreadList");
     for i in 0..request_count {
         let jthreadp = request_list.offset(i as isize).read();
-        let jthread = JavaValue::Object(from_object(jthreadp)).cast_thread();
-        let java_thread = jthread.get_java_thread(jvm);
-        results.offset(i as isize).write(resume_thread_impl(java_thread));
+        results.offset(i as isize).write(resume_thread_impl(jthreadp));
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
-fn resume_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
+unsafe fn resume_thread_impl(thread_raw: jthread) -> jvmtiError {
+    let thread_object_raw = from_object(thread_raw);
+    let jthread = match JavaValue::Object(thread_object_raw).try_cast_thread() {
+        None => {
+            return jvmtiError_JVMTI_ERROR_INVALID_THREAD
+        },
+        Some(jthread) => jthread,
+    };
+    let java_thread = jthread.get_java_thread(jvm);
     let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
     let mut suspend_guard = suspended.lock().unwrap();
     if !*suspend_guard {
-        unimplemented!()
+        jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED
     } else {
         *suspend_guard = false;
         suspend_condvar.notify_one();//notify one and notify all should be the same here
