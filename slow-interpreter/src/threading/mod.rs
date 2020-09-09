@@ -378,6 +378,10 @@ impl JavaThread {
         obj.set_thread_status(status.get_thread_status_number(self))
     }
 
+    pub fn is_alive(&self) -> bool {
+        self.status.read().unwrap().alive
+    }
+
     pub fn notify_terminated(&self) {
         let mut status = self.status.write().unwrap();
 

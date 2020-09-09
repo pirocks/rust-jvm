@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use jvmti_jni_bindings::*;
 
-use crate::{JavaThread, SuspendedStatus};
+use crate::{InterpreterStateGuard, JavaThread, SuspendedStatus};
 use crate::interpreter::suspend_check;
+use crate::java::lang::thread::JThread;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_internal;
@@ -473,26 +474,36 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
     }
     //todo handle checking capabilities
     for i in 0..request_count {
-        let thread_object_raw = from_object(request_list.offset(i as isize).read());
-        let jthread = JavaValue::Object(thread_object_raw).cast_thread();
-        let java_thread = jthread.get_java_thread(jvm);
-        if Arc::ptr_eq(&java_thread, int_state.thread) {
-            assert_eq!(java_thread.java_tid, int_state.thread.java_tid);
-            suspend_check(int_state)
-        }
-        results.offset(i as isize).write(suspend_thread_impl(java_thread));
+        let thread_object_raw = request_list.offset(i as isize).read();
+        let suspend_res = suspend_thread_impl(thread_object_raw, int_state);
+        results.offset(i as isize).write(suspend_res);
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-fn suspend_thread_impl(java_thread: Arc<JavaThread>) -> jvmtiError {
-    let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
-    let mut suspended_guard = suspended.lock().unwrap();
-    if *suspended_guard {
-        jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
-    } else {
-        *suspended_guard = true;
-        jvmtiError_JVMTI_ERROR_NONE
+unsafe fn suspend_thread_impl(thread_object_raw: jthread, int_state: &mut InterpreterStateGuard) -> jvmtiError {
+    match JavaValue::Object(from_object(thread_object_raw)).try_cast_thread() {
+        None => jvmtiError_JVMTI_ERROR_INVALID_THREAD,
+        Some(jthread) => {
+            let java_thread = jthread.get_java_thread(jvm);
+            let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
+            let mut suspended_guard = suspended.lock().unwrap();
+            let res = if *suspended_guard {
+                jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
+            } else {
+                *suspended_guard = true;
+                jvmtiError_JVMTI_ERROR_NONE
+            };
+            if Arc::ptr_eq(&java_thread, int_state.thread) {
+                assert_eq!(java_thread.java_tid, int_state.thread.java_tid);
+                suspend_check(int_state);
+            }
+            if !java_thread.is_alive() {
+                jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
+            } else {
+                res
+            }
+        }
     }
 }
 
@@ -503,15 +514,41 @@ pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, thread: jthread) -
     // jvm.tracing.trace_jdwp_function_exit(tracing_guard, suspend_thread(env, thread))//todo this is an ugly hack.
 }
 
+///Suspend Thread
+///
+///     jvmtiError
+///     SuspendThread(jvmtiEnv* env,
+///                 jthread thread)
+///
+/// Suspend the specified thread.
+/// If the calling thread is specified, this function will not return until some other thread calls ResumeThread.
+/// If the thread is currently suspended, this function does nothing and returns an error.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	5	1.0
+///
+/// Capabilities
+/// Optional Functionality: might not be implemented for all virtual machines. The following capability (as returned by GetCapabilities) must be true to use this function.
+/// Capability 	Effect
+/// can_suspend	Can suspend and resume threads
+///
+/// Parameters
+/// Name 	Type 	Description
+/// thread	jthread	The thread to suspend. If thread is NULL, the current thread is used.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_suspend. Use AddCapabilities.
+/// JVMTI_ERROR_THREAD_SUSPENDED	Thread already suspended.
+/// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
+/// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
 pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
-    //todo dubplication
-    //todo this part is not correct: If the calling thread is specified, this function will not return until some other thread calls ResumeThread. If the thread is currently suspended, this function does nothing and returns an error.
+    //todo check capabilities
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
-    let thread_object_raw = from_object(thread);
-    let jthread = JavaValue::Object(thread_object_raw).cast_thread();
-    let java_thread = jthread.get_java_thread(jvm);
-    let res = suspend_thread_impl(java_thread);
+    let res = suspend_thread_impl(thread, int_state);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
