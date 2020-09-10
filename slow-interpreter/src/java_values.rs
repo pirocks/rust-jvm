@@ -123,6 +123,10 @@ impl Debug for JavaValue {
 
 impl JavaValue {
     pub fn unwrap_int(&self) -> i32 {
+        self.try_unwrap_int().unwrap()
+    }
+
+    pub fn try_unwrap_int(&self) -> Option<i32> {
         match self {
             JavaValue::Int(i) => {
                 *i
@@ -140,35 +144,46 @@ impl JavaValue {
                 *i as i32
             }
             _ => {
-                dbg!(self);
-                panic!()
+                return None
             }
-        }
+        }.into()
     }
 
     pub fn unwrap_float(&self) -> f32 {
+        self.try_unwrap_float().unwrap()
+    }
+    pub fn try_unwrap_float(&self) -> Option<f32> {
         match self {
             JavaValue::Float(f) => {
-                *f
+                (*f).into()
             }
-            _ => panic!()
+            _ => None
         }
     }
     pub fn unwrap_double(&self) -> f64 {
-        match self {
-            JavaValue::Double(f) => {
-                *f
-            }
-            _ => panic!()
-        }
+        self.try_unwrap_double().unwrap()
     }
 
     pub fn unwrap_long(&self) -> i64 {
+        self.try_unwrap_long().unwrap()
+    }
+
+
+    pub fn try_unwrap_double(&self) -> Option<f64> {
+        match self {
+            JavaValue::Double(f) => {
+                (*f).into()
+            }
+            _ => None
+        }
+    }
+
+    pub fn try_unwrap_long(&self) -> Option<i64> {
         match self {
             JavaValue::Long(l) => {
-                *l
+                (*l).into()
             }
-            _ => panic!()
+            _ => None
         }
     }
 
