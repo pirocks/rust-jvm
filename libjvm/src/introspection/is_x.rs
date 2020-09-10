@@ -39,7 +39,7 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    is_array_impl(transmute(cls))
+    is_array_impl(cls).unwrap()
 }
 
 

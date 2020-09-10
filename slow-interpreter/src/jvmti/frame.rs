@@ -112,10 +112,10 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     if depth < 0 {
         return jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT;
     }
-    if !java_thread.is_alive() {
+    let thread = jthread.get_java_thread(jvm);
+    if !thread.is_alive() {
         return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
     }
-    let thread = jthread.get_java_thread(jvm);
     let call_stack_guard = &thread.interpreter_state.read().unwrap().call_stack;
     let stack_entry = match call_stack_guard.get(call_stack_guard.len() - 1 - depth as usize) {
         None => return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES,

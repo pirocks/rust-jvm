@@ -387,9 +387,10 @@ unsafe extern "C" fn get_implemented_interfaces(
 
 pub mod is;
 pub mod breakpoint;
-pub mod frame;
 #[macro_use]
 pub mod threads;
+#[macro_use]
+pub mod frame;
 #[macro_use]
 pub mod thread_local_storage;
 pub mod agent;
