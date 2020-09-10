@@ -50,9 +50,13 @@ pub unsafe fn from_object(obj: jobject) -> Option<Arc<Object>> {
 }
 
 pub unsafe fn from_jclass(obj: jclass) -> JClass {
+    try_from_jclass(obj).unwrap()
+}
+
+pub unsafe fn try_from_jclass(obj: jclass) -> Option<JClass> {
     let possibly_null = from_object(obj);
     if possibly_null.is_none() {
-        panic!()
+        return None;
     }
-    JavaValue::Object(possibly_null).cast_class()
+    JavaValue::Object(possibly_null).cast_class().into()
 }
