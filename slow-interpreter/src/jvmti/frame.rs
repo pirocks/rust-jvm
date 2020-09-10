@@ -125,12 +125,12 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
         None => {
             // so in the event of a completely opaque frame, just say it is Thread.start.
             // this is not perfect, ideally we would return an error:
-            return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
-            // let int_state = get_interpreter_state(env);
-            // let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm));
-            // let possible_starts = thread_class.view().lookup_method_name(&"start".to_string());
-            // let thread_start_view = possible_starts.iter().next().unwrap();
-            // jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
+            // return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
+            let int_state = get_interpreter_state(env);
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm));
+            let possible_starts = thread_class.view().lookup_method_name(&"start".to_string());
+            let thread_start_view = possible_starts.iter().next().unwrap();
+            jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
         }
         Some(method_i) => {
             jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer().clone(), method_i)
