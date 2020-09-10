@@ -61,7 +61,8 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mu
         operand_stack: vec![],
         pc: 0,
         pc_offset: 0,
-        native_local_refs: vec![]
+        native_local_refs: vec![],
+        opaque: false,
     }.into();
     interpreter_state.push_frame(next_entry);
     run_function(jvm, interpreter_state);

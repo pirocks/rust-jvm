@@ -206,7 +206,8 @@ pub fn initialize_class<'l>(
         operand_stack: vec![],
         pc: 0,
         pc_offset: 0,
-        native_local_refs: vec![]
+        native_local_refs: vec![],
+        opaque: false,
     };
     interpreter_state.push_frame(new_stack);
     run_function(jvm, interpreter_state);

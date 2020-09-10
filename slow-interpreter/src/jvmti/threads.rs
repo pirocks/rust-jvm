@@ -10,6 +10,16 @@ use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_internal;
 use crate::rust_jni::native_util::{from_object, to_object};
 
+#[macro_export]
+macro_rules! get_thread_or_error {
+    ($raw_thread: expr) => {
+    match crate::JavaValue::Object(from_object($raw_thread)).try_cast_thread() {
+        None => return jvmti_jni_bindings::jvmtiError_JVMTI_ERROR_INVALID_THREAD,
+        Some(jt) => jt
+    }
+    };
+}
+
 ///Get Top Thread Groups
 ///
 ///     jvmtiError
@@ -479,28 +489,24 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
 }
 
 unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jvmtiError {
-    match JavaValue::Object(from_object(thread_object_raw)).try_cast_thread() {
-        None => jvmtiError_JVMTI_ERROR_INVALID_THREAD,
-        Some(jthread) => {
-            let java_thread = jthread.get_java_thread(jvm);
-            let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
-            let mut suspended_guard = suspended.lock().unwrap();
-            let res = if *suspended_guard {
-                jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
-            } else {
-                *suspended_guard = true;
-                jvmtiError_JVMTI_ERROR_NONE
-            };
-            if Arc::ptr_eq(&java_thread, int_state.thread) {
-                assert_eq!(java_thread.java_tid, int_state.thread.java_tid);
-                suspend_check(int_state);
-            }
-            if !java_thread.is_alive() {
-                jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
-            } else {
-                res
-            }
-        }
+    let jthread = get_thread_or_error!(thread_object_raw);
+    let java_thread = jthread.get_java_thread(jvm);
+    let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
+    let mut suspended_guard = suspended.lock().unwrap();
+    let res = if *suspended_guard {
+        jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
+    } else {
+        *suspended_guard = true;
+        jvmtiError_JVMTI_ERROR_NONE
+    };
+    if Arc::ptr_eq(&java_thread, int_state.thread) {
+        assert_eq!(java_thread.java_tid, int_state.thread.java_tid);
+        suspend_check(int_state);
+    }
+    if !java_thread.is_alive() {
+        jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
+    } else {
+        res
     }
 }
 

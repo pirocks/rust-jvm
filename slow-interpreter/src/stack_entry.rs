@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classfile::CPIndex;
 
@@ -17,7 +18,8 @@ pub struct StackEntry {
     pub pc: usize,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
     pub pc_offset: isize,
-    pub native_local_refs: Vec<HashSet<jobject>>
+    pub native_local_refs: Vec<HashSet<jobject>>,
+    pub(crate) opaque: bool,//todo ideally this would not be needed and instead we would just have native frames and non-native
 }
 
 impl StackEntry {
@@ -30,6 +32,7 @@ impl StackEntry {
             pc: 0,
             pc_offset: 0,
             native_local_refs: vec![HashSet::new()],
+            opaque: true
         }
     }
 
@@ -47,27 +50,17 @@ impl StackEntry {
         self.operand_stack.push(j)
     }
 
+    pub fn is_opaque(&self) -> bool {
+        assert!(self.is_native());
+        return self.opaque && self.is_native();
+    }
 
-
-    /* pub fn depth(&self) -> usize {
-         match &self.last_call_stack {
-             None => 0,
-             Some(last) => last.depth() + 1,
-         }
-     }*/
-
-    /*pub fn print_stack_trace(&self) {
-        let class_file = &self.class_pointer.classfile;
-        let method = &class_file.methods[self.method_i as usize];
-        println!("{} {} {} {}",
-                 &class_name(class_file).get_referred_name(),
-                 method.method_name(class_file),
-                 method.descriptor_str(class_file),
-                 self.depth());
-        match &self.last_call_stack {
-            None => {}
-            Some(last) => last.print_stack_trace(),
-        }
-    }*/
+    pub fn is_native(&self) -> bool {
+        let method_i = match self.method_i {
+            None => return false,
+            Some(i) => i,
+        };
+        self.class_pointer.view().method_view_i(method_i as usize).is_native()
+    }
 }
 

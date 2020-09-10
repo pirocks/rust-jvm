@@ -55,6 +55,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             pc: 0,
             pc_offset: 0,
             native_local_refs: vec![HashSet::new()],
+            opaque: true
         });
 
         java_thread.notify_alive();

@@ -134,7 +134,8 @@ impl ThreadState {
                 operand_stack: vec![],
                 pc: std::usize::MAX,
                 pc_offset: -1,
-                native_local_refs: vec![]
+                native_local_refs: vec![],
+                opaque: true,
             };
             let mut new_int_state = InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread };
             new_int_state.push_frame(frame);
@@ -215,7 +216,8 @@ impl ThreadState {
                 operand_stack: vec![],
                 pc: std::usize::MAX,
                 pc_offset: -1,
-                native_local_refs: vec![]
+                native_local_refs: vec![],
+                opaque: true,
             };
             let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
             interpreter_state_guard.push_frame(new_thread_frame);

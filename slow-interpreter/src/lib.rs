@@ -491,7 +491,8 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
         operand_stack: vec![],
         pc: 0,
         pc_offset: 0,
-        native_local_refs: vec![]
+        native_local_refs: vec![],
+        opaque: false,
     };
     int_state.pop_frame();
     int_state.push_frame(stack_entry);
@@ -549,7 +550,8 @@ pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThread
         operand_stack: vec![],
         pc: 0,
         pc_offset: 0,
-        native_local_refs: vec![]
+        native_local_refs: vec![],
+        opaque: false,
     };
     main_thread.interpreter_state.write().unwrap().call_stack = vec![initialize_system_frame];
     sender.send(MainThreadInitializeInfo { system_class }).unwrap();
