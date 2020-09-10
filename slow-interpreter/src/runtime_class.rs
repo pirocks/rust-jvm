@@ -80,15 +80,15 @@ impl RuntimeClass {
 
     pub fn try_view(&self) -> Option<&Arc<ClassView>> {
         match self {
-            RuntimeClass::Byte => unimplemented!(),
-            RuntimeClass::Boolean => unimplemented!(),
-            RuntimeClass::Short => unimplemented!(),
-            RuntimeClass::Char => unimplemented!(),
-            RuntimeClass::Int => unimplemented!(),
-            RuntimeClass::Long => unimplemented!(),
-            RuntimeClass::Float => unimplemented!(),
-            RuntimeClass::Double => unimplemented!(),
-            RuntimeClass::Void => unimplemented!(),
+            RuntimeClass::Byte => None,
+            RuntimeClass::Boolean => None,
+            RuntimeClass::Short => None,
+            RuntimeClass::Char => None,
+            RuntimeClass::Int => None,
+            RuntimeClass::Long => None,
+            RuntimeClass::Float => None,
+            RuntimeClass::Double => None,
+            RuntimeClass::Void => None,
             RuntimeClass::Array(_) => None,
             RuntimeClass::Object(o) => (&o.class_view).into(),
         }
