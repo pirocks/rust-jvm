@@ -12,13 +12,47 @@ use crate::jvmti::{get_interpreter_state, get_state};
 use crate::method_table::MethodId;
 use crate::rust_jni::native_util::from_object;
 
+/// Get Frame Count
+///
+///     jvmtiError
+///     GetFrameCount(jvmtiEnv* env,
+///                 jthread thread,
+///                 jint* count_ptr)
+///
+/// Get the number of frames currently in the specified thread's call stack.
+///
+/// If this function is called for a thread actively executing bytecodes (for example, not the current thread and not suspended), the information returned is transient.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	16	1.0
+///
+/// Capabilities
+/// Required Functionality
+///
+/// Parameters
+/// Name 	Type 	Description
+/// thread	jthread	The thread to query. If thread is NULL, the current thread is used.
+/// count_ptr	jint*	On return, points to the number of frames in the call stack.
+///
+/// Agent passes a pointer to a jint. On return, the jint has been set.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
+/// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
+/// JVMTI_ERROR_NULL_POINTER	count_ptr is NULL.
+///
 pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, count_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameCount");
+    assert!(jvm.vm_live());
+    null_check!(count_ptr);
 
-    let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
+    let jthread = get_thread_or_error!(thread);
     let java_thread = jthread.get_java_thread(jvm);
-    assert!(*java_thread.suspended.suspended.lock().unwrap());
+    assert!(*java_thread.suspended.suspended.lock().unwrap());//todo technically need to support non-suspended threads as well
+
     let frame_count = java_thread.interpreter_state.read().unwrap().call_stack.len();
     dbg!(java_thread.thread_object().name().to_rust_string());
     count_ptr.write(frame_count as i32);
