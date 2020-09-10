@@ -2,7 +2,7 @@ use std::ffi::CString;
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_NONE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
+use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::classnames::ClassName;
 
@@ -11,6 +11,7 @@ use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::method_table::MethodId;
 use crate::rust_jni::native_util::from_object;
+use crate::stack_entry::StackEntry;
 
 /// Get Frame Count
 ///
@@ -51,6 +52,9 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
 
     let jthread = get_thread_or_error!(thread);
     let java_thread = jthread.get_java_thread(jvm);
+    if !java_thread.is_alive() {
+        return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
+    }
     assert!(*java_thread.suspended.suspended.lock().unwrap());//todo technically need to support non-suspended threads as well
 
     let frame_count = java_thread.interpreter_state.read().unwrap().call_stack.len();
@@ -60,29 +64,81 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-
+///Get Frame Location
+///
+///     jvmtiError
+///     GetFrameLocation(jvmtiEnv* env,
+///                 jthread thread,
+///                 jint depth,
+///                 jmethodID* method_ptr,
+///                 jlocation* location_ptr)
+///
+/// For a Java programming language frame, return the location of the instruction currently executing.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	19	1.0
+///
+/// Capabilities
+/// Required Functionality
+///
+/// Parameters
+/// Name 	Type 	Description
+/// thread	jthread	The thread of the frame to query. If thread is NULL, the current thread is used.
+/// depth	jint	The depth of the frame to query.
+/// method_ptr	jmethodID*	On return, points to the method for the current location.
+///
+/// Agent passes a pointer to a jmethodID. On return, the jmethodID has been set.
+/// location_ptr	jlocation*	On return, points to the index of the currently executing instruction.
+/// Is set to -1 if the frame is executing a native method.
+///
+/// Agent passes a pointer to a jlocation. On return, the jlocation has been set.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
+/// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
+/// JVMTI_ERROR_ILLEGAL_ARGUMENT	depth is less than zero.
+/// JVMTI_ERROR_NO_MORE_FRAMES	There are no stack frames at the specified depth.
+/// JVMTI_ERROR_NULL_POINTER	method_ptr is NULL.
+/// JVMTI_ERROR_NULL_POINTER	location_ptr is NULL.
 pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread, depth: jint, method_ptr: *mut jmethodID, location_ptr: *mut jlocation) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameLocation");
-    let jthread = JavaValue::Object(from_object(transmute(thread))).cast_thread();
+    assert!(jvm.vm_live());
+    let jthread = get_thread_or_error!(thread);
+    null_check!(method_ptr);
+    null_check!(location_ptr);
+    if depth < 0 {
+        return jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT;
+    }
+    if !java_thread.is_alive() {
+        return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
+    }
     let thread = jthread.get_java_thread(jvm);
     let call_stack_guard = &thread.interpreter_state.read().unwrap().call_stack;
-    let stack_entry = &call_stack_guard[call_stack_guard.len() - 1 - depth as usize];
+    let stack_entry = match call_stack_guard.get(call_stack_guard.len() - 1 - depth as usize) {
+        None => return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES,
+        Some(stack_entry) => stack_entry,
+    };
     let meth_id = match stack_entry.try_method_i() {
         None => {
-            let int_state = get_interpreter_state(env);
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm));
-            let possible_starts = thread_class.view().lookup_method_name(&"start".to_string());
-            let thread_start_view = possible_starts.iter().next().unwrap();
-            jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
-        },
+            // so in the event of a completely opaque frame, just say it is Thread.start.
+            // this is not perfect, ideally we would return an error:
+            return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
+            // let int_state = get_interpreter_state(env);
+            // let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm));
+            // let possible_starts = thread_class.view().lookup_method_name(&"start".to_string());
+            // let thread_start_view = possible_starts.iter().next().unwrap();
+            // jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
+        }
         Some(method_i) => {
             jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer().clone(), method_i)
-        },
+        }
     };
 
     method_ptr.write(transmute(meth_id));
-    location_ptr.write(stack_entry.pc() as i64);
+    location_ptr.write(stack_entry.try_pc().map(|x| x as i64).unwrap_or(-1));
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

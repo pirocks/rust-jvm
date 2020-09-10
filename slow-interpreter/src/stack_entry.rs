@@ -105,11 +105,15 @@ impl StackEntry {
     }
 
     pub fn pc(&self) -> usize {
-        self.non_native_data.as_ref().unwrap().pc
+        self.try_pc().unwrap()
+    }
+
+    pub fn try_pc(&self) -> Option<usize> {
+        self.non_native_data.as_ref().map(|x| x.pc)
     }
 
 
-    //todo a lot of duplication here
+    //todo a lot of duplication here between mut and non-mut variants
     pub fn pc_offset_mut(&mut self) -> &mut isize {
         &mut self.non_native_data.as_mut().unwrap().pc_offset
     }
