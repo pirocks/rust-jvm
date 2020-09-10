@@ -95,7 +95,8 @@ pub mod get_methods;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
-    from_jclass(cls).as_runtime_class().view().access_flags() as i32
+    let res = from_jclass(cls).as_runtime_class().view().access_flags() as i32;
+    res
 }
 
 
@@ -124,7 +125,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     Therefore it only sorta works*/
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let type_ = PTypeView::Ref(ReferenceTypeView::Class(int_state.previous_frame().class_pointer.view().name()));
+    let type_ = PTypeView::Ref(ReferenceTypeView::Class(int_state.previous_previous_frame().class_pointer().view().name()));
     load_class_constant_by_type(jvm, int_state, &type_);
     let jclass = int_state.pop_current_operand_stack().unwrap_object();
     to_object(jclass)

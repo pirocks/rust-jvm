@@ -34,7 +34,7 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     let thread = jthread.get_java_thread(jvm);
     let call_stack_guard = &thread.interpreter_state.read().unwrap().call_stack;
     let stack_entry = &call_stack_guard[call_stack_guard.len() - 1 - depth as usize];
-    let meth_id = match stack_entry.method_i {
+    let meth_id = match stack_entry.try_method_i() {
         None => {
             let int_state = get_interpreter_state(env);
             let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm));
@@ -43,12 +43,12 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
             jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
         },
         Some(method_i) => {
-            jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer.clone(), method_i)
+            jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer().clone(), method_i)
         },
     };
 
     method_ptr.write(transmute(meth_id));
-    location_ptr.write(stack_entry.pc as i64);
+    location_ptr.write(stack_entry.pc() as i64);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

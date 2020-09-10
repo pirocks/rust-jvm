@@ -10,8 +10,8 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
 pub fn new<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: usize) -> () {
-    let loader_arc = &int_state.current_frame_mut().class_pointer.loader(jvm);
-    let view = &int_state.current_frame_mut().class_pointer.view();
+    let loader_arc = &int_state.current_frame_mut().class_pointer().loader(jvm);
+    let view = &int_state.current_frame_mut().class_pointer().view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
     let target_classfile = check_inited_class(jvm, int_state, &target_class_name.clone().into(), loader_arc.clone());
     push_new_object(jvm, int_state, &target_classfile, None);
@@ -23,7 +23,7 @@ pub fn anewarray<'l>(state: &'static JVMState, int_state: &mut InterpreterStateG
         JavaValue::Int(i) => i,
         _ => panic!()
     };
-    let view = &int_state.current_frame_mut().class_pointer.view();
+    let view = &int_state.current_frame_mut().class_pointer().view();
     let cp_entry = &view.constant_pool_view(cp as usize);
     match cp_entry {
         ConstantInfoView::Class(c) => {
@@ -88,7 +88,7 @@ pub fn newarray<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuar
 
 pub fn multi_a_new_array<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: MultiNewArray) -> () {
     let dims = cp.dims;
-    let temp = int_state.current_frame_mut().class_pointer.view().constant_pool_view(cp.index as usize);
+    let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
     check_inited_class(jvm, int_state, &PTypeView::Ref(type_.clone()), int_state.current_loader(jvm).clone());

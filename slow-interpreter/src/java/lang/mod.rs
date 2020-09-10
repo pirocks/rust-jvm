@@ -305,7 +305,7 @@ pub mod thread {
 
 
         pub fn new(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, thread_group: JThreadGroup, thread_name: String) -> JThread {
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm).clone());
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
             push_new_object(jvm, int_state, &thread_class, None);
             let thread_object = int_state.pop_current_operand_stack();
             let thread_name = JString::from(jvm, int_state, thread_name);
@@ -336,6 +336,19 @@ pub mod thread {
             );
             int_state.pop_current_operand_stack()
                 .unwrap_boolean()
+        }
+
+
+        pub fn current_thread(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> JThread {
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
+            run_static_or_virtual(
+                jvm,
+                int_state,
+                &thread_class,
+                "currentThread".to_string(),
+                "()Ljava/lang/Thread;".to_string(),
+            );
+            int_state.pop_current_operand_stack().cast_thread()
         }
 
         as_object_or_java_value!();
@@ -380,7 +393,7 @@ pub mod thread_group {
     impl JThreadGroup {
         pub fn init<'l>(jvm: &'static JVMState,
                         int_state: &mut InterpreterStateGuard) -> JThreadGroup {
-            let thread_group_class = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), int_state.current_loader(jvm).clone());
+            let thread_group_class = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), jvm.bootstrap_loader.clone());
             push_new_object(jvm, int_state, &thread_group_class, None);
             let thread_group_object = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.clone()],

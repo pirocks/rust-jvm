@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -31,7 +30,6 @@ pub fn run_native_method<'l>(
     method_i: usize,
     _debug: bool,
 ) {
-    int_state.current_frame_mut().native_local_refs.push(HashSet::new());
     let view = &class.view();
     check_inited_class(jvm, int_state, &view.name().into(), class.loader(jvm));
     let method = &view.method_view_i(method_i);
@@ -53,6 +51,9 @@ pub fn run_native_method<'l>(
     } else {
         panic!();
     }
+    int_state.push_frame(StackEntry::new_native_frame(class.clone(), method_i as u16, args.clone()));
+    assert!(int_state.current_frame_mut().is_native());
+
     let monitor = monitor_for_function(jvm, int_state, method, method.access_flags() & ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
     monitor.as_ref().map(|m| m.lock(jvm));
     if _debug {
@@ -62,12 +63,13 @@ pub fn run_native_method<'l>(
     // println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
     let meth_name = method.name();
     let debug = false;//meth_name.contains("isAlive");
-    if meth_name == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
-        int_state.push_current_operand_stack(JavaValue::Boolean(0))
+    let result = if meth_name == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
+        JavaValue::Boolean(0).into()
     } else if meth_name == "arraycopy".to_string() {
-        system_array_copy(&mut args)
+        system_array_copy(&mut args);
+        None
     } else {
-        let result = if jvm.libjava.registered_natives.read().unwrap().contains_key(&class) &&
+        if jvm.libjava.registered_natives.read().unwrap().contains_key(&class) &&
             jvm.libjava.registered_natives.read().unwrap().get(&class).unwrap().read().unwrap().contains_key(&(method_i as u16))
         {
             //todo dup
@@ -181,21 +183,16 @@ pub fn run_native_method<'l>(
                 }
             };
             res
-        };
-        match result {
-            None => {}
-            Some(res) => {
-                if debug {
-                    // dbg!(&frame.operand_stack);
-                    dbg!(&res);
-                }
-                int_state.push_current_operand_stack(res)
-            }
+        }
+    };
+    monitor.as_ref().map(|m| m.unlock(jvm));
+    int_state.pop_frame();
+    match result {
+        None => {}
+        Some(res) => {
+            int_state.push_current_operand_stack(res)
         }
     }
-    monitor.as_ref().map(|m| m.unlock(jvm));
-    int_state.current_frame_mut().native_local_refs.pop();//todo technivally this should be a clear and we should have a new native frame.
-    // println!("CALL END NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
 }
 
 fn patch_all(state: &'static JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {

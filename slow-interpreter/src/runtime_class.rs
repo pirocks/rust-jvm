@@ -199,16 +199,8 @@ pub fn initialize_class<'l>(
         locals.push(JavaValue::Top);
     }
 
-    let new_stack = StackEntry {
-        class_pointer: class_arc.clone(),
-        method_i: Option::from(clinit.method_i() as u16),
-        local_vars: locals,
-        operand_stack: vec![],
-        pc: 0,
-        pc_offset: 0,
-        native_local_refs: vec![],
-        opaque: false,
-    };
+    let new_stack = StackEntry::new_java_frame(class_arc.clone(), clinit.method_i() as u16, locals);
+    //todo these java frames may have to be converted to native?
     interpreter_state.push_frame(new_stack);
     run_function(jvm, interpreter_state);
     interpreter_state.pop_frame();

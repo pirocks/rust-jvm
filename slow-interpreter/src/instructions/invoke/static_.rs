@@ -65,16 +65,7 @@ pub fn invoke_static_impl<'l>(
             i += 1;
         }
         args[0..i].reverse();
-        let next_entry = StackEntry {
-            class_pointer: target_class,
-            method_i: Option::from(target_method_i as u16),
-            local_vars: args.clone(),
-            operand_stack: vec![],
-            pc: 0,
-            pc_offset: 0,
-            native_local_refs: vec![],
-            opaque: false,
-        };
+        let next_entry = StackEntry::new_java_frame(target_class, target_method_i as u16, args);
         interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
         interpreter_state.pop_frame();

@@ -12,7 +12,7 @@ pub fn astore(current_frame: &mut StackEntry, n: usize) -> () {
             panic!()
         }
     }
-    current_frame.local_vars[n] = object_ref;
+    current_frame.local_vars_mut()[n] = object_ref;
 }
 
 pub fn lstore(current_frame: &mut StackEntry, n: usize) -> () {
@@ -24,7 +24,7 @@ pub fn lstore(current_frame: &mut StackEntry, n: usize) -> () {
             panic!()
         }
     }
-    current_frame.local_vars[n] = val;
+    current_frame.local_vars_mut()[n] = val;
 }
 
 pub fn dstore(current_frame: &mut StackEntry, n: usize) -> () {
@@ -36,13 +36,13 @@ pub fn dstore(current_frame: &mut StackEntry, n: usize) -> () {
             panic!()
         }
     }
-    current_frame.local_vars[n] = jv;
+    current_frame.local_vars_mut()[n] = jv;
 }
 
 pub fn fstore(current_frame: &mut StackEntry, n: usize) -> () {
     let jv = current_frame.pop();
     jv.unwrap_float();
-    current_frame.local_vars[n] = jv;
+    current_frame.local_vars_mut()[n] = jv;
 }
 
 pub fn castore(current_frame: &mut StackEntry) -> () {
@@ -89,7 +89,7 @@ pub fn aastore(current_frame: &mut StackEntry) -> () {
 
 pub fn istore(current_frame: &mut StackEntry, n: u8) -> () {
     let object_ref = current_frame.pop();
-    current_frame.local_vars[n as usize] = JavaValue::Int(object_ref.unwrap_int());
+    current_frame.local_vars_mut()[n as usize] = JavaValue::Int(object_ref.unwrap_int());
 }
 
 

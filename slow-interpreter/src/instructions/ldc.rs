@@ -21,7 +21,7 @@ fn load_class_constant<'l>(state: &'static JVMState, int_state: &mut Interpreter
 }
 
 pub fn load_class_constant_by_type<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, res_class_type: &PTypeView) {
-    let object = get_or_create_class_object(jvm, res_class_type, int_state, int_state.current_frame().class_pointer.loader(jvm).clone());
+    let object = get_or_create_class_object(jvm, res_class_type, int_state, jvm.bootstrap_loader.clone());
     int_state.current_frame_mut().push(JavaValue::Object(object.into()));
 }
 
@@ -32,7 +32,7 @@ fn load_string_constant<'l>(jvm: &'static JVMState, int_state: &mut InterpreterS
 
 pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
     let java_lang_string = ClassName::string();
-    let current_loader = interpreter_state.current_loader(jvm).clone();
+    let current_loader = jvm.bootstrap_loader.clone();
     let string_class = check_inited_class(
         jvm,
         interpreter_state,
@@ -54,16 +54,7 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mu
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
-    let next_entry = StackEntry {
-        class_pointer: final_target_class,
-        method_i: Option::from(constructor_i as u16),
-        local_vars: args,
-        operand_stack: vec![],
-        pc: 0,
-        pc_offset: 0,
-        native_local_refs: vec![],
-        opaque: false,
-    }.into();
+    let next_entry = StackEntry::new_java_frame(final_target_class, constructor_i as u16, args).into();
     interpreter_state.push_frame(next_entry);
     run_function(jvm, interpreter_state);
     interpreter_state.pop_frame();
@@ -81,7 +72,7 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mu
 }
 
 pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) -> () {
-    let view = current_frame.class_pointer.view();
+    let view = current_frame.class_pointer().view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::Long(l) => {

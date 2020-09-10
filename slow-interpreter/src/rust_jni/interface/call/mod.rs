@@ -69,10 +69,8 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
             PTypeView::UninitializedThisOrClass(_) => panic!(),
         }
     }
-//todo add params into operand stack;
-//     trace!("----NATIVE EXIT ----");
     invoke_virtual_method_i(jvm, int_state, parsed, class.clone(), method_i as usize, &method, false);
-    // trace!("----NATIVE ENTER ----");
+    assert!(int_state.throw().is_none());//todo
     if method.desc().return_type == PType::VoidType {
         None
     } else {

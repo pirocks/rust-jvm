@@ -62,7 +62,7 @@ pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut Interpre
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             for excep_table in &code.exception_table {
-                let pc = *interpreter_state.current_pc();
+                let pc = interpreter_state.current_pc();
                 if excep_table.start_pc as usize <= pc && pc < (excep_table.end_pc as usize) {//todo exclusive
                     if excep_table.catch_type == 0 {
                         //todo dup
@@ -117,8 +117,8 @@ pub fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {
 }
 
 fn update_pc_for_next_instruction<'l>(interpreter_state: &mut InterpreterStateGuard) {
-    let offset = *interpreter_state.current_pc_offset();
-    let mut pc = *interpreter_state.current_pc();
+    let offset = interpreter_state.current_pc_offset();
+    let mut pc = interpreter_state.current_pc();
     if offset > 0 {
         pc += offset as usize;
     } else {
@@ -146,8 +146,8 @@ fn breakpoint_check(jvm: &'static JVMState, interpreter_state: &mut InterpreterS
 }
 
 fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &String) -> (InstructionInfo, usize) {
-    let current = &code.code_raw[current_frame.pc..];
-    let mut context = CodeParserContext { offset: current_frame.pc, iter: current.iter() };
+    let current = &code.code_raw[current_frame.pc()..];
+    let mut context = CodeParserContext { offset: current_frame.pc(), iter: current.iter() };
     let parsedq = parse_instruction(&mut context);
     match &parsedq {
         None => {
@@ -160,7 +160,7 @@ fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &Stri
         }
         Some(_) => {}
     };
-    (parsedq.unwrap().clone(), context.offset - current_frame.pc)
+    (parsedq.unwrap().clone(), context.offset - current_frame.pc())
 }
 
 pub fn monitor_for_function(
@@ -180,7 +180,7 @@ pub fn monitor_for_function(
             );
             class_object.unwrap_normal_object().monitor.clone()
         } else {
-            int_state.current_frame_mut().local_vars[0].unwrap_normal_object().monitor.clone()
+            int_state.current_frame_mut().local_vars()[0].unwrap_normal_object().monitor.clone()
         };
         monitor.lock(jvm);
         monitor.into()
@@ -317,9 +317,9 @@ fn run_single_instruction<'l>(
         InstructionInfo::ifnull(offset) => ifnull(interpreter_state.current_frame_mut(), offset),
         InstructionInfo::iinc(iinc) => {
             let current_frame = interpreter_state.current_frame_mut();
-            let val = current_frame.local_vars[iinc.index as usize].unwrap_int();
+            let val = current_frame.local_vars()[iinc.index as usize].unwrap_int();
             let res = val + iinc.const_ as i32;
-            current_frame.local_vars[iinc.index as usize] = JavaValue::Int(res);
+            current_frame.local_vars_mut()[iinc.index as usize] = JavaValue::Int(res);
         }
         InstructionInfo::iload(n) => iload(interpreter_state.current_frame_mut(), n as usize),
         InstructionInfo::iload_0 => iload(interpreter_state.current_frame_mut(), 0),

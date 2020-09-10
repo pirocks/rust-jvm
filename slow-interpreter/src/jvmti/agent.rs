@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::mem::transmute;
 use std::os::raw::c_void;
 
@@ -47,16 +46,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         };
         jvm.thread_state.set_current_thread(java_thread.clone());
         let thread_class = check_inited_class(jvm, &mut guard, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
-        guard.push_frame(StackEntry {
-            class_pointer: thread_class,
-            method_i: None,
-            local_vars: vec![],
-            operand_stack: vec![],
-            pc: 0,
-            pc_offset: 0,
-            native_local_refs: vec![HashSet::new()],
-            opaque: true
-        });
+        guard.push_frame(StackEntry::new_completely_opaque_frame());
 
         java_thread.notify_alive();
         jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());

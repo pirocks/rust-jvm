@@ -29,7 +29,7 @@ pub fn invoke_checkcast<'l>(jvm: &'static JVMState, int_state: &mut InterpreterS
     let object = possibly_null.unwrap();
     match object.deref() {
         Object(o) => {
-            let view = &int_state.current_frame_mut().class_pointer.view();
+            let view = &int_state.current_frame_mut().class_pointer().view();
             let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
             let instanceof_class = check_inited_class(jvm, int_state, &instance_of_class_name.into(), int_state.current_loader(jvm).clone());
             let object_class = o.class_pointer.clone();
@@ -42,7 +42,7 @@ pub fn invoke_checkcast<'l>(jvm: &'static JVMState, int_state: &mut InterpreterS
             }
         }
         Array(a) => {
-            let current_frame_class = &int_state.current_frame_mut().class_pointer.view();
+            let current_frame_class = &int_state.current_frame_mut().class_pointer().view();
             let instance_of_class = current_frame_class
                 .constant_pool_view(cp as usize)
                 .unwrap_class().class_name();
@@ -191,9 +191,9 @@ pub fn wide(current_frame: &mut StackEntry, w: Wide) {
         }
         Wide::IInc(iinc) => {
             let IInc { index, const_ } = iinc;
-            let mut val = current_frame.local_vars[index as usize].unwrap_int();
+            let mut val = current_frame.local_vars()[index as usize].unwrap_int();
             val += const_ as i32;
-            current_frame.local_vars[index as usize] = JavaValue::Int(val);
+            current_frame.local_vars_mut()[index as usize] = JavaValue::Int(val);
         }
     }
 }

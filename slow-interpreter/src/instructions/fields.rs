@@ -11,7 +11,7 @@ pub fn putstatic<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGua
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let target_classfile = check_inited_class(jvm, int_state, &field_class_name.into(), loader_arc.clone());
-    let stack = &mut int_state.current_frame_mut().operand_stack;
+    let stack = int_state.current_frame_mut().operand_stack_mut();
     let field_value = stack.pop().unwrap();
     target_classfile.static_vars().insert(field_name, field_value);
 }
@@ -21,7 +21,7 @@ pub fn putfield<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuar
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let _target_classfile = check_inited_class(jvm, int_state, &field_class_name.into(), loader_arc.clone());
-    let stack = &mut int_state.current_frame_mut().operand_stack;
+    let stack = &mut int_state.current_frame_mut().operand_stack_mut();
     let val = stack.pop().unwrap();
     let object_ref = stack.pop().unwrap();
     match object_ref {
@@ -58,12 +58,12 @@ fn get_static_impl<'l>(state: &'static JVMState, int_state: &mut InterpreterStat
             val.clone()
         }
     };
-    let stack = &mut int_state.current_frame_mut().operand_stack;
+    let stack = int_state.current_frame_mut().operand_stack_mut();
     stack.push(field_value);
 }
 
 pub fn get_field(current_frame: &mut StackEntry, cp: u16, _debug: bool) -> () {
-    let view = &current_frame.class_pointer.view();
+    let view = &current_frame.class_pointer().view();
     let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let object_ref = current_frame.pop();
     match object_ref {

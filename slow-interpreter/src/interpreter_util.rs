@@ -21,7 +21,7 @@ pub fn push_new_object(
     target_classfile: &Arc<RuntimeClass>,
     class_object_type: Option<Arc<RuntimeClass>>,
 ) {
-    let loader_arc = &int_state.current_frame().class_pointer.loader(jvm).clone();
+    let loader_arc = target_classfile.loader(jvm);//&int_state.current_frame().class_pointer().loader(jvm).clone();//todo fix loaders.
     let object_pointer = JavaValue::new_object(jvm, target_classfile.clone(), class_object_type);
     let new_obj = JavaValue::Object(object_pointer.clone());
     default_init_fields(jvm, int_state, loader_arc.clone(), object_pointer, target_classfile.view(), loader_arc.clone());
@@ -208,9 +208,9 @@ fn check_inited_class_impl(
     match &jvm.jvmti_state {
         None => {}
         Some(jvmti) => {
-            if class_name == &ClassName::Str("java/lang/Thread".to_string()) {
-                println!("here")
-            }
+            // if class_name == &ClassName::Str("java/lang/Thread".to_string()) {
+            //     println!("here")
+            // }
             jvmti.built_in_jdwp.class_prepare(jvm, &class_name, int_state);
         }
     }

@@ -11,13 +11,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::thread::{Builder, LocalKey};
 
-use nix::errno::errno;
 use nix::sys::signal::{SigAction, sigaction, SigHandler, SigSet};
 use nix::sys::signal::Signal;
-use nix::unistd::gettid;
 
 use crate::handlers::{handle_event, handle_pause};
-use crate::signal::{pthread_self, pthread_sigqueue, pthread_t, SI_QUEUE, siginfo_t, sigval};
+use crate::signal::{pthread_self, pthread_t, SI_QUEUE, siginfo_t};
 
 // type TID = usize;
 

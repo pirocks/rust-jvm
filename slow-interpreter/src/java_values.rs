@@ -524,7 +524,7 @@ pub struct ArrayObject {
 
 impl ArrayObject {
     pub fn new_array(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>) -> Self {
-        check_inited_class(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())), int_state.current_loader(jvm));
+        check_inited_class(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())), jvm.bootstrap_loader.clone());
         Self {
             elems: RefCell::new(elems),
             elem_type: type_,

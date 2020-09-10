@@ -49,16 +49,7 @@ fn invoke_virtual_method_i_impl<'l>(
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         setup_virtual_args(current_frame, &expected_descriptor, &mut args, max_locals);
-        let next_entry = StackEntry {
-            class_pointer: target_class.clone(),
-            method_i: Option::from(target_method_i as u16),
-            local_vars: args,
-            operand_stack: vec![],
-            pc: 0,
-            pc_offset: 0,
-            native_local_refs: vec![],
-            opaque: false,
-        };
+        let next_entry = StackEntry::new_java_frame(target_class, target_method_i as u16, args);
         interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
         interpreter_state.pop_frame();
@@ -117,7 +108,7 @@ pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
 
 //Let C be the class of objectref.
     let this_pointer = {
-        let operand_stack = &int_state.current_frame().operand_stack;
+        let operand_stack = &int_state.current_frame().operand_stack();
         // int_state.print_stack_trace();
         // dbg!(&operand_stack);
         &operand_stack[operand_stack.len() - md.parameter_types.len() - 1].clone()

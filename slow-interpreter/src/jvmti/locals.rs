@@ -2,8 +2,10 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_SLOT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OPAQUE_FRAME, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH};
 
+use crate::{InterpreterStateGuard, JVMState};
+use crate::java::lang::thread::JThread;
 use crate::java_values::JavaValue;
-use crate::jvmti::get_state;
+use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::{from_object, to_object};
 use crate::stack_entry::StackEntry;
 
@@ -51,15 +53,16 @@ use crate::stack_entry::StackEntry;
 /// JVMTI_ERROR_NULL_POINTER	value_ptr is NULL.
 pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jobject) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(value_ptr);
-    let var = match get_local_t(env, thread, depth, slot) {
+    let var = match get_local_t(jvm, int_state, thread, depth, slot) {
         Ok(var) => var,
         Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
     match var {
-        JavaValue::Top => value_ptr.write(null_mut()),
+        JavaValue::Top => value_ptr.write(null_mut()),//todo is this correct?
         _ => {
             let possibly_object = var.try_unwrap_object();
             match possibly_object {
@@ -72,8 +75,10 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
 }
 
 pub unsafe extern "C" fn get_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jint) -> jvmtiError {
-    let var = match get_local_t(env, thread, depth, slot) {
-        Ok(var) => { var },
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let var = match get_local_t(jvm, int_state, thread, depth, slot) {
+        Ok(var) => { var }
         Err(err) => return err,
     };
     value_ptr.write(var.unwrap_int());
@@ -81,8 +86,10 @@ pub unsafe extern "C" fn get_local_int(env: *mut jvmtiEnv, thread: jthread, dept
 }
 
 pub unsafe extern "C" fn get_local_float(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jfloat) -> jvmtiError {
-    let var = match get_local_t(env, thread, depth, slot) {
-        Ok(var) => { var },
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let var = match get_local_t(jvm, int_state, thread, depth, slot) {
+        Ok(var) => { var }
         Err(err) => return err,
     };
     value_ptr.write(var.unwrap_float());
@@ -90,8 +97,10 @@ pub unsafe extern "C" fn get_local_float(env: *mut jvmtiEnv, thread: jthread, de
 }
 
 pub unsafe extern "C" fn get_local_double(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jdouble) -> jvmtiError {
-    let var = match get_local_t(env, thread, depth, slot) {
-        Ok(var) => { var },
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let var = match get_local_t(jvm, int_state, thread, depth, slot) {
+        Ok(var) => { var }
         Err(err) => return err,
     };
     value_ptr.write(var.unwrap_double());
@@ -99,8 +108,10 @@ pub unsafe extern "C" fn get_local_double(env: *mut jvmtiEnv, thread: jthread, d
 }
 
 pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jlong) -> jvmtiError {
-    let var = match get_local_t(env, thread, depth, slot) {
-        Ok(var) => { var },
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let var = match get_local_t(jvm, int_state, thread, depth, slot) {
+        Ok(var) => { var }
         Err(err) => return err,
     };
     value_ptr.write(var.unwrap_long());
@@ -108,24 +119,28 @@ pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, dep
 }
 
 
-unsafe fn get_local_t(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue, jvmtiError> {
+unsafe fn get_local_t(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue, jvmtiError> {
     if depth < 0 {
         return Result::Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
-    let jthread = match JavaValue::Object(from_object(thread)).try_cast_thread() {
-        None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
-        Some(jt) => jt,
+
+    let jthread = if thread != null_mut() {
+        match JavaValue::Object(from_object(thread)).try_cast_thread() {
+            None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
+            Some(jt) => jt,
+        }
+    } else {
+        JThread::current_thread(jvm, int_state)
     };
-    let jvm = get_state(env);
     let java_thread = jthread.get_java_thread(jvm);
     let call_stack = &java_thread.interpreter_state.read().unwrap().call_stack;
     let stack_frame: &StackEntry = match call_stack.get(depth as usize) {
         None => return Result::Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
         Some(entry) => entry,
     };
-    if stack_frame.is_opaque() {
+    if stack_frame.is_native() {
         return Result::Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
     }
-    let var = stack_frame.local_vars.get(slot as usize).cloned();
+    let var = stack_frame.local_vars().get(slot as usize).cloned();
     var.map(|var| Result::Ok(var)).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
 }

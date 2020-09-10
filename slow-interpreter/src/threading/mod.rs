@@ -127,16 +127,7 @@ impl ThreadState {
 
 
         underlying.start_thread(box move |_data: Box<dyn Any>| {
-            let frame = StackEntry {
-                class_pointer: target_classfile.clone(),
-                method_i: None,
-                local_vars: vec![],
-                operand_stack: vec![],
-                pc: std::usize::MAX,
-                pc_offset: -1,
-                native_local_refs: vec![],
-                opaque: true,
-            };
+            let frame = StackEntry::new_completely_opaque_frame();
             let mut new_int_state = InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread };
             new_int_state.push_frame(frame);
             push_new_object(jvm, &mut new_int_state, &target_classfile, None);
@@ -209,16 +200,7 @@ impl ThreadState {
         let java_thread = JavaThread::new(jvm, obj, underlying, invisible_to_java);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
-            let new_thread_frame = StackEntry {
-                class_pointer: thread_class.clone(),
-                method_i: None,
-                local_vars: vec![java_thread.thread_object.read().unwrap().as_ref().unwrap().clone().java_value()],
-                operand_stack: vec![],
-                pc: std::usize::MAX,
-                pc_offset: -1,
-                native_local_refs: vec![],
-                opaque: true,
-            };
+            let new_thread_frame = StackEntry::new_completely_opaque_frame();
             let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
             interpreter_state_guard.push_frame(new_thread_frame);
             jvm.thread_state.set_current_thread(java_thread.clone());

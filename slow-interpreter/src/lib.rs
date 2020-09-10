@@ -26,7 +26,7 @@ use std::time::Instant;
 use libloading::Library;
 
 use classfile_view::loading::{LivePoolGetter, LoaderArc, LoaderName};
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
@@ -106,12 +106,14 @@ pub struct InterpreterStateGuard<'l> {
 
 impl<'l> InterpreterStateGuard<'l> {
     pub fn current_class_pointer(&self) -> &Arc<RuntimeClass> {
-        &self.current_frame().class_pointer
+        &self.current_frame().class_pointer()
     }
 
     pub fn current_loader(&self, jvm: &'static JVMState) -> LoaderArc {
-        let cp = self.current_class_pointer();
-        cp.loader(jvm)
+        //todo fix the loader situation
+        // let cp = self.current_class_pointer();
+        // cp.loader(jvm)
+        jvm.bootstrap_loader.clone()
     }
 
     pub fn current_class_view(&self) -> &Arc<ClassView> {
@@ -132,7 +134,7 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn pop_current_operand_stack(&mut self) -> JavaValue {
-        self.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap()
+        self.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack_mut().pop().unwrap()
     }
 
     pub fn previous_frame_mut(&mut self) -> &mut StackEntry {
@@ -145,6 +147,12 @@ impl<'l> InterpreterStateGuard<'l> {
         let call_stack = &self.int_state.as_ref().unwrap().call_stack;
         let len = call_stack.len();
         &call_stack[len - 2]
+    }
+
+    pub fn previous_previous_frame(&self) -> &StackEntry {
+        let call_stack = &self.int_state.as_ref().unwrap().call_stack;
+        let len = call_stack.len();
+        &call_stack[len - 3]
     }
 
     // pub fn throw_mut(&mut self) -> &mut Option<Arc<Object>> {
@@ -190,7 +198,7 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn push_frame(&mut self, frame: StackEntry) {
-        self.int_state.as_mut().unwrap().call_stack.push(frame);
+        self.int_state.as_mut().unwrap().call_stack.push(frame)
     }
 
     pub fn pop_frame(&mut self) {
@@ -202,36 +210,51 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn current_pc_mut(&mut self) -> &mut usize {
-        &mut self.current_frame_mut().pc
+        self.current_frame_mut().pc_mut()
     }
 
-    pub fn current_pc(&self) -> &usize {
-        &self.current_frame().pc
+    pub fn current_pc(&self) -> usize {
+        self.current_frame().pc()
     }
 
     pub fn current_pc_offset_mut(&mut self) -> &mut isize {
-        &mut self.current_frame_mut().pc_offset
+        self.current_frame_mut().pc_offset_mut()
     }
 
-    pub fn current_pc_offset(&'l self) -> &'l isize {
-        &self.current_frame().pc_offset
+    pub fn current_pc_offset(&self) -> isize {
+        self.current_frame().pc_offset()
     }
 
     pub fn current_method_i(&self) -> CPIndex {
-        self.current_frame().method_i.unwrap()
+        self.current_frame().method_i()
     }
 
     pub fn print_stack_trace(&self) {
         for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
-            let name = stack_entry.class_pointer.view().name();
-            if stack_entry.method_i.is_some() && stack_entry.method_i.unwrap() > 0 {
-                let method_view = stack_entry.class_pointer.view().method_view_i(stack_entry.method_i.unwrap() as usize);
+            let name = stack_entry.class_pointer().view().name();
+            if stack_entry.try_method_i().is_some() && stack_entry.method_i() > 0 {
+                let method_view = stack_entry.class_pointer().view().method_view_i(stack_entry.method_i() as usize);
                 let meth_name = method_view.name();
-                println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(), i, stack_entry.pc)
+                if method_view.is_native() {
+                    println!("{}.{} {} {}", name.get_referred_name(), meth_name, method_view.desc_str(), i)
+                } else {
+                    println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(), i, stack_entry.pc())
+                }
             }
         }
     }
 }
+
+
+// pub struct PushedFrameGuard<'l,'k>{
+//     stack: &'l mut InterpreterStateGuard<'k>
+// }
+//
+// impl Drop for PushedFrameGuard<'_,'_>{
+//     fn drop(&mut self) {
+//         self.stack.pop_frame()
+//     }
+// }
 
 #[derive(Debug)]
 pub struct SuspendedStatus {
@@ -402,7 +425,7 @@ impl JVMState {
         match loader_guard.get(&self.bootstrap_loader.name()) {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-                let current_loader = int_state.current_frame_mut().class_pointer.loader(self).clone();
+                let current_loader = self.bootstrap_loader.clone();// todo is the bootstrap loader object loaded by the bootstrap loder?
                 let class_loader_class = check_inited_class(self, int_state, &java_lang_class_loader.into(), current_loader.clone());
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
@@ -484,16 +507,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
-    let stack_entry = StackEntry {
-        class_pointer: main,
-        method_i: Option::from(main_i as u16),
-        local_vars: vec![JavaValue::Top; num_vars as usize],//todo handle parameters, todo handle non-zero size locals
-        operand_stack: vec![],
-        pc: 0,
-        pc_offset: 0,
-        native_local_refs: vec![],
-        opaque: false,
-    };
+    let stack_entry = StackEntry::new_java_frame(main, main_i as u16, vec![JavaValue::Top; num_vars as usize]);
     int_state.pop_frame();
     int_state.push_frame(stack_entry);
 
@@ -518,7 +532,7 @@ fn setup_program_args<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
     )))));
-    let local_vars = &mut int_state.current_frame_mut().local_vars;
+    let local_vars = int_state.current_frame_mut().local_vars_mut();
     local_vars[0] = arg_array;
 }
 
@@ -543,16 +557,7 @@ pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThread
     for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
         locals.push(JavaValue::Top);
     }
-    let initialize_system_frame = StackEntry {
-        class_pointer: system_class.clone(),
-        method_i: Option::from(init_method_view.method_i() as u16),
-        local_vars: locals,
-        operand_stack: vec![],
-        pc: 0,
-        pc_offset: 0,
-        native_local_refs: vec![],
-        opaque: false,
-    };
+    let initialize_system_frame = StackEntry::new_java_frame(system_class.clone(), init_method_view.method_i() as u16, locals);
     main_thread.interpreter_state.write().unwrap().call_stack = vec![initialize_system_frame];
     sender.send(MainThreadInitializeInfo { system_class }).unwrap();
     Result::Ok(())
