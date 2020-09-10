@@ -78,6 +78,22 @@ impl RuntimeClass {
         }
     }
 
+    pub fn try_view(&self) -> Option<&Arc<ClassView>> {
+        match self {
+            RuntimeClass::Byte => unimplemented!(),
+            RuntimeClass::Boolean => unimplemented!(),
+            RuntimeClass::Short => unimplemented!(),
+            RuntimeClass::Char => unimplemented!(),
+            RuntimeClass::Int => unimplemented!(),
+            RuntimeClass::Long => unimplemented!(),
+            RuntimeClass::Float => unimplemented!(),
+            RuntimeClass::Double => unimplemented!(),
+            RuntimeClass::Void => unimplemented!(),
+            RuntimeClass::Array(_) => None,
+            RuntimeClass::Object(o) => (&o.class_view).into(),
+        }
+    }
+
     pub fn loader(&self, jvm: &JVMState) -> LoaderArc {
         match self {
             RuntimeClass::Byte => jvm.bootstrap_loader.clone(),

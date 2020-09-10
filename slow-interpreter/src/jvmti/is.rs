@@ -92,7 +92,7 @@ pub unsafe extern "C" fn is_interface(env: *mut jvmtiEnv, klass: jclass, is_inte
     let is_interface = match try_from_jclass(klass) {
         None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,
-    }.as_runtime_class().view().is_interface();
+    }.as_runtime_class().try_view().map(|x| x.is_interface()).unwrap_or(false);
     let res = if is_interface { JNI_TRUE } else { JNI_FALSE };
     is_interface_ptr.write(res as jboolean);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
