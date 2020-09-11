@@ -2,7 +2,8 @@ use std::ffi::CString;
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
+use classfile_view::view::HasAccessFlags;
+use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::classnames::ClassName;
 
@@ -206,6 +207,8 @@ pub unsafe extern "C" fn get_local_variable_table(
     let jvm = get_state(env);
     assert!(jvm.vm_live());
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalVariableTable");
+    null_check!(table_ptr);
+    null_check!(entry_count_ptr);
     let method_id: MethodId = transmute(method);
     let (class, method_i) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
         None => return jvmtiError_JVMTI_ERROR_INVALID_METHODID,
@@ -213,6 +216,9 @@ pub unsafe extern "C" fn get_local_variable_table(
     };
     let method_view = class.view().method_view_i(method_i as usize);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
+    if method_view.is_native() {
+        return jvmtiError_JVMTI_ERROR_NATIVE_METHOD;
+    }
     let local_vars = match method_view.local_variable_attribute() {
         None => {
             return jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION;
@@ -224,9 +230,9 @@ pub unsafe extern "C" fn get_local_variable_table(
     assert_eq!(num_locals, local_vars.len());
     for (i, local_variable_view) in local_vars.iter().enumerate() {
         let name = local_variable_view.name();
-        let allocated_name = jvm.native_interface_allocations.allocate_cstring(CString::new(name).unwrap());
+        let allocated_name = jvm.native_interface_allocations.allocate_string(name);
         let signature = local_variable_view.desc_str();
-        let allocated_signature = jvm.native_interface_allocations.allocate_cstring(CString::new(signature).unwrap());
+        let allocated_signature = jvm.native_interface_allocations.allocate_string(signature);
         let entry = _jvmtiLocalVariableEntry {
             start_location: local_variable_view.variable_start_pc() as i64,
             length: local_variable_view.variable_length() as i32,
