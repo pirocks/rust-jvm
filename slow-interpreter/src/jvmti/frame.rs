@@ -227,24 +227,22 @@ pub unsafe extern "C" fn get_local_variable_table(
         Some(lva) => lva,
     };
     entry_count_ptr.write(num_locals as i32);
-    let res_table = jvm.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLocalVariableEntry>() * num_locals) as *mut _jvmtiLocalVariableEntry;
-    // assert_eq!(num_locals, local_vars.len());//not true if there are doubles
-    for (i, local_variable_view) in local_vars.iter().enumerate() {
+    let res = local_vars.iter().map(|local_variable_view| {
         let name = local_variable_view.name();
         let allocated_name = jvm.native_interface_allocations.allocate_string(name);
         let signature = local_variable_view.desc_str();
         let allocated_signature = jvm.native_interface_allocations.allocate_string(signature);
-        let entry = _jvmtiLocalVariableEntry {
+        let slot = local_variable_view.local_var_slot() as i32;
+        _jvmtiLocalVariableEntry {
             start_location: local_variable_view.variable_start_pc() as i64,
             length: local_variable_view.variable_length() as i32,
             name: allocated_name,
             signature: allocated_signature,
             generic_signature: null_mut(),//todo impl
-            slot: local_variable_view.local_var_slot() as i32,
-        };
-        res_table.offset(i as isize).write(entry);
-    }
-    table_ptr.write(res_table);
+            slot,
+        }
+    }).collect::<Vec<_>>();
+    jvm.native_interface_allocations.allocate_and_write_vec(res, entry_count_ptr, table_ptr);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

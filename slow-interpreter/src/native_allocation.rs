@@ -50,9 +50,9 @@ impl NativeAllocator {
     }
 
     pub unsafe fn allocate_cstring(&self, cstr: CString) -> *mut i8 {
-        let res = cstr.into_raw();//todo this looks wrong
+        let res = cstr.into_raw();
         let mut guard = self.allocations.write().unwrap();
-        guard.insert(transmute(res as *mut c_void), AllocationType::Malloc);
+        guard.insert(transmute(res as *mut c_void), AllocationType::CString);
         res
     }
 

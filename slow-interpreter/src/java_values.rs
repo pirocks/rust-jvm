@@ -247,11 +247,7 @@ impl JavaValue {
     pub fn try_unwrap_object(&self) -> Option<Option<Arc<Object>>> {
         match self {
             JavaValue::Object(o) => {
-                let option = o.as_ref();
-                Some(match option {
-                    None => None,
-                    Some(o) => o.clone().into(),
-                })
+                Some(o.clone())
             }
             other => {
                 dbg!(other);

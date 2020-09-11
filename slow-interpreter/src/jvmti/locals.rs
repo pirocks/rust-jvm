@@ -61,12 +61,15 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
         Ok(var) => var,
         Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
+    dbg!(&var);
     match var {
         JavaValue::Top => value_ptr.write(null_mut()),//todo is this correct?
         _ => {
             let possibly_object = var.try_unwrap_object();
             match possibly_object {
-                None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH),
+                None => {
+                    return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
+                }
                 Some(obj) => value_ptr.write(to_object(obj)),
             }
         }
@@ -85,7 +88,9 @@ unsafe fn get_local_primitive_type<T>(env: *mut jvmtiEnv, thread: jthread, depth
         Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
     match unwrap_function(var) {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH),
+        None => {
+            return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
+        }
         Some(unwrapped) => value_ptr.write(unwrapped)
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -163,13 +168,14 @@ unsafe fn get_local_t(jvm: &'static JVMState, int_state: &mut InterpreterStateGu
     };
     let java_thread = jthread.get_java_thread(jvm);
     let call_stack = &java_thread.interpreter_state.read().unwrap().call_stack;
-    let stack_frame: &StackEntry = match call_stack.get(depth as usize) {
+    let stack_frame: &StackEntry = match call_stack.get(call_stack.len() - 1 - depth as usize) {
         None => return Result::Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
         Some(entry) => entry,
     };
     if stack_frame.is_native() {
         return Result::Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
     }
+    dbg!(stack_frame.local_vars());
     let var = stack_frame.local_vars().get(slot as usize).cloned();
     var.map(|var| Result::Ok(var)).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
 }
