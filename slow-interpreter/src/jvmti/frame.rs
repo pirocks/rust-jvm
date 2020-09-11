@@ -5,6 +5,7 @@ use std::ptr::null_mut;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
+use rust_jvm_common::classfile::LineNumberTable;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_util::check_inited_class;
@@ -247,14 +248,72 @@ pub unsafe extern "C" fn get_local_variable_table(
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-
+/// Get Line Number Table
+///
+/// typedef struct {
+///     jlocation start_location;
+///     jint line_number;
+/// } jvmtiLineNumberEntry;
+///
+/// jvmtiError
+/// GetLineNumberTable(jvmtiEnv* env,
+/// jmethodID method,
+/// jint* entry_count_ptr,
+/// jvmtiLineNumberEntry** table_ptr)
+///
+/// For the method indicated by method, return a table of source line number entries. The size of the table is returned via entry_count_ptr and the table itself is returned via table_ptr.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the start or the live phase 	No 	70	1.0
+///
+/// Capabilities
+/// Optional Functionality: might not be implemented for all virtual machines. The following capability (as returned by GetCapabilities) must be true to use this function.
+/// Capability 	Effect
+/// can_get_line_numbers	Can get the line number table of a method
+///
+/// jvmtiLineNumberEntry - Line number table entry
+/// Field 	Type 	Description
+/// start_location	jlocation	the jlocation where the line begins
+/// line_number	jint	the line number
+///
+/// Parameters
+/// Name 	Type 	Description
+/// method	jmethodID	The method to query.
+/// entry_count_ptr	jint*	On return, points to the number of entries in the table
+///
+/// Agent passes a pointer to a jint. On return, the jint has been set.
+/// table_ptr	jvmtiLineNumberEntry**	On return, points to the line number table pointer.
+///
+/// Agent passes a pointer to a jvmtiLineNumberEntry*. On return, the jvmtiLineNumberEntry* points to a newly allocated array of size *entry_count_ptr. The array should be freed with Deallocate.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_get_line_numbers. Use AddCapabilities.
+/// JVMTI_ERROR_ABSENT_INFORMATION	Class information does not include line numbers.
+/// JVMTI_ERROR_INVALID_METHODID	method is not a jmethodID.
+/// JVMTI_ERROR_NATIVE_METHOD	method is a native method.
+/// JVMTI_ERROR_NULL_POINTER	entry_count_ptr is NULL.
+/// JVMTI_ERROR_NULL_POINTER	table_ptr is NULL.
 pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmethodID, entry_count_ptr: *mut jint, table_ptr: *mut *mut jvmtiLineNumberEntry) -> jvmtiError {
     let jvm = get_state(env);
     let method_id: MethodId = transmute(method);
+    //todo capabilities
+    assert!(jvm.vm_live());
+    null_check!(table_ptr);
+    null_check!(entry_count_ptr);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLineNumberTable");
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo
     let method_view = class.view().method_view_i(method_i as usize);
-    let table = &method_view.line_number_table().unwrap().line_number_table;
+    if method_view.is_native() {
+        return jvmtiError_JVMTI_ERROR_NATIVE_METHOD;
+    }
+    let table = &match method_view.line_number_table() {
+        None => {
+            return jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION;
+        },
+        Some(table) => table,
+    }.line_number_table;
     entry_count_ptr.write(table.len() as i32);
     let res_table = jvm.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLineNumberEntry>() * table.len()) as *mut _jvmtiLineNumberEntry;
     for (i, entry) in table.iter().enumerate() {
