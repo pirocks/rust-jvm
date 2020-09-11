@@ -1,5 +1,6 @@
 use std::ffi::CString;
 use std::intrinsics::transmute;
+use std::mem::size_of;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
@@ -9,6 +10,7 @@ use jvmti_jni_bindings::{jboolean, jclass, jfieldID, jint, jvmtiEnv, jvmtiError,
 use crate::field_table::FieldId;
 use crate::JVMState;
 use crate::jvmti::get_state;
+use crate::rust_jni::interface::get_field::new_field_id;
 use crate::rust_jni::native_util::from_jclass;
 
 pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, field: jfieldID, is_synthetic_ptr: *mut jboolean) -> jvmtiError {
@@ -47,4 +49,25 @@ pub unsafe extern "C" fn get_field_name(env: *mut jvmtiEnv, klass: jclass, field
     name_ptr.write(jvm.native_interface_allocations.allocate_cstring(CString::new(name).unwrap()));
     signature_ptr.write(jvm.native_interface_allocations.allocate_cstring(CString::new(field_desc).unwrap()));
     jvmtiError_JVMTI_ERROR_NONE
+}
+
+
+pub unsafe extern "C" fn get_class_fields(
+    env: *mut jvmtiEnv,
+    klass: jclass,
+    field_count_ptr: *mut jint,
+    fields_ptr: *mut *mut jfieldID,
+) -> jvmtiError {
+    let jvm = get_state(env);
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
+    let class_obj = from_jclass(klass);
+    let runtime_class = class_obj.as_runtime_class();
+    let class_view = runtime_class.view();
+    let num_fields = class_view.num_fields();
+    field_count_ptr.write(num_fields as jint);
+    fields_ptr.write(libc::calloc(num_fields, size_of::<*mut jfieldID>()) as *mut *mut jvmti_jni_bindings::_jfieldID);
+    for i in 0..num_fields {
+        fields_ptr.read().offset(i as isize).write(new_field_id(jvm, runtime_class.clone(), i))
+    }
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

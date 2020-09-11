@@ -72,7 +72,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
     let method_id: MethodId = transmute(jmethod_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should return error instead of lookup
     let classview = &class.view();
     let method = &classview.method_view_i(method_i as usize);
     let _name = method.name();
@@ -118,7 +118,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     let method_id: MethodId = transmute(jmethod_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let classview = &class.view();
     let method = &classview.method_view_i(method_i as usize);
     let _name = method.name();

@@ -59,8 +59,8 @@ impl MethodTable {
         res
     }
 
-    pub fn lookup(&self, id: MethodId) -> (Arc<RuntimeClass>, u16) {
-        self.table[id].clone()
+    pub fn try_lookup(&self, id: MethodId) -> Option<(Arc<RuntimeClass>, u16)> {
+        self.table.get(id).cloned()
     }
 
     pub fn new() -> Self {

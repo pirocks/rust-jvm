@@ -21,7 +21,7 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
     let method_id: MethodId = transmute(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of unwrap
     let classview = class.view().clone();
     let method = &classview.method_view_i(method_i as usize);
     if method.is_static() {
@@ -82,7 +82,7 @@ pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmet
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of lookup
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i as usize);
     let method_descriptor_str = method.desc_str();

@@ -1,37 +1,29 @@
 use std::cell::RefCell;
-use std::ffi::CString;
-use std::mem::{size_of, transmute};
+use std::mem::transmute;
 use std::ptr::null_mut;
 
-use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::*;
-use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_objects::get_or_create_class_object;
-use crate::java_values::JavaValue;
 use crate::jvmti::agent::*;
-use crate::jvmti::allocate::{allocate, deallocate};
+use crate::jvmti::allocate::*;
 use crate::jvmti::breakpoint::*;
-use crate::jvmti::capabilities::{add_capabilities, get_capabilities, get_potential_capabilities};
+use crate::jvmti::capabilities::*;
 use crate::jvmti::classes::*;
 use crate::jvmti::event_callbacks::set_event_callbacks;
 use crate::jvmti::events::set_event_notification_mode;
-use crate::jvmti::field::{get_field_modifiers, get_field_name, is_field_synthetic};
+use crate::jvmti::field::*;
 use crate::jvmti::frame::*;
-use crate::jvmti::is::{is_array_class, is_interface, is_method_native, is_method_obsolete};
-use crate::jvmti::locals::{get_local_double, get_local_float, get_local_int, get_local_long, get_local_object};
+use crate::jvmti::is::*;
+use crate::jvmti::locals::*;
 use crate::jvmti::methods::*;
 use crate::jvmti::monitor::*;
+use crate::jvmti::object::get_object_hash_code;
 use crate::jvmti::properties::get_system_property;
 use crate::jvmti::tags::*;
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::threads::*;
 use crate::jvmti::version::get_version_number;
-use crate::method_table::MethodId;
-use crate::rust_jni::interface::get_field::new_field_id;
-use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 
 pub mod event_callbacks;
 
@@ -242,149 +234,8 @@ fn get_jvmti_interface_impl(jvm: &'static JVMState, int_state: &mut InterpreterS
 }
 
 
-pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: jmethodID, declaring_class_ptr: *mut jclass) -> jvmtiError {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodDeclaringClass");
-    let method_id: MethodId = transmute(method);
-    let runtime_class = jvm.method_table.read().unwrap().lookup(method_id).0;
-    let class_object = get_or_create_class_object(
-        jvm,
-        &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
-        int_state,
-        runtime_class.loader(jvm).clone(),
-    );//todo fix this type verbosity thing
-    declaring_class_ptr.write(transmute(to_object(class_object.into())));
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-}
-
-pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobject, hash_code_ptr: *mut jint) -> jvmtiError {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
-    let object = JavaValue::Object(from_object(transmute(object))).cast_object();
-    let res = object.hash_code(jvm, int_state);
-    hash_code_ptr.write(res);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-}
-
-pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethodID, start_location_ptr: *mut jlocation, end_location_ptr: *mut jlocation) -> jvmtiError {
-    let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
-    let method_id: MethodId = transmute(method);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
-    match class.view().method_view_i(method_i as usize).code_attribute() {
-        None => {
-            start_location_ptr.write(-1);
-            end_location_ptr.write(-1);
-        }
-        Some(code) => {
-            start_location_ptr.write(0);
-            end_location_ptr.write(code.code_raw.len() as i64);
-        }
-    };
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-}
-
-pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
-    let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "DisposeEnvironment");
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY)
-}
-
-pub unsafe extern "C" fn is_method_synthetic(
-    env: *mut jvmtiEnv,
-    method: jmethodID,
-    is_synthetic_ptr: *mut jboolean,
-) -> jvmtiError {
-    let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodSynthetic");
-    let method_id: MethodId = transmute(method);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
-    let synthetic = class.view().method_view_i(method_i as usize).is_synthetic();
-    is_synthetic_ptr.write(synthetic as u8);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-}
-
-unsafe extern "C" fn get_method_modifiers(
-    env: *mut jvmtiEnv,
-    method: jmethodID,
-    modifiers_ptr: *mut jint,
-) -> jvmtiError {
-    let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodModifiers");
-    let method_id: MethodId = transmute(method);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
-    let modifiers = class.view().method_view_i(method_i as usize).access_flags();
-    modifiers_ptr.write(modifiers as jint);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-}
-
-
-unsafe extern "C" fn get_source_file_name(
-    env: *mut jvmtiEnv,
-    klass: jclass,
-    source_name_ptr: *mut *mut ::std::os::raw::c_char,
-) -> jvmtiError {
-    let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetSourceFileName");
-    let class_obj = from_jclass(klass);
-    let runtime_class = class_obj.as_runtime_class();
-    let class_view = runtime_class.view();
-    source_name_ptr.write(CString::new(class_view.sourcefile_attr().file()).unwrap().into_raw());
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-}
-
-
-unsafe extern "C" fn get_class_fields(
-    env: *mut jvmtiEnv,
-    klass: jclass,
-    field_count_ptr: *mut jint,
-    fields_ptr: *mut *mut jfieldID,
-) -> jvmtiError {
-    let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
-    let class_obj = from_jclass(klass);
-    let runtime_class = class_obj.as_runtime_class();
-    let class_view = runtime_class.view();
-    let num_fields = class_view.num_fields();
-    field_count_ptr.write(num_fields as jint);
-    fields_ptr.write(libc::calloc(num_fields, size_of::<*mut jfieldID>()) as *mut *mut jvmti_jni_bindings::_jfieldID);
-    for i in 0..num_fields {
-        fields_ptr.read().offset(i as isize).write(new_field_id(jvm, runtime_class.clone(), i))
-    }
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-}
-
-unsafe extern "C" fn get_implemented_interfaces(
-    env: *mut jvmtiEnv,
-    klass: jclass,
-    interface_count_ptr: *mut jint,
-    interfaces_ptr: *mut *mut jclass,
-) -> jvmtiError {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
-    let class_obj = from_jclass(klass);
-    let runtime_class = class_obj.as_runtime_class();
-    let class_view = runtime_class.view();
-    let num_interfaces = class_view.num_interfaces();
-    interface_count_ptr.write(num_interfaces as i32);
-    interfaces_ptr.write(libc::calloc(num_interfaces, size_of::<*mut jclass>()) as *mut jclass);
-    for (i, interface) in class_view.interfaces().enumerate() {
-        let interface_obj = get_or_create_class_object(
-            jvm,
-            &ClassName::Str(interface.interface_name()).into(),
-            int_state,
-            runtime_class.loader(jvm).clone(),
-        );
-        let interface_class = to_object(interface_obj.into());
-        interfaces_ptr.read().offset(i as isize).write(interface_class)
-    }
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-}
-
-
+pub mod object;
+pub mod methods;
 pub mod is;
 pub mod breakpoint;
 #[macro_use]
@@ -402,56 +253,6 @@ pub mod version;
 pub mod properties;
 pub mod allocate;
 pub mod events;
-
 pub mod field;
-
 pub mod locals;
 
-pub mod methods {
-    use std::ffi::CString;
-    use std::mem::transmute;
-    use std::ptr::null_mut;
-
-    use jvmti_jni_bindings::{jint, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
-
-    use crate::jvmti::get_state;
-    use crate::method_table::MethodId;
-
-    pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
-                                             name_ptr: *mut *mut ::std::os::raw::c_char,
-                                             signature_ptr: *mut *mut ::std::os::raw::c_char,
-                                             generic_ptr: *mut *mut ::std::os::raw::c_char,
-    ) -> jvmtiError {
-        let jvm = get_state(env);
-        let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
-        let method_id: MethodId = transmute(method);
-        let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
-        let mv = class.view().method_view_i(method_i as usize);
-        let name = mv.name();
-        let desc_str = mv.desc_str();
-        if generic_ptr != null_mut() {
-            // unimplemented!()//todo figure out what this is
-        }
-        if signature_ptr != null_mut() {
-            signature_ptr.write(CString::new(desc_str).unwrap().into_raw())
-        }
-        if name_ptr != null_mut() {
-            name_ptr.write(CString::new(name).unwrap().into_raw())
-        }
-        jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-    }
-
-    pub unsafe extern "C" fn get_arguments_size(
-        env: *mut jvmtiEnv,
-        method: jmethodID,
-        size_ptr: *mut jint,
-    ) -> jvmtiError {
-        let jvm = get_state(env);
-        let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetArgumentsSize");
-        let method_id: MethodId = transmute(method);
-        let (rc, i) = jvm.method_table.read().unwrap().lookup(method_id);
-        let mv = rc.view().method_view_i(i as usize);
-        size_ptr.write(mv.num_args() as i32);
-        jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
-    }
-}

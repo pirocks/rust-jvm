@@ -2,16 +2,14 @@ use std::ffi::CString;
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
+use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_util::check_inited_class;
-use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::method_table::MethodId;
 use crate::rust_jni::native_util::from_object;
-use crate::stack_entry::StackEntry;
 
 /// Get Frame Count
 ///
@@ -142,24 +140,81 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-
+///Get Local Variable Table
+///
+///     typedef struct {
+///         jlocation start_location;
+///         jint length;
+///         char* name;
+///         char* signature;
+///         char* generic_signature;
+///         jint slot;
+///     } jvmtiLocalVariableEntry;
+///
+///     jvmtiError
+///     GetLocalVariableTable(jvmtiEnv* env,
+///                 jmethodID method,
+///                 jint* entry_count_ptr,
+///                 jvmtiLocalVariableEntry** table_ptr)
+///
+/// Return local variable information.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	72	1.0
+///
+/// Capabilities
+/// Optional Functionality: might not be implemented for all virtual machines.
+/// The following capability (as returned by GetCapabilities) must be true to use this function.
+/// Capability 	Effect
+/// can_access_local_variables	Can set and get local variables
+///
+/// jvmtiLocalVariableEntry - Local variable table entry
+/// Field 	Type 	Description
+/// start_location	jlocation	The code array index where the local variable is first valid (that is, where it must have a value).
+/// length	jint	The length of the valid section for this local variable. The last code array index where the local variable is valid is start_location + length.
+/// name	char*	The local variable name, encoded as a modified UTF-8 string.
+/// signature	char*	The local variable's type signature, encoded as a modified UTF-8 string. The signature format is the same as that defined in The Java™ Virtual Machine Specification, Chapter 4.3.2.
+/// generic_signature	char*	The local variable's generic signature, encoded as a modified UTF-8 string. The value of this field will be NULL for any local variable which does not have a generic type.
+/// slot	jint	The local variable's slot. See Local Variables.
+///
+/// Parameters
+/// Name 	Type 	Description
+/// method	jmethodID	The method to query.
+/// entry_count_ptr	jint*	On return, points to the number of entries in the table
+///
+/// Agent passes a pointer to a jint. On return, the jint has been set.
+/// table_ptr	jvmtiLocalVariableEntry**	On return, points to an array of local variable table entries.
+///
+/// Agent passes a pointer to a jvmtiLocalVariableEntry*. On return, the jvmtiLocalVariableEntry* points to a newly allocated array of size *entry_count_ptr. The array should be freed with Deallocate. The pointers returned in the field name of jvmtiLocalVariableEntry are newly allocated arrays. The arrays should be freed with Deallocate. The pointers returned in the field signature of jvmtiLocalVariableEntry are newly allocated arrays. The arrays should be freed with Deallocate. The pointers returned in the field generic_signature of jvmtiLocalVariableEntry are newly allocated arrays. The arrays should be freed with Deallocate.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_access_local_variables. Use AddCapabilities.
+/// JVMTI_ERROR_ABSENT_INFORMATION	Class information does not include local variable information.
+/// JVMTI_ERROR_INVALID_METHODID	method is not a jmethodID.
+/// JVMTI_ERROR_NATIVE_METHOD	method is a native method.
+/// JVMTI_ERROR_NULL_POINTER	entry_count_ptr is NULL.
+/// JVMTI_ERROR_NULL_POINTER	table_ptr is NULL.
 pub unsafe extern "C" fn get_local_variable_table(
     env: *mut jvmtiEnv,
     method: jmethodID,
     entry_count_ptr: *mut jint,
     table_ptr: *mut *mut jvmtiLocalVariableEntry,
 ) -> jvmtiError {
+    //todo check capabilities
     let jvm = get_state(env);
+    assert!(jvm.vm_live());
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalVariableTable");
     let method_id: MethodId = transmute(method);
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let (class, method_i) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
+        None => return jvmtiError_JVMTI_ERROR_INVALID_METHODID,
+        Some(pair) => pair
+    };
     let method_view = class.view().method_view_i(method_i as usize);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
     let local_vars = match method_view.local_variable_attribute() {
         None => {
-            dbg!(method_view.name());
-            dbg!(class.view().name());
-
             return jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION;
         }
         Some(lva) => lva,
@@ -191,7 +246,7 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
     let jvm = get_state(env);
     let method_id: MethodId = transmute(method);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLineNumberTable");
-    let (class, method_i) = jvm.method_table.read().unwrap().lookup(method_id);
+    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo
     let method_view = class.view().method_view_i(method_i as usize);
     let table = &method_view.line_number_table().unwrap().line_number_table;
     entry_count_ptr.write(table.len() as i32);

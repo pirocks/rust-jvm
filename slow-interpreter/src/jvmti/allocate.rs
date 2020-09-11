@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{jlong, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OUT_OF_MEMORY};
+use jvmti_jni_bindings::{jlong, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OUT_OF_MEMORY};
 
 use crate::jvmti::get_state;
 
@@ -25,4 +25,12 @@ pub unsafe extern "C" fn deallocate(env: *mut jvmtiEnv, _mem: *mut ::std::os::ra
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
     //todo currently leaks a lot
 }
+
+
+pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
+    let jvm = get_state(env);
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "DisposeEnvironment");
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY)
+}
+
 
