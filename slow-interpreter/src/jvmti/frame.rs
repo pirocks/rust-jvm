@@ -228,7 +228,7 @@ pub unsafe extern "C" fn get_local_variable_table(
     };
     entry_count_ptr.write(num_locals as i32);
     let res_table = jvm.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLocalVariableEntry>() * num_locals) as *mut _jvmtiLocalVariableEntry;
-    assert_eq!(num_locals, local_vars.len());
+    // assert_eq!(num_locals, local_vars.len());//not true if there are doubles
     for (i, local_variable_view) in local_vars.iter().enumerate() {
         let name = local_variable_view.name();
         let allocated_name = jvm.native_interface_allocations.allocate_string(name);
