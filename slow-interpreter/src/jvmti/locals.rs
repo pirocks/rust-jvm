@@ -63,7 +63,7 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
         Ok(var) => var,
         Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
-    dbg!(&var);
+    // dbg!(&var);
     match var {
         JavaValue::Top => value_ptr.write(null_mut()),//todo is this correct?
         _ => {

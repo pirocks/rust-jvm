@@ -231,8 +231,8 @@ impl<'l> InterpreterStateGuard<'l> {
 
     pub fn print_stack_trace(&self) {
         for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
-            let name = stack_entry.class_pointer().view().name();
             if stack_entry.try_method_i().is_some() && stack_entry.method_i() > 0 {
+                let name = stack_entry.class_pointer().view().name();
                 let method_view = stack_entry.class_pointer().view().method_view_i(stack_entry.method_i() as usize);
                 let meth_name = method_view.name();
                 if method_view.is_native() {
@@ -342,7 +342,7 @@ pub struct Classes {
     pub prepared_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub initializing_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub initialized_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub class_object_pool: RwLock<HashMap<Arc<RuntimeClass>, Arc<Object>>>,
+    pub class_object_pool: RwLock<HashMap<PTypeView, Arc<Object>>>,
     //anon classes
     pub anon_class_counter: AtomicUsize,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,

@@ -205,7 +205,7 @@ fn run_single_instruction<'l>(
         InstructionInfo::aload_3 => aload(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::anewarray(cp) => anewarray(jvm, interpreter_state, cp),
         InstructionInfo::areturn => areturn(jvm, interpreter_state),
-        InstructionInfo::arraylength => arraylength(interpreter_state.current_frame_mut()),
+        InstructionInfo::arraylength => arraylength(interpreter_state),
         InstructionInfo::astore(n) => astore(interpreter_state.current_frame_mut(), n as usize),
         InstructionInfo::astore_0 => astore(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::astore_1 => astore(interpreter_state.current_frame_mut(), 1),

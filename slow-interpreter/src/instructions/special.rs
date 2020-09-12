@@ -13,7 +13,9 @@ use crate::java_values::JavaValue;
 use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
 
-pub fn arraylength(current_frame: &mut StackEntry) -> () {
+pub fn arraylength(int_state: &mut InterpreterStateGuard) -> () {
+    // int_state.print_stack_trace();
+    let current_frame = int_state.current_frame_mut();
     let array_o = current_frame.pop().unwrap_object().unwrap();
     let array = array_o.unwrap_array();
     current_frame.push(JavaValue::Int(array.elems.borrow().len() as i32));

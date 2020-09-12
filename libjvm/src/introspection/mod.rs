@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let interface_vec = from_jclass(cls).as_runtime_class().view().interfaces().map(|interface| {
-        let class_obj = get_or_create_class_object(jvm, &interface.interface_name().into(), int_state, int_state.current_loader(jvm));
+        let class_obj = get_or_create_class_object(jvm, &ClassName::Str(interface.interface_name()).into(), int_state, int_state.current_loader(jvm));
         JavaValue::Object(Some(class_obj))
     }).collect::<Vec<_>>();
     //todo helper function for this:

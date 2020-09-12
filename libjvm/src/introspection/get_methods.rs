@@ -14,6 +14,7 @@ use slow_interpreter::{InterpreterStateGuard, JVMState};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
+use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::get_all_methods;
@@ -77,8 +78,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut Inte
         };
         let name = {
             let name = method_view.name();
-            create_string_on_stack(jvm, int_state, name);
-            int_state.pop_current_operand_stack()
+            JString::from(jvm, int_state, name).intern(jvm, int_state).java_value()
         };
         let parameterTypes = parameters_type_objects(jvm, int_state, &method_view);
         let returnType = {
@@ -102,8 +102,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut Inte
 }
 
 fn get_signature(state: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
-    create_string_on_stack(state, int_state, method_view.desc_str());
-    int_state.pop_current_operand_stack()
+    JString::from(state, int_state, method_view.desc_str()).intern(state, int_state).java_value()
 }
 
 fn exception_types_table(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {

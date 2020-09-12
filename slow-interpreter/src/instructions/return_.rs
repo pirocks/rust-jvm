@@ -53,7 +53,7 @@ pub fn lreturn<'l>(_jvm: &'static JVMState, interpreter_state: &mut InterpreterS
         JavaValue::Long(_) => {}
         _ => {
             // interpreter_state.get_current_frame().print_stack_trace();
-            dbg!(res);
+            // dbg!(res);
             panic!()
         }
     }

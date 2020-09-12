@@ -2,7 +2,7 @@
   <configuration default="false" name="run-jvm" type="CargoCommandRunConfiguration" factoryName="Cargo Command" singleton="false">
     <option name="channel" value="DEFAULT" />
     <option name="command"
-            value="run  --  --main Swing --libjava $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --args args don not work yet so...    --classpath $PROJECT_DIR$/resources/test/simple-java-project/target/classes $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib  --jvmti --tracing   "/>
+            value="run  --  --main Swing --libjava $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --args args don not work yet so...    --classpath $PROJECT_DIR$/resources/test/simple-java-project/target/classes $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/images/j2sdk-image/jre/lib/ext  --jvmti --tracing   "/>
     <option name="allFeatures" value="false" />
     <option name="emulateTerminal" value="false" />
     <option name="backtrace" value="FULL" />
