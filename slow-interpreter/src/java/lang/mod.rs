@@ -138,12 +138,17 @@ pub mod class_loader {
 pub mod string {
     use std::sync::Arc;
 
+    use rust_jvm_common::classnames::ClassName;
+
     use crate::{InterpreterStateGuard, JVMState};
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::instructions::ldc::create_string_on_stack;
+    use crate::interpreter_util::check_inited_class;
     use crate::java_values::JavaValue;
     use crate::java_values::Object;
     use crate::utils::string_obj_to_string;
 
+    #[derive(Clone)]
     pub struct JString {
         normal_object: Arc<Object>
     }
@@ -161,6 +166,19 @@ pub mod string {
 
         pub fn from<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
             create_string_on_stack(state, int_state, rust_str);
+            int_state.pop_current_operand_stack().cast_string()
+        }
+
+        pub fn intern(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> JString {
+            int_state.push_current_operand_stack(self.clone().java_value());
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::string().into(), jvm.bootstrap_loader.clone());
+            run_static_or_virtual(
+                jvm,
+                int_state,
+                &thread_class,
+                "intern".to_string(),
+                "()Ljava/lang/String;".to_string(),
+            );
             int_state.pop_current_operand_stack().cast_string()
         }
 

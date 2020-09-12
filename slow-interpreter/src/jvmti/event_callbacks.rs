@@ -143,18 +143,21 @@ impl SharedLibJVMTI {
     pub fn vm_inited(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, main_thread: Arc<JavaThread>) {
         if *self.vm_init_enabled.read().unwrap() {
             unsafe {
+                int_state.push_frame(StackEntry::new_completely_opaque_frame());
                 let main_thread_object = main_thread.thread_object();
                 let event = VMInitEvent {
                     thread: new_local_ref_public(main_thread_object.object().into(), int_state)
                 };
                 self.VMInit(jvm, int_state, event);
                 assert!(self.thread_start_callback.read().unwrap().is_some());
+                int_state.pop_frame();
             }
         }
     }
 
     pub fn thread_start(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, jthread: JThread) {
         if *self.thread_start_enabled.read().unwrap() {
+            int_state.push_frame(StackEntry::new_completely_opaque_frame());
             while !jvm.vm_live() {};//todo ofc theres a better way of doing this, but we are required to wait for vminit by the spec.
             assert!(jvm.vm_live());
             unsafe {
@@ -162,6 +165,7 @@ impl SharedLibJVMTI {
                 let event = ThreadStartEvent { thread };
                 self.ThreadStart(jvm, int_state, event);
             }
+            int_state.pop_frame();
         }
     }
 
@@ -169,6 +173,7 @@ impl SharedLibJVMTI {
     pub fn class_prepare(&self, jvm: &'static JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             unsafe {
+                int_state.push_frame(StackEntry::new_completely_opaque_frame());
                 //give the other events this long thing
                 let current_thread_from_rust = jvm.thread_state
                     .try_get_current_thread()
@@ -181,7 +186,8 @@ impl SharedLibJVMTI {
                                                            jvm.bootstrap_loader.clone());
                 let klass = to_object(klass_obj.into());
                 let event = ClassPrepareEvent { thread, klass };
-                self.ClassPrepare(jvm, int_state, event)
+                self.ClassPrepare(jvm, int_state, event);
+                int_state.pop_frame();
             }
         }
     }
@@ -189,13 +195,15 @@ impl SharedLibJVMTI {
     pub fn breakpoint(&self, jvm: &'static JVMState, method: MethodId, location: i64, int_state: &mut InterpreterStateGuard) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
             unsafe {
+                int_state.push_frame(StackEntry::new_completely_opaque_frame());
                 let thread = new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().into(), int_state);
                 let method = transmute(method);
                 self.Breakpoint(jvm, int_state, BreakpointEvent {
                     thread,
                     method,
                     location,
-                })
+                });
+                int_state.pop_frame();//todo really need some kind of guard for these
             }
         }
     }

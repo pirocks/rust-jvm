@@ -37,7 +37,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let super_name = match from_jclass(sub).as_runtime_class().view().super_name() {
-        None => null_mut()
+        None => return null_mut(),
         Some(n) => n,
     };
     let _inited_class = check_inited_class(jvm, int_state, &super_name.clone().into(), int_state.current_loader(jvm));

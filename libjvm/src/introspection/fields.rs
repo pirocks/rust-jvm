@@ -8,7 +8,7 @@ use jvmti_jni_bindings::{jboolean, jclass, jint, JNIEnv, jobjectArray};
 use libjvm_utils::ptype_to_class_object;
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
-use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
@@ -29,7 +29,6 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut object_array = vec![];
-    // dbg!(unsafe {&STRING_INTERNMENT_CAMP});
     &class_obj.view().fields().enumerate().for_each(|(i, f)| {
         //todo so this is big and messy put I don't really see a way to simplify
         let field_class_name_ = class_obj.clone().view().name();
@@ -45,7 +44,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let modifiers = f.access_flags() as i32;
         let slot = i as i32;
         let clazz = parent_runtime_class.cast_class();
-        let name = JString::from(jvm, int_state, field_name);
+        let name = JString::from(jvm, int_state, field_name).intern(jvm, int_state);
         let type_ = JavaValue::Object(field_type_class).cast_class();
         let signature = JString::from(jvm, int_state, field_desc_str);
         let annotations_ = vec![];//todo impl annotations.

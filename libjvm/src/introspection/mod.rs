@@ -30,6 +30,8 @@ pub mod method_annotations;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
+    let int_state = get_interpreter_state(env);
+    int_state.print_stack_trace();
     unimplemented!()
 }
 
