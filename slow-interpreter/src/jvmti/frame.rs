@@ -1,6 +1,6 @@
-use std::ffi::CString;
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
+use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
@@ -11,6 +11,7 @@ use rust_jvm_common::classnames::ClassName;
 use crate::interpreter_util::check_inited_class;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::method_table::MethodId;
+use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::native_util::from_object;
 
 /// Get Frame Count
@@ -211,10 +212,14 @@ pub unsafe extern "C" fn get_local_variable_table(
     null_check!(table_ptr);
     null_check!(entry_count_ptr);
     let method_id: MethodId = transmute(method);
-    let (class, method_i) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
-        None => return jvmtiError_JVMTI_ERROR_INVALID_METHODID,
+    let option = jvm.method_table.read().unwrap().try_lookup(method_id);
+    assert!(option.is_some());
+    let (class, method_i) = option.unwrap();/*match option {
+        None => {
+            return jvmtiError_JVMTI_ERROR_INVALID_METHODID;
+        }
         Some(pair) => pair
-    };
+    };*/
     let method_view = class.view().method_view_i(method_i as usize);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
     if method_view.is_native() {
@@ -301,7 +306,12 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
     null_check!(table_ptr);
     null_check!(entry_count_ptr);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLineNumberTable");
-    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo
+    let (class, method_i) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
+        None => {
+            return jvmtiError_JVMTI_ERROR_INVALID_METHODID
+        },
+        Some(method) => method,
+    };//todo
     let method_view = class.view().method_view_i(method_i as usize);
     if method_view.is_native() {
         return jvmtiError_JVMTI_ERROR_NATIVE_METHOD;
@@ -309,7 +319,7 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
     let table = &match method_view.line_number_table() {
         None => {
             return jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION;
-        },
+        }
         Some(table) => table,
     }.line_number_table;
     entry_count_ptr.write(table.len() as i32);

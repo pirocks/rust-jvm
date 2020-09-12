@@ -1,4 +1,3 @@
-use std::mem::transmute;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jint, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_OBJECT, jvmtiError_JVMTI_ERROR_NONE};

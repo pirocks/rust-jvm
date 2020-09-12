@@ -56,11 +56,18 @@ impl MethodTable {
                 class_methods.insert(method_index, res);
             }
         }
+        dbg!(&res);
         res
     }
 
     pub fn try_lookup(&self, id: MethodId) -> Option<(Arc<RuntimeClass>, u16)> {
-        self.table.get(id).cloned()
+        dbg!(id);
+        dbg!(self.table.len());
+        if id < self.table.len() {
+            self.table[id].clone().into()
+        } else {
+            return None
+        }
     }
 
     pub fn new() -> Self {
