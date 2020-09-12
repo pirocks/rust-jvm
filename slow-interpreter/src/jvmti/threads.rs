@@ -7,7 +7,7 @@ use crate::{InterpreterStateGuard, JVMState, SuspendedStatus};
 use crate::interpreter::suspend_check;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
-use crate::rust_jni::interface::local_frame::new_local_ref_internal;
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, to_object};
 
 #[macro_export]
@@ -60,7 +60,7 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
     group_count_ptr.write(1);
     let system_j_thread_group = jvm.thread_state.get_system_thread_group();
     let thread_group_object = system_j_thread_group.object();
-    let res = new_local_ref_internal(to_object(thread_group_object.into()), int_state);
+    let res = new_local_ref_public(thread_group_object.into(), int_state);
 
     jvm.native_interface_allocations.allocate_and_write_vec(vec![res], group_count_ptr, groups_ptr);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -109,9 +109,8 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         let int_state = get_interpreter_state(env);
         thread.thread_object().is_alive(jvm, int_state) != 0
     }).map(|thread| {
-        let thread_ptr = to_object(thread.thread_object().object().into());
         let int_state = get_interpreter_state(env);
-        new_local_ref_internal(thread_ptr, int_state)
+        new_local_ref_public(thread.thread_object().object().into(), int_state)
     }).collect::<Vec<jobject>>();
     jvm.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -179,15 +178,14 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     };
 
     //todo get thread groups other than system thread group working at some point
-    let thread_group_object = to_object(jvm.thread_state.get_system_thread_group().object().into());
-    (*info_ptr).thread_group = new_local_ref_internal(thread_group_object, int_state);
+    (*info_ptr).thread_group = new_local_ref_public(jvm.thread_state.get_system_thread_group().object().into(), int_state);
     //todo deal with this whole context loader situation
     let thread_class_object = thread_object
         .get_class(jvm, int_state);
     let class_loader = thread_class_object
         .get_class_loader(jvm, int_state);
     // .expect("Expected thread class to have a class loader");
-    let context_class_loader = new_local_ref_internal(to_object(class_loader.map(|x| x.object())), int_state);
+    let context_class_loader = new_local_ref_public(class_loader.map(|x| x.object()), int_state);
     (*info_ptr).context_class_loader = context_class_loader;
     (*info_ptr).name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_object.name().to_rust_string()).unwrap());
     (*info_ptr).is_daemon = thread_object.daemon() as u8;
@@ -727,6 +725,6 @@ pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthrea
     info_pointer_writer.name = name;
     info_pointer_writer.is_daemon = thread_group.daemon();
     info_pointer_writer.max_priority = thread_group.max_priority();
-    info_pointer_writer.parent = new_local_ref_internal(to_object(thread_group.parent().map(|x| x.object())), int_state);
+    info_pointer_writer.parent = new_local_ref_public(thread_group.parent().map(|x| x.object()), int_state);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

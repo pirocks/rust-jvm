@@ -13,6 +13,7 @@ use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, ru
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::STRING_INTERNMENT;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 
@@ -69,7 +70,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
             jvm.thread_state.new_monitor("".to_string()),
         ))));
-    to_object(res)
+    new_local_ref_public(res, int_state)
 }
 
 

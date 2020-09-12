@@ -10,6 +10,7 @@ use crate::interpreter_util::check_inited_class;
 use crate::java::lang::class::JClass;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, to_object, try_from_jclass};
 
 pub unsafe extern "C" fn get_source_file_name(
@@ -49,7 +50,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(
             int_state,
             runtime_class.loader(jvm).clone(),
         );
-        let interface_class = to_object(interface_obj.into());
+        let interface_class = new_local_ref_public(interface_obj.into(), int_state);
         interfaces_ptr.read().offset(i as isize).write(interface_class)
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -101,7 +102,7 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
 
     jvm.classes.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
         let class_object = get_or_create_class_object(jvm, &runtime_class.ptypeview(), int_state, runtime_class.loader(jvm).clone());
-        res_vec.push(to_object(class_object.into()))
+        res_vec.push(new_local_ref_public(class_object.into(), int_state))
     });
     class_count_ptr.write(res_vec.len() as i32);
     classes_ptr.write(transmute(Vec::leak(res_vec).as_mut_ptr())); //todo leaking
@@ -199,7 +200,7 @@ pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, cla
     let class = from_jclass(klass);
     let int_state = get_interpreter_state(env);
     let class_loader = class.get_class_loader(jvm, int_state);
-    let jobject_ = to_object(class_loader.map(|cl| cl.object()));
+    let jobject_ = new_local_ref_public(class_loader.map(|cl| cl.object()), int_state);
     classloader_ptr.write(jobject_);
     jvmtiError_JVMTI_ERROR_NONE
 }

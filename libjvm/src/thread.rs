@@ -23,6 +23,7 @@ use slow_interpreter::interpreter_util::{check_inited_class, push_new_object};
 use slow_interpreter::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::threading::JavaThread;
@@ -96,7 +97,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     //     int_state.print_stack_trace();
     // }
     // assert!(!current_thread.invisible_to_java);
-    let res = to_object(current_thread.thread_object().object().into());
+    let res = new_local_ref_public(current_thread.thread_object().object().into(), int_state);
     assert_ne!(res, null_mut());
     res
 }

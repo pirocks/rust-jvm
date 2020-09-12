@@ -17,6 +17,7 @@ use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_con
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::get_all_methods;
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
@@ -51,7 +52,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let object = from_object(cls);
     let temp = JavaValue::Object(object).cast_class().as_type();
     let object_class = temp.unwrap_ref_type();
-    to_object(ptype_to_class_object(jvm, int_state, &object_class.unwrap_array().to_ptype()))
+    new_local_ref_public(ptype_to_class_object(jvm, int_state, &object_class.unwrap_array().to_ptype()), int_state)
 }
 
 #[no_mangle]
@@ -128,7 +129,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let type_ = PTypeView::Ref(ReferenceTypeView::Class(int_state.previous_previous_frame().class_pointer().view().name()));
     load_class_constant_by_type(jvm, int_state, &type_);
     let jclass = int_state.pop_current_operand_stack().unwrap_object();
-    to_object(jclass)
+    new_local_ref_public(jclass, int_state)
 }
 
 
@@ -149,12 +150,12 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    to_object(Some(get_or_create_class_object(
+    new_local_ref_public(Some(get_or_create_class_object(
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))),
         int_state,
         int_state.current_loader(jvm).clone(),
-    )))
+    )), int_state)
 }
 
 

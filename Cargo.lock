@@ -77,9 +77,9 @@ version = "0.53.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c72a978d268b1d70b0e963217e60fdabd9523a941457a6c42a7315d15c7e89e5"
 dependencies = [
-    "bitflags",
-    "cexpr",
-    "cfg-if",
+ "bitflags",
+ "cexpr",
+ "cfg-if",
  "clang-sys",
  "clap",
  "env_logger",
@@ -119,8 +119,8 @@ version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42b7c3cbf0fa9c1b82308d57191728ca0256cb821220f4e2fd410a72ade26e3b"
 dependencies = [
-    "bzip2-sys",
-    "libc",
+ "bzip2-sys",
+ "libc",
 ]
 
 [[package]]
@@ -891,19 +891,19 @@ checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
-    "bimap",
-    "bindgen",
-    "by_address",
-    "classfile-parser",
-    "classfile-view",
-    "descriptor-parser",
-    "errno",
-    "futures-intrusive",
-    "jar-manipulation",
-    "jvmti-jni-bindings",
-    "libc",
-    "libffi",
-    "libloading",
+ "bimap",
+ "bindgen",
+ "by_address",
+ "classfile-parser",
+ "classfile-view",
+ "descriptor-parser",
+ "errno",
+ "futures-intrusive",
+ "jar-manipulation",
+ "jvmti-jni-bindings",
+ "libc",
+ "libffi",
+ "libloading",
  "lock_api",
  "nix",
  "num",

@@ -4,13 +4,15 @@ use std::sync::Arc;
 
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object};
-use slow_interpreter::rust_jni::native_util::{from_object, get_state, to_object};
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let to_clone = from_object(obj);
-    to_object(match to_clone {
+    new_local_ref_public(match to_clone {
         None => unimplemented!(),
         Some(o) => {
             match o.deref() {
@@ -32,5 +34,5 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                 }
             }
         }
-    })
+    }, int_state)
 }

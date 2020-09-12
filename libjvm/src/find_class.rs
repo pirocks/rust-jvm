@@ -7,6 +7,7 @@ use libjvm_utils::jstring_to_string;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType::Ref;
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
@@ -19,9 +20,9 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     //todo not sure if this implementation is correct
     let loaded = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter());
     match loaded {
-        Result::Err(_) => return to_object(None),
+        Result::Err(_) => return new_local_ref_public(None, int_state),
         Result::Ok(view) => {
-            to_object(get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone()).into())
+            new_local_ref_public(get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone()).into(), int_state)
         }
     }
 }
@@ -41,17 +42,17 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let name_str = jstring_to_string(name);
-    assert!(&name_str != "int");
+    assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
     let loaded = jvm.bootstrap_loader.find_loaded_class(&class_name);
     match loaded {
-        None => return to_object(None),
+        None => return new_local_ref_public(None, int_state),
         Some(view) => {
             //todo what if name is long/int etc.
             get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone());
-            to_object(int_state.pop_current_operand_stack().unwrap_object())
+            new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
         }
     }
 }
@@ -104,5 +105,5 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     };
 
     let res = get_or_create_class_object(jvm, &ptype, int_state, jvm.bootstrap_loader.clone());//todo what if not using bootstap loader
-    return to_object(res.into());
+    return new_local_ref_public(res.into(), int_state);
 }

@@ -5,6 +5,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
@@ -24,7 +25,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     //todo shouldn't this be invoke_virtual
     invoke_virtual_method_i(jvm, int_state, expected_descriptor, runtime_class.clone(), run_method.method_i(), &run_method, false);
     let res = int_state.pop_current_operand_stack().unwrap_object();
-    to_object(res)
+    new_local_ref_public(res, int_state)
 }
 
 #[no_mangle]
@@ -35,5 +36,6 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv,
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     //todo this is obscure java stuff that isn't supported atm.
-    to_object(None)
+    let int_state = get_interpreter_state(env);
+    new_local_ref_public(None, int_state)
 }

@@ -3,7 +3,8 @@ use std::ffi::VaList;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 
 use crate::rust_jni::interface::call::{call_static_method_impl, VarargProvider};
-use crate::rust_jni::native_util::to_object;
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::native_util::{get_interpreter_state, to_object};
 
 pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jboolean {
     call_static_method_impl(env, method_id, VarargProvider::VaList(&mut l)).unwrap().unwrap_boolean()
@@ -39,7 +40,7 @@ pub unsafe extern "C" fn call_static_double_method_v(env: *mut JNIEnv, _clazz: j
 
 pub unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jobject {
     let res = call_static_method_impl(env, method_id, VarargProvider::VaList(&mut l)).unwrap();
-    to_object(res.unwrap_object())
+    new_local_ref_public(res.unwrap_object(), get_interpreter_state(env))
 }
 
 pub unsafe extern "C" fn call_static_void_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) {
@@ -50,7 +51,7 @@ pub unsafe extern "C" fn call_static_void_method_v(env: *mut JNIEnv, _clazz: jcl
 
 pub unsafe extern "C" fn call_static_object_method(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: ...) -> jobject {
     let res = call_static_method_impl(env, method_id, VarargProvider::Dots(&mut l)).unwrap();
-    to_object(res.unwrap_object())
+    new_local_ref_public(res.unwrap_object(), get_interpreter_state(env))
 }
 
 pub unsafe extern "C" fn call_static_boolean_method(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: ...) -> jboolean {
@@ -99,7 +100,7 @@ pub unsafe extern "C" fn call_static_void_method(env: *mut JNIEnv, _clazz: jclas
 
 pub unsafe extern "C" fn call_static_object_method_a(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, args: *const jvalue) -> jobject {
     let res = call_static_method_impl(env, method_id, VarargProvider::Array(args)).unwrap();
-    to_object(res.unwrap_object())
+    new_local_ref_public(res.unwrap_object(), get_interpreter_state(env))
 }
 
 pub unsafe extern "C" fn call_static_boolean_method_a(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, args: *const jvalue) -> jboolean {

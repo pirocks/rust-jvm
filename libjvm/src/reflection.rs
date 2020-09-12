@@ -4,6 +4,7 @@ use std::ops::Deref;
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::string_obj_to_string;
@@ -49,7 +50,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     }
 
     run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, signature);
-    to_object(int_state.pop_current_operand_stack().unwrap_object())
+    new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
 }
 
 #[no_mangle]
@@ -74,6 +75,6 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());
     run_constructor(jvm, int_state, clazz, full_args, signature);
-    to_object(obj.unwrap_object())
+    new_local_ref_public(obj.unwrap_object(), int_state)
 }
 

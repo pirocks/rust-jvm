@@ -56,12 +56,19 @@ pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobje
         return null_mut()
     }
     let interpreter_state = get_interpreter_state(env);
-    new_local_ref_internal(ref_, interpreter_state)
+    let rust_obj = from_object(ref_).unwrap();
+    new_local_ref_internal(rust_obj, interpreter_state)
 }
 
-pub unsafe fn new_local_ref_internal(ref_: jobject, interpreter_state: &mut InterpreterStateGuard) -> jobject {
-    let rust_obj = from_object(ref_).unwrap();
-    let c_obj = to_object(rust_obj.into());
+pub unsafe fn new_local_ref_public(rust_obj: Option<Arc<Object>>, interpreter_state: &mut InterpreterStateGuard) -> jobject {
+    if rust_obj.is_none() {
+        return null_mut()
+    }
+    return new_local_ref_internal(rust_obj.unwrap(), interpreter_state)
+}
+
+unsafe fn new_local_ref_internal(rust_obj: Arc<Object>, interpreter_state: &mut InterpreterStateGuard) -> jobject {
+    let c_obj = to_object(rust_obj.clone().into());
     get_top_local_ref_frame(interpreter_state).insert(ByAddress(rust_obj), c_obj);//todo replace from object with a non-leaking alternative
     c_obj
 }

@@ -13,6 +13,7 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
@@ -27,7 +28,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     //todo maybe parse?
     load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))));
     let obj = int_state.pop_current_operand_stack().unwrap_object();
-    to_object(obj)
+    new_local_ref_public(obj, int_state)
 }
 
 
@@ -35,14 +36,14 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let super_name = match from_jclass(sub).as_runtime_class().view().super_name() {
-        None => { return to_object(None); }
+        None => { return new_local_ref_public(None, int_state); }//todo serach and replace for these and return null
         Some(n) => n,
     };
     // let frame = int_state.current_frame_mut();
 //    frame.print_stack_trace();
     let _inited_class = check_inited_class(jvm, int_state, &super_name.clone().into(), int_state.current_loader(jvm));
     load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
-    to_object(int_state.pop_current_operand_stack().unwrap_object())
+    new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
 }
 
 
@@ -111,7 +112,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
         class.clone(),
         &classview.method_view_i(method_i as usize),
     );
-    to_object(obj.unwrap_object())
+    new_local_ref_public(obj.unwrap_object(), int_state)
 }
 
 pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
@@ -157,7 +158,7 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
         class.clone(),
         &classview.method_view_i(method_i as usize),
     );
-    to_object(obj.unwrap_object())
+    new_local_ref_public(obj.unwrap_object(), int_state)
 }
 
 

@@ -11,6 +11,7 @@ use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jd
 use crate::java_values::JavaValue;
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 
@@ -55,8 +56,10 @@ pub unsafe extern "C" fn get_double_field(env: *mut JNIEnv, obj: jobject, field_
 }
 
 pub unsafe extern "C" fn get_object_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jobject {
+    let int_state = get_interpreter_state(env);
     let java_value = get_java_value_field(env, obj, field_id_raw);
-    to_object(java_value.unwrap_object())
+
+    new_local_ref_public(java_value.unwrap_object(), int_state)
 }
 
 
@@ -132,7 +135,8 @@ unsafe fn get_static_field(env: *mut JNIEnv, klass: jclass, field_id_raw: jfield
 
 
 pub unsafe extern "C" fn get_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jobject {
-    to_object(get_static_field(env, clazz, field_id).unwrap_object())
+    let int_state = get_interpreter_state(env);
+    new_local_ref_public(get_static_field(env, clazz, field_id).unwrap_object(), int_state)
 }
 
 pub unsafe extern "C" fn get_static_boolean_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jboolean {

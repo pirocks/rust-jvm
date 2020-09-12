@@ -9,6 +9,7 @@ use jvmti_jni_bindings::{jboolean, jclass, jint, jlocation, jmethodID, jvmtiEnv,
 use crate::class_objects::get_or_create_class_object;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::method_table::MethodId;
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::to_object;
 
 pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
@@ -95,7 +96,7 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
         int_state,
         runtime_class.loader(jvm).clone(),
     );//todo fix this type verbosity thing
-    declaring_class_ptr.write(transmute(to_object(class_object.into())));
+    declaring_class_ptr.write(new_local_ref_public(class_object.into(), int_state));
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

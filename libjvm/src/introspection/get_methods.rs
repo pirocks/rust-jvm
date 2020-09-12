@@ -17,6 +17,7 @@ use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::get_all_methods;
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 
@@ -97,7 +98,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut Inte
         run_constructor(jvm, int_state, method_class.clone(), full_args, METHOD_SIGNATURE.to_string());
     });
     let res = Arc::new(Object::object_array(jvm, int_state, object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.view().name())))).into();
-    unsafe { to_object(res) }
+    unsafe { new_local_ref_public(res, int_state) }
 }
 
 fn get_signature(state: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
@@ -208,7 +209,7 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &'static JVMState, int_state: &mut
         run_constructor(jvm, int_state, constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
     });
     let res = Arc::new(Object::object_array(jvm, int_state, object_array, PTypeView::Ref(ReferenceTypeView::Class(constructor_class.view().name())))).into();
-    unsafe { to_object(res) }
+    unsafe { new_local_ref_public(res, int_state) }
 }
 
 

@@ -1,7 +1,8 @@
 use jvmti_jni_bindings::{jarray, JNIEnv, jobject, jobjectArray, jsize};
 
 use crate::java_values::Object;
-use crate::rust_jni::native_util::{from_object, to_object};
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, to_object};
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
     let non_null_array: &Object = &from_object(array).unwrap();
@@ -16,11 +17,12 @@ pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> j
     len as jsize
 }
 
-pub unsafe extern "C" fn get_object_array_element(_env: *mut JNIEnv, array: jobjectArray, index: jsize) -> jobject {
+pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize) -> jobject {
     let notnull = from_object(array).unwrap();
+    let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
     let borrow = array.elems.borrow();
-    to_object(borrow[index as usize].unwrap_object().clone())
+    new_local_ref_public(borrow[index as usize].unwrap_object().clone(), int_state)
 }
 
 pub unsafe extern "C" fn set_object_array_element(_env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {

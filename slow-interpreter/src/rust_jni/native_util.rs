@@ -8,6 +8,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::java::lang::class::JClass;
 use crate::java_values::{JavaValue, Object};
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);
@@ -22,7 +23,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
         }
     };
 
-    to_object(class_object.into()) as jclass
+    new_local_ref_public(class_object.into(), int_state) as jclass
 }
 
 

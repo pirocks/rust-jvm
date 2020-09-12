@@ -3,11 +3,12 @@ use std::ffi::VaList;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 
 use crate::rust_jni::interface::call::{call_nonstatic_method, VarargProvider};
-use crate::rust_jni::native_util::to_object;
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::native_util::{get_interpreter_state, to_object};
 
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
     let res = call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)).unwrap().unwrap_object();
-    to_object(res)
+    new_local_ref_public(res, get_interpreter_state(env))
 }
 
 pub unsafe extern "C" fn call_void_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) {
@@ -53,7 +54,7 @@ pub unsafe extern "C" fn call_long_method(env: *mut JNIEnv, obj: jobject, method
 
 pub unsafe extern "C" fn call_object_method_a(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, args: *const jvalue) -> jobject {
     let res = call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)).unwrap().unwrap_object();
-    to_object(res)
+    new_local_ref_public(res, get_interpreter_state(env))
 }
 
 pub unsafe extern "C" fn call_void_method_a(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, args: *const jvalue) {
@@ -96,7 +97,7 @@ pub unsafe extern "C" fn call_long_method_a(env: *mut JNIEnv, obj: jobject, meth
 
 pub unsafe extern "C" fn call_object_method_v(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut args: VaList) -> jobject {
     let res = call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)).unwrap().unwrap_object();
-    to_object(res)
+    new_local_ref_public(res, get_interpreter_state(env))
 }
 
 pub unsafe extern "C" fn call_void_method_v(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut args: VaList) {

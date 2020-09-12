@@ -11,6 +11,7 @@ use crate::instructions::invoke::find_target_method;
 use crate::interpreter::run_function;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java_values::{ArrayObject, JavaValue, Object};
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::interface::string::intern_impl;
 use crate::rust_jni::native_util::{from_object, to_object};
 
@@ -66,7 +67,7 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mu
         *function_return = false;
     }
     let interned = unsafe {
-        from_object(intern_impl(to_object(string_object.unwrap_object())))
+        from_object(intern_impl(new_local_ref_public(string_object.unwrap_object(), interpreter_state)))
     };
     interpreter_state.push_current_operand_stack(JavaValue::Object(interned));
 }

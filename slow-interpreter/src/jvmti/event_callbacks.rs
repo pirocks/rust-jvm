@@ -16,6 +16,7 @@ use crate::java::lang::thread::JThread;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::get_interface;
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::to_object;
 use crate::stack_entry::StackEntry;
 use crate::tracing::TracingSettings;
@@ -144,7 +145,7 @@ impl SharedLibJVMTI {
             unsafe {
                 let main_thread_object = main_thread.thread_object();
                 let event = VMInitEvent {
-                    thread: transmute(to_object(main_thread_object.object().into()))
+                    thread: new_local_ref_public(main_thread_object.object().into(), int_state)
                 };
                 self.VMInit(jvm, int_state, event);
                 assert!(self.thread_start_callback.read().unwrap().is_some());
@@ -157,7 +158,7 @@ impl SharedLibJVMTI {
             while !jvm.vm_live() {};//todo ofc theres a better way of doing this, but we are required to wait for vminit by the spec.
             assert!(jvm.vm_live());
             unsafe {
-                let thread = to_object(jthread.object().into());
+                let thread = new_local_ref_public(jthread.object().into(), int_state);
                 let event = ThreadStartEvent { thread };
                 self.ThreadStart(jvm, int_state, event);
             }
@@ -168,7 +169,12 @@ impl SharedLibJVMTI {
     pub fn class_prepare(&self, jvm: &'static JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             unsafe {
-                let thread = to_object(jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt| jt.object().into()));
+                //give the other events this long thing
+                let current_thread_from_rust = jvm.thread_state
+                    .try_get_current_thread()
+                    .and_then(|t| t.try_thread_object())
+                    .and_then(|jt| jt.object().into());
+                let thread = new_local_ref_public(current_thread_from_rust, int_state);
                 let klass_obj = get_or_create_class_object(jvm,
                                                            &class.clone().into(),
                                                            int_state,
@@ -183,7 +189,7 @@ impl SharedLibJVMTI {
     pub fn breakpoint(&self, jvm: &'static JVMState, method: MethodId, location: i64, int_state: &mut InterpreterStateGuard) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
             unsafe {
-                let thread = to_object(jvm.thread_state.get_current_thread().thread_object().object().into());
+                let thread = new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().into(), int_state);
                 let method = transmute(method);
                 self.Breakpoint(jvm, int_state, BreakpointEvent {
                     thread,

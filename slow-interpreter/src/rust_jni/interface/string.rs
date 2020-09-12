@@ -8,6 +8,7 @@ use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
 
 use crate::instructions::ldc::create_string_on_stack;
 use crate::java_values::{JavaValue, Object};
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 //todo shouldn't this be handled by a registered native
@@ -65,13 +66,14 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     create_string_on_stack(jvm, int_state, owned_str);
     let string = int_state.pop_current_operand_stack().unwrap_object();
     assert!(!string.is_none());
-    to_object(string)
+    new_local_ref_public(string, int_state)
 }
 
 
 pub static mut STRING_INTERNMENT: Option<HashMap<String, Arc<Object>>> = None;
 
-pub unsafe extern "system" fn intern_impl(str_unsafe: jstring) -> jstring {
+pub unsafe fn intern_impl(str_unsafe: jstring) -> jstring {
+    //todo fix this entire function
     match &STRING_INTERNMENT {
         None => { STRING_INTERNMENT = Some(HashMap::new()) }
         Some(_) => {}
