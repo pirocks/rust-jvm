@@ -15,13 +15,15 @@ use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
-use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::java_values::{ArrayObject, JavaValue};
+use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::rust_jni::get_all_methods;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::threading::JavaThread;
+use slow_interpreter::threading::monitors::Monitor;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -30,9 +32,19 @@ pub mod method_annotations;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
+    let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
-    unimplemented!()
+    let interface_vec = from_jclass(cls).as_runtime_class().view().interfaces().map(|interface| {
+        let class_obj = get_or_create_class_object(jvm, &interface.interface_name().into(), int_state, int_state.current_loader(jvm));
+        JavaValue::Object(Some(class_obj))
+    }).collect::<Vec<_>>();
+    //todo helper function for this:
+    let res = Some(Arc::new(Array(ArrayObject {
+        elems: RefCell::new(interface_vec),
+        elem_type: ClassName::class().into(),
+        monitor: jvm.thread_state.new_monitor("".to_string()),
+    })));
+    new_local_ref_public(res, int_state)
 }
 
 
