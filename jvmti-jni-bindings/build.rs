@@ -4,13 +4,13 @@ use std::env;
 use std::fs::create_dir;
 use std::path::PathBuf;
 
-fn path_join(one: &str, two: &str) -> String {
-    let mut path = PathBuf::new();
-    path.push(one);
-    path.push(two);
-    let res = path.as_path().to_str().unwrap();
-    res.to_string()
-}
+// fn path_join(one: &str, two: &str) -> String {
+//     let mut path = PathBuf::new();
+//     path.push(one);
+//     path.push(two);
+//     let res = path.as_path().to_str().unwrap();
+//     res.to_string()
+// }
 
 //TODO TONS OF DUPLICATION WITH JNI-BINDINGS
 fn main() {

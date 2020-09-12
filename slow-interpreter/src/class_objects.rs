@@ -5,7 +5,6 @@ use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, Object};

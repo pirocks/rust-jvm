@@ -15,7 +15,7 @@ use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram. todo

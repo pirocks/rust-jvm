@@ -2,7 +2,7 @@ use jvmti_jni_bindings::{jarray, JNIEnv, jobject, jobjectArray, jsize};
 
 use crate::java_values::Object;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, to_object};
+use crate::rust_jni::native_util::{from_object, get_interpreter_state};
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
     let non_null_array: &Object = &from_object(array).unwrap();

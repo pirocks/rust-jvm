@@ -1,17 +1,16 @@
-use std::ffi::{c_void, CString};
+use std::ffi::CString;
 use std::mem::{size_of, transmute};
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE, method_size_info, tempnam};
+use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter_util::check_inited_class;
-use crate::java::lang::class::JClass;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_jclass, from_object, to_object, try_from_jclass};
+use crate::rust_jni::native_util::{from_jclass, from_object, try_from_jclass};
 
 pub unsafe extern "C" fn get_source_file_name(
     env: *mut jvmtiEnv,

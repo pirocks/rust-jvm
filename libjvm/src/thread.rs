@@ -34,7 +34,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
-    jvm.thread_state.start_thread_from_obj(jvm, thread_object, int_state, false);
+    jvm.thread_state.start_thread_from_obj(jvm, thread_object, false);
 }
 
 #[no_mangle]

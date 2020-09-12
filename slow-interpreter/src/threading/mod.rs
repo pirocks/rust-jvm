@@ -5,14 +5,14 @@ use std::os::raw::c_void;
 use std::ptr::null_mut;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{channel, Sender};
 use std::thread::LocalKey;
 
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
 
-use crate::{InterpreterState, InterpreterStateGuard, JVMState, MainThreadInitializeInfo, run_main, set_properties, SuspendedStatus};
+use crate::{InterpreterState, InterpreterStateGuard, JVMState, run_main, set_properties, SuspendedStatus};
 use crate::interpreter::run_function;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::thread::JThread;
@@ -48,19 +48,17 @@ impl ThreadState {
         }
     }
 
-    pub fn setup_main_thread(&'static self, jvm: &'static JVMState) -> (Arc<JavaThread>, Sender<MainThreadInitializeInfo>, Sender<MainThreadStartInfo>) {
+    pub fn setup_main_thread(&'static self, jvm: &'static JVMState) -> (Arc<JavaThread>, Sender<MainThreadStartInfo>) {
         let main_thread = ThreadState::bootstrap_main_thread(jvm, &jvm.thread_state.threads);
         *self.main_thread.write().unwrap() = main_thread.clone().into();
         // self.all_java_threads.write().unwrap().insert(main_thread.java_tid, main_thread.clone());
-        let (init_send, init_recv) = channel();
         let (main_send, main_recv) = channel();
         let main_thread_clone = main_thread.clone();
         main_thread.clone().underlying_thread.start_thread(box move |_| {
             jvm.thread_state.set_current_thread(main_thread.clone());
-            let _init_info = init_recv.recv().unwrap();
             let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread };
             // jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_start(jvm, &mut int_state));
-            ThreadState::jvm_init_from_main_thread(jvm, init_recv, &mut int_state);
+            ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
             assert!(!jvm.live.load(Ordering::SeqCst));
             // assert!(jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start_callback.read().unwrap().is_some());
             jvm.live.store(true, Ordering::SeqCst);
@@ -73,10 +71,10 @@ impl ThreadState {
             run_main(args, jvm, &mut int_state).unwrap();
             main_thread.notify_terminated()
         }, box ());
-        (main_thread_clone, init_send, main_send)
+        (main_thread_clone, main_send)
     }
 
-    fn jvm_init_from_main_thread(jvm: &'static JVMState, init_recv: Receiver<MainThreadInitializeInfo>, int_state: &mut InterpreterStateGuard) {
+    fn jvm_init_from_main_thread(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
         let main_thread = &jvm.thread_state.get_main_thread();
         assert!(Arc::ptr_eq(main_thread, &jvm.thread_state.get_current_thread()));
         get_jvmti_interface(jvm, int_state);//this has the side effect off getting the right int_state for agent__load, but this is yuck todo
@@ -192,11 +190,10 @@ impl ThreadState {
         self.all_java_threads.read().unwrap().get(&tid).cloned()
     }
 
-    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, int_state: &mut InterpreterStateGuard, invisible_to_java: bool) -> Arc<JavaThread> {
+    pub fn start_thread_from_obj<'l>(&self, jvm: &'static JVMState, obj: JThread, invisible_to_java: bool) -> Arc<JavaThread> {
         let underlying = self.threads.create_thread(obj.name().to_rust_string().into());
 
         let (send, recv) = channel();
-        let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm).clone());
         let java_thread = JavaThread::new(jvm, obj, underlying, invisible_to_java);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();

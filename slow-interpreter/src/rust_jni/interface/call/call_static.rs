@@ -4,7 +4,7 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, 
 
 use crate::rust_jni::interface::call::{call_static_method_impl, VarargProvider};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{get_interpreter_state, to_object};
+use crate::rust_jni::native_util::get_interpreter_state;
 
 pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jboolean {
     call_static_method_impl(env, method_id, VarargProvider::VaList(&mut l)).unwrap().unwrap_boolean()

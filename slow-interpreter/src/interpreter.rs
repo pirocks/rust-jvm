@@ -413,7 +413,7 @@ fn run_single_instruction<'l>(
     }
 }
 
-fn athrow<'l>(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard) {
+fn athrow<'l>(_jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard) {
     println!("EXCEPTION:");
     let exception_obj = {
         let value = interpreter_state.pop_current_operand_stack();

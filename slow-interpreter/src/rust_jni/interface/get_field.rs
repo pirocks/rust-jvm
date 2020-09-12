@@ -13,7 +13,7 @@ use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
     let java_value = get_java_value_field(env, obj, field_id_raw);

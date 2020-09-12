@@ -2,7 +2,7 @@ use std::os::raw::c_void;
 
 use jvmti_jni_bindings::{jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 
-use crate::jvmti::{get_interpreter_state, get_state};
+use crate::jvmti::get_state;
 use crate::rust_jni::native_util::from_object;
 
 ///Get Thread Local Storage
@@ -82,7 +82,6 @@ pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jt
 pub unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data: *const ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
     assert!(jvm.vm_live());
-    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SetThreadLocalStorage");
     let java_thread = get_thread_or_error!(thread).get_java_thread(jvm);
     *java_thread.thread_local_storage.write().unwrap() = data as *mut c_void;

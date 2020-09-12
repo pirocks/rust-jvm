@@ -15,11 +15,9 @@ extern crate va_list;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::ffi::c_void;
-use std::intrinsics::transmute;
+use std::mem::transmute;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::mpsc::Sender;
 use std::thread::LocalKey;
 use std::time::Instant;
 
@@ -350,10 +348,6 @@ pub struct Classes {
 
 pub mod threading;
 
-thread_local! {
-    static JVMTI_TLS: RefCell<*mut c_void> = RefCell::new(std::ptr::null_mut());
-}
-
 
 thread_local! {
     static INT_STATE_GUARD : RefCell<Option<*mut InterpreterStateGuard<'static>>> = RefCell::new(None);
@@ -378,7 +372,6 @@ impl JVMState {
         let jvmti_state = if enable_jvmti {
             JVMTIState {
                 built_in_jdwp: Arc::new(SharedLibJVMTI::load_libjdwp(libjdwp.as_str())),
-                jvmti_thread_local_storage: &JVMTI_TLS,
                 break_points: RwLock::new(HashMap::new()),
                 tags: RwLock::new(HashMap::new()),
             }.into()
@@ -458,7 +451,6 @@ type CodeIndex = isize;
 
 pub struct JVMTIState {
     pub built_in_jdwp: Arc<SharedLibJVMTI>,
-    jvmti_thread_local_storage: &'static LocalKey<RefCell<*mut c_void>>,
     pub break_points: RwLock<HashMap<MethodId, HashSet<CodeIndex>>>,
     pub tags: RwLock<HashMap<jobject, jlong>>,
 }
@@ -537,16 +529,13 @@ fn setup_program_args<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
 }
 
 
-pub struct MainThreadInitializeInfo {
-    pub system_class: Arc<RuntimeClass>
-}
 
 
 /*
 Runs System.initializeSystemClass, which initializes the entire vm. This function is run on the main rust thread, which is different from the main java thread.
 This means that the needed state needs to be transferred over.
  */
-pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThreadInitializeInfo>) -> Result<(), Box<dyn Error>> {
+pub fn jvm_run_system_init<'l>(jvm: &'static JVMState) -> Result<(), Box<dyn Error>> {
     let bl = &jvm.bootstrap_loader;
     let main_thread = jvm.thread_state.get_main_thread();
 
@@ -559,7 +548,6 @@ pub fn jvm_run_system_init<'l>(jvm: &'static JVMState, sender: Sender<MainThread
     }
     let initialize_system_frame = StackEntry::new_java_frame(system_class.clone(), init_method_view.method_i() as u16, locals);
     main_thread.interpreter_state.write().unwrap().call_stack = vec![initialize_system_frame];
-    sender.send(MainThreadInitializeInfo { system_class }).unwrap();
     Result::Ok(())
 }
 

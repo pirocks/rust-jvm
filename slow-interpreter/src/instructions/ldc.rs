@@ -11,9 +11,6 @@ use crate::instructions::invoke::find_target_method;
 use crate::interpreter::run_function;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java_values::{ArrayObject, JavaValue, Object};
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::interface::string::intern_impl;
-use crate::rust_jni::native_util::{from_object, to_object};
 
 fn load_class_constant<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
     let res_class_name = c.class_name();

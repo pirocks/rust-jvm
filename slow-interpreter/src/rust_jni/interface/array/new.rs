@@ -5,7 +5,7 @@ use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, 
 
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
     let type_ = from_jclass(clazz).as_type();

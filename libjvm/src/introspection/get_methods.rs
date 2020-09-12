@@ -11,7 +11,7 @@ use libjvm_utils::ptype_to_class_object;
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::{InterpreterStateGuard, JVMState};
-use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::string::JString;

@@ -72,10 +72,10 @@ fn main() {
     unsafe { JVM = (jvm).into() }
     let jvm: &'static JVMState = unsafe { JVM.as_ref().unwrap() };
     let thread_state = &jvm.thread_state;
-    let (main_thread, init_send, main_send) = thread_state.setup_main_thread(jvm);
+    let (main_thread, main_send) = thread_state.setup_main_thread(jvm);
     assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));
 
-    jvm_run_system_init(jvm, init_send).expect("Couldn't init jvm");
+    jvm_run_system_init(jvm).expect("Couldn't init jvm");
 
     main_send.send(MainThreadStartInfo { args }).unwrap();
     main_thread.get_underlying().join();

@@ -8,7 +8,7 @@ use crate::interpreter::suspend_check;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, to_object};
+use crate::rust_jni::native_util::from_object;
 
 #[macro_export]
 macro_rules! get_thread_or_error {
@@ -489,7 +489,7 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
 unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jvmtiError {
     let jthread = get_thread_or_error!(thread_object_raw);
     let java_thread = jthread.get_java_thread(jvm);
-    let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
+    let SuspendedStatus { suspended, suspend_condvar: _ } = &java_thread.suspended;
     let mut suspended_guard = suspended.lock().unwrap();
     let res = if *suspended_guard {
         jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
@@ -508,9 +508,9 @@ unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &'static JVMState
     }
 }
 
-pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, thread: jthread) -> jvmtiError {
+pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, _thread: jthread) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
+    let _tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
     unimplemented!();
     // jvm.tracing.trace_jdwp_function_exit(tracing_guard, suspend_thread(env, thread))//todo this is an ugly hack.
 }

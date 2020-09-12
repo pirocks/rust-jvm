@@ -4,9 +4,7 @@ use std::os::raw::c_void;
 use thread_priority::*;
 
 use jvmti_jni_bindings::{jint, jthread, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_MIN_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiStartFunction};
-use rust_jvm_common::classnames::ClassName;
 
-use crate::interpreter_util::check_inited_class;
 use crate::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_jvmti_interface, get_state};
@@ -45,7 +43,6 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             thread: &java_thread,
         };
         jvm.thread_state.set_current_thread(java_thread.clone());
-        let thread_class = check_inited_class(jvm, &mut guard, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
         guard.push_frame(StackEntry::new_completely_opaque_frame());
 
         java_thread.notify_alive();

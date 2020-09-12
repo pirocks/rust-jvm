@@ -179,7 +179,6 @@ unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                       n_methods: jint) -> jint {
     // println!("Call to register_natives, n_methods: {}", n_methods);
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     for to_register_i in 0..n_methods {
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();

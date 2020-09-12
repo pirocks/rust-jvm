@@ -10,7 +10,6 @@ use crate::class_objects::get_or_create_class_object;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::to_object;
 
 pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
                                          name_ptr: *mut *mut ::std::os::raw::c_char,
