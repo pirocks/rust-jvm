@@ -2,14 +2,15 @@ use std::ffi::{c_void, CString};
 use std::mem::{size_of, transmute};
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE, method_size_info, tempnam};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter_util::check_inited_class;
+use crate::java::lang::class::JClass;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
-use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, to_object, try_from_jclass};
 
 pub unsafe extern "C" fn get_source_file_name(
     env: *mut jvmtiEnv,
@@ -131,26 +132,63 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-
+///Get Class Methods
+///
+///     jvmtiError
+///     GetClassMethods(jvmtiEnv* env,
+///                 jclass klass,
+///                 jint* method_count_ptr,
+///                 jmethodID** methods_ptr)
+///
+/// For the class indicated by klass, return a count of methods via method_count_ptr and a list of method IDs via methods_ptr. The method list contains constructors and static initializers as well as true methods. Only directly declared methods are returned (not inherited methods). An empty method list is returned for array classes and primitive classes (for example, java.lang.Integer.TYPE).
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the start or the live phase 	No 	52	1.0
+///
+/// Capabilities
+/// Required Functionality
+/// Optional Features
+/// Capability 	Effect
+/// can_maintain_original_method_order	Can return methods in the order they occur in the class file
+///
+/// Parameters
+/// Name 	Type 	Description
+/// klass	jclass	The class to query.
+/// method_count_ptr	jint*	On return, points to the number of methods declared in this class.
+///
+/// Agent passes a pointer to a jint. On return, the jint has been set.
+/// methods_ptr	jmethodID**	On return, points to the method ID array.
+///
+/// Agent passes a pointer to a jmethodID*. On return, the jmethodID* points to a newly allocated array of size *method_count_ptr. The array should be freed with Deallocate.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_CLASS_NOT_PREPARED	klass is not prepared. //todo handle this instead of loading the class
+/// JVMTI_ERROR_INVALID_CLASS	klass is not a class object or the class has been unloaded.
+/// JVMTI_ERROR_NULL_POINTER	method_count_ptr is NULL.
+/// JVMTI_ERROR_NULL_POINTER	methods_ptr is NULL.
 pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, method_count_ptr: *mut jint, methods_ptr: *mut *mut jmethodID) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    // let frame = int_state.current_frame_mut();
+    assert!(jvm.vm_live());
+    //todo capabilities
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
-    let class_object_wrapped = from_object(transmute(klass)).unwrap();
-    let class = JavaValue::Object(class_object_wrapped.into()).cast_class();
+    let class = match try_from_jclass(klass) {
+        None => {
+            return jvmtiError_JVMTI_ERROR_INVALID_CLASS;
+        }
+        Some(class) => class,
+    };
+    null_check!(method_count_ptr);
+    null_check!(methods_ptr);
     let class_type = class.as_type();
     let loaded_class = check_inited_class(jvm, int_state, &class_type, int_state.current_loader(jvm).clone());
-    method_count_ptr.write(loaded_class.view().num_methods() as i32);
-    //todo use Layout instead of whatever this is.
-    *methods_ptr = libc::malloc((size_of::<*mut c_void>()) * (*method_count_ptr as usize)) as *mut *mut jvmti_jni_bindings::_jmethodID;
-    loaded_class.view().methods().enumerate().for_each(|(i, mv)| {
+    let res = loaded_class.view().methods().map(|mv| {
         let method_id = jvm.method_table.write().unwrap().get_method_id(loaded_class.clone(), mv.method_i() as u16);
-        methods_ptr
-            .read()
-            .offset(i as isize)
-            .write(method_id as jmethodID)
-    });
+        method_id as jmethodID
+    }).collect::<Vec<_>>();
+    jvm.native_interface_allocations.allocate_and_write_vec(res, method_count_ptr, methods_ptr);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
