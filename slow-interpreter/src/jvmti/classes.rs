@@ -176,7 +176,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
     let class = match try_from_jclass(klass) {
         None => {
-            return jvmtiError_JVMTI_ERROR_INVALID_CLASS;
+            return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS);
         }
         Some(class) => class,
     };

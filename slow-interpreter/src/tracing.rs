@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::jvmtiError;
+use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::JVMState;
@@ -126,6 +126,7 @@ impl TracingSettings {
             println!("JVMTI [{}] {} {{ ", thread_name, function_name);
         }
         JVMTIEnterExitTraceGuard {
+            correctly_exited: false,
             thread_name,
             function_name,
             trace_jdwp_function_exit: self.trace_jdwp_function_exit,
@@ -136,7 +137,13 @@ impl TracingSettings {
         drop(guard);
     }
 
-    pub fn trace_jdwp_function_exit(&self, guard: JVMTIEnterExitTraceGuard, error: jvmtiError) -> jvmtiError {
+    pub fn trace_jdwp_function_exit(&self, mut guard: JVMTIEnterExitTraceGuard, error: jvmtiError) -> jvmtiError {
+        if error != jvmtiError_JVMTI_ERROR_NONE {
+            println!("JVMTI [{}] {} }} {:?}", guard.thread_name, guard.function_name, error);
+        } else {
+            println!("JVMTI [{}] {} }}", guard.thread_name, guard.function_name);
+        }
+        guard.correctly_exited = true;
         drop(guard);
         error
     }
@@ -167,6 +174,7 @@ JVMTI [-] # recompute enabled - after 0", event_name, event_name);
 }
 
 pub struct JVMTIEnterExitTraceGuard {
+    pub correctly_exited: bool,
     pub thread_name: String,
     pub function_name: &'static str,
     pub trace_jdwp_function_exit: bool,
@@ -174,7 +182,7 @@ pub struct JVMTIEnterExitTraceGuard {
 
 impl Drop for JVMTIEnterExitTraceGuard {
     fn drop(&mut self) {
-        println!("JVMTI [{}] {} }}", self.thread_name, self.function_name);
+        assert!(self.correctly_exited);
     }
 }
 

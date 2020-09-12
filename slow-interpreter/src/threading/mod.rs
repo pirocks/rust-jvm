@@ -123,7 +123,7 @@ impl ThreadState {
                                                   jvm.bootstrap_loader.clone(),
         );
 
-
+        //todo why is this a separate thread
         underlying.start_thread(box move |_data: Box<dyn Any>| {
             let frame = StackEntry::new_completely_opaque_frame();
             let mut new_int_state = InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread };

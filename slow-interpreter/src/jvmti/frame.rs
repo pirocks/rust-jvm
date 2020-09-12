@@ -211,20 +211,21 @@ pub unsafe extern "C" fn get_local_variable_table(
     let method_id: MethodId = transmute(method);
     let option = jvm.method_table.read().unwrap().try_lookup(method_id);
     assert!(option.is_some());
-    let (class, method_i) = option.unwrap();/*match option {
+    let (class, method_i) = match option {
         None => {
-            return jvmtiError_JVMTI_ERROR_INVALID_METHODID;
+            assert!(false);
+            return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_METHODID);
         }
         Some(pair) => pair
-    };*/
+    };
     let method_view = class.view().method_view_i(method_i as usize);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
     if method_view.is_native() {
-        return jvmtiError_JVMTI_ERROR_NATIVE_METHOD;
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NATIVE_METHOD);
     }
     let local_vars = match method_view.local_variable_attribute() {
         None => {
-            return jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION;
+            return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION);
         }
         Some(lva) => lva,
     };
