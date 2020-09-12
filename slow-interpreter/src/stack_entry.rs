@@ -1,11 +1,14 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+
+use bimap::BiMap;
+use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classfile::CPIndex;
 
-use crate::java_values::JavaValue;
+use crate::java_values::{JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 
 /// If the frame is opaque then this data is optional.
@@ -31,7 +34,7 @@ pub struct StackEntry {
     non_native_data: Option<NonNativeFrameData>,
     local_vars: Vec<JavaValue>,
     operand_stack: Vec<JavaValue>,
-    pub(crate) native_local_refs: Vec<HashSet<jobject>>,
+    pub(crate) native_local_refs: Vec<BiMap<ByAddress<Arc<Object>>, jobject>>,
 }
 
 impl StackEntry {
@@ -42,7 +45,7 @@ impl StackEntry {
             non_native_data: None,
             local_vars: vec![],
             operand_stack: vec![],
-            native_local_refs: vec![HashSet::new()],
+            native_local_refs: vec![BiMap::new()],
         }
     }
 
@@ -62,7 +65,7 @@ impl StackEntry {
             non_native_data: None,
             local_vars: args,
             operand_stack: vec![],
-            native_local_refs: vec![HashSet::new()],
+            native_local_refs: vec![BiMap::new()],
         }
     }
 
