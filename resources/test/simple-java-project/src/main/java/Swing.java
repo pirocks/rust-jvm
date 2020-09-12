@@ -10,7 +10,6 @@ public class Swing {
 
     public static void main(String[] args) {
         int test_var  = -1;
-//        double another_test_var = 0;
         System.out.println("test");
         System.out.println(test_var);
         JFrame test = new JFrame("test");

@@ -331,15 +331,16 @@ impl JavaValue {
     }
 
     pub fn unwrap_char(&self) -> u16 {
-        match self {
-            JavaValue::Char(c) => {
-                *c
-            }
-            _ => {
-                dbg!(self);
-                panic!()
-            }
-        }
+        self.unwrap_int() as u16
+        // match self {
+        //     JavaValue::Char(c) => {
+        //         *c
+        //     }
+        //     _ => {
+        //         dbg!(self);
+        //         panic!()
+        //     }
+        // }
     }
 }
 
