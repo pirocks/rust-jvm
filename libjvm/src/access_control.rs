@@ -1,3 +1,5 @@
+use std::ptr::null_mut;
+
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
@@ -36,6 +38,7 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv,
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     //todo this is obscure java stuff that isn't supported atm.
-    let int_state = get_interpreter_state(env);
-    new_local_ref_public(None, int_state)
+    // let int_state = get_interpreter_state(env);
+    // new_local_ref_public(None, int_state)
+    null_mut()
 }

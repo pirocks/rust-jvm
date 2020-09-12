@@ -1,5 +1,6 @@
 use std::ffi::CStr;
 use std::mem::transmute;
+use std::ptr::null_mut;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, jmethodID, JNIEnv, JNIInvokeInterface_, jobject, jthrowable};
@@ -36,11 +37,9 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let super_name = match from_jclass(sub).as_runtime_class().view().super_name() {
-        None => { return new_local_ref_public(None, int_state); }//todo serach and replace for these and return null
+        None => null_mut()
         Some(n) => n,
     };
-    // let frame = int_state.current_frame_mut();
-//    frame.print_stack_trace();
     let _inited_class = check_inited_class(jvm, int_state, &super_name.clone().into(), int_state.current_loader(jvm));
     load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)

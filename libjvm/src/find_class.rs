@@ -1,5 +1,6 @@
 use std::ffi::{CStr, CString};
 use std::ops::Deref;
+use std::ptr::null_mut;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring};
@@ -20,7 +21,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     //todo not sure if this implementation is correct
     let loaded = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter());
     match loaded {
-        Result::Err(_) => return new_local_ref_public(None, int_state),
+        Result::Err(_) => null_mut(),
         Result::Ok(view) => {
             new_local_ref_public(get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone()).into(), int_state)
         }
@@ -48,7 +49,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     let class_name = ClassName::Str(name_str);
     let loaded = jvm.bootstrap_loader.find_loaded_class(&class_name);
     match loaded {
-        None => return new_local_ref_public(None, int_state),
+        None => return null_mut(),
         Some(view) => {
             //todo what if name is long/int etc.
             get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone());

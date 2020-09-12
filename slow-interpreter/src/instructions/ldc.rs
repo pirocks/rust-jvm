@@ -66,10 +66,10 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mu
     if *function_return {
         *function_return = false;
     }
-    let interned = unsafe {
-        from_object(intern_impl(new_local_ref_public(string_object.unwrap_object(), interpreter_state)))
-    };
-    interpreter_state.push_current_operand_stack(JavaValue::Object(interned));
+    // let interned = unsafe {
+    //     from_object(intern_impl(new_local_ref_public(, interpreter_state)))
+    // };
+    interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
 }
 
 pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) -> () {
