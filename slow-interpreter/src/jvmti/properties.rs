@@ -1,4 +1,6 @@
 use std::ffi::CStr;
+use std::io::Error;
+use std::path::PathBuf;
 
 use jvmti_jni_bindings::{jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_NOT_AVAILABLE};
 
@@ -53,7 +55,6 @@ pub unsafe extern "C" fn get_system_property(
     null_check!(value_ptr);
     //todo figure out how to assert OnLoad or live
     let property_name = CStr::from_ptr(property).to_str().unwrap();
-
     //apparently different from System.getProperty()?
     if property_name == "java.vm.vendor" {
         unimplemented!()
@@ -62,7 +63,7 @@ pub unsafe extern "C" fn get_system_property(
         unimplemented!()
     }
     if property_name == "java.vm.name" {
-        let leaked_name = jvm.native_interface_allocations.allocate_string("TODO: Get a better VM Name".to_string());//todo name and avoid all this leaking
+        let leaked_name = jvm.native_interface_allocations.allocate_string("TODO: Get a better VM Name".to_string());//todo get better name
         value_ptr.write(leaked_name);
         return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);
     }
@@ -71,14 +72,39 @@ pub unsafe extern "C" fn get_system_property(
         value_ptr.write(leaked_name);
         return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);
     }
-    if property_name == "java.library.path" {
-        unimplemented!()
+    if property_name == "java.library.path" || property_name == "sun.boot.library.path" {
+        let leaked_name = jvm.native_interface_allocations.allocate_string("/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/".to_string());//todo in future don't hardcode this
+        value_ptr.write(leaked_name);
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);
     }
     if property_name == "java.class.path" || property_name == "sun.boot.class.path" {
         let jvm = get_state(env);
         let leaked_str = jvm.native_interface_allocations.allocate_string(jvm.classpath.classpath_string());
         value_ptr.write(leaked_str);
         return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
+    }
+
+    if property_name == "java.version" {
+        let leaked_str = jvm.native_interface_allocations.allocate_string("1.8".to_string());
+        value_ptr.write(leaked_str);
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
+    }
+
+    if property_name == "path.separator" {
+        let leaked_str = jvm.native_interface_allocations.allocate_string(":".to_string());
+        value_ptr.write(leaked_str);
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
+    }
+
+    if property_name == "user.dir" {
+        match std::env::current_dir() {
+            Ok(dir) => {
+                let leaked_str = jvm.native_interface_allocations.allocate_string(dir.to_string_lossy().to_string());
+                value_ptr.write(leaked_str);
+                return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
+            },
+            Err(_) => {},
+        };
     }
 
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NOT_AVAILABLE)
