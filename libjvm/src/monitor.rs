@@ -6,9 +6,9 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jlong) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    drop(int_state.int_state.take());
+    // drop(int_state.int_state.take());//todo why is this needed?
     from_object(obj).unwrap().monitor().wait(ms, jvm);
-    int_state.int_state = int_state.thread.interpreter_state.write().unwrap().into();
+    // int_state.int_state = int_state.thread.interpreter_state.write().unwrap().into();
 }
 
 #[no_mangle]

@@ -1,5 +1,4 @@
-use std::intrinsics::transmute;
-use std::ptr::null_mut;
+use std::mem::transmute;
 
 use jvmti_jni_bindings::{JavaVM, jint, JNIInvokeInterface_, JVMTI_VERSION_1_0, JVMTI_VERSION_1_2, jvmtiEnv};
 use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
@@ -8,7 +7,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::jvmti::get_jvmti_interface;
 use crate::rust_jni::interface::get_interface;
 
-pub fn get_invoke_interface(state: &'static JVMState, int_state: Option<&mut InterpreterStateGuard>) -> *const JNIInvokeInterface_ {
+pub fn get_invoke_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *const JNIInvokeInterface_ {
     let read_guard = state.invoke_interface.read().unwrap();
     match read_guard.as_ref() {
         None => {
@@ -16,7 +15,7 @@ pub fn get_invoke_interface(state: &'static JVMState, int_state: Option<&mut Int
             state.invoke_interface.write().unwrap().replace(unsafe {
                 transmute::<_, jvmti_jni_bindings::JNIInvokeInterface_>(JNIInvokeInterface_ {
                     reserved0: transmute(state),
-                    reserved1: int_state.map(|mut_ref| transmute(mut_ref)).unwrap_or(null_mut()),
+                    reserved1: transmute(int_state),
                     reserved2: std::ptr::null_mut(),
                     DestroyJavaVM: None,
                     AttachCurrentThread: None,
@@ -36,7 +35,8 @@ pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState/*<
 }
 
 pub unsafe fn get_interpreter_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l mut InterpreterStateGuard<'l> {
-    get_state_invoke_interface(vm).get_int_state_guard()
+    let jvm = get_state_invoke_interface(vm);
+    jvm.get_int_state()
 }
 
 

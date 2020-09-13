@@ -37,7 +37,7 @@ use crate::rust_jni::native_util::from_object;
 ///
 /// Errors
 /// This function returns either a universal error or one of the following errors
-/// Error 	Description
+/// Error 	DescriptionJS
 /// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
 /// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
 /// JVMTI_ERROR_NULL_POINTER	count_ptr is NULL.

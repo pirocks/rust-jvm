@@ -31,12 +31,19 @@ pub fn run_native_method<'l>(
     _debug: bool,
 ) {
     let view = &class.view();
+    let before = int_state.current_frame().operand_stack().len();
     check_inited_class(jvm, int_state, &view.name().into(), class.loader(jvm));
+    assert_eq!(before, int_state.current_frame().operand_stack().len());
     let method = &view.method_view_i(method_i);
+    if !method.is_static() {
+        assert_ne!(before, 0);
+    }
     assert!(method.is_native());
     let parsed = method.desc();
     let mut args = vec![];
     //todo should have some setup args functions
+    // dbg!(int_state.current_frame().operand_stack());
+    // dbg!(method.name());
     if method.is_static() {
         for _ in &parsed.parameter_types {
             args.push(int_state.pop_current_operand_stack());

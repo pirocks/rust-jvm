@@ -1,4 +1,3 @@
-use std::mem::transmute;
 use std::os::raw::c_void;
 
 use thread_priority::*;
@@ -26,7 +25,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
     //todo implement thread priority
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
-    let thread_object = JavaValue::Object(from_object(transmute(thread))).cast_thread();
+    let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
     let java_thread = JavaThread::new(jvm, thread_object.clone(), jvm.thread_state.threads.create_thread(thread_object.name().to_rust_string().into()), true);
     let args = ThreadArgWrapper { proc_, arg };
     java_thread.clone().get_underlying().start_thread(box move |_| {
@@ -34,24 +33,24 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         if priority == JVMTI_THREAD_MAX_PRIORITY as i32 {
             set_current_thread_priority(ThreadPriority::Max).unwrap();
         } else if priority == JVMTI_THREAD_NORM_PRIORITY as i32 {} else if priority == JVMTI_THREAD_MIN_PRIORITY as i32 {
-            set_current_thread_priority(ThreadPriority::Min).unwrap();
+            set_current_thread_priority(ThreadPriority::Min).unwrap();//todo pass these to object
         }
 
 
-        let mut guard = InterpreterStateGuard {
-            int_state: java_thread.interpreter_state.write().unwrap().into(),
-            thread: &java_thread,
-        };
+        let mut int_state = InterpreterStateGuard::new(jvm, &java_thread);
+        int_state.register_interpreter_state_guard(jvm);
+        assert!(int_state.int_state.as_ref().unwrap().call_stack.is_empty());
         jvm.thread_state.set_current_thread(java_thread.clone());
 
         java_thread.notify_alive();
-        jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());
+        jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut int_state, java_thread.thread_object());
 
-        let jvmti = get_jvmti_interface(jvm, &mut guard);
-        let jni_env = get_interface(jvm, &mut guard);
-        let frame_for_agent = guard.push_frame(StackEntry::new_completely_opaque_frame());
+        let jvmti = get_jvmti_interface(jvm, &mut int_state);
+        let jni_env = get_interface(jvm, &mut int_state);
+        assert!(int_state.int_state.as_ref().unwrap().call_stack.is_empty());
+        let frame_for_agent = int_state.push_frame(StackEntry::new_completely_opaque_frame());
         proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
-        guard.pop_frame(frame_for_agent);
+        int_state.pop_frame(frame_for_agent);
         java_thread.notify_terminated()
     }, box ());
 

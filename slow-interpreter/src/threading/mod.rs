@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::os::raw::c_void;
@@ -12,13 +11,13 @@ use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
 
-use crate::{InterpreterState, InterpreterStateGuard, JVMState, run_main, set_properties, SuspendedStatus};
+use crate::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties, SuspendedStatus};
 use crate::interpreter::run_function;
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
+use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
-use crate::jvmti::get_jvmti_interface;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 
@@ -29,6 +28,8 @@ pub struct ThreadState {
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
     pub system_thread_group: RwLock<Option<JThreadGroup>>,
     monitors: RwLock<Vec<Arc<Monitor>>>,
+    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,
+    pub(crate) int_state_guard_valid: &'static LocalKey<RefCell<bool>>,
 }
 
 
@@ -45,6 +46,8 @@ impl ThreadState {
             current_java_thread: &CURRENT_JAVA_THREAD,
             system_thread_group: RwLock::new(None),
             monitors: RwLock::new(vec![]),
+            int_state_guard: &CURRENT_INT_STATE_GUARD,
+            int_state_guard_valid: &CURRENT_INT_STATE_GUARD_VALID,
         }
     }
 
@@ -55,8 +58,13 @@ impl ThreadState {
         let main_thread_clone = main_thread.clone();
         main_thread.clone().underlying_thread.start_thread(box move |_| {
             jvm.thread_state.set_current_thread(main_thread.clone());
-            let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread };
+            main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
+            assert!(main_thread.interpreter_state.read().unwrap().call_stack.is_empty());
+            let mut int_state = InterpreterStateGuard::new(jvm, &main_thread);
+            int_state.register_interpreter_state_guard(jvm);
+            jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
+            set_properties(jvm, &mut int_state);
             assert!(!jvm.live.load(Ordering::SeqCst));
             jvm.live.store(true, Ordering::SeqCst);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, main_thread.clone()));
@@ -72,10 +80,19 @@ impl ThreadState {
     }
 
     fn jvm_init_from_main_thread(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
-        let main_thread = &jvm.thread_state.get_main_thread();
-        assert!(Arc::ptr_eq(main_thread, &jvm.thread_state.get_current_thread()));
-        get_jvmti_interface(jvm, int_state);//this has the side effect off getting the right int_state for agent__load, but this is yuck todo
-        jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
+        let bl = &jvm.bootstrap_loader;
+        let main_thread = jvm.thread_state.get_main_thread();
+        main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
+        let system_class = check_inited_class(jvm, int_state, &ClassName::system().into(), bl.clone());
+
+        let init_method_view = locate_init_system_class(&system_class);
+        let mut locals = vec![];
+        for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
+            locals.push(JavaValue::Top);
+        }
+        let initialize_system_frame = StackEntry::new_java_frame(system_class.clone(), init_method_view.method_i() as u16, locals);
+        let init_frame_guard = int_state.push_frame(initialize_system_frame);
+        assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         run_function(&jvm, int_state);
         let function_return = int_state.function_return_mut();
         if *function_return {
@@ -84,7 +101,7 @@ impl ThreadState {
         if int_state.throw().is_some() || *int_state.terminate() {
             unimplemented!()
         }
-        set_properties(jvm, int_state);
+        int_state.pop_frame(init_frame_guard);
     }
 
     pub fn get_main_thread(&self) -> Arc<JavaThread> {
@@ -99,7 +116,6 @@ impl ThreadState {
     }
 
     fn bootstrap_main_thread<'l>(jvm: &'static JVMState, threads: &Threads) -> Arc<JavaThread> {
-        let (main_thread_obj_send, main_thread_obj_recv) = channel();
         let bootstrap_underlying_thread = threads.create_thread("Bootstrap Thread".to_string().into());
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
@@ -112,36 +128,30 @@ impl ThreadState {
             status: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
         });
-        let underlying = &bootstrap_thread.clone().underlying_thread;
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
-        let target_classfile = check_inited_class(jvm,
-                                                  &mut InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread },
+        let mut new_int_state = InterpreterStateGuard::new(jvm, &bootstrap_thread);
+        new_int_state.register_interpreter_state_guard(jvm);
+        let frame = StackEntry::new_completely_opaque_frame();
+        let frame_for_bootstrapping = new_int_state.push_frame(frame);
+
+        let thread_classfile = check_inited_class(jvm,
+                                                  &mut new_int_state,
                                                   &ClassName::thread().into(),
                                                   jvm.bootstrap_loader.clone(),
         );
 
-        //todo why is this a separate thread
-        underlying.start_thread(box move |_data: Box<dyn Any>| {
-            let frame = StackEntry::new_completely_opaque_frame();
-            let mut new_int_state = InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread };
-            let frame_for_bootstrapping = new_int_state.push_frame(frame);
-            push_new_object(jvm, &mut new_int_state, &target_classfile, None);
-            let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
-            thread_object.set_priority(5);
-            *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
-            jvm.thread_state.set_current_thread(bootstrap_thread.clone());
-            bootstrap_thread.notify_alive();
-            // push_new_object(jvm, &mut new_int_state,  &target_classfile, None);
-            // let jthread = new_int_state.pop_current_operand_stack().cast_thread();
-            let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
-            *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
-            let jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
-            bootstrap_thread.notify_terminated();
-            new_int_state.pop_frame(frame_for_bootstrapping);
-            main_thread_obj_send.send(jthread).unwrap();
-        }, box ());
-        let thread_obj: JThread = main_thread_obj_recv.recv().unwrap();
-        JavaThread::new(jvm, thread_obj, threads.create_thread("Main Java Thread".to_string().into()), false)
+
+        push_new_object(jvm, &mut new_int_state, &thread_classfile, None);
+        let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
+        thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
+        *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
+        bootstrap_thread.notify_alive();
+        let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
+        *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
+        let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
+        bootstrap_thread.notify_terminated();
+        new_int_state.pop_frame(frame_for_bootstrapping);
+        JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
     }
 
     pub fn get_current_thread_name(&self) -> String {
@@ -195,7 +205,8 @@ impl ThreadState {
         let java_thread = JavaThread::new(jvm, obj, underlying, invisible_to_java);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
-            let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
+            let mut interpreter_state_guard = InterpreterStateGuard::new(jvm, &java_thread);// { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
+            interpreter_state_guard.register_interpreter_state_guard(jvm);
 
             jvm.thread_state.set_current_thread(java_thread.clone());
             java_thread.notify_alive();

@@ -1,5 +1,6 @@
 use std::alloc::Layout;
 use std::collections::HashMap;
+use std::ffi::CStr;
 use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
 use std::sync::Arc;
@@ -7,6 +8,7 @@ use std::sync::Arc;
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
 
 use crate::instructions::ldc::create_string_on_stack;
+use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
@@ -47,8 +49,12 @@ pub unsafe extern "C" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, 
 
 
 pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char) -> jstring {
-    let len = libc::strlen(utf);
-    new_string_with_len(env, utf, len)
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let str = CStr::from_ptr(utf);
+    // dbg!(int_state.current_frame().local_vars());
+    // dbg!(int_state.current_frame().operand_stack());
+    new_local_ref_public(JString::from(jvm, int_state, str.to_str().unwrap().to_string()).object().into(), int_state)
 }
 
 pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char, len: usize) -> jstring {

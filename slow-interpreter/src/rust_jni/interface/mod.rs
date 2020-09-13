@@ -30,18 +30,8 @@ thread_local! {
 
 //GetFieldID
 pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *mut *const JNINativeInterface_ {
-    unsafe { state.set_int_state(int_state) };
+    // unsafe { state.set_int_state(int_state) };
     JNI_INTERFACE.with(|refcell| {
-        unsafe {
-            let first_borrow = refcell.borrow_mut();
-            match first_borrow.as_mut() {
-                None => {}
-                Some(interface) => {
-                    (*((*interface) as *mut JNINativeInterface_)).reserved1 = transmute(int_state);//todo technically this is wrong, see "JNI Interface Functions and Pointers" in jni spec
-                    return interface as *mut *const JNINativeInterface_;
-                }
-            }
-        }
         let new = get_interface_impl(state, int_state);
         let jni_data_structure_ptr = Box::leak(box new) as *const JNINativeInterface_;
         refcell.replace(Box::leak(box (jni_data_structure_ptr)) as *mut *const JNINativeInterface_);//todo leak

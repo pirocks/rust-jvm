@@ -15,10 +15,9 @@ extern crate va_list;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::mem::transmute;
+use std::intrinsics::transmute;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::thread::LocalKey;
 use std::time::Instant;
 
 use libloading::Library;
@@ -92,17 +91,45 @@ impl Default for InterpreterState {
                 suspended: false,
                 suspended_lock: Arc::new(Mutex::new(())),
             }),*/
-            call_stack: Default::default(),
+            call_stack: vec![],
         }
     }
 }
 
 pub struct InterpreterStateGuard<'l> {
-    pub int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
-    pub thread: &'l Arc<JavaThread>,
+    int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
+    thread: &'l Arc<JavaThread>,
+    registered: bool,
 }
 
+
+thread_local! {
+    pub static CURRENT_INT_STATE_GUARD_VALID :RefCell<bool> = RefCell::new(false);
+}
+
+thread_local! {
+    pub static CURRENT_INT_STATE_GUARD :RefCell<Option<*mut InterpreterStateGuard<'static>>> = RefCell::new(None);
+}
+
+
 impl<'l> InterpreterStateGuard<'l> {
+    pub fn register_interpreter_state_guard(&mut self, jvm: &JVMState) {
+        let ptr = unsafe { transmute::<_, *mut InterpreterStateGuard<'static>>(self as *mut InterpreterStateGuard<'l>) };
+        jvm.thread_state.int_state_guard.with(|refcell| refcell.replace(ptr.into()));
+        jvm.thread_state.int_state_guard_valid.with(|refcell| refcell.replace(true));
+        self.registered = true;
+    }
+
+
+    pub fn new(jvm: &JVMState, thread: &'l Arc<JavaThread>) -> InterpreterStateGuard<'l> {
+        jvm.thread_state.int_state_guard_valid.with(|refcell| refcell.replace(false));
+        Self {
+            int_state: thread.interpreter_state.write().unwrap().into(),
+            thread,
+            registered: true,//todo this is probably redundant due to CURRENT_INT_STATE_GUARD_VALID
+        }
+    }
+
     pub fn current_class_pointer(&self) -> &Arc<RuntimeClass> {
         &self.current_frame().class_pointer()
     }
@@ -161,10 +188,10 @@ impl<'l> InterpreterStateGuard<'l> {
         match self.int_state.as_mut() {
             None => {
                 self.thread.interpreter_state.write().unwrap().throw = val
-            },
+            }
             Some(val_mut) => {
                 val_mut.throw = val;
-            },
+            }
         }
     }
 
@@ -182,7 +209,7 @@ impl<'l> InterpreterStateGuard<'l> {
         match self.int_state.as_ref() {
             None => {
                 self.thread.interpreter_state.read().unwrap().throw.clone()
-            },
+            }
             Some(int_state) => int_state.throw.clone(),
         }
     }
@@ -351,7 +378,7 @@ pub struct JVMState {
     pub field_table: RwLock<FieldTable>,
     pub native_interface_allocations: NativeAllocator,
     live: AtomicBool,
-    pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,//so technically isn't 'static, but we need to be able to store this in a localkey
+    // pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,//so technically isn't 'static, but we need to be able to store this in a localkey
 }
 
 pub struct Classes {
@@ -366,11 +393,6 @@ pub struct Classes {
 }
 
 pub mod threading;
-
-
-thread_local! {
-    static INT_STATE_GUARD : RefCell<Option<*mut InterpreterStateGuard<'static>>> = RefCell::new(None);
-}
 
 
 impl JVMState {
@@ -424,7 +446,7 @@ impl JVMState {
             field_table: RwLock::new(FieldTable::new()),
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: AtomicBool::new(false),
-            int_state_guard: &INT_STATE_GUARD
+            // int_state_guard: &INT_STATE_GUARD
         };
         (args, jvm)
     }
@@ -452,17 +474,25 @@ impl JVMState {
         }
     }
 
-    pub unsafe fn get_int_state_guard<'l>(&'static self) -> &'l mut InterpreterStateGuard<'l> {
-        let ptr = self.int_state_guard.with(|refcell| refcell.borrow().unwrap());
-        &mut *transmute::<_, *mut InterpreterStateGuard<'l>>(ptr)
+    pub unsafe fn get_int_state<'l>(&self) -> &'l mut InterpreterStateGuard<'l> {
+        assert!(self.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
+        let ptr = self.thread_state.int_state_guard.with(|refcell| *refcell.borrow().as_ref().unwrap());
+        let res = transmute::<&mut InterpreterStateGuard<'static>, &mut InterpreterStateGuard<'l>>(ptr.as_mut().unwrap());
+        assert!(res.registered);
+        res
     }
 
-    pub unsafe fn set_int_state(&'static self, int_state: &mut InterpreterStateGuard) {
-        self.int_state_guard.with(|refcell| {
-            let ptr = int_state as *mut InterpreterStateGuard;
-            refcell.replace(transmute::<_, *mut InterpreterStateGuard<'static>>(ptr).into())
-        });
-    }
+    // pub unsafe fn get_int_state_guard<'l>(&'static self) -> &'l mut InterpreterStateGuard<'l> {
+    //     let ptr = self.int_state_guard.with(|refcell| refcell.borrow().unwrap());
+    //     &mut *transmute::<_, *mut InterpreterStateGuard<'l>>(ptr)
+    // }
+
+    // pub unsafe fn set_int_state(&'static self, int_state: &mut InterpreterStateGuard) {
+    //     self.int_state_guard.with(|refcell| {
+    //         let ptr = int_state as *mut InterpreterStateGuard;
+    //         refcell.replace(transmute::<_, *mut InterpreterStateGuard<'static>>(ptr).into())
+    //     });
+    // }
 }
 
 
@@ -548,29 +578,8 @@ fn setup_program_args<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
 }
 
 
-
-
-/*
-Runs System.initializeSystemClass, which initializes the entire vm. This function is run on the main rust thread, which is different from the main java thread.
-This means that the needed state needs to be transferred over.
- */
-pub fn jvm_run_system_init<'l>(jvm: &'static JVMState) -> Result<(), Box<dyn Error>> {
-    let bl = &jvm.bootstrap_loader;
-    let main_thread = jvm.thread_state.get_main_thread();
-
-    let system_class = check_inited_class(jvm, &mut InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread }, &ClassName::system().into(), bl.clone());
-
-    let init_method_view = locate_init_system_class(&system_class);
-    let mut locals = vec![];
-    for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
-        locals.push(JavaValue::Top);
-    }
-    let initialize_system_frame = StackEntry::new_java_frame(system_class.clone(), init_method_view.method_i() as u16, locals);
-    main_thread.interpreter_state.write().unwrap().call_stack = vec![initialize_system_frame];
-    Result::Ok(())
-}
-
 fn set_properties<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
+    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame());
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);
@@ -581,6 +590,7 @@ fn set_properties<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGu
         let value = JString::from(jvm, int_state, properties[value_i].clone());
         prop_obj.set_property(jvm, int_state, key, value);
     }
+    int_state.pop_frame(frame_for_properties);
 }
 
 

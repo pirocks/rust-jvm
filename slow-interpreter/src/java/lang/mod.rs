@@ -142,9 +142,8 @@ pub mod string {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-    use crate::instructions::ldc::create_string_on_stack;
-    use crate::interpreter_util::check_inited_class;
-    use crate::java_values::JavaValue;
+    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::java_values::{ArrayObject, JavaValue};
     use crate::java_values::Object;
     use crate::utils::string_obj_to_string;
 
@@ -164,9 +163,22 @@ pub mod string {
             string_obj_to_string(self.normal_object.clone().into())
         }
 
-        pub fn from<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
-            create_string_on_stack(state, int_state, rust_str);
-            int_state.pop_current_operand_stack().cast_string()
+        pub fn from<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
+            let string_class = check_inited_class(jvm, int_state, &ClassName::string().into(), jvm.bootstrap_loader.clone());
+            push_new_object(jvm, int_state, &string_class, None);
+            // dbg!(int_state.current_frame().local_vars());
+            // dbg!(int_state.current_frame().operand_stack());
+            let string_object = int_state.pop_current_operand_stack();
+
+            let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>();
+            let array = JavaValue::Object(Some(
+                Arc::new(
+                    Object::Array(ArrayObject::new_array(jvm, int_state, vec1, ClassName::string().into(), jvm.thread_state.new_monitor("monitor for a string".to_string())))
+                )
+            ));
+            run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array],
+                            "([C)V".to_string());
+            string_object.cast_string()
         }
 
         pub fn intern(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> JString {
@@ -292,7 +304,13 @@ pub mod thread {
         }
 
         pub fn tid(&self) -> JavaThreadId {
-            self.normal_object.unwrap_normal_object().fields.borrow().get("tid").unwrap().unwrap_long()
+            match self.normal_object.unwrap_normal_object().fields.borrow().get("tid") {
+                Some(x) => x,
+                None => {
+                    dbg!(&self.normal_object);
+                    panic!()
+                },
+            }.unwrap_long()
         }
 
         pub fn run<'l>(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
@@ -343,8 +361,9 @@ pub mod thread {
 
         pub fn is_alive(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jboolean {
             // assert_eq!(self.normal_object.unwrap_normal_object().class_pointer.view().name(), ClassName::thread());
-            int_state.push_current_operand_stack(self.clone().java_value());
             let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
+            int_state.push_current_operand_stack(self.clone().java_value());
+            // dbg!(&self.normal_object);
             run_static_or_virtual(
                 jvm,
                 int_state,

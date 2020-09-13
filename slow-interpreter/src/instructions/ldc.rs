@@ -10,6 +10,7 @@ use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
 use crate::interpreter::run_function;
 use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 
 fn load_class_constant<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
@@ -84,12 +85,15 @@ pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) -> () {
 }
 
 
-pub fn ldc_w<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn ldc_w<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
     let view = int_state.current_class_view().clone();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
-        ConstantInfoView::String(s) => load_string_constant(state, int_state, &s),
-        ConstantInfoView::Class(c) => load_class_constant(state, int_state, &c),
+        ConstantInfoView::String(s) => {
+            let string_value = JString::from(jvm, int_state, s.string()).java_value();
+            int_state.push_current_operand_stack(string_value)
+        }
+        ConstantInfoView::Class(c) => load_class_constant(jvm, int_state, &c),
         ConstantInfoView::Float(f) => {
             let float: f32 = f.float;
             int_state.push_current_operand_stack(JavaValue::Float(float));

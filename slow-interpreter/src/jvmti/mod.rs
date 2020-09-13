@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::mem::transmute;
 use std::ptr::null_mut;
 
@@ -44,40 +43,22 @@ pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
 
 
 pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l> {
-    get_state(env).get_int_state_guard()
+    let jvm = get_state(env);
+    jvm.get_int_state()
 }
 
 
-thread_local! {
-    static JVMTI_INTERFACE: RefCell<*mut jvmtiEnv> = RefCell::new(null_mut());
+pub fn get_jvmti_interface(jvm: &'static JVMState, _int_state: &mut InterpreterStateGuard) -> *mut jvmtiEnv {
+    let new = get_jvmti_interface_impl(jvm);
+    let jni_data_structure_ptr = Box::leak(box (Box::leak(box new) as *const jvmtiInterface_1_)) as *mut jvmtiEnv;
+    jni_data_structure_ptr
 }
 
-pub fn get_jvmti_interface(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *mut jvmtiEnv {
-    unsafe { jvm.set_int_state(int_state) };
-    JVMTI_INTERFACE.with(|refcell| {
-        unsafe {
-            let first_borrow = refcell.borrow_mut();
-            match first_borrow.as_mut() {
-                None => {}
-                Some(interface) => {
-                    (*((*interface) as *mut jvmtiInterface_1_)).reserved3 = transmute(int_state);//todo technically this is wrong, see "JNI Interface Functions and Pointers" in jni spec
-                    return interface as *mut *const jvmtiInterface_1_;
-                }
-            }
-        }
-        let new = get_jvmti_interface_impl(jvm, int_state);
-        let jni_data_structure_ptr = Box::leak(box new) as *const jvmtiInterface_1_;
-        refcell.replace(Box::leak(box (jni_data_structure_ptr)) as *mut *const jvmtiInterface_1_);//todo leak
-        let new_borrow = refcell.borrow();
-        *new_borrow as *mut *const jvmtiInterface_1_
-    })
-}
-
-fn get_jvmti_interface_impl(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> jvmtiInterface_1_ {
+fn get_jvmti_interface_impl(jvm: &'static JVMState) -> jvmtiInterface_1_ {
     jvmtiInterface_1_ {
         reserved1: unsafe { transmute(jvm) },
         SetEventNotificationMode: Some(set_event_notification_mode),
-        reserved3: unsafe { transmute(int_state) },
+        reserved3: null_mut(),
         GetAllThreads: Some(get_all_threads),
         SuspendThread: Some(suspend_thread),
         ResumeThread: Some(resume_thread),

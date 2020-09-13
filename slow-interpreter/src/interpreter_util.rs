@@ -8,7 +8,7 @@ use descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use crate::instructions::invoke::special::invoke_special_impl;
 use crate::java_values::{default_value, JavaValue, Object};
 use crate::runtime_class::{prepare_class, RuntimeClass, RuntimeClassArray};
 use crate::runtime_class::initialize_class;
@@ -73,8 +73,9 @@ pub fn run_constructor<'l>(
     for arg in actual_args {
         int_state.push_current_operand_stack(arg.clone());
     }
-    //todo this should be invoke special
-    invoke_virtual_method_i(state, int_state, md, target_classfile.clone(), method_view.method_i(), &method_view, false);
+    // dbg!(int_state.current_frame().local_vars());
+    // dbg!(int_state.current_frame().operand_stack());
+    invoke_special_impl(state, int_state, &md, method_view.method_i(), target_classfile.clone(), &method_view);
 }
 
 
@@ -85,6 +86,7 @@ pub fn check_inited_class(
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
     //todo racy/needs sychronization
+    let before = int_state.int_state.as_ref().unwrap().call_stack.len();
     if !jvm.classes.initialized_classes.read().unwrap().contains_key(&ptype) && !jvm.classes.initializing_classes.read().unwrap().contains_key(&ptype) {
         //todo the below is jank
         match ptype.try_unwrap_ref_type() {
@@ -186,6 +188,8 @@ pub fn check_inited_class(
         },
         Some(class) => class.clone(),
     };
+    let after = int_state.int_state.as_ref().unwrap().call_stack.len();
+    assert_eq!(after, before);
     res
 }
 

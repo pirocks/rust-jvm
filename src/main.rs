@@ -12,7 +12,7 @@ use std::sync::Arc;
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 
 use rust_jvm_common::classnames::ClassName;
-use slow_interpreter::{jvm_run_system_init, JVMOptions, JVMState};
+use slow_interpreter::{JVMOptions, JVMState};
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::threading::MainThreadStartInfo;
 
@@ -75,7 +75,6 @@ fn main() {
     let (main_thread, main_send) = thread_state.setup_main_thread(jvm);
     assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));
 
-    jvm_run_system_init(jvm).expect("Couldn't init jvm");
 
     main_send.send(MainThreadStartInfo { args }).unwrap();
     main_thread.get_underlying().join();
