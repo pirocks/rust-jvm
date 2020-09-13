@@ -43,9 +43,9 @@ pub fn invoke_special_impl<'l>(
         let max_locals = target_m.code_attribute().unwrap().max_locals;
         setup_virtual_args(interpreter_state.current_frame_mut(), &parsed_descriptor, &mut args, max_locals);
         let next_entry = StackEntry::new_java_frame(final_target_class, target_m_i as u16, args);
-        interpreter_state.push_frame(next_entry);
+        let function_call_frame = interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
-        interpreter_state.pop_frame();
+        interpreter_state.pop_frame(function_call_frame);
         if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
             return;
         }

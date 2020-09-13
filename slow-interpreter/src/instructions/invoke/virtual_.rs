@@ -50,9 +50,9 @@ fn invoke_virtual_method_i_impl<'l>(
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         setup_virtual_args(current_frame, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry::new_java_frame(target_class, target_method_i as u16, args);
-        interpreter_state.push_frame(next_entry);
+        let frame_for_function = interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
-        interpreter_state.pop_frame();
+        interpreter_state.pop_frame(frame_for_function);
         if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
             return;
         }

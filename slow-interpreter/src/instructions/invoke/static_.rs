@@ -66,9 +66,9 @@ pub fn invoke_static_impl<'l>(
         }
         args[0..i].reverse();
         let next_entry = StackEntry::new_java_frame(target_class, target_method_i as u16, args);
-        interpreter_state.push_frame(next_entry);
+        let function_call_frame = interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
-        interpreter_state.pop_frame();
+        interpreter_state.pop_frame(function_call_frame);
         if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
             return;
         }

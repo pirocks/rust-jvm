@@ -9,6 +9,8 @@ public class Swing {
     public static String another_test_var = "agagar";
 
     public static void main(String[] args) {
+        int i = 100000;
+        while (i > 0) i--;
         int test_var  = -1;
         System.out.println("test");
         System.out.println(test_var);

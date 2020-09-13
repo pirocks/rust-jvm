@@ -53,9 +53,9 @@ pub fn create_string_on_stack<'l>(jvm: &'static JVMState, interpreter_state: &mu
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry::new_java_frame(final_target_class, constructor_i as u16, args).into();
-    interpreter_state.push_frame(next_entry);
+    let function_call_frame = interpreter_state.push_frame(next_entry);
     run_function(jvm, interpreter_state);
-    interpreter_state.pop_frame();
+    interpreter_state.pop_frame(function_call_frame);
     if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
         unimplemented!()
     }

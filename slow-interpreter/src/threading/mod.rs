@@ -127,7 +127,7 @@ impl ThreadState {
         underlying.start_thread(box move |_data: Box<dyn Any>| {
             let frame = StackEntry::new_completely_opaque_frame();
             let mut new_int_state = InterpreterStateGuard { int_state: bootstrap_thread.interpreter_state.write().unwrap().into(), thread: &bootstrap_thread };
-            new_int_state.push_frame(frame);
+            let frame_for_bootstrapping = new_int_state.push_frame(frame);
             push_new_object(jvm, &mut new_int_state, &target_classfile, None);
             let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
             thread_object.set_priority(5);
@@ -139,8 +139,9 @@ impl ThreadState {
             let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
             *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
             let jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
-            main_thread_obj_send.send(jthread).unwrap();
             bootstrap_thread.notify_terminated();
+            new_int_state.pop_frame(frame_for_bootstrapping);
+            main_thread_obj_send.send(jthread).unwrap();
         }, box ());
         let thread_obj: JThread = main_thread_obj_recv.recv().unwrap();
         JavaThread::new(jvm, thread_obj, threads.create_thread("Main Java Thread".to_string().into()), false)
@@ -197,14 +198,15 @@ impl ThreadState {
         let java_thread = JavaThread::new(jvm, obj, underlying, invisible_to_java);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
-            let new_thread_frame = StackEntry::new_completely_opaque_frame();
             let mut interpreter_state_guard = InterpreterStateGuard { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
-            interpreter_state_guard.push_frame(new_thread_frame);
+
             jvm.thread_state.set_current_thread(java_thread.clone());
             java_thread.notify_alive();
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object()));
+
+            let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame());
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);
-            interpreter_state_guard.pop_frame();
+            interpreter_state_guard.pop_frame(frame_for_run_call);
             java_thread.notify_terminated();
         }, box ());//todo is this Data really needed since we have a closure
         recv.recv().unwrap()

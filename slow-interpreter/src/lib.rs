@@ -195,11 +195,13 @@ impl<'l> InterpreterStateGuard<'l> {
         &self.int_state.as_ref().unwrap().terminate
     }
 
-    pub fn push_frame(&mut self, frame: StackEntry) {
-        self.int_state.as_mut().unwrap().call_stack.push(frame)
+    pub fn push_frame(&mut self, frame: StackEntry) -> FramePushGuard {
+        self.int_state.as_mut().unwrap().call_stack.push(frame);
+        FramePushGuard::default()
     }
 
-    pub fn pop_frame(&mut self) {
+    pub fn pop_frame(&mut self, mut frame_push_guard: FramePushGuard) {
+        frame_push_guard.correctly_exited = true;
         self.int_state.as_mut().unwrap().call_stack.pop();
     }
 
@@ -240,6 +242,23 @@ impl<'l> InterpreterStateGuard<'l> {
                 }
             }
         }
+    }
+}
+
+#[must_use = "Must handle frame push guard. "]
+pub struct FramePushGuard {
+    correctly_exited: bool
+}
+
+impl Default for FramePushGuard {
+    fn default() -> Self {
+        FramePushGuard { correctly_exited: false }
+    }
+}
+
+impl Drop for FramePushGuard {
+    fn drop(&mut self) {
+        assert!(self.correctly_exited)
     }
 }
 
@@ -500,14 +519,14 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
     let stack_entry = StackEntry::new_java_frame(main, main_i as u16, vec![JavaValue::Top; num_vars as usize]);
-    int_state.pop_frame();
-    int_state.push_frame(stack_entry);
+    let main_frame_guard = int_state.push_frame(stack_entry);
 
     setup_program_args(&jvm, int_state, args);
     run_function(&jvm, int_state);
     if int_state.throw().is_some() || *int_state.terminate() {
         unimplemented!()
     }
+    int_state.pop_frame(main_frame_guard);
     Result::Ok(())
 }
 

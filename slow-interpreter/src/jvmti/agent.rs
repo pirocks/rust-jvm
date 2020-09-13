@@ -43,15 +43,15 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
             thread: &java_thread,
         };
         jvm.thread_state.set_current_thread(java_thread.clone());
-        guard.push_frame(StackEntry::new_completely_opaque_frame());
 
         java_thread.notify_alive();
         jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut guard, java_thread.thread_object());
 
         let jvmti = get_jvmti_interface(jvm, &mut guard);
         let jni_env = get_interface(jvm, &mut guard);
+        let frame_for_agent = guard.push_frame(StackEntry::new_completely_opaque_frame());
         proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
-        guard.pop_frame();
+        guard.pop_frame(frame_for_agent);
         java_thread.notify_terminated()
     }, box ());
 
