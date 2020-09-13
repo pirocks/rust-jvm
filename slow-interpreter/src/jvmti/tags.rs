@@ -1,4 +1,6 @@
-use jvmti_jni_bindings::{jlong, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_OBJECT, jvmtiError_JVMTI_ERROR_NONE};
+use std::ptr::null_mut;
+
+use jvmti_jni_bindings::{jlong, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::jvmti::get_state;
 
@@ -9,7 +11,8 @@ use crate::jvmti::get_state;
 ///                 jobject object,
 ///                 jlong* tag_ptr)
 ///
-/// Retrieve the tag associated with an object. The tag is a long value typically used to store a unique identifier or pointer to object information. The tag is set with SetTag. Objects for which no tags have been set return a tag value of zero.
+/// Retrieve the tag associated with an object. The tag is a long value typically used to store a unique identifier or pointer to object information. The tag is set with SetTag.
+/// Objects for which no tags have been set return a tag value of zero.
 ///
 /// Phase	Callback Safe	Position	Since
 /// may only be called during the start or the live phase 	No 	106	1.0
@@ -38,7 +41,10 @@ pub unsafe extern "C" fn get_tag(env: *mut jvmtiEnv, object: jobject, tag_ptr: *
     null_check!(object);
     //todo handle capabilities
     let res = match jvm.jvmti_state.as_ref().unwrap().tags.read().unwrap().get(&object) {
-        None => { jvmtiError_JVMTI_ERROR_INVALID_OBJECT }
+        None => {
+            tag_ptr.write(0);
+            jvmtiError_JVMTI_ERROR_NONE
+        }
         Some(tag) => {
             tag_ptr.write(*tag);
             jvmtiError_JVMTI_ERROR_NONE
