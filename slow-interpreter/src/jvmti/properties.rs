@@ -1,6 +1,4 @@
 use std::ffi::CStr;
-use std::io::Error;
-use std::path::PathBuf;
 
 use jvmti_jni_bindings::{jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_NOT_AVAILABLE};
 

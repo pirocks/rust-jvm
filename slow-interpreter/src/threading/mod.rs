@@ -51,16 +51,13 @@ impl ThreadState {
     pub fn setup_main_thread(&'static self, jvm: &'static JVMState) -> (Arc<JavaThread>, Sender<MainThreadStartInfo>) {
         let main_thread = ThreadState::bootstrap_main_thread(jvm, &jvm.thread_state.threads);
         *self.main_thread.write().unwrap() = main_thread.clone().into();
-        // self.all_java_threads.write().unwrap().insert(main_thread.java_tid, main_thread.clone());
         let (main_send, main_recv) = channel();
         let main_thread_clone = main_thread.clone();
         main_thread.clone().underlying_thread.start_thread(box move |_| {
             jvm.thread_state.set_current_thread(main_thread.clone());
             let mut int_state = InterpreterStateGuard { int_state: main_thread.interpreter_state.write().unwrap().into(), thread: &main_thread };
-            // jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_start(jvm, &mut int_state));
             ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
             assert!(!jvm.live.load(Ordering::SeqCst));
-            // assert!(jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start_callback.read().unwrap().is_some());
             jvm.live.store(true, Ordering::SeqCst);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, main_thread.clone()));
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();

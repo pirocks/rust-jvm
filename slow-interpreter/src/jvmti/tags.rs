@@ -1,5 +1,3 @@
-use std::ptr::null_mut;
-
 use jvmti_jni_bindings::{jlong, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::jvmti::get_state;
