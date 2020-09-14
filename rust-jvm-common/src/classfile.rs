@@ -175,8 +175,19 @@ pub struct LocalVariableTableEntry {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+pub struct LocalVariableTypeTableEntry {
+    pub start_pc: u16,
+    pub length: u16,
+    pub name_index: u16,
+    pub descriptor_index: u16,
+    pub index: u16,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct LocalVariableTypeTable {
     //todo
+    pub type_table: Vec<LocalVariableTypeTableEntry>
 }
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
 use descriptor_parser::parse_field_descriptor;
-use rust_jvm_common::classfile::{Annotation, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, NestHost, NestMembers, RuntimeVisibleAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceFile, StackMapFrame, StackMapTable, UninitializedVariableInfo};
+use rust_jvm_common::classfile::{Annotation, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, NestHost, NestMembers, RuntimeVisibleAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceFile, StackMapFrame, StackMapTable, UninitializedVariableInfo};
 use rust_jvm_common::classfile::EnclosingMethod;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -46,6 +46,8 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
         parse_nest_host(p)
     } else if name == "EnclosingMethod" {
         parse_enclosing_method(p)
+    } else if name == "LocalVariableTypeTable" {
+        parse_local_variable_type_table(p)
     } else {
         unimplemented!("{}", name);
     };
@@ -54,6 +56,30 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> AttributeInfo {
         attribute_length,
         attribute_type,
     }
+}
+
+fn parse_local_variable_type_table_entry(p: &mut dyn ParsingContext) -> LocalVariableTypeTableEntry {
+    let start_pc = p.read16();
+    let length = p.read16();
+    let name_index = p.read16();
+    let descriptor_index = p.read16();
+    let index = p.read16();
+    LocalVariableTypeTableEntry {
+        start_pc,
+        length,
+        name_index,
+        descriptor_index,
+        index,
+    }
+}
+
+fn parse_local_variable_type_table(p: &mut dyn ParsingContext) -> AttributeType {
+    let local_variable_type_table_length = p.read16();
+    let mut type_table = vec![];
+    for _ in 0..local_variable_type_table_length {
+        type_table.push(parse_local_variable_type_table_entry(p));
+    }
+    AttributeType::LocalVariableTypeTable(LocalVariableTypeTable { type_table })
 }
 
 fn parse_enclosing_method(p: &mut dyn ParsingContext) -> AttributeType {
