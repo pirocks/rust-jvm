@@ -2,12 +2,10 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::mem::transmute;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
-use jvmti_jni_bindings::{jboolean, JNI_FALSE, JNI_TRUE, JNIEnv, JNINativeInterface_, jobject};
+use jvmti_jni_bindings::JNINativeInterface_;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::rust_jni::{exception_check, get_method_id, register_natives, release_string_utfchars};
 use crate::rust_jni::interface::array::*;
 use crate::rust_jni::interface::array::array_region::*;
 use crate::rust_jni::interface::array::new::*;
@@ -18,10 +16,12 @@ use crate::rust_jni::interface::get_field::*;
 use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::instance_of::is_instance_of;
 use crate::rust_jni::interface::local_frame::{delete_local_ref, new_local_ref, pop_local_frame, push_local_frame};
+use crate::rust_jni::interface::method::get_method_id;
 use crate::rust_jni::interface::misc::*;
+use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::native_util::{from_object, get_object_class};
+use crate::rust_jni::native_util::get_object_class;
 
 //todo this should be in state impl
 thread_local! {
@@ -278,24 +278,6 @@ fn get_interface_impl(state: &'static JVMState, int_state: &mut InterpreterState
     }
 }
 
-pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
-    let _1 = from_object(obj1);
-    let _2 = from_object(obj2);
-    (match _1 {
-        None => {
-            match _2 {
-                None => JNI_TRUE,
-                Some(_) => JNI_FALSE,
-            }
-        }
-        Some(_1_) => {
-            match _2 {
-                None => JNI_FALSE,
-                Some(_2_) => Arc::ptr_eq(&_1_, &_2_) as u32,
-            }
-        }
-    }) as u8
-}
 
 pub mod instance_of;
 pub mod local_frame;
@@ -308,3 +290,5 @@ pub mod misc;
 pub mod set_field;
 pub mod string;
 pub mod get_field;
+pub mod new_object;
+pub mod method;

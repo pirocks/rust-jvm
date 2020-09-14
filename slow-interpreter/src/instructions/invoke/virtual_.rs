@@ -14,7 +14,7 @@ use crate::interpreter::run_function;
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::{JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
-use crate::rust_jni::get_all_methods;
+use crate::rust_jni::interface::misc::get_all_methods;
 
 /**
 Should only be used for an actual invoke_virtual instruction.

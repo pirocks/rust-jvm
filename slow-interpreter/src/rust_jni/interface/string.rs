@@ -147,3 +147,9 @@ pub unsafe extern "C" fn get_string_region(_env: *mut JNIEnv, str: jstring, star
     }
 }
 
+
+pub unsafe extern "C" fn release_string_utfchars(_env: *mut JNIEnv, _str: jstring, chars: *const c_char) {
+    let len = libc::strlen(chars);
+    let chars_layout = Layout::from_size_align((len + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
+    std::alloc::dealloc(chars as *mut u8, chars_layout);
+}

@@ -1,19 +1,23 @@
+use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::transmute;
 use std::ptr::null_mut;
+use std::sync::{Arc, RwLock};
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, jmethodID, JNIEnv, JNIInvokeInterface_, jobject, jthrowable};
+use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_FALSE, JNI_TRUE, JNIEnv, JNIInvokeInterface_, JNINativeMethod, jobject};
+use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
 
-use crate::instructions::invoke::special::invoke_special_impl;
 use crate::instructions::ldc::load_class_constant_by_type;
-use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::interpreter_state::InterpreterStateGuard;
+use crate::interpreter_util::check_inited_class;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::JavaValue;
-use crate::method_table::MethodId;
+use crate::jvm_state::{JVMState, LibJavaLoading};
+use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 
@@ -67,99 +71,6 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     res as jboolean
 }
 
-pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ::va_list::VaList) -> jobject {
-    //todo dup
-    let method_id: MethodId = transmute(jmethod_id);
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should return error instead of lookup
-    let classview = &class.view();
-    let method = &classview.method_view_i(method_i as usize);
-    let _name = method.name();
-    let parsed = method.desc();
-    push_new_object(jvm, int_state, &class, None);
-    let obj = int_state.pop_current_operand_stack();
-    int_state.push_current_operand_stack(obj.clone());
-    for type_ in &parsed.parameter_types {
-        match PTypeView::from_ptype(type_) {
-            PTypeView::ByteType => unimplemented!(),
-            PTypeView::CharType => unimplemented!(),
-            PTypeView::DoubleType => unimplemented!(),
-            PTypeView::FloatType => unimplemented!(),
-            PTypeView::IntType => unimplemented!(),
-            PTypeView::LongType => unimplemented!(),
-            PTypeView::Ref(_) => {
-                let native_object: jobject = transmute(l.get::<usize>());
-                let o = from_object(native_object);
-                int_state.push_current_operand_stack(JavaValue::Object(o));
-            }
-            PTypeView::ShortType => unimplemented!(),
-            PTypeView::BooleanType => unimplemented!(),
-            PTypeView::VoidType => unimplemented!(),
-            PTypeView::TopType => unimplemented!(),
-            PTypeView::NullType => unimplemented!(),
-            PTypeView::Uninitialized(_) => unimplemented!(),
-            PTypeView::UninitializedThis => unimplemented!(),
-            PTypeView::UninitializedThisOrClass(_) => panic!()
-        }
-    }
-    invoke_special_impl(
-        jvm,
-        int_state,
-        &parsed,
-        method_i as usize,
-        class.clone(),
-        &classview.method_view_i(method_i as usize),
-    );
-    new_local_ref_public(obj.unwrap_object(), int_state)
-}
-
-pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
-    let method_id: MethodId = transmute(jmethod_id);
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-    let classview = &class.view();
-    let method = &classview.method_view_i(method_i as usize);
-    let _name = method.name();
-    let parsed = method.desc();
-    push_new_object(jvm, int_state, &class, None);
-    let obj = int_state.pop_current_operand_stack();
-    int_state.push_current_operand_stack(obj.clone());
-    for type_ in &parsed.parameter_types {
-        match PTypeView::from_ptype(type_) {
-            PTypeView::ByteType => unimplemented!(),
-            PTypeView::CharType => unimplemented!(),
-            PTypeView::DoubleType => unimplemented!(),
-            PTypeView::FloatType => unimplemented!(),
-            PTypeView::IntType => unimplemented!(),
-            PTypeView::LongType => unimplemented!(),
-            PTypeView::Ref(_) => {
-                let native_object: jobject = l.arg();
-                let o = from_object(native_object);
-                int_state.push_current_operand_stack(JavaValue::Object(o));
-            }
-            PTypeView::ShortType => unimplemented!(),
-            PTypeView::BooleanType => unimplemented!(),
-            PTypeView::VoidType => unimplemented!(),
-            PTypeView::TopType => unimplemented!(),
-            PTypeView::NullType => unimplemented!(),
-            PTypeView::Uninitialized(_) => unimplemented!(),
-            PTypeView::UninitializedThis => unimplemented!(),
-            PTypeView::UninitializedThisOrClass(_) => panic!()
-        }
-    }
-    invoke_special_impl(
-        jvm,
-        int_state,
-        &parsed,
-        method_i as usize,
-        class.clone(),
-        &classview.method_view_i(method_i as usize),
-    );
-    new_local_ref_public(obj.unwrap_object(), int_state)
-}
-
 
 pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
     //todo get rid of this transmute
@@ -170,9 +81,111 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
     0 as jint
 }
 
-pub(crate) unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
-    // let jvm = get_state(env);
-    let interpreter_state = get_interpreter_state(env);
-    interpreter_state.set_throw(from_object(obj));
-    0 as jint
+
+pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
+    let _1 = from_object(obj1);
+    let _2 = from_object(obj2);
+    (match _1 {
+        None => {
+            match _2 {
+                None => JNI_TRUE,
+                Some(_) => JNI_FALSE,
+            }
+        }
+        Some(_1_) => {
+            match _2 {
+                None => JNI_FALSE,
+                Some(_2_) => Arc::ptr_eq(&_1_, &_2_) as u32,
+            }
+        }
+    }) as u8
 }
+
+pub unsafe extern "C" fn register_natives(env: *mut JNIEnv,
+                                          clazz: jclass,
+                                          methods: *const JNINativeMethod,
+                                          n_methods: jint) -> jint {
+    // println!("Call to register_natives, n_methods: {}", n_methods);
+    let jvm = get_state(env);
+    for to_register_i in 0..n_methods {
+        let method = *methods.offset(to_register_i as isize);
+        let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
+        let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
+        let runtime_class: Arc<RuntimeClass> = from_jclass(clazz).as_runtime_class();
+        let jni_context = &jvm.libjava;
+        let view = &runtime_class.view();
+        &view.methods().enumerate().for_each(|(i, method_info)| {
+            let descriptor_str = method_info.desc_str();
+            let current_name = method_info.name();
+            if current_name == expected_name && descriptor == descriptor_str {
+                jvm.tracing.trace_jni_register(&view.name(), expected_name.as_str());
+                register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
+            }
+        });
+    }
+    0
+}
+
+
+fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass>, method_i: usize) -> () {
+    if jni_context.registered_natives.read().unwrap().contains_key(runtime_class) {
+        unsafe {
+            jni_context.registered_natives
+                .read().unwrap()
+                .get(runtime_class)
+                .unwrap()
+                .write().unwrap()
+                .insert(method_i as CPIndex, transmute(method.fnPtr));
+        }
+    } else {
+        let mut map = HashMap::new();
+        map.insert(method_i as CPIndex, unsafe { transmute(method.fnPtr) });
+        jni_context.registered_natives.write().unwrap().insert(runtime_class.clone(), RwLock::new(map));
+    }
+}
+
+
+pub fn get_all_methods<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+    let mut res = vec![];
+    // dbg!(&class.class_view.name());
+    class.view().methods().enumerate().for_each(|(i, _)| {
+        res.push((class.clone(), i));
+    });
+    if class.view().super_name().is_none() {
+        let object = check_inited_class(jvm, int_state, &ClassName::object().into(), class.loader(jvm).clone());
+        object.view().methods().enumerate().for_each(|(i, _)| {
+            res.push((object.clone(), i));
+        });
+    } else {
+        let name = class.view().super_name().unwrap();
+        let super_ = check_inited_class(jvm, int_state, &name.into(), class.loader(jvm).clone());
+        for (c, i) in get_all_methods(jvm, int_state, super_) {
+            res.push((c, i));
+        }
+    }
+
+    res
+}
+
+//todo duplication with methods
+pub fn get_all_fields<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+    let mut res = vec![];
+    class.view().fields().enumerate().for_each(|(i, _)| {
+        res.push((class.clone(), i));
+    });
+    if class.view().super_name().is_none() {
+        let object = check_inited_class(jvm, int_state, &ClassName::object().into(), class.loader(jvm).clone());
+        object.view().fields().enumerate().for_each(|(i, _)| {
+            res.push((object.clone(), i));
+        });
+    } else {
+        let name = class.view().super_name();
+        let super_ = check_inited_class(jvm, int_state, &name.unwrap().into(), class.loader(jvm).clone());
+        for (c, i) in get_all_fields(jvm, int_state, super_) {
+            res.push((c, i));//todo accidental O(n^2)
+        }
+    }
+
+    res
+}
+

@@ -17,7 +17,6 @@ use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_con
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use slow_interpreter::java_values::{ArrayObject, JavaValue};
 use slow_interpreter::java_values::Object::Array;
-use slow_interpreter::rust_jni::get_all_methods;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;

@@ -9,7 +9,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::{JavaValue, NormalObject};
 use crate::java_values::Object::Object;
-use crate::rust_jni::{get_all_fields, get_all_methods};
+use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::utils::string_obj_to_string;
 
 pub fn MHN_resolve<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
