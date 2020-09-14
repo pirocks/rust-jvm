@@ -1,13 +1,7 @@
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
-use classfile_parser::parse_class_file;
-use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::ACC_SYNCHRONIZED;
-use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
-use rust_jvm_common::classnames::ClassName;
-use verification::{VerifierContext, verify};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::invoke::native::mhn_temp::*;
@@ -15,15 +9,11 @@ use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
-use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::monitor_for_function;
 use crate::interpreter_util::check_inited_class;
-use crate::java::lang::reflect::field::Field;
-use crate::java::lang::string::JString;
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
-use crate::sun::misc::unsafe_::Unsafe;
 
 pub fn run_native_method<'l>(
     jvm: &JVMState,
