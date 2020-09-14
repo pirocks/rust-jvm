@@ -3,13 +3,11 @@
 #![allow(non_snake_case)]
 
 
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_method_descriptor;
-use rust_jvm_common::classfile::{ACC_STATIC, REF_invokeInterface, REF_invokeStatic, REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -17,11 +15,9 @@ use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
-use crate::java_values::{ArrayObject, JavaValue, NormalObject};
-use crate::java_values::Object::{Array, Object};
+use crate::java_values::{ArrayObject, JavaValue};
+use crate::java_values::Object::Array;
 use crate::runtime_class::RuntimeClass;
-use crate::rust_jni::{get_all_fields, get_all_methods};
-use crate::utils::string_obj_to_string;
 
 pub mod resolve;
 

@@ -11,8 +11,9 @@ use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
 
-use crate::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties, SuspendedStatus};
+use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
 use crate::interpreter::run_function;
+use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;

@@ -41,7 +41,7 @@ pub struct JVMState {
     pub main_class_name: ClassName,
 
     pub classpath: Arc<Classpath>,
-    invoke_interface: RwLock<Option<JNIInvokeInterface_>>,
+    pub(crate) invoke_interface: RwLock<Option<JNIInvokeInterface_>>,
 
     pub jvmti_state: Option<JVMTIState>,
     pub thread_state: ThreadState,
@@ -49,7 +49,7 @@ pub struct JVMState {
     pub method_table: RwLock<MethodTable>,
     pub field_table: RwLock<FieldTable>,
     pub native_interface_allocations: NativeAllocator,
-    live: AtomicBool,
+    pub(crate) live: AtomicBool,
     // pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,//so technically isn't 'static, but we need to be able to store this in a localkey
 }
 

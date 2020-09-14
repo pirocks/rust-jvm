@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::mem::transmute;
 use std::sync::{Arc, RwLockWriteGuard};
 
@@ -36,8 +37,8 @@ impl Default for InterpreterState {
 }
 
 pub struct InterpreterStateGuard<'l> {
-    int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
-    thread: &'l Arc<JavaThread>,
+    pub(crate) int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
+    pub(crate) thread: &'l Arc<JavaThread>,
     pub(crate) registered: bool,
 }
 

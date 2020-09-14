@@ -8,8 +8,9 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::interpreter_util::check_inited_class;
+use crate::jvm_state::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::threading::monitors::Monitor;
 
@@ -188,15 +189,17 @@ impl JavaValue {
     }
 
     pub fn unwrap_byte(&self) -> i8 {
+        let res = self.unwrap_int();
         assert!(res <= i8::MAX as i32);
         assert!(res >= i8::MIN as i32);
-        self.unwrap_int() as i8
+        res as i8
     }
 
     pub fn unwrap_boolean(&self) -> u8 {
+        let res = self.unwrap_int();
         assert!(res <= u8::MAX as i32);
         assert!(res >= u8::MIN as i32);
-        self.unwrap_int() as u8
+        res as u8
     }
 
     pub fn unwrap_short(&self) -> i16 {

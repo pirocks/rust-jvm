@@ -7,7 +7,6 @@ use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::{InterpreterStateGuard, JVMState, SuspendedStatus};
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::arithmetic::*;
 use crate::instructions::branch::*;
@@ -29,8 +28,10 @@ use crate::instructions::return_::*;
 use crate::instructions::special::*;
 use crate::instructions::store::*;
 use crate::instructions::switch::*;
+use crate::interpreter_state::{InterpreterStateGuard, SuspendedStatus};
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
+use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;

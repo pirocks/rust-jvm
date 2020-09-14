@@ -12,45 +12,28 @@ extern crate parking_lot;
 extern crate regex;
 extern crate va_list;
 
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::intrinsics::transmute;
-use std::sync::{Arc, RwLock, RwLockWriteGuard};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::time::Instant;
+use std::sync::Arc;
 
-use libloading::Library;
-
-use classfile_view::loading::{LivePoolGetter, LoaderArc, LoaderName};
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::loading::LoaderArc;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
-use jvmti_jni_bindings::{jlong, jobject};
-use jvmti_jni_bindings::JNIInvokeInterface_;
-use rust_jvm_common::classfile::{Classfile, CPIndex};
+use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
-use rust_jvm_common::string_pool::StringPool;
 
-use crate::field_table::FieldTable;
 use crate::interpreter::run_function;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::interpreter_util::check_inited_class;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
-use crate::java_values::{ArrayObject, JavaValue, NormalObject, Object};
+use crate::java_values::{ArrayObject, JavaValue};
 use crate::java_values::Object::Array;
 use crate::jvm_state::JVMState;
-use crate::jvmti::event_callbacks::SharedLibJVMTI;
-use crate::loading::{BootstrapLoader, Classpath};
-use crate::method_table::{MethodId, MethodTable};
-use crate::native_allocation::NativeAllocator;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntry;
-use crate::threading::{JavaThread, ThreadState};
-use crate::tracing::TracingSettings;
+use crate::threading::JavaThread;
 
 #[macro_use]
 pub mod java_values;

@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use jvmti_jni_bindings::*;
 
-use crate::{InterpreterStateGuard, JVMState, SuspendedStatus};
+use crate::{InterpreterStateGuard, JVMState};
 use crate::interpreter::suspend_check;
+use crate::interpreter_state::SuspendedStatus;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;

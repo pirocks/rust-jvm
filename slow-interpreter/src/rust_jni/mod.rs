@@ -25,10 +25,11 @@ use jvmti_jni_bindings::{jboolean, jclass, jint, jmethodID, JNIEnv, JNINativeMet
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
 
-use crate::{InterpreterStateGuard, JVMState, LibJavaLoading};
+use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
+use crate::jvm_state::LibJavaLoading;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
@@ -40,13 +41,9 @@ pub mod mangling;
 
 impl LibJavaLoading {
     pub fn new_java_loading(path: String) -> LibJavaLoading {
-        // trace!("Loading libjava.so from:`{}`", path);
-//    crate::rust_jni::libloading::os::unix::Library::open("libjvm.so".into(), (dlopen::RTLD_NOW | dlopen::RTLD_GLOBAL).try_into().unwrap()).unwrap();
-//    let loaded = crate::rust_jni::libloading::os::unix::Library::open(path.clone().into(), (dlopen::RTLD_NOW /*| dlopen::RTLD_GLOBAL*/).try_into().unwrap()).unwrap();
         let lib = Library::new(path.clone()).unwrap();
         let nio_path = path.replace("libjava.so", "libnio.so");
         let nio_lib = Library::new(nio_path).unwrap();
-//    let lib = Library::from(loaded);
         LibJavaLoading {
             libjava: lib,
             libnio: nio_lib,

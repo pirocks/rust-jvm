@@ -11,6 +11,8 @@ use verification::{VerifierContext, verify};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::invoke::native::mhn_temp::*;
+use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
+use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::instructions::ldc::load_class_constant_by_type;
