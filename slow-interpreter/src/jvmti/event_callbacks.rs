@@ -399,7 +399,9 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jni_env = get_interface(jvm, int_state);
         let BreakpointEvent { thread, method, location } = event;
         let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
-        (self.breakpoint_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location);
+        let guard = self.breakpoint_callback.read().unwrap();
+        let func_pointer = guard.as_ref().unwrap();
+        (func_pointer)(jvmti_env, jni_env, thread, method, location);
         int_state.pop_frame(frame_for_event);
     }
 

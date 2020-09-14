@@ -188,12 +188,7 @@ impl JavaValue {
     }
 
     pub fn unwrap_byte(&self) -> i8 {
-        match self {
-            JavaValue::Byte(b) => {
-                *b
-            }
-            _ => panic!()
-        }
+        self.unwrap_int() as i8
     }
 
     pub fn unwrap_boolean(&self) -> u8 {

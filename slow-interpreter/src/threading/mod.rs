@@ -61,6 +61,7 @@ impl ThreadState {
             main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
             assert!(main_thread.interpreter_state.read().unwrap().call_stack.is_empty());
             let mut int_state = InterpreterStateGuard::new(jvm, &main_thread);
+            main_thread.notify_alive();//is this too early?
             int_state.register_interpreter_state_guard(jvm);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
@@ -71,7 +72,6 @@ impl ThreadState {
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
             //from the jvmti spec:
             //"he thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
-            main_thread.notify_alive();
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object()));
             run_main(args, jvm, &mut int_state).unwrap();
             main_thread.notify_terminated()
@@ -129,6 +129,7 @@ impl ThreadState {
             thread_local_storage: RwLock::new(null_mut()),
         });
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
+        bootstrap_thread.notify_alive();
         let mut new_int_state = InterpreterStateGuard::new(jvm, &bootstrap_thread);
         new_int_state.register_interpreter_state_guard(jvm);
         let frame = StackEntry::new_completely_opaque_frame();
@@ -145,12 +146,11 @@ impl ThreadState {
         let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
-        bootstrap_thread.notify_alive();
         let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
         *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
-        bootstrap_thread.notify_terminated();
         new_int_state.pop_frame(frame_for_bootstrapping);
+        bootstrap_thread.notify_terminated();
         JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
     }
 
@@ -205,11 +205,11 @@ impl ThreadState {
         let java_thread = JavaThread::new(jvm, obj, underlying, invisible_to_java);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
+            jvm.thread_state.set_current_thread(java_thread.clone());
+            java_thread.notify_alive();
             let mut interpreter_state_guard = InterpreterStateGuard::new(jvm, &java_thread);// { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
             interpreter_state_guard.register_interpreter_state_guard(jvm);
 
-            jvm.thread_state.set_current_thread(java_thread.clone());
-            java_thread.notify_alive();
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object()));
 
             let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame());
@@ -371,8 +371,10 @@ impl JavaThread {
         let mut status = self.status.write().unwrap();
         status.alive = true;
         status.runnable = true;//when a thread becomes alive it defaults to runnable
-        let obj = self.thread_object();
-        obj.set_thread_status(status.get_thread_status_number(self))
+        if self.thread_object.read().unwrap().is_some() {
+            let obj = self.thread_object();
+            obj.set_thread_status(status.get_thread_status_number(self))
+        }
     }
 
     pub fn is_alive(&self) -> bool {
@@ -395,8 +397,10 @@ impl JavaThread {
         status.sleeping = false;
         status.terminated = true;
 
-        let obj = self.thread_object();
-        obj.set_thread_status(status.get_thread_status_number(self))
+        if self.thread_object.read().unwrap().is_some() {
+            let obj = self.thread_object();
+            obj.set_thread_status(status.get_thread_status_number(self))
+        }//todo duplication
     }
 
     pub fn status_number(&self) -> jint {

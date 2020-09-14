@@ -21,6 +21,9 @@ fn load_class_constant<'l>(state: &'static JVMState, int_state: &mut Interpreter
 
 pub fn load_class_constant_by_type<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, res_class_type: &PTypeView) {
     let object = get_or_create_class_object(jvm, res_class_type, int_state, jvm.bootstrap_loader.clone());
+    dbg!(object.clone().lookup_field("name"));
+    dbg!(object.clone());
+    dbg!(object.unwrap_normal_object().fields.borrow());
     int_state.current_frame_mut().push(JavaValue::Object(object.into()));
 }
 

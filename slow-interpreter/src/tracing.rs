@@ -122,7 +122,13 @@ impl TracingSettings {
         } else {
             "VM not live"
         }.to_string();
-        if self.trace_jdwp_function_enter {
+        if self.trace_jdwp_function_enter &&
+            function_name != "Deallocate" &&
+            function_name != "Allocate" &&
+            function_name != "RawMonitorNotify" &&
+            function_name != "RawMonitorExit" &&
+            function_name != "RawMonitorWait" &&
+            function_name != "RawMonitorEnter" {
             println!("JVMTI [{}] {} {{ ", thread_name, function_name);
         }
         JVMTIEnterExitTraceGuard {
@@ -138,10 +144,18 @@ impl TracingSettings {
     }
 
     pub fn trace_jdwp_function_exit(&self, mut guard: JVMTIEnterExitTraceGuard, error: jvmtiError) -> jvmtiError {
-        if error != jvmtiError_JVMTI_ERROR_NONE {
-            println!("JVMTI [{}] {} }} {:?}", guard.thread_name, guard.function_name, error);
-        } else {
-            println!("JVMTI [{}] {} }}", guard.thread_name, guard.function_name);
+        if guard.trace_jdwp_function_exit &&
+            guard.function_name != "Deallocate" &&
+            guard.function_name != "Allocate" &&
+            guard.function_name != "RawMonitorNotify" &&
+            guard.function_name != "RawMonitorExit" &&
+            guard.function_name != "RawMonitorWait" &&
+            guard.function_name != "RawMonitorEnter" {
+            if error != jvmtiError_JVMTI_ERROR_NONE {
+                println!("JVMTI [{}] {} }} {:?}", guard.thread_name, guard.function_name, error);
+            } else {
+                println!("JVMTI [{}] {} }}", guard.thread_name, guard.function_name);
+            }
         }
         guard.correctly_exited = true;
         drop(guard);

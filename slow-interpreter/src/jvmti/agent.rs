@@ -37,12 +37,11 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         }
 
 
+        jvm.thread_state.set_current_thread(java_thread.clone());
+        java_thread.notify_alive();
+
         let mut int_state = InterpreterStateGuard::new(jvm, &java_thread);
         int_state.register_interpreter_state_guard(jvm);
-        assert!(int_state.int_state.as_ref().unwrap().call_stack.is_empty());
-        jvm.thread_state.set_current_thread(java_thread.clone());
-
-        java_thread.notify_alive();
         jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut int_state, java_thread.thread_object());
 
         let jvmti = get_jvmti_interface(jvm, &mut int_state);

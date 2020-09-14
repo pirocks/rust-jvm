@@ -110,7 +110,8 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         thread.thread_object().is_alive(jvm, int_state) != 0
     }).map(|thread| {
         let int_state = get_interpreter_state(env);
-        new_local_ref_public(thread.thread_object().object().into(), int_state)
+        let object = thread.thread_object().object();
+        new_local_ref_public(object.into(), int_state)
     }).collect::<Vec<jobject>>();
     jvm.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -649,6 +650,7 @@ unsafe fn resume_thread_impl(jvm: &'static JVMState, thread_raw: jthread) -> jvm
     let thread_object_raw = from_object(thread_raw);
     let jthread = match JavaValue::Object(thread_object_raw).try_cast_thread() {
         None => {
+            assert!(false);
             return jvmtiError_JVMTI_ERROR_INVALID_THREAD;
         }
         Some(jthread) => jthread,

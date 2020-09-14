@@ -63,7 +63,10 @@ fn regular_object<'l>(state: &'static JVMState, ptype: PTypeView, int_state: &mu
                 //normally names are obtained with getName0 which gets handled in libjvm.so
                 let jstring = JString::from(state, int_state, runtime_class.ptypeview().primitive_name().to_string());
                 r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), jstring.java_value());
-            }
+            }/*else if !runtime_class.ptypeview().is_array() {
+                let jstring = JString::from(state, int_state, runtime_class.ptypeview().unwrap_class_type().get_referred_name().to_string());
+                r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), jstring.java_value());
+            }*/
             r
         }
         Some(r) => r.clone(),
@@ -72,7 +75,6 @@ fn regular_object<'l>(state: &'static JVMState, ptype: PTypeView, int_state: &mu
 
 fn create_a_class_object(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
     let java_lang_class = ClassName::class();
-    // let current_frame = int_state.current_frame_mut();
     let current_loader = int_state.current_loader(jvm).clone();
     let class_class = check_inited_class(jvm, int_state, &java_lang_class.into(), current_loader.clone());
     let boostrap_loader_object = jvm.get_or_create_bootstrap_object_loader(int_state);

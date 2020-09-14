@@ -118,6 +118,7 @@ impl<'l> InterpreterStateGuard<'l> {
         jvm.thread_state.int_state_guard.with(|refcell| refcell.replace(ptr.into()));
         jvm.thread_state.int_state_guard_valid.with(|refcell| refcell.replace(true));
         self.registered = true;
+        assert!(self.thread.is_alive());
     }
 
 
@@ -230,6 +231,7 @@ impl<'l> InterpreterStateGuard<'l> {
     pub fn pop_frame(&mut self, mut frame_push_guard: FramePushGuard) {
         frame_push_guard.correctly_exited = true;
         self.int_state.as_mut().unwrap().call_stack.pop();
+        assert!(self.thread.is_alive());
     }
 
     pub fn call_stack_depth(&self) -> usize {

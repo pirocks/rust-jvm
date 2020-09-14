@@ -153,4 +153,11 @@
 //    }
 //}
 
-public class DebuggingClass{}
+import sun.misc.Unsafe;
+
+public class DebuggingClass{
+    public static void main(String[] args) {
+        Class<Unsafe> unsafeClass = Unsafe.class;
+        System.out.println(unsafeClass);
+    }
+}
