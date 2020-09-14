@@ -188,34 +188,22 @@ impl JavaValue {
     }
 
     pub fn unwrap_byte(&self) -> i8 {
+        assert!(res <= i8::MAX as i32);
+        assert!(res >= i8::MIN as i32);
         self.unwrap_int() as i8
     }
 
     pub fn unwrap_boolean(&self) -> u8 {
-        match self {
-            JavaValue::Boolean(b) => {
-                *b
-            }
-            JavaValue::Int(i) => {
-                *i as u8
-            }
-            JavaValue::Byte(b) => {
-                *b as u8
-            }
-            _ => {
-                dbg!(self);
-                panic!()
-            }
-        }
+        assert!(res <= u8::MAX as i32);
+        assert!(res >= u8::MIN as i32);
+        self.unwrap_int() as u8
     }
 
     pub fn unwrap_short(&self) -> i16 {
-        match self {
-            JavaValue::Short(s) => {
-                *s
-            }
-            _ => panic!()
-        }
+        let res = self.unwrap_int();
+        assert!(res <= i16::MAX as i32);
+        assert!(res >= i16::MIN as i32);
+        res as i16
     }
 
 
