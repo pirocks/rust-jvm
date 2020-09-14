@@ -75,10 +75,6 @@ pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: &mut Interprete
     ))).into());
     run_constructor(jvm, int_state, method_type_class, vec![this.clone(), rtype, ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
     frame.push(this.clone());
-    // let method_type_form_class = check_inited_class(state,&ClassName::method_type_form(),loader_arc.clone());
-    // run_static_or_virtual(state,frame,&method_type_form_class,"findForm".to_string(),"(Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodTypeForm;".to_string());
-    // this.clone().unwrap_normal_object().fields.borrow_mut().insert("form".to_string(),frame.pop());
-    // frame.push(this);
 }
 
 
