@@ -15,9 +15,12 @@ use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use crate::java::lang::reflect::field::Field;
+use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue};
 use crate::java_values::Object::Array;
 use crate::runtime_class::RuntimeClass;
+use crate::sun::misc::unsafe_::Unsafe;
 
 pub mod resolve;
 
@@ -85,4 +88,24 @@ pub fn run_static_or_virtual<'l>(jvm: &'static JVMState, int_state: &mut Interpr
     } else {
         invoke_virtual_method_i(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view, false);
     }
+}
+
+
+pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+//static native int getMembers(Class<?> defc, String matchName, String matchSig,
+// //          int matchFlags, Class<?> caller, int skip, MemberName[] results);
+    dbg!(args);
+    //todo nyi
+    // unimplemented!()
+    Some(JavaValue::Int(0))
+}
+
+pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+    let member_name = args[0].cast_member_name();
+    let name = member_name.get_name(jvm, int_state);
+    let clazz = member_name.clazz();
+    let field_type = member_name.get_field_type(jvm, int_state);
+    let empty_string = JString::from(jvm, int_state, "".to_string());
+    let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, empty_string, vec![]);
+    Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field).into()
 }

@@ -11,7 +11,7 @@ use crate::java_values::{JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 
 //todo do something about this class object crap
-pub fn get_or_create_class_object(state: &'static JVMState,
+pub fn get_or_create_class_object(state: &JVMState,
                                   type_: &PTypeView,
                                   int_state: &mut InterpreterStateGuard,
                                   loader_arc: LoaderArc,
@@ -49,7 +49,7 @@ pub fn get_or_create_class_object(state: &'static JVMState,
 //     }
 // }
 
-fn regular_object<'l>(state: &'static JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_object<'l>(state: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Arc<Object> {
     // let current_frame = int_state.current_frame_mut();
     let runtime_class = check_inited_class(state, int_state, &ptype, loader_arc);
     let res = state.classes.class_object_pool.read().unwrap().get(&ptype).cloned();

@@ -75,7 +75,7 @@ impl<'l> InterpreterStateGuard<'l> {
         &self.current_frame().class_pointer()
     }
 
-    pub fn current_loader(&self, jvm: &'static JVMState) -> LoaderArc {
+    pub fn current_loader(&self, jvm: &JVMState) -> LoaderArc {
         //todo fix the loader situation
         // let cp = self.current_class_pointer();
         // cp.loader(jvm)

@@ -80,7 +80,7 @@ pub fn run_constructor<'l>(
 
 
 pub fn check_inited_class(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     ptype: &PTypeView,
     loader_arc: LoaderArc,
@@ -194,7 +194,7 @@ pub fn check_inited_class(
 }
 
 fn check_inited_class_impl(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     class_name: &ClassName,
     loader_arc: LoaderArc,

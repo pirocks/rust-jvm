@@ -170,7 +170,7 @@ impl SharedLibJVMTI {
     }
 
 
-    pub fn class_prepare(&self, jvm: &'static JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
+    pub fn class_prepare(&self, jvm: &JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());

@@ -29,7 +29,7 @@ pub mod member_name {
         // private String name;
         // private Object type;
         // private int flags;
-        pub fn get_name<'l>(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> JString {
+        pub fn get_name<'l>(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
             let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string());
