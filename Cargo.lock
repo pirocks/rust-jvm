@@ -393,6 +393,7 @@ dependencies = [
  "regex",
  "rust-jvm-common",
  "slow-interpreter",
+ "verification",
 ]
 
 [[package]]

@@ -85,18 +85,7 @@ pub fn run_native_method<'l>(
                     let mangled = mangling::mangle(class.clone(), method_i);
                     // state.tracing.trace_dynmaic_link()
                     //todo actually impl these at some point
-                    if mangled == "Java_sun_misc_Unsafe_allocateMemory".to_string() {
-                        allocate_memory(&mut args)
-                    } else if mangled == "Java_sun_misc_Unsafe_putLong__JJ".to_string() {
-                        putLong__JJ(&mut args)
-                    } else if mangled == "Java_sun_misc_Unsafe_getByte__J".to_string() {
-                        getByte__J(&mut args)
-                    } else if mangled == "Java_sun_misc_Unsafe_freeMemory".to_string() {
-                        freeMemory(&mut args)
-                        //todo all these unsafe function thingys are getting a tad excessive
-                    } else if mangled == "Java_sun_misc_Unsafe_getObjectVolatile".to_string() {
-                        get_object_volatile(jvm, &mut args)
-                    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
+                    if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
                         //todo
                         None
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
@@ -113,8 +102,6 @@ pub fn run_native_method<'l>(
                             panic!()
                         }
                         None
-                    } else if &mangled == "Java_sun_misc_Unsafe_defineAnonymousClass" {
-                        Java_sun_misc_Unsafe_defineAnonymousClass(jvm, int_state, &mut args)
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
                         Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, &mut args)
                     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {

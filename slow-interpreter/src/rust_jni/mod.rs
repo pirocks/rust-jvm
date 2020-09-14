@@ -130,7 +130,9 @@ pub fn call_impl<'l>(
         PTypeView::VoidType => {
             None
         }
-//            ParsedType::ByteType => {}
+        PTypeView::ByteType => {
+            Some(JavaValue::Byte(unsafe { transmute::<_, usize>(cif_res) as i8 }))//todo is this correct?
+        }
 //            ParsedType::CharType => {}
         PTypeView::DoubleType => {
             Some(JavaValue::Double(unsafe { transmute(cif_res) }))
