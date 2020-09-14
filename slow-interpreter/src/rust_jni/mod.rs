@@ -72,9 +72,9 @@ pub fn call<'l>(
         symbol.deref().clone()
     };
     if classfile.view().method_view_i(method_i).is_static() {
-        Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, false, false))
+        Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, false))
     } else {
-        Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, true, false))
+        Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, true))
     }
 }
 
@@ -85,9 +85,7 @@ pub fn call_impl<'l>(
     args: Vec<JavaValue>,
     md: MethodDescriptor,
     raw: &unsafe extern "C" fn(),
-    suppress_runtime_class: bool,
-    _debug: bool,
-) -> Option<JavaValue> {
+    suppress_runtime_class: bool) -> Option<JavaValue> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {

@@ -20,16 +20,16 @@ use crate::rust_jni::interface::misc::get_all_methods;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
-pub fn invoke_virtual_instruction<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16, debug: bool) {
+pub fn invoke_virtual_instruction<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, int_state, cp) {
         None => return,
         Some(o) => { o }
     };
-    invoke_virtual(state, int_state, &method_name, &expected_descriptor, debug)
+    invoke_virtual(state, int_state, &method_name, &expected_descriptor)
 }
 
-pub fn invoke_virtual_method_i<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView, debug: bool) -> () {
-    invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method_i, target_method, debug)
+pub fn invoke_virtual_method_i<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView) -> () {
+    invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method_i, target_method)
 }
 
 fn invoke_virtual_method_i_impl<'l>(
@@ -38,13 +38,12 @@ fn invoke_virtual_method_i_impl<'l>(
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
-    target_method: &MethodView,
-    debug: bool,
+    target_method: &MethodView
 ) -> () {
     // interpreter_state.print_stack_trace();
     let current_frame = interpreter_state.current_frame_mut();
     if target_method.is_native() {
-        run_native_method(jvm, interpreter_state, target_class, target_method_i, debug)
+        run_native_method(jvm, interpreter_state, target_class, target_method_i)
     } else if !target_method.is_abstract() {
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
@@ -95,7 +94,7 @@ pub fn setup_virtual_args(current_frame: &mut StackEntry, expected_descriptor: &
 /*
 args should be on the stack
 */
-pub fn invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
+pub fn invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_name: &String, md: &MethodDescriptor) -> () {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -133,7 +132,7 @@ pub fn invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
     let final_descriptor = target_method.desc();
-    invoke_virtual_method_i(jvm, int_state, final_descriptor, final_target_class.clone(), new_i, target_method, debug)
+    invoke_virtual_method_i(jvm, int_state, final_descriptor, final_target_class.clone(), new_i, target_method)
 }
 
 pub fn virtual_method_lookup<'l>(

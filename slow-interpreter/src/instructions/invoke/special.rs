@@ -37,7 +37,7 @@ pub fn invoke_special_impl<'l>(
     target_m: &MethodView,
 ) -> () {
     if target_m.is_native() {
-        run_native_method(jvm, interpreter_state, final_target_class, target_m_i, false);
+        run_native_method(jvm, interpreter_state, final_target_class, target_m_i);
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;

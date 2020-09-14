@@ -19,9 +19,7 @@ pub fn run_native_method<'l>(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     class: Arc<RuntimeClass>,
-    method_i: usize,
-    _debug: bool,
-) {
+    method_i: usize) {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack().len();
     check_inited_class(jvm, int_state, &view.name().into(), class.loader(jvm));
@@ -55,13 +53,8 @@ pub fn run_native_method<'l>(
 
     let monitor = monitor_for_function(jvm, int_state, method, method.access_flags() & ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
     monitor.as_ref().map(|m| m.lock(jvm));
-    if _debug {
-        // dbg!(&args);
-        // dbg!(&frame.operand_stack);
-    }
-    // println!("CALL BEGIN NATIVE:{} {} {}", class_name(classfile).get_referred_name(), method.method_name(classfile), frame.depth());
+
     let meth_name = method.name();
-    let debug = false;//meth_name.contains("isAlive");
     let result = if meth_name == "desiredAssertionStatus0".to_string() {//todo and descriptor matches and class matches
         JavaValue::Boolean(0).into()
     } else if meth_name == "arraycopy".to_string() {
@@ -77,7 +70,7 @@ pub fn run_native_method<'l>(
                 let reg_natives_for_class = reg_natives.get(&class).unwrap().read().unwrap();
                 reg_natives_for_class.get(&(method_i as u16)).unwrap().clone()
             };
-            call_impl(jvm, int_state, class.clone(), args, parsed, &res_fn, !method.is_static(), debug)
+            call_impl(jvm, int_state, class.clone(), args, parsed, &res_fn, !method.is_static())
         } else {
             let res = match call(jvm, int_state, class.clone(), method_i, args.clone(), parsed) {
                 Ok(r) => r,

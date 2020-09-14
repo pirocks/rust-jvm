@@ -78,6 +78,6 @@ pub fn invoke_static_impl<'l>(
             return;
         }
     } else {
-        run_native_method(jvm, interpreter_state, target_class.clone(), target_method_i, false);
+        run_native_method(jvm, interpreter_state, target_class.clone(), target_method_i);
     }
 }

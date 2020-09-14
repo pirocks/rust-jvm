@@ -86,7 +86,7 @@ pub fn run_static_or_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStat
     if method_view.is_static() {
         invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info())
     } else {
-        invoke_virtual_method_i(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view, false);
+        invoke_virtual_method_i(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view);
     }
 }
 

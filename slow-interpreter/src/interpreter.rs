@@ -337,7 +337,7 @@ fn run_single_instruction<'l>(
         InstructionInfo::invokeinterface(invoke_i) => invoke_interface(jvm, interpreter_state, invoke_i),
         InstructionInfo::invokespecial(cp) => invoke_special(jvm, interpreter_state, cp),
         InstructionInfo::invokestatic(cp) => run_invoke_static(jvm, interpreter_state, cp),
-        InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(jvm, interpreter_state, cp, false),
+        InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(jvm, interpreter_state, cp),
         InstructionInfo::ior => ior(interpreter_state.current_frame_mut()),
         InstructionInfo::irem => irem(interpreter_state.current_frame_mut()),
         InstructionInfo::ireturn => ireturn(jvm, interpreter_state),
