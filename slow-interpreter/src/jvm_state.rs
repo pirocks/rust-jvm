@@ -121,7 +121,7 @@ impl JVMState {
         (args, jvm)
     }
 
-    pub fn get_or_create_bootstrap_object_loader<'l>(&'static self, int_state: &mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
+    pub fn get_or_create_bootstrap_object_loader<'l>(&self, int_state: &mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
         if !self.vm_live() {
             return JavaValue::Object(None);
         }

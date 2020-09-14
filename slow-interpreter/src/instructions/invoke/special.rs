@@ -13,7 +13,7 @@ use crate::interpreter::run_function;
 use crate::interpreter_util::check_inited_class;
 use crate::runtime_class::RuntimeClass;
 
-pub fn invoke_special<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn invoke_special<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
     let loader_arc = int_state.current_frame_mut().class_pointer().loader(jvm).clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, int_state.current_frame_mut().class_pointer().view());
     let method_class_name = method_class_type.unwrap_class_type();
@@ -29,7 +29,7 @@ pub fn invoke_special<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
 }
 
 pub fn invoke_special_impl<'l>(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,

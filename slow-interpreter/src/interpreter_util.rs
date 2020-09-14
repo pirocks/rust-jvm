@@ -16,7 +16,7 @@ use crate::runtime_class::initialize_class;
 //todo jni should really live in interpreter state
 
 pub fn push_new_object(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     target_classfile: &Arc<RuntimeClass>,
     class_object_type: Option<Arc<RuntimeClass>>,
@@ -29,7 +29,7 @@ pub fn push_new_object(
 }
 
 fn default_init_fields(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     loader_arc: LoaderArc,
     object_pointer: Option<Arc<Object>>,
@@ -59,7 +59,7 @@ fn default_init_fields(
 }
 
 pub fn run_constructor<'l>(
-    state: &'static JVMState,
+    state: &JVMState,
     int_state: &mut InterpreterStateGuard,
     target_classfile: Arc<RuntimeClass>,
     full_args: Vec<JavaValue>,

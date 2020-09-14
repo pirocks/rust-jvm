@@ -48,7 +48,7 @@ pub mod field {
 
     impl Field {
         pub fn init<'l>(
-            jvm: &'static JVMState,
+            jvm: &JVMState,
             int_state: &mut InterpreterStateGuard,
             clazz: JClass,
             name: JString,

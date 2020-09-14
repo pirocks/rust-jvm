@@ -71,7 +71,7 @@ fn main() {
 
     let (args, jvm) = JVMState::new(jvm_options);
     unsafe { JVM = (jvm).into() }
-    let jvm: &'static JVMState = unsafe { JVM.as_ref().unwrap() };
+    let jvm: &JVMState = unsafe { JVM.as_ref().unwrap() };
     let thread_state = &jvm.thread_state;
     let (main_thread, main_send) = thread_state.setup_main_thread(jvm);
     assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));

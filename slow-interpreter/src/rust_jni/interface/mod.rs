@@ -29,7 +29,7 @@ thread_local! {
 }
 
 //GetFieldID
-pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> *mut *const JNINativeInterface_ {
+pub fn get_interface(state: &JVMState, int_state: &mut InterpreterStateGuard) -> *mut *const JNINativeInterface_ {
     // unsafe { state.set_int_state(int_state) };
     JNI_INTERFACE.with(|refcell| {
         let new = get_interface_impl(state, int_state);
@@ -40,7 +40,7 @@ pub fn get_interface(state: &'static JVMState, int_state: &mut InterpreterStateG
     })
 }
 
-fn get_interface_impl(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> JNINativeInterface_ {
+fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: unsafe { transmute(int_state) },

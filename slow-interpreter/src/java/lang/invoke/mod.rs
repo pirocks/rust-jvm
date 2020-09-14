@@ -21,7 +21,7 @@ pub mod method_type {
     impl MethodType {
         as_object_or_java_value!();
 
-        pub fn from_method_descriptor_string<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, str: crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> MethodType {
+        pub fn from_method_descriptor_string<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str: crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> MethodType {
             int_state.push_current_operand_stack(str.java_value());
             int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(None)));
             let method_type = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm).clone());
@@ -56,12 +56,12 @@ pub mod method_handle {
     }
 
     impl MethodHandle {
-        pub fn lookup<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
+        pub fn lookup<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
             let method_handles_class = check_inited_class(jvm, int_state, &ClassName::method_handles().into(), int_state.current_loader(jvm));
             run_static_or_virtual(jvm, int_state, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             int_state.pop_current_operand_stack().cast_lookup()
         }
-        pub fn public_lookup<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
+        pub fn public_lookup<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
             let method_handles_class = check_inited_class(jvm, int_state, &ClassName::method_handles().into(), int_state.current_loader(jvm));
             run_static_or_virtual(jvm, int_state, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             int_state.pop_current_operand_stack().cast_lookup()
@@ -82,7 +82,7 @@ pub mod method_handle {
     }
 
     impl Lookup {
-        pub fn find_virtual<'l>(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> MethodHandle {
+        pub fn find_virtual<'l>(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> MethodHandle {
             let lookup_class = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone());
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(obj.java_value());

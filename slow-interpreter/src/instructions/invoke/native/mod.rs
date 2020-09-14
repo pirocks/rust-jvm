@@ -26,7 +26,7 @@ use crate::rust_jni::{call, call_impl, mangling};
 use crate::sun::misc::unsafe_::Unsafe;
 
 pub fn run_native_method<'l>(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     class: Arc<RuntimeClass>,
     method_i: usize,

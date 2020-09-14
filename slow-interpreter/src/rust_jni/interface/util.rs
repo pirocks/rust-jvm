@@ -7,7 +7,7 @@ use crate::interpreter_util::check_inited_class;
 use crate::java::lang::class::JClass;
 use crate::runtime_class::RuntimeClass;
 
-pub fn class_object_to_runtime_class<'l>(obj: &JClass, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> Option<Arc<RuntimeClass>> {
+pub fn class_object_to_runtime_class<'l>(obj: &JClass, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Option<Arc<RuntimeClass>> {
     if obj.as_type().is_primitive() {
         return None;
     }

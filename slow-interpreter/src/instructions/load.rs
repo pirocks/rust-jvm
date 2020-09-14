@@ -75,7 +75,7 @@ pub fn aaload(current_frame: &mut StackEntry) -> () {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
+fn throw_array_out_of_bounds<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let bounds_class = check_inited_class(
         jvm,
         int_state,
@@ -88,7 +88,7 @@ fn throw_array_out_of_bounds<'l>(jvm: &'static JVMState, int_state: &mut Interpr
     int_state.set_throw(obj.unwrap_object().into());
 }
 
-pub fn caload<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard) -> () {
+pub fn caload<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard) -> () {
     let index = int_state.pop_current_operand_stack().unwrap_int();
     let temp = int_state.pop_current_operand_stack();
     let unborrowed = temp.unwrap_array();

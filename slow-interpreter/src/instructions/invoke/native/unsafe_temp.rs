@@ -22,7 +22,7 @@ use crate::java_values::{JavaValue, Object};
 use crate::JVMState;
 use crate::stack_entry::StackEntry;
 
-pub fn get_object_volatile(jvm: &'static JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn get_object_volatile(jvm: &JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     match args[1].unwrap_object() {
         None => {
             let field_id = args[2].unwrap_long() as FieldId;
@@ -77,7 +77,7 @@ pub fn allocate_memory(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 }
 
 
-pub fn shouldBeInitialized(state: &'static JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn shouldBeInitialized(state: &JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let class_name_to_check = args[1].cast_class().as_type();
     JavaValue::Boolean(state.classes.initialized_classes.read().unwrap().get(&class_name_to_check).is_some() as u8).into()
 }
@@ -129,7 +129,7 @@ fn patch_all(state: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>, un
 
 fn patch_single(
     patch: &Arc<Object>,
-    state: &'static JVMState,
+    state: &JVMState,
     _frame: &StackEntry,
     unpatched: &mut Classfile,
     i: usize,

@@ -50,13 +50,13 @@ pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut Interpret
 }
 
 
-pub fn get_jvmti_interface(jvm: &'static JVMState, _int_state: &mut InterpreterStateGuard) -> *mut jvmtiEnv {
+pub fn get_jvmti_interface(jvm: &JVMState, _int_state: &mut InterpreterStateGuard) -> *mut jvmtiEnv {
     let new = get_jvmti_interface_impl(jvm);
     let jni_data_structure_ptr = Box::leak(box (Box::leak(box new) as *const jvmtiInterface_1_)) as *mut jvmtiEnv;
     jni_data_structure_ptr
 }
 
-fn get_jvmti_interface_impl(jvm: &'static JVMState) -> jvmtiInterface_1_ {
+fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
     jvmtiInterface_1_ {
         reserved1: unsafe { transmute(jvm) },
         SetEventNotificationMode: Some(set_event_notification_mode),

@@ -80,7 +80,7 @@ impl ThreadState {
         (main_thread_clone, main_send)
     }
 
-    fn jvm_init_from_main_thread(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
+    fn jvm_init_from_main_thread(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         let bl = &jvm.bootstrap_loader;
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
@@ -332,7 +332,7 @@ pub struct JavaThread {
 }
 
 impl JavaThread {
-    pub fn new(jvm: &'static JVMState, thread_obj: JThread, underlying: Thread, invisible_to_java: bool) -> Arc<JavaThread> {
+    pub fn new(jvm: &JVMState, thread_obj: JThread, underlying: Thread, invisible_to_java: bool) -> Arc<JavaThread> {
         let res = Arc::new(JavaThread {
             java_tid: thread_obj.tid(),
             underlying_thread: underlying,

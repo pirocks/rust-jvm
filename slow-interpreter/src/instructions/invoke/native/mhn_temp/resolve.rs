@@ -12,7 +12,7 @@ use crate::java_values::Object::Object;
 use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::utils::string_obj_to_string;
 
-pub fn MHN_resolve<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
 //so as far as I can find this is undocumented.
 //so as far as I can figure out we have a method name and a class

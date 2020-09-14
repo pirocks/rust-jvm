@@ -49,7 +49,7 @@ pub const REFERENCE_KIND_SHIFT: u32 = 24;
 
 pub mod init;
 
-pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, frame: &mut StackEntry, signature: &String) {
+pub fn create_method_type<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, frame: &mut StackEntry, signature: &String) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
     let loader_arc = int_state.current_loader(jvm).clone();
@@ -78,7 +78,7 @@ pub fn create_method_type<'l>(jvm: &'static JVMState, int_state: &mut Interprete
 
 
 //todo this should go in some sort of utils
-pub fn run_static_or_virtual<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
+pub fn run_static_or_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
     let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
     let res_fun = class.view().lookup_method(&method_name, &parsed_desc);//todo move this into classview
     let method_view = res_fun.unwrap();//todo and if this fails

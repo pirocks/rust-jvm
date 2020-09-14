@@ -36,7 +36,7 @@ use crate::method_table::MethodId;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 
-pub fn run_function<'l>(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard) {
+pub fn run_function<'l>(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let view = interpreter_state.current_class_view().clone();
     let method_i = interpreter_state.current_method_i();
     let method = view.method_view_i(method_i as usize);
@@ -128,7 +128,7 @@ fn update_pc_for_next_instruction<'l>(interpreter_state: &mut InterpreterStateGu
     *interpreter_state.current_pc_mut() = pc;
 }
 
-fn breakpoint_check(jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard, methodid: MethodId) {
+fn breakpoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, methodid: MethodId) {
     let pc = *interpreter_state.current_pc_mut() as isize;
     let stop = match &jvm.jvmti_state {
         None => false,
@@ -165,7 +165,7 @@ fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &Stri
 }
 
 pub fn monitor_for_function(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     method: &MethodView,
     synchronized: bool,
@@ -191,7 +191,7 @@ pub fn monitor_for_function(
 }
 
 fn run_single_instruction<'l>(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     instruct: InstructionInfo,
 ) {
@@ -414,7 +414,7 @@ fn run_single_instruction<'l>(
     }
 }
 
-fn athrow<'l>(_jvm: &'static JVMState, interpreter_state: &mut InterpreterStateGuard) {
+fn athrow<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     println!("EXCEPTION:");
     let exception_obj = {
         let value = interpreter_state.pop_current_operand_stack();

@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj)
 }
 
-fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, publicOnly: u8, loader: LoaderArc, of_class_obj: JClass) -> jobjectArray {
+fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, publicOnly: u8, loader: LoaderArc, of_class_obj: JClass) -> jobjectArray {
     let class_ptype = &of_class_obj.as_type();
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
@@ -102,11 +102,11 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'static JVMState, int_state: &mut Inte
     unsafe { new_local_ref_public(res, int_state) }
 }
 
-fn get_signature(state: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
+fn get_signature(state: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
     JString::from(state, int_state, method_view.desc_str()).intern(state, int_state).java_value()
 }
 
-fn exception_types_table(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
+fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let exception_table: Vec<JavaValue> = method_view.code_attribute()
         .map(|x| &x.exception_table)
@@ -134,7 +134,7 @@ fn exception_types_table(jvm: &'static JVMState, int_state: &mut InterpreterStat
     )))))
 }
 
-fn parameters_type_objects(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
+fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
     let mut res = vec![];
     let parsed = method_view.desc();
@@ -164,7 +164,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     JVM_GetClassDeclaredConstructors_impl(jvm, int_state, &class_obj.as_runtime_class(), publicOnly > 0, class_type)
 }
 
-fn JVM_GetClassDeclaredConstructors_impl(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class_obj: &RuntimeClass, publicOnly: bool, class_type: PTypeView) -> jobjectArray {
+fn JVM_GetClassDeclaredConstructors_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: &RuntimeClass, publicOnly: bool, class_type: PTypeView) -> jobjectArray {
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()

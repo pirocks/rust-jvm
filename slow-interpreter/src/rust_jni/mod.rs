@@ -47,7 +47,7 @@ impl LibJavaLoading {
 
 
 pub fn call<'l>(
-    state: &'static JVMState,
+    state: &JVMState,
     int_state: &mut InterpreterStateGuard,
     classfile: Arc<RuntimeClass>,
     method_i: usize,
@@ -79,7 +79,7 @@ pub fn call<'l>(
 }
 
 pub fn call_impl<'l>(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     classfile: Arc<RuntimeClass>,
     args: Vec<JavaValue>,

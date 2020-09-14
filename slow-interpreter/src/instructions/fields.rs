@@ -6,7 +6,7 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 
-pub fn putstatic<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn putstatic<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
@@ -16,7 +16,7 @@ pub fn putstatic<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGua
     target_classfile.static_vars().insert(field_name, field_value);
 }
 
-pub fn putfield<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn putfield<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
@@ -37,7 +37,7 @@ pub fn putfield<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuar
     }
 }
 
-pub fn get_static<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn get_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
     //todo make sure class pointer is updated correctly
 
     let view = &int_state.current_class_view();
@@ -46,7 +46,7 @@ pub fn get_static<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGu
     get_static_impl(jvm, int_state, cp, loader_arc, &field_class_name, &field_name);
 }
 
-fn get_static_impl<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &String) {
+fn get_static_impl<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &String) {
     let target_classfile = check_inited_class(state, int_state, &field_class_name.clone().into(), loader_arc.clone());
     let temp = target_classfile.static_vars();
     let attempted_get = temp.get(field_name);

@@ -145,7 +145,7 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
 }
 
 
-pub fn get_all_methods<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_methods<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     // dbg!(&class.class_view.name());
     class.view().methods().enumerate().for_each(|(i, _)| {
@@ -168,7 +168,7 @@ pub fn get_all_methods<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSt
 }
 
 //todo duplication with methods
-pub fn get_all_fields<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_fields<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));

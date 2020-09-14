@@ -177,7 +177,7 @@ impl std::convert::From<RuntimeClassClass> for RuntimeClass {
 
 pub fn initialize_class<'l>(
     runtime_class: Arc<RuntimeClass>,
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
 ) -> Arc<RuntimeClass> {
     //todo make sure all superclasses are iniited first

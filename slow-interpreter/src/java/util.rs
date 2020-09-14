@@ -22,7 +22,7 @@ pub mod properties {
     }
 
     impl Properties {
-        pub fn set_property<'l>(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, key: JString, value: JString) {
+        pub fn set_property<'l>(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, key: JString, value: JString) {
             let properties_class = check_inited_class(jvm, int_state, &ClassName::properties().into(), int_state.current_loader(jvm).clone());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(key.java_value());

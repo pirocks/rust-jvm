@@ -6,7 +6,7 @@ use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::{invoke_virtual_method_i, setup_virtual_args};
 use crate::interpreter_util::check_inited_class;
 
-pub fn invoke_interface<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, invoke_interface: InvokeInterface) {
+pub fn invoke_interface<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, invoke_interface: InvokeInterface) {
     invoke_interface.count;
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);

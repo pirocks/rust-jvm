@@ -7,7 +7,7 @@ use crate::instructions::invoke::native::mhn_temp::{IS_METHOD, REFERENCE_KIND_SH
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 
-pub fn MHN_init<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_init<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
     // init(MemberName mname, Object target);
     let mname = args[0].unwrap_normal_object();

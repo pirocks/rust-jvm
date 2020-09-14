@@ -29,7 +29,7 @@ pub mod dynamic {
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::string::JString;
 
-    pub fn invoke_dynamic<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+    pub fn invoke_dynamic<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
         let _method_handle_class = check_inited_class(
             jvm,
             int_state,
@@ -111,7 +111,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+fn resolved_class<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let view = int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);
@@ -148,7 +148,7 @@ fn resolved_class<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGu
 }
 
 pub fn find_target_method(
-    state: &'static JVMState,
+    state: &JVMState,
     loader_arc: LoaderArc,
     expected_method_name: String,
     parsed_descriptor: &MethodDescriptor,

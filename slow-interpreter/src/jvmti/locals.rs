@@ -154,7 +154,7 @@ pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, dep
 }
 
 
-unsafe fn get_local_t(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue, jvmtiError> {
+unsafe fn get_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue, jvmtiError> {
     if depth < 0 {
         return Result::Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }

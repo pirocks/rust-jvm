@@ -12,7 +12,7 @@ use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
-pub fn run_invoke_static<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn run_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let view = int_state.current_class_view();
@@ -38,7 +38,7 @@ pub fn run_invoke_static<'l>(jvm: &'static JVMState, int_state: &mut Interpreter
 }
 
 pub fn invoke_static_impl<'l>(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,

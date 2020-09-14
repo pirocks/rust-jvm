@@ -44,12 +44,12 @@ impl Monitor {
         }
     }
 
-    pub fn lock(&self, jvm: &'static JVMState) {
+    pub fn lock(&self, jvm: &JVMState) {
         jvm.tracing.trace_monitor_lock(self, jvm);
         self.lock_impl(jvm)
     }
 
-    fn lock_impl(&self, jvm: &'static JVMState) {
+    fn lock_impl(&self, jvm: &JVMState) {
         let mut current_owners_guard = self.owned.write().unwrap();
         //first we check if we currently own the lock. If we do increment and return.
         //If we do not currently hold the lock then we will continue to not own the lock until
@@ -66,7 +66,7 @@ impl Monitor {
         }
     }
 
-    pub fn unlock(&self, jvm: &'static JVMState) {
+    pub fn unlock(&self, jvm: &JVMState) {
         jvm.tracing.trace_monitor_unlock(self, jvm);
         let mut current_owners_guard = self.owned.write().unwrap();
         assert_eq!(current_owners_guard.owner, Monitor::get_tid(jvm).into());
@@ -77,7 +77,7 @@ impl Monitor {
         }
     }
 
-    pub fn wait(&self, millis: i64, jvm: &'static JVMState) {
+    pub fn wait(&self, millis: i64, jvm: &JVMState) {
         jvm.tracing.trace_monitor_wait(self, jvm);
         let mut count_and_owner = self.owned.write().unwrap();
         if count_and_owner.owner != Monitor::get_tid(jvm).into() {
@@ -106,7 +106,7 @@ impl Monitor {
         write_guard.count = count;
     }
 
-    pub fn destroy(&self, jvm: &'static JVMState) -> Result<(), MonitorOwnedBySomeoneElse> {
+    pub fn destroy(&self, jvm: &JVMState) -> Result<(), MonitorOwnedBySomeoneElse> {
         let mut current_owners_guard = self.owned.write().unwrap();
         if current_owners_guard.owner != Monitor::get_tid(jvm).into() {
             return Result::Err(MonitorOwnedBySomeoneElse {})
@@ -117,16 +117,16 @@ impl Monitor {
         Result::Ok(())
     }
 
-    pub fn get_tid(jvm: &'static JVMState) -> usize {
+    pub fn get_tid(jvm: &JVMState) -> usize {
         jvm.thread_state.get_current_thread().java_tid as usize
     }
 
-    pub fn notify_all(&self, jvm: &'static JVMState) {
+    pub fn notify_all(&self, jvm: &JVMState) {
         jvm.tracing.trace_monitor_notify_all(self, jvm);
         self.condvar.notify_all();
     }
 
-    pub fn notify(&self, jvm: &'static JVMState) {
+    pub fn notify(&self, jvm: &JVMState) {
         jvm.tracing.trace_monitor_notify(self, jvm);
         self.condvar.notify_one();
     }

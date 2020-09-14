@@ -10,7 +10,7 @@ use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
 //todo the fact that I need a loader for this is dumb
-pub fn lookup_method_parsed(state: &'static JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed(state: &JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
     let res = lookup_method_parsed_impl(state, class, name, descriptor, loader);
     match res {
         None => None,
@@ -20,7 +20,7 @@ pub fn lookup_method_parsed(state: &'static JVMState, class: Arc<RuntimeClass>, 
     }
 }
 
-pub fn lookup_method_parsed_impl(state: &'static JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed_impl(state: &JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor, loader: &LoaderArc) -> Option<(usize, Arc<RuntimeClass>)> {
     match class.view().lookup_method(&name, &descriptor) {
         None => {
             let class_name = class.view().super_name().unwrap();

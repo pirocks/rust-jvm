@@ -20,7 +20,7 @@ use crate::rust_jni::interface::misc::get_all_methods;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
-pub fn invoke_virtual_instruction<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, cp: u16, debug: bool) {
+pub fn invoke_virtual_instruction<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16, debug: bool) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, int_state, cp) {
         None => return,
         Some(o) => { o }
@@ -28,12 +28,12 @@ pub fn invoke_virtual_instruction<'l>(state: &'static JVMState, int_state: &mut 
     invoke_virtual(state, int_state, &method_name, &expected_descriptor, debug)
 }
 
-pub fn invoke_virtual_method_i<'l>(state: &'static JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView, debug: bool) -> () {
+pub fn invoke_virtual_method_i<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView, debug: bool) -> () {
     invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method_i, target_method, debug)
 }
 
 fn invoke_virtual_method_i_impl<'l>(
-    jvm: &'static JVMState,
+    jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
@@ -95,7 +95,7 @@ pub fn setup_virtual_args(current_frame: &mut StackEntry, expected_descriptor: &
 /*
 args should be on the stack
 */
-pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
+pub fn invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_name: &String, md: &MethodDescriptor, debug: bool) -> () {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -137,7 +137,7 @@ pub fn invoke_virtual<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
 }
 
 pub fn virtual_method_lookup<'l>(
-    state: &'static JVMState,
+    state: &JVMState,
     int_state: &mut InterpreterStateGuard,
     method_name: &String,
     md: &MethodDescriptor,

@@ -10,7 +10,7 @@ use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::native_util::from_object;
 use slow_interpreter::utils::string_obj_to_string;
 
-pub fn ptype_to_class_object(state: &'static JVMState, int_state: &mut InterpreterStateGuard, ptype: &PType) -> Option<Arc<Object>> {
+pub fn ptype_to_class_object(state: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PType) -> Option<Arc<Object>> {
     load_class_constant_by_type(state, int_state, &PTypeView::from_ptype(ptype));
     let res = int_state.pop_current_operand_stack().unwrap_object();
     res

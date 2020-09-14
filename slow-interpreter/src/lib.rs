@@ -63,7 +63,7 @@ pub mod field_table;
 pub mod native_allocation;
 pub mod threading;
 
-pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
+pub fn run_main<'l>(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
     let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone());
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
@@ -83,7 +83,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &'static JVMState, int_state: &mut I
 }
 
 
-fn setup_program_args<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, args: Vec<String>) {
+fn setup_program_args<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: Vec<String>) {
     let mut arg_strings: Vec<JavaValue> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from(jvm, int_state, arg_str.clone()).java_value());
@@ -100,7 +100,7 @@ fn setup_program_args<'l>(jvm: &'static JVMState, int_state: &mut InterpreterSta
 }
 
 
-fn set_properties<'l>(jvm: &'static JVMState, int_state: &mut InterpreterStateGuard) {
+fn set_properties<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame());
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
