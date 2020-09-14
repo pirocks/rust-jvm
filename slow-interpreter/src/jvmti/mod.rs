@@ -22,6 +22,8 @@ use crate::jvmti::properties::get_system_property;
 use crate::jvmti::tags::*;
 use crate::jvmti::thread_local_storage::*;
 use crate::jvmti::threads::*;
+use crate::jvmti::threads::suspend_resume::*;
+use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
 
 pub mod event_callbacks;
