@@ -50,16 +50,16 @@ unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props:
     let int_state = get_interpreter_state(env);
     let props = JavaValue::Object(from_object(agent_props)).cast_properties();
 
-    let sun_java_command = JString::from(jvm, int_state, "sun.java.command".to_string());
-    let sun_java_command_val = JString::from(jvm, int_state, "command line not currently compatible todo".to_string());
+    let sun_java_command = JString::from_rust(jvm, int_state, "sun.java.command".to_string());
+    let sun_java_command_val = JString::from_rust(jvm, int_state, "command line not currently compatible todo".to_string());
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
-    let sun_java_command = JString::from(jvm, int_state, "sun.jvm.flags".to_string());
-    let sun_java_command_val = JString::from(jvm, int_state, "command line not currently compatible todo".to_string());
+    let sun_java_command = JString::from_rust(jvm, int_state, "sun.jvm.flags".to_string());
+    let sun_java_command_val = JString::from_rust(jvm, int_state, "command line not currently compatible todo".to_string());
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
-    let sun_java_command = JString::from(jvm, int_state, "sun.jvm.args".to_string());
-    let sun_java_command_val = JString::from(jvm, int_state, "command line not currently compatible todo".to_string());
+    let sun_java_command = JString::from_rust(jvm, int_state, "sun.jvm.args".to_string());
+    let sun_java_command_val = JString::from_rust(jvm, int_state, "command line not currently compatible todo".to_string());
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     agent_props

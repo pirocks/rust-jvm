@@ -6,9 +6,9 @@ use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::instructions::invoke::Object;
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::{JavaValue, NormalObject};
-use crate::java_values::Object::Object;
 use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::utils::string_obj_to_string;
 
@@ -25,6 +25,10 @@ pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ar
     // dbg!(member_name.lookup_field("clazz"));
     // dbg!(member_name.lookup_field("name"));
     // dbg!(member_name.lookup_field("type"));
+    resolve_impl(jvm, int_state, &member_name)
+}
+
+fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: &Arc<Object>) -> Option<JavaValue> {
     let type_java_value = member_name.lookup_field("type");
     // dbg!(&type_java_value.unwrap_normal_object().class_pointer.class_view.name()); // so this is a string before resolution?
     // dbg!(member_name.lookup_field("flags"));
@@ -46,7 +50,7 @@ pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ar
 // // constructing any new objects.
 
 
-    let resolution_object = JavaValue::Object(Arc::new(Object(NormalObject {
+    let resolution_object = JavaValue::Object(Arc::new(Object::Object(NormalObject {
         monitor: jvm.thread_state.new_monitor("monitor for a resolution object".to_string()),
         fields: RefCell::new(Default::default()),
         class_pointer: check_inited_class(jvm, int_state, &ClassName::object().into(), int_state.current_loader(jvm)),
@@ -134,5 +138,64 @@ pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ar
     } else {
         unimplemented!();
     }
-    JavaValue::Object(member_name.into()).into()
+    JavaValue::Object(member_name.clone().into()).into()
+}
+
+pub mod tests {
+    use crate::java::lang::class::JClass;
+    use crate::java::lang::invoke::method_type::MethodType;
+    use crate::java::lang::invoke::method_type_form::MethodTypeForm;
+    use crate::java::lang::member_name::MemberName;
+    use crate::java::lang::string::JString;
+
+    use super::*;
+
+    pub fn run_tests(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+        unimplemented!()
+    }
+
+    fn call_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, m: MemberName, lookupClass: Option<JClass>) -> JavaValue {
+        let lookupClassJavaValue = match lookupClass {
+            None => JavaValue::Object(None),
+            Some(jclass) => jclass.java_value(),
+        };
+        MHN_resolve(jvm, int_state, &mut vec![m.java_value(), lookupClassJavaValue]).unwrap()
+    }
+
+
+    fn zero_L_test(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+        let lambda_form_class = JClass::from_name(jvm, int_state, ClassName::Str("java/lang/invoke/LambdaForm".to_string()));
+        let name = JString::from_rust(jvm, int_state, "zero_L".to_string());
+
+        let type_ = {
+            let form = {
+                let arg_to_slot_table = JavaValue::new_vec_from_vec(jvm, vec![JavaValue::Int(0)], PTypeView::IntType);
+                let slot_to_arg_table = JavaValue::new_vec_from_vec(jvm, vec![JavaValue::Int(0)], PTypeView::IntType);
+                let method_handles = JavaValue::new_vec_from_vec(jvm, vec![JavaValue::null(); 3], ClassName::Str("java/lang/ref/SoftReference".to_string()).into());
+                let lambda_forms = JavaValue::new_vec_from_vec(jvm, vec![JavaValue::null(); 18], ClassName::Str("java/lang/ref/SoftReference".to_string()).into());
+                MethodTypeForm::new(
+                    jvm,
+                    int_state,
+                    arg_to_slot_table,
+                    slot_to_arg_table,
+                    281479271677952,
+                    0,
+                    None,
+                    None,
+                    method_handles,
+                    lambda_forms,
+                )
+            };
+            let rtype = JClass::from_name(jvm, int_state, ClassName::object());
+            MethodType::new(jvm, int_state, rtype, vec![], form, JavaValue::null(), JavaValue::null(), JavaValue::null())
+        };
+        type_.get_form().set_erased_type(type_.clone());
+        type_.get_form().set_basic_type(type_.clone());
+        let resolution = MemberName::new_self_resolution(jvm, int_state, lambda_form_class.clone(), name.clone(), type_.clone(), 100728832);
+        let member_name = MemberName::new_member_name(jvm, int_state, lambda_form_class, name, type_, 100728832, resolution.java_value());
+        let lookupClass = JavaValue::null();
+        let mut args = vec![member_name.java_value(), lookupClass];
+        MHN_resolve(jvm, int_state, &mut args);
+        assert_eq!(member_name.get_flags(), 100728842);
+    }
 }

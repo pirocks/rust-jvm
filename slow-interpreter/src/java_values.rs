@@ -123,6 +123,10 @@ impl Debug for JavaValue {
 }
 
 impl JavaValue {
+    pub fn null() -> Self {
+        Self::Object(None)
+    }
+
     pub fn unwrap_int(&self) -> i32 {
         self.try_unwrap_int().unwrap()
     }
@@ -294,6 +298,14 @@ impl JavaValue {
             elem_type,
             jvm.thread_state.new_monitor("array object monitor".to_string()),
         ))))
+    }
+
+    pub fn new_vec_from_vec(jvm: &JVMState, vals: Vec<JavaValue>, elem_type: PTypeView) -> JavaValue {
+        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
+            elems: RefCell::new(vals),
+            elem_type,
+            monitor: jvm.thread_state.new_monitor("".to_string()),
+        }))))
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {

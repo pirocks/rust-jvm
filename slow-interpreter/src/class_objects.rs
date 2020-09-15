@@ -61,7 +61,7 @@ fn regular_object<'l>(state: &JVMState, ptype: PTypeView, int_state: &mut Interp
             if runtime_class.ptypeview().is_primitive() {
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
-                let jstring = JString::from(state, int_state, runtime_class.ptypeview().primitive_name().to_string());
+                let jstring = JString::from_rust(state, int_state, runtime_class.ptypeview().primitive_name().to_string());
                 r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), jstring.java_value());
             }/*else if !runtime_class.ptypeview().is_array() {
                 let jstring = JString::from(state, int_state, runtime_class.ptypeview().unwrap_class_type().get_referred_name().to_string());

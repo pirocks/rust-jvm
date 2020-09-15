@@ -44,9 +44,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let modifiers = f.access_flags() as i32;
         let slot = i as i32;
         let clazz = parent_runtime_class.cast_class();
-        let name = JString::from(jvm, int_state, field_name).intern(jvm, int_state);
+        let name = JString::from_rust(jvm, int_state, field_name).intern(jvm, int_state);
         let type_ = JavaValue::Object(field_type_class).cast_class();
-        let signature = JString::from(jvm, int_state, field_desc_str);
+        let signature = JString::from_rust(jvm, int_state, field_desc_str);
         let annotations_ = vec![];//todo impl annotations.
 
         object_array.push(Field::init(

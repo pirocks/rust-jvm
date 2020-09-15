@@ -102,10 +102,10 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(args: &mut Vec<JavaV
 
 pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     let member_name = args[0].cast_member_name();
-    let name = member_name.get_name(jvm, int_state);
+    let name = member_name.get_name_func(jvm, int_state);
     let clazz = member_name.clazz();
     let field_type = member_name.get_field_type(jvm, int_state);
-    let empty_string = JString::from(jvm, int_state, "".to_string());
+    let empty_string = JString::from_rust(jvm, int_state, "".to_string());
     let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, empty_string, vec![]);
     Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field).into()
 }

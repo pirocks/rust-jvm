@@ -4,16 +4,18 @@ pub mod invoke;
 pub mod member_name {
     use std::sync::Arc;
 
+    use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-    use crate::interpreter_util::check_inited_class;
+    use crate::interpreter_util::{check_inited_class, push_new_object};
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
 
+    #[derive(Clone)]
     pub struct MemberName {
         normal_object: Arc<Object>
     }
@@ -29,11 +31,35 @@ pub mod member_name {
         // private String name;
         // private Object type;
         // private int flags;
-        pub fn get_name<'l>(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
+        pub fn get_name_func<'l>(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
             let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string());
             int_state.pop_current_operand_stack().cast_string()
+        }
+
+        pub fn set_name(&self, new_val: JString) {
+            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), new_val.java_value());
+        }
+
+        pub fn set_clazz(&self, new_val: JClass) {
+            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("clazz".to_string(), new_val.java_value());
+        }
+
+        pub fn set_type(&self, new_val: MethodType) {
+            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("type".to_string(), new_val.java_value());
+        }
+
+        pub fn set_flags(&self, new_val: jint) {
+            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("flags".to_string(), JavaValue::Int(new_val));
+        }
+
+        pub fn get_flags(&self) -> jint {
+            self.normal_object.unwrap_normal_object().fields.borrow().get(&"flags".to_string()).unwrap().unwrap_int()
+        }
+
+        pub fn set_resolution(&self, new_val: JavaValue) {
+            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), new_val);
         }
 
         pub fn clazz(&self) -> JClass {
@@ -53,6 +79,32 @@ pub mod member_name {
             run_static_or_virtual(jvm, int_state, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string());
             int_state.pop_current_operand_stack().cast_class()
         }
+
+        pub fn new_member_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, clazz: JClass, name: JString, type_: MethodType, flags: jint, resolution: JavaValue) -> Self {
+            let target_classfile = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            push_new_object(jvm, int_state, &target_classfile, None);
+            let obj = int_state.pop_current_operand_stack().cast_member_name();
+            obj.set_clazz(clazz);
+            obj.set_name(name);
+            obj.set_type(type_);
+            obj.set_flags(flags);
+            obj.set_resolution(resolution);
+            obj
+        }
+
+        pub fn new_self_resolution(jvm: &JVMState, int_state: &mut InterpreterStateGuard, clazz: JClass, name: JString, type_: MethodType, flags: jint) -> Self {
+            let target_classfile = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            push_new_object(jvm, int_state, &target_classfile, None);
+            let obj = int_state.pop_current_operand_stack().cast_member_name();
+            obj.set_clazz(clazz);
+            obj.set_name(name);
+            obj.set_type(type_);
+            obj.set_flags(flags);
+            obj.set_resolution(obj.clone().java_value());
+            obj
+        }
+
+        as_object_or_java_value!();
     }
 }
 
@@ -163,7 +215,7 @@ pub mod string {
             string_obj_to_string(self.normal_object.clone().into())
         }
 
-        pub fn from<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
+        pub fn from_rust<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
             let string_class = check_inited_class(jvm, int_state, &ClassName::string().into(), jvm.bootstrap_loader.clone());
             push_new_object(jvm, int_state, &string_class, None);
             // dbg!(int_state.current_frame().local_vars());
@@ -309,7 +361,7 @@ pub mod thread {
                 None => {
                     dbg!(&self.normal_object);
                     panic!()
-                },
+                }
             }.unwrap_long()
         }
 
@@ -344,7 +396,7 @@ pub mod thread {
             let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
             push_new_object(jvm, int_state, &thread_class, None);
             let thread_object = int_state.pop_current_operand_stack();
-            let thread_name = JString::from(jvm, int_state, thread_name);
+            let thread_name = JString::from_rust(jvm, int_state, thread_name);
             run_constructor(jvm, int_state, thread_class, vec![thread_object.clone(), thread_group.java_value(), thread_name.java_value()],
                             "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V".to_string());
             thread_object.cast_thread()

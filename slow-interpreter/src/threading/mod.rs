@@ -72,7 +72,7 @@ impl ThreadState {
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, main_thread.clone()));
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
             //from the jvmti spec:
-            //"he thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
+            //"The thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object()));
             run_main(args, jvm, &mut int_state).unwrap();
             main_thread.notify_terminated()

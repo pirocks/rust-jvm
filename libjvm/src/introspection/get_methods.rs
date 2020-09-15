@@ -79,7 +79,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
         };
         let name = {
             let name = method_view.name();
-            JString::from(jvm, int_state, name).intern(jvm, int_state).java_value()
+            JString::from_rust(jvm, int_state, name).intern(jvm, int_state).java_value()
         };
         let parameterTypes = parameters_type_objects(jvm, int_state, &method_view);
         let returnType = {
@@ -103,7 +103,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
 }
 
 fn get_signature(state: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
-    JString::from(state, int_state, method_view.desc_str()).intern(state, int_state).java_value()
+    JString::from_rust(state, int_state, method_view.desc_str()).intern(state, int_state).java_value()
 }
 
 fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {

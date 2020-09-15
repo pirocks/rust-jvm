@@ -93,7 +93,7 @@ pub fn ldc_w<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::String(s) => {
-            let string_value = JString::from(jvm, int_state, s.string()).java_value();
+            let string_value = JString::from_rust(jvm, int_state, s.string()).java_value();
             int_state.push_current_operand_stack(string_value)
         }
         ConstantInfoView::Class(c) => load_class_constant(jvm, int_state, &c),

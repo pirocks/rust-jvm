@@ -54,7 +54,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let str = CStr::from_ptr(utf);
     // dbg!(int_state.current_frame().local_vars());
     // dbg!(int_state.current_frame().operand_stack());
-    new_local_ref_public(JString::from(jvm, int_state, str.to_str().unwrap().to_string()).object().into(), int_state)
+    new_local_ref_public(JString::from_rust(jvm, int_state, str.to_str().unwrap().to_string()).object().into(), int_state)
 }
 
 pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char, len: usize) -> jstring {

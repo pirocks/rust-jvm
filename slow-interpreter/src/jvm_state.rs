@@ -51,6 +51,8 @@ pub struct JVMState {
     pub native_interface_allocations: NativeAllocator,
     pub(crate) live: AtomicBool,
     // pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,//so technically isn't 'static, but we need to be able to store this in a localkey
+
+    pub unittest_mode: bool,
 }
 
 pub struct Classes {
@@ -67,7 +69,7 @@ pub struct Classes {
 
 impl JVMState {
     pub fn new(jvm_options: JVMOptions) -> (Vec<String>, Self) {
-        let JVMOptions { main_class_name, classpath, args, shared_libs, enable_tracing, enable_jvmti, properties } = jvm_options;
+        let JVMOptions { main_class_name, classpath, args, shared_libs, enable_tracing, enable_jvmti, properties, unittest_mode } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
         let bootstrap_loader = Arc::new(BootstrapLoader {
@@ -117,6 +119,7 @@ impl JVMState {
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: AtomicBool::new(false),
             // int_state_guard: &INT_STATE_GUARD
+            unittest_mode
         };
         (args, jvm)
     }
