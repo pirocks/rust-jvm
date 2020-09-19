@@ -198,4 +198,42 @@ pub mod tests {
         MHN_resolve(jvm, int_state, &mut args);
         assert_eq!(member_name.get_flags(), 100728842);
     }
+
+
+    fn identity_L_test(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+        let lambda_form_class = JClass::from_name(jvm, int_state, ClassName::Str("java/lang/invoke/LambdaForm".to_string()));
+        let name = JString::from_rust(jvm, int_state, "identity_L".to_string());
+
+        let type_ = {
+            let form = {
+                let arg_to_slot_table = JavaValue::new_vec_from_vec(jvm, vec![JavaValue::Int(0)], PTypeView::IntType);
+                let slot_to_arg_table = JavaValue::new_vec_from_vec(jvm, vec![JavaValue::Int(0)], PTypeView::IntType);
+                let method_handles = JavaValue::new_vec_from_vec(jvm, vec![JavaValue::null(); 3], ClassName::Str("java/lang/ref/SoftReference".to_string()).into());
+                let lambda_forms = JavaValue::new_vec_from_vec(jvm, vec![JavaValue::null(); 18], ClassName::Str("java/lang/ref/SoftReference".to_string()).into());
+                MethodTypeForm::new(
+                    jvm,
+                    int_state,
+                    arg_to_slot_table,
+                    slot_to_arg_table,
+                    281479271677952,
+                    0,
+                    None,
+                    None,
+                    method_handles,
+                    lambda_forms,
+                )
+            };
+            let rtype = JClass::from_name(jvm, int_state, ClassName::object());
+            let ptypes = vec![JClass::from_name(jvm, int_state, ClassName::object())];
+            MethodType::new(jvm, int_state, rtype, ptypes, form, JavaValue::null(), JavaValue::null(), JavaValue::null())
+        };
+        type_.get_form().set_erased_type(type_.clone());
+        type_.get_form().set_basic_type(type_.clone());
+        let resolution = MemberName::new_self_resolution(jvm, int_state, lambda_form_class.clone(), name.clone(), type_.clone(), 100728832);
+        let member_name = MemberName::new_member_name(jvm, int_state, lambda_form_class, name, type_, 100728832, resolution.java_value());
+        let lookupClass = JavaValue::null();
+        let mut args = vec![member_name.java_value(), lookupClass];
+        MHN_resolve(jvm, int_state, &mut args);
+        assert_eq!(member_name.get_flags(), 100728842);
+    }
 }
