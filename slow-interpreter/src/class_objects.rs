@@ -16,17 +16,7 @@ pub fn get_or_create_class_object(state: &JVMState,
                                   int_state: &mut InterpreterStateGuard,
                                   loader_arc: LoaderArc,
 ) -> Arc<Object> {
-    // match type_ {
-    //     PTypeView::Ref(t) => match t {
-    //         ReferenceTypeView::Array(c) => {
-    //             return array_object(state, c.deref(), current_frame);
-    //         }
-    //         _ => {}
-    //     },
-    //     _ => {}
-    // }
-
-    regular_object(state, type_.clone(), int_state, loader_arc)
+    regular_class_object(state, type_.clone(), int_state, loader_arc)
 }
 
 // fn array_object(state: &JVMState, array_sub_type: &PTypeView, current_frame: &StackEntry) -> Arc<Object> {
@@ -49,7 +39,7 @@ pub fn get_or_create_class_object(state: &JVMState,
 //     }
 // }
 
-fn regular_object<'l>(state: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_class_object<'l>(state: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Arc<Object> {
     // let current_frame = int_state.current_frame_mut();
     let runtime_class = check_inited_class(state, int_state, &ptype, loader_arc);
     let res = state.classes.class_object_pool.read().unwrap().get(&ptype).cloned();

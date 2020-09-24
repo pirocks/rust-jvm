@@ -6,19 +6,22 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::native::mhn_temp::{IS_METHOD, REFERENCE_KIND_SHIFT};
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
+use crate::java::lang::member_name::MemberName;
 
 pub fn MHN_init<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
-    // init(MemberName mname, Object target);
-    let mname = args[0].unwrap_normal_object();
-    let target = args[1].unwrap_normal_object();
-    // let name = mname.fields.borrow().get("name").unwrap().unwrap_object().map(|x|JavaValue::Object(x.into()).cast_string().to_rust_string());
-    let debug = true;//name == "checkSpreadArgument".to_string().into();
+    let mname = args[0].cast_member_name();
+    let target = args[1].clone();
+    init(jvm,int_state,mname,target)
+}
+
+
+pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname : MemberName, target: JavaValue) -> Option<JavaValue>{
     if target.class_pointer.view().name() == ClassName::method() {
-        let flags = mname.fields.borrow().get("flags").unwrap().unwrap_int();
-        let method_fields = target.fields.borrow();
-        let clazz = method_fields.get("clazz").unwrap().cast_class();
-        mname.fields.borrow_mut().insert("clazz".to_string(), clazz.clone().java_value());
+        let target = target.cast_method();
+        let flags = mname.get_flags();
+        let clazz = target.get_clazz();
+        mname.set_clazz(clazz.clone());
         //todo need to resolve and then indicate the type of call
         //static v. invoke_virtual v. interface
         //see MethodHandles::init_method_MemberName
@@ -35,22 +38,9 @@ pub fn MHN_init<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args:
             }
         } as u32) << REFERENCE_KIND_SHIFT) as i32;
         let extra_flags = IS_METHOD | invoke_type_flag;
-
-
-        // let signature = method_fields.get("signature").unwrap();
-
-
-        // dbg!(signature);
-        // create_method_type(state,frame,&string_obj_to_string(signature.unwrap_object()));
-        // mname.fields.borrow_mut().insert("type".to_string(),frame.pop());
-
-        let modifiers = method_fields.get("modifiers").unwrap().unwrap_int();
-        mname.fields.borrow_mut().insert("flags".to_string(), JavaValue::Int(flags | modifiers | extra_flags));//todo is this really correct? what if garbage in flags?
-        // let name = method_fields.get("name").unwrap();
-        // mname.fields.borrow_mut().insert("name".to_string(),name.clone());
-        if debug {
-            dbg!(mname);
-        }
+        let modifiers = target.get_modifiers();
+        //todo is this really correct? what if garbage in flags?
+        mname.set_flags(flags | modifiers | extra_flags);
     } else {
 
         //todo handle constructors and fields

@@ -112,7 +112,13 @@ pub fn invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
         // dbg!(&operand_stack);
         &operand_stack[operand_stack.len() - md.parameter_types.len() - 1].clone()
     };
-    let c = match this_pointer.unwrap_object().unwrap().deref() {
+    let c = match match this_pointer.unwrap_object() {
+        Some(x) => x,
+        None => {
+            int_state.print_stack_trace();
+            panic!()
+        },
+    }.deref() {
         Object::Array(_a) => {
 //todo so spec seems vague about this, but basically assume this is an Object
             let object_class = check_inited_class(

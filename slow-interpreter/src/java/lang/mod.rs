@@ -15,7 +15,7 @@ pub mod member_name {
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct MemberName {
         normal_object: Arc<Object>
     }
@@ -38,8 +38,17 @@ pub mod member_name {
             int_state.pop_current_operand_stack().cast_string()
         }
 
+        pub fn get_name(&self) -> JString {
+            self.normal_object.unwrap_normal_object().fields.borrow().get(&"name".to_string()).unwrap().cast_string()
+        }
+
+
         pub fn set_name(&self, new_val: JString) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), new_val.java_value());
+        }
+
+        pub fn get_clazz(&self) -> JClass {
+            self.normal_object.unwrap_normal_object().fields.borrow().get(&"clazz".to_string()).unwrap().cast_class()
         }
 
         pub fn set_clazz(&self, new_val: JClass) {
@@ -48,6 +57,10 @@ pub mod member_name {
 
         pub fn set_type(&self, new_val: MethodType) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("type".to_string(), new_val.java_value());
+        }
+
+        pub fn get_type(&self) -> JavaValue {
+            self.normal_object.unwrap_normal_object().fields.borrow().get("type").unwrap().clone()
         }
 
         pub fn set_flags(&self, new_val: jint) {
@@ -60,6 +73,10 @@ pub mod member_name {
 
         pub fn set_resolution(&self, new_val: JavaValue) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), new_val);
+        }
+
+        pub fn get_resolution(&self) -> JavaValue {
+            self.normal_object.unwrap_normal_object().fields.borrow().get(&"resolution".to_string()).unwrap().clone()
         }
 
         pub fn clazz(&self) -> JClass {
@@ -162,6 +179,12 @@ pub mod class {
             let loader_arc = int_state.current_loader(jvm).clone();
             JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state, loader_arc).into()).cast_class()
         }
+
+        // pub fn from_name_suppress_class_load<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: ClassName) -> JClass {
+        //     let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
+        //     let loader_arc = int_state.current_loader(jvm).clone();
+        //     JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state, loader_arc).into()).cast_class()
+        // }
 
         as_object_or_java_value!();
     }

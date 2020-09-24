@@ -2,6 +2,8 @@ pub mod method {
     use std::sync::Arc;
 
     use crate::java_values::{JavaValue, Object};
+    use crate::java::lang::class::JClass;
+    use jvmti_jni_bindings::jint;
 
     pub struct Method {
         normal_object: Arc<Object>
@@ -18,6 +20,13 @@ pub mod method {
             unimplemented!()
         }
 
+        pub fn get_clazz(&self) -> JClass{
+            self.normal_object.lookup_field("clazz").cast_class()
+        }
+
+        pub fn get_modifiers(&self) -> jint{
+            self.normal_object.lookup_field("modifiers").unwrap_int()
+        }
 
         as_object_or_java_value!();
     }

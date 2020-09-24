@@ -46,6 +46,7 @@ pub const IS_INVOCABLE: i32 = 196608;
 pub const IS_FIELD_OR_METHOD: i32 = 327680;
 pub const SEARCH_ALL_SUPERS: i32 = 3145728;
 pub const REFERENCE_KIND_SHIFT: u32 = 24;
+pub const REFERENCE_KIND_MASK: u32 = 0xF;
 
 pub mod init;
 

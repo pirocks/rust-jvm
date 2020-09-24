@@ -42,6 +42,7 @@ pub fn invoke_special_impl<'l>(
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;
         setup_virtual_args(interpreter_state.current_frame_mut(), &parsed_descriptor, &mut args, max_locals);
+        assert!(args[0].unwrap_object().is_some());
         let next_entry = StackEntry::new_java_frame(final_target_class, target_m_i as u16, args);
         let function_call_frame = interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);

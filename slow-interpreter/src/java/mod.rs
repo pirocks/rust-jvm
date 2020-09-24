@@ -11,7 +11,7 @@ macro_rules! as_object_or_java_value {
             JavaValue::Object(self.object().into())
         }
 
-        pub fn to_string(&self, state: &'static crate::jvm_state::JVMState, int_state: & mut crate::InterpreterStateGuard) -> crate::java::lang::string::JString {
+        pub fn to_string(&self, state: &crate::jvm_state::JVMState, int_state: & mut crate::InterpreterStateGuard) -> crate::java::lang::string::JString {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
             crate::instructions::invoke::virtual_::invoke_virtual(
              state,
@@ -23,13 +23,13 @@ macro_rules! as_object_or_java_value {
 
         }
 
-        pub fn get_class<'l>(&self, state: &'static crate::jvm_state::JVMState, int_state: &'l mut crate::InterpreterStateGuard) -> crate::java::lang::class::JClass {
+        pub fn get_class<'l>(&self, state: &crate::jvm_state::JVMState, int_state: &'l mut crate::InterpreterStateGuard) -> crate::java::lang::class::JClass {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
             crate::instructions::invoke::virtual_::invoke_virtual(state, int_state,&"getClass".to_string(), &descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::class()))});
             int_state.current_frame_mut().pop().cast_class()
         }
 
-        pub fn hash_code<'l>(&self, state: &'static crate::jvm_state::JVMState, int_state: &'l mut crate::InterpreterStateGuard<'l>) -> i32 {
+        pub fn hash_code<'l>(&self, state: &crate::jvm_state::JVMState, int_state: &'l mut crate::InterpreterStateGuard<'l>) -> i32 {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
             crate::instructions::invoke::virtual_::invoke_virtual(state,int_state,&"hashCode".to_string(), &descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::IntType});
             int_state.current_frame_mut().pop().unwrap_int()
