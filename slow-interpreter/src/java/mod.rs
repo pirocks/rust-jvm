@@ -37,6 +37,14 @@ macro_rules! as_object_or_java_value {
     };
 }
 
+macro_rules! getter_setter_gen {
+    (name: expr) => {
+
+
+    };
+}
+
+
 #[macro_use]
 pub mod lang;
 pub mod util;

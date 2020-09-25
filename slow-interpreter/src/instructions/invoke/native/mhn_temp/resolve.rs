@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{JVM_REF_invokeStatic, JVM_REF_invokeVirtual, JVM_REF_invokeInterface, JVM_REF_invokeSpecial};
 use rust_jvm_common::classnames::ClassName;
@@ -12,8 +11,6 @@ use crate::instructions::invoke::Object;
 use crate::interpreter_util::check_inited_class;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, NormalObject};
-use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
-use crate::instructions::invoke::native::mhn_temp::init::{MHN_init, init};
 
 pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -108,7 +105,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
-                init()
+                // init()
                 unimplemented!()
             } else if ref_kind == JVM_REF_invokeStatic {
                 unimplemented!()

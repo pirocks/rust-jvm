@@ -4,6 +4,7 @@ pub mod method {
     use crate::java_values::{JavaValue, Object};
     use crate::java::lang::class::JClass;
     use jvmti_jni_bindings::jint;
+    use crate::java::lang::string::JString;
 
     pub struct Method {
         normal_object: Arc<Object>
@@ -26,6 +27,10 @@ pub mod method {
 
         pub fn get_modifiers(&self) -> jint{
             self.normal_object.lookup_field("modifiers").unwrap_int()
+        }
+
+        pub fn get_name(&self) -> JString {
+            self.normal_object.lookup_field("name").cast_string()
         }
 
         as_object_or_java_value!();
