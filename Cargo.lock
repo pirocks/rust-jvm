@@ -799,6 +799,7 @@ dependencies = [
  "jvmti-jni-bindings",
  "rust-jvm-common",
  "slow-interpreter",
+ "type-safe-proc-macro-utils",
  "verification",
 ]
 
@@ -912,6 +913,7 @@ dependencies = [
  "regex",
  "rust-jvm-common",
  "thread-priority",
+ "type-safe-proc-macro-utils",
  "userspace-threads",
  "va_list",
  "verification",
@@ -1107,6 +1109,10 @@ dependencies = [
  "pulse",
  "time 0.2.17",
 ]
+
+[[package]]
+name = "type-safe-proc-macro-utils"
+version = "0.1.0"
 
 [[package]]
 name = "unicode-width"

@@ -17,8 +17,8 @@ jvm = {path = "./libjvm"}
 classfile-view = {path = "./classfile-view"}
 descriptor-parser = {path = "./descriptor-parser"}
 jvmti-jni-bindings = {path = "./jvmti-jni-bindings"}
+type-safe-proc-macro-utils = {path = "./type-safe-proc-macro-utils"}
 argparse = "0.2.2"
-
 
 [workspace]
 members = ["rust-jvm-common",
@@ -31,5 +31,6 @@ members = ["rust-jvm-common",
            "descriptor-parser",
            "classfile-view",
            "jvmti-jni-bindings",
-           "userspace-threads"
+           "userspace-threads",
+           "type-safe-proc-macro-utils"
            ]

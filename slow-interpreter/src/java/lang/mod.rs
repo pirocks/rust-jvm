@@ -2,6 +2,8 @@ pub mod invoke;
 
 
 pub mod member_name {
+    use type_safe_proc_macro_utils::getter_gen;
+
     use std::sync::Arc;
 
     use jvmti_jni_bindings::jint;
@@ -40,9 +42,9 @@ pub mod member_name {
 
         pub fn get_name_or_null(&self) -> Option<JString> {
             let str_jvalue = self.normal_object.unwrap_normal_object().fields.borrow().get(&"name".to_string()).unwrap().clone();
-            if str_jvalue.unwrap_object().is_none(){
+            if str_jvalue.unwrap_object().is_none() {
                 None
-            }else{
+            } else {
                 str_jvalue.cast_string().into()
             }
         }
@@ -58,14 +60,14 @@ pub mod member_name {
 
         pub fn get_clazz_or_null(&self) -> Option<JClass> {
             let possibly_null = self.normal_object.unwrap_normal_object().fields.borrow().get(&"clazz".to_string()).unwrap().clone();
-            if possibly_null.unwrap_object().is_none(){
+            if possibly_null.unwrap_object().is_none() {
                 None
-            }else {
+            } else {
                 possibly_null.cast_class().into()
             }
         }
 
-        pub fn get_clazz(&self) -> JClass{
+        pub fn get_clazz(&self) -> JClass {
             self.get_clazz_or_null().unwrap()
         }
 
@@ -77,7 +79,6 @@ pub mod member_name {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("type".to_string(), new_val.java_value());
         }
 
-
         pub fn get_type(&self) -> JavaValue {
             self.normal_object.unwrap_normal_object().fields.borrow().get("type").unwrap().clone()
         }
@@ -86,9 +87,11 @@ pub mod member_name {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("flags".to_string(), JavaValue::Int(new_val));
         }
 
-        pub fn get_flags(&self) -> jint {
-            self.normal_object.unwrap_normal_object().fields.borrow().get(&"flags".to_string()).unwrap().unwrap_int()
-        }
+
+        getter_gen!(flags,jint,unwrap_int);
+        // pub fn get_flags(&self) -> jint {
+        //     self.normal_object.unwrap_normal_object().fields.borrow().get(&"flags".to_string()).unwrap().unwrap_int()
+        // }
 
         pub fn set_resolution(&self, new_val: JavaValue) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), new_val);
