@@ -79,6 +79,7 @@ pub mod member_name {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("type".to_string(), new_val.java_value());
         }
 
+
         pub fn get_type(&self) -> JavaValue {
             self.normal_object.unwrap_normal_object().fields.borrow().get("type").unwrap().clone()
         }

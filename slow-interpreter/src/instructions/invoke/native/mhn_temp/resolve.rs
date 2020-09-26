@@ -11,6 +11,8 @@ use crate::instructions::invoke::Object;
 use crate::interpreter_util::check_inited_class;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, NormalObject};
+use crate::instructions::invoke::native::mhn_temp::init::init;
+use crate::java::lang::reflect::method::Method;
 
 pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -105,8 +107,8 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
-                // init()
-                unimplemented!()
+                let resolve_result = resolve_invoke_virtual(jvm,int_state,member_name);
+                init(jvm,int_state,member_name.clone(),resolve_result);
             } else if ref_kind == JVM_REF_invokeStatic {
                 unimplemented!()
             } else if ref_kind == JVM_REF_invokeInterface{
@@ -167,6 +169,12 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     }
 
     member_name.java_value().into()
+}
+
+
+fn resolve_invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Method{
+    member_name.get_clazz().as_runtime_class().view().lookup_method(member_name)
+    unimplemented!()
 }
 
 pub mod tests {

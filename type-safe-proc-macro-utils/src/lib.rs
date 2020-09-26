@@ -11,10 +11,14 @@ pub fn getter_gen(item: TokenStream) -> TokenStream {
     format!("
     pub fn get_{name}_or_null(&self) -> Option<{type_}> {{
         let maybe_null = self.normal_object.lookup_field(\"{name}\");
-        if maybe_null.unwrap_object().is_some(){{
-            maybe_null.{cast_fun}().into()
+        if maybe_null.try_unwrap_object().is_some(){{
+            if maybe_null.unwrap_object().is_some() {{
+                maybe_null.{cast_fun}().into()
+            }} else {{
+                None
+            }}
         }}else{{
-            None
+            maybe_null.{cast_fun}().into()
         }}
     }}
     pub fn get_{name}(&self) -> {type_} {{

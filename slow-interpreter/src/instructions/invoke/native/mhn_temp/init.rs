@@ -33,8 +33,8 @@ pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname : Membe
     dbg!(mname.get_name_or_null().map(|x|x.to_rust_string()));
     dbg!(mname.get_clazz_or_null());
     dbg!(mname.get_flags());
-    dbg!(mname.get_type().cast_method_type().to_string(jvm, int_state).to_rust_string());
-    dbg!(mname.get_resolution().cast_object().to_string(jvm, int_state).to_rust_string());
+    // dbg!(mname.get_type().cast_method_type().to_string(jvm, int_state).to_rust_string());
+    // dbg!(mname.get_resolution().cast_object().to_string(jvm, int_state).to_rust_string());
 
     None//this is a void method.
 }
