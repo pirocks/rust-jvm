@@ -1,0 +1,647 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"fil",
+				"file"
+			],
+			[
+				"fi",
+				"filesToKill"
+			],
+			[
+				"res",
+				"result"
+			],
+			[
+				"to",
+				"to_delete"
+			],
+			[
+				"full",
+				"fullPath"
+			],
+			[
+				"in",
+				"index"
+			],
+			[
+				"fo",
+				"file_path;contents.output.split"
+			],
+			[
+				"p",
+				"path"
+			],
+			[
+				"con",
+				"contents.output"
+			],
+			[
+				"pat",
+				"path_to_tar"
+			],
+			[
+				"dis",
+				"displayWindow"
+			],
+			[
+				"Der",
+				"DerelictGL3"
+			],
+			[
+				"Di",
+				"Display_InitGL"
+			],
+			[
+				"gl",
+				"glGenBuffers"
+			],
+			[
+				"Dere",
+				"DerelictGLFW3"
+			],
+			[
+				"fr",
+				"fragmentShaderSource\tvariable"
+			],
+			[
+				"toSt",
+				"toStringz\tfunction"
+			],
+			[
+				"wr",
+				"writeln\tfunction"
+			],
+			[
+				"Wri",
+				"writeln\tfunction"
+			],
+			[
+				"m",
+				"main\tvoid main() { … }"
+			],
+			[
+				"dere",
+				"derelict-sdl2"
+			],
+			[
+				"stdi",
+				"stdio\tmodule"
+			],
+			[
+				"ini",
+				"initGL\tfunction"
+			],
+			[
+				"at",
+				"att"
+			],
+			[
+				"ele",
+				"element"
+			],
+			[
+				"att",
+				"attentioner"
+			],
+			[
+				"attent",
+				"attentioners"
+			],
+			[
+				"e",
+				"elements"
+			],
+			[
+				"u",
+				"upper_threshold"
+			],
+			[
+				"n",
+				"new_inc"
+			],
+			[
+				"uppe",
+				"upper_threshold"
+			],
+			[
+				"sm",
+				"small_number"
+			],
+			[
+				"de",
+				"debug"
+			],
+			[
+				"sub",
+				"sub_granularity"
+			],
+			[
+				"up",
+				"upper_threshold"
+			],
+			[
+				"as",
+				"assert"
+			],
+			[
+				"co",
+				"compensator"
+			],
+			[
+				"im",
+				"immutable"
+			],
+			[
+				"no",
+				"normalized_upper_limit"
+			],
+			[
+				"lower",
+				"lower_threshold"
+			],
+			[
+				"lowe",
+				"lower_threshold"
+			],
+			[
+				"lo",
+				"lower_threshold"
+			],
+			[
+				"upp",
+				"upper_threshold"
+			],
+			[
+				"arg",
+				"args_to_use"
+			],
+			[
+				"ch",
+				"checkable_"
+			],
+			[
+				"do",
+				"do_check"
+			],
+			[
+				"sa",
+				"sanity_check"
+			],
+			[
+				"s",
+				"sanity_check"
+			],
+			[
+				"l",
+				"lower_threshold"
+			],
+			[
+				"ne",
+				"new_inc"
+			],
+			[
+				"st",
+				"static"
+			],
+			[
+				"a",
+				"attentioner"
+			],
+			[
+				"Cre",
+				"CreateTho"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "/home/francis/rust-jvm/Cargo.toml",
+			"settings":
+			{
+				"buffer_size": 543,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/home/francis/rust-jvm/verification/src/verifier/filecorrectness.rs",
+			"settings":
+			{
+				"buffer_size": 11716,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 392.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"build",
+				"Build With: RustEnhanced - Run"
+			],
+			[
+				"cargo r",
+				"Rust: Configure Cargo Build"
+			],
+			[
+				"rust prefe",
+				"Preferences: Rust Enhanced Settings"
+			],
+			[
+				"buil",
+				"Build With: RustEnhanced - Check"
+			],
+			[
+				"buils",
+				"Build With: RustEnhanced"
+			],
+			[
+				"rust buil",
+				"Build With: RustEnhanced - Automatic"
+			],
+			[
+				"enable",
+				"LSP: Enable Language Server Globally"
+			],
+			[
+				"preferes",
+				"Preferences: LSP Settings"
+			],
+			[
+				"insta",
+				"Package Control: Install Package"
+			],
+			[
+				"ins",
+				"Package Control: Install Package"
+			],
+			[
+				"term",
+				"Terminal: Open in project folder"
+			],
+			[
+				"set",
+				"Set Syntax: C++"
+			],
+			[
+				"tabs",
+				"Indentation: Convert to Tabs"
+			],
+			[
+				"con",
+				"Indentation: Convert to Tabs"
+			],
+			[
+				"inst",
+				"Package Control: Install Package"
+			],
+			[
+				"",
+				"Package Control: Install Package"
+			],
+			[
+				"ter",
+				"Terminal: Open in project folder"
+			],
+			[
+				"restar",
+				"DKit: Restart DCD Autocompletion Server"
+			],
+			[
+				"convet",
+				"Indentation: Convert to Tabs"
+			],
+			[
+				"pac",
+				"Install Package Control"
+			],
+			[
+				"md",
+				"Set Syntax: Markdown"
+			],
+			[
+				"conver",
+				"Indentation: Convert to Tabs"
+			],
+			[
+				"p",
+				"Package Control: Upgrade Package"
+			],
+			[
+				"spli",
+				"Layout: Split Current Pane Horizontal"
+			],
+			[
+				"l",
+				"Layout: Destroy Current Pane"
+			],
+			[
+				"in",
+				"Package Control: Install Package"
+			],
+			[
+				"java",
+				"Eclipse: Format Java"
+			]
+		],
+		"width": 503.0
+	},
+	"console":
+	{
+		"height": 153.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/home/francis/rust-jvm",
+		"/home/francis/rust-jvm/verification"
+	],
+	"file_history":
+	[
+		"/home/francis/rust-jvm/rust-jvm-common/src/test_utils.rs",
+		"/home/francis/rust-jvm/rust-jvm-common/src/classfile.rs",
+		"/home/francis/Clion/rust-jvm/rust-jvm.sublime-project",
+		"/home/francis/Clion/rust-jvm/slow-interpreter/src/resolvers/fields.rs",
+		"/home/francis/Clion/rust-jvm/slow-interpreter/src/resolvers/mod.rs",
+		"/home/francis/Clion/rust-jvm/slow-interpreter/src/rust_jni/mod.rs",
+		"/home/francis/Documents/math-thing/dub.json",
+		"/home/francis/Documents/stats/chess/Adams.pgn",
+		"/home/francis/.dub/packages/derelict-gl3-1.0.21/derelict-gl3/source/derelict/opengl3/cgl.d",
+		"/home/francis/Documents/faster-thing/source/old_app.d",
+		"/home/francis/Documents/faster-thing/source/vertexsharder.glsl",
+		"/home/francis/Documents/faster-thing/dub.json",
+		"/home/francis/Documents/faster-thing/source/app.d",
+		"/C/Users/franc/AppData/Roaming/dub/packages/dlangui-0.8.30/3rdparty/GLES3/gl3.d",
+		"/C/Users/franc/AppData/Roaming/dub/packages/dlangui-0.8.30/3rdparty/GLES2/gl2.d",
+		"/C/Users/franc/OneDrive/Documents/faster-thing/dub.json",
+		"/C/Users/franc/OneDrive/Documents/faster-thing/source/Display.d",
+		"/C/Users/franc/OneDrive/Documents/faster-thing/glut.h",
+		"/C/Users/franc/AppData/Roaming/Sublime Text 3/Packages/User/DKit.sublime-settings",
+		"/C/Users/franc/AppData/Roaming/Sublime Text 3/Packages/DKit/DKit.sublime-settings",
+		"/C/Users/franc/Documents/bitcoin-thing/historicalDataCache0.bin",
+		"/C/Users/franc/Desktop/DLanguage/src/test/java/net/masterthought/dlanguage/resolve/DResolveTestCase.java",
+		"/C/Users/franc/Desktop/DLanguage/src/main/java/net/masterthought/dlanguage/psi/references/DReference.java",
+		"/C/Users/franc/Desktop/DLanguage/src/test/java/net/masterthought/dlanguage/psi/parser/DLanguageParserTestBase.java",
+		"/C/Users/bob/AppData/Roaming/Sublime Text 3/Packages/User/Default (Windows).sublime-keymap",
+		"/C/Users/bob/Documents/thing.txt",
+		"/C/D/dmd2/src/phobos/std/math.d",
+		"/C/Users/bob/AppData/Roaming/Sublime Text 3/Packages/DKit/DKit.sublime-settings",
+		"/C/Users/bob/AppData/Roaming/Sublime Text 3/Packages/User/DKit.sublime-settings",
+		"/C/Users/bob/AppData/Roaming/Sublime Text 3/Packages/User/Package Control.sublime-settings",
+		"/C/Users/bob/AppData/Roaming/Sublime Text 3/Packages/User/Preferences.sublime-settings",
+		"/C/Users/bob/Desktop/vc_redist.x86.exe",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/dub.json",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/source/tho.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/source/create.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/source/instruct.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/source/thi.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/source/app.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/source/debug_thread.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/source/engine.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/source/assoc.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/spec/main.md",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/ai-thingv2.cmake",
+		"/C/D/dmd2/src/phobos/std/datetime.d",
+		"/C/D/dmd2/src/phobos/std/exception.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/spec/setInStoneMain.md",
+		"/C/D/dmd2/src/phobos/std/syserror.d",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/engine/dub.sdl",
+		"/C/Users/bob/AppData/Roaming/Sublime Text 3/Packages/Default/Preferences.sublime-settings",
+		"/C/Users/bob/Documents/GitHub/ai-thingv2/.gitignore",
+		"/C/Users/bob/Documents/testing/src/ui/view/rulersHouseImage.jpg",
+		"/C/Users/bob/Documents/testing/src/engine/cities/City.java",
+		"/C/Users/bob/Documents/actualequ.txt",
+		"/C/Users/bob/Documents/testing/src/ui/view/planet/mountain1resized.fxml",
+		"/C/Users/bob/Documents/scaledequ.txt",
+		"/C/Users/bob/Documents/fle.tex",
+		"/C/Windows/WinSxS/amd64_microsoft-windows-i..se-bigramdictionary_31bf3856ad364e35_6.3.9600.16384_none_7f1173fad3a38118/IMTCT.IMD",
+		"/C/Users/bob/OneDrive/Documents/civ/mountain/mountain1.fxml",
+		"/C/Users/bob/Documents/equ.txt",
+		"/C/Users/bob/Documents/testing/src/engine/cities/ToManyPeopleException.java",
+		"/C/Users/bob/Documents/autocadoutput.zpr",
+		"/C/Users/bob/OneDrive/Documents/khgvugvuycgfhyuffyfctfyftyfffgvgyfgvygvyj.obj",
+		"/C/Users/bob/AppData/Roaming/Sublime Text 3/Packages/Default/Default (Windows).sublime-keymap"
+	],
+	"find":
+	{
+		"height": 26.0
+	},
+	"find_in_files":
+	{
+		"height": 90.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": true,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 1,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "/home/francis/rust-jvm/Cargo.toml",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 543,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								117,
+								117
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/TOML/TOML.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "/home/francis/rust-jvm/verification/src/verifier/filecorrectness.rs",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 11716,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								7241,
+								7241
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Rust Enhanced/RustEnhanced.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 3131.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 26.0
+	},
+	"input":
+	{
+		"height": 30.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.diagnostics":
+	{
+		"height": 0.0
+	},
+	"output.exec":
+	{
+		"height": 244.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "rust-jvm.sublime-project",
+	"replace":
+	{
+		"height": 48.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"file",
+				"verification/src/verifier/filecorrectness.rs"
+			],
+			[
+				"in",
+				"engine\\source\\instruct.d"
+			],
+			[
+				"",
+				"engine\\source\\debug_thread.d"
+			]
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 500.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 380.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 234.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

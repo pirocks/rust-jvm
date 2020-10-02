@@ -1,0 +1,7 @@
+export LD_LIBRARY_PATH=/home/francis/Clion/rust-jvm/target/debug/deps/;
+export JVM_H=/home/francis/build/openjdk-jdk8u/jdk/src/share/javavm/export/;
+export JVM_MD_H=/home/francis/Clion/rust-jvm/jvmti-jni-bindings/;
+export JNI_MD_H=/home/francis/Desktop/jdk8u232-b09/include/linux/;
+export JNI_H=/home/francis/Desktop/jdk8u232-b09/include/;
+export RUSTFLAGS="-C force-frame-pointers=y";
+export RUST_BACKTRACE=full

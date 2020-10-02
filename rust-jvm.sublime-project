@@ -1,0 +1,34 @@
+{
+	"folders":
+	[
+		{
+			"path": "/home/francis/Clion/rust-jvm"
+		}
+	],
+	"settings":
+	{
+		"LSP":
+		{
+			"rust-analyzer":
+			{
+				"enabled": true
+			}
+		},
+		"cargo_build":
+		{
+			"paths":
+			{
+				"/home/francis/rust-jvm/verification":
+				{
+					"variants":
+					{
+						"auto":
+						{
+							"target": "auto"
+						}
+					}
+				}
+			}
+		}
+	}
+}
