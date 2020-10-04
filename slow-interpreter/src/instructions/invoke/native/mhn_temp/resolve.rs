@@ -107,8 +107,8 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
-                let resolve_result = resolve_invoke_virtual(jvm,int_state,member_name);
-                init(jvm,int_state,member_name.clone(),resolve_result);
+                let resolve_result = resolve_invoke_virtual(jvm,int_state,member_name.clone());
+                init(jvm,int_state,member_name.clone(),resolve_result.java_value());
             } else if ref_kind == JVM_REF_invokeStatic {
                 unimplemented!()
             } else if ref_kind == JVM_REF_invokeInterface{
@@ -173,7 +173,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 
 
 fn resolve_invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Method{
-    member_name.get_clazz().as_runtime_class().view().lookup_method(member_name)
+    member_name.get_clazz().as_runtime_class().view().lookup_method(&member_name.get_name().to_rust_string(),unimplemented!());
     unimplemented!()
 }
 
