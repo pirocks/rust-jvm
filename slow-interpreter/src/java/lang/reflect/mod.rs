@@ -1,3 +1,72 @@
+use std::sync::Arc;
+
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use jvmti_jni_bindings::jint;
+use rust_jvm_common::classnames::ClassName;
+
+use crate::interpreter_state::InterpreterStateGuard;
+use crate::java::lang::string::JString;
+use crate::java_values::{ArrayObject, JavaValue, Object};
+use crate::jvm_state::JVMState;
+use crate::java::lang::class::JClass;
+
+fn get_modifers(method_view: &MethodView) -> jint {
+    method_view.access_flags() as i32
+}
+
+
+fn get_signature(state: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JString {
+    JString::from_rust(state, int_state, method_view.desc_str()).intern(state, int_state)
+}
+
+fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
+    let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
+    let exception_table: Vec<JavaValue> = method_view.code_attribute()
+        .map(|x| &x.exception_table)
+        .unwrap_or(&vec![])
+        .iter()
+        .map(|x| x.catch_type)
+        .map(|x| if x == 0 {
+            ReferenceTypeView::Class(ClassName::throwable())
+        } else {
+            method_view.classview().constant_pool_view(x as usize).unwrap_class().class_name()
+        })
+        .map(|x| {
+            PTypeView::Ref(x)
+        })
+        .map(|x| {
+            JClass::from_type(jvm, int_state, &x).java_value()
+        })
+        .collect();
+    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+        jvm,
+        int_state,
+        exception_table,
+        class_type,
+        jvm.thread_state.new_monitor("".to_string()),
+    )))))
+}
+
+fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
+    let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
+    let mut res = vec![];
+    let parsed = method_view.desc();
+    for param_type in parsed.parameter_types {
+        res.push(JClass::from_type(jvm, int_state, &PTypeView::from_ptype(&param_type)).java_value());
+    }
+
+    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+        jvm,
+        int_state,
+        res,
+        class_type,
+        jvm.thread_state.new_monitor("".to_string()),
+    )))))
+}
+
+
 pub mod method {
     use std::sync::Arc;
 
@@ -10,10 +79,10 @@ pub mod method {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
+    use crate::java::lang::reflect::{exception_types_table, get_modifers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
-    use crate::method_table::MethodId;
 
     const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 
@@ -42,7 +111,7 @@ pub mod method {
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view);
             let return_type = {
                 let rtype = method_view.desc().return_type;
-                JavaValue::Object(ptype_to_class_object(jvm, int_state, &rtype)).cast_class()
+                JClass::from_type(jvm, int_state, &PTypeView::from_ptype(&rtype))
             };
             let exception_types = exception_types_table(jvm, int_state, &method_view);
             let modifiers = get_modifers(&method_view);
@@ -122,7 +191,7 @@ pub mod constructor {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
-    use crate::java::lang::reflect::method::Method;
+    use crate::java::lang::reflect::{exception_types_table, get_modifers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
@@ -169,14 +238,14 @@ pub mod constructor {
             slot: jint,
             signature: JString,
         ) -> Constructor {
-            let constructor_class = check_inited_class(jvm, int_state, &ClassName::new("java/lang/reflect/Constructor").into(), loader.clone());
+            let constructor_class = check_inited_class(jvm, int_state, &ClassName::constructor().into(), jvm.bootstrap_loader.clone());
             //todo impl these
             push_new_object(jvm, int_state, &constructor_class, None);
             let constructor_object = int_state.pop_current_operand_stack();
 
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state);
-            let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), slot, signature.java_value(), empty_byte_array.clone(), empty_byte_array];
-            run_constructor(jvm, int_state, constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string())
+            let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
+            run_constructor(jvm, int_state, constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string());
             constructor_object.cast_constructor()
         }
 

@@ -3,13 +3,13 @@ use std::ops::Deref;
 use std::ptr::null_mut;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring};
-use libjvm_utils::jstring_to_string;
+use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType::Ref;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::java_values::JavaValue;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -42,7 +42,7 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_str = jstring_to_string(name);
+    let name_str = JavaValue::Object(from_object(name)).cast_string().to_rust_string();
     assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl

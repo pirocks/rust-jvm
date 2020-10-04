@@ -15,7 +15,6 @@ jvmti-jni-bindings = {path = "../jvmti-jni-bindings"}
 classfile-parser = {path = "../classfile-parser"}
 classfile-view = {path = "../classfile-view"}
 descriptor-parser = {path = "../descriptor-parser"}
-libjvm-utils = { path = "../libjvm-utils" }
 verification = { path = "../verification" }
 heapsize = "0.4.2"
 libc = "0.2.66"

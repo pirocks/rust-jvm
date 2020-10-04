@@ -385,7 +385,6 @@ dependencies = [
  "heapsize",
  "jvmti-jni-bindings",
  "libc",
- "libjvm-utils",
  "lock_api",
  "nix",
  "num_cpus",
@@ -440,17 +439,6 @@ dependencies = [
  "cc",
  "make-cmd",
  "pkg-config",
-]
-
-[[package]]
-name = "libjvm-utils"
-version = "0.1.0"
-dependencies = [
- "classfile-parser",
- "classfile-view",
- "jvmti-jni-bindings",
- "rust-jvm-common",
- "slow-interpreter",
 ]
 
 [[package]]

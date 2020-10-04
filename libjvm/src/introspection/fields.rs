@@ -5,7 +5,6 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;
 use jvmti_jni_bindings::{jboolean, jclass, jint, JNIEnv, jobjectArray};
-use libjvm_utils::ptype_to_class_object;
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
@@ -16,6 +15,7 @@ use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::STRING_INTERNMENT;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
+use slow_interpreter::java::lang::class::JClass;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
@@ -39,13 +39,12 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         let field_desc_str = f.field_desc();
         let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
-        let field_type_class = ptype_to_class_object(jvm, int_state, &field_type);
 
         let modifiers = f.access_flags() as i32;
         let slot = i as i32;
         let clazz = parent_runtime_class.cast_class();
         let name = JString::from_rust(jvm, int_state, field_name).intern(jvm, int_state);
-        let type_ = JavaValue::Object(field_type_class).cast_class();
+        let type_ = JClass::from_type(jvm, int_state, &PTypeView::from_ptype(&field_type));
         let signature = JString::from_rust(jvm, int_state, field_desc_str);
         let annotations_ = vec![];//todo impl annotations.
 

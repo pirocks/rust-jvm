@@ -191,6 +191,10 @@ impl ClassName {
     pub fn thread_group() -> Self {
         Self::new("java/lang/ThreadGroup")
     }
+
+    pub fn constructor() -> Self{
+        Self::new("java/lang/reflect/Constructor")
+    }
 }
 
 impl Hash for ClassName {

@@ -8,7 +8,6 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
-use libjvm_utils::ptype_to_class_object;
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -23,6 +22,7 @@ use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
+use slow_interpreter::java::lang::class::JClass;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -65,7 +65,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let object = from_object(cls);
     let temp = JavaValue::Object(object).cast_class().as_type();
     let object_class = temp.unwrap_ref_type();
-    new_local_ref_public(ptype_to_class_object(jvm, int_state, &object_class.unwrap_array().to_ptype()), int_state)
+    new_local_ref_public(JClass::from_type(jvm,int_state,&object_class.unwrap_array()).java_value().unwrap_object(), int_state)
 }
 
 #[no_mangle]
