@@ -12,7 +12,7 @@ use crate::interpreter_util::check_inited_class;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, NormalObject};
 use crate::instructions::invoke::native::mhn_temp::init::init;
-use crate::java::lang::reflect::method::Method;
+use crate::resolvers::methods::resolve_invoke_virtual;
 
 pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -172,10 +172,6 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 }
 
 
-fn resolve_invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Method{
-    member_name.get_clazz().as_runtime_class().view().lookup_method(&member_name.get_name().to_rust_string(),unimplemented!());
-    unimplemented!()
-}
 
 pub mod tests {
     use crate::java::lang::class::JClass;

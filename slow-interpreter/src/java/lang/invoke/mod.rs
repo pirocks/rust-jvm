@@ -12,6 +12,8 @@ pub mod method_type {
     use crate::java::lang::invoke::method_type_form::MethodTypeForm;
     use crate::java_values::{ArrayObject, JavaValue, Object};
 
+    use type_safe_proc_macro_utils::getter_gen;
+
     #[derive(Clone)]
     pub struct MethodType {
         normal_object: Arc<Object>
@@ -36,9 +38,13 @@ pub mod method_type {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("rtype".to_string(), rtype.java_value());
         }
 
+        getter_gen!(rtype,JClass,cast_class);
+
         pub fn set_ptypes(&self, ptypes: JavaValue) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("ptypes".to_string(), ptypes);
         }
+
+        getter_gen!(ptypes,JavaValue,clone);
 
         pub fn set_form(&self, form: MethodTypeForm) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("form".to_string(), form.java_value());
@@ -148,7 +154,6 @@ pub mod method_type_form {
         pub fn set_lambda_forms(&self, lambda_forms: JavaValue) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("methodHandles".to_string(), lambda_forms);
         }
-
 
         pub fn new(jvm: &JVMState,
                    int_state: &mut InterpreterStateGuard,
