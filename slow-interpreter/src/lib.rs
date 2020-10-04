@@ -63,6 +63,7 @@ pub mod method_table;
 pub mod field_table;
 pub mod native_allocation;
 pub mod threading;
+mod resolvers;
 
 pub fn run_main<'l>(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
     if jvm.unittest_mode {
