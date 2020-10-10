@@ -12,7 +12,7 @@ use crate::interpreter_util::check_inited_class;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, NormalObject};
 use crate::instructions::invoke::native::mhn_temp::init::init;
-use crate::resolvers::methods::resolve_invoke_virtual;
+use crate::resolvers::methods::{resolve_invoke_virtual, resolve_invoke_static};
 
 pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -110,7 +110,9 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 let resolve_result = resolve_invoke_virtual(jvm,int_state,member_name.clone());
                 init(jvm,int_state,member_name.clone(),resolve_result.java_value());
             } else if ref_kind == JVM_REF_invokeStatic {
-                unimplemented!()
+                //todo make a function for static
+                let resolve_result = resolve_invoke_static(jvm,int_state,member_name.clone());
+                init(jvm,int_state,member_name.clone(),resolve_result.java_value());
             } else if ref_kind == JVM_REF_invokeInterface{
                 unimplemented!()
             } else if ref_kind == JVM_REF_invokeSpecial{

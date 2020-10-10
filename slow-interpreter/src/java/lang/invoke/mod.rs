@@ -13,6 +13,7 @@ pub mod method_type {
     use crate::java_values::{ArrayObject, JavaValue, Object};
 
     use type_safe_proc_macro_utils::getter_gen;
+    use rust_jvm_common::ptype::PType;
 
     #[derive(Clone)]
     pub struct MethodType {
@@ -40,11 +41,20 @@ pub mod method_type {
 
         getter_gen!(rtype,JClass,cast_class);
 
+        pub fn get_rtype_as_type(&self) -> PType{
+            self.get_rtype().as_type().to_ptype()
+        }
+
         pub fn set_ptypes(&self, ptypes: JavaValue) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("ptypes".to_string(), ptypes);
         }
 
         getter_gen!(ptypes,JavaValue,clone);
+
+        pub fn get_ptypes_as_types(&self) -> Vec<PType> {
+            self.get_ptypes().unwrap_array().unwrap_object_array().iter()
+                .map(|x| JavaValue::Object(x.clone()).cast_class().as_type().to_ptype()).collect()
+        }
 
         pub fn set_form(&self, form: MethodTypeForm) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("form".to_string(), form.java_value());
