@@ -63,14 +63,14 @@ impl TracingSettings {
         if self.trace_function_start {
             println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
         }
-        return FunctionEnterExitTraceGuard {
+        FunctionEnterExitTraceGuard {
             classname,
             meth_name,
             method_desc,
             current_depth,
             threadtid,
             trace_function_end: self.trace_function_end,
-        };
+        }
     }
 
     pub fn trace_jni_register(&self, classname: &ClassName, meth_name: &str) {

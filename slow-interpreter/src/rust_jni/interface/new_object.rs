@@ -6,13 +6,13 @@ use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject};
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::push_new_object;
 use crate::java_values::JavaValue;
-use crate::method_table::MethodId;
+use crate::method_table::from_jmethod_id;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ::va_list::VaList) -> jobject {
     //todo dup
-    let method_id: MethodId = transmute(jmethod_id);
+    let method_id = from_jmethod_id(jmethod_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should return error instead of lookup
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_
 }
 
 pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: ...) -> jobject {
-    let method_id: MethodId = transmute(jmethod_id);
+    let method_id = from_jmethod_id(jmethod_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();

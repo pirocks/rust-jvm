@@ -95,13 +95,10 @@ pub unsafe extern "C" fn get_system_property(
     }
 
     if property_name == "user.dir" {
-        match std::env::current_dir() {
-            Ok(dir) => {
-                let leaked_str = jvm.native_interface_allocations.allocate_string(dir.to_string_lossy().to_string());
-                value_ptr.write(leaked_str);
-                return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
-            },
-            Err(_) => {},
+        if let Ok(dir) = std::env::current_dir() {
+            let leaked_str = jvm.native_interface_allocations.allocate_string(dir.to_string_lossy().to_string());
+            value_ptr.write(leaked_str);
+            return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
         };
     }
 

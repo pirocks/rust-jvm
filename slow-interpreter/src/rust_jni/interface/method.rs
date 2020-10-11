@@ -19,14 +19,14 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let name_len = libc::strlen(name);
     let mut method_name = String::with_capacity(name_len);
     for i in 0..name_len {
-        method_name.push(name.offset(i as isize).read() as u8 as char);
+        method_name.push(name.add(i).read() as u8 as char);
     }
 
     let desc_len = libc::strlen(sig);
     //todo dup
     let mut method_descriptor_str = String::with_capacity(desc_len);
     for i in 0..desc_len {
-        method_descriptor_str.push(sig.offset(i as isize).read() as u8 as char);
+        method_descriptor_str.push(sig.add(i).read() as u8 as char);
     }
 
     let runtime_class = from_jclass(clazz).as_runtime_class();

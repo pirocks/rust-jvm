@@ -9,7 +9,7 @@ use crate::java_values::JavaValue;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
 
-pub fn MHN_init<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
     let mname = args[0].cast_member_name();
     let target = args[1].clone();

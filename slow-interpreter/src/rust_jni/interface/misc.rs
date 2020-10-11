@@ -114,7 +114,7 @@ pub unsafe extern "C" fn register_natives(env: *mut JNIEnv,
         let runtime_class: Arc<RuntimeClass> = from_jclass(clazz).as_runtime_class();
         let jni_context = &jvm.libjava;
         let view = &runtime_class.view();
-        &view.methods().enumerate().for_each(|(i, method_info)| {
+        view.methods().enumerate().for_each(|(i, method_info)| {
             let descriptor_str = method_info.desc_str();
             let current_name = method_info.name();
             if current_name == expected_name && descriptor == descriptor_str {
@@ -127,7 +127,7 @@ pub unsafe extern "C" fn register_natives(env: *mut JNIEnv,
 }
 
 
-fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass>, method_i: usize) -> () {
+fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass>, method_i: usize) {
     if jni_context.registered_natives.read().unwrap().contains_key(runtime_class) {
         unsafe {
             jni_context.registered_natives
@@ -145,7 +145,7 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
 }
 
 
-pub fn get_all_methods<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_methods(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     // dbg!(&class.class_view.name());
     class.view().methods().enumerate().for_each(|(i, _)| {
@@ -168,7 +168,7 @@ pub fn get_all_methods<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard
 }
 
 //todo duplication with methods
-pub fn get_all_fields<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
+pub fn get_all_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));

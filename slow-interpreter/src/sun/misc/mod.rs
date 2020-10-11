@@ -20,13 +20,13 @@ pub mod unsafe_ {
     }
 
     impl Unsafe {
-        pub fn the_unsafe<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Unsafe {
+        pub fn the_unsafe(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Unsafe {
             let unsafe_class = check_inited_class(jvm, int_state, &ClassName::unsafe_().into(), int_state.current_loader(jvm));
             let static_vars = unsafe_class.static_vars();
             static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
         }
 
-        pub fn object_field_offset<'l>(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, field: Field) -> JavaValue {
+        pub fn object_field_offset(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, field: Field) -> JavaValue {
             let desc_str = "(Ljava/lang/reflect/Field;)J";
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(field.java_value());

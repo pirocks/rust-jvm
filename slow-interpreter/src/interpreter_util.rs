@@ -58,7 +58,7 @@ fn default_init_fields(
     }
 }
 
-pub fn run_constructor<'l>(
+pub fn run_constructor(
     state: &JVMState,
     int_state: &mut InterpreterStateGuard,
     target_classfile: Arc<RuntimeClass>,
@@ -126,7 +126,9 @@ pub fn check_inited_class(
                 }
             }
         }
-        &ptype.unwrap_type_to_name().map(|class_name| jvm.tracing.trace_class_loads(&class_name));
+        if let Some(class_name) = ptype.unwrap_type_to_name() {
+            jvm.tracing.trace_class_loads(&class_name)
+        }
         let new_rclass = match &ptype {
             PTypeView::ByteType => {
                 check_inited_class(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader_arc);
@@ -154,13 +156,11 @@ pub fn check_inited_class(
             }
             PTypeView::Ref(ref_) => match ref_ {
                 ReferenceTypeView::Class(class_name) => {
-                    let new_rclass = check_inited_class_impl(jvm, int_state, class_name, loader_arc);
-                    new_rclass
+                    check_inited_class_impl(jvm, int_state, class_name, loader_arc)
                 }
                 ReferenceTypeView::Array(arr) => {
                     let array_type_class = check_inited_class(jvm, int_state, arr.deref(), loader_arc);
-                    let new_rclass = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class: array_type_class }));
-                    new_rclass
+                    Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class: array_type_class }))
                 }
             },
             PTypeView::ShortType => {
@@ -185,7 +185,7 @@ pub fn check_inited_class(
     let res = match jvm.classes.initialized_classes.read().unwrap().get(ptype) {
         None => {
             jvm.classes.initializing_classes.read().unwrap().get(ptype).unwrap().clone()
-        },
+        }
         Some(class) => class.clone(),
     };
     let after = int_state.int_state.as_ref().unwrap().call_stack.len();
@@ -206,8 +206,8 @@ fn check_inited_class_impl(
     jvm.classes.prepared_classes.write().unwrap().insert(ptype.clone(), prepared.clone());
     jvm.classes.initializing_classes.write().unwrap().insert(ptype.clone(), prepared.clone());
     match prepared.view().super_name() {
-        None => {},
-        Some(super_name) => { check_inited_class(jvm, int_state, &super_name.into(), loader_arc); },
+        None => {}
+        Some(super_name) => { check_inited_class(jvm, int_state, &super_name.into(), loader_arc); }
     };
     match &jvm.jvmti_state {
         None => {}

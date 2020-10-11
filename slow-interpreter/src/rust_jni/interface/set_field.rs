@@ -1,4 +1,3 @@
-use std::mem::transmute;
 use std::ops::DerefMut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, JNIEnv, jobject, jshort};
@@ -8,7 +7,7 @@ use crate::rust_jni::native_util::{from_jclass, from_object, get_state};
 
 unsafe fn set_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: JavaValue) {
     let jvm = get_state(env);
-    let (rc, field_i) = jvm.field_table.write().unwrap().lookup(transmute(field_id_raw));
+    let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
     let notnull = from_object(obj).unwrap();
@@ -93,7 +92,7 @@ pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass
 unsafe fn set_static_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: JavaValue) {
     let jvm = get_state(env);
     //todo create a field conversion function.
-    let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(field_id_raw));
+    let (rc, field_i) = jvm.field_table.read().unwrap().lookup(field_id_raw as usize);
     let view = &rc.view();
     let field_name = view.field(field_i as usize).field_name();
     let static_class = from_jclass(clazz).as_runtime_class();

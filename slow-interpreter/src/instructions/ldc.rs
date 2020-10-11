@@ -13,13 +13,13 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 
-fn load_class_constant<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
+fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
     let res_class_name = c.class_name();
     let type_ = PTypeView::Ref(res_class_name);
     load_class_constant_by_type(state, int_state, &type_);
 }
 
-pub fn load_class_constant_by_type<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: &PTypeView) {
+pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: &PTypeView) {
     let object = get_or_create_class_object(jvm, res_class_type, int_state, jvm.bootstrap_loader.clone());
     // dbg!(object.clone().lookup_field("name"));
     // dbg!(object.clone());
@@ -27,12 +27,12 @@ pub fn load_class_constant_by_type<'l>(jvm: &JVMState, int_state: &mut Interpret
     int_state.current_frame_mut().push(JavaValue::Object(object.into()));
 }
 
-fn load_string_constant<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
+fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
     let res_string = s.string();
     create_string_on_stack(jvm, int_state, res_string);
 }
 
-pub fn create_string_on_stack<'l>(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
+pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
     let java_lang_string = ClassName::string();
     let current_loader = jvm.bootstrap_loader.clone();
     let string_class = check_inited_class(
@@ -56,7 +56,7 @@ pub fn create_string_on_stack<'l>(jvm: &JVMState, interpreter_state: &mut Interp
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, current_loader.clone(), "<init>".to_string(), &expected_descriptor, string_class);
-    let next_entry = StackEntry::new_java_frame(final_target_class, constructor_i as u16, args).into();
+    let next_entry = StackEntry::new_java_frame(final_target_class, constructor_i as u16, args);
     let function_call_frame = interpreter_state.push_frame(next_entry);
     run_function(jvm, interpreter_state);
     interpreter_state.pop_frame(function_call_frame);
@@ -73,7 +73,7 @@ pub fn create_string_on_stack<'l>(jvm: &JVMState, interpreter_state: &mut Interp
     interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
 }
 
-pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) -> () {
+pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) {
     let view = current_frame.class_pointer().view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
@@ -88,7 +88,7 @@ pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) -> () {
 }
 
 
-pub fn ldc_w<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = int_state.current_class_view().clone();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
@@ -112,7 +112,7 @@ pub fn ldc_w<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
     }
 }
 
-pub fn from_constant_pool_entry<'l>(c: &ConstantInfoView, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
+pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
     match &c {
         ConstantInfoView::Integer(i) => JavaValue::Int(i.int),
         ConstantInfoView::Float(f) => JavaValue::Float(f.float),

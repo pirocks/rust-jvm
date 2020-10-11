@@ -1,7 +1,7 @@
 use crate::{InterpreterStateGuard, JVMState};
 use crate::java_values::JavaValue;
 
-pub fn freturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> () {
+pub fn freturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let res = interpreter_state.current_frame_mut().pop();
     *interpreter_state.function_return_mut() = true;
     match res {
@@ -12,7 +12,7 @@ pub fn freturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     interpreter_state.previous_frame_mut().push(res);
 }
 
-pub fn dreturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> () {
+pub fn dreturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let res = interpreter_state.current_frame_mut().pop();
     *interpreter_state.function_return_mut() = true;
     match res {
@@ -24,7 +24,7 @@ pub fn dreturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
 }
 
 
-pub fn areturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> () {
+pub fn areturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let res = interpreter_state.current_frame_mut().pop();
     *interpreter_state.function_return_mut() = true;
 
@@ -32,12 +32,12 @@ pub fn areturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
 }
 
 
-pub fn return_<'l>(interpreter_state: &mut InterpreterStateGuard) {
+pub fn return_(interpreter_state: &mut InterpreterStateGuard) {
     *interpreter_state.function_return_mut() = true;
 }
 
 
-pub fn ireturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> () {
+pub fn ireturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let res = interpreter_state.current_frame_mut().pop();
     *interpreter_state.function_return_mut() = true;
     res.unwrap_int();
@@ -46,7 +46,7 @@ pub fn ireturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
 }
 
 
-pub fn lreturn<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> () {
+pub fn lreturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let res = interpreter_state.current_frame_mut().pop();
     *interpreter_state.function_return_mut() = true;
     match res {

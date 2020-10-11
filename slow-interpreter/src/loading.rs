@@ -36,9 +36,8 @@ impl Classpath {
         }
         let mut cache_read_guard = self.jar_cache.write().unwrap();
         for jar in cache_read_guard.values_mut() {
-            match jar.lookup(class_name) {
-                Ok(c) => { return Result::Ok(c); }
-                Err(_) => {}
+            if let Ok(c) = jar.lookup(class_name) {
+                return Result::Ok(c);
             }
         };
         for path in &self.classpath_base {
@@ -78,7 +77,7 @@ pub struct BootstrapLoader {
 
 impl Loader for BootstrapLoader {
     fn find_loaded_class(&self, name: &ClassName) -> Option<Arc<ClassView>> {
-        self.loaded.read().unwrap().get(name).cloned().map(|c| c.0.clone())
+        self.loaded.read().unwrap().get(name).cloned().map(|c| c.0)
     }
 
     fn initiating_loader_of(&self, class: &ClassName) -> bool {
@@ -130,7 +129,7 @@ impl Loader for BootstrapLoader {
             None => {
                 self.classpath.lookup(name)
             }
-            Some(c) => Result::Ok(c.clone()),
+            Some(c) => Result::Ok(c),
         };
         match res {
             Ok(c) => {

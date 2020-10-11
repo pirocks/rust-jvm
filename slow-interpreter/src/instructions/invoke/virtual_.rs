@@ -20,7 +20,7 @@ use crate::rust_jni::interface::misc::get_all_methods;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
-pub fn invoke_virtual_instruction<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_virtual_instruction(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, int_state, cp) {
         None => return,
         Some(o) => { o }
@@ -28,18 +28,18 @@ pub fn invoke_virtual_instruction<'l>(state: &JVMState, int_state: &mut Interpre
     invoke_virtual(state, int_state, &method_name, &expected_descriptor)
 }
 
-pub fn invoke_virtual_method_i<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView) -> () {
+pub fn invoke_virtual_method_i(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView) {
     invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method_i, target_method)
 }
 
-fn invoke_virtual_method_i_impl<'l>(
+fn invoke_virtual_method_i_impl(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
     target_method: &MethodView
-) -> () {
+) {
     // interpreter_state.print_stack_trace();
     let current_frame = interpreter_state.current_frame_mut();
     if target_method.is_native() {
@@ -84,7 +84,7 @@ pub fn setup_virtual_args(current_frame: &mut StackEntry, expected_descriptor: &
             }
         };
     }
-    if expected_descriptor.parameter_types.len() != 0 {
+    if !expected_descriptor.parameter_types.is_empty() {
         args[1..i].reverse();
     }
     args[0] = current_frame.pop();
@@ -94,7 +94,7 @@ pub fn setup_virtual_args(current_frame: &mut StackEntry, expected_descriptor: &
 /*
 args should be on the stack
 */
-pub fn invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_name: &String, md: &MethodDescriptor) -> () {
+pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_name: &str, md: &MethodDescriptor) {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -127,7 +127,7 @@ pub fn invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
                 &ClassName::object().into(),
                 int_state.current_loader(jvm),
             );
-            object_class.clone()
+            object_class
         }
         Object::Object(o) => {
             o.class_pointer.clone()
@@ -141,27 +141,27 @@ pub fn invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
     invoke_virtual_method_i(jvm, int_state, final_descriptor, final_target_class.clone(), new_i, target_method)
 }
 
-pub fn virtual_method_lookup<'l>(
+pub fn virtual_method_lookup(
     state: &JVMState,
     int_state: &mut InterpreterStateGuard,
-    method_name: &String,
+    method_name: &str,
     md: &MethodDescriptor,
     c: Arc<RuntimeClass>,
 ) -> (Arc<RuntimeClass>, usize) {
-    let all_methods = get_all_methods(state, int_state, c.clone());
+    let all_methods = get_all_methods(state, int_state, c);
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let method_view = c.view().method_view_i(*i);
         let cur_name = method_view.name();
         let cur_desc = method_view.desc();
         let expected_name = &method_name;
-        &&cur_name == expected_name &&
+        &cur_name == expected_name &&
             !method_view.is_static() &&
             !method_view.is_abstract() &&
             if method_view.is_signature_polymorphic() {
                 let _matches = method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
                     method_view.desc().return_type == PTypeView::object().to_ptype() &&
                     md.parameter_types.last()
-                        .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().map(|x2| x2.clone()))
+                        .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().cloned())
                         .map(|x| x.unwrap_name() == ClassName::member_name())
                         .unwrap_or(false) && unimplemented!();//todo this is currently under construction.
                 unimplemented!()

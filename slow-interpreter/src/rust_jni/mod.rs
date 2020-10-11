@@ -28,6 +28,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::from_object;
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
+use jvmti_jni_bindings::jobject;
 
 pub mod value_conversion;
 pub mod mangling;
@@ -46,7 +47,7 @@ impl LibJavaLoading {
 }
 
 
-pub fn call<'l>(
+pub fn call(
     state: &JVMState,
     int_state: &mut InterpreterStateGuard,
     classfile: Arc<RuntimeClass>,
@@ -57,10 +58,10 @@ pub fn call<'l>(
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
-            match state.libjava.libjava.get(mangled.clone().as_bytes()) {
+            match state.libjava.libjava.get(mangled.as_bytes()) {
                 Ok(o) => o,
                 Err(_) => {
-                    match state.libjava.libnio.get(mangled.clone().as_bytes()) {
+                    match state.libjava.libnio.get(mangled.as_bytes()) {
                         Ok(o) => o,
                         Err(e) => {
                             return Result::Err(e);
@@ -69,7 +70,7 @@ pub fn call<'l>(
                 }
             }
         };
-        symbol.deref().clone()
+        *symbol.deref()
     };
     if classfile.view().method_view_i(method_i).is_static() {
         Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, false))
@@ -78,7 +79,7 @@ pub fn call<'l>(
     }
 }
 
-pub fn call_impl<'l>(
+pub fn call_impl(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     classfile: Arc<RuntimeClass>,
@@ -129,7 +130,7 @@ pub fn call_impl<'l>(
             None
         }
         PTypeView::ByteType => {
-            Some(JavaValue::Byte(unsafe { transmute::<_, usize>(cif_res) as i8 }))//todo is this correct?
+            Some(JavaValue::Byte(cif_res as usize as i8))//todo is this correct?
         }
 //            ParsedType::CharType => {}
         PTypeView::DoubleType => {
@@ -148,7 +149,7 @@ pub fn call_impl<'l>(
         }
         PTypeView::Ref(_) => {
             unsafe {
-                Some(JavaValue::Object(from_object(transmute(cif_res))))
+                Some(JavaValue::Object(from_object(cif_res as  jobject)))
             }
         }
 //            ParsedType::TopType => {}

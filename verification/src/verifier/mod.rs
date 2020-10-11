@@ -183,7 +183,7 @@ fn classes_in_other_pkg_with_protected_member_impl(
         classes_in_other_pkg_with_protected_member_impl(
             vf,
             class,
-            member_name.clone(),
+            member_name,
             member_descriptor,
             member_class_name,
             rest,

@@ -3,9 +3,13 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::runtime_class::RuntimeClass;
+use jvmti_jni_bindings::_jmethodID;
 
 type MethodTableIndex = usize;
 pub type MethodId = MethodTableIndex;
+pub fn from_jmethod_id(jmethod : *mut _jmethodID) -> MethodId{
+    jmethod as MethodId
+}
 
 #[derive(Eq)]
 pub struct RuntimeClassWrapper(Arc<RuntimeClass>);
@@ -66,7 +70,7 @@ impl MethodTable {
         if id < self.table.len() {
             self.table[id].clone().into()
         } else {
-            return None
+            None
         }
     }
 

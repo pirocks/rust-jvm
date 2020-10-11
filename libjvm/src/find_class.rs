@@ -49,7 +49,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     let class_name = ClassName::Str(name_str);
     let loaded = jvm.bootstrap_loader.find_loaded_class(&class_name);
     match loaded {
-        None => return null_mut(),
+        None => null_mut(),
         Some(view) => {
             //todo what if name is long/int etc.
             get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone());
@@ -106,5 +106,5 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     };
 
     let res = get_or_create_class_object(jvm, &ptype, int_state, jvm.bootstrap_loader.clone());//todo what if not using bootstap loader
-    return new_local_ref_public(res.into(), int_state);
+    new_local_ref_public(res.into(), int_state)
 }

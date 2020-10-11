@@ -8,7 +8,7 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_util::check_inited_class;
 use crate::jvmti::{get_interpreter_state, get_state};
-use crate::method_table::MethodId;
+use crate::method_table::from_jmethod_id;
 use crate::rust_jni::native_util::from_object;
 
 /// Get Frame Count
@@ -127,7 +127,7 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
             let int_state = get_interpreter_state(env);
             let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm));
             let possible_starts = thread_class.view().lookup_method_name(&"start".to_string());
-            let thread_start_view = possible_starts.iter().next().unwrap();
+            let thread_start_view = possible_starts.get(0).unwrap();
             jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
         }
         Some(method_i) => {
@@ -208,7 +208,7 @@ pub unsafe extern "C" fn get_local_variable_table(
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalVariableTable");
     null_check!(table_ptr);
     null_check!(entry_count_ptr);
-    let method_id: MethodId = transmute(method);
+    let method_id = from_jmethod_id(method);
     let option = jvm.method_table.read().unwrap().try_lookup(method_id);
     assert!(option.is_some());
     let (class, method_i) = match option {
@@ -298,7 +298,7 @@ pub unsafe extern "C" fn get_local_variable_table(
 /// JVMTI_ERROR_NULL_POINTER	table_ptr is NULL.
 pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmethodID, entry_count_ptr: *mut jint, table_ptr: *mut *mut jvmtiLineNumberEntry) -> jvmtiError {
     let jvm = get_state(env);
-    let method_id: MethodId = transmute(method);
+    let method_id = from_jmethod_id(method);
     //todo capabilities
     assert!(jvm.vm_live());
     null_check!(table_ptr);
@@ -325,7 +325,7 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
     for (i, entry) in table.iter().enumerate() {
         let start = entry.start_pc;
         let line_number = entry.line_number;
-        res_table.offset(i as isize).write(_jvmtiLineNumberEntry {
+        res_table.add(i).write(_jvmtiLineNumberEntry {
             start_location: start as i64,
             line_number: line_number as i32,
         })

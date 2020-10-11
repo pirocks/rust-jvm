@@ -50,7 +50,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(
             runtime_class.loader(jvm).clone(),
         );
         let interface_class = new_local_ref_public(interface_obj.into(), int_state);
-        interfaces_ptr.read().offset(i as isize).write(interface_class)
+        interfaces_ptr.read().add(i).write(interface_class)
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

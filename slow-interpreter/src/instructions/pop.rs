@@ -13,4 +13,4 @@ pub fn pop2(current_frame: &mut StackEntry) {
     };
 }
 
-pub fn pop(current_frame: &mut StackEntry) -> () { current_frame.pop(); }
+pub fn pop(current_frame: &mut StackEntry) { current_frame.pop(); }

@@ -4,7 +4,6 @@ use crate::InterpreterStateGuard;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
 use crate::JVMState;
-use classfile_view::view::HasAccessFlags;
 
 // pub enum ResolutionError{
 //

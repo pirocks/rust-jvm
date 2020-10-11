@@ -32,7 +32,7 @@ pub mod event_callbacks;
 #[macro_export]
 macro_rules! null_check {
     ($ptr: expr) => {
-        if $ptr == std::ptr::null_mut() {
+        if $ptr.is_null() {
             return crate::jvmti::jvmtiError_JVMTI_ERROR_NULL_POINTER
         }
     };
@@ -40,7 +40,7 @@ macro_rules! null_check {
 
 
 pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
-    transmute((**env).reserved1)
+    &*((**env).reserved1 as *const JVMState)
 }
 
 
@@ -52,8 +52,7 @@ pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut Interpret
 
 pub fn get_jvmti_interface(jvm: &JVMState, _int_state: &mut InterpreterStateGuard) -> *mut jvmtiEnv {
     let new = get_jvmti_interface_impl(jvm);
-    let jni_data_structure_ptr = Box::leak(box (Box::leak(box new) as *const jvmtiInterface_1_)) as *mut jvmtiEnv;
-    jni_data_structure_ptr
+    Box::leak(box (Box::leak(box new) as *const jvmtiInterface_1_)) as *mut jvmtiEnv
 }
 
 fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {

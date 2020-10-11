@@ -6,7 +6,7 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 
-pub fn putstatic<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
@@ -16,7 +16,7 @@ pub fn putstatic<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: 
     target_classfile.static_vars().insert(field_name, field_value);
 }
 
-pub fn putfield<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
@@ -37,7 +37,7 @@ pub fn putfield<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u
     }
 }
 
-pub fn get_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     //todo make sure class pointer is updated correctly
 
     let view = &int_state.current_class_view();
@@ -46,7 +46,7 @@ pub fn get_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp:
     get_static_impl(jvm, int_state, cp, loader_arc, &field_class_name, &field_name);
 }
 
-fn get_static_impl<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &String) {
+fn get_static_impl(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &str) {
     let target_classfile = check_inited_class(state, int_state, &field_class_name.clone().into(), loader_arc.clone());
     let temp = target_classfile.static_vars();
     let attempted_get = temp.get(field_name);
@@ -62,7 +62,7 @@ fn get_static_impl<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, 
     stack.push(field_value);
 }
 
-pub fn get_field(current_frame: &mut StackEntry, cp: u16, _debug: bool) -> () {
+pub fn get_field(current_frame: &mut StackEntry, cp: u16, _debug: bool) {
     let view = &current_frame.class_pointer().view();
     let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let object_ref = current_frame.pop();

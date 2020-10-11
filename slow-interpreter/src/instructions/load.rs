@@ -4,9 +4,9 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
 use crate::java_values::JavaValue;
 
-pub fn aload(current_frame: &mut StackEntry, n: usize) -> () {
+pub fn aload(current_frame: &mut StackEntry, n: usize) {
     let ref_ = current_frame.local_vars()[n].clone();
-    match ref_.clone() {
+    match ref_ {
         JavaValue::Object(_) => {}
         _ => {
             dbg!(ref_);
@@ -63,7 +63,7 @@ pub fn dload(current_frame: &mut StackEntry, n: usize) {
 }
 
 
-pub fn aaload(current_frame: &mut StackEntry) -> () {
+pub fn aaload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -75,7 +75,7 @@ pub fn aaload(current_frame: &mut StackEntry) -> () {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let bounds_class = check_inited_class(
         jvm,
         int_state,
@@ -85,10 +85,10 @@ fn throw_array_out_of_bounds<'l>(jvm: &JVMState, int_state: &mut InterpreterStat
     push_new_object(jvm, int_state, &bounds_class, None);
     let obj = int_state.current_frame_mut().pop();
     run_constructor(jvm, int_state, bounds_class, vec![obj.clone()], "()V".to_string());
-    int_state.set_throw(obj.unwrap_object().into());
+    int_state.set_throw(obj.unwrap_object());
 }
 
-pub fn caload<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard) -> () {
+pub fn caload(state: &JVMState, int_state: &mut InterpreterStateGuard) {
     let index = int_state.pop_current_operand_stack().unwrap_int();
     let temp = int_state.pop_current_operand_stack();
     let unborrowed = temp.unwrap_array();
@@ -105,7 +105,7 @@ pub fn caload<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard) -> ()
 }
 
 
-pub fn iaload(current_frame: &mut StackEntry) -> () {
+pub fn iaload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -115,7 +115,7 @@ pub fn iaload(current_frame: &mut StackEntry) -> () {
 }
 
 
-pub fn laload(current_frame: &mut StackEntry) -> () {
+pub fn laload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -125,7 +125,7 @@ pub fn laload(current_frame: &mut StackEntry) -> () {
 }
 
 
-pub fn baload(current_frame: &mut StackEntry) -> () {
+pub fn baload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();

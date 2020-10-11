@@ -29,7 +29,7 @@ pub mod dynamic {
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::string::JString;
 
-    pub fn invoke_dynamic<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+    pub fn invoke_dynamic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
         let _method_handle_class = check_inited_class(
             jvm,
             int_state,
@@ -111,14 +111,14 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let view = int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => match r {
             ReferenceTypeView::Class(c) => c,
-            ReferenceTypeView::Array(_a) => if expected_method_name == "clone".to_string() {
+            ReferenceTypeView::Array(_a) => if expected_method_name == *"clone" {
                 //todo replace with proper native impl
                 let temp = int_state.pop_current_operand_stack().unwrap_object().unwrap();
                 let ArrayObject { elems, elem_type, monitor: _monitor } = temp.unwrap_array();

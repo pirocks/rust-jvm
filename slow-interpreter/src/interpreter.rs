@@ -36,7 +36,7 @@ use crate::method_table::MethodId;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 
-pub fn run_function<'l>(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
+pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let view = interpreter_state.current_class_view().clone();
     let method_i = interpreter_state.current_method_i();
     let method = view.method_view_i(method_i as usize);
@@ -54,7 +54,7 @@ pub fn run_function<'l>(jvm: &JVMState, interpreter_state: &mut InterpreterState
     let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized, &class_name__);
-    while !*interpreter_state.terminate() && !*interpreter_state.function_return() && !interpreter_state.throw().is_some() {
+    while !*interpreter_state.terminate() && !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
         let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code, &meth_name);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
@@ -117,7 +117,7 @@ pub fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {
     }
 }
 
-fn update_pc_for_next_instruction<'l>(interpreter_state: &mut InterpreterStateGuard) {
+fn update_pc_for_next_instruction(interpreter_state: &mut InterpreterStateGuard) {
     let offset = interpreter_state.current_pc_offset();
     let mut pc = interpreter_state.current_pc();
     if offset > 0 {
@@ -146,7 +146,7 @@ fn breakpoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     }
 }
 
-fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &String) -> (InstructionInfo, usize) {
+fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &str) -> (InstructionInfo, usize) {
     let current = &code.code_raw[current_frame.pc()..];
     let mut context = CodeParserContext { offset: current_frame.pc(), iter: current.iter() };
     let parsedq = parse_instruction(&mut context);
@@ -161,7 +161,7 @@ fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &Stri
         }
         Some(_) => {}
     };
-    (parsedq.unwrap().clone(), context.offset - current_frame.pc())
+    (parsedq.unwrap(), context.offset - current_frame.pc())
 }
 
 pub fn monitor_for_function(
@@ -190,12 +190,12 @@ pub fn monitor_for_function(
     }
 }
 
-fn run_single_instruction<'l>(
+fn run_single_instruction(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     instruct: InstructionInfo,
 ) {
-    match instruct.clone() {
+    match instruct {
         InstructionInfo::aaload => aaload(interpreter_state.current_frame_mut()),
         InstructionInfo::aastore => aastore(interpreter_state.current_frame_mut()),
         InstructionInfo::aconst_null => aconst_null(interpreter_state.current_frame_mut()),
@@ -414,13 +414,13 @@ fn run_single_instruction<'l>(
     }
 }
 
-fn athrow<'l>(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
+fn athrow(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     println!("EXCEPTION:");
     let exception_obj = {
         let value = interpreter_state.pop_current_operand_stack();
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.unwrap_object_nonnull()
-    }.clone();
+    };
     dbg!(exception_obj.lookup_field("detailMessage"));
     interpreter_state.print_stack_trace();
     interpreter_state.set_throw(exception_obj.into());

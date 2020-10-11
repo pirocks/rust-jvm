@@ -33,14 +33,14 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
     let res = std::alloc::alloc(chars_layout) as *mut c_char;
     char_array.iter().enumerate().for_each(|(i, j)| {
         let cur = j.unwrap_char() as u8;
-        res.offset(i as isize).write(transmute(cur))
+        res.add(i).write(transmute(cur))
     });
-    res.offset(char_array.len() as isize).write(0);//null terminate
-    if is_copy != std::ptr::null_mut() {
+    res.add(char_array.len()).write(0);//null terminate
+    if !is_copy.is_null() {
         is_copy.write(JNI_TRUE as u8);
     }
     // dbg!(get_state(_env).get_current_thread());
-    return res;
+    res
 }
 
 pub unsafe extern "C" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, _chars: *const jchar) {
@@ -60,7 +60,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
 pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char, len: usize) -> jstring {
     let mut owned_str = String::with_capacity(len);
     for i in 0..len {
-        owned_str.push(utf.offset(i as isize).read() as u8 as char);
+        owned_str.push(utf.add(i).read() as u8 as char);
     }
     new_string_with_string(env, owned_str)
 }

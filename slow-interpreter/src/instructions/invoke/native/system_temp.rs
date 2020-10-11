@@ -3,7 +3,7 @@ use std::cell::Ref;
 
 use crate::java_values::JavaValue;
 
-pub fn system_array_copy(args: &mut Vec<JavaValue>) -> () {
+pub fn system_array_copy(args: &mut Vec<JavaValue>) {
     let src_o = args[0].clone().unwrap_object();
     let src = src_o.as_ref().unwrap().unwrap_array();
     let src_pos = args[1].clone().unwrap_int() as usize;

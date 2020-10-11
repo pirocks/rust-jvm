@@ -131,7 +131,7 @@ pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
 }
 
 
-fn add_verification_type_to_array_convert(locals: &mut Vec<PTypeView>, new_local: &PTypeView) -> () {
+fn add_verification_type_to_array_convert(locals: &mut Vec<PTypeView>, new_local: &PTypeView) {
     match new_local.clone() {
         PTypeView::DoubleType => {
             locals.push(PTypeView::DoubleType);

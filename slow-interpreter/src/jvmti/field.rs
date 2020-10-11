@@ -1,5 +1,4 @@
 use std::ffi::CString;
-use std::intrinsics::transmute;
 use std::mem::size_of;
 use std::ptr::null_mut;
 use std::sync::Arc;
@@ -23,7 +22,7 @@ pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, f
 }
 
 fn get_field(klass: jclass, field: jfieldID, jvm: &JVMState) -> (Arc<ClassView>, u16) {
-    let field_id: FieldId = unsafe { transmute(field) };
+    let field_id: FieldId = field as usize;
     let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
     unsafe { Arc::ptr_eq(&from_jclass(klass).as_runtime_class(), &runtime_class); }
     let view = runtime_class.view();
@@ -67,7 +66,7 @@ pub unsafe extern "C" fn get_class_fields(
     field_count_ptr.write(num_fields as jint);
     fields_ptr.write(libc::calloc(num_fields, size_of::<*mut jfieldID>()) as *mut *mut jvmti_jni_bindings::_jfieldID);
     for i in 0..num_fields {
-        fields_ptr.read().offset(i as isize).write(new_field_id(jvm, runtime_class.clone(), i))
+        fields_ptr.read().add(i).write(new_field_id(jvm, runtime_class.clone(), i))
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

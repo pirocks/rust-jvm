@@ -13,7 +13,7 @@ use crate::interpreter::run_function;
 use crate::interpreter_util::check_inited_class;
 use crate::runtime_class::RuntimeClass;
 
-pub fn invoke_special<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> () {
+pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let loader_arc = int_state.current_frame_mut().class_pointer().loader(jvm).clone();
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, int_state.current_frame_mut().class_pointer().view());
     let method_class_name = method_class_type.unwrap_class_type();
@@ -23,19 +23,19 @@ pub fn invoke_special<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
         &method_class_name.into(),
         loader_arc.clone(),
     );
-    let (target_m_i, final_target_class) = find_target_method(jvm, loader_arc.clone(), method_name.clone(), &parsed_descriptor, target_class);
+    let (target_m_i, final_target_class) = find_target_method(jvm, loader_arc.clone(), method_name, &parsed_descriptor, target_class);
     let target_m = &final_target_class.view().method_view_i(target_m_i);
     invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone(), target_m);
 }
 
-pub fn invoke_special_impl<'l>(
+pub fn invoke_special_impl(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,
     final_target_class: Arc<RuntimeClass>,
     target_m: &MethodView,
-) -> () {
+) {
     if target_m.is_native() {
         run_native_method(jvm, interpreter_state, final_target_class, target_m_i);
     } else {

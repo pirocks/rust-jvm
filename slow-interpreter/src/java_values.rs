@@ -108,7 +108,7 @@ impl CycleDetectingDebug for NormalObject {
             o.fields.borrow().iter().for_each(|(n, v)| {
                 write!(f, "({},", n).unwrap();
                 v.cycle_fmt(prev, f).unwrap();
-                write!(f, ")\n").unwrap();
+                writeln!(f, ")").unwrap();
             });
             write!(f, "-")?;
         }
@@ -421,10 +421,7 @@ impl PartialEq for JavaValue {
                 match other {
                     JavaValue::Object(x1) => {
                         match x {
-                            None => match x1 {
-                                None => true,
-                                Some(_) => false
-                            },
+                            None => x1.is_none(),
                             Some(o) => match x1 {
                                 None => false,
                                 Some(o1) => Arc::ptr_eq(o, o1),
@@ -435,10 +432,7 @@ impl PartialEq for JavaValue {
                 }
             }
             JavaValue::Top => {
-                match other {
-                    JavaValue::Top => true,
-                    _ => false
-                }
+                matches!(other, JavaValue::Top)
             }
         }
     }

@@ -19,7 +19,7 @@ pub mod defineAnonymousClass;
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(
     env: *mut JNIEnv,
-    cb: jclass) -> () {
+    cb: jclass) {
     //todo for now register nothing, register later as needed.
 }
 
@@ -56,7 +56,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_addressSize(env: *mut JNIEnv,
 #[no_mangle]
 unsafe extern "system" fn Java_sun_reflect_Reflection_getCallerClass(env: *mut JNIEnv,
                                                                      cb: jclass) -> jclass {
-    return JVM_GetCallerClass(env, JVM_CALLER_DEPTH);
+    JVM_GetCallerClass(env, JVM_CALLER_DEPTH)
 }
 
 #[no_mangle]
@@ -119,14 +119,14 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
     let clazz = jfield.clazz().as_runtime_class();
     let class_view = clazz.view();
     let mut field_i = None;
-    &class_view.fields().enumerate().for_each(|(i, f)| {
+    class_view.fields().enumerate().for_each(|(i, f)| {
         if f.field_name() == name {
             field_i = Some(i);
         }
     });
     let jvm = get_state(env);
     let field_id = new_field_id(jvm, clazz, field_i.unwrap());
-    transmute(field_id)
+    field_id as jlong
 }
 
 #[no_mangle]
@@ -139,14 +139,14 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
     let clazz = jfield.clazz().as_runtime_class();
     let class_view = clazz.view();
     let mut field_i = None;
-    &class_view.fields().enumerate().for_each(|(i, f)| {
+    class_view.fields().enumerate().for_each(|(i, f)| {
         if f.field_name() == name && f.is_static() {
             field_i = Some(i);
         }
     });
     let jvm = get_state(env);
     let field_id = new_field_id(jvm, clazz, field_i.unwrap());
-    transmute(field_id)
+    field_id as jlong
 }
 
 
@@ -170,7 +170,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(
 unsafe extern "system" fn Java_sun_misc_Unsafe_allocateMemory(env: *mut JNIEnv,
                                                               the_unsafe: jobject,
                                                               len: jlong) -> jlong {
-    let res: i64 = transmute(libc::malloc(len as usize));
+    let res: i64 = libc::malloc(len as usize) as i64;
     res
 }
 

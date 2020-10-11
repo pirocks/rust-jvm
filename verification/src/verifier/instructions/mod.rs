@@ -45,7 +45,7 @@ pub enum FrameResult {
 }
 
 //todo how to handle other values here
-pub fn merged_code_is_type_safe<'l>(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult) -> Result<(), TypeSafetyError> {
+pub fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult) -> Result<(), TypeSafetyError> {
     let first = &merged_code[0];//infinite recursion will not occur becuase we stop when we reach EndOfCode
     let rest = &merged_code[1..merged_code.len()];
     match first {
@@ -148,7 +148,7 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
     let locals_copy = locals.clone();
-    let stack_map = OperandStack::new_prolog_display_order(&vec![class_to_type(&env.vf, &exception_class)]);
+    let stack_map = OperandStack::new_prolog_display_order(&[class_to_type(&env.vf, &exception_class)]);
     let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: stack_map.clone(), flag_this_uninit: flags };
     if operand_stack_has_legal_length(env, &stack_map) {
         target_is_type_safe(env, &true_exc_stack_frame, target)

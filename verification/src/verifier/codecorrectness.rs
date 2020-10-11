@@ -345,10 +345,7 @@ fn expand_type_list(vf: &VerifierContext, list: Vec<VType>) -> Vec<VType> {
 fn flags(this_list: &Option<VType>) -> bool {
     match this_list {
         None => false,
-        Some(s) => match s {
-            VType::UninitializedThis => true,
-            _ => false
-        }
+        Some(s) => matches!(s, VType::UninitializedThis)
     }
 }
 

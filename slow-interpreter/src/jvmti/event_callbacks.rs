@@ -298,7 +298,9 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jni_env = get_interface(jvm, int_state);
         let ThreadStartEvent { thread } = event;
         let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
-        (self.thread_start_callback.read().unwrap().as_ref().map(|callback| callback(jvmti_env, jni_env, thread)));
+        if let Some(callback) = self.thread_start_callback.read().unwrap().as_ref() {
+            callback(jvmti_env, jni_env, thread)
+        }
         int_state.pop_frame(frame_for_event);
     }
 

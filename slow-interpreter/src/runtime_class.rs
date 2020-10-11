@@ -142,7 +142,9 @@ impl Hash for RuntimeClassClass {
 
 impl PartialEq for RuntimeClassClass {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.loader, &other.loader) && self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
+        // Arc::ptr_eq(&self.loader, &other.loader) &&//todo fix this
+        self.loader.name() == other.loader.name() &&
+            self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
     }
 }
 
@@ -159,13 +161,12 @@ pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderA
             res.insert(name, val);
         }
     }
-    let res = RuntimeClassClass {
+    RuntimeClassClass {
         class_view: Arc::new(ClassView::from(classfile.clone())),
         classfile,
         loader,
         static_vars: RwLock::new(res),
-    }.into();
-    res
+    }.into()
 }
 
 
@@ -175,7 +176,7 @@ impl std::convert::From<RuntimeClassClass> for RuntimeClass {
     }
 }
 
-pub fn initialize_class<'l>(
+pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
@@ -203,7 +204,7 @@ pub fn initialize_class<'l>(
     let view = &class_arc.view();
     let lookup_res = view.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
-    let clinit = match lookup_res.iter().nth(0) {
+    let clinit = match lookup_res.get(0) {
         None => return class_arc,
         Some(x) => x,
     };

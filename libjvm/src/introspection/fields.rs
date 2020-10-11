@@ -29,7 +29,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut object_array = vec![];
-    &class_obj.view().fields().enumerate().for_each(|(i, f)| {
+    class_obj.view().fields().enumerate().for_each(|(i, f)| {
         //todo so this is big and messy put I don't really see a way to simplify
         let field_class_name_ = class_obj.clone().view().name();
         load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));

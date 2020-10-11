@@ -12,7 +12,7 @@ use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
-pub fn run_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let view = int_state.current_class_view();
@@ -25,7 +25,7 @@ pub fn run_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGua
         &class_name.into(),
         loader_arc.clone(),
     );
-    let (target_method_i, final_target_method) = find_target_method(jvm, loader_arc.clone(), expected_method_name.clone(), &expected_descriptor, target_class);
+    let (target_method_i, final_target_method) = find_target_method(jvm, loader_arc.clone(), expected_method_name, &expected_descriptor, target_class);
 
     invoke_static_impl(
         jvm,
@@ -37,14 +37,14 @@ pub fn run_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGua
     );
 }
 
-pub fn invoke_static_impl<'l>(
+pub fn invoke_static_impl(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
     target_method: &MethodInfo,
-) -> () {
+) {
     let mut args = vec![];
     let current_frame = interpreter_state.current_frame_mut();
     if target_method.access_flags & ACC_NATIVE == 0 {
@@ -78,6 +78,6 @@ pub fn invoke_static_impl<'l>(
             return;
         }
     } else {
-        run_native_method(jvm, interpreter_state, target_class.clone(), target_method_i);
+        run_native_method(jvm, interpreter_state, target_class, target_method_i);
     }
 }

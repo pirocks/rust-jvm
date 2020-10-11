@@ -9,8 +9,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {
     //todo get rid of these  hardcoded paths
     let p1 = add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/Desktop/jdk8u232-b09/jre/lib/amd64".to_string());
-    let p2 = add_prop(env, p1, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string());
-    p2
+    add_prop(env, p1, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string())
 }
 
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jobject {
@@ -24,7 +23,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jo
     let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
     let class_view = &runtime_class.view();
     let candidate_meth = class_view.lookup_method_name(&"setProperty".to_string());
-    let meth = candidate_meth.iter().next().unwrap();
+    let meth = candidate_meth.get(0).unwrap();
     let md = meth.desc();
     int_state.push_current_operand_stack(JavaValue::Object(prop_obj.clone().into()));
     int_state.push_current_operand_stack(key);

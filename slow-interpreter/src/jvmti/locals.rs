@@ -159,7 +159,7 @@ unsafe fn get_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thr
         return Result::Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
 
-    let jthread = if thread != null_mut() {
+    let jthread = if !thread.is_null() {
         match JavaValue::Object(from_object(thread)).try_cast_thread() {
             None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
             Some(jt) => jt,
@@ -178,5 +178,5 @@ unsafe fn get_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thr
     }
     dbg!(stack_frame.local_vars());
     let var = stack_frame.local_vars().get(slot as usize).cloned();
-    var.map(|var| Result::Ok(var)).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
+    var.map(Result::Ok).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
 }

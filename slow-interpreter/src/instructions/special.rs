@@ -13,7 +13,7 @@ use crate::java_values::JavaValue;
 use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
 
-pub fn arraylength(int_state: &mut InterpreterStateGuard) -> () {
+pub fn arraylength(int_state: &mut InterpreterStateGuard) {
     // int_state.print_stack_trace();
     let current_frame = int_state.current_frame_mut();
     let array_o = current_frame.pop().unwrap_object().unwrap();
@@ -22,7 +22,7 @@ pub fn arraylength(int_state: &mut InterpreterStateGuard) -> () {
 }
 
 
-pub fn invoke_checkcast<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let possibly_null = int_state.current_frame_mut().pop().unwrap_object();
     if possibly_null.is_none() {
         int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
@@ -37,7 +37,6 @@ pub fn invoke_checkcast<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuar
             let object_class = o.class_pointer.clone();
             if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
-                return;
             } else {
                 // current_frame.print_stack_trace();
                 unimplemented!()
@@ -54,8 +53,8 @@ pub fn invoke_checkcast<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuar
             let cast_succeeds = match &a.elem_type {
                 PTypeView::Ref(_) => {
                     //todo wrong for varying depth arrays?
-                    let actual_runtime_class = check_inited_class(jvm, int_state, &a.elem_type.unwrap_class_type().clone().into(), int_state.current_loader(jvm).clone());
-                    let expected_runtime_class = check_inited_class(jvm, int_state, &expected_type.unwrap_class_type().clone().into(), int_state.current_loader(jvm).clone());
+                    let actual_runtime_class = check_inited_class(jvm, int_state, &a.elem_type.unwrap_class_type().into(), int_state.current_loader(jvm).clone());
+                    let expected_runtime_class = check_inited_class(jvm, int_state, &expected_type.unwrap_class_type().into(), int_state.current_loader(jvm).clone());
                     inherits_from(jvm, int_state, &actual_runtime_class, &expected_runtime_class)
                 }
                 _ => {
@@ -64,7 +63,6 @@ pub fn invoke_checkcast<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuar
             };
             if cast_succeeds {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
-                return;
             } else {
                 unimplemented!()
             }
@@ -74,7 +72,7 @@ pub fn invoke_checkcast<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuar
 }
 
 
-pub fn invoke_instanceof<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_instanceof(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let possibly_null = int_state.pop_current_operand_stack().unwrap_object();
     if possibly_null.is_none() {
         int_state.push_current_operand_stack(JavaValue::Int(0));
@@ -87,7 +85,7 @@ pub fn invoke_instanceof<'l>(state: &JVMState, int_state: &mut InterpreterStateG
     instance_of_impl(state, int_state, unwrapped, instance_of_class_type);
 }
 
-pub fn instance_of_impl<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
+pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -123,7 +121,7 @@ pub fn instance_of_impl<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     };
 }
 
-fn runtime_super_class<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
+fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.view().super_name().is_some() {
         Some(check_inited_class(jvm, int_state, &inherits.view().super_name().unwrap().into(), inherits.loader(jvm).clone()))
     } else {
@@ -131,21 +129,21 @@ fn runtime_super_class<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard
     }
 }
 
-fn runtime_interface_class<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_: &Arc<RuntimeClass>, i: InterfaceView) -> Arc<RuntimeClass> {
+fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_: &Arc<RuntimeClass>, i: InterfaceView) -> Arc<RuntimeClass> {
     let intf_name = i.interface_name();
     check_inited_class(jvm, int_state, &ClassName::Str(intf_name).into(), class_.loader(jvm).clone())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
-    if &inherits.view().name() == &parent.view().name() {
+pub fn inherits_from(state: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
+    if inherits.view().name() == parent.view().name() {
         return true;
     }
     let mut interfaces_match = false;
 
     for (_, i) in inherits.view().interfaces().enumerate() {
         let interface = runtime_interface_class(state, int_state, inherits, i);
-        interfaces_match |= &interface.view().name() == &parent.view().name();
+        interfaces_match |= interface.view().name() == parent.view().name();
     }
 
 
@@ -153,7 +151,7 @@ pub fn inherits_from<'l>(state: &JVMState, int_state: &mut InterpreterStateGuard
         None => false,
         Some(super_) => {
             //todo why is this not an impl function?
-            &super_.view().name() == &parent.view().name() ||
+            super_.view().name() == parent.view().name() ||
                 inherits_from(state, int_state, &super_, parent)
         }
     }) || interfaces_match

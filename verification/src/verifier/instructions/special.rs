@@ -34,7 +34,7 @@ pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stac
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &get_class(&env.vf, env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader);
-    passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), &stack_frame)?;
+    passes_protected_check(env, &field_class_name, field_name, Descriptor::Field(&field_descriptor), &stack_frame)?;
     let current_loader = env.class_loader.clone();
     let expected_types_on_stack = vec![VType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })];
     type_transition(env, stack_frame, expected_types_on_stack, field_type)

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::intrinsics::transmute;
 use std::mem::size_of;
 use std::os::raw::c_void;
 use std::sync::RwLock;
@@ -31,7 +30,7 @@ impl NativeAllocator {
         assert!(len < i32::MAX as usize);
         len_ptr.write(len as i32);
         for (i, elem) in data.into_iter().enumerate() {
-            data_ptr.read().offset(i as isize).write(elem)
+            data_ptr.read().add(i).write(elem)
         }
     }
 
@@ -52,7 +51,7 @@ impl NativeAllocator {
     pub unsafe fn allocate_cstring(&self, cstr: CString) -> *mut i8 {
         let res = cstr.into_raw();
         let mut guard = self.allocations.write().unwrap();
-        guard.insert(transmute(res as *mut c_void), AllocationType::CString);
+        guard.insert(res as *mut c_void as usize, AllocationType::CString);
         res
     }
 

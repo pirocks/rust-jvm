@@ -46,7 +46,7 @@ pub unsafe fn to_object(obj: Option<Arc<Object>>) -> jobject {
 }
 
 pub unsafe fn from_object(obj: jobject) -> Option<Arc<Object>> {
-    if obj == std::ptr::null_mut() {
+    if obj.is_null() {
         None
     } else {
         (obj as *mut Arc<Object>).as_ref().unwrap().clone().into()
@@ -59,8 +59,6 @@ pub unsafe fn from_jclass(obj: jclass) -> JClass {
 
 pub unsafe fn try_from_jclass(obj: jclass) -> Option<JClass> {
     let possibly_null = from_object(obj);
-    if possibly_null.is_none() {
-        return None;
-    }
+    possibly_null.as_ref()?;
     JavaValue::Object(possibly_null).cast_class().into()
 }

@@ -1,11 +1,11 @@
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
-pub fn fcmpl(current_frame: &mut StackEntry) -> () {
+pub fn fcmpl(current_frame: &mut StackEntry) {
     let value2 = current_frame.pop().unwrap_float();
     let value1 = current_frame.pop().unwrap_float();
     //todo check this actually handles Nan correctly
-    if value1 == value2 {
+    if value1.to_bits() == value2.to_bits() {
         current_frame.push(JavaValue::Int(0))
     } else if value1 > value2 {
         current_frame.push(JavaValue::Int(1))
@@ -16,10 +16,10 @@ pub fn fcmpl(current_frame: &mut StackEntry) -> () {
     }
 }
 
-pub fn fcmpg(current_frame: &mut StackEntry) -> () {
+pub fn fcmpg(current_frame: &mut StackEntry) {
     let value2 = current_frame.pop().unwrap_float();
     let value1 = current_frame.pop().unwrap_float();
-    if value1 == value2 {
+    if value1.to_bits() == value2.to_bits() {
         current_frame.push(JavaValue::Int(0))
     } else if value1 > value2 {
         current_frame.push(JavaValue::Int(1))

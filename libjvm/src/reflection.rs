@@ -57,10 +57,10 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
 unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jobject, args0: jobjectArray) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let args = if args0 == std::ptr::null_mut() {
+    let args = if args0.is_null() {
         vec![]
     } else {
-        let temp_1 = from_object(args0).unwrap().clone();
+        let temp_1 = from_object(args0).unwrap();
         let array_temp = temp_1.unwrap_array().borrow();
         let elems_refcell = array_temp.elems.borrow();
         elems_refcell.clone()

@@ -23,7 +23,7 @@ pub fn get_invoke_interface(state: &JVMState, int_state: &mut InterpreterStateGu
                     GetEnv: Some(get_env),
                     AttachCurrentThreadAsDaemon: None,
                 })
-            }.into());
+            });
         }
         Some(_) => {}
     }
@@ -31,7 +31,7 @@ pub fn get_invoke_interface(state: &JVMState, int_state: &mut InterpreterStateGu
 }
 
 pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState/*<'l>*/ {
-    transmute((**vm).reserved0)
+    &*((**vm).reserved0 as *const JVMState)
 }
 
 pub unsafe fn get_interpreter_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l mut InterpreterStateGuard<'l> {

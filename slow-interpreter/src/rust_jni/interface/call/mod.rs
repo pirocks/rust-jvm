@@ -1,5 +1,4 @@
 use std::ffi::{VaList, VaListImpl};
-use std::mem::transmute;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
@@ -11,14 +10,14 @@ use rust_jvm_common::ptype::PType;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::java_values::JavaValue;
-use crate::method_table::MethodId;
+use crate::method_table::{MethodId, from_jmethod_id};
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 use crate::StackEntry;
 
 pub mod call_nonstatic;
 
-unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
-    let method_id: MethodId = transmute(method_id);
+unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
+    let method_id = from_jmethod_id(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of unwrap
@@ -69,7 +68,7 @@ unsafe fn call_nonstatic_method<'l>(env: *mut *const JNINativeInterface_, obj: j
             PTypeView::UninitializedThisOrClass(_) => panic!(),
         }
     }
-    invoke_virtual_method_i(jvm, int_state, parsed, class.clone(), method_i as usize, &method);
+    invoke_virtual_method_i(jvm, int_state, parsed, class, method_i as usize, &method);
     assert!(int_state.throw().is_none());//todo
     if method.desc().return_type == PType::VoidType {
         None
@@ -221,8 +220,8 @@ impl VarargProvider<'_, '_, '_> {
 
     pub unsafe fn arg_float(&mut self) -> f32 {
         match self {
-            VarargProvider::Dots(l) => transmute(l.arg::<u32>()),
-            VarargProvider::VaList(l) => transmute(l.arg::<u32>()),
+            VarargProvider::Dots(l) => f32::from_bits(l.arg::<u32>()),
+            VarargProvider::VaList(l) => f32::from_bits(l.arg::<u32>()),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
                 let res = (**a_ptr).f;
@@ -234,8 +233,8 @@ impl VarargProvider<'_, '_, '_> {
 
     pub unsafe fn arg_double(&mut self) -> f64 {
         match self {
-            VarargProvider::Dots(l) => transmute(l.arg::<u64>()),
-            VarargProvider::VaList(l) => transmute(l.arg::<u64>()),
+            VarargProvider::Dots(l) => f64::from_bits(l.arg::<u64>()),
+            VarargProvider::VaList(l) => f64::from_bits(l.arg::<u64>()),
             VarargProvider::Array(a_ptr) => {
                 //todo duplication
                 let res = (**a_ptr).d;

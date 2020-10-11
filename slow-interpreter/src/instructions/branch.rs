@@ -7,7 +7,7 @@ pub fn goto_(current_frame: &mut StackEntry, target: i16) {
     *current_frame.pc_offset_mut() = target as isize;
 }
 
-pub fn ifnull(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn ifnull(current_frame: &mut StackEntry, offset: i16) {
     let val = current_frame.pop();
     let succeeds = match val {
         JavaValue::Object(o) => o.is_none(),
@@ -18,7 +18,7 @@ pub fn ifnull(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn ifnonnull(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn ifnonnull(current_frame: &mut StackEntry, offset: i16) {
     let val = current_frame.pop();
     let succeeds = match val {
         JavaValue::Object(o) => o.is_some(),
@@ -29,7 +29,7 @@ pub fn ifnonnull(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn ifle(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn ifle(current_frame: &mut StackEntry, offset: i16) {
     let val = current_frame.pop();
     let succeeds = val.unwrap_int() <= 0;
     if succeeds {
@@ -37,7 +37,7 @@ pub fn ifle(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn ifgt(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn ifgt(current_frame: &mut StackEntry, offset: i16) {
     let val = current_frame.pop();
     let succeeds = val.unwrap_int() > 0;
     if succeeds {
@@ -45,7 +45,7 @@ pub fn ifgt(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn ifge(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn ifge(current_frame: &mut StackEntry, offset: i16) {
     let val = current_frame.pop();
     let succeeds = val.unwrap_int() >= 0;
     if succeeds {
@@ -53,7 +53,7 @@ pub fn ifge(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn iflt(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn iflt(current_frame: &mut StackEntry, offset: i16) {
     let val = current_frame.pop();
     let succeeds = val.unwrap_int() < 0;
     if succeeds {
@@ -61,7 +61,7 @@ pub fn iflt(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn ifne(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn ifne(current_frame: &mut StackEntry, offset: i16) {
     let val = current_frame.pop();
     let succeeds = val.unwrap_int() != 0;
     if succeeds {
@@ -69,7 +69,7 @@ pub fn ifne(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn ifeq(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn ifeq(current_frame: &mut StackEntry, offset: i16) {
     //todo dup
     let val = current_frame.pop();
     let succeeds = val.unwrap_int() == 0;
@@ -78,7 +78,7 @@ pub fn ifeq(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn if_icmpgt(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn if_icmpgt(current_frame: &mut StackEntry, offset: i16) {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 > value2;
@@ -88,7 +88,7 @@ pub fn if_icmpgt(current_frame: &mut StackEntry, offset: i16) -> () {
 }
 
 
-pub fn if_icmplt(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn if_icmplt(current_frame: &mut StackEntry, offset: i16) {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 < value2;
@@ -98,7 +98,7 @@ pub fn if_icmplt(current_frame: &mut StackEntry, offset: i16) -> () {
 }
 
 
-pub fn if_icmple(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn if_icmple(current_frame: &mut StackEntry, offset: i16) {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 <= value2;
@@ -107,7 +107,7 @@ pub fn if_icmple(current_frame: &mut StackEntry, offset: i16) -> () {
     }
 }
 
-pub fn if_icmpge(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn if_icmpge(current_frame: &mut StackEntry, offset: i16) {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 >= value2;
@@ -117,7 +117,7 @@ pub fn if_icmpge(current_frame: &mut StackEntry, offset: i16) -> () {
 }
 
 
-pub fn if_icmpne(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn if_icmpne(current_frame: &mut StackEntry, offset: i16) {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 != value2;
@@ -127,7 +127,7 @@ pub fn if_icmpne(current_frame: &mut StackEntry, offset: i16) -> () {
 }
 
 
-pub fn if_icmpeq(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn if_icmpeq(current_frame: &mut StackEntry, offset: i16) {
     let value2 = current_frame.pop().unwrap_int();
     let value1 = current_frame.pop().unwrap_int();
     let succeeds = value1 == value2;
@@ -137,7 +137,7 @@ pub fn if_icmpeq(current_frame: &mut StackEntry, offset: i16) -> () {
 }
 
 
-pub fn if_acmpne(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn if_acmpne(current_frame: &mut StackEntry, offset: i16) {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
     let succeeds = !equal_ref(value2, value1);
@@ -147,7 +147,7 @@ pub fn if_acmpne(current_frame: &mut StackEntry, offset: i16) -> () {
 }
 
 
-pub fn if_acmpeq(current_frame: &mut StackEntry, offset: i16) -> () {
+pub fn if_acmpeq(current_frame: &mut StackEntry, offset: i16) {
     let value2 = current_frame.pop();
     let value1 = current_frame.pop();
     let succeeds = equal_ref(value2, value1);
@@ -160,10 +160,7 @@ fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
     match value1 {
         JavaValue::Object(o1) => match value2 {
             JavaValue::Object(o2) => match o1 {
-                None => match o2 {
-                    None => true,
-                    Some(_) => false,
-                },
+                None => o2.is_none(),
                 Some(o1_arc) => match o2 {
                     None => false,
                     Some(o2_arc) => {

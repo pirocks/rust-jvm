@@ -14,7 +14,7 @@ use crate::java_values::{JavaValue, NormalObject};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::resolvers::methods::{resolve_invoke_virtual, resolve_invoke_static};
 
-pub fn MHN_resolve<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
 //so as far as I can find this is undocumented.
 //so as far as I can figure out we have a method name and a class
@@ -159,9 +159,9 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         _ => panic!()
     }
     let clazz = member_name.get_clazz();
-    let clazz_as_runtime_class = clazz.as_runtime_class();
-    let name = member_name.get_name().to_rust_string();
-    let type_ = type_java_value.unwrap_normal_object();
+    let _clazz_as_runtime_class = clazz.as_runtime_class();
+    let _name = member_name.get_name().to_rust_string();
+    let _type_ = type_java_value.unwrap_normal_object();
     if let Some(assertion_case) = assertion_case {
         match assertion_case {
             AssertionCase::CAST => {

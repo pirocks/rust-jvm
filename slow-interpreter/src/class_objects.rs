@@ -39,7 +39,7 @@ pub fn get_or_create_class_object(state: &JVMState,
 //     }
 // }
 
-fn regular_class_object<'l>(state: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Arc<Object> {
+fn regular_class_object(state: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Arc<Object> {
     // let current_frame = int_state.current_frame_mut();
     let runtime_class = check_inited_class(state, int_state, &ptype, loader_arc);
     let res = state.classes.class_object_pool.read().unwrap().get(&ptype).cloned();
@@ -47,7 +47,7 @@ fn regular_class_object<'l>(state: &JVMState, ptype: PTypeView, int_state: &mut 
         None => {
             let r = create_a_class_object(state, int_state, runtime_class.clone());
             //todo likely race condition created by expectation that Integer.class == Integer.class, maybe let it happen anyway?
-            state.classes.class_object_pool.write().unwrap().insert(ptype.clone(), r.clone());
+            state.classes.class_object_pool.write().unwrap().insert(ptype, r.clone());
             if runtime_class.ptypeview().is_primitive() {
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
@@ -59,7 +59,7 @@ fn regular_class_object<'l>(state: &JVMState, ptype: PTypeView, int_state: &mut 
             }*/
             r
         }
-        Some(r) => r.clone(),
+        Some(r) => r,
     }
 }
 
@@ -82,11 +82,10 @@ fn create_a_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
                 o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
             }
             if !jvm.system_domain_loader {
-                o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), boostrap_loader_object.clone());
+                o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), boostrap_loader_object);
             }
         }
         _ => panic!(),
     }
-    let r = object.unwrap_object_nonnull();
-    r
+    object.unwrap_object_nonnull()
 }

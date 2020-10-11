@@ -64,7 +64,7 @@ pub unsafe extern "C" fn get_object_field(env: *mut JNIEnv, obj: jobject, field_
 
 
 unsafe fn get_java_value_field(env: *mut JNIEnv, obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> JavaValue {
-    let (rc, field_i) = get_state(env).field_table.read().unwrap().lookup(transmute(field_id_raw));
+    let (rc, field_i) = get_state(env).field_table.read().unwrap().lookup(field_id_raw as usize);
     let view = &rc.view();
     let name = view.field(field_i as usize).field_name();
     let notnull = from_object(obj).unwrap();
@@ -114,7 +114,7 @@ pub unsafe extern "C" fn get_static_method_id(
         .write()
         .unwrap()
         .register_with_table(runtime_class.clone(), method.method_i() as u16));
-    transmute(res)
+    res as jmethodID
 }
 
 
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, na
 
 unsafe fn get_static_field(env: *mut JNIEnv, klass: jclass, field_id_raw: jfieldID) -> JavaValue {
     let jvm = get_state(env);
-    let (rc, field_i) = jvm.field_table.write().unwrap().lookup(transmute(field_id_raw));
+    let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
     let jclass = from_jclass(klass);

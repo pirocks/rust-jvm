@@ -21,7 +21,7 @@ use crate::rust_jni::native_util::{from_object, get_interpreter_state, to_object
 pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> jobject {
     let interpreter_state = get_interpreter_state(env);
     let popped = current_native_local_refs(interpreter_state).pop().expect("Attempted to pop local native frame, but no such local frame exists");
-    if result == null_mut() {
+    if result.is_null() {
         null_mut()
     } else {
         //no freeing need occur here
@@ -51,7 +51,7 @@ pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, _capacity: jint) -> 
 /// Creates a new local reference that refers to the same object as ref. The given ref may be a global or local reference. Returns NULL if ref refers to null.
 ///
 pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobject {
-    if ref_ == null_mut() {
+    if ref_.is_null() {
         return null_mut()
     }
     let interpreter_state = get_interpreter_state(env);
@@ -63,7 +63,7 @@ pub unsafe fn new_local_ref_public(rust_obj: Option<Arc<Object>>, interpreter_st
     if rust_obj.is_none() {
         return null_mut()
     }
-    return new_local_ref_internal(rust_obj.unwrap(), interpreter_state)
+    new_local_ref_internal(rust_obj.unwrap(), interpreter_state)
 }
 
 unsafe fn new_local_ref_internal(rust_obj: Arc<Object>, interpreter_state: &mut InterpreterStateGuard) -> jobject {
@@ -79,7 +79,7 @@ unsafe fn new_local_ref_internal(rust_obj: Arc<Object>, interpreter_state: &mut 
 /// Deletes the local reference pointed to by localRef.
 ///
 pub unsafe extern "C" fn delete_local_ref(env: *mut JNIEnv, obj: jobject) {
-    if obj == null_mut() {
+    if obj.is_null() {
         return;
     }
     let interpreter_state = get_interpreter_state(env);

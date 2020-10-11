@@ -84,7 +84,7 @@ pub mod method {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    const METHOD_SIGNATURE: &'static str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
+    const METHOD_SIGNATURE: &str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 
     pub struct Method {
         normal_object: Arc<Object>
@@ -154,7 +154,7 @@ pub mod method {
                                  parameter_annotations,
                                  annotation_default];
             //todo replace with wrapper object
-            run_constructor(jvm, int_state, method_class.clone(), full_args, METHOD_SIGNATURE.to_string());
+            run_constructor(jvm, int_state, method_class, full_args, METHOD_SIGNATURE.to_string());
             method_object.cast_method()
         }
 
@@ -197,7 +197,7 @@ pub mod constructor {
     use crate::jvm_state::JVMState;
     use crate::runtime_class::RuntimeClass;
 
-    const CONSTRUCTOR_SIGNATURE: &'static str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
+    const CONSTRUCTOR_SIGNATURE: &str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
 
     pub struct Constructor {
         normal_object: Arc<Object>
@@ -245,7 +245,7 @@ pub mod constructor {
 
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state);
             let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
-            run_constructor(jvm, int_state, constructor_class.clone(), full_args, CONSTRUCTOR_SIGNATURE.to_string());
+            run_constructor(jvm, int_state, constructor_class, full_args, CONSTRUCTOR_SIGNATURE.to_string());
             constructor_object.cast_constructor()
         }
 
@@ -277,7 +277,7 @@ pub mod field {
     }
 
     impl Field {
-        pub fn init<'l>(
+        pub fn init(
             jvm: &JVMState,
             int_state: &mut InterpreterStateGuard,
             clazz: JClass,
@@ -308,7 +308,7 @@ pub mod field {
             run_constructor(
                 jvm,
                 int_state,
-                field_classfile.clone(),
+                field_classfile,
                 vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations],
                 "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),
             );

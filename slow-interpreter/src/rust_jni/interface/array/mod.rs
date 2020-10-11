@@ -22,7 +22,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
     let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
     let borrow = array.elems.borrow();
-    new_local_ref_public(borrow[index as usize].unwrap_object().clone(), int_state)
+    new_local_ref_public(borrow[index as usize].unwrap_object(), int_state)
 }
 
 pub unsafe extern "C" fn set_object_array_element(_env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {

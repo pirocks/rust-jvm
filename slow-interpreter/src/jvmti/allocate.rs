@@ -11,7 +11,7 @@ pub unsafe extern "C" fn allocate(env: *mut jvmtiEnv, size: jlong, mem_ptr: *mut
         // return jvmtiError_JVMTI_ERROR_NONE
     }
     *mem_ptr = libc::malloc(size as usize) as *mut ::std::os::raw::c_uchar;
-    let res = if *mem_ptr == std::ptr::null_mut() {
+    let res = if (*mem_ptr).is_null() {
         jvmtiError_JVMTI_ERROR_OUT_OF_MEMORY
     } else {
         jvmtiError_JVMTI_ERROR_NONE

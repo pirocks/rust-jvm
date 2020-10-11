@@ -124,7 +124,7 @@ impl JVMState {
         (args, jvm)
     }
 
-    pub fn get_or_create_bootstrap_object_loader<'l>(&self, int_state: &mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
+    pub fn get_or_create_bootstrap_object_loader(&self, int_state: &mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
         if !self.vm_live() {
             return JavaValue::Object(None);
         }
@@ -137,7 +137,7 @@ impl JVMState {
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
                     fields: RefCell::new(HashMap::new()),
-                    class_pointer: class_loader_class.clone(),
+                    class_pointer: class_loader_class,
                     class_object_type: None,
                 }));
                 loader_guard.insert(self.bootstrap_loader.name(), res.clone());

@@ -10,12 +10,11 @@ use rust_jvm_common::classnames::ClassName;
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use crate::verifier::TypeSafetyError;
 use crate::VerifierContext;
-use std::sync::Arc;
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    return //(!Arc::ptr_eq(&class1.loader, &class2.loader)) ||// todo this is bad
-        class1.loader.name() != class2.loader.name() ||
-        different_package_name(vf, class1, class2);
+    //(!Arc::ptr_eq(&class1.loader, &class2.loader)) ||// todo this is bad
+    class1.loader.name() != class2.loader.name() ||
+        different_package_name(vf, class1, class2)
 }
 
 fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
@@ -23,8 +22,8 @@ fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class
     let name2 = class2.class_name.get_referred_name();
     let split1: Vec<&str> = name1.split('/').collect();
     let split2: Vec<&str> = name2.split('/').collect();
-    assert!(split1.len() >= 1);
-    assert!(split2.len() >= 1);
+    assert!(!split1.is_empty());
+    assert!(!split2.is_empty());
     let package_slice1 = &split1[..split1.len() - 1];
     let package_slice2 = &split2[..split2.len() - 1];
     package_slice1.iter().zip(package_slice2.iter()).all(|(a, b)| {
@@ -267,10 +266,8 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
 }
 
 fn is_java_assignable_array_types(vf: &VerifierContext, left: &PTypeView, right: &PTypeView) -> Result<(), TypeSafetyError> {
-    if atom(&left) && atom(&right) {
-        if left == right {
-            return Result::Ok(());
-        }
+    if atom(&left) && atom(&right) && left == right {
+        return Result::Ok(());
     }
     if !atom(&left) && !atom(&right) {
         //todo is this bootstrap loader thing ok?
@@ -364,7 +361,7 @@ pub fn final_method_not_overridden(
     vf: &VerifierContext,
     method: &ClassWithLoaderMethod,
     super_class: &ClassWithLoader,
-    super_method_list: &[ClassWithLoaderMethod]
+    super_method_list: &[ClassWithLoaderMethod],
 ) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, method.class);
     let method_info = &method_class.method_view_i(method.method_index);
@@ -394,7 +391,7 @@ pub fn final_method_not_overridden(
                     does_not_override_final_method(vf, super_class, method)
                 } else {
                     Result::Ok(())
-                }
+                };
             }
         }
     };
