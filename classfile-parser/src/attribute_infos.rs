@@ -163,7 +163,7 @@ fn parse_exceptions(p: &mut dyn ParsingContext) -> AttributeType {
 }
 
 fn parse_signature(p: &mut dyn ParsingContext) -> AttributeType {
-    return AttributeType::Signature(Signature { signature_index: p.read16() });
+    AttributeType::Signature(Signature { signature_index: p.read16() })
 }
 
 fn parse_element_value(p: &mut dyn ParsingContext) -> ElementValue {
@@ -190,10 +190,10 @@ fn parse_element_value(p: &mut dyn ParsingContext) -> ElementValue {
 fn parse_element_value_pair(p: &mut dyn ParsingContext) -> ElementValuePair {
     let element_name_index = p.read16();
     let value = parse_element_value(p);
-    return ElementValuePair {
+    ElementValuePair {
         element_name_index,
         value,
-    };
+    }
 }
 
 fn parse_annotation(p: &mut dyn ParsingContext) -> Annotation {
@@ -203,11 +203,11 @@ fn parse_annotation(p: &mut dyn ParsingContext) -> Annotation {
     for _ in 0..num_element_value_pairs {
         element_value_pairs.push(parse_element_value_pair(p));
     }
-    return Annotation {
+    Annotation {
         type_index,
         num_element_value_pairs,
         element_value_pairs,
-    };
+    }
 }
 
 fn parse_runtime_visible_annotations(p: &mut dyn ParsingContext) -> AttributeType {
@@ -216,7 +216,7 @@ fn parse_runtime_visible_annotations(p: &mut dyn ParsingContext) -> AttributeTyp
     for _ in 0..num_annotations {
         annotations.push(parse_annotation(p));
     }
-    return AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations });
+    AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations })
 }
 
 
@@ -226,7 +226,7 @@ fn parse_stack_map_table(p: &mut dyn ParsingContext) -> AttributeType {
     for _ in 0..number_of_entries {
         entries.push(parse_stack_map_table_entry(p));
     }
-    return AttributeType::StackMapTable(StackMapTable { entries });
+    AttributeType::StackMapTable(StackMapTable { entries })
 }
 
 fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> StackMapFrame {
@@ -306,7 +306,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> PType {
                 _ => { panic!() }
             };
             let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8();
-            if type_descriptor.starts_with("[") {
+            if type_descriptor.starts_with('[') {
                 let res_descriptor = parse_field_descriptor(type_descriptor.as_str()).unwrap();
                 res_descriptor.field_type
             } else {
@@ -320,11 +320,11 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> PType {
 
 fn parse_sourcefile(p: &mut dyn ParsingContext) -> AttributeType {
     let sourcefile_index = p.read16();
-    return AttributeType::SourceFile(
+    AttributeType::SourceFile(
         SourceFile {
             sourcefile_index
         }
-    );
+    )
 }
 
 fn parse_local_variable_table(p: &mut dyn ParsingContext) -> AttributeType {
@@ -333,11 +333,11 @@ fn parse_local_variable_table(p: &mut dyn ParsingContext) -> AttributeType {
     for _ in 0..local_variable_table_length {
         local_variable_table.push(read_local_variable_table_entry(p));
     }
-    return AttributeType::LocalVariableTable(
+    AttributeType::LocalVariableTable(
         LocalVariableTable {
             local_variable_table,
         }
-    );
+    )
 }
 
 fn read_local_variable_table_entry(p: &mut dyn ParsingContext) -> LocalVariableTableEntry {
@@ -346,13 +346,13 @@ fn read_local_variable_table_entry(p: &mut dyn ParsingContext) -> LocalVariableT
     let name_index = p.read16();
     let descriptor_index = p.read16();
     let index = p.read16();
-    return LocalVariableTableEntry {
+    LocalVariableTableEntry {
         start_pc,
         length,
         name_index,
         descriptor_index,
         index,
-    };
+    }
 }
 
 fn parse_line_number_table(p: &mut dyn ParsingContext) -> AttributeType {
@@ -361,20 +361,20 @@ fn parse_line_number_table(p: &mut dyn ParsingContext) -> AttributeType {
     for _ in 0..line_number_table_length {
         line_number_table.push(parse_line_number_table_entry(p));
     }
-    return AttributeType::LineNumberTable(
+    AttributeType::LineNumberTable(
         LineNumberTable {
             line_number_table,
         }
-    );
+    )
 }
 
 fn parse_line_number_table_entry(p: &mut dyn ParsingContext) -> LineNumberTableEntry {
     let start_pc = p.read16();
     let line_number = p.read16();
-    return LineNumberTableEntry {
+    LineNumberTableEntry {
         start_pc,
         line_number,
-    };
+    }
 }
 
 fn parse_exception_table_entry(p: &mut dyn ParsingContext) -> ExceptionTableElem {
@@ -382,7 +382,7 @@ fn parse_exception_table_entry(p: &mut dyn ParsingContext) -> ExceptionTableElem
     let end_pc = p.read16();
     let handler_pc = p.read16();
     let catch_type = p.read16();
-    return ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type };
+    ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type }
 }
 
 fn parse_code(p: &mut dyn ParsingContext) -> AttributeType {
@@ -419,5 +419,5 @@ pub fn parse_attributes(p: &mut dyn ParsingContext, num_attributes: u16) -> Vec<
     for _ in 0..num_attributes {
         res.push(parse_attribute(p));
     }
-    return res;
+    res
 }

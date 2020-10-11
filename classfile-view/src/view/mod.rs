@@ -80,9 +80,8 @@ impl ClassView {
             ConstantKind::Utf8(_) => unimplemented!(),
             ConstantKind::Integer(i) => ConstantInfoView::Integer(IntegerView { int: i.bytes as i32 }),//todo
             ConstantKind::Float(f) => ConstantInfoView::Float(FloatView {
-                float: unsafe {
-                    transmute(f.bytes)
-                }
+                float: f32::from_bits(f.bytes)
+
             }),//todo
             ConstantKind::Long(l) => ConstantInfoView::Long(LongView {
                 long: unsafe {
@@ -90,9 +89,7 @@ impl ClassView {
                 }
             }),//todo
             ConstantKind::Double(d) => ConstantInfoView::Double(DoubleView {
-                double: unsafe {
-                    transmute((d.high_bytes as u64) << 32 | d.low_bytes as u64)
-                }
+                double: f64::from_bits((d.high_bytes as u64) << 32 | d.low_bytes as u64)
             }),//todo
             ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
             ConstantKind::String(s) => ConstantInfoView::String(StringView { class_view: self, string_index: s.string_index as usize }),//todo
@@ -152,17 +149,14 @@ impl ClassView {
     }
     pub fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
-            match attr.attribute_type {
-                AttributeType::EnclosingMethod(_) => true,
-                _ => false,
-            }
+            matches!(attr.attribute_type, AttributeType::EnclosingMethod(_))
         }).map(|(i, _)| { EnclosingMethodView { backing_class: ClassView::from(self.backing_class.clone()), i } })
     }
 
-    pub fn lookup_method(&self, name: &String, desc: &MethodDescriptor) -> Option<MethodView> {
+    pub fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
         self.method_index().lookup(self, name, desc)
     }
-    pub fn lookup_method_name(&self, name: &String) -> Vec<MethodView> {
+    pub fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
         self.method_index().lookup_method_name(self, name)
     }
 
@@ -172,7 +166,7 @@ impl ClassView {
             None => {
                 let res = MethodIndex::new(self);
                 std::mem::drop(read_guard);
-                self.method_index.write().unwrap().replace(Arc::new(res).into());
+                self.method_index.write().unwrap().replace(Arc::new(res));
                 self.method_index()
             }
             Some(index) => { index.clone() }
@@ -206,7 +200,7 @@ impl MethodIndex {
         }
         res
     }
-    fn lookup<'cl>(&self, c: &'cl ClassView, name: &String, desc: &MethodDescriptor) -> Option<MethodView<'cl>> {
+    fn lookup<'cl>(&self, c: &'cl ClassView, name: &str, desc: &MethodDescriptor) -> Option<MethodView<'cl>> {
         self.index.get(name)
             .and_then(|x| x.get(desc))
             .map(
@@ -217,7 +211,7 @@ impl MethodIndex {
                     }
             )
     }
-    fn lookup_method_name<'cl>(&self, c: &'cl ClassView, name: &String) -> Vec<MethodView<'cl>> {
+    fn lookup_method_name<'cl>(&self, c: &'cl ClassView, name: &str) -> Vec<MethodView<'cl>> {
         self.index.get(name)
             .map(
                 |methods|

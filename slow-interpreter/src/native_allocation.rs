@@ -38,14 +38,14 @@ impl NativeAllocator {
     pub unsafe fn allocate_malloc(&self, size: libc::size_t) -> *mut c_void {
         let res = libc::malloc(size);
         let mut guard = self.allocations.write().unwrap();
-        guard.insert(transmute(res), AllocationType::Malloc);
+        guard.insert(res as usize, AllocationType::Malloc);
         res
     }
 
     pub fn allocate_box<'life, ElemType>(&self, vec: ElemType) -> &'life mut ElemType {
         let res = Box::leak(box vec);
         let mut guard = self.allocations.write().unwrap();
-        guard.insert(unsafe { transmute(res as *mut ElemType as *mut c_void) }, AllocationType::BoxLeak);
+        guard.insert(res as *mut ElemType as *mut c_void as usize , AllocationType::BoxLeak);
         res
     }
 
@@ -61,14 +61,14 @@ impl NativeAllocator {
     }
 
     pub unsafe fn free(&self, ptr: *mut c_void) {
-        let allocation_type = self.allocations.read().unwrap().get(&transmute(ptr)).unwrap().clone();
+        let allocation_type = self.allocations.read().unwrap().get(&(ptr as usize)).unwrap().clone();
         match allocation_type {
             AllocationType::BoxLeak => {
                 unimplemented!()
             }
             AllocationType::Malloc => {
                 libc::free(ptr);
-                self.allocations.write().unwrap().remove(&transmute(ptr));
+                self.allocations.write().unwrap().remove(&(ptr as usize));
             }
             AllocationType::CString => {
                 CString::from_raw(ptr as *mut i8);

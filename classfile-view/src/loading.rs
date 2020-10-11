@@ -32,7 +32,7 @@ impl std::error::Error for ClassLoadingError {}
 
 
 #[derive(Debug)]
-#[derive(Hash, Eq)]
+#[derive(Eq)]
 pub enum LoaderName {
     Str(String),
     Class(ClassName),
@@ -56,6 +56,22 @@ impl PartialEq for LoaderName {
                 LoaderName::Str(_) => false,
                 LoaderName::Class(c2) => c1 == c2,
                 LoaderName::BootstrapLoader => false,
+            }
+        }
+    }
+}
+
+impl Hash for LoaderName{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self{
+            LoaderName::Str(s) => {
+                s.hash(state)
+            }
+            LoaderName::Class(c) => {
+                c.hash(state)
+            }
+            LoaderName::BootstrapLoader => {
+                state.write_i8(0);
             }
         }
     }
@@ -140,8 +156,8 @@ impl Hash for ClassWithLoader {
 
 impl PartialEq for ClassWithLoader {
     fn eq(&self, other: &ClassWithLoader) -> bool {
-        self.class_name == other.class_name &&
-            Arc::ptr_eq(&self.loader, &other.loader)
+        self.class_name == other.class_name && self.loader.name() == other.loader.name()
+            // Arc::ptr_eq(&self.loader, &other.loader) //todo this hella unsafe/wrong according to clippy
     }
 }
 

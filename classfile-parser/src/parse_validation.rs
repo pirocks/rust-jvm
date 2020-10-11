@@ -236,12 +236,12 @@ impl ValidatorSettings {
         Result::Ok(())
     }
 
-    pub fn validate_class_name(&self, name: &String) -> Result<(), ClassfileError> {
+    pub fn validate_class_name(&self, name: &str) -> Result<(), ClassfileError> {
         //from the spec:
         //Method names are further constrained so that, with the exception of the special
         // method names <init> and <clinit> (§2.9), they must not contain the ASCII
         // characters < or > (that is, left angle bracket or right angle bracket).
-        if name.contains("<") || name.contains(">") {
+        if name.contains('<') || name.contains('>') {
             if !(name == "<clinit>" || name == "<init>") {
                 return Result::Err(ClassfileError::BadNameInCP);
             }

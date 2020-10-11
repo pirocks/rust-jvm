@@ -97,7 +97,7 @@ impl OperandStack {
         self.data.front().unwrap().clone()
     }
 
-    pub fn new_prolog_display_order(types: &Vec<VType>) -> OperandStack {
+    pub fn new_prolog_display_order(types: &[VType]) -> OperandStack {
         let mut o = OperandStack::empty();
         for type_ in types {
             o.operand_push(type_.clone())
@@ -105,7 +105,7 @@ impl OperandStack {
         o
     }
 
-    pub fn new_reverse_display_order(_types: &Vec<VType>) -> OperandStack {
+    pub fn new_reverse_display_order(_types: &[VType]) -> OperandStack {
         unimplemented!()
     }
 

@@ -5,7 +5,7 @@ use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, Invo
 fn read_iinc(c: &mut CodeParserContext) -> Option<IInc> {
     let index = read_u8(c)?;
     let const_ = read_i8(c)?;
-    return Some(IInc { index: index as u16, const_: const_ as i16 });
+    Some(IInc { index: index as u16, const_: const_ as i16 })
 }
 
 fn read_invoke_interface(c: &mut CodeParserContext) -> Option<InvokeInterface> {
@@ -14,12 +14,12 @@ fn read_invoke_interface(c: &mut CodeParserContext) -> Option<InvokeInterface> {
     assert_ne!(count, 0);
     let zero = read_u8(c)?;
     assert_eq!(zero, 0);
-    return Some(InvokeInterface { index, count });
+    Some(InvokeInterface { index, count })
 }
 
 
 fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
-    while !(c.offset % 4 == 0) {
+    while c.offset % 4 != 0 {
         let padding = read_u8(c);
         padding.expect("Unexpected end of code");
 //        dbg!(padding);
@@ -35,10 +35,10 @@ fn read_lookup_switch(c: &mut CodeParserContext) -> Option<LookupSwitch> {
         //key target
         pairs.push((read_i32(c).unwrap(), read_i32(c).unwrap()));
     }
-    return Some(LookupSwitch {
+    Some(LookupSwitch {
         default,
         pairs,
-    });
+    })
 }
 
 
@@ -50,12 +50,12 @@ fn read_multi_new_array(c: &mut CodeParserContext) -> Option<MultiNewArray> {
 
 
 fn read_atype(c: &mut CodeParserContext) -> Option<Atype> {
-    return Some(unsafe { ::std::mem::transmute(read_u8(c)?) });
+    Some(unsafe { ::std::mem::transmute(read_u8(c)?) })
 }
 
 
 fn read_table_switch(c: &mut CodeParserContext) -> Option<TableSwitch> {
-    while !(c.offset % 4 == 0) {
+    while c.offset % 4 != 0 {
         read_u8(c).expect("Uneexpected end of code");
     };
     let default = read_i32(c)?;
@@ -66,7 +66,7 @@ fn read_table_switch(c: &mut CodeParserContext) -> Option<TableSwitch> {
     for _ in 0..num_to_read {
         offsets.push(read_i32(c)?);
     }
-    return Some(TableSwitch { default, low, high, offsets });
+    Some(TableSwitch { default, low, high, offsets })
 }
 
 
@@ -107,7 +107,7 @@ pub fn parse_code_raw(raw: &[u8]) -> Vec<Instruction> {
     //is this offset of 0 even correct?
     // what if code starts at non-aligned?
     let mut c = CodeParserContext { iter: raw.iter(), offset: 0 };
-    return parse_code_impl(&mut c);
+    parse_code_impl(&mut c)
 }
 
 fn read_u8(c: &mut CodeParserContext) -> Option<u8> {
@@ -120,21 +120,21 @@ fn read_u8(c: &mut CodeParserContext) -> Option<u8> {
 //        },
 //        Some(_) => {},
 //    }
-    return Some(*next?);
+    Some(*next?)
 }
 
 fn read_i8(c: &mut CodeParserContext) -> Option<i8> {
-    return Some(unsafe { ::std::mem::transmute(read_u8(c)?) });
+    Some(unsafe { ::std::mem::transmute(read_u8(c)?) })
 }
 
 fn read_u16(c: &mut CodeParserContext) -> Option<u16> {
     let byte1 = read_u8(c)? as u16;
     let byte2 = read_u8(c)? as u16;
-    return Some(byte1 << 8 | byte2);
+    Some(byte1 << 8 | byte2)
 }
 
 fn read_i16(c: &mut CodeParserContext) -> Option<i16> {
-    return Some(unsafe { ::std::mem::transmute(read_u16(c)?) });
+    Some(unsafe { ::std::mem::transmute(read_u16(c)?) })
 }
 
 fn read_u32(c: &mut CodeParserContext) -> Option<u32> {
@@ -142,15 +142,15 @@ fn read_u32(c: &mut CodeParserContext) -> Option<u32> {
     let byte2 = read_u8(c)? as u32;
     let byte3 = read_u8(c)? as u32;
     let byte4 = read_u8(c)? as u32;
-    return Some(byte1 << 24 | byte2 << 16 | byte3 << 8 | byte4);
+    Some(byte1 << 24 | byte2 << 16 | byte3 << 8 | byte4)
 }
 
 fn read_i32(c: &mut CodeParserContext) -> Option<i32> {
-    return Some(unsafe { ::std::mem::transmute(read_u32(c)?) });
+    Some(unsafe { ::std::mem::transmute(read_u32(c)?) })
 }
 
 pub fn read_opcode(b: u8) -> InstructionTypeNum {
-    return unsafe { ::std::mem::transmute(b) };
+    unsafe { ::std::mem::transmute(b) }
 }
 
 
@@ -587,5 +587,5 @@ fn parse_code_impl(c: &mut CodeParserContext) -> Vec<Instruction> {
             Some(instruction) => { res.push(Instruction { offset, instruction }) }
         }
     };
-    return res;
+    res
 }

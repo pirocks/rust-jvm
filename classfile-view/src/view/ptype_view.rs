@@ -144,38 +144,30 @@ impl PTypeView {
     }
 
     pub fn jvm_representation(&self) -> String {
-        //'B' => PType::ByteType,
-        //         'C' => PType::CharType,
-        //         'D' => PType::DoubleType,
-        //         'F' => PType::FloatType,
-        //         'I' => PType::IntType,
-        //         'J' => PType::LongType,
-        //         'S' => PType::ShortType,
-        //         'Z' => PType::BooleanType,
         let mut res = String::new();
         match self {
-            PTypeView::ByteType => res.push_str("B"),
-            PTypeView::CharType => res.push_str("C"),
-            PTypeView::DoubleType => res.push_str("D"),
-            PTypeView::FloatType => res.push_str("F"),
-            PTypeView::IntType => res.push_str("I"),
-            PTypeView::LongType => res.push_str("J"),
+            PTypeView::ByteType => res.push('B'),
+            PTypeView::CharType => res.push('C'),
+            PTypeView::DoubleType => res.push('D'),
+            PTypeView::FloatType => res.push('F'),
+            PTypeView::IntType => res.push('I'),
+            PTypeView::LongType => res.push('J'),
             PTypeView::Ref(ref_) => {
                 match ref_ {
                     ReferenceTypeView::Class(c) => {
-                        res.push_str("L");
+                        res.push('L');
                         res.push_str(c.get_referred_name());
-                        res.push_str(";")
+                        res.push(';')
                     }
                     ReferenceTypeView::Array(subtype) => {
-                        res.push_str("[");
+                        res.push('[');
                         res.push_str(&subtype.deref().jvm_representation())
                     }
                 }
             }
-            PTypeView::ShortType => res.push_str("S"),
-            PTypeView::BooleanType => res.push_str("Z"),
-            PTypeView::VoidType => res.push_str("V"),
+            PTypeView::ShortType => res.push('S'),
+            PTypeView::BooleanType => res.push('Z'),
+            PTypeView::VoidType => res.push('V'),
             _ => panic!(),
         }
         res
@@ -201,9 +193,9 @@ impl PTypeView {
                     }
                 }
             }
-            PTypeView::ShortType => res.push_str("S"),
-            PTypeView::BooleanType => res.push_str("Z"),
-            PTypeView::VoidType => res.push_str("V"),
+            PTypeView::ShortType => res.push('S'),//todo shouldn't these be panics
+            PTypeView::BooleanType => res.push('Z'),
+            PTypeView::VoidType => res.push('V'),
             _ => panic!(),
         }
         res
@@ -264,7 +256,7 @@ impl ReferenceTypeView {
             ReferenceTypeView::Class(c) => c.clone().into(),
             ReferenceTypeView::Array(a) => {
                 match a.deref().try_unwrap_ref_type() {
-                    None => return None,
+                    None => None,
                     Some(ref_) => {
                         ref_.unwrap_arrays_to_name()
                     }

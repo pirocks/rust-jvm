@@ -129,7 +129,7 @@ pub struct JoinStatus {
 
 
 impl Thread {
-    pub fn start_thread<T: 'static>(&self, func: Box<T>, data: Box<dyn Any>) where T: FnOnce(Box<dyn Any>) -> () {
+    pub fn start_thread<T: 'static>(&self, func: Box<T>, data: Box<dyn Any>) where T: FnOnce(Box<dyn Any>) {
         self.thread_start_channel_send.as_ref().unwrap().lock().unwrap().send(ThreadStartInfo { func, data }).unwrap();
         self.started.store(true, Ordering::SeqCst);
     }
@@ -176,6 +176,7 @@ pub struct AnEvent {
 impl Threads {
     fn init_signal_handler(&self) {
         unsafe {
+            #[allow(clippy::transmuting_null)]
             let sa = SigAction::new(SigHandler::SigAction(handler), transmute(0 as libc::c_int), SigSet::empty());
             sigaction(Signal::SIGUSR1, &sa).unwrap();
         };

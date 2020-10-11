@@ -52,28 +52,28 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
                     .collect()),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter()
                     .map(|x| x.to_verification_type(&vf.bootstrap_loader))
-                    .collect()),
+                    .collect::<Vec<_>>()),
                 flag_this_uninit: false,
             },
         });
     }
 
-    return res;
+    res
 }
 
 
-pub fn handle_same_locals_1_stack_frame_extended(mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) -> () {
+pub fn handle_same_locals_1_stack_frame_extended(mut frame: &mut InternalFrame, f: &SameLocals1StackItemFrameExtended) {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
     add_verification_type_to_array_convert(&mut frame.stack, &PTypeView::from_ptype(&f.stack));
 }
 
-pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &SameFrameExtended) -> () {
+pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &SameFrameExtended) {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
 }
 
-pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
+pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame)  {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {
@@ -98,7 +98,7 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) -> () {
     }
 }
 
-pub fn handle_full_frame(frame: &mut InternalFrame, f: &FullFrame) -> () {
+pub fn handle_full_frame(frame: &mut InternalFrame, f: &FullFrame) {
     frame.current_offset += f.offset_delta;
     frame.locals.clear();
     for new_local in f.locals.iter() {
@@ -111,13 +111,13 @@ pub fn handle_full_frame(frame: &mut InternalFrame, f: &FullFrame) -> () {
     }
 }
 
-pub fn handle_same_locals_1_stack(frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) -> () {
+pub fn handle_same_locals_1_stack(frame: &mut InternalFrame, s: &SameLocals1StackItemFrame) {
     frame.current_offset += s.offset_delta;
     frame.stack.clear();
     add_verification_type_to_array_convert(&mut frame.stack, &PTypeView::from_ptype(&s.stack));
 }
 
-pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &AppendFrame) -> () {
+pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &AppendFrame) {
     frame.current_offset += append_frame.offset_delta;
     for new_local in append_frame.locals.iter() {
         add_verification_type_to_array_convert(&mut frame.locals, &PTypeView::from_ptype(new_local))
@@ -150,7 +150,7 @@ pub fn init_frame(parameter_types: Vec<PTypeView>, this_pointer: Option<PTypeVie
     match this_pointer {
         None => {}//class is static etc.
         Some(t) => {
-            add_verification_type_to_array_convert(&mut locals, &PTypeView::UninitializedThisOrClass(t.clone().into()))
+            add_verification_type_to_array_convert(&mut locals, &PTypeView::UninitializedThisOrClass(t.into()))
         }
     }
 //so these parameter types come unconverted and therefore need conversion

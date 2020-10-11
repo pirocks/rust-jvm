@@ -65,7 +65,7 @@ pub mod native_allocation;
 pub mod threading;
 mod resolvers;
 
-pub fn run_main<'l>(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
+pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
     if jvm.unittest_mode {
         run_tests(jvm, int_state);
         Result::Ok(())
@@ -90,7 +90,7 @@ pub fn run_main<'l>(args: Vec<String>, jvm: &JVMState, int_state: &mut Interpret
 }
 
 
-fn setup_program_args<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: Vec<String>) {
+fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: Vec<String>) {
     let mut arg_strings: Vec<JavaValue> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, arg_str.clone()).java_value());
@@ -107,7 +107,7 @@ fn setup_program_args<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
 }
 
 
-fn set_properties<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame());
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);

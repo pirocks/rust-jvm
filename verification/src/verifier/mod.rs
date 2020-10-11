@@ -185,7 +185,7 @@ fn classes_in_other_pkg_with_protected_member_impl(
             class,
             member_name.clone(),
             member_descriptor,
-            member_class_name.clone(),
+            member_class_name,
             rest,
             res)?;
     }

@@ -21,7 +21,7 @@ fn main() {
 
     let out_path = PathBuf::from("gen/");
     if !out_path.clone().into_boxed_path().exists() {
-        create_dir(out_path.clone().into_boxed_path()).unwrap();
+        create_dir(out_path.into_boxed_path()).unwrap();
     }
 
     dl_bindings

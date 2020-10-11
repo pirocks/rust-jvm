@@ -451,8 +451,8 @@ pub struct Utf8 {
 
 impl PartialEq for Utf8 {
     fn eq(&self, other: &Self) -> bool {
-        return self.length == other.length &&
-            self.string == other.string;
+        self.length == other.length &&
+            self.string == other.string
     }
 }
 

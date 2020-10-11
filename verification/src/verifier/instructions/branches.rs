@@ -260,7 +260,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
                                     match &method_class.constant_pool_view(this as usize) {
                                         ConstantInfoView::Class(c) => {
                                             let class_name = c.class_name().unwrap_name();
-                                            return Result::Ok(ClassWithLoader { class_name, loader: env.class_loader.clone() });
+                                            Result::Ok(ClassWithLoader { class_name, loader: env.class_loader.clone() })
                                         }
                                         _ => { unimplemented!() }
                                     }
@@ -282,7 +282,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
     }
 }
 
-fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_name: &String, method_name: String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_name: &str, method_name: String, parsed_descriptor: &MethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if &method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string()));
     }
@@ -293,7 +293,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
         loader: current_loader.clone(),
     });
     let method_class = VType::Class(ClassWithLoader {
-        class_name: ClassName::Str(method_class_name.clone()),
+        class_name: ClassName::Str(method_class_name.to_string()),
         loader: current_loader.clone(),
     });
     is_assignable(&env.vf, &current_class, &method_class)?;
@@ -317,13 +317,13 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
         stack_frame,
     )?;
     let exception_frame = exception_stack_frame(locals, flag);
-    return Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }));
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
 }
 
 pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class_view = get_class(&env.vf, env.method.class);
     let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &method_class_view);
-    if method_name.contains("arrayOf") || method_name.contains("[") || &method_name == "<init>" || &method_name == "<clinit>" {
+    if method_name.contains("arrayOf") || method_name.contains('[') || &method_name == "<init>" || &method_name == "<clinit>" {
         unimplemented!();
     }
     let operand_arg_list: Vec<_> = parsed_descriptor.parameter_types.iter().map(|x| PTypeView::from_ptype(x).to_verification_type(&env.class_loader)).collect();
@@ -331,7 +331,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
     //todo redundant?
     let stack_arg_list: Vec<_> = operand_arg_list.iter()
         .rev()
-        .map(|x| x.clone())
+        .cloned()
         .collect();
     let return_type = PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);
     // dbg!(&stack_arg_list);
@@ -364,7 +364,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     let (class_name, method_class) = match class_type {
         PTypeView::Ref(r) => {
             match r {
-                ReferenceTypeView::Class(c) => (Some(c.clone()), VType::Class(ClassWithLoader { class_name: c.clone(), loader: env.class_loader.clone() })),
+                ReferenceTypeView::Class(c) => (Some(c.clone()), VType::Class(ClassWithLoader { class_name: c, loader: env.class_loader.clone() })),
                 ReferenceTypeView::Array(a) => {
                     (None, VType::ArrayReferenceType(a.deref().clone()))
                 }
@@ -373,7 +373,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
         _ => panic!()
     };
 
-    if /*method_name.contains("arrayOf") ||*/ method_name.contains("[") || &method_name == "<init>" || &method_name == "<clinit>" {
+    if /*method_name.contains("arrayOf") ||*/ method_name.contains('[') || &method_name == "<init>" || &method_name == "<clinit>" {
         dbg!(method_name);
         unimplemented!();
     }
@@ -382,14 +382,14 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     // arg list is the reversed verison of operand_arg_list
     let arg_list: Vec<_> = operand_arg_list.iter()
         .rev()
-        .map(|x| x.clone())
+        .cloned()
         .collect();
     let mut stack_arg_list: Vec<_> = arg_list.clone();
     stack_arg_list.push(method_class);
     let return_type = PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);//todo what should the loader here be?
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
-    let nf = valid_type_transition(env, stack_arg_list.clone(), &return_type, stack_frame.clone())?;
+    let nf = valid_type_transition(env, stack_arg_list, &return_type, stack_frame.clone())?;
     let popped_frame = can_pop(&env.vf, stack_frame, arg_list)?;//todo the above is an unneeded clone b/c this is equivalent/redundant?
     if class_name.is_some() {
         passes_protected_check(env, &class_name.unwrap(), method_name, Descriptor::Method(&parsed_descriptor), &popped_frame)?;
@@ -419,15 +419,15 @@ pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PTypeView, St
     (PTypeView::Ref(possibly_array_to_type(&class_name)), method_name, parsed_descriptor)
 }
 
-pub fn possibly_array_to_type(class_name: &String) -> ReferenceTypeView {
-    if class_name.contains("[") {
-        let class_type = match parse_field_descriptor(class_name.as_str()) {
+pub fn possibly_array_to_type(class_name: &str) -> ReferenceTypeView {
+    if class_name.contains('[') {
+        let class_type = match parse_field_descriptor(class_name) {
             None => panic!(),
             Some(s) => s.field_type,
         };
         ReferenceTypeView::Array(Box::new(PTypeView::from_ptype(&class_type.unwrap_array_type())))
     } else {
-        ReferenceTypeView::Class(ClassName::Str(class_name.clone()))
+        ReferenceTypeView::Class(ClassName::Str(class_name.to_string()))
     }
 }
 

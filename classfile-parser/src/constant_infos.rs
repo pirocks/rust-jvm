@@ -5,10 +5,10 @@ use rust_jvm_common::classfile::ReferenceKind::{InvokeInterface, InvokeSpecial, 
 use crate::parsing_util::ParsingContext;
 
 pub(crate) fn is_utf8(utf8: &ConstantKind) -> Option<&Utf8> {
-    return match utf8 {
+    match utf8 {
         ConstantKind::Utf8(s) => { Some(s) }
         _ => { None }
-    };
+    }
 }
 
 const UTF8_CONST_NUM: u8 = 1;
@@ -139,16 +139,14 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> ConstantInfo {
         MODULE_CONST_NUM => { unimplemented!() }
         PACKAGE_CONST_NUM => { unimplemented!() }
         INVALID_CONSTANT_CONST_NUM => {
-            assert!(false);
             unimplemented!();
         }
         _ => {
             dbg!(kind);
-            assert!(false);
             unimplemented!();
         }
     };
-    return ConstantInfo { kind: result_kind };
+    ConstantInfo { kind: result_kind }
 }
 
 
@@ -175,5 +173,5 @@ pub fn parse_constant_infos(p: &mut dyn ParsingContext, constant_pool_count: u16
         }
         constants.push(constant_info);
     }
-    return constants;
+    constants
 }

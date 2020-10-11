@@ -37,14 +37,14 @@ pub fn resolve_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGua
 	dbg!(&parameter_types);
 	dbg!(member_name.get_name().to_rust_string());
 	let method_descriptor = MethodDescriptor { parameter_types, return_type };
-	let res = runtime_class.view().lookup_method_name(&member_name.get_name().to_rust_string()).iter().filter(|m|{
+	let res = runtime_class.view().lookup_method_name(&member_name.get_name().to_rust_string()).iter().find(|m|{
 		if m.is_signature_polymorphic(){
 			//todo more comprehensive polymorphism sanity checks.
 			true
 		}else{
 			m.desc() == method_descriptor
 		}
-	}).next().cloned();//todo assert only one match
+	}).cloned();//todo assert only one match
 	assert!(res.is_some());
 	// assert!(res.as_ref().unwrap().is_synthetic());
 	Method::method_object_from_method_view(jvm, int_state, &res.unwrap())

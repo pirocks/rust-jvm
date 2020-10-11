@@ -3,8 +3,9 @@
 use rust_jvm_common::classfile::{Classfile, MethodInfo};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
+use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Hash, Eq, Clone)]
+#[derive(Debug, Eq, Clone)]
 pub struct MethodDescriptor { pub parameter_types: Vec<PType>, pub return_type: PType }
 
 impl MethodDescriptor {
@@ -24,6 +25,15 @@ impl PartialEq for MethodDescriptor {
     }
 }
 
+impl Hash for MethodDescriptor{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for ptype in &self.parameter_types {
+            ptype.hash(state)
+        }
+        self.return_type.hash(state)
+    }
+}
+
 #[derive(Debug)]
 pub struct FieldDescriptor { pub field_type: PType }
 
@@ -39,7 +49,7 @@ pub fn eat_one(str_: &str) -> &str {
 }
 
 pub fn parse_base_type(str_: &str) -> Option<(&str, PType)> {
-    Some((eat_one(str_), match str_.chars().nth(0)? {
+    Some((eat_one(str_), match str_.chars().next()? {
         'B' => PType::ByteType,
         'C' => PType::CharType,
         'D' => PType::DoubleType,
@@ -53,7 +63,7 @@ pub fn parse_base_type(str_: &str) -> Option<(&str, PType)> {
 }
 
 pub fn parse_object_type(str_: &str) -> Option<(&str, PType)> {
-    match str_.chars().nth(0)? {
+    match str_.chars().next()? {
         'L' => {
             let str_without_l = eat_one(str_);
             let end_index = str_without_l.find(';').expect("unterminated object in descriptor") + 1;
@@ -84,13 +94,13 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, PType)> {
             Some((remaining_to_parse, sub_type))
         }
         _ => {
-            return None;
+            None
         }
     }
 }
 
 pub fn parse_array_type(str_: &str) -> Option<(&str, PType)> {
-    match str_.chars().nth(0)? {
+    match str_.chars().next()? {
         '[' => {
             let (remaining_to_parse, sub_type) = parse_component_type(&str_[1..str_.len()])?;
             let array_type = PType::Ref(ReferenceType::Array(Box::from(sub_type)));
@@ -129,12 +139,12 @@ pub fn parse_component_type(str_: &str) -> Option<(&str, PType)> {
 }
 
 pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
-    if str_.chars().nth(0)? != '(' {
+    if str_.chars().next()? != '(' {
         return None;
     }
     let mut remaining_to_parse = eat_one(str_);
     let mut parameter_types = Vec::new();
-    while remaining_to_parse.chars().nth(0)? != ')' {
+    while remaining_to_parse.chars().next()? != ')' {
         if let Some((rem, type_)) = parse_field_type(remaining_to_parse) {
             remaining_to_parse = rem;
             parameter_types.push(type_);
@@ -159,9 +169,9 @@ pub fn parse_parameter_descriptor(str_: &str) -> Option<(&str, PType)> {
 }
 
 pub fn parse_void_descriptor(str_: &str) -> Option<(&str, PType)> {
-    match str_.chars().nth(0)? {
+    match str_.chars().next()? {
         'V' => Some((eat_one(str_), PType::VoidType)),
-        _ => return None
+        _ => None
     }
 }
 
@@ -172,10 +182,10 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PType)> {
 }
 
 pub fn parse_class_name(str_: &str) -> PType {
-    if str_.starts_with("[") {
+    if str_.starts_with('[') {
         let field_descriptor = parse_field_descriptor(&str_[1..]).unwrap().field_type;
         PType::Ref(ReferenceType::Array(box field_descriptor))
-    } else if str_.ends_with(";") {
+    } else if str_.ends_with(';') {
         parse_field_descriptor(&str_).unwrap().field_type
     } else {
         PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))

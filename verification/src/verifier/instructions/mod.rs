@@ -102,7 +102,7 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
         match x {
             Instruction(_) => panic!(),
             StackMap(s) => Frame {
-                locals: Rc::new(s.map_frame.locals.iter().map(|x| x.clone()).collect()),
+                locals: Rc::new(s.map_frame.locals.iter().cloned().collect()),
                 stack_map: s.map_frame.stack_map.clone(),
                 flag_this_uninit: s.map_frame.flag_this_uninit,
             },
@@ -150,14 +150,14 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let locals_copy = locals.clone();
     let stack_map = OperandStack::new_prolog_display_order(&vec![class_to_type(&env.vf, &exception_class)]);
     let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: stack_map.clone(), flag_this_uninit: flags };
-    if operand_stack_has_legal_length(env, &stack_map.clone()) {
+    if operand_stack_has_legal_length(env, &stack_map) {
         target_is_type_safe(env, &true_exc_stack_frame, target)
     } else {
         Result::Err(TypeSafetyError::NotSafe("operand stack does not have legal length".to_string()))
     }
 }
 
-pub fn nth0(index: usize, locals: &Vec<VType>) -> VType {
+pub fn nth0(index: usize, locals: &[VType]) -> VType {
     match locals.get(index) {
         None => unimplemented!(),
         Some(res) => res.clone(),
@@ -174,7 +174,7 @@ pub fn handlers_are_legal(env: &Environment) -> Result<(), TypeSafetyError> {
     Result::Ok(())
 }
 
-pub fn start_is_member_of(start: usize, merged_instructs: &Vec<MergedCodeInstruction>) -> bool {
+pub fn start_is_member_of(start: usize, merged_instructs: &[MergedCodeInstruction]) -> bool {
     merged_instructs.iter().any(|m| match m {
         Instruction(i) => { i.offset == start }
         StackMap(s) => { s.offset == start }
@@ -189,7 +189,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 //todo how does bootstrap loader from throwable make its way into this
                 //todo why do I take the class name when I already know it
-                is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name.clone(), loader: env.class_loader.clone() }),
+                is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name, loader: env.class_loader.clone() }),
                               &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.bootstrap_loader.clone() }))
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
@@ -203,7 +203,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
 }
 
 
-pub fn instructions_include_end(instructs: &Vec<MergedCodeInstruction>, end: usize) -> bool {
+pub fn instructions_include_end(instructs: &[MergedCodeInstruction], end: usize) -> bool {
     instructs.iter().any(|x: &MergedCodeInstruction| {
         match x {
             MergedCodeInstruction::Instruction(i) => {
@@ -366,7 +366,7 @@ fn dup2_form1_is_type_safe(env: &Environment, input_stack: OperandStack) -> Resu
 fn dup2_form2_is_type_safe(env: &Environment, input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
     let mut stack1 = input_stack.clone();
     let type_ = pop_category2(&env.vf, &mut stack1)?;
-    can_safely_push_list(env, input_stack, vec![type_.clone()])
+    can_safely_push_list(env, input_stack, vec![type_])
 }
 
 fn dup_x2_form1_is_type_safe(env: &Environment, input_stack: OperandStack) -> Result<OperandStack, TypeSafetyError> {
@@ -401,7 +401,7 @@ fn dup_x2_form2_is_type_safe(env: &Environment, input_stack: OperandStack) -> Re
 //exceptionStackFrame(StackFrame, ExceptionStackFrame).
 pub fn instruction_is_type_safe_dup2_x1(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let Frame { locals, stack_map: input_stack, flag_this_uninit: flags } = stack_frame;
-    let output = dup2_x1form_is_type_safe(env, input_stack.clone())?;
+    let output = dup2_x1form_is_type_safe(env, input_stack)?;
     let next_frame = Frame {
         locals: locals.clone(),
         stack_map: output,
@@ -625,10 +625,10 @@ pub fn instruction_is_type_safe_pop(env: &Environment, stack_frame: Frame) -> Re
 
 pub fn instruction_is_type_safe_pop2(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let Frame { locals, stack_map: operand_stack, flag_this_uninit: flags } = stack_frame;
-    let out = pop2form_is_type_safe(env, operand_stack.clone())?;//todo uneeded clone
+    let out = pop2form_is_type_safe(env, operand_stack)?;//todo uneeded clone
     let next_frame = Frame {
         locals: locals.clone(),
-        stack_map: out.clone(),
+        stack_map: out,
         flag_this_uninit: flags,
     };
     standard_exception_frame(locals, flags, next_frame)
@@ -669,7 +669,7 @@ pub fn instruction_is_type_safe_swap(env: &Environment, stack_frame: Frame) -> R
         Result::Ok(InstructionTypeSafe::Safe(ResultFrames {
             next_frame: Frame {
                 locals: locals.clone(),
-                stack_map: initial_stack_map.clone(),
+                stack_map: initial_stack_map,
                 flag_this_uninit: flags,
             },
             exception_frame: exception_stack_frame(locals.clone(), flags),

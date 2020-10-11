@@ -10,16 +10,19 @@ use rust_jvm_common::classnames::ClassName;
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use crate::verifier::TypeSafetyError;
 use crate::VerifierContext;
+use std::sync::Arc;
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    return (!std::sync::Arc::ptr_eq(&class1.loader, &class2.loader)) || different_package_name(vf, class1, class2);
+    return //(!Arc::ptr_eq(&class1.loader, &class2.loader)) ||// todo this is bad
+        class1.loader.name() != class2.loader.name() ||
+        different_package_name(vf, class1, class2);
 }
 
 fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
     let name1 = class1.class_name.get_referred_name();
     let name2 = class2.class_name.get_referred_name();
-    let split1: Vec<&str> = name1.split("/").collect();
-    let split2: Vec<&str> = name2.split("/").collect();
+    let split1: Vec<&str> = name1.split('/').collect();
+    let split2: Vec<&str> = name2.split('/').collect();
     assert!(split1.len() >= 1);
     assert!(split2.len() >= 1);
     let package_slice1 = &split1[..split1.len() - 1];
@@ -31,7 +34,8 @@ fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class
 
 
 pub fn is_bootstrap_loader(vf: &VerifierContext, loader: &LoaderArc) -> bool {
-    return std::sync::Arc::ptr_eq(loader, &vf.bootstrap_loader);
+    //Arc::ptr_eq(loader, &vf.bootstrap_loader)//todo this is bad
+    loader.name() == vf.bootstrap_loader.name()
 }
 
 pub fn get_class_methods<'l>(vf: &VerifierContext, class: &'l ClassWithLoader) -> Vec<ClassWithLoaderMethod<'l>> {
@@ -114,9 +118,9 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.deref()),
             VType::Class(c2) => {
                 if c == c2 {
-                    return Result::Ok(());
+                    Result::Ok(())
                 } else {
-                    return is_java_assignable_class(vf, c, c2);
+                    is_java_assignable_class(vf, c, c2)
                 }
             }
             _ => is_assignable(vf, &VType::Reference, to)
@@ -124,7 +128,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         VType::ArrayReferenceType(a) => match to {
             VType::ArrayReferenceType(a2) => {
                 if a == a2 {
-                    return Result::Ok(());
+                    Result::Ok(())
                 } else {
                     is_java_assignable(vf, from, to)
                 }
@@ -134,7 +138,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                 if is_java_assignable(vf, from, to).is_ok() {
                     return Result::Ok(());
                 }
-                if !is_assignable(vf, &VType::Reference, to).is_ok() {
+                if is_assignable(vf, &VType::Reference, to).is_err() {
                     //todo okay to use name like that?
                     if c.class_name == ClassName::object() &&
                         c.loader.name() == LoaderName::BootstrapLoader {
@@ -247,7 +251,7 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
         VType::ArrayReferenceType(a1) => {
             match right {
                 VType::Class(c) => {
-                    if c.class_name == ClassName::object() && &vf.bootstrap_loader.name() == &c.loader.name() {
+                    if c.class_name == ClassName::object() && vf.bootstrap_loader.name() == c.loader.name() {
                         return Result::Ok(());
                     }
                     unimplemented!()
@@ -281,7 +285,7 @@ fn is_java_assignable_class(vf: &VerifierContext, from: &ClassWithLoader, to: &C
     if class_is_interface(vf, &ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() }) {
         return Result::Ok(());
     }
-    return is_java_sub_class_of(vf, from, to);
+    is_java_sub_class_of(vf, from, to)
 }
 
 pub fn is_array_interface(_vf: &VerifierContext, class: ClassWithLoader) -> bool {
@@ -320,7 +324,7 @@ pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, lo
     let super_class_name = class_super_class_name(vf, &class);
     let super_class = loaded_class(vf, super_class_name.clone(), loader.clone())?;
     res.push(super_class);
-    super_class_chain(vf, &loaded_class(vf, super_class_name.clone(), loader.clone())?, loader.clone(), res)?;
+    super_class_chain(vf, &loaded_class(vf, super_class_name, loader.clone())?, loader, res)?;
     Result::Ok(())
 }
 
@@ -349,16 +353,19 @@ pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoa
         } else {
             Result::Err(TypeSafetyError::NotSafe("Loading Object w/o bootstrap loader".to_string()))
         }
-    } else if is_private(vf, method, class) {
-        Result::Ok(())
-    } else if is_static(vf, method, class) {
+    } else if is_private(vf, method, class) || is_static(vf, method, class) {
         Result::Ok(())
     } else {
         does_not_override_final_method_of_superclass(vf, class, method)
     }
 }
 
-pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoaderMethod, super_class: &ClassWithLoader, super_method_list: &Vec<ClassWithLoaderMethod>) -> Result<(), TypeSafetyError> {
+pub fn final_method_not_overridden(
+    vf: &VerifierContext,
+    method: &ClassWithLoaderMethod,
+    super_class: &ClassWithLoader,
+    super_method_list: &[ClassWithLoaderMethod]
+) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, method.class);
     let method_info = &method_class.method_view_i(method.method_index);
     let method_name__ = method_info.name();
@@ -383,10 +390,10 @@ pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoade
                     return Result::Ok(());
                 }
             } else {
-                if is_private(vf, method, super_class) || is_static(vf, method, super_class) {
-                    return does_not_override_final_method(vf, super_class, method);
+                return if is_private(vf, method, super_class) || is_static(vf, method, super_class) {
+                    does_not_override_final_method(vf, super_class, method)
                 } else {
-                    return Result::Ok(());
+                    Result::Ok(())
                 }
             }
         }
@@ -412,7 +419,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
     for method in class.methods() {
         let method_name_ = method.name();
         let method_name = method_name_.deref();
-        if &member_name == method_name {
+        if member_name == method_name {
             let parsed_member_types = method.desc();
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,

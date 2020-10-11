@@ -26,13 +26,13 @@ fn store_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: Fra
     })
 }
 
-pub fn modify_local_variable(vf: &VerifierContext, index: usize, type_: VType, locals: &Vec<VType>) -> Result<Vec<VType>, TypeSafetyError> {
-    let mut locals_copy = locals.clone();
+pub fn modify_local_variable(vf: &VerifierContext, index: usize, type_: VType, locals: &[VType]) -> Result<Vec<VType>, TypeSafetyError> {
+    let mut locals_copy = locals.to_vec();
     if size_of(vf, &locals[index]) == 1 {
         locals_copy[index] = type_;
         Result::Ok(locals_copy)
     } else if size_of(vf, &locals[index]) == 2 {
-        assert!(&locals[index + 1] == &VType::TopType);//todo this isn't completely correct. Ideally this function should fail, instead of returning a assertion error
+        assert_eq!(&locals[index + 1], &VType::TopType);//todo this isn't completely correct. Ideally this function should fail, instead of returning a assertion error
         locals_copy[index] = type_;
         Result::Ok(locals_copy)
     } else {
@@ -42,7 +42,7 @@ pub fn modify_local_variable(vf: &VerifierContext, index: usize, type_: VType, l
 
 pub fn instruction_is_type_safe_aastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let object = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.bootstrap_loader.clone() };
-    let object_type = VType::Class(object.clone());
+    let object_type = VType::Class(object);
     let object_array = VType::ArrayReferenceType(PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())));
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;

@@ -37,13 +37,13 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_f
     passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), &stack_frame)?;
     let current_loader = env.class_loader.clone();
     let expected_types_on_stack = vec![VType::Class(ClassWithLoader { class_name: field_class_name, loader: current_loader })];
-    type_transition(env, stack_frame, expected_types_on_stack, field_type.clone())
+    type_transition(env, stack_frame, expected_types_on_stack, field_type)
 }
 
 pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, &get_class(&env.vf, env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader);
-    type_transition(env, stack_frame, vec![], field_type.clone())
+    type_transition(env, stack_frame, vec![], field_type)
 }
 
 
@@ -85,7 +85,7 @@ pub fn instruction_is_type_safe_arraylength(env: &Environment, stack_frame: Fram
 
 pub fn array_component_type(type_: VType) -> Result<PTypeView, TypeSafetyError> {
     Result::Ok(match type_ {
-        VType::ArrayReferenceType(a) => a.clone(),
+        VType::ArrayReferenceType(a) => a,
         VType::NullType => PTypeView::NullType,
         _ => panic!()
     })
@@ -127,9 +127,8 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
 pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_classfile = get_class(&env.vf, env.method.class);
     if method_classfile.method_view_i(env.method.method_index).name().deref() == "<init>" {
-        match instruction_is_type_safe_putfield_second_case(cp, env, &stack_frame) {
-            Ok(res) => return Result::Ok(res),
-            Err(_) => {}
+        if let Ok(res) = instruction_is_type_safe_putfield_second_case(cp, env, &stack_frame) {
+            return Result::Ok(res)
         };
     }
     match instruction_is_type_safe_putfield_first_case(cp, env, &stack_frame) {
@@ -163,7 +162,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
     let flag = stack_frame.flag_this_uninit;
     //todo unnecessary cloning here
     let _popped_frame = can_pop(&env.vf, stack_frame.clone(), vec![field_type.clone()])?;
-    passes_protected_check(env, &field_class_name.clone(), field_name, Descriptor::Field(&field_descriptor), &stack_frame)?;
+    passes_protected_check(env, &field_class_name, field_name, Descriptor::Field(&field_descriptor), &stack_frame)?;
     let current_loader = env.class_loader.clone();
     let next_frame = can_pop(&env.vf, stack_frame.clone(), vec![field_type, VType::Class(ClassWithLoader { loader: current_loader, class_name: field_class_name })])?;
     standard_exception_frame(locals, flag, next_frame)
@@ -208,7 +207,7 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: Fra
 
 pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let classfile = get_class(&env.vf, env.method.class);
-    let expected_type = PTypeView::Ref(classfile.constant_pool_view(cp).unwrap_class().class_name().clone());//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
+    let expected_type = PTypeView::Ref(classfile.constant_pool_view(cp).unwrap_class().class_name());//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
     if class_dimension(env, &expected_type.to_verification_type(&env.class_loader)) != dim {
         return Result::Err(unknown_error_verifying!());
     }
@@ -279,7 +278,7 @@ fn primitive_array_info(type_code: usize) -> PTypeView {
 
 //impl Vec<usize> {
 //todo replace with is_sorted when that becomes stable
-fn sorted(nums: &Vec<i32>) -> bool {
+fn sorted(nums: &[i32]) -> bool {
     let mut old_x: i32 = std::i32::MIN;
     nums.iter().all(|x| {
         let res = old_x <= *x;

@@ -32,8 +32,7 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VTy
 }
 
 pub fn pop_matching_list(vf: &VerifierContext, pop_from: OperandStack, pop: Vec<VType>) -> Result<OperandStack, TypeSafetyError> {
-    let result = pop_matching_list_impl(vf, pop_from, pop.as_slice());
-    return result;
+    pop_matching_list_impl(vf, pop_from, pop.as_slice())
 }
 
 pub fn pop_matching_list_impl(vf: &VerifierContext, mut pop_from: OperandStack, pop: &[VType]) -> Result<OperandStack, TypeSafetyError> {
@@ -42,7 +41,7 @@ pub fn pop_matching_list_impl(vf: &VerifierContext, mut pop_from: OperandStack, 
     } else {
         let to_pop = pop.first().unwrap();
         pop_matching_type(vf, &mut pop_from, to_pop)?;
-        return pop_matching_list_impl(vf, pop_from, &pop[1..]);
+        pop_matching_list_impl(vf, pop_from, &pop[1..])
     }
 }
 
@@ -51,18 +50,15 @@ pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut Operan
         let actual_type = operand_stack.peek();
         is_assignable(vf, &actual_type, type_)?;
         operand_stack.operand_pop();
-        return Result::Ok(actual_type.clone());
+        Result::Ok(actual_type)
     } else if size_of(vf, type_) == 2 {
-        assert!(match &operand_stack.peek() {
-            VType::TopType => true,
-            _ => false
-        });
+        assert!(matches!(&operand_stack.peek(), VType::TopType));
         operand_stack.operand_pop();
         let actual_type = &operand_stack.peek();
         //todo if not assignable we need to roll back top pop
         is_assignable(vf, actual_type, type_).unwrap();
         operand_stack.operand_pop();
-        return Result::Ok(actual_type.clone());
+        Result::Ok(actual_type.clone())
     } else {
         panic!()
     }
@@ -148,9 +144,7 @@ pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method
     let method_class = get_class(vf, method.class);
     let method_view = method_class.method_view_i(method.method_index as usize);
     does_not_override_final_method(vf, class, method)?;
-    if method_view.is_native() {
-        Result::Ok(())
-    } else if method_view.is_abstract() {
+    if method_view.is_native() || method_view.is_abstract(){
         Result::Ok(())
     } else {
         //will have a code attribute. or else method_with_code_is_type_safe will crash todo
@@ -200,7 +194,7 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
     let mut instructs: Vec<&Instruction> = code.code
         .iter()
         .map(|x| {
-            *(&mut final_offset) = x.offset;
+            final_offset = x.offset;
             x
         })
         .collect();
@@ -208,7 +202,7 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
     instructs.push(&end_of_code);
     let handlers = get_handlers(vf, class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, class, method_info);
-    let merged = merge_stack_map_and_code(instructs, stack_map.iter().map(|x| { x }).collect());
+    let merged = merge_stack_map_and_code(instructs, stack_map.iter().collect());
     let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size);
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
     handlers_are_legal(&env)?;
@@ -307,7 +301,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
 //    trace!("Starting instruction and stackmap merge");
     let mut res = vec![];
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
-    return res;
+    res
 }
 
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, VType) {
@@ -316,7 +310,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     let initial_parsed_descriptor = method_view.desc();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types.clone(),
-        return_type: initial_parsed_descriptor.return_type.clone(),
+        return_type: initial_parsed_descriptor.return_type,
     };
     let this_list = method_initial_this_type(vf, class, method);
     let flag_this_uninit = flags(&this_list);
@@ -333,7 +327,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = Rc::new(expand_to_length_verification(this_args, frame_size as usize, VType::TopType));
-    return (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.bootstrap_loader));
+    (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.bootstrap_loader))
 }
 
 
@@ -368,7 +362,7 @@ pub fn expand_to_length(list: Vec<PTypeView>, size: usize, filler: PTypeView) ->
             Some(elem) => { elem.clone() }
         })
     }
-    return res;
+    res
 }
 
 
@@ -381,7 +375,7 @@ fn expand_to_length_verification(list: Vec<VType>, size: usize, filler: VType) -
             Some(elem) => { elem.clone() }
         })
     }
-    return res;
+    res
 }
 
 
@@ -395,7 +389,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
         let method_name_ = method_info.name();
         let method_name = method_name_.deref();
         if method_name != "<init>" {
-            return None;
+            None
         } else {
             unimplemented!()
         }

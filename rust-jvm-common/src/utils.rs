@@ -13,7 +13,7 @@ impl ConstantInfo {
     pub fn extract_string_from_utf8(&self) -> String {
         match &(self).kind {
             ConstantKind::Utf8(s) => {
-                return s.string.clone();
+                s.string.clone()
             }
             other => {
                 dbg!(other);
@@ -25,15 +25,15 @@ impl ConstantInfo {
 
 impl Classfile {
     pub fn has_super_class(&self) -> bool {
-        return self.super_class != 0;
+        self.super_class != 0
     }
 
     pub fn is_interface(&self) -> bool {
-        return (self.access_flags & ACC_INTERFACE) > 0;
+        (self.access_flags & ACC_INTERFACE) > 0
     }
 
     pub fn is_final(&self) -> bool {
-        return (self.access_flags & ACC_FINAL) > 0;
+        (self.access_flags & ACC_FINAL) > 0
     }
 
 
@@ -47,7 +47,7 @@ impl Classfile {
         }
         let descriptor = self.constant_pool[nt.descriptor_index as usize].extract_string_from_utf8();
         let method_name = self.constant_pool[nt.name_index as usize].extract_string_from_utf8();
-        return (method_name, descriptor);
+        (method_name, descriptor)
     }
 
     //todo this could be better used to reduce duplication
@@ -67,7 +67,7 @@ impl Classfile {
     pub fn extract_class_from_constant_pool(&self, i: u16) -> &Class {
         match &self.constant_pool[i as usize].kind {
             ConstantKind::Class(c) => {
-                return c;
+                c
             }
             _ => {
                 panic!();
@@ -91,7 +91,7 @@ impl Classfile {
         };
         match &(self.constant_pool[class_info.name_index as usize]).kind {
             ConstantKind::Utf8(s) => {
-                return ClassName::Str(s.string.clone()).into();
+                ClassName::Str(s.string.clone()).into()
             }
             _ => { panic!() }
         }
@@ -110,20 +110,18 @@ impl Classfile {
         None
     }
 
-    pub fn lookup_method_name(&self, name: &String) -> Vec<(usize, &MethodInfo)> {
+    pub fn lookup_method_name(&self, name: &str) -> Vec<(usize, &MethodInfo)> {
         self.methods.iter().enumerate().filter(|(_i, m)| {
-            &m.method_name(self) == name
+            m.method_name(self) == name
         }).collect()
     }
 
     pub fn lookup_method_name_owned(self, self_ref: &Self, name: String) -> Vec<(usize, MethodInfo)> {
         let mut res = vec![];
-        let mut i = 0;
-        for m in self.methods {
+        for (i,m) in self.methods.into_iter().enumerate() {
             if m.method_name(self_ref) == name {
                 res.push((i, m));
             }
-            i += 1;//todo there must be a better way
         }
         res
     }
@@ -132,8 +130,7 @@ impl Classfile {
 impl MethodInfo {
     pub fn method_name(&self, class_file: &Classfile) -> String {
         let method_name_utf8 = &class_file.constant_pool[self.name_index as usize];
-        let method_name = method_name_utf8.extract_string_from_utf8();
-        method_name
+        method_name_utf8.extract_string_from_utf8()
     }
 
     pub fn code_attribute(&self) -> Option<&Code> {
@@ -148,11 +145,8 @@ impl MethodInfo {
         }
 
         for attr in self.attributes.iter() {
-            match &attr.attribute_type {
-                AttributeType::Code(code) => {
-                    return Some(code);
-                }
-                _ => {}
+            if let AttributeType::Code(code) = &attr.attribute_type {
+                return Some(code);
             }
         }
         panic!("Method has no code attribute, which is unusual given code is sorta the point of a method.")
@@ -180,11 +174,8 @@ impl MethodInfo {
 impl FieldInfo {
     pub fn constant_value_attribute_i(&self) -> Option<CPIndex> {
         for attr in &self.attributes {
-            match &attr.attribute_type {
-                AttributeType::ConstantValue(c) => {
-                    return Some(c.constant_value_index);
-                }
-                _ => {}
+            if let AttributeType::ConstantValue(c) = &attr.attribute_type {
+                return Some(c.constant_value_index);
             }
         }
         None

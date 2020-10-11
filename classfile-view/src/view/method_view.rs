@@ -66,7 +66,7 @@ impl MethodView<'_> {
 
     pub fn local_variable_attribute(&self) -> Option<Vec<LocalVariableView>> {
         match self.method_info().code_attribute() {
-            None => return None,
+            None => None,
             Some(code) => {
                 code.attributes.iter().find_map(|attr| match &attr.attribute_type {
                     AttributeType::LocalVariableTable(lvt) => Some(lvt),
@@ -74,7 +74,7 @@ impl MethodView<'_> {
                 }).map(|lvt| lvt.local_variable_table.iter().map(|entry| {
                     let local_variable_entry = entry;
                     LocalVariableView { method_view: self, local_variable_entry }
-                }).collect::<Vec<LocalVariableView>>().into())
+                }).collect::<Vec<LocalVariableView>>())
             }
         }
     }

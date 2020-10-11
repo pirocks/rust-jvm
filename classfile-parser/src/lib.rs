@@ -13,11 +13,8 @@ pub mod constant_infos;
 
 pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
     for attr in code.attributes.iter() {
-        match &attr.attribute_type {
-            AttributeType::StackMapTable(table) => {
-                return Some(table);
-            }
-            _ => {}
+        if let AttributeType::StackMapTable(table) = &attr.attribute_type {
+            return Some(table);
         }
     }
     None
@@ -34,7 +31,7 @@ pub fn parse_interfaces(p: &mut dyn ParsingContext, interfaces_count: u16) -> Ve
     for _ in 0..interfaces_count {
         res.push(p.read16())
     }
-    return res;
+    res
 }
 
 pub fn parse_field(p: &mut dyn ParsingContext) -> FieldInfo {
@@ -43,7 +40,7 @@ pub fn parse_field(p: &mut dyn ParsingContext) -> FieldInfo {
     let descriptor_index = p.read16();
     let attributes_count = p.read16();
     let attributes = parse_attributes(p, attributes_count);
-    return FieldInfo { access_flags, name_index, descriptor_index, attributes };
+    FieldInfo { access_flags, name_index, descriptor_index, attributes }
 }
 
 pub fn parse_field_infos(p: &mut dyn ParsingContext, fields_count: u16) -> Vec<FieldInfo> {
@@ -51,7 +48,7 @@ pub fn parse_field_infos(p: &mut dyn ParsingContext, fields_count: u16) -> Vec<F
     for _ in 0..fields_count {
         res.push(parse_field(p))
     }
-    return res;
+    res
 }
 
 pub fn parse_method(p: &mut dyn ParsingContext) -> MethodInfo {
@@ -68,7 +65,7 @@ pub fn parse_methods(p: &mut dyn ParsingContext, methods_count: u16) -> Vec<Meth
     for _ in 0..methods_count {
         res.push(parse_method(p))
     }
-    return res;
+    res
 }
 
 pub fn parse_class_file(read: &mut dyn Read) -> Classfile {
@@ -97,7 +94,8 @@ fn parse_from_context(p: &mut dyn ParsingContext) -> Classfile {
     let methods = parse_methods(p, methods_count);
     let attributes_count = p.read16();
     let attributes = parse_attributes(p, attributes_count);
-    let res = Classfile {
+    // validate_parsed(&mut res);
+    Classfile {
         magic,
         minor_version,
         major_version,
@@ -109,9 +107,7 @@ fn parse_from_context(p: &mut dyn ParsingContext) -> Classfile {
         fields,
         methods,
         attributes,
-    };
-    // validate_parsed(&mut res);
-    return res;
+    }
 }
 
 pub mod parse_validation;

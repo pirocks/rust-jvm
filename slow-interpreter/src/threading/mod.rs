@@ -57,7 +57,7 @@ impl ThreadState {
         *self.main_thread.write().unwrap() = main_thread.clone().into();
         let (main_send, main_recv) = channel();
         let main_thread_clone = main_thread.clone();
-        main_thread.clone().underlying_thread.start_thread(box move |_| {
+        main_thread.underlying_thread.start_thread(box move |_| {
             jvm.thread_state.set_current_thread(main_thread.clone());
             main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
             assert!(main_thread.interpreter_state.read().unwrap().call_stack.is_empty());
