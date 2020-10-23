@@ -1,0 +1,23 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="run-jvm debug test" type="CargoCommandRunConfiguration" factoryName="Cargo Command" singleton="false">
+    <option name="channel" value="DEFAULT" />
+    <option name="command" value="run -- --unittest-mode --libjava $USER_HOME$/build/test/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --args this is an arg    --classpath $PROJECT_DIR$/resources/test $USER_HOME$/build/test/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/classes    " />
+    <option name="allFeatures" value="false" />
+    <option name="emulateTerminal" value="false" />
+    <option name="backtrace" value="SHORT" />
+    <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+    <envs>
+      <env name="LD_LIBRARY_PATH" value="$PROJECT_DIR$/target/debug/deps/" />
+      <env name="JVM_H" value="$USER_HOME$/build/openjdk-jdk8u/jdk/src/share/javavm/export/" />
+      <env name="JVM_MD_H" value="$PROJECT_DIR$/jvmti-jni-bindings/" />
+      <env name="JNI_MD_H" value="$USER_HOME$/Desktop/jdk8u232-b09/include/linux/" />
+      <env name="JNI_H" value="$USER_HOME$/Desktop/jdk8u232-b09/include/" />
+      <env name="RUSTFLAGS" value="-C force-frame-pointers=y" />
+      <env name="RUST_BACKTRACE" value="full" />
+    </envs>
+    <method v="2">
+      <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+    </method>
+  </configuration>
+</component>

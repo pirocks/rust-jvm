@@ -1,0 +1,23 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command" singleton="false">
+    <option name="channel" value="DEFAULT" />
+    <option name="command" value="clippy -- -A clippy::tabs_in_doc_comments -A clippy::if_same_then_else -A clippy::mutex_atomic -A clippy::missing_safety_doc -A clippy::or_fun_call -A clippy::new_without_default" />
+    <option name="allFeatures" value="false" />
+    <option name="emulateTerminal" value="false" />
+    <option name="backtrace" value="SHORT" />
+    <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+    <envs>
+      <env name="LD_LIBRARY_PATH" value="$PROJECT_DIR$/target/debug/deps/" />
+      <env name="JVM_H" value="$USER_HOME$/build/openjdk-jdk8u/jdk/src/share/javavm/export/" />
+      <env name="JVM_MD_H" value="$PROJECT_DIR$/jvmti-jni-bindings/" />
+      <env name="JNI_MD_H" value="$USER_HOME$/Desktop/jdk8u232-b09/include/linux/" />
+      <env name="JNI_H" value="$USER_HOME$/Desktop/jdk8u232-b09/include/" />
+      <env name="RUSTFLAGS" value="-C force-frame-pointers=y" />
+      <env name="RUST_BACKTRACE" value="full" />
+    </envs>
+    <method v="2">
+      <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+    </method>
+  </configuration>
+</component>
