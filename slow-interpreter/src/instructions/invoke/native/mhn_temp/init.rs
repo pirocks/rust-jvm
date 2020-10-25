@@ -1,27 +1,47 @@
 use classfile_view::view::HasAccessFlags;
-use rust_jvm_common::classfile::{ACC_STATIC, REF_invokeInterface, REF_invokeStatic, REF_invokeVirtual, ACC_VARARGS, ACC_NATIVE, ACC_SYNTHETIC, ACC_FINAL, REF_invokeSpecial};
+use classfile_view::view::method_view::MethodView;
+use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_invokeInterface, REF_invokeSpecial, REF_invokeStatic, REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::native::mhn_temp::{IS_METHOD, REFERENCE_KIND_SHIFT};
 use crate::interpreter_util::check_inited_class;
-use crate::java_values::JavaValue;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
-use classfile_view::view::method_view::MethodView;
+use crate::java_values::JavaValue;
 
 pub fn MHN_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
     //two params, is a static function.
-    let mname = args[0].cast_member_name();
+    let mname = args[0].clone().cast_member_name();
     let target = args[1].clone();
-    init(jvm,int_state,mname,target,None,false)
+    let to_string = target.cast_object().to_string(jvm, int_state).to_rust_string();
+    let assertion_case = match to_string.as_str() {
+        "static void java.lang.invoke.Invokers.checkExactType(java.lang.Object,java.lang.Object)" => {
+            InitAssertionCase::CHECK_EXACT_TYPE.into()
+        }
+        _ => None
+    };
+    let res = init(jvm, int_state, mname.clone(), target, None, false);
+    if let Some(case) = assertion_case {
+        match case {
+            InitAssertionCase::CHECK_EXACT_TYPE => {
+                assert_eq!(mname.get_flags(), 100728840);
+                assert_eq!(mname.get_clazz().as_type().unwrap_class_type(), ClassName::new("java/lang/invoke/Invokers"));
+            }
+        }
+    }
+    res
+}
+
+pub enum InitAssertionCase {
+    CHECK_EXACT_TYPE
 }
 
 
-pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname : MemberName, target: JavaValue, method_view: Option<&MethodView>, synthetic: bool) -> Option<JavaValue>{
+pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, method_view: Option<&MethodView>, synthetic: bool) -> Option<JavaValue> {
     if target.unwrap_normal_object().class_pointer.view().name() == ClassName::method() {//todo replace with a try cast
         let target = target.cast_method();
-        method_init(jvm, int_state, mname.clone(), target,method_view, synthetic);
+        method_init(jvm, int_state, mname.clone(), target, method_view, synthetic);
     } else {
 
         //todo handle constructors and fields
@@ -76,7 +96,7 @@ pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname : Membe
 */
 
 
-fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, method: Method, method_view: Option<&MethodView>,synthetic: bool) {
+fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, method: Method, method_view: Option<&MethodView>, synthetic: bool) {
     let flags = method.get_modifiers();
     let clazz = method.get_clazz();
     mname.set_clazz(clazz.clone());
@@ -92,9 +112,9 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
             REF_invokeInterface
         } else {
             //todo if you are wondering why this is needed, I'm as confused as you are.
-            if inited_class.view().is_final(){
+            if inited_class.view().is_final() {
                 REF_invokeSpecial
-            }else {
+            } else {
                 REF_invokeVirtual
             }
         }
@@ -102,20 +122,22 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     let extra_flags = IS_METHOD | invoke_type_flag;
     let mut modifiers = method.get_modifiers();
     if let Some(method_view) = method_view {
-        if method_view.is_varargs(){
+        if method_view.is_varargs() {
             modifiers |= ACC_VARARGS as i32;
-            if method_view.is_signature_polymorphic(){
+            if method_view.is_signature_polymorphic() {
                 modifiers &= !(ACC_VARARGS as i32);
             }
         }
         if method_view.is_native() {
             modifiers |= ACC_NATIVE as i32;
         }
-        if method_view.is_static(){
+        if method_view.is_static() {
             modifiers |= ACC_STATIC as i32;
-            modifiers |= ACC_FINAL as  i32;//todo why is this necessary? I mean it is, but why?
         }
-        if synthetic{
+        if method_view.is_final() || method_view.is_signature_polymorphic() {
+            modifiers |= ACC_FINAL as i32;
+        }
+        if synthetic {
             modifiers |= ACC_SYNTHETIC as i32;
         }
     }

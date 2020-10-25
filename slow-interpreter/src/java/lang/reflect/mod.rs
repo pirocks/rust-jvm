@@ -7,10 +7,10 @@ use jvmti_jni_bindings::jint;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_state::InterpreterStateGuard;
+use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::jvm_state::JVMState;
-use crate::java::lang::class::JClass;
 
 /*
 // unofficial modifier flags, used by HotSpot:
@@ -122,6 +122,7 @@ pub mod method {
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+    use type_safe_proc_macro_utils::getter_gen;
 
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_state::InterpreterStateGuard;
@@ -222,6 +223,8 @@ pub mod method {
         pub fn get_name(&self) -> JString {
             self.normal_object.lookup_field("name").cast_string()
         }
+
+        getter_gen!(slot,jint,unwrap_int);
 
         as_object_or_java_value!();
     }

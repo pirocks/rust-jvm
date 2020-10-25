@@ -1,18 +1,13 @@
-use std::cell::RefCell;
-use std::sync::Arc;
-
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{JVM_REF_invokeStatic, JVM_REF_invokeVirtual, JVM_REF_invokeInterface, JVM_REF_invokeSpecial};
+use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
-use crate::instructions::invoke::Object;
-use crate::interpreter_util::check_inited_class;
-use crate::java::lang::member_name::MemberName;
-use crate::java_values::{JavaValue, NormalObject};
 use crate::instructions::invoke::native::mhn_temp::init::init;
-use crate::resolvers::methods::{resolve_invoke_virtual, resolve_invoke_static};
+use crate::java::lang::member_name::MemberName;
+use crate::java_values::JavaValue;
+use crate::resolvers::methods::{resolve_invoke_static, resolve_invoke_virtual};
 
 pub fn MHN_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -24,9 +19,12 @@ pub fn MHN_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: 
     resolve_impl(jvm, int_state, member_name)
 }
 
-enum AssertionCase {
-    CAST,
-    LINK_TO_STATIC
+enum ResolveAssertionCase {
+    // CAST,
+    LINK_TO_STATIC,
+    LINK_TO_SPECIAL,
+    ZERO_L,
+    MAKE,
 }
 
 /*
@@ -84,15 +82,29 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 
     let assertion_case = if &member_name.get_name().to_rust_string() == "cast" &&
         member_name.get_clazz().as_type().unwrap_class_type() == ClassName::class() &&
-        member_name.to_string(jvm,int_state).to_rust_string() == "java.lang.Class.cast(Object)Object/invokeVirtual"
-        {
-        assert_eq!(member_name.get_flags(),83951616);
-        AssertionCase::CAST.into()
-
+        member_name.to_string(jvm, int_state).to_rust_string() == "java.lang.Class.cast(Object)Object/invokeVirtual"
+    {
+        // assert_eq!(member_name.get_flags(), 83951616);
+        // ResolveAssertionCase::CAST.into()
+        None
     } else if &member_name.get_name().to_rust_string() == "linkToStatic" {
-        assert_eq!(member_name.get_flags(),100728832);
-        AssertionCase::LINK_TO_STATIC.into()
-    }else {
+        assert_eq!(member_name.get_flags(), 100728832);
+        assert!(member_name.get_resolution().unwrap_object().is_some());
+        ResolveAssertionCase::LINK_TO_STATIC.into()
+    } else if &member_name.get_name().to_rust_string() == "zero_L" {
+        assert_eq!(member_name.get_flags(), 100728832);
+        ResolveAssertionCase::ZERO_L.into()
+    } else if &member_name.get_name().to_rust_string() == "linkToSpecial" &&
+        member_name.to_string(jvm, int_state).to_rust_string() == "java.lang.invoke.MethodHandle.linkToSpecial(Object,Object,MemberName)Object/invokeStatic" {
+        assert_eq!(member_name.get_flags(), 100728832);
+        ResolveAssertionCase::LINK_TO_SPECIAL.into()
+    } else if &member_name.get_name().to_rust_string() == "make" &&
+        member_name.to_string(jvm, int_state).to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic" {
+        assert_eq!(member_name.get_flags(), 100728832);
+        ResolveAssertionCase::MAKE.into()
+    } else {
+        dbg!(member_name.get_name().to_rust_string());
+        dbg!(member_name.to_string(jvm, int_state).to_rust_string());
         None
     };
 
@@ -100,13 +112,13 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 //todo maybe create a class for this resolution object
 //todo actually do whatever I'm meant to do here.
 
-    let resolution_object = JavaValue::Object(Arc::new(Object::Object(NormalObject {
-        monitor: jvm.thread_state.new_monitor("monitor for a resolution object".to_string()),
-        fields: RefCell::new(Default::default()),
-        class_pointer: check_inited_class(jvm, int_state, &ClassName::object().into(), int_state.current_loader(jvm)),
-        class_object_type: None,
-    })).into());
-    member_name.set_resolution(resolution_object);
+    // let resolution_object = JavaValue::Object(Arc::new(Object::Object(NormalObject {
+    //     monitor: jvm.thread_state.new_monitor("monitor for a resolution object".to_string()),
+    //     fields: RefCell::new(Default::default()),
+    //     class_pointer: check_inited_class(jvm, int_state, &ClassName::object().into(), int_state.current_loader(jvm)),
+    //     class_object_type: None,
+    // })).into());
+    // member_name.set_resolution(resolution_object);
     //todo sets resolution to something on failure
     let flags_val = member_name.get_flags();
     let ref_kind = ((flags_val >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK as i32) as u32;
@@ -136,15 +148,15 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
-                let (resolve_result,method_i,class) = resolve_invoke_virtual(jvm,int_state,member_name.clone());
-                init(jvm,int_state,member_name.clone(),resolve_result.java_value(),(&class.view().method_view_i(method_i)).into(),false);
+                let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone());
+                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false);
             } else if ref_kind == JVM_REF_invokeStatic {
                 let mut synthetic = false;
-                let (resolve_result,method_i,class) = resolve_invoke_static(jvm,int_state,member_name.clone(),&mut synthetic);
-                init(jvm,int_state,member_name.clone(),resolve_result.java_value(),(&class.view().method_view_i(method_i)).into(),synthetic);
-            } else if ref_kind == JVM_REF_invokeInterface{
+                let (resolve_result, method_i, class) = resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic);
+                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), synthetic);
+            } else if ref_kind == JVM_REF_invokeInterface {
                 unimplemented!()
-            } else if ref_kind == JVM_REF_invokeSpecial{
+            } else if ref_kind == JVM_REF_invokeSpecial {
                 unimplemented!()
             } else {
                 panic!()
@@ -193,21 +205,38 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     let _type_ = type_java_value.unwrap_normal_object();
     if let Some(assertion_case) = assertion_case {
         match assertion_case {
-            AssertionCase::CAST => {
-                assert_eq!(member_name.get_flags(), 117506049);
-            }
-            AssertionCase::LINK_TO_STATIC => {
-                assert_eq!(&member_name.get_name().to_rust_string(),"linkToStatic");
-                assert_eq!(member_name.get_flags(),100733208);
+            // ResolveAssertionCase::CAST => {
+            //     assert_eq!(member_name.get_flags(), 117506049);
+            // }
+            ResolveAssertionCase::LINK_TO_STATIC => {
+                assert_eq!(&member_name.get_name().to_rust_string(), "linkToStatic");
+                assert_eq!(member_name.get_flags(), 100733208);
                 assert!(member_name.get_resolution().unwrap_object().is_some());
-                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(),100728832); //todo need to actually write resolution
+                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
+            }
+            ResolveAssertionCase::ZERO_L => {
+                assert_eq!(&member_name.get_name().to_rust_string(), "linkToStatic");
+                assert_eq!(member_name.get_flags(), 100728832);
+                assert!(member_name.get_resolution().unwrap_object().is_some());
+                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
+            }
+            ResolveAssertionCase::LINK_TO_SPECIAL => {
+                assert_eq!(&member_name.get_name().to_rust_string(), "linkToSpecial");
+                assert_eq!(member_name.get_flags(), 100733208);
+                assert!(member_name.get_resolution().unwrap_object().is_some());
+                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
+            }
+            ResolveAssertionCase::MAKE => {
+                assert_eq!(&member_name.to_string(jvm, int_state).to_rust_string(), "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic");
+                assert_eq!(member_name.get_flags(), 100728840);
+                assert!(member_name.get_resolution().unwrap_object().is_some());
+                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
             }
         }
     }
 
     member_name.java_value().into()
 }
-
 
 
 pub mod tests {
@@ -224,13 +253,13 @@ pub mod tests {
         unsafe_get_object_test(jvm, int_state)
     }
 
-    fn call_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, m: MemberName, lookupClass: Option<JClass>) -> JavaValue {
+    /*fn call_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, m: MemberName, lookupClass: Option<JClass>) -> JavaValue {
         let lookupClassJavaValue = match lookupClass {
             None => JavaValue::Object(None),
             Some(jclass) => jclass.java_value(),
         };
         MHN_resolve(jvm, int_state, &mut vec![m.java_value(), lookupClassJavaValue]).unwrap()
-    }
+    }*/
 
 
     fn zero_L_test(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
