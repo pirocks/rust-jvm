@@ -116,6 +116,17 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
         Some(x) => x,
         None => {
             int_state.print_stack_trace();
+            dbg!(int_state.current_frame().operand_stack());
+            let method_i = int_state.current_frame().method_i();
+            let method_view = int_state.current_frame().class_pointer().view().method_view_i(method_i as usize);
+            dbg!(&method_view.code_attribute().unwrap().code);
+            dbg!(&int_state.current_frame().operand_stack());
+            dbg!(&int_state.current_frame().local_vars());
+            dbg!(&int_state.current_frame().pc());
+            dbg!(method_view.name());
+            dbg!(method_view.desc_str());
+            dbg!(method_view.classview().name());
+            dbg!(method_name);
             panic!()
         },
     }.deref() {

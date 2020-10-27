@@ -215,8 +215,8 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
             }
             ResolveAssertionCase::ZERO_L => {
-                assert_eq!(&member_name.get_name().to_rust_string(), "linkToStatic");
-                assert_eq!(member_name.get_flags(), 100728832);
+                assert_eq!(&member_name.get_name().to_rust_string(), "zero_L");
+                assert_eq!(member_name.get_flags(), 100728842);
                 assert!(member_name.get_resolution().unwrap_object().is_some());
                 assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
             }
@@ -248,10 +248,10 @@ pub mod tests {
 
     use super::*;
 
-    pub fn run_tests(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-        zero_L_test(jvm, int_state);
-        unsafe_get_object_test(jvm, int_state)
-    }
+// pub fn run_tests(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    //     zero_L_test(jvm, int_state);
+    //     unsafe_get_object_test(jvm, int_state)
+    // }
 
     /*fn call_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, m: MemberName, lookupClass: Option<JClass>) -> JavaValue {
         let lookupClassJavaValue = match lookupClass {

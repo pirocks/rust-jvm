@@ -10,9 +10,12 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    let target_classfile = check_inited_class(jvm, int_state, &field_class_name.into(), loader_arc.clone());
+    let target_classfile = check_inited_class(jvm, int_state, &field_class_name.clone().into(), loader_arc.clone());
     let stack = int_state.current_frame_mut().operand_stack_mut();
     let field_value = stack.pop().unwrap();
+    if field_name.as_str() == "NF_internalMemberName" {
+        field_value.unwrap_object().unwrap();
+    }
     target_classfile.static_vars().insert(field_name, field_value);
 }
 
@@ -59,6 +62,10 @@ fn get_static_impl(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: 
         }
     };
     let stack = int_state.current_frame_mut().operand_stack_mut();
+    if field_name == "NF_internalMemberName" {
+        // field_value.unwrap_object().unwrap();
+        // dbg!()
+    }
     stack.push(field_value);
 }
 

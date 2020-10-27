@@ -4,7 +4,7 @@ use std::sync::atomic::Ordering;
 use classfile_parser::parse_class_file;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject};
+use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
@@ -16,13 +16,14 @@ use slow_interpreter::stack_entry::StackEntry;
 use verification::{VerifierContext, verify};
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JNIEnv, the_unsafe: jobject, parent_class: jobject, byte_array: jbyteArray) -> jclass {
+unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JNIEnv, the_unsafe: jobject, parent_class: jobject, byte_array: jbyteArray, patches: jobjectArray) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut args = vec![];
     args.push(JavaValue::Object(from_object(the_unsafe)));
     args.push(JavaValue::Object(from_object(parent_class)));
     args.push(JavaValue::Object(from_object(byte_array)));
+    args.push(JavaValue::Object(from_object(patches)));
 
     to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object())//todo local ref
 }

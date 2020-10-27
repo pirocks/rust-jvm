@@ -23,7 +23,6 @@ use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
-use crate::instructions::invoke::native::mhn_temp::resolve::tests::run_tests;
 use crate::interpreter::run_function;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::interpreter_util::check_inited_class;
@@ -66,27 +65,27 @@ pub mod threading;
 mod resolvers;
 
 pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
-    if jvm.unittest_mode {
-        run_tests(jvm, int_state);
-        Result::Ok(())
-    } else {
-        let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone());
-        let main_view = main.view();
-        let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
-        let main_thread = jvm.thread_state.get_main_thread();
-        assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
-        let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
-        let stack_entry = StackEntry::new_java_frame(main, main_i as u16, vec![JavaValue::Top; num_vars as usize]);
-        let main_frame_guard = int_state.push_frame(stack_entry);
+    // if jvm.unittest_mode {
+    //     run_tests(jvm, int_state);
+    //     Result::Ok(())
+    // } else {
+    let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone());
+    let main_view = main.view();
+    let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
+    let main_thread = jvm.thread_state.get_main_thread();
+    assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
+    let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
+    let stack_entry = StackEntry::new_java_frame(main, main_i as u16, vec![JavaValue::Top; num_vars as usize]);
+    let main_frame_guard = int_state.push_frame(stack_entry);
 
-        setup_program_args(&jvm, int_state, args);
+    setup_program_args(&jvm, int_state, args);
         run_function(&jvm, int_state);
         if int_state.throw().is_some() || *int_state.terminate() {
             unimplemented!()
         }
         int_state.pop_frame(main_frame_guard);
         Result::Ok(())
-    }
+    // }
 }
 
 
