@@ -1,3 +1,4 @@
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
@@ -8,6 +9,7 @@ use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
 use crate::resolvers::methods::{resolve_invoke_static, resolve_invoke_virtual};
+use crate::rust_jni::interface::misc::get_all_fields;
 
 pub fn MHN_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //todo
@@ -25,6 +27,7 @@ enum ResolveAssertionCase {
     LINK_TO_SPECIAL,
     ZERO_L,
     MAKE,
+    ARG_L0,
 }
 
 /*
@@ -102,6 +105,9 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         member_name.to_string(jvm, int_state).to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic" {
         assert_eq!(member_name.get_flags(), 100728832);
         ResolveAssertionCase::MAKE.into()
+    } else if member_name.to_string(jvm, int_state).to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.argL0/java.lang.Object/getField" {
+        assert_eq!(member_name.get_flags(), 17039360);
+        ResolveAssertionCase::ARG_L0.into()
     } else {
         dbg!(member_name.get_name().to_rust_string());
         dbg!(member_name.to_string(jvm, int_state).to_rust_string());
@@ -126,25 +132,23 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     let kind = flags_val & ALL_KINDS;
     match kind {
         IS_FIELD => {
-            unimplemented!()
-            // let all_fields = get_all_fields(jvm, int_state, clazz_as_runtime_class);
-            // if type_.class_pointer.view().name() == ClassName::class() {
-            //     let typejclass = type_java_value.cast_class();
-            //     let target_ptype = typejclass.as_type();
-            //     let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
-            //         let field = c.view().field(*i);
-            //         field.field_name() == name &&
-            //             field.field_type() == target_ptype
-            //     }).unwrap();
-            //
-            //     let correct_flags = res_c.view().field(*res_i).access_flags();
-            //     let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
-            //
-            //     //todo do we need to update clazz?
-            //     member_name.set_flags(new_flags);
-            // } else {
-            //     unimplemented!()
-            // }
+            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz().as_runtime_class());
+
+            let name = member_name.get_name().to_rust_string();
+
+            let typejclass = member_name.get_type().cast_class();
+            let target_ptype = typejclass.as_type();
+            let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
+                let field = c.view().field(*i);
+                field.field_name() == name &&
+                    field.field_type() == target_ptype
+            }).unwrap();
+
+            let correct_flags = res_c.view().field(*res_i).access_flags();
+            let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
+
+            //todo do we need to update clazz?
+            member_name.set_flags(new_flags);
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
@@ -231,6 +235,10 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 assert_eq!(member_name.get_flags(), 100728840);
                 assert!(member_name.get_resolution().unwrap_object().is_some());
                 assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
+            }
+            ResolveAssertionCase::ARG_L0 => {
+                assert_eq!(member_name.get_flags(), 17039376);
+                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 17039360);
             }
         }
     }
