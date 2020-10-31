@@ -54,16 +54,39 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized, &class_name__);
+    // if meth_name == "emitStaticInvoke"{
+    //     let value = interpreter_state.current_frame().local_vars()[2].clone();
+    //     if value.unwrap_object().is_some() {
+    //         dbg!(value.clone().cast_object().to_string(jvm, interpreter_state).to_rust_string());
+    //         dbg!(value.clone());
+    //         for arg in value.clone().unwrap_object_nonnull().lookup_field("arguments").unwrap_array().unwrap_object_array() {
+    //             dbg!(JavaValue::Object(arg).cast_object().to_string(jvm, interpreter_state).to_rust_string());
+    //         }
+    //     }
+    // }
+    // if meth_name == "emitPushArgument"{
+    //     let value = interpreter_state.current_frame().local_vars()[2].clone();
+    //     if value.try_unwrap_normal_object().is_some() {
+    //         dbg!(value.cast_object().to_string(jvm, interpreter_state).to_rust_string());
+    //     }
+    // }
+    // if meth_name == "emitImplicitConversion"{
+    //     let ptype = interpreter_state.current_frame().local_vars()[1].cast_object().to_string(jvm,interpreter_state).to_rust_string();
+    //     dbg!(ptype);
+    //     let pclass = interpreter_state.current_frame().local_vars()[2].cast_object().to_string(jvm,interpreter_state).to_rust_string();
+    //     dbg!(pclass);
+    //     let arg = interpreter_state.current_frame().local_vars()[2].cast_object().to_string(jvm,interpreter_state).to_rust_string();
+    //     dbg!(arg);
+    // }
+    if meth_name == "makePreparedFieldLambdaForm" {
+        dbg!(interpreter_state.current_frame().local_vars());
+    }
+
     while !*interpreter_state.terminate() && !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
         let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code, &meth_name);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
         suspend_check(interpreter_state);
-        if meth_name == "makePreparedLambdaForm" /*&& class_name__.get_referred_name().starts_with("java/lang/invoke/LambdaForm/Name")*/ {
-            dbg!(interpreter_state.current_frame().local_vars());
-            dbg!(interpreter_state.current_frame().operand_stack());
-            dbg!(&instruct);
-        }
         run_single_instruction(jvm, interpreter_state, instruct);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
@@ -98,6 +121,9 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
             //todo need to figure out where return res ends up on next stack
             update_pc_for_next_instruction(interpreter_state);
         }
+    }
+    if meth_name == "makePreparedFieldLambdaForm" {
+        dbg!(interpreter_state.previous_frame().operand_stack().last());
     }
     if synchronized {//todo synchronize better so that natives are synced
         monitor.unwrap().unlock(jvm);

@@ -28,6 +28,7 @@ enum ResolveAssertionCase {
     ZERO_L,
     MAKE,
     ARG_L0,
+    GET_OBJECT_UNSAFE,
 }
 
 /*
@@ -108,6 +109,10 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     } else if member_name.to_string(jvm, int_state).to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.argL0/java.lang.Object/getField" {
         assert_eq!(member_name.get_flags(), 17039360);
         ResolveAssertionCase::ARG_L0.into()
+    } else if member_name.to_string(jvm, int_state).to_rust_string() == "sun.misc.Unsafe.getObject(Object,long)Object/invokeVirtual" {
+        assert_eq!(member_name.get_flags(), 83951616);
+        assert_eq!(member_name.get_type().cast_object().to_string(jvm, int_state).to_rust_string(), "(Object,long)Object");
+        ResolveAssertionCase::GET_OBJECT_UNSAFE.into()
     } else {
         dbg!(member_name.get_name().to_rust_string());
         dbg!(member_name.to_string(jvm, int_state).to_rust_string());
@@ -149,6 +154,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 
             //todo do we need to update clazz?
             member_name.set_flags(new_flags);
+            // member_name.set_resolution(JavaValue::Object(None));
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
@@ -165,41 +171,6 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
             } else {
                 panic!()
             }
-
-            // let all_methods = get_all_methods(jvm, int_state, clazz_as_runtime_class);
-            // if type_.class_pointer.view().name() == ClassName::method_type() {
-            //     let r_type_class = type_java_value.unwrap_object_nonnull().lookup_field("rtype").unwrap_object_nonnull();
-            //     let param_types_class = type_java_value.unwrap_object_nonnull().lookup_field("ptypes").unwrap_array().unwrap_object_array_nonnull();
-            //     let _r_type_as_ptype = JavaValue::Object(r_type_class.into()).cast_class().as_type();
-            //     let params_as_ptype: Vec<PTypeView> = param_types_class.iter().map(|x| {
-            //         JavaValue::Object(x.clone().into()).cast_class().as_type()
-            //     }).collect();
-            //     //todo how do the params work with static v. not static
-            //     match all_methods.iter().find(|(x, i)| {
-            //         let c_method = x.view().method_view_i(*i);
-            //         //todo need to handle signature polymorphism here and in many places
-            //         c_method.name() == name && if c_method.is_signature_polymorphic() {
-            //             c_method.desc().parameter_types.len() == 1 &&
-            //                 c_method.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
-            //                 c_method.desc().return_type == PTypeView::object().to_ptype()
-            //         } else {
-            //             c_method.desc().parameter_types == params_as_ptype.iter().map(|x| x.to_ptype()).collect::<Vec<_>>() //todo what about overloading
-            //         }
-            //     }) {
-            //         None => {
-            //             member_name.set_resolution(JavaValue::Object(None));
-            //         }
-            //         Some((resolved_method_runtime_class, resolved_i)) => {
-            //             let correct_flags = resolved_method_runtime_class.view().method_view_i(*resolved_i).access_flags();
-            //             let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
-            //
-            //             //todo do we need to update clazz?
-            //             member_name.set_flags(new_flags);
-            //         }
-            //     };
-            // } else {
-            //     unimplemented!()
-            // }
         }
         _ => panic!()
     }
@@ -238,7 +209,13 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
             }
             ResolveAssertionCase::ARG_L0 => {
                 assert_eq!(member_name.get_flags(), 17039376);
-                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 17039360);
+                // dbg!(member_name.get_type());
+                // dbg!(member_name.to_string(jvm,int_state).to_rust_string());
+                // dbg!(member_name.get_resolution());
+                // assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 17039360);
+            }
+            ResolveAssertionCase::GET_OBJECT_UNSAFE => {
+                assert_eq!(member_name.get_flags(), 117506305);
             }
         }
     }
