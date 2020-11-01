@@ -190,10 +190,10 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
             }
             ResolveAssertionCase::ZERO_L => {
-                assert_eq!(&member_name.get_name().to_rust_string(), "zero_L");
-                assert_eq!(member_name.get_flags(), 100728842);
-                assert!(member_name.get_resolution().unwrap_object().is_some());
-                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
+                // assert_eq!(&member_name.get_name().to_rust_string(), "zero_L");
+                // assert_eq!(member_name.get_flags(), 100728842);
+                // assert!(member_name.get_resolution().unwrap_object().is_some());
+                // assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
             }
             ResolveAssertionCase::LINK_TO_SPECIAL => {
                 assert_eq!(&member_name.get_name().to_rust_string(), "linkToSpecial");

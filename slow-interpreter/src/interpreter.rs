@@ -3,7 +3,7 @@ use std::sync::Arc;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::ACC_SYNCHRONIZED;
+use jvmti_jni_bindings::{ACC_SYNCHRONIZED, JVM_Available};
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
@@ -123,10 +123,10 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
         suspend_check(interpreter_state);
-        if meth_name == "copyOfRange" {
-            dbg!(&instruct);
-            dbg!(interpreter_state.current_frame().local_vars());
-        }
+        // if meth_name == "copyOfRange" {
+        //     dbg!(&instruct);
+        //     dbg!(interpreter_state.current_frame().local_vars());
+        // }
         run_single_instruction(jvm, interpreter_state, instruct);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
@@ -162,10 +162,10 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
             update_pc_for_next_instruction(interpreter_state);
         }
     }
-
-    if meth_name == "copyOfRange" {
-        dbg!(interpreter_state.previous_frame().operand_stack().last());
-    }
+    //
+    // if meth_name == "copyOfRange" {
+    //     dbg!(interpreter_state.previous_frame().operand_stack().last());
+    // }
 
     // if meth_name == "getMethodOrFieldType" {
     //     dbg!(interpreter_state.previous_frame().operand_stack().last());
@@ -327,7 +327,7 @@ fn run_single_instruction(
         InstructionInfo::daload => unimplemented!(),
         InstructionInfo::dastore => unimplemented!(),
         InstructionInfo::dcmpg => unimplemented!(),
-        InstructionInfo::dcmpl => unimplemented!(),
+        InstructionInfo::dcmpl => dcmpl(interpreter_state.current_frame_mut()),
         InstructionInfo::dconst_0 => dconst_0(interpreter_state.current_frame_mut()),
         InstructionInfo::dconst_1 => dconst_1(interpreter_state.current_frame_mut()),
         InstructionInfo::ddiv => unimplemented!(),
@@ -513,6 +513,22 @@ fn run_single_instruction(
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => unimplemented!(),
     }
+}
+
+fn dcmpl(current_frame: &mut StackEntry) {
+    let val2 = current_frame.pop().unwrap_double();
+    let val1 = current_frame.pop().unwrap_double();
+    if val2.is_nan() || val1.is_nan() {
+        unimplemented!()
+    }
+    let res = if val1 > val2 {
+        1
+    } else if val1 == val2 {
+        0
+    } else {
+        -1
+    };
+    current_frame.push(JavaValue::Int(res));
 }
 
 fn athrow(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
