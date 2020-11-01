@@ -3,11 +3,13 @@ pub mod method_type {
     use std::sync::Arc;
 
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+    use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::ptype::PType;
     use type_safe_proc_macro_utils::getter_gen;
 
     use crate::{InterpreterStateGuard, JVMState};
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::{check_inited_class, push_new_object};
     use crate::java::lang::class::JClass;
     use crate::java::lang::class_loader::ClassLoader;
@@ -73,6 +75,14 @@ pub mod method_type {
 
         pub fn set_method_descriptors(&self, method_descriptor: JavaValue) {
             self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("methodDescriptor".to_string(), method_descriptor);
+        }
+
+        pub fn parameter_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, int: jint) -> JClass {
+            let method_type = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm));
+            int_state.push_current_operand_stack(self.clone().java_value());
+            int_state.push_current_operand_stack(JavaValue::Int(int));
+            run_static_or_virtual(jvm, int_state, &method_type, "parameterType".to_string(), "(I)Ljava/lang/Class;".to_string());
+            int_state.pop_current_operand_stack().cast_class()
         }
 
         pub fn new(
@@ -257,5 +267,145 @@ pub mod method_handle {
         }
 
         as_object_or_java_value!();
+    }
+}
+
+
+pub mod lambda_form {
+    use std::sync::Arc;
+
+    use crate::java::lang::invoke::lambda_form::name::Name;
+    use crate::java_values::{JavaValue, Object};
+
+    pub mod named_function {
+        use std::sync::Arc;
+
+        use rust_jvm_common::classnames::ClassName;
+        use type_safe_proc_macro_utils::getter_gen;
+
+        use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+        use crate::interpreter_state::InterpreterStateGuard;
+        use crate::interpreter_util::check_inited_class;
+        use crate::java::lang::invoke::method_type::MethodType;
+        use crate::java::lang::member_name::MemberName;
+        use crate::java_values::{JavaValue, Object};
+        use crate::jvm_state::JVMState;
+
+        #[derive(Clone, Debug)]
+        pub struct NamedFunction {
+            normal_object: Arc<Object>
+        }
+
+        impl JavaValue {
+            pub fn cast_lambda_form_named_function(&self) -> NamedFunction {
+                NamedFunction { normal_object: self.unwrap_object_nonnull() }
+            }
+        }
+
+        impl NamedFunction {
+            as_object_or_java_value!();
+            getter_gen!(member,MemberName,cast_member_name);
+
+            // error appears to be in name.function.methodType().parameterType(paramIndex)
+            pub fn method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodType { // java.lang.invoke.LambdaForm.NamedFunction
+                let named_function_type = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into(), int_state.current_loader(jvm));
+                int_state.push_current_operand_stack(self.clone().java_value());
+                run_static_or_virtual(jvm, int_state, &named_function_type, "methodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
+                int_state.pop_current_operand_stack().cast_method_type()
+            }
+        }
+    }
+
+    pub mod name {
+        use std::sync::Arc;
+
+        use jvmti_jni_bindings::jint;
+        use type_safe_proc_macro_utils::getter_gen;
+
+        use crate::java::lang::invoke::lambda_form::basic_type::BasicType;
+        use crate::java::lang::invoke::lambda_form::named_function::NamedFunction;
+        use crate::java_values::{JavaValue, Object};
+
+        #[derive(Clone, Debug)]
+        pub struct Name {
+            normal_object: Arc<Object>
+        }
+
+        impl JavaValue {
+            pub fn cast_lambda_form_name(&self) -> Name {
+                Name { normal_object: self.unwrap_object_nonnull() }
+            }
+        }
+
+        impl Name {
+            as_object_or_java_value!();
+            pub fn arguments(&self) -> Vec<JavaValue> {
+                self.normal_object.unwrap_normal_object().fields.borrow().get("arguments")
+                    .unwrap()
+                    .unwrap_array().elems.borrow().clone()
+            }
+
+
+
+            getter_gen!(index,jint,unwrap_int);
+
+            getter_gen!(type,BasicType,cast_lambda_form_basic_type);
+
+            getter_gen!(function,NamedFunction,cast_lambda_form_named_function);
+        }
+    }
+
+    pub mod basic_type {
+        use std::sync::Arc;
+
+        use jvmti_jni_bindings::jchar;
+        use jvmti_jni_bindings::jint;
+        use type_safe_proc_macro_utils::getter_gen;
+
+        use crate::java::lang::class::JClass;
+        use crate::java_values::{JavaValue, Object};
+        use crate::JString;
+
+        #[derive(Clone, Debug)]
+        pub struct BasicType {
+            normal_object: Arc<Object>
+        }
+
+        impl JavaValue {
+            pub fn cast_lambda_form_basic_type(&self) -> BasicType {
+                BasicType { normal_object: self.unwrap_object_nonnull() }
+            }
+        }
+
+        impl BasicType {
+            as_object_or_java_value!();
+
+            getter_gen!(ordinal,jint,unwrap_int);
+            getter_gen!(btChar,jchar,unwrap_char);
+            getter_gen!(btClass,JClass,cast_class);
+            getter_gen!(name,JString,cast_string);
+        }
+    }
+
+
+    #[derive(Clone, Debug)]
+    pub struct LambdaForm {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_lambda_form(&self) -> LambdaForm {
+            LambdaForm { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl LambdaForm {
+        pub fn names(&self) -> Vec<Name> {
+            self.normal_object.unwrap_normal_object().fields.borrow().get("names")
+                .unwrap()
+                .unwrap_array()
+                .unwrap_object_array()
+                .iter().map(|name| JavaValue::Object(name.clone()).cast_lambda_form_name()).collect()
+        }
     }
 }

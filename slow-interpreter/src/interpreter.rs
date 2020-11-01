@@ -6,6 +6,7 @@ use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ptype::PType;
 
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::arithmetic::*;
@@ -30,6 +31,8 @@ use crate::instructions::store::*;
 use crate::instructions::switch::*;
 use crate::interpreter_state::{InterpreterStateGuard, SuspendedStatus};
 use crate::interpreter_util::check_inited_class;
+use crate::java::lang::invoke::lambda_form::named_function::NamedFunction;
+use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
@@ -78,15 +81,52 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     //     let arg = interpreter_state.current_frame().local_vars()[2].cast_object().to_string(jvm,interpreter_state).to_rust_string();
     //     dbg!(arg);
     // }
-    if meth_name == "makePreparedFieldLambdaForm" {
-        dbg!(interpreter_state.current_frame().local_vars());
-    }
+    // if meth_name == "makePreparedFieldLambdaForm" {
+    //     dbg!(interpreter_state.current_frame().local_vars());
+    // }
+    // if meth_name == "emitPushArguments"{
+    //     let name = interpreter_state.current_frame().local_vars()[1].cast_lambda_form_name();
+    //     let args = name.arguments();
+    //     if args.len() == 3 {
+    //         let name2 = args[2].cast_lambda_form_name();
+    //         let named_function: NamedFunction = name2.get_function();
+    //         let member : MemberName = named_function.get_member();
+    //         interpreter_state.print_stack_trace();
+    //         dbg!(member.to_string(jvm,interpreter_state).to_rust_string());
+    //         let type_ = name2.get_type();
+    //         dbg!(type_.get_btChar());
+    //         dbg!(type_.get_btClass());
+    //         dbg!(type_.get_name().to_rust_string());
+    //         dbg!(type_.get_ordinal());
+    //     }
+    //
+    // }
+    //
+    // if meth_name == "emitPushArgument" && method.desc().parameter_types[1] == PType::IntType {
+    //     let name = interpreter_state.current_frame().local_vars()[1].cast_lambda_form_name();
+    //     // dbg!(name.clone().java_value());
+    //     let named_function: NamedFunction = name.get_function();
+    //     // dbg!(named_function);
+    //     let member : MemberName = named_function.get_member();
+    //     let method_type = named_function.method_type(jvm, interpreter_state);
+    //     let param_index = &interpreter_state.current_frame().local_vars()[2].unwrap_int();
+    //     dbg!(param_index);
+    //     dbg!(named_function.java_value().unwrap_object_nonnull().lookup_field("resolvedHandle"));
+    //     dbg!(method_type.parameter_type(jvm, interpreter_state, *param_index));
+    //     dbg!(member.to_string(jvm,interpreter_state).to_rust_string());
+    //
+    // }
+
 
     while !*interpreter_state.terminate() && !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
         let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code, &meth_name);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
         suspend_check(interpreter_state);
+        if meth_name == "copyOfRange" {
+            dbg!(&instruct);
+            dbg!(interpreter_state.current_frame().local_vars());
+        }
         run_single_instruction(jvm, interpreter_state, instruct);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
@@ -122,9 +162,39 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
             update_pc_for_next_instruction(interpreter_state);
         }
     }
-    if meth_name == "makePreparedFieldLambdaForm" {
+
+    if meth_name == "copyOfRange" {
         dbg!(interpreter_state.previous_frame().operand_stack().last());
     }
+
+    // if meth_name == "getMethodOrFieldType" {
+    //     dbg!(interpreter_state.previous_frame().operand_stack().last());
+    //
+    // }
+    //
+    // if meth_name == "getInvocationType" {
+    //     dbg!(interpreter_state.previous_frame().operand_stack().last());
+    //
+    // }
+
+    // if meth_name == "makePreparedFieldLambdaForm" {
+    //     let should_be_lambda_form = interpreter_state.previous_frame().operand_stack().last();
+    //     // dbg!(should_be_lambda_form);
+    //     if let Some(lambda_form) = should_be_lambda_form{
+    //         let names = lambda_form.cast_lambda_form().names();
+    //         assert_eq!(names.len(),5);
+    //         let name = &names[4];
+    //         let args = name.arguments();
+    //         assert_eq!(args.len(),3);
+    //         // dbg!(&args[2]);
+    //         let name2 = args[2].cast_lambda_form_name();
+    //         let type_ = name2.get_type();
+    //         dbg!(type_.get_btChar());
+    //         dbg!(type_.get_btClass());
+    //         dbg!(type_.get_name().to_rust_string());
+    //         dbg!(type_.get_ordinal());
+    //     }
+    // }
     if synchronized {//todo synchronize better so that natives are synced
         monitor.unwrap().unlock(jvm);
     }

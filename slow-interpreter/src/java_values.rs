@@ -68,6 +68,10 @@ impl CycleDetectingDebug for JavaValue {
 
 impl CycleDetectingDebug for Object {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "\n")?;
+        for _ in 0..prev.len() {
+            write!(f, " ")?;
+        }
         match &self {
             Object::Array(a) => {
                 write!(f, "[")?;
@@ -108,7 +112,7 @@ impl CycleDetectingDebug for NormalObject {
             o.fields.borrow().iter().for_each(|(n, v)| {
                 write!(f, "({},", n).unwrap();
                 v.cycle_fmt(prev, f).unwrap();
-                writeln!(f, ")").unwrap();
+                write!(f, ")").unwrap();
             });
             write!(f, "-")?;
         }
