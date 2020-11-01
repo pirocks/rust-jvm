@@ -243,8 +243,8 @@ impl JavaValue {
             JavaValue::Object(o) => {
                 Some(o.clone())
             }
-            other => {
-                dbg!(other);
+            _ => {
+                // dbg!(other);
                 None
             }
         }
