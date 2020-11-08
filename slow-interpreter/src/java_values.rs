@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classfile::ConstantKind::Package;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_state::InterpreterStateGuard;
@@ -344,6 +345,33 @@ impl JavaValue {
         //     }
         // }
     }
+
+    pub fn to_type(&self) -> PTypeView {
+        match self {
+            JavaValue::Long(_) => PTypeView::LongType,
+            JavaValue::Int(_) => PTypeView::IntType,
+            JavaValue::Short(_) => PTypeView::ShortType,
+            JavaValue::Byte(_) => PTypeView::ByteType,
+            JavaValue::Boolean(_) => PTypeView::BooleanType,
+            JavaValue::Char(_) => PTypeView::CharType,
+            JavaValue::Float(_) => PTypeView::FloatType,
+            JavaValue::Double(_) => PTypeView::DoubleType,
+            JavaValue::Object(obj) => {
+                match obj {
+                    None => PTypeView::NullType,
+                    Some(not_null) => PTypeView::Ref(match not_null.deref() {
+                        Object::Array(array) => {
+                            ReferenceTypeView::Array(array.elem_type.clone().into())
+                        }
+                        Object::Object(obj) => {
+                            ReferenceTypeView::Class(obj.class_pointer.ptypeview().unwrap_class_type())
+                        }
+                    })
+                }
+            }
+            JavaValue::Top => PTypeView::TopType
+        }
+    }
 }
 
 impl Clone for JavaValue {
@@ -448,8 +476,8 @@ pub enum Object {
     Object(NormalObject),
 }
 
+//todo should really fix this
 unsafe impl Send for Object {}
-
 unsafe impl Sync for Object {}
 
 impl Object {
@@ -544,6 +572,7 @@ impl ArrayObject {
 pub struct NormalObject {
     pub monitor: Arc<Monitor>,
     //I guess this never changes so unneeded?
+    //todo this refcell is unsafe
     pub fields: RefCell<HashMap<String, JavaValue>>,
     //todo this refcell should be for the elememts.
     pub class_pointer: Arc<RuntimeClass>,

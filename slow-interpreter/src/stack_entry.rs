@@ -4,6 +4,7 @@ use bimap::BiMap;
 use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classfile::CPIndex;
 
@@ -144,6 +145,14 @@ impl StackEntry {
 
     pub fn convert_to_native(&mut self) {
         self.non_native_data.take();
+    }
+
+    pub fn operand_stack_types(&self) -> Vec<PTypeView> {
+        self.operand_stack().iter().map(|type_| type_.to_type()).collect()
+    }
+
+    pub fn local_vars_types(&self) -> Vec<PTypeView> {
+        self.local_vars().iter().map(|type_| type_.to_type()).collect()
     }
 }
 

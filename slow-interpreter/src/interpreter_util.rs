@@ -200,6 +200,7 @@ fn check_inited_class_impl(
     loader_arc: LoaderArc,
 ) -> Arc<RuntimeClass> {
     let bl = jvm.bootstrap_loader.clone();
+    int_state.print_stack_trace();
     let target_classfile = loader_arc.clone().load_class(loader_arc.clone(), &class_name, bl, jvm.get_live_object_pool_getter()).unwrap();
     let ptype = PTypeView::Ref(ReferenceTypeView::Class(class_name.clone()));
     let prepared = Arc::new(prepare_class(jvm, target_classfile.backing_class(), loader_arc.clone()));
