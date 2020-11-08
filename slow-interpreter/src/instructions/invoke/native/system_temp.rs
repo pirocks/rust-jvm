@@ -1,8 +1,6 @@
 use std::borrow::Borrow;
 use std::cell::Ref;
 
-use jvmti_jni_bindings::jint;
-
 use crate::java_values::JavaValue;
 
 pub fn system_array_copy(args: &mut Vec<JavaValue>) {

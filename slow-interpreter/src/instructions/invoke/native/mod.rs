@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -31,9 +32,6 @@ pub fn run_native_method(
     assert!(method.is_native());
     let parsed = method.desc();
     let mut args = vec![];
-    //todo should have some setup args functions
-    // dbg!(int_state.current_frame().operand_stack());
-    // dbg!(method.name());
     if method.is_static() {
         for _ in &parsed.parameter_types {
             args.push(int_state.pop_current_operand_stack());
@@ -119,6 +117,13 @@ pub fn run_native_method(
     }
 }
 
+
+pub fn call_signature_polymorphic(jvm: &JVMState,
+                                  int_state: &mut InterpreterStateGuard,
+                                  method_view: &MethodView,
+) {
+    unimplemented!()
+}
 
 pub mod mhn_temp;
 pub mod unsafe_temp;

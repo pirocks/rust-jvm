@@ -210,15 +210,19 @@ pub mod method_handle {
     use std::sync::Arc;
 
     use rust_jvm_common::classnames::ClassName;
+    use type_safe_proc_macro_utils::getter_gen;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
+    use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_type::MethodType;
+    use crate::java::lang::member_name::MemberName;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
 
+    #[derive(Clone)]
     pub struct MethodHandle {
         normal_object: Arc<Object>
     }
@@ -230,6 +234,7 @@ pub mod method_handle {
     }
 
     impl MethodHandle {
+        //todo put this in MethodHandle
         pub fn lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
             let method_handles_class = check_inited_class(jvm, int_state, &ClassName::method_handles().into(), int_state.current_loader(jvm));
             run_static_or_virtual(jvm, int_state, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
@@ -240,6 +245,15 @@ pub mod method_handle {
             run_static_or_virtual(jvm, int_state, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             int_state.pop_current_operand_stack().cast_lookup()
         }
+
+        pub fn internal_member_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MemberName {
+            let method_handle_class = check_inited_class(jvm, int_state, &ClassName::method_handle().into(), int_state.current_loader(jvm));
+            int_state.push_current_operand_stack(self.clone().java_value());
+            run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MethodHandle;".to_string());
+            int_state.pop_current_operand_stack().cast_member_name()
+        }
+
+        getter_gen!(form,LambdaForm,cast_lambda_form);
 
         as_object_or_java_value!();
     }
@@ -274,7 +288,10 @@ pub mod method_handle {
 pub mod lambda_form {
     use std::sync::Arc;
 
+    use type_safe_proc_macro_utils::getter_gen;
+
     use crate::java::lang::invoke::lambda_form::name::Name;
+    use crate::java::lang::member_name::MemberName;
     use crate::java_values::{JavaValue, Object};
 
     pub mod named_function {
@@ -407,5 +424,7 @@ pub mod lambda_form {
                 .unwrap_object_array()
                 .iter().map(|name| JavaValue::Object(name.clone()).cast_lambda_form_name()).collect()
         }
+
+        getter_gen!(vmentry,MemberName,cast_member_name);
     }
 }

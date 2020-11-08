@@ -47,7 +47,9 @@ pub fn invoke_static_impl(
 ) {
     let mut args = vec![];
     let current_frame = interpreter_state.current_frame_mut();
-    if target_method.access_flags & ACC_NATIVE == 0 {
+    if target_class.view().method_view_i(target_method_i).is_signature_polymorphic() {
+        unimplemented!()
+    } else if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
         let max_locals = target_method.code_attribute().unwrap().max_locals;

@@ -6,9 +6,10 @@ use rust_jvm_common::classnames::ClassName;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;
+use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
-use crate::resolvers::methods::{resolve_invoke_static, resolve_invoke_virtual};
+use crate::resolvers::methods::{ResolutionError, resolve_invoke_static, resolve_invoke_virtual};
 use crate::rust_jni::interface::misc::get_all_fields;
 
 pub fn MHN_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
@@ -77,12 +78,12 @@ enum ResolveAssertionCase {
 */
 
 fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Option<JavaValue> {
-    dbg!(member_name.get_name().to_rust_string());
-    dbg!(member_name.to_string(jvm, int_state).to_rust_string());
-    dbg!(member_name.get_type().cast_method_type().to_string(jvm, int_state).to_rust_string());
-    dbg!(member_name.get_flags());
-    dbg!(member_name.get_resolution().cast_object().to_string(jvm, int_state).to_rust_string());
-    int_state.print_stack_trace();
+    // dbg!(member_name.get_name().to_rust_string());
+    // dbg!(member_name.to_string(jvm, int_state).to_rust_string());
+    // dbg!(member_name.get_type().cast_method_type().to_string(jvm, int_state).to_rust_string());
+    // dbg!(member_name.get_flags());
+    // dbg!(member_name.get_resolution().cast_object().to_string(jvm, int_state).to_rust_string());
+    // int_state.print_stack_trace();
 
     let assertion_case = if &member_name.get_name().to_rust_string() == "cast" &&
         member_name.get_clazz().as_type().unwrap_class_type() == ClassName::class() &&
@@ -114,8 +115,8 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         assert_eq!(member_name.get_type().cast_object().to_string(jvm, int_state).to_rust_string(), "(Object,long)Object");
         ResolveAssertionCase::GET_OBJECT_UNSAFE.into()
     } else {
-        dbg!(member_name.get_name().to_rust_string());
-        dbg!(member_name.to_string(jvm, int_state).to_rust_string());
+        // dbg!(member_name.get_name().to_rust_string());
+        // dbg!(member_name.to_string(jvm, int_state).to_rust_string());
         None
     };
 
@@ -162,7 +163,18 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false);
             } else if ref_kind == JVM_REF_invokeStatic {
                 let mut synthetic = false;
-                let (resolve_result, method_i, class) = resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic);
+                let (resolve_result, method_i, class) = match resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic) {
+                    Ok(ok) => ok,
+                    Err(err) => match err {
+                        ResolutionError::Linkage => {
+                            let linkage_error = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/LinkageError".to_string()).into(), jvm.bootstrap_loader.clone());//todo loaders
+                            push_new_object(jvm, int_state, &linkage_error, None);
+                            let object = int_state.pop_current_operand_stack().unwrap_object();
+                            int_state.set_throw(object);
+                            return None
+                        }
+                    }
+                };
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), synthetic);
             } else if ref_kind == JVM_REF_invokeInterface {
                 unimplemented!()

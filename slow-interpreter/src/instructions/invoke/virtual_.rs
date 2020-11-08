@@ -3,15 +3,19 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::PTypeView;
 use descriptor_parser::MethodDescriptor;
+use jvmti_jni_bindings::{jint, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT, run_static_or_virtual};
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::resolved_class;
+use crate::instructions::invoke::static_::run_invoke_static;
 use crate::interpreter::run_function;
 use crate::interpreter_util::check_inited_class;
+use crate::java::lang::invoke::lambda_form::LambdaForm;
+use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
@@ -38,10 +42,57 @@ fn invoke_virtual_method_i_impl(
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
-    target_method: &MethodView
+    target_method: &MethodView,
 ) {
     // interpreter_state.print_stack_trace();
     let current_frame = interpreter_state.current_frame_mut();
+    if target_method.is_signature_polymorphic() {
+
+
+        // setup_virtual_args(current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);
+        let op_stack = current_frame.operand_stack();
+        let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
+
+        if target_method.name() == "invoke" {
+            //todo assert descriptors match and no conversions needed, or handle conversions as needed.
+            //possibly use invokeWithArguments for conversions
+            interpreter_state.print_stack_trace();
+            let form: LambdaForm = method_handle.get_form();
+            let vmentry: MemberName = form.get_vmentry();
+            let class = vmentry.get_clazz();
+            let flags = vmentry.get_flags() as u32;
+            let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
+            interpreter_state.print_stack_trace();
+            dbg!(ref_kind);
+            let invoke_static = (ref_kind == JVM_REF_invokeStatic);
+            let invoke_virtual = (ref_kind == JVM_REF_invokeVirtual);
+            let invoke_special = (ref_kind == JVM_REF_invokeSpecial);
+            assert!(invoke_static || invoke_virtual || invoke_special);
+            if invoke_virtual {
+                unimplemented!()
+            } else if invoke_static {
+                let method_name = vmentry.get_name().to_rust_string();
+                let runtime_class = class.as_runtime_class();
+                let matching_methods = runtime_class.view().lookup_method_name(method_name.as_str());
+                assert_eq!(matching_methods.len(), 1);
+                let res_method = matching_methods.iter().next().unwrap();
+                run_static_or_virtual(jvm, interpreter_state, &class.as_runtime_class(), method_name, res_method.desc_str());
+                let res = interpreter_state.pop_current_operand_stack();
+                let _method_handle_old = interpreter_state.pop_current_operand_stack();
+                dbg!(res);
+                unimplemented!()
+            } else {
+                unimplemented!()
+            }
+
+
+            unimplemented!()
+            // method_handle.
+        } else if target_method.name() == "invokeBasic" {} else {
+            dbg!(target_method.name());
+            unimplemented!()
+        }
+    }
     if target_method.is_native() {
         run_native_method(jvm, interpreter_state, target_class, target_method_i)
     } else if !target_method.is_abstract() {
@@ -128,7 +179,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
             dbg!(method_view.classview().name());
             dbg!(method_name);
             panic!()
-        },
+        }
     }.deref() {
         Object::Array(_a) => {
 //todo so spec seems vague about this, but basically assume this is an Object
@@ -148,8 +199,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, &method_name, md, c);
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    let final_descriptor = target_method.desc();
-    invoke_virtual_method_i(jvm, int_state, final_descriptor, final_target_class.clone(), new_i, target_method)
+    invoke_virtual_method_i(jvm, int_state, md.clone(), final_target_class.clone(), new_i, target_method)
 }
 
 pub fn virtual_method_lookup(
@@ -169,13 +219,14 @@ pub fn virtual_method_lookup(
             !method_view.is_static() &&
             !method_view.is_abstract() &&
             if method_view.is_signature_polymorphic() {
-                let _matches = method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
-                    method_view.desc().return_type == PTypeView::object().to_ptype() &&
-                    md.parameter_types.last()
-                        .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().cloned())
-                        .map(|x| x.unwrap_name() == ClassName::member_name())
-                        .unwrap_or(false) && unimplemented!();//todo this is currently under construction.
-                unimplemented!()
+                // let _matches = method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
+                //     method_view.desc().return_type == PTypeView::object().to_ptype() &&
+                //     md.parameter_types.last()
+                //         .and_then(|x| PTypeView::from_ptype(x).try_unwrap_ref_type().cloned())
+                //         .map(|x| x.unwrap_name() == ClassName::member_name())
+                //         .unwrap_or(false) && unimplemented!();//todo this is currently under construction.
+
+                true
             } else {
                 md.parameter_types == cur_desc.parameter_types //we don't check return types b/c these could be subclassed
             }
