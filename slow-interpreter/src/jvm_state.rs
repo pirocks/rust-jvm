@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
 
+use by_address::ByAddress;
 use libloading::Library;
 
 use classfile_view::loading::{LivePoolGetter, LoaderArc, LoaderName};
@@ -53,6 +54,7 @@ pub struct JVMState {
     // pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,//so technically isn't 'static, but we need to be able to store this in a localkey
 
     pub unittest_mode: bool,
+    pub resolved_method_handles: RwLock<HashMap<ByAddress<Arc<Object>>, MethodId>>
 }
 
 pub struct Classes {
@@ -119,7 +121,8 @@ impl JVMState {
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: AtomicBool::new(false),
             // int_state_guard: &INT_STATE_GUARD
-            unittest_mode
+            unittest_mode,
+            resolved_method_handles: RwLock::new(HashMap::new())
         };
         (args, jvm)
     }

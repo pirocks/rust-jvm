@@ -1,5 +1,8 @@
+use std::fs::read_to_string;
 use std::ops::Deref;
 use std::sync::Arc;
+
+use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -44,55 +47,26 @@ fn invoke_virtual_method_i_impl(
     target_method_i: usize,
     target_method: &MethodView,
 ) {
-    // interpreter_state.print_stack_trace();
-    let current_frame = interpreter_state.current_frame_mut();
     if target_method.is_signature_polymorphic() {
-
+        let current_frame = interpreter_state.current_frame_mut();
 
         // setup_virtual_args(current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);
         let op_stack = current_frame.operand_stack();
         let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
 
-        if target_method.name() == "invoke" {
-            //todo assert descriptors match and no conversions needed, or handle conversions as needed.
-            //possibly use invokeWithArguments for conversions
-            interpreter_state.print_stack_trace();
-            let form: LambdaForm = method_handle.get_form();
-            let vmentry: MemberName = form.get_vmentry();
-            let class = vmentry.get_clazz();
-            let flags = vmentry.get_flags() as u32;
-            let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
-            interpreter_state.print_stack_trace();
-            dbg!(ref_kind);
-            let invoke_static = (ref_kind == JVM_REF_invokeStatic);
-            let invoke_virtual = (ref_kind == JVM_REF_invokeVirtual);
-            let invoke_special = (ref_kind == JVM_REF_invokeSpecial);
-            assert!(invoke_static || invoke_virtual || invoke_special);
-            if invoke_virtual {
-                unimplemented!()
-            } else if invoke_static {
-                let method_name = vmentry.get_name().to_rust_string();
-                let runtime_class = class.as_runtime_class();
-                let matching_methods = runtime_class.view().lookup_method_name(method_name.as_str());
-                assert_eq!(matching_methods.len(), 1);
-                let res_method = matching_methods.iter().next().unwrap();
-                run_static_or_virtual(jvm, interpreter_state, &class.as_runtime_class(), method_name, res_method.desc_str());
-                let res = interpreter_state.pop_current_operand_stack();
-                let _method_handle_old = interpreter_state.pop_current_operand_stack();
-                dbg!(res);
-                unimplemented!()
-            } else {
-                unimplemented!()
-            }
-
-
-            unimplemented!()
-            // method_handle.
-        } else if target_method.name() == "invokeBasic" {} else {
-            dbg!(target_method.name());
+        let form: LambdaForm = method_handle.get_form();
+        let vmentry: MemberName = form.get_vmentry();
+        if target_method.name() == "invoke" || target_method.name() == "invokeBasic" {
+            //todo do conversion.
+            let res = call_vmentry(jvm, interpreter_state, vmentry);
+            let _method_handle_old = interpreter_state.pop_current_operand_stack();
+            interpreter_state.push_current_operand_stack(res);
+        } else {
             unimplemented!()
         }
+        return;
     }
+    let current_frame = interpreter_state.current_frame_mut();
     if target_method.is_native() {
         run_native_method(jvm, interpreter_state, target_class, target_method_i)
     } else if !target_method.is_abstract() {
@@ -113,6 +87,31 @@ fn invoke_virtual_method_i_impl(
         }
     } else {
         panic!()
+    }
+}
+
+pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, vmentry: MemberName) -> JavaValue {
+    let flags = vmentry.get_flags() as u32;
+    let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
+    let invoke_static = ref_kind == JVM_REF_invokeStatic;
+    let invoke_virtual = ref_kind == JVM_REF_invokeVirtual;
+    let invoke_special = ref_kind == JVM_REF_invokeSpecial;
+    assert!(invoke_static || invoke_virtual || invoke_special);
+    //todo assert descriptors match and no conversions needed, or handle conversions as needed.
+    //possibly use invokeWithArguments for conversions
+    if invoke_virtual {
+        unimplemented!()
+    } else if invoke_static {
+        let by_address = ByAddress(vmentry.clone().object());
+        let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
+        let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        //todo messyness and name shadowing.
+        let res_method = class.view().method_view_i(method_i as usize);
+        run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str());
+        let res = interpreter_state.pop_current_operand_stack();
+        res
+    } else {
+        unimplemented!()
     }
 }
 

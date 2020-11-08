@@ -2,12 +2,12 @@ pub mod invoke;
 
 
 pub mod member_name {
-    use type_safe_proc_macro_utils::getter_gen;
-
+    use std::ops::Deref;
     use std::sync::Arc;
 
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+    use type_safe_proc_macro_utils::getter_gen;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
@@ -144,6 +144,12 @@ pub mod member_name {
             obj
         }
 
+        // fn get_arc_address(&self) -> usize{
+        //     let obj = self.normal_object.deref();
+        //     let ptr = obj as *const Object;
+        //     obj.
+        // }
+
         as_object_or_java_value!();
     }
 }
@@ -157,10 +163,10 @@ pub mod class {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_objects::get_or_create_class_object;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::instructions::ldc::load_class_constant_by_type;
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java_values::{JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
-    use crate::instructions::ldc::load_class_constant_by_type;
 
     #[derive(Debug, Clone)]
     pub struct JClass {

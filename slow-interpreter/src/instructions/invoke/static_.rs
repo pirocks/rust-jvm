@@ -1,3 +1,4 @@
+use std::process::exit;
 use std::sync::Arc;
 
 use descriptor_parser::MethodDescriptor;
@@ -7,11 +8,15 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
+use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::run_function;
 use crate::interpreter_util::check_inited_class;
+use crate::java::lang::invoke::lambda_form::LambdaForm;
+use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
+// todo this doesn't handle sig poly
 pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
@@ -48,7 +53,15 @@ pub fn invoke_static_impl(
     let mut args = vec![];
     let current_frame = interpreter_state.current_frame_mut();
     if target_class.view().method_view_i(target_method_i).is_signature_polymorphic() {
-        unimplemented!()
+        let method_view = target_class.view().method_view_i(target_method_i);
+        let name = method_view.name();
+        if name == "linkToStatic" {
+            let op_stack = interpreter_state.current_frame().operand_stack();
+            let member_name = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len())].cast_member_name();
+            call_vmentry(jvm, interpreter_state, member_name);
+        } else {
+            unimplemented!()
+        }
     } else if target_method.access_flags & ACC_NATIVE == 0 {
         assert!(target_method.access_flags & ACC_STATIC > 0);
         assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);

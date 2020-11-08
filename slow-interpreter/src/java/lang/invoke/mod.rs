@@ -222,7 +222,7 @@ pub mod method_handle {
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct MethodHandle {
         normal_object: Arc<Object>
     }
