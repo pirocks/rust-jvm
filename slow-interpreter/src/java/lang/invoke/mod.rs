@@ -258,6 +258,7 @@ pub mod method_handle {
         as_object_or_java_value!();
     }
 
+    //todo this is in the wrong place
     #[derive(Clone)]
     pub struct Lookup {
         normal_object: Arc<Object>
@@ -270,6 +271,12 @@ pub mod method_handle {
     }
 
     impl Lookup {
+        pub fn trusted_lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Self {
+            let lookup = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone());
+            let static_vars = lookup.static_vars();
+            static_vars.get("IMPL_LOOKUP").unwrap().cast_lookup()
+        }
+
         pub fn find_virtual(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> MethodHandle {
             let lookup_class = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone());
             int_state.push_current_operand_stack(self.clone().java_value());

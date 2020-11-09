@@ -25,7 +25,7 @@ pub mod dynamic {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
-    use crate::java::lang::invoke::method_handle::MethodHandle;
+    use crate::java::lang::invoke::method_handle::{Lookup, MethodHandle};
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::string::JString;
 
@@ -62,7 +62,8 @@ pub mod dynamic {
                     match is {
                         InvokeStatic::Interface(_) => unimplemented!(),
                         InvokeStatic::Method(mr) => {
-                            let lookup = MethodHandle::public_lookup(jvm, int_state);
+                            // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
+                            let lookup = Lookup::trusted_lookup(jvm, int_state);
                             // let _a_rando_class_object = lookup.get_class(state, frame.clone());
                             // dbg!(&a_rando_class_object.clone().java_value().unwrap_normal_object().fields);
                             // let loader = a_rando_class_object.get_class_loader(state, &frame);

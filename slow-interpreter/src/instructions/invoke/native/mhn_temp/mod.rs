@@ -85,10 +85,10 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
     let method_view = res_fun.unwrap();//todo and if this fails
     let md = method_view.desc();
     if method_view.is_static() {
-        dbg!(int_state.current_frame().operand_stack_types());
-        dbg!(&md);
+        // dbg!(int_state.current_frame().operand_stack_types());
+        // dbg!(&md);
         invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info());
-        dbg!(int_state.current_frame().operand_stack_types());
+        // dbg!(int_state.current_frame().operand_stack_types());
     } else {
         invoke_virtual_method_i(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view);
     }

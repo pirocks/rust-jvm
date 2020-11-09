@@ -61,10 +61,10 @@ fn invoke_virtual_method_i_impl(
             //todo do conversion.
             //todo handle void return
             assert_ne!(expected_descriptor.return_type, PType::VoidType);
-            dbg!(interpreter_state.current_frame().operand_stack_types());
-            dbg!(expected_descriptor);
+            // dbg!(interpreter_state.current_frame().operand_stack_types());
+            // dbg!(expected_descriptor);
             let res = call_vmentry(jvm, interpreter_state, vmentry);
-            dbg!(interpreter_state.current_frame().operand_stack_types());
+            // dbg!(interpreter_state.current_frame().operand_stack_types());
             // let _method_handle_old = interpreter_state.pop_current_operand_stack();
             // dbg!(interpreter_state.current_frame().operand_stack_types());
             interpreter_state.push_current_operand_stack(res);
@@ -113,15 +113,15 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let res_method = class.view().method_view_i(method_i as usize);
-        dbg!(interpreter_state.current_frame().class_pointer().ptypeview());
-        dbg!(res_method.classview().name());
-        dbg!(res_method.name());
-        dbg!(res_method.desc());
-        dbg!(interpreter_state.current_frame().operand_stack_types());
-        interpreter_state.print_stack_trace();
+        // dbg!(interpreter_state.current_frame().class_pointer().ptypeview());
+        // dbg!(res_method.classview().name());
+        // dbg!(res_method.name());
+        // dbg!(res_method.desc());
+        // dbg!(interpreter_state.current_frame().operand_stack_types());
+        // interpreter_state.print_stack_trace();
         run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str());
         let res = interpreter_state.pop_current_operand_stack();
-        dbg!(&res.to_type());
+        // dbg!(&res.to_type());
         res
     } else {
         unimplemented!()

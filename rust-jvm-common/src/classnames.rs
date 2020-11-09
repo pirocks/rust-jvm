@@ -145,7 +145,7 @@ impl ClassName {
     }
 
     pub fn lookup() -> Self {
-        Self::new("java/lang/invoke/MethodHandle$Lookup")
+        Self::new("java/lang/invoke/MethodHandles$Lookup")
     }
 
     pub fn direct_method_handle() -> Self {
