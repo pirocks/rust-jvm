@@ -118,9 +118,10 @@ pub fn run_native_method(
 }
 
 
-pub fn call_signature_polymorphic(jvm: &JVMState,
-                                  int_state: &mut InterpreterStateGuard,
-                                  method_view: &MethodView,
+//todo needed?
+pub fn call_signature_polymorphic(_jvm: &JVMState,
+                                  _int_state: &mut InterpreterStateGuard,
+                                  _method_view: &MethodView,
 ) {
     unimplemented!()
 }

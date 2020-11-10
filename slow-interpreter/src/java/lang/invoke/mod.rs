@@ -287,6 +287,17 @@ pub mod method_handle {
             int_state.pop_current_operand_stack().cast_method_handle()
         }
 
+
+        pub fn find_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> MethodHandle {
+            let lookup_class = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone());
+            int_state.push_current_operand_stack(self.clone().java_value());
+            int_state.push_current_operand_stack(obj.java_value());
+            int_state.push_current_operand_stack(name.java_value());
+            int_state.push_current_operand_stack(mt.java_value());
+            run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string());
+            int_state.pop_current_operand_stack().cast_method_handle()
+        }
+
         as_object_or_java_value!();
     }
 }

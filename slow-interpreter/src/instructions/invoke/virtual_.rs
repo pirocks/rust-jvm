@@ -1,4 +1,3 @@
-use std::fs::read_to_string;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -7,7 +6,7 @@ use by_address::ByAddress;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use descriptor_parser::MethodDescriptor;
-use jvmti_jni_bindings::{jint, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
+use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
@@ -15,7 +14,6 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT, run_static_or_virtual};
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::resolved_class;
-use crate::instructions::invoke::static_::run_invoke_static;
 use crate::interpreter::run_function;
 use crate::interpreter_util::check_inited_class;
 use crate::java::lang::invoke::lambda_form::LambdaForm;

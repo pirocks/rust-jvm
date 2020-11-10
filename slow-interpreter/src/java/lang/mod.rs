@@ -2,7 +2,6 @@ pub mod invoke;
 
 
 pub mod member_name {
-    use std::ops::Deref;
     use std::sync::Arc;
 
     use jvmti_jni_bindings::jint;

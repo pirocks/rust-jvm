@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use descriptor_parser::{MethodDescriptor, parse_class_name, parse_method_descriptor};
-use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, NameAndType, ReferenceKind};
+use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::view::attribute_view::BootstrapMethodView;
@@ -172,7 +172,7 @@ impl NameAndTypeView<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MethodHandleView<'l> {
     pub(crate) class_view: &'l ClassView,
     pub i: usize,
@@ -231,12 +231,32 @@ pub enum ReferenceData<'cl> {
 
 pub enum InvokeStatic<'cl> {
     Interface(InterfaceMethodrefView<'cl>),
+    //todo should this be a thing
     Method(MethodrefView<'cl>),
 }
 
+impl InvokeStatic<'_> {
+    // pub fn
+}
+
+
 #[derive(Debug)]
-pub struct MethodTypeView {
-    //todo
+pub struct MethodTypeView<'cl> {
+    pub(crate) class_view: &'cl ClassView,
+    pub i: usize,
+}
+
+impl MethodTypeView<'_> {
+    pub fn get_descriptor(&self) -> String {
+        let desc_i = self.method_type().descriptor_index;
+        self.class_view.backing_class.constant_pool[desc_i as usize].extract_string_from_utf8()
+    }
+
+    fn method_type(&self) -> &MethodType {
+        if let ConstantKind::MethodType(mt) = &self.class_view.backing_class.constant_pool[self.i].kind {
+            mt
+        } else { panic!() }
+    }
 }
 
 #[derive(Debug)]
@@ -292,7 +312,7 @@ pub enum ConstantInfoView<'cl> {
     InterfaceMethodref(InterfaceMethodrefView<'cl>),
     NameAndType(NameAndTypeView<'cl>),
     MethodHandle(MethodHandleView<'cl>),
-    MethodType(MethodTypeView),
+    MethodType(MethodTypeView<'cl>),
     Dynamic(DynamicView),
     InvokeDynamic(InvokeDynamicView<'cl>),
     Module(ModuleView),

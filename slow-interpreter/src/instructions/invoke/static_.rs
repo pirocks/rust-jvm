@@ -1,4 +1,3 @@
-use std::process::exit;
 use std::sync::Arc;
 
 use descriptor_parser::MethodDescriptor;
@@ -11,7 +10,6 @@ use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::run_function;
 use crate::interpreter_util::check_inited_class;
-use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 

@@ -25,7 +25,7 @@ pub mod dynamic {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
-    use crate::java::lang::invoke::method_handle::{Lookup, MethodHandle};
+    use crate::java::lang::invoke::method_handle::Lookup;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::string::JString;
 
@@ -55,8 +55,9 @@ pub mod dynamic {
         };
 
         let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
-        let _method_handle = {
-            let methodref_view = bootstrap_method_view.bootstrap_method_ref();
+        let method_ref = bootstrap_method_view.bootstrap_method_ref();
+        let method_handle = {
+            let methodref_view = method_ref.clone();
             match methodref_view.get_reference_data() {
                 ReferenceData::InvokeStatic(is) => {
                     match is {
@@ -64,21 +65,18 @@ pub mod dynamic {
                         InvokeStatic::Method(mr) => {
                             // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                             let lookup = Lookup::trusted_lookup(jvm, int_state);
-                            // let _a_rando_class_object = lookup.get_class(state, frame.clone());
-                            // dbg!(&a_rando_class_object.clone().java_value().unwrap_normal_object().fields);
-                            // let loader = a_rando_class_object.get_class_loader(state, &frame);
                             let name = JString::from_rust(jvm, int_state, mr.name_and_type().name());
                             let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str());
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None);
                             let target_class = JClass::from_name(jvm, int_state, mr.class());
-                            lookup.find_virtual(jvm, int_state, target_class, name, method_type)
+                            lookup.find_static(jvm, int_state, target_class, name, method_type)
                         }
                     }
                 }
             }
         };
         let arg_iterator = bootstrap_method_view.bootstrap_args();
-        arg_iterator.for_each(|x| {
+        let args = arg_iterator.map(|x| {
             match x {
                 BootstrapArgView::String(_) => unimplemented!(),
                 BootstrapArgView::Class(_) => unimplemented!(),
@@ -86,16 +84,56 @@ pub mod dynamic {
                 BootstrapArgView::Long(_) => unimplemented!(),
                 BootstrapArgView::Float(_) => unimplemented!(),
                 BootstrapArgView::Double(_) => unimplemented!(),
-                BootstrapArgView::MethodHandle(_) => unimplemented!(),
-                BootstrapArgView::MethodType(_) => unimplemented!()
+                BootstrapArgView::MethodHandle(mh) => {
+                    let reference_data = mh.get_reference_data();
+                    match reference_data {
+                        ReferenceData::InvokeStatic(is) => {
+                            match is {
+                                InvokeStatic::Interface(i) => {
+                                    dbg!(i.class());
+                                    dbg!(i.name_and_type());
+                                }
+                                InvokeStatic::Method(mt) => {
+                                    dbg!(mt.class());
+                                    dbg!(mt.name_and_type().name());
+                                    dbg!(mt.name_and_type().desc_str());
+                                }
+                            }
+                        }
+                    }
+                    unimplemented!()
+                }
+                BootstrapArgView::MethodType(mt) => {
+                    let desc_str = JString::from_rust(jvm, int_state, mt.get_descriptor());
+                    let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None);
+                    method_type.java_value()
+                }
             };
-        });
+        }).collect::<Vec<_>>();
 
 
         //A call site specifier gives a symbolic reference to a method handle which is to serve as
         // the bootstrap method for a dynamic call site (§4.7.23).The method handle is resolved to
         // obtain a reference to an instance of java.lang.invoke.MethodHandle (§5.4.3.5)
-        // invoke_dynamic_view.name_and_type()
+        let name_and_type = invoke_dynamic_view.name_and_type();
+        let name = name_and_type.name();
+        let desc_str = name_and_type.desc_str();
+        let ref_data = method_ref.get_reference_data();
+        match ref_data {
+            ReferenceData::InvokeStatic(is) => {
+                match is {
+                    InvokeStatic::Interface(_) => unimplemented!(),
+                    InvokeStatic::Method(m) => {
+                        let name = m.name_and_type().name();
+                        let class = m.name_and_type().desc_str();
+                        dbg!(name);
+                        dbg!(class);
+                    }
+                }
+            }
+        }
+        dbg!(name);
+        dbg!(desc_str);
         // let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
         // invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
         // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_ current_int_state.current_loader(jvm).clone());

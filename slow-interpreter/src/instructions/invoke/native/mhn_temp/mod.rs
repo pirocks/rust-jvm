@@ -95,12 +95,12 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
 }
 
 
-pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(_args: &mut Vec<JavaValue>) -> Option<JavaValue> {
 //static native int getMembers(Class<?> defc, String matchName, String matchSig,
 // //          int matchFlags, Class<?> caller, int skip, MemberName[] results);
 //     dbg!(args);
     //todo nyi
-    // unimplemented!()
+    // unimplemented!();
     Some(JavaValue::Int(0))
 }
 

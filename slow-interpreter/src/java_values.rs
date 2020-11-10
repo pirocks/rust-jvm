@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classfile::ConstantKind::Package;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_state::InterpreterStateGuard;

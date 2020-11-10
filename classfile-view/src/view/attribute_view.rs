@@ -90,7 +90,14 @@ impl<'cl> Iterator for BootstrapArgViewIterator<'cl> {
         let arg = self.bootstrap_args[self.i];
         let res = match self.backing_class.constant_pool_view(arg as usize) {
             ConstantInfoView::Integer(i) => BootstrapArgView::Integer(i),
-            _ => unimplemented!()
+            ConstantInfoView::MethodType(mt) => BootstrapArgView::MethodType(mt),
+            ConstantInfoView::MethodHandle(mh) => BootstrapArgView::MethodHandle(mh),
+            ConstantInfoView::String(s) => BootstrapArgView::String(s),
+            // ConstantInfoView::Class(cpelem) => BootstrapArgView::Class(cpelem),
+            other => {
+                dbg!(other);
+                unimplemented!()
+            }
         }.into();
         self.i += 1;
         res
@@ -107,7 +114,7 @@ pub enum BootstrapArgView<'cl> {
     Float(FloatView),
     Double(DoubleView),
     MethodHandle(MethodHandleView<'cl>),
-    MethodType(MethodTypeView),
+    MethodType(MethodTypeView<'cl>),
 }
 
 

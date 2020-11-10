@@ -8,7 +8,7 @@ use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NAT
 use rust_jvm_common::classnames::{class_name, ClassName};
 
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, SourceFileView};
-use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, DoubleView, FieldrefView, FloatView, IntegerView, InterfaceMethodrefView, InvokeDynamicView, LongView, MethodHandleView, MethodrefView, NameAndTypeView, StringView};
+use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, DoubleView, FieldrefView, FloatView, IntegerView, InterfaceMethodrefView, InvokeDynamicView, LongView, MethodHandleView, MethodrefView, MethodTypeView, NameAndTypeView, StringView};
 use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
 use crate::view::method_view::{MethodIterator, MethodView};
@@ -81,7 +81,6 @@ impl ClassView {
             ConstantKind::Integer(i) => ConstantInfoView::Integer(IntegerView { int: i.bytes as i32 }),//todo
             ConstantKind::Float(f) => ConstantInfoView::Float(FloatView {
                 float: f32::from_bits(f.bytes)
-
             }),//todo
             ConstantKind::Long(l) => ConstantInfoView::Long(LongView {
                 long: unsafe {
@@ -98,7 +97,7 @@ impl ClassView {
             ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { class_view: self, i }),
             ConstantKind::NameAndType(_) => ConstantInfoView::NameAndType(NameAndTypeView { class_view: self, i }),
             ConstantKind::MethodHandle(_) => ConstantInfoView::MethodHandle(MethodHandleView { class_view: self, i }),
-            ConstantKind::MethodType(_) => unimplemented!(),
+            ConstantKind::MethodType(_) => ConstantInfoView::MethodType(MethodTypeView { class_view: self, i }),
             ConstantKind::Dynamic(_) => unimplemented!(),
             ConstantKind::InvokeDynamic(id) => ConstantInfoView::InvokeDynamic(InvokeDynamicView {
                 class_view: self,
