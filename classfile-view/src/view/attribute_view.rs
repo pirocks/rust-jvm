@@ -87,7 +87,7 @@ impl<'cl> Iterator for BootstrapArgViewIterator<'cl> {
     type Item = BootstrapArgView<'cl>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let arg = self.bootstrap_args[self.i];
+        let arg = *self.bootstrap_args.get(self.i)?;
         let res = match self.backing_class.constant_pool_view(arg as usize) {
             ConstantInfoView::Integer(i) => BootstrapArgView::Integer(i),
             ConstantInfoView::MethodType(mt) => BootstrapArgView::MethodType(mt),

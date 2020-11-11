@@ -25,7 +25,7 @@ pub fn dreturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
 
 
 pub fn areturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
-    let res = interpreter_state.current_frame_mut().pop();
+    let res = interpreter_state.pop_current_operand_stack();
     *interpreter_state.function_return_mut() = true;
 
     interpreter_state.previous_frame_mut().push(res);

@@ -53,7 +53,11 @@ fn invoke_virtual_method_i_impl(
         let op_stack = current_frame.operand_stack();
         let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
 
+        dbg!(current_frame.operand_stack_types());
+        dbg!(&expected_descriptor);
+        dbg!(method_handle.clone().java_value().to_type());
         let form: LambdaForm = method_handle.get_form();
+        // dbg!(form.clone().java_value());
         let vmentry: MemberName = form.get_vmentry();
         if target_method.name() == "invoke" || target_method.name() == "invokeBasic" {
             //todo do conversion.
@@ -96,6 +100,7 @@ fn invoke_virtual_method_i_impl(
 }
 
 pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, vmentry: MemberName) -> JavaValue {
+    assert_eq!(vmentry.clone().java_value().to_type(), ClassName::member_name().into());
     let flags = vmentry.get_flags() as u32;
     let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
     let invoke_static = ref_kind == JVM_REF_invokeStatic;
@@ -114,7 +119,7 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         // dbg!(interpreter_state.current_frame().class_pointer().ptypeview());
         // dbg!(res_method.classview().name());
         // dbg!(res_method.name());
-        // dbg!(res_method.desc());
+        dbg!(res_method.desc());
         // dbg!(interpreter_state.current_frame().operand_stack_types());
         // interpreter_state.print_stack_trace();
         run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str());
@@ -219,15 +224,15 @@ pub fn virtual_method_lookup(
     md: &MethodDescriptor,
     c: Arc<RuntimeClass>,
 ) -> (Arc<RuntimeClass>, usize) {
-    let all_methods = get_all_methods(state, int_state, c);
+    let all_methods = get_all_methods(state, int_state, c.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let method_view = c.view().method_view_i(*i);
         let cur_name = method_view.name();
         let cur_desc = method_view.desc();
         let expected_name = &method_name;
         &cur_name == expected_name &&
-            !method_view.is_static() &&
-            !method_view.is_abstract() &&
+            // !method_view.is_static() &&
+            // !method_view.is_abstract() &&
             if method_view.is_signature_polymorphic() {
                 // let _matches = method_view.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
                 //     method_view.desc().return_type == PTypeView::object().to_ptype() &&
@@ -243,7 +248,18 @@ pub fn virtual_method_lookup(
     }).unwrap_or_else(|| {
         // dbg!(&current_frame.operand_stack);
         // dbg!(&current_frame.local_vars);
-        // current_frame.print_stack_trace();
+        dbg!(method_name);
+        dbg!(md);
+        dbg!(c.view().name());
+        int_state.print_stack_trace();
+        dbg!(int_state.current_frame().operand_stack_types());
+        dbg!(int_state.current_frame().local_vars_types());
+        dbg!(int_state.previous_frame().operand_stack_types());
+        dbg!(int_state.previous_frame().local_vars_types());
+        let call_stack = &int_state.int_state.as_ref().unwrap().call_stack;
+        let prev_prev_frame = &call_stack[call_stack.len() - 3];
+        dbg!(prev_prev_frame.operand_stack_types());
+        dbg!(prev_prev_frame.local_vars_types());
         panic!()
     });
     (final_target_class.clone(), *new_i)

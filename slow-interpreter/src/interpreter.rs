@@ -120,10 +120,10 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
         suspend_check(interpreter_state);
-        // if meth_name == "copyOfRange" {
-        //     dbg!(&instruct);
-        //     dbg!(interpreter_state.current_frame().local_vars());
-        // }
+        if meth_name == "invokeStatic_L6_L" {
+            dbg!(&instruct);
+            dbg!(interpreter_state.current_frame().operand_stack_types());
+        }
         run_single_instruction(jvm, interpreter_state, instruct);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();

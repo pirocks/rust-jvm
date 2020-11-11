@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
@@ -14,6 +15,7 @@ use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java_values::{ArrayObject, JavaValue};
 use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
@@ -22,7 +24,6 @@ use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
-use slow_interpreter::java::lang::class::JClass;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -54,7 +55,7 @@ unsafe extern "system" fn JVM_GetClassSigners(env: *mut JNIEnv, cls: jclass) -> 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass) -> jobject {
-    unimplemented!()
+    null_mut()//todo actually implement
 }
 
 
@@ -175,7 +176,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
     let obj = from_jclass(cls).as_runtime_class();
-    let full_name = &obj.view().name().get_referred_name().replace("/", ".");//todo need a standard way of doing this
+    let full_name = &obj.ptypeview().class_name_representation().replace("/", ".");//todo need a standard way of doing this
     new_string_with_string(env, full_name.to_string())
 }
 

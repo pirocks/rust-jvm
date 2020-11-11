@@ -444,5 +444,7 @@ pub mod lambda_form {
         }
 
         getter_gen!(vmentry,MemberName,cast_member_name);
+
+        as_object_or_java_value!();
     }
 }

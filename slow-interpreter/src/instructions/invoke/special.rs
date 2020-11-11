@@ -36,7 +36,13 @@ pub fn invoke_special_impl(
     final_target_class: Arc<RuntimeClass>,
     target_m: &MethodView,
 ) {
-    if final_target_class.view().method_view_i(target_m_i).is_signature_polymorphic() {} else if target_m.is_native() {
+    if final_target_class.view().method_view_i(target_m_i).is_signature_polymorphic() {
+        interpreter_state.print_stack_trace();
+        dbg!(target_m.name());
+        unimplemented!()
+    } else if target_m.is_native() {
+        // interpreter_state.print_stack_trace();
+
         run_native_method(jvm, interpreter_state, final_target_class, target_m_i);
     } else {
         let mut args = vec![];

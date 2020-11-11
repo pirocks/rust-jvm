@@ -173,6 +173,63 @@ impl PTypeView {
         res
     }
 
+
+    pub fn class_name_representation(&self) -> String {
+        let mut res = String::new();
+        match self {
+            PTypeView::ByteType => res.push('B'),
+            PTypeView::CharType => res.push('C'),
+            PTypeView::DoubleType => res.push('D'),
+            PTypeView::FloatType => res.push('F'),
+            PTypeView::IntType => res.push('I'),
+            PTypeView::LongType => res.push('J'),
+            PTypeView::Ref(ref_) => {
+                match ref_ {
+                    ReferenceTypeView::Class(c) => {
+                        res.push_str(c.get_referred_name());
+                    }
+                    ReferenceTypeView::Array(subtype) => {
+                        res.push('[');
+                        subtype.deref().class_name_rep_impl(&mut res)
+                    }
+                }
+            }
+            PTypeView::ShortType => res.push('S'),
+            PTypeView::BooleanType => res.push('Z'),
+            PTypeView::VoidType => res.push('V'),
+            _ => panic!(),
+        }
+        res
+    }
+
+    fn class_name_rep_impl(&self, res: &mut String) {
+        match self {
+            PTypeView::ByteType => res.push('B'),
+            PTypeView::CharType => res.push('C'),
+            PTypeView::DoubleType => res.push('D'),
+            PTypeView::FloatType => res.push('F'),
+            PTypeView::IntType => res.push('I'),
+            PTypeView::LongType => res.push('J'),
+            PTypeView::Ref(ref_) => {
+                match ref_ {
+                    ReferenceTypeView::Class(c) => {
+                        res.push('L');
+                        res.push_str(c.get_referred_name());
+                        res.push(';')
+                    }
+                    ReferenceTypeView::Array(subtype) => {
+                        res.push('[');
+                        res.push_str(&subtype.deref().jvm_representation())
+                    }
+                }
+            }
+            PTypeView::ShortType => res.push('S'),
+            PTypeView::BooleanType => res.push('Z'),
+            PTypeView::VoidType => res.push('V'),
+            _ => panic!(),
+        }
+    }
+
     pub fn java_source_representation(&self) -> String {
         let mut res = String::new();
         match self {
