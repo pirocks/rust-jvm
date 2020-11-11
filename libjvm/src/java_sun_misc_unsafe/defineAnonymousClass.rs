@@ -36,6 +36,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     //todo for debug, delete later
     let mut unpatched = parse_class_file(&mut byte_array.as_slice());
 
+    // int_state.print_stack_trace();
     patch_all(jvm, &int_state.current_frame_mut(), &mut args, &mut unpatched);
     let parsed = Arc::new(unpatched);
     //todo maybe have an anon loader for this
@@ -81,7 +82,7 @@ fn patch_single(
     unpatched: &mut Classfile,
     i: usize,
 ) {
-    let class_name = patch.unwrap_normal_object().class_pointer.view().name();
+    let class_name = JavaValue::Object(patch.clone().into()).to_type();
 
     // Integer, Long, Float, Double: the corresponding wrapper object type from java.lang
     // Utf8: a string (must have suitable syntax if used as signature or name)
@@ -99,7 +100,7 @@ class_name == ClassName::long() ||
     frame.print_stack_trace();
 
     unimplemented!()
-} else*/ if class_name == ClassName::string() {
+} else*/ if class_name == ClassName::string().into() {
         unimplemented!()
     } /*else if class_name == ClassName::class() {
     unimplemented!()

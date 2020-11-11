@@ -100,7 +100,10 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn pop_current_operand_stack(&mut self) -> JavaValue {
-        self.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack_mut().pop().unwrap()
+        let int_state = self.int_state.as_mut().unwrap();
+        let current_frame = int_state.call_stack.last_mut().unwrap();
+        assert_ne!(current_frame.operand_stack().len(), 0);
+        current_frame.operand_stack_mut().pop().unwrap()
     }
 
     pub fn previous_frame_mut(&mut self) -> &mut StackEntry {

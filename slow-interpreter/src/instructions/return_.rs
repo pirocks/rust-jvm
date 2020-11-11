@@ -25,6 +25,7 @@ pub fn dreturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
 
 
 pub fn areturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
+    assert_ne!(interpreter_state.current_frame().operand_stack().len(), 0);
     let res = interpreter_state.pop_current_operand_stack();
     *interpreter_state.function_return_mut() = true;
 

@@ -51,7 +51,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let function_enter_guard = jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
     assert!(!*interpreter_state.function_return_mut());
     let class_pointer = interpreter_state.current_class_pointer().clone();
-    let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
+    let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized, &class_name__);
     // if meth_name == "emitStaticInvoke"{
@@ -120,10 +120,16 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
         suspend_check(interpreter_state);
-        if meth_name == "invokeStatic_L6_L" {
-            dbg!(&instruct);
-            dbg!(interpreter_state.current_frame().operand_stack_types());
-        }
+        // if meth_name == "array" {
+        //     dbg!(&instruct);
+        //     dbg!(interpreter_state.current_frame().operand_stack_types());
+        // }
+        // if instruct == InstructionInfo::areturn {
+        //     if interpreter_state.current_frame().operand_stack().len() == 0 {
+        //         dbg!(meth_name.clone());
+        //         dbg!(class_pointer.view().name());
+        //     }
+        // }
         run_single_instruction(jvm, interpreter_state, instruct);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
