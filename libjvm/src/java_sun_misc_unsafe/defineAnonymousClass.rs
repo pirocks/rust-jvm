@@ -37,7 +37,9 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let mut unpatched = parse_class_file(&mut byte_array.as_slice());
 
     // int_state.print_stack_trace();
-    patch_all(jvm, &int_state.current_frame_mut(), &mut args, &mut unpatched);
+    if args[3].unwrap_object().is_some() {
+        patch_all(jvm, &int_state.current_frame_mut(), &mut args, &mut unpatched);
+    }
     let parsed = Arc::new(unpatched);
     //todo maybe have an anon loader for this
     let bootstrap_loader = jvm.bootstrap_loader.clone();

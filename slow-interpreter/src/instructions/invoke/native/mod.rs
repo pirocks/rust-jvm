@@ -98,6 +98,8 @@ pub fn run_native_method(
                     Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, &mut args)
                 } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
                     Java_java_lang_invoke_MethodHandleNatives_getMembers(&mut args)
+                } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
+                    unimplemented!()
                 } else {
                     int_state.print_stack_trace();
                     dbg!(mangled);

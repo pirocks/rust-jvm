@@ -218,3 +218,4 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
     }
 }
 
+pub mod defineClass;

@@ -122,5 +122,6 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         ))).into());
         current_type = next_type;
     }
+    dbg!(&current);
     int_state.push_current_operand_stack(current);
 }
