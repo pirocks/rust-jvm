@@ -196,7 +196,7 @@ pub struct JVMTIEnterExitTraceGuard {
 
 impl Drop for JVMTIEnterExitTraceGuard {
     fn drop(&mut self) {
-        assert!(self.correctly_exited);
+        // assert!(self.correctly_exited);
     }
 }
 

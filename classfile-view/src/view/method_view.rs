@@ -104,11 +104,11 @@ impl MethodView<'_> {
     }
 
     pub fn line_number_table(&self) -> Option<&LineNumberTable> {
-        self.method_info().code_attribute().map(|attr|
+        self.method_info().code_attribute().and_then(|attr|
             attr.attributes.iter().find_map(|attr| match &attr.attribute_type {
                 AttributeType::LineNumberTable(lnt) => Some(lnt),
                 _ => None,
-            }).unwrap()
+            })
         )
     }
 }

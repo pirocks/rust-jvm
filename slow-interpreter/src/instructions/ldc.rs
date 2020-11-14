@@ -29,7 +29,8 @@ pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterSt
 
 fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
     let res_string = s.string();
-    create_string_on_stack(jvm, int_state, res_string);
+    let string = JString::from_rust(jvm, int_state, res_string).intern(jvm, int_state).java_value();
+    int_state.push_current_operand_stack(string);
 }
 
 pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {

@@ -176,7 +176,7 @@ unsafe fn get_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thr
     if stack_frame.is_native() {
         return Result::Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
     }
-    dbg!(stack_frame.local_vars());
+    // dbg!(stack_frame.local_vars());
     let var = stack_frame.local_vars().get(slot as usize).cloned();
     var.map(Result::Ok).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
 }

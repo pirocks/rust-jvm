@@ -123,6 +123,7 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         // dbg!(interpreter_state.current_frame().operand_stack_types());
         // interpreter_state.print_stack_trace();
         run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str());
+        assert!(interpreter_state.throw().is_none());
         let res = interpreter_state.pop_current_operand_stack();
         // dbg!(&res.to_type());
         res

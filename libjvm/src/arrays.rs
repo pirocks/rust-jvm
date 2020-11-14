@@ -40,8 +40,8 @@ unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, lengt
     //todo is this name even correct?
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let array_type_name = from_jclass(eltClass).as_runtime_class().view().name();//todo how does this handle nested arrays?
-    a_new_array_from_name(jvm, int_state, length, &array_type_name);
+    let array_type_name = from_jclass(eltClass).as_runtime_class().ptypeview();
+    a_new_array_from_name(jvm, int_state, length, array_type_name);
     new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
 }
 

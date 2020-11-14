@@ -57,6 +57,12 @@ pub mod dynamic {
             _ => panic!(),
         };
 
+        let other_name = invoke_dynamic_view.name_and_type().name();//todo get better names
+        dbg!(&other_name);
+        let other_desc_str = invoke_dynamic_view.name_and_type().desc_str();
+        dbg!(&other_desc_str);
+
+
         let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
         let method_ref = bootstrap_method_view.bootstrap_method_ref();
         let bootstrap_method_handle = method_handle_from_method_view(jvm, int_state, &method_ref);
@@ -95,8 +101,8 @@ pub mod dynamic {
 
         //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
         let lookup_for_this = Lookup::trusted_lookup(jvm, int_state);
-        let method_type = desc_from_rust_str(jvm, int_state, desc_str.clone());
-        let name_jstring = JString::from_rust(jvm, int_state, name.clone()).java_value();
+        let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.clone());
+        let name_jstring = JString::from_rust(jvm, int_state, other_name.clone()).java_value();
 
         dbg!(bootstrap_method_handle.clone().java_value().to_type());
         int_state.push_current_operand_stack(bootstrap_method_handle.java_value());
@@ -113,6 +119,8 @@ pub mod dynamic {
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
         dbg!(int_state.current_frame().operand_stack_types());
+        dbg!(invoke.desc_str());
+        dbg!(invoke.name());
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class, invoke.method_i(), invoke);
         let call_site = int_state.pop_current_operand_stack();
         dbg!(call_site);
