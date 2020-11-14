@@ -10,6 +10,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _the_unsafe: jobject, name: jstring, bytes: jbyteArray, off: jint, len: jint, loader: jobject, protection_domain: jobject) -> jclass {
     //todo handle protection domain
+    unimplemented!();
     assert_eq!(off, 0);
     let mut byte_array = from_object(bytes).unwrap().unwrap_array().unwrap_byte_array().iter().map(|byte| *byte as u8).collect::<Vec<_>>();
     let jname = JavaValue::Object(from_object(name)).cast_string();
@@ -17,6 +18,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     let int_state = get_interpreter_state(env);
     let class_name = ClassName::Str(jname.to_rust_string());
     let classfile = Arc::new(parse_class_file(&mut byte_array.as_slice()));
+    int_state.print_stack_trace();
     jvm.bootstrap_loader.add_pre_loaded(&class_name, &classfile);
     load_class_constant_by_type(jvm, int_state, &class_name.into());
     to_object(int_state.pop_current_operand_stack().unwrap_object())

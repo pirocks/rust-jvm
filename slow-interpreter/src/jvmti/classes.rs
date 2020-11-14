@@ -2,7 +2,7 @@ use std::ffi::CString;
 use std::mem::{size_of, transmute};
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::class_objects::get_or_create_class_object;
@@ -22,8 +22,14 @@ pub unsafe extern "C" fn get_source_file_name(
     let class_obj = from_jclass(klass);
     let runtime_class = class_obj.as_runtime_class();
     let class_view = runtime_class.view();
-    source_name_ptr.write(CString::new(class_view.sourcefile_attr().file()).unwrap().into_raw());
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    let sourcefile = class_view.sourcefile_attr();
+    if let Some(file) = sourcefile {
+        source_name_ptr.write(CString::new(file.file()).unwrap().into_raw());
+        jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    } else {
+        //todo this should validate if info actualy missing in accordance with doc comment
+        jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION)
+    }
 }
 
 

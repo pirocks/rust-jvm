@@ -137,14 +137,14 @@ impl ClassView {
         }).next().unwrap();
         BootstrapMethodsView { backing_class: self, attr_i: i }
     }
-    pub fn sourcefile_attr(&self) -> SourceFileView {
+    pub fn sourcefile_attr(&self) -> Option<SourceFileView> {
         let i = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
             match &x.attribute_type {
                 AttributeType::SourceFile(_) => Some(i),
                 _ => None
             }
-        }).next().unwrap();
-        SourceFileView { backing_class: self, i }
+        }).next()?;
+        Some(SourceFileView { backing_class: self, i })
     }
     pub fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {

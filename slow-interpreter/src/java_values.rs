@@ -1,7 +1,7 @@
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
@@ -608,6 +608,10 @@ pub fn default_value(type_: PTypeView) -> JavaValue {
 impl ArrayObject {
     pub fn unwrap_object_array(&self) -> Vec<Option<Arc<Object>>> {
         self.elems.borrow().iter().map(|x| { x.unwrap_object() }).collect()
+    }
+
+    pub fn unwrap_mut(&self) -> RefMut<Vec<JavaValue>> {
+        self.elems.borrow_mut()
     }
     pub fn unwrap_object_array_nonnull(&self) -> Vec<Arc<Object>> {
         self.elems.borrow().iter().map(|x| { x.unwrap_object_nonnull() }).collect()

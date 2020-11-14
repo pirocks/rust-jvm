@@ -59,22 +59,6 @@ unsafe extern "system" fn Java_sun_reflect_Reflection_getCallerClass(env: *mut J
     JVM_GetCallerClass(env, JVM_CALLER_DEPTH)
 }
 
-#[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
-    env: *mut JNIEnv,
-    the_unsafe: jobject,
-    obj: jobject,
-    offset: jlong,
-    obj1: jobject,
-    obj2: jobject,
-) -> jboolean {
-//    if mangled == "Java_sun_misc_Unsafe_compareAndSwapObject".to_string() {
-//        //todo do nothing for now and see what happens
-//        Some(JavaValue::Boolean(true))
-//    }
-//    unimplemented!()
-    true as jboolean
-}
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(
@@ -211,6 +195,33 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
                     let array_idx = field_id_and_array_idx as usize;
                     let res = &arr.elems.borrow()[array_idx];
                     to_object(res.unwrap_object())
+                }
+                Object::Object(_) => unimplemented!(),
+            }
+        }
+    }
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, to_put: jobject) {
+    let jvm = get_state(env);
+    match from_object(obj) {
+        None => {
+            let field_id = offset as FieldId;
+            let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
+            let field_view = runtime_class.view().field(i as usize);
+            assert!(field_view.is_static());
+            let name = field_view.field_name();
+            let mut static_vars_guard = runtime_class.static_vars();
+            let res = static_vars_guard.get_mut(&name).unwrap();
+            *res = JavaValue::Object(from_object(to_put));//todo dup with get function
+        }
+        Some(object_to_read) => {
+            match object_to_read.deref() {
+                Object::Array(arr) => {
+                    let array_idx = offset as usize;
+                    let res = &mut arr.elems.borrow_mut()[array_idx];
+                    *res = JavaValue::Object(from_object(to_put));
                 }
                 Object::Object(_) => unimplemented!(),
             }
