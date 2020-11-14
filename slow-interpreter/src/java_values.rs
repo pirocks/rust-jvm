@@ -1,7 +1,7 @@
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
