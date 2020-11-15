@@ -1,7 +1,7 @@
 use std::ops::Deref;
 use std::process::exit;
 
-use jvmti_jni_bindings::{jboolean, jint, JNIEnv, jobject, jvm_version_info};
+use jvmti_jni_bindings::{jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::util::properties::Properties;
 use slow_interpreter::java_values::JavaValue;
@@ -9,7 +9,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {
-    unimplemented!()
+    JVM_INTERFACE_VERSION as jint
 }
 
 #[no_mangle]
