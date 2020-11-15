@@ -8,12 +8,11 @@ use crate::jvmti::get_jvmti_interface;
 use crate::rust_jni::interface::get_interface;
 
 pub fn get_invoke_interface(state: &JVMState, int_state: &mut InterpreterStateGuard) -> *const JNIInvokeInterface_ {
-    let read_guard = state.invoke_interface.read().unwrap();
-    match read_guard.as_ref() {
+    let mut guard = state.invoke_interface.write().unwrap();
+    match guard.as_ref() {
         None => {
-            std::mem::drop(read_guard);
-            state.invoke_interface.write().unwrap().replace(unsafe {
-                transmute::<_, jvmti_jni_bindings::JNIInvokeInterface_>(JNIInvokeInterface_ {
+            guard.replace(unsafe {
+                Box::leak(box JNIInvokeInterface_ {
                     reserved0: transmute(state),
                     reserved1: transmute(int_state),
                     reserved2: std::ptr::null_mut(),
@@ -22,12 +21,13 @@ pub fn get_invoke_interface(state: &JVMState, int_state: &mut InterpreterStateGu
                     DetachCurrentThread: None,
                     GetEnv: Some(get_env),
                     AttachCurrentThreadAsDaemon: None,
-                })
+                }) as *const JNIInvokeInterface_
             });
         }
         Some(_) => {}
     }
-    state.invoke_interface.read().unwrap().as_ref().unwrap() as *const jvmti_jni_bindings::JNIInvokeInterface_ as *const JNIInvokeInterface_
+    drop(guard);
+    *state.invoke_interface.read().unwrap().as_ref().unwrap()
 }
 
 pub unsafe fn get_state_invoke_interface<'l>(vm: *mut JavaVM) -> &'l JVMState/*<'l>*/ {

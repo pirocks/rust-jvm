@@ -47,17 +47,17 @@ fn invoke_virtual_method_i_impl(
     target_method: &MethodView,
 ) {
     if target_method.is_signature_polymorphic() {
-        interpreter_state.print_stack_trace();
+        // interpreter_state.print_stack_trace();
         let current_frame = interpreter_state.current_frame_mut();
 
         // setup_virtual_args(current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);
         let op_stack = current_frame.operand_stack();
-        dbg!(op_stack.len());
+        // dbg!(op_stack.len());
         let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
-
-        dbg!(current_frame.operand_stack_types());
-        dbg!(&expected_descriptor);
-        dbg!(method_handle.clone().java_value().to_type());
+        //
+        // dbg!(current_frame.operand_stack_types());
+        // dbg!(&expected_descriptor);
+        // dbg!(method_handle.clone().java_value().to_type());
         let form: LambdaForm = method_handle.get_form();
         // dbg!(form.clone().java_value());
         let vmentry: MemberName = form.get_vmentry();
@@ -122,7 +122,7 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         // dbg!(interpreter_state.current_frame().class_pointer().ptypeview());
         // dbg!(res_method.classview().name());
         // dbg!(res_method.name());
-        dbg!(res_method.desc());
+        // dbg!(res_method.desc());
         // dbg!(interpreter_state.current_frame().operand_stack_types());
         // interpreter_state.print_stack_trace();
         run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str());

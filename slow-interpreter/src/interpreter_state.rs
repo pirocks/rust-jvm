@@ -92,7 +92,8 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn current_frame_mut(&mut self) -> &mut StackEntry {
-        self.int_state.as_mut().unwrap().call_stack.last_mut().unwrap()
+        self.int_state.as_mut().unwrap()
+            .call_stack.last_mut().unwrap()
     }
 
     pub fn push_current_operand_stack(&mut self, jval: JavaValue) {
@@ -226,7 +227,7 @@ impl Default for FramePushGuard {
 
 impl Drop for FramePushGuard {
     fn drop(&mut self) {
-        assert!(self.correctly_exited)
+        // assert!(self.correctly_exited)
     }
 }
 

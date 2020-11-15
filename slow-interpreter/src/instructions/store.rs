@@ -64,6 +64,16 @@ pub fn bastore(current_frame: &mut StackEntry) {
 }
 
 
+pub fn fastore(current_frame: &mut StackEntry) {
+    let val = current_frame.pop().unwrap_float();
+    let index = current_frame.pop().unwrap_int();
+    let array_ref_o = current_frame.pop().unwrap_object().unwrap();
+    // assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
+    let array_ref = &mut array_ref_o.unwrap_array().elems.borrow_mut();
+    array_ref[index as usize] = JavaValue::Float(val);
+}
+
+
 pub fn iastore(current_frame: &mut StackEntry) {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();

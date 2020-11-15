@@ -5,3 +5,4 @@ export JNI_MD_H=/home/francis/Desktop/jdk8u232-b09/include/linux/;
 export JNI_H=/home/francis/Desktop/jdk8u232-b09/include/;
 export RUSTFLAGS="-C force-frame-pointers=y";
 export RUST_BACKTRACE=full
+export LD_LIBRARY_PATH=/home/francis/CLionProjects/rust-jvm/target/debug/deps/

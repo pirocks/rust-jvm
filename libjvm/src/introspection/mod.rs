@@ -66,7 +66,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let object = from_object(cls);
     let temp = JavaValue::Object(object).cast_class().as_type();
     let object_class = temp.unwrap_ref_type();
-    new_local_ref_public(JClass::from_type(jvm,int_state,&object_class.unwrap_array()).java_value().unwrap_object(), int_state)
+    new_local_ref_public(JClass::from_type(jvm, int_state, &object_class.unwrap_array()).java_value().unwrap_object(), int_state)
 }
 
 #[no_mangle]
@@ -140,7 +140,12 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     Therefore it only sorta works*/
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let type_ = PTypeView::Ref(ReferenceTypeView::Class(int_state.previous_previous_frame().class_pointer().view().name()));
+    let possibly_class_pointer = int_state.previous_previous_frame().try_class_pointer();
+    let type_ = if let Some(class_pointer) = possibly_class_pointer {
+        PTypeView::Ref(ReferenceTypeView::Class(class_pointer.view().name()))
+    } else {
+        return null_mut();
+    };
     load_class_constant_by_type(jvm, int_state, &type_);
     let jclass = int_state.pop_current_operand_stack().unwrap_object();
     new_local_ref_public(jclass, int_state)

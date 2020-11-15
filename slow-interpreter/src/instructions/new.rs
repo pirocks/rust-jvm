@@ -96,9 +96,9 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     check_inited_class(jvm, int_state, &PTypeView::Ref(type_.clone()), int_state.current_loader(jvm).clone());
     //todo need to start doing this at some point
     let mut dimensions = vec![];
-    dbg!(&type_);
+    // dbg!(&type_);
     let mut unwrapped_type: PTypeView = PTypeView::Ref(type_);
-    dbg!(dims);
+    // dbg!(dims);
     for _ in 0..dims {
         dimensions.push(int_state.current_frame_mut().pop().unwrap_int());
     }
@@ -122,6 +122,6 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         ))).into());
         current_type = next_type;
     }
-    dbg!(&current);
+    // dbg!(&current);
     int_state.push_current_operand_stack(current);
 }

@@ -86,7 +86,17 @@ impl StackEntry {
     }
 
     pub fn class_pointer(&self) -> &Arc<RuntimeClass> {
-        &self.opaque_frame_optional.as_ref().unwrap().class_pointer
+        &match self.opaque_frame_optional.as_ref() {
+            Some(x) => x,
+            None => {
+                unimplemented!()
+            },
+        }.class_pointer
+    }
+
+
+    pub fn try_class_pointer(&self) -> Option<&Arc<RuntimeClass>> {
+        Some(&self.opaque_frame_optional.as_ref()?.class_pointer)
     }
 
     pub fn local_vars(&self) -> &Vec<JavaValue> {

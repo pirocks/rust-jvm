@@ -59,9 +59,9 @@ pub mod dynamic {
         };
 
         let other_name = invoke_dynamic_view.name_and_type().name();//todo get better names
-        dbg!(&other_name);
+        // dbg!(&other_name);
         let other_desc_str = invoke_dynamic_view.name_and_type().desc_str();
-        dbg!(&other_desc_str);
+        // dbg!(&other_desc_str);
 
 
         let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
@@ -80,14 +80,12 @@ pub mod dynamic {
                 BootstrapArgView::MethodType(mt) => desc_from_rust_str(jvm, int_state, mt.get_descriptor())
             }
         }).collect::<Vec<JavaValue>>();
-        dbg!(args.iter().map(|j| j.to_type()).collect::<Vec<_>>());
+        // dbg!(args.iter().map(|j| j.to_type()).collect::<Vec<_>>());
 
 
         //A call site specifier gives a symbolic reference to a method handle which is to serve as
         // the bootstrap method for a dynamic call site (§4.7.23).The method handle is resolved to
         // obtain a reference to an instance of java.lang.invoke.MethodHandle (§5.4.3.5)
-        let name_and_type = invoke_dynamic_view.name_and_type();
-        let name = name_and_type.name();
         let ref_data = method_ref.get_reference_data();
         let desc_str = match ref_data {
             ReferenceData::InvokeStatic(is) => {
@@ -105,7 +103,7 @@ pub mod dynamic {
         let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.clone());
         let name_jstring = JString::from_rust(jvm, int_state, other_name.clone()).java_value();
 
-        dbg!(bootstrap_method_handle.clone().java_value().to_type());
+        // dbg!(bootstrap_method_handle.clone().java_value().to_type());
         int_state.push_current_operand_stack(bootstrap_method_handle.java_value());
         int_state.push_current_operand_stack(lookup_for_this.java_value());
         int_state.push_current_operand_stack(name_jstring);
@@ -113,15 +111,15 @@ pub mod dynamic {
         for arg in args {
             int_state.push_current_operand_stack(arg);//todo check order is correct
         }
-        dbg!(&name);
-        dbg!(&desc_str);
+        // dbg!(&name);
+        // dbg!(&desc_str);
         let method_handle_clone = method_handle_class.clone();
         let lookup_res = method_handle_clone.view().lookup_method_name("invoke");
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
-        dbg!(int_state.current_frame().operand_stack_types());
-        dbg!(invoke.desc_str());
-        dbg!(invoke.name());
+        // dbg!(int_state.current_frame().operand_stack_types());
+        // dbg!(invoke.desc_str());
+        // dbg!(invoke.name());
         //todo theres a MHN native for this upcall
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke.method_i(), invoke);
         let call_site = int_state.pop_current_operand_stack().cast_call_site();
@@ -135,7 +133,7 @@ pub mod dynamic {
         assert!(int_state.throw().is_none());
 
         let res = int_state.pop_current_operand_stack();
-        dbg!(&res);
+        // dbg!(&res);
         int_state.push_current_operand_stack(res);
     }
 

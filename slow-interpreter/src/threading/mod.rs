@@ -65,14 +65,11 @@ impl ThreadState {
             let mut int_state = InterpreterStateGuard::new(jvm, &main_thread);
             main_thread.notify_alive();//is this too early?
             int_state.register_interpreter_state_guard(jvm);
-            unsafe { jvm.libjava.load(jvm, &mut int_state); }
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
-            unsafe {
-                libawt_hack::jvm = Box::into_raw(box get_invoke_interface(
-                    jvm, &mut int_state,
-                ));
-            }
+            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+            unsafe { jvm.libjava.load(jvm, &mut int_state); }//todo not sure if this should be here
+            int_state.pop_frame(push_guard);
             set_properties(jvm, &mut int_state);
             assert!(!jvm.live.load(Ordering::SeqCst));
             jvm.live.store(true, Ordering::SeqCst);
@@ -248,16 +245,16 @@ thread_local! {
     static CURRENT_JAVA_THREAD: RefCell<Option<Arc<JavaThread>>> = RefCell::new(None);
 }
 
-pub mod libawt_hack {
-    use std::ptr::null_mut;
-
-    use jvmti_jni_bindings::JavaVM;
-
-    // extern "C" {
-    #[no_mangle]
-    pub static mut jvm: *mut JavaVM = null_mut();
-    // }
-}
+// pub mod libawt_hack {
+//     use std::ptr::null_mut;
+//
+//     use jvmti_jni_bindings::JavaVM;
+//
+//     extern "C" {
+//     #[no_mangle]
+//     pub static mut jvm: *mut JavaVM;
+//     }
+// }
 
 pub type JavaThreadId = i64;
 

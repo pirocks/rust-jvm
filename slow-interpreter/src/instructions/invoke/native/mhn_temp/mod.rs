@@ -87,10 +87,10 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
     if method_view.is_static() {
         // dbg!(int_state.current_frame().operand_stack_types());
         // dbg!(&md);
-        dbg!(method_name);
-        dbg!(method_view.name());
-        dbg!(class.view().name());
-        dbg!(method_view.desc_str());
+        // dbg!(method_name);
+        // dbg!(method_view.name());
+        // dbg!(class.view().name());
+        // dbg!(method_view.desc_str());
         invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info());
         // dbg!(int_state.current_frame().operand_stack_types());
     } else {

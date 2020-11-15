@@ -2,10 +2,9 @@ extern crate libc;
 extern crate libloading;
 
 use std::collections::HashMap;
-use std::io::Error;
 use std::mem::transmute;
 use std::ops::Deref;
-use std::os::raw::c_void;
+use std::os::raw::{c_int, c_void};
 use std::sync::{Arc, RwLock};
 
 use libffi::middle::Arg;
@@ -13,6 +12,7 @@ use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use libffi::middle::Type;
 use libloading::Library;
+use libloading::os::unix::RTLD_NOW;
 use libloading::Symbol;
 
 use classfile_view::view::HasAccessFlags;
@@ -26,6 +26,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::java_values::JavaValue;
 use crate::jvm_state::LibJavaLoading;
 use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::dlopen::{RTLD_GLOBAL, RTLD_LAZY};
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::from_object;
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
@@ -35,13 +36,13 @@ pub mod mangling;
 
 impl LibJavaLoading {
     pub fn new_java_loading(path: String) -> LibJavaLoading {
-        let lib = Library::new(path.clone()).unwrap();
+        let lib = Library::new(path.clone(), (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
         let nio_path = path.replace("libjava.so", "libnio.so");
         let awt_path = path.replace("libjava.so", "libawt.so");
         let xawt_path = path.replace("libjava.so", "libawt_xawt.so");
-        let nio_lib = Library::new(nio_path).unwrap();
-        let libawt = Library::new(awt_path).unwrap();
-        let libxawt = Library::new(xawt_path).unwrap();
+        let nio_lib = Library::new(nio_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
+        let libawt = Library::new(awt_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
+        let libxawt = Library::new(xawt_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
         LibJavaLoading {
             libjava: lib,
             libnio: nio_lib,
@@ -60,7 +61,7 @@ pub fn call(
     method_i: usize,
     args: Vec<JavaValue>,
     md: MethodDescriptor,
-) -> Result<Option<JavaValue>, Error> {
+) -> Result<Option<JavaValue>, libloading::Error> {
     let mangled = mangling::mangle(classfile.clone(), method_i);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
@@ -138,6 +139,7 @@ pub fn call_impl(
 //todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
     // trace!("----NATIVE ENTER----");
+    // int_state.print_stack_trace();
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };

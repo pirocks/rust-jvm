@@ -55,7 +55,7 @@ pub fn invoke_static_impl(
         let name = method_view.name();
         if name == "linkToStatic" {
             let op_stack = interpreter_state.current_frame().operand_stack();
-            dbg!(interpreter_state.current_frame().operand_stack_types());
+            // dbg!(interpreter_state.current_frame().operand_stack_types());
             let member_name = op_stack[op_stack.len() - 1].cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), ClassName::member_name().into());
             interpreter_state.pop_current_operand_stack();

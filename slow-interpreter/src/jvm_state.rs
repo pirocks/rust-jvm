@@ -46,7 +46,7 @@ pub struct JVMState {
     pub main_class_name: ClassName,
 
     pub classpath: Arc<Classpath>,
-    pub(crate) invoke_interface: RwLock<Option<JNIInvokeInterface_>>,
+    pub(crate) invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
 
     pub jvmti_state: Option<JVMTIState>,
     pub thread_state: ThreadState,
@@ -187,12 +187,20 @@ pub struct LibJavaLoading {
 
 impl LibJavaLoading {
     pub unsafe fn load(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-        for library in vec![&self.libjava, &self.libnio, &self.libxawt, &self.libxawt] {
+        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt] {
             let on_load = library.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
             let onload_fn_ptr = on_load.deref();
             let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
-            onload_fn_ptr(Box::into_raw(box interface), null_mut());//todo check return res
+            dbg!(interface);
+            onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());//todo check return res
         }
+        //todo I have no idea why this is needed, but is
+        let jvm_symbol = self.libxawt.get::<*mut *mut JavaVM>("jvm".as_bytes()).unwrap();
+        let jvm_ptr = jvm_symbol.deref();
+
+        jvm_ptr.write(Box::into_raw(box get_invoke_interface(
+            jvm, int_state,
+        )) as *mut JavaVM);
     }
 }
 

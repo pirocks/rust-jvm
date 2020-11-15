@@ -360,7 +360,7 @@ fn run_single_instruction(
         InstructionInfo::f2l => unimplemented!(),
         InstructionInfo::fadd => fadd(interpreter_state.current_frame_mut()),
         InstructionInfo::faload => unimplemented!(),
-        InstructionInfo::fastore => unimplemented!(),
+        InstructionInfo::fastore => fastore(interpreter_state.current_frame_mut()),
         InstructionInfo::fcmpg => fcmpg(interpreter_state.current_frame_mut()),
         InstructionInfo::fcmpl => fcmpl(interpreter_state.current_frame_mut()),
         InstructionInfo::fconst_0 => fconst_0(interpreter_state.current_frame_mut()),
