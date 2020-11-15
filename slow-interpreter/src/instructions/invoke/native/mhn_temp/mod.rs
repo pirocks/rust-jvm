@@ -94,6 +94,7 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
         invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info());
         // dbg!(int_state.current_frame().operand_stack_types());
     } else {
+        // invoke_virtual(jvm,int_state,method_name.as_str(),&md);
         invoke_virtual_method_i(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view);
     }
 }

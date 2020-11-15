@@ -18,6 +18,7 @@ use libloading::Symbol;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
+use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -28,7 +29,6 @@ use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::from_object;
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
-use jvmti_jni_bindings::jobject;
 
 pub mod value_conversion;
 pub mod mangling;
@@ -37,10 +37,16 @@ impl LibJavaLoading {
     pub fn new_java_loading(path: String) -> LibJavaLoading {
         let lib = Library::new(path.clone()).unwrap();
         let nio_path = path.replace("libjava.so", "libnio.so");
+        let awt_path = path.replace("libjava.so", "libawt.so");
+        let xawt_path = path.replace("libjava.so", "libawt_xawt.so");
         let nio_lib = Library::new(nio_path).unwrap();
+        let libawt = Library::new(awt_path).unwrap();
+        let libxawt = Library::new(xawt_path).unwrap();
         LibJavaLoading {
             libjava: lib,
             libnio: nio_lib,
+            libawt,
+            libxawt,
             registered_natives: RwLock::new(HashMap::new()),
         }
     }
@@ -63,8 +69,19 @@ pub fn call(
                 Err(_) => {
                     match state.libjava.libnio.get(mangled.as_bytes()) {
                         Ok(o) => o,
-                        Err(e) => {
-                            return Result::Err(e);
+                        Err(_) => {
+                            match state.libjava.libawt.get(mangled.as_bytes()) {
+                                Ok(o) => o,
+                                Err(_) => {
+                                    //todo maybe do something about this nesting lol
+                                    match state.libjava.libxawt.get(mangled.as_bytes()) {
+                                        Ok(o) => o,
+                                        Err(e) => {
+                                            return Result::Err(e);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

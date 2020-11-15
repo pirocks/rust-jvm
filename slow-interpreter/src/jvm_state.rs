@@ -1,6 +1,9 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::ffi::c_void;
 use std::mem::transmute;
+use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
@@ -10,13 +13,14 @@ use libloading::Library;
 
 use classfile_view::loading::{LivePoolGetter, LoaderArc, LoaderName};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jlong, JNIInvokeInterface_, jobject};
+use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::interpreter_util::check_inited_class;
+use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::{JavaValue, NormalObject, Object};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::{BootstrapLoader, Classpath};
@@ -176,7 +180,20 @@ struct LivePoolGetterImpl {
 pub struct LibJavaLoading {
     pub libjava: Library,
     pub libnio: Library,
+    pub libawt: Library,
+    pub libxawt: Library,
     pub registered_natives: RwLock<HashMap<Arc<RuntimeClass>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
+}
+
+impl LibJavaLoading {
+    pub unsafe fn load(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+        for library in vec![&self.libjava, &self.libnio, &self.libxawt, &self.libxawt] {
+            let on_load = library.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
+            let onload_fn_ptr = on_load.deref();
+            let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
+            onload_fn_ptr(Box::into_raw(box interface), null_mut());//todo check return res
+        }
+    }
 }
 
 impl LivePoolGetter for LivePoolGetterImpl {

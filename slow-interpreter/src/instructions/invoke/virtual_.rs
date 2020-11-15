@@ -47,10 +47,12 @@ fn invoke_virtual_method_i_impl(
     target_method: &MethodView,
 ) {
     if target_method.is_signature_polymorphic() {
+        interpreter_state.print_stack_trace();
         let current_frame = interpreter_state.current_frame_mut();
 
         // setup_virtual_args(current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);
         let op_stack = current_frame.operand_stack();
+        dbg!(op_stack.len());
         let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
 
         dbg!(current_frame.operand_stack_types());
@@ -59,7 +61,7 @@ fn invoke_virtual_method_i_impl(
         let form: LambdaForm = method_handle.get_form();
         // dbg!(form.clone().java_value());
         let vmentry: MemberName = form.get_vmentry();
-        if target_method.name() == "invoke" || target_method.name() == "invokeBasic" {
+        if target_method.name() == "invoke" || target_method.name() == "invokeBasic" || target_method.name() == "invokeExact" {
             //todo do conversion.
             //todo handle void return
             assert_ne!(expected_descriptor.return_type, PType::VoidType);
@@ -95,6 +97,7 @@ fn invoke_virtual_method_i_impl(
             return;
         }
     } else {
+        dbg!(target_method.is_abstract());
         panic!()
     }
 }
@@ -183,12 +186,11 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
         Some(x) => x,
         None => {
             int_state.print_stack_trace();
-            dbg!(int_state.current_frame().operand_stack());
             let method_i = int_state.current_frame().method_i();
             let method_view = int_state.current_frame().class_pointer().view().method_view_i(method_i as usize);
             dbg!(&method_view.code_attribute().unwrap().code);
-            dbg!(&int_state.current_frame().operand_stack());
-            dbg!(&int_state.current_frame().local_vars());
+            dbg!(&int_state.current_frame().operand_stack_types());
+            dbg!(&int_state.current_frame().local_vars_types());
             dbg!(&int_state.current_frame().pc());
             dbg!(method_view.name());
             dbg!(method_view.desc_str());

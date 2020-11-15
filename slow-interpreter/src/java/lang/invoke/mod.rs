@@ -341,7 +341,6 @@ pub mod lambda_form {
             as_object_or_java_value!();
             getter_gen!(member,MemberName,cast_member_name);
 
-            // error appears to be in name.function.methodType().parameterType(paramIndex)
             pub fn method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodType { // java.lang.invoke.LambdaForm.NamedFunction
                 let named_function_type = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into(), int_state.current_loader(jvm));
                 int_state.push_current_operand_stack(self.clone().java_value());
@@ -444,6 +443,44 @@ pub mod lambda_form {
         }
 
         getter_gen!(vmentry,MemberName,cast_member_name);
+
+        as_object_or_java_value!();
+    }
+}
+
+pub mod call_site {
+    use std::sync::Arc;
+
+    use descriptor_parser::MethodDescriptor;
+    use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::ptype::{PType, ReferenceType};
+
+    use crate::instructions::invoke::virtual_::invoke_virtual;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::check_inited_class;
+    use crate::java::lang::invoke::method_handle::MethodHandle;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    #[derive(Clone, Debug)]
+    pub struct CallSite {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_call_site(&self) -> CallSite {
+            CallSite { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl CallSite {
+        pub fn get_target(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodHandle {
+            let _call_site_class = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/invoke/CallSite".to_string()).into(), int_state.current_loader(jvm));
+            // assert_eq!(self.clone().normal_object.unwrap_normal_object().class_pointer.view().name(), call_site_class.view().name());
+            int_state.push_current_operand_stack(self.clone().java_value());
+            invoke_virtual(jvm, int_state, "getTarget", &MethodDescriptor { parameter_types: vec![], return_type: PType::Ref(ReferenceType::Class(ClassName::method_handle())) });
+            int_state.pop_current_operand_stack().cast_method_handle()
+        }
 
         as_object_or_java_value!();
     }

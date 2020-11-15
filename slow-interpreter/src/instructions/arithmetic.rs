@@ -132,9 +132,9 @@ pub fn iushr(current_frame: &mut StackEntry) {
 
 
 pub fn isub(current_frame: &mut StackEntry) {
-    let value2 = current_frame.pop().unwrap_int();
-    let value1 = current_frame.pop().unwrap_int();
-    current_frame.push(JavaValue::Int(value1 - value2));
+    let value2 = Wrapping(current_frame.pop().unwrap_int());
+    let value1 = Wrapping(current_frame.pop().unwrap_int());
+    current_frame.push(JavaValue::Int((value1 - value2).0));
 }
 
 

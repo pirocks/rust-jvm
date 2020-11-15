@@ -20,8 +20,9 @@ pub mod static_;
 pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeStatic, MethodHandleView, ReferenceData};
-    use descriptor_parser::parse_method_descriptor;
+    use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::ptype::{PType, ReferenceType};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
@@ -121,22 +122,21 @@ pub mod dynamic {
         dbg!(int_state.current_frame().operand_stack_types());
         dbg!(invoke.desc_str());
         dbg!(invoke.name());
-        invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class, invoke.method_i(), invoke);
-        let call_site = int_state.pop_current_operand_stack();
-        dbg!(call_site);
-        // let bootstrap_method = invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref();
-        // invoke_dynamic_view.bootstrap_method_attr().bootstrap_args();
-        // let _bootstrap_method_class = check_inited_class(state, &bootstrap_method.class(), current_ current_int_state.current_loader(jvm).clone());
-        // dbg!(invoke_dynamic_view.name_and_type().name());
-        // dbg!(invoke_dynamic_view.name_and_type().desc());
-        // dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().name_and_type());
-        // dbg!(invoke_dynamic_view.bootstrap_method_attr().bootstrap_method_ref().class());
+        //todo theres a MHN native for this upcall
+        invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke.method_i(), invoke);
+        let call_site = int_state.pop_current_operand_stack().cast_call_site();
+        let target = call_site.get_target(jvm, int_state);
+        let method_handle_clone = method_handle_class.clone();
+        let lookup_res = method_handle_clone.view().lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
+        let invoke = lookup_res.iter().next().unwrap();
+        int_state.push_current_operand_stack(target.java_value());
+        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: vec![], return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke.method_i(), invoke);
 
-//        invoke_dynamic_view.
+        assert!(int_state.throw().is_none());
 
-
-        // dbg!(&current_frame.class_pointer.classfile.constant_pool[cp as usize]);
-        unimplemented!()
+        let res = int_state.pop_current_operand_stack();
+        dbg!(&res);
+        int_state.push_current_operand_stack(res);
     }
 
     //todo this should go in MethodType or something.

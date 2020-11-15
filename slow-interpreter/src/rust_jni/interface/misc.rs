@@ -5,6 +5,7 @@ use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use descriptor_parser::parse_field_type;
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_FALSE, JNI_TRUE, JNIEnv, JNIInvokeInterface_, JNINativeMethod, jobject};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
@@ -30,8 +31,9 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    //todo maybe parse?
-    load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))));
+    let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
+    assert!(remaining.is_empty());
+    load_class_constant_by_type(jvm, int_state, &PTypeView::from_ptype(&type_));
     let obj = int_state.pop_current_operand_stack().unwrap_object();
     new_local_ref_public(obj, int_state)
 }
