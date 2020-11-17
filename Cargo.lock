@@ -90,9 +90,9 @@ dependencies = [
     "proc-macro2",
     "quote",
     "regex",
- "rustc-hash",
- "shlex",
- "which",
+    "rustc-hash",
+    "shlex",
+    "which",
 ]
 
 [[package]]
@@ -896,8 +896,8 @@ checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
- "bimap",
- "bindgen",
+    "bimap",
+    "bindgen",
     "by_address",
     "classfile-parser",
     "classfile-view",
@@ -919,7 +919,7 @@ dependencies = [
     "type-safe-proc-macro-utils",
     "userspace-threads",
     "va_list",
- "verification",
+    "verification",
 ]
 
 [[package]]

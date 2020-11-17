@@ -15,7 +15,6 @@ use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main,
 use crate::interpreter::run_function;
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
 use crate::interpreter_util::{check_inited_class, push_new_object};
-use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
@@ -67,9 +66,6 @@ impl ThreadState {
             int_state.register_interpreter_state_guard(jvm);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
-            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame());
-            unsafe { jvm.libjava.load(jvm, &mut int_state); }//todo not sure if this should be here
-            int_state.pop_frame(push_guard);
             set_properties(jvm, &mut int_state);
             assert!(!jvm.live.load(Ordering::SeqCst));
             jvm.live.store(true, Ordering::SeqCst);
@@ -82,6 +78,9 @@ impl ThreadState {
             if let Some(jvmti) = jvm.jvmti_state.as_ref() {
                 jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
             }
+            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+            unsafe { jvm.libjava.load(jvm, &mut int_state); }//todo not sure if this should be here
+            int_state.pop_frame(push_guard);
             run_main(args, jvm, &mut int_state).unwrap();
             main_thread.notify_terminated()
         }, box ());

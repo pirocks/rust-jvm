@@ -187,7 +187,7 @@ pub struct LibJavaLoading {
 
 impl LibJavaLoading {
     pub unsafe fn load(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt] {
+        for library in vec![&self.libjava, &self.libnio/*, &self.libawt, &self.libxawt*/] {//todo reenable
             let on_load = library.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
             let onload_fn_ptr = on_load.deref();
             let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);

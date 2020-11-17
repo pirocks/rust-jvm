@@ -92,10 +92,6 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
-    // if current_thread.invisible_to_java {
-    //     int_state.print_stack_trace();
-    // }
-    // assert!(!current_thread.invisible_to_java);
     let res = new_local_ref_public(current_thread.thread_object().object().into(), int_state);
     assert_ne!(res, null_mut());
     res

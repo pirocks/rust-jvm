@@ -4,7 +4,7 @@ extern crate libloading;
 use std::collections::HashMap;
 use std::mem::transmute;
 use std::ops::Deref;
-use std::os::raw::{c_int, c_void};
+use std::os::raw::c_void;
 use std::sync::{Arc, RwLock};
 
 use libffi::middle::Arg;
