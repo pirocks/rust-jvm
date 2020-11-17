@@ -165,8 +165,8 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
             update_pc_for_next_instruction(interpreter_state);
         }
     }
-    //
-    // if meth_name == "copyOfRange" {
+    // //
+    // if meth_name == "hash" {
     //     dbg!(interpreter_state.previous_frame().operand_stack().last());
     // }
 

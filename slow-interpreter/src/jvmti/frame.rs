@@ -2,8 +2,10 @@ use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 
 use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::LocalVariableView;
 use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
+use rust_jvm_common::classfile::LocalVariableTableEntry;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_util::check_inited_class;
@@ -225,6 +227,24 @@ pub unsafe extern "C" fn get_local_variable_table(
     }
     let local_vars = match method_view.local_variable_attribute() {
         None => {
+            //todo make up a local var table
+            // let code_attr = method_view.code_attribute().unwrap();
+            // let max_locals = code_attr.max_locals;
+            // (0..max_locals).map(|i|{
+            //     let name = format!("var{}",i);
+            //     let allocated_name = jvm.native_interface_allocations.allocate_string(name);
+            //     let signature = local_variable_view.desc_str();
+            //     let allocated_signature = jvm.native_interface_allocations.allocate_string(signature);
+            //     let slot = i as i32;
+            //     _jvmtiLocalVariableEntry{
+            //         start_location: 0,
+            //         length: code_attr.code.len() as i32,
+            //         name: allocated_name,
+            //         signature: null_mut(),
+            //         generic_signature: null_mut(),
+            //         slot
+            //     }
+            // })
             return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION);
         }
         Some(lva) => lva,
