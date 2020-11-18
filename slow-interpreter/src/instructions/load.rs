@@ -81,7 +81,7 @@ fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGua
         int_state,
         &ClassName::new("java/lang/ArrayIndexOutOfBoundsException").into(),
         int_state.current_loader(jvm),
-    );
+    ).unwrap();
     push_new_object(jvm, int_state, &bounds_class, None);
     let obj = int_state.current_frame_mut().pop();
     run_constructor(jvm, int_state, bounds_class, vec![obj.clone()], "()V".to_string());

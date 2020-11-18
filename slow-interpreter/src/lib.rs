@@ -69,7 +69,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     //     run_tests(jvm, int_state);
     //     Result::Ok(())
     // } else {
-    let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone());
+    let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone()).unwrap();
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
@@ -79,12 +79,13 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let main_frame_guard = int_state.push_frame(stack_entry);
 
     setup_program_args(&jvm, int_state, args);
-        run_function(&jvm, int_state);
-        if int_state.throw().is_some() || *int_state.terminate() {
-            unimplemented!()
-        }
-        int_state.pop_frame(main_frame_guard);
-        Result::Ok(())
+    run_function(&jvm, int_state);
+    if int_state.throw().is_some() || *int_state.terminate() {
+        int_state.print_stack_trace();
+        unimplemented!()
+    }
+    int_state.pop_frame(main_frame_guard);
+    Result::Ok(())
     // }
 }
 

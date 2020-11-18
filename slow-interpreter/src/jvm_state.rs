@@ -140,7 +140,7 @@ impl JVMState {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
                 let current_loader = self.bootstrap_loader.clone();// todo is the bootstrap loader object loaded by the bootstrap loder?
-                let class_loader_class = check_inited_class(self, int_state, &java_lang_class_loader.into(), current_loader.clone());
+                let class_loader_class = check_inited_class(self, int_state, &java_lang_class_loader.into(), current_loader.clone()).unwrap();
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
                     fields: RefCell::new(HashMap::new()),
@@ -187,7 +187,7 @@ pub struct LibJavaLoading {
 
 impl LibJavaLoading {
     pub unsafe fn load(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-        for library in vec![&self.libjava, &self.libnio/*, &self.libawt, &self.libxawt*/] {//todo reenable
+        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt] {//todo reenable
             let on_load = library.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
             let onload_fn_ptr = on_load.deref();
             let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);

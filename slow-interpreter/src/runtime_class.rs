@@ -180,7 +180,7 @@ pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
-) -> Arc<RuntimeClass> {
+) -> Option<Arc<RuntimeClass>> {
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
@@ -205,7 +205,7 @@ pub fn initialize_class(
     let lookup_res = view.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
     let clinit = match lookup_res.get(0) {
-        None => return class_arc,
+        None => return class_arc.into(),
         Some(x) => x,
     };
     //todo should I really be manipulating the interpreter state like this
@@ -223,13 +223,12 @@ pub fn initialize_class(
     interpreter_state.pop_frame(new_function_frame);
     if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
         interpreter_state.print_stack_trace();
-        unimplemented!()
-        //need to clear status after
+        return None;
     }
     let function_return = interpreter_state.function_return_mut();
     if *function_return {
         *function_return = false;
-        return class_arc;
+        return class_arc.into();
     }
     panic!()
 }

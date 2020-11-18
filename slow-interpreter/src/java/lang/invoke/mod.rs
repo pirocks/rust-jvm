@@ -31,7 +31,7 @@ pub mod method_type {
         pub fn from_method_descriptor_string(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str: crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> MethodType {
             int_state.push_current_operand_stack(str.java_value());
             int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(None)));
-            let method_type = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm).clone());
+            let method_type = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm).clone()).unwrap();
             crate::instructions::invoke::native::mhn_temp::run_static_or_virtual(jvm, int_state, &method_type, "fromMethodDescriptorString".to_string(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string());
             int_state.pop_current_operand_stack().cast_method_type()
         }
@@ -78,7 +78,7 @@ pub mod method_type {
         }
 
         pub fn parameter_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, int: jint) -> JClass {
-            let method_type = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm));
+            let method_type = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm)).unwrap();
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(JavaValue::Int(int));
             run_static_or_virtual(jvm, int_state, &method_type, "parameterType".to_string(), "(I)Ljava/lang/Class;".to_string());
@@ -95,7 +95,7 @@ pub mod method_type {
             invokers: JavaValue,
             method_descriptor: JavaValue,
         ) -> MethodType {
-            let method_type = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm).clone());
+            let method_type = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm).clone()).unwrap();
             push_new_object(jvm, int_state, &method_type, None);
             let res = int_state.pop_current_operand_stack().cast_method_type();
             let ptypes_arr = JavaValue::Object(Some(Arc::new(
@@ -184,7 +184,7 @@ pub mod method_type_form {
                    basic_type: Option<MethodType>,
                    method_handles: JavaValue,
                    lambda_forms: JavaValue) -> MethodTypeForm {
-            let method_type_form = check_inited_class(jvm, int_state, &ClassName::method_type_form().into(), int_state.current_loader(jvm).clone());
+            let method_type_form = check_inited_class(jvm, int_state, &ClassName::method_type_form().into(), int_state.current_loader(jvm).clone()).unwrap();
             push_new_object(jvm, int_state, &method_type_form, None);
             let res = int_state.pop_current_operand_stack().cast_method_type_form();
             res.set_arg_to_slot_table(arg_to_slot_table);
@@ -236,18 +236,18 @@ pub mod method_handle {
     impl MethodHandle {
         //todo put this in MethodHandle
         pub fn lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
-            let method_handles_class = check_inited_class(jvm, int_state, &ClassName::method_handles().into(), int_state.current_loader(jvm));
+            let method_handles_class = check_inited_class(jvm, int_state, &ClassName::method_handles().into(), int_state.current_loader(jvm)).unwrap();
             run_static_or_virtual(jvm, int_state, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             int_state.pop_current_operand_stack().cast_lookup()
         }
         pub fn public_lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
-            let method_handles_class = check_inited_class(jvm, int_state, &ClassName::method_handles().into(), int_state.current_loader(jvm));
+            let method_handles_class = check_inited_class(jvm, int_state, &ClassName::method_handles().into(), int_state.current_loader(jvm)).unwrap();
             run_static_or_virtual(jvm, int_state, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
             int_state.pop_current_operand_stack().cast_lookup()
         }
 
         pub fn internal_member_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MemberName {
-            let method_handle_class = check_inited_class(jvm, int_state, &ClassName::method_handle().into(), int_state.current_loader(jvm));
+            let method_handle_class = check_inited_class(jvm, int_state, &ClassName::method_handle().into(), int_state.current_loader(jvm)).unwrap();
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MethodHandle;".to_string());
             int_state.pop_current_operand_stack().cast_member_name()
@@ -272,13 +272,13 @@ pub mod method_handle {
 
     impl Lookup {
         pub fn trusted_lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Self {
-            let lookup = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone());
+            let lookup = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone()).unwrap();
             let static_vars = lookup.static_vars();
             static_vars.get("IMPL_LOOKUP").unwrap().cast_lookup()
         }
 
         pub fn find_virtual(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> MethodHandle {
-            let lookup_class = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone());
+            let lookup_class = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone()).unwrap();
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(obj.java_value());
             int_state.push_current_operand_stack(name.java_value());
@@ -289,7 +289,7 @@ pub mod method_handle {
 
 
         pub fn find_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> MethodHandle {
-            let lookup_class = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone());
+            let lookup_class = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone()).unwrap();
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(obj.java_value());
             int_state.push_current_operand_stack(name.java_value());
@@ -342,7 +342,7 @@ pub mod lambda_form {
             getter_gen!(member,MemberName,cast_member_name);
 
             pub fn method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodType { // java.lang.invoke.LambdaForm.NamedFunction
-                let named_function_type = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into(), int_state.current_loader(jvm));
+                let named_function_type = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into(), int_state.current_loader(jvm)).unwrap();
                 int_state.push_current_operand_stack(self.clone().java_value());
                 run_static_or_virtual(jvm, int_state, &named_function_type, "methodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
                 int_state.pop_current_operand_stack().cast_method_type()
@@ -475,7 +475,7 @@ pub mod call_site {
 
     impl CallSite {
         pub fn get_target(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodHandle {
-            let _call_site_class = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/invoke/CallSite".to_string()).into(), int_state.current_loader(jvm));
+            let _call_site_class = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/invoke/CallSite".to_string()).into(), int_state.current_loader(jvm)).unwrap();
             // assert_eq!(self.clone().normal_object.unwrap_normal_object().class_pointer.view().name(), call_site_class.view().name());
             int_state.push_current_operand_stack(self.clone().java_value());
             invoke_virtual(jvm, int_state, "getTarget", &MethodDescriptor { parameter_types: vec![], return_type: PType::Ref(ReferenceType::Class(ClassName::method_handle())) });

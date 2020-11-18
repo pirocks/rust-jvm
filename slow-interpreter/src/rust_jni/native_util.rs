@@ -21,7 +21,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
         Object::Object(o) => {
             get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(o.class_pointer.view().name())), int_state, int_state.current_loader(jvm))
         }
-    };
+    }.unwrap();
 
     new_local_ref_public(class_object.into(), int_state) as jclass
 }

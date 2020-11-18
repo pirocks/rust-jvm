@@ -91,7 +91,7 @@ impl ThreadState {
         let bl = &jvm.bootstrap_loader;
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-        let system_class = check_inited_class(jvm, int_state, &ClassName::system().into(), bl.clone());
+        let system_class = check_inited_class(jvm, int_state, &ClassName::system().into(), bl.clone()).unwrap();
 
         let init_method_view = locate_init_system_class(&system_class);
         let mut locals = vec![];
@@ -147,7 +147,7 @@ impl ThreadState {
                                                   &mut new_int_state,
                                                   &ClassName::thread().into(),
                                                   jvm.bootstrap_loader.clone(),
-        );
+        ).unwrap();
 
 
         push_new_object(jvm, &mut new_int_state, &thread_classfile, None);

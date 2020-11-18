@@ -145,7 +145,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
                         break;
                     } else {
                         let catch_runtime_name = interpreter_state.current_class_view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_name().unwrap_name();
-                        let catch_class = check_inited_class(jvm, interpreter_state, &catch_runtime_name.into(), interpreter_state.current_loader(jvm).clone());
+                        let catch_class = check_inited_class(jvm, interpreter_state, &catch_runtime_name.into(), interpreter_state.current_loader(jvm).clone()).unwrap();
                         if inherits_from(jvm, interpreter_state, &throw_class, &catch_class) {
                             interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                             interpreter_state.set_throw(None);
@@ -282,7 +282,7 @@ pub fn monitor_for_function(
                 &class_name.clone().into(),
                 int_state,
                 int_state.current_loader(jvm).clone(),
-            );
+            ).unwrap();
             class_object.unwrap_normal_object().monitor.clone()
         } else {
             int_state.current_frame_mut().local_vars()[0].unwrap_normal_object().monitor.clone()

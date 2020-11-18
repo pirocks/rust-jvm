@@ -22,12 +22,18 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let loader_arc = int_state.current_loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &view);
     let class_name = class_name_type.unwrap_class_type();
-    let target_class = check_inited_class(
+    let target_class = match check_inited_class(
         jvm,
         int_state,
         &class_name.into(),
         loader_arc.clone(),
-    );
+    ) {
+        Ok(x) => x,
+        Err(_) => {
+            assert!(int_state.throw().is_some());
+            return;
+        }
+    };
     let (target_method_i, final_target_method) = find_target_method(jvm, loader_arc.clone(), expected_method_name, &expected_descriptor, target_class);
 
     invoke_static_impl(

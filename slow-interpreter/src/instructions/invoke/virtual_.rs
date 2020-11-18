@@ -206,7 +206,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
                 int_state,
                 &ClassName::object().into(),
                 int_state.current_loader(jvm),
-            );
+            ).unwrap();
             object_class
         }
         Object::Object(o) => {

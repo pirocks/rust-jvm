@@ -14,7 +14,7 @@ pub struct System {
 
 impl System {
     pub fn props(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Properties {
-        let system_class = check_inited_class(jvm, int_state, &ClassName::system().into(), jvm.bootstrap_loader.clone());
+        let system_class = check_inited_class(jvm, int_state, &ClassName::system().into(), jvm.bootstrap_loader.clone()).unwrap();
         let prop_jv = system_class.static_vars().borrow().get("props").unwrap().clone();
         prop_jv.cast_properties()
     }

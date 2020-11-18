@@ -20,7 +20,7 @@ fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, 
 }
 
 pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: &PTypeView) {
-    let object = get_or_create_class_object(jvm, res_class_type, int_state, jvm.bootstrap_loader.clone());
+    let object = get_or_create_class_object(jvm, res_class_type, int_state, jvm.bootstrap_loader.clone()).unwrap();
     // dbg!(object.clone().lookup_field("name"));
     // dbg!(object.clone());
     // dbg!(object.unwrap_normal_object().fields.borrow());
@@ -41,7 +41,7 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
         interpreter_state,
         &java_lang_string.into(),
         current_loader.clone(),
-    );
+    ).unwrap();
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
     push_new_object(jvm, interpreter_state, &string_class, None);//todo what if stack overflows here?

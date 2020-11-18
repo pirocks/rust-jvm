@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_inited_class(jvm, int_state, &target_class_name.into(), int_state.current_loader(jvm).clone());
+    let target_runtime_class = check_inited_class(jvm, int_state, &target_class_name.into(), int_state.current_loader(jvm).clone()).unwrap();
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {

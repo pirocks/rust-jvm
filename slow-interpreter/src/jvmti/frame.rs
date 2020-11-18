@@ -2,10 +2,8 @@ use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::method_view::LocalVariableView;
 use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
-use rust_jvm_common::classfile::LocalVariableTableEntry;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_util::check_inited_class;
@@ -127,7 +125,7 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
             // this is not perfect, ideally we would return an error:
             // return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
             let int_state = get_interpreter_state(env);
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm));
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm)).unwrap();
             let possible_starts = thread_class.view().lookup_method_name(&"start".to_string());
             let thread_start_view = possible_starts.get(0).unwrap();
             jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)

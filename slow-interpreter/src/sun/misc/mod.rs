@@ -21,7 +21,7 @@ pub mod unsafe_ {
 
     impl Unsafe {
         pub fn the_unsafe(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Unsafe {
-            let unsafe_class = check_inited_class(jvm, int_state, &ClassName::unsafe_().into(), int_state.current_loader(jvm));
+            let unsafe_class = check_inited_class(jvm, int_state, &ClassName::unsafe_().into(), int_state.current_loader(jvm)).unwrap();
             let static_vars = unsafe_class.static_vars();
             static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
         }

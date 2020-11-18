@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use classfile_view::loading::ClassLoadingError;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{Atype, MultiNewArray};
@@ -7,12 +8,21 @@ use rust_jvm_common::classfile::{Atype, MultiNewArray};
 use crate::{InterpreterStateGuard, JVMState};
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
+use crate::runtime_class::RuntimeClass;
 
 pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     let loader_arc = &int_state.current_frame_mut().class_pointer().loader(jvm);
     let view = &int_state.current_frame_mut().class_pointer().view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
-    let target_classfile = check_inited_class(jvm, int_state, &target_class_name.clone().into(), loader_arc.clone());
+    int_state.print_stack_trace();
+    dbg!(target_class_name);
+    let target_classfile = match check_inited_class(jvm, int_state, &target_class_name.clone().into(), loader_arc.clone()) {
+        Ok(target_classfile) => target_classfile,
+        Err(_) => {
+            assert!(int_state.throw().is_some());
+            return;
+        }
+    };
     push_new_object(jvm, int_state, &target_classfile, None);
 }
 
@@ -45,7 +55,7 @@ pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGua
         int_state,
         &t,
         int_state.current_loader(jvm).clone(),
-    );
+    ).unwrap();
     // }
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t);
     int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap())))
@@ -93,7 +103,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    check_inited_class(jvm, int_state, &PTypeView::Ref(type_.clone()), int_state.current_loader(jvm).clone());
+    check_inited_class(jvm, int_state, &PTypeView::Ref(type_.clone()), int_state.current_loader(jvm).clone()).unwrap();
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     // dbg!(&type_);

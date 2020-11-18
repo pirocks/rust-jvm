@@ -23,7 +23,7 @@ pub fn run_native_method(
     method_i: usize) {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack().len();
-    check_inited_class(jvm, int_state, &view.name().into(), class.loader(jvm));
+    check_inited_class(jvm, int_state, &view.name().into(), class.loader(jvm)).unwrap();
     assert_eq!(before, int_state.current_frame().operand_stack().len());
     let method = &view.method_view_i(method_i);
     if !method.is_static() {

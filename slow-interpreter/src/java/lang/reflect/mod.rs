@@ -187,7 +187,7 @@ pub mod method {
                           parameter_annotations: JavaValue,
                           annotation_default: JavaValue,
         ) -> Method {
-            let method_class = check_inited_class(jvm, int_state, &ClassName::method().into(), int_state.current_loader(jvm));
+            let method_class = check_inited_class(jvm, int_state, &ClassName::method().into(), int_state.current_loader(jvm)).unwrap();
             push_new_object(jvm, int_state, &method_class, None);
             let method_object = int_state.pop_current_operand_stack();
             let full_args = vec![method_object.clone(),
@@ -289,7 +289,7 @@ pub mod constructor {
             slot: jint,
             signature: JString,
         ) -> Constructor {
-            let constructor_class = check_inited_class(jvm, int_state, &ClassName::constructor().into(), jvm.bootstrap_loader.clone());
+            let constructor_class = check_inited_class(jvm, int_state, &ClassName::constructor().into(), jvm.bootstrap_loader.clone()).unwrap();
             //todo impl these
             push_new_object(jvm, int_state, &constructor_class, None);
             let constructor_object = int_state.pop_current_operand_stack();
@@ -339,7 +339,7 @@ pub mod field {
             signature: JString,
             annotations: Vec<JavaValue>,
         ) -> Self {
-            let field_classfile = check_inited_class(jvm, int_state, &ClassName::field().into(), int_state.current_loader(jvm));
+            let field_classfile = check_inited_class(jvm, int_state, &ClassName::field().into(), int_state.current_loader(jvm)).unwrap();
             push_new_object(jvm, int_state, &field_classfile, None);
             let field_object = int_state.pop_current_operand_stack();
 

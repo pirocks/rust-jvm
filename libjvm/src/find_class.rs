@@ -7,9 +7,9 @@ use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Availab
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType::Ref;
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
-use slow_interpreter::java_values::JavaValue;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -23,7 +23,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     match loaded {
         Result::Err(_) => null_mut(),
         Result::Ok(view) => {
-            new_local_ref_public(get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone()).into(), int_state)
+            new_local_ref_public(get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, jvm.bootstrap_loader.clone()).unwrap().into(), int_state)
         }
     }
 }
@@ -105,6 +105,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         unimplemented!()
     };
 
-    let res = get_or_create_class_object(jvm, &ptype, int_state, jvm.bootstrap_loader.clone());//todo what if not using bootstap loader
+    let res = get_or_create_class_object(jvm, &ptype, int_state, jvm.bootstrap_loader.clone()).unwrap();//todo what if not using bootstap loader
     new_local_ref_public(res.into(), int_state)
 }

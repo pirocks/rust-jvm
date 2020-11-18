@@ -33,7 +33,7 @@ pub mod member_name {
         // private Object type;
         // private int flags;
         pub fn get_name_func(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
-            let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm)).unwrap();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string());
             int_state.pop_current_operand_stack().cast_string()
@@ -106,21 +106,21 @@ pub mod member_name {
         }
 
         pub fn get_method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodType {
-            let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm)).unwrap();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
             int_state.pop_current_operand_stack().cast_method_type()
         }
 
         pub fn get_field_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JClass {
-            let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm)).unwrap();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string());
             int_state.pop_current_operand_stack().cast_class()
         }
 
         pub fn new_member_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, clazz: JClass, name: JString, type_: MethodType, flags: jint, resolution: JavaValue) -> Self {
-            let target_classfile = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            let target_classfile = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm)).unwrap();
             push_new_object(jvm, int_state, &target_classfile, None);
             let obj = int_state.pop_current_operand_stack().cast_member_name();
             obj.set_clazz(clazz);
@@ -132,7 +132,7 @@ pub mod member_name {
         }
 
         pub fn new_self_resolution(jvm: &JVMState, int_state: &mut InterpreterStateGuard, clazz: JClass, name: JString, type_: MethodType, flags: jint) -> Self {
-            let target_classfile = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm));
+            let target_classfile = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm)).unwrap();
             push_new_object(jvm, int_state, &target_classfile, None);
             let obj = int_state.pop_current_operand_stack().cast_member_name();
             obj.set_clazz(clazz);
@@ -206,7 +206,7 @@ pub mod class {
         pub fn from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: ClassName) -> JClass {
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
             let loader_arc = int_state.current_loader(jvm).clone();
-            JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state, loader_arc).into()).cast_class()
+            JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state, loader_arc).unwrap().into()).cast_class()
         }
 
         pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView) -> JClass{
@@ -274,7 +274,7 @@ pub mod string {
         }
 
         pub fn from_rust(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
-            let string_class = check_inited_class(jvm, int_state, &ClassName::string().into(), jvm.bootstrap_loader.clone());
+            let string_class = check_inited_class(jvm, int_state, &ClassName::string().into(), jvm.bootstrap_loader.clone()).unwrap();
             push_new_object(jvm, int_state, &string_class, None);
             // dbg!(int_state.current_frame().local_vars());
             // dbg!(int_state.current_frame().operand_stack());
@@ -293,7 +293,7 @@ pub mod string {
 
         pub fn intern(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
             int_state.push_current_operand_stack(self.clone().java_value());
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::string().into(), jvm.bootstrap_loader.clone());
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::string().into(), jvm.bootstrap_loader.clone()).unwrap();
             run_static_or_virtual(
                 jvm,
                 int_state,
@@ -451,7 +451,7 @@ pub mod thread {
 
 
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thread_group: JThreadGroup, thread_name: String) -> JThread {
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone()).unwrap();
             push_new_object(jvm, int_state, &thread_class, None);
             let thread_object = int_state.pop_current_operand_stack();
             let thread_name = JString::from_rust(jvm, int_state, thread_name);
@@ -471,7 +471,7 @@ pub mod thread {
 
         pub fn is_alive(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> jboolean {
             // assert_eq!(self.normal_object.unwrap_normal_object().class_pointer.view().name(), ClassName::thread());
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone()).unwrap();
             int_state.push_current_operand_stack(self.clone().java_value());
             // dbg!(&self.normal_object);
             run_static_or_virtual(
@@ -487,7 +487,7 @@ pub mod thread {
 
 
         pub fn current_thread(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JThread {
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone());
+            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), jvm.bootstrap_loader.clone()).unwrap();
             run_static_or_virtual(
                 jvm,
                 int_state,
@@ -540,7 +540,7 @@ pub mod thread_group {
     impl JThreadGroup {
         pub fn init(jvm: &JVMState,
                         int_state: &mut InterpreterStateGuard) -> JThreadGroup {
-            let thread_group_class = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), jvm.bootstrap_loader.clone());
+            let thread_group_class = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();
             push_new_object(jvm, int_state, &thread_group_class, None);
             let thread_group_object = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.clone()],
@@ -583,6 +583,42 @@ pub mod thread_group {
     }
 }
 
+
+pub mod class_not_found_exception {
+    use std::sync::Arc;
+
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::java::lang::string::JString;
+    use crate::java_values::JavaValue;
+    use crate::java_values::Object;
+    use crate::jvm_state::JVMState;
+
+    pub struct ClassNotFoundException {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_class_not_found_exception(&self) -> ClassNotFoundException {
+            ClassNotFoundException { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl ClassNotFoundException {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JString) -> ClassNotFoundException {
+            let class_not_found_class = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/ClassNotFoundException".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();
+            push_new_object(jvm, int_state, &class_not_found_class, None);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), class.java_value()],
+                            "(Ljava/lang/String;)V".to_string());
+            this.cast_class_not_found_exception()
+        }
+    }
+}
 
 pub mod system;
 

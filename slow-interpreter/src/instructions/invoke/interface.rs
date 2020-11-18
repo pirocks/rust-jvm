@@ -12,7 +12,7 @@ pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i
     let loader_arc = &int_state.current_loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &view);
     let class_name_ = class_name_type.unwrap_class_type();
-    let _target_class = check_inited_class(jvm, int_state, &class_name_.into(), loader_arc.clone());
+    let _target_class = check_inited_class(jvm, int_state, &class_name_.into(), loader_arc.clone()).unwrap();
     let mut args = vec![];
     let checkpoint = int_state.current_frame().operand_stack().clone();
     setup_virtual_args(int_state.current_frame_mut(), &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);

@@ -22,7 +22,7 @@ pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp:
         int_state,
         &method_class_name.into(),
         loader_arc.clone(),
-    );
+    ).unwrap();
     let (target_m_i, final_target_class) = find_target_method(jvm, loader_arc.clone(), method_name, &parsed_descriptor, target_class);
     let target_m = &final_target_class.view().method_view_i(target_m_i);
     invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone(), target_m);

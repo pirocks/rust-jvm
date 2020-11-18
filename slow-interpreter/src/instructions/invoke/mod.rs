@@ -39,7 +39,7 @@ pub mod dynamic {
             int_state,
             &ClassName::method_handle().into(),
             int_state.current_loader(jvm).clone(),
-        );
+        ).unwrap();
         let _method_type_class = check_inited_class(
             jvm,
             int_state,
@@ -197,7 +197,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         int_state,
         &class_name_.into(),
         loader_arc.clone(),
-    );
+    ).unwrap();
     (resolved_class, expected_method_name, expected_descriptor).into()
 }
 
