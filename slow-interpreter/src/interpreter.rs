@@ -333,7 +333,7 @@ fn run_single_instruction(
         InstructionInfo::dcmpl => dcmpl(interpreter_state.current_frame_mut()),
         InstructionInfo::dconst_0 => dconst_0(interpreter_state.current_frame_mut()),
         InstructionInfo::dconst_1 => dconst_1(interpreter_state.current_frame_mut()),
-        InstructionInfo::ddiv => unimplemented!(),
+        InstructionInfo::ddiv => ddiv(interpreter_state.current_frame_mut()),
         InstructionInfo::dload(i) => dload(interpreter_state.current_frame_mut(), i as usize),
         InstructionInfo::dload_0 => dload(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::dload_1 => dload(interpreter_state.current_frame_mut(), 1),

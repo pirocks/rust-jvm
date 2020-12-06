@@ -21,6 +21,12 @@ pub fn fdiv(current_frame: &mut StackEntry) {
     current_frame.push(JavaValue::Float(value1 / value2));
 }
 
+pub fn ddiv(current_frame: &mut StackEntry) {
+    let value2 = current_frame.pop().unwrap_double();
+    let value1 = current_frame.pop().unwrap_double();
+    current_frame.push(JavaValue::Double(value1 / value2));
+}
+
 pub fn dmul(current_frame: &mut StackEntry) {
     let value2 = current_frame.pop().unwrap_double();
     let value1 = current_frame.pop().unwrap_double();
