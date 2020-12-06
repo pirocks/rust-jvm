@@ -8,9 +8,11 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {
     //todo get rid of these  hardcoded paths
-    let p1 = add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/Desktop/jdk8u232-b09/jre/lib/amd64".to_string());
-    add_prop(env, p1, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string());
-    add_prop(env, p1, "java.home".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/".to_string())
+    // sun.boot.class.path
+    add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/amd64".to_string());
+    add_prop(env, p0, "sun.boot.class.path".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/jce.jar:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes".to_string());
+    add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string());
+    add_prop(env, p0, "java.home".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/".to_string())
 }
 
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jobject {

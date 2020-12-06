@@ -3,8 +3,7 @@ use std::ffi::c_void;
 use std::mem::transmute;
 use std::ptr::null_mut;
 
-use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{jarray, jboolean, JNIEnv, JNINativeInterface_};
+use jvmti_jni_bindings::JNINativeInterface_;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::rust_jni::interface::array::*;
@@ -22,7 +21,7 @@ use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_object_class, get_state};
+use crate::rust_jni::native_util::get_object_class;
 
 //todo this should be in state impl
 thread_local! {
@@ -266,7 +265,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetStringRegion: Some(get_string_region),
         GetStringUTFRegion: Some(get_string_utfregion),
         GetPrimitiveArrayCritical: Some(get_primitive_array_critical),
-        ReleasePrimitiveArrayCritical: None,
+        ReleasePrimitiveArrayCritical: Some(release_primitive_array_critical),
         GetStringCritical: None,
         ReleaseStringCritical: None,
         NewWeakGlobalRef: Some(new_weak_global_ref),
@@ -280,33 +279,6 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
 }
 
 
-unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
-    let not_null = from_object(array).unwrap();
-    let array = not_null.unwrap_array();
-    if !is_copy.is_null() {
-        is_copy.write(true as jboolean);
-    }
-    match array.elem_type {
-        PTypeView::ByteType => {
-            let res = array.elems.borrow().iter().map(|elem| elem.unwrap_byte()).collect::<Vec<_>>();
-            return res.leak().as_mut_ptr() as *mut c_void;
-        }
-        PTypeView::CharType => todo!(),
-        PTypeView::DoubleType => todo!(),
-        PTypeView::FloatType => todo!(),
-        PTypeView::IntType => todo!(),
-        PTypeView::LongType => todo!(),
-        PTypeView::Ref(_) => todo!(),
-        PTypeView::ShortType => todo!(),
-        PTypeView::BooleanType => todo!(),
-        PTypeView::VoidType => todo!(),
-        PTypeView::TopType => todo!(),
-        PTypeView::NullType => todo!(),
-        PTypeView::Uninitialized(_) => todo!(),
-        PTypeView::UninitializedThis => todo!(),
-        PTypeView::UninitializedThisOrClass(_) => todo!(),
-    }
-}
 
 pub mod instance_of;
 pub mod local_frame;
