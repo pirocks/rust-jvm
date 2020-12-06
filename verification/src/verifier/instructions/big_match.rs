@@ -68,7 +68,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dup_x2 => instruction_is_type_safe_dup_x2(env, stack_frame),
         InstructionInfo::dup2 => instruction_is_type_safe_dup2(env, stack_frame),
         InstructionInfo::dup2_x1 => instruction_is_type_safe_dup2_x1(env, stack_frame),
-        InstructionInfo::dup2_x2 => instruction_is_type_safe_dup2_x2(env, offset, stack_frame),
+        InstructionInfo::dup2_x2 => instruction_is_type_safe_dup2_x2(env, stack_frame),
         InstructionInfo::f2d => instruction_is_type_safe_f2d(env, stack_frame),
         InstructionInfo::f2i => instruction_is_type_safe_f2i(env, stack_frame),
         InstructionInfo::f2l => instruction_is_type_safe_f2l(env, stack_frame),

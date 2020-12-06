@@ -125,6 +125,25 @@ pub fn laload(current_frame: &mut StackEntry) {
 }
 
 
+pub fn faload(current_frame: &mut StackEntry) {
+    let index = current_frame.pop().unwrap_int();
+    let temp = current_frame.pop();
+    let unborrowed = temp.unwrap_array();
+    let array_refcell = unborrowed.elems.borrow();
+    let f = array_refcell[index as usize].clone().unwrap_float();
+    current_frame.push(JavaValue::Float(f))
+}
+
+pub fn daload(current_frame: &mut StackEntry) {
+    let index = current_frame.pop().unwrap_int();
+    let temp = current_frame.pop();
+    let unborrowed = temp.unwrap_array();
+    let array_refcell = unborrowed.elems.borrow();
+    let d = array_refcell[index as usize].clone().unwrap_double();
+    current_frame.push(JavaValue::Double(d))
+}
+
+
 pub fn baload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();

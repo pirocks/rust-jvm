@@ -9,6 +9,10 @@ pub fn fconst_1(current_frame: &mut StackEntry) {
     current_frame.push(JavaValue::Float(1.0));
 }
 
+pub fn fconst_2(current_frame: &mut StackEntry) {
+    current_frame.push(JavaValue::Float(2.0));
+}
+
 
 pub fn bipush(current_frame: &mut StackEntry, b: u8) {
     current_frame.push(JavaValue::Int(b as i32))

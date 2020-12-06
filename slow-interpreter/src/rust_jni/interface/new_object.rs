@@ -75,8 +75,14 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
             PTypeView::CharType => unimplemented!(),
             PTypeView::DoubleType => unimplemented!(),
             PTypeView::FloatType => unimplemented!(),
-            PTypeView::IntType => unimplemented!(),
-            PTypeView::LongType => unimplemented!(),
+            PTypeView::IntType => {
+                let int: i32 = l.arg();
+                int_state.push_current_operand_stack(JavaValue::Int(int))
+            },
+            PTypeView::LongType => {
+                let long: i64 = l.arg();
+                int_state.push_current_operand_stack(JavaValue::Long(long))
+            }
             PTypeView::Ref(_) => {
                 let native_object: jobject = l.arg();
                 let o = from_object(native_object);

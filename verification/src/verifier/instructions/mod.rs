@@ -463,7 +463,7 @@ pub fn dup2_x1form2_is_type_safe(env: &Environment, input_frame: OperandStack) -
 //
 
 
-pub fn instruction_is_type_safe_dup2_x2(env: &Environment, offset: usize, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_dup2_x2(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let Frame { locals, stack_map: input_stack, flag_this_uninit: flags } = stack_frame;
     let output = dup2_x2form_is_type_safe(env, input_stack)?;
     let next_frame = Frame {

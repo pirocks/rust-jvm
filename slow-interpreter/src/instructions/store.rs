@@ -74,6 +74,15 @@ pub fn fastore(current_frame: &mut StackEntry) {
 }
 
 
+pub fn dastore(current_frame: &mut StackEntry) {
+    let val = current_frame.pop().unwrap_double();
+    let index = current_frame.pop().unwrap_int();
+    let array_ref_o = current_frame.pop().unwrap_object().unwrap();
+    let array_ref = &mut array_ref_o.unwrap_array().elems.borrow_mut();
+    array_ref[index as usize] = JavaValue::Double(val);
+}
+
+
 pub fn iastore(current_frame: &mut StackEntry) {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
