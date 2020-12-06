@@ -69,6 +69,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     //     run_tests(jvm, int_state);
     //     Result::Ok(())
     // } else {
+    dbg!(&jvm.main_class_name);
     let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone()).unwrap();
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());

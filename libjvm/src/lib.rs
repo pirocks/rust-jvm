@@ -1,3 +1,4 @@
+#![feature(box_syntax)]
 //#![feature(asm)]
 
 #![allow(non_snake_case)]

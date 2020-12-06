@@ -43,3 +43,5 @@ macro_rules! as_object_or_java_value {
 pub mod lang;
 #[macro_use]
 pub mod util;
+#[macro_use]
+pub mod nio;

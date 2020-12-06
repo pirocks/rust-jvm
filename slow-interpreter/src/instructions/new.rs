@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use classfile_view::loading::ClassLoadingError;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{Atype, MultiNewArray};
@@ -8,14 +7,13 @@ use rust_jvm_common::classfile::{Atype, MultiNewArray};
 use crate::{InterpreterStateGuard, JVMState};
 use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
-use crate::runtime_class::RuntimeClass;
 
 pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     let loader_arc = &int_state.current_frame_mut().class_pointer().loader(jvm);
     let view = &int_state.current_frame_mut().class_pointer().view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
-    int_state.print_stack_trace();
-    dbg!(target_class_name);
+    // int_state.print_stack_trace();
+    // dbg!(target_class_name);
     let target_classfile = match check_inited_class(jvm, int_state, &target_class_name.clone().into(), loader_arc.clone()) {
         Ok(target_classfile) => target_classfile,
         Err(_) => {

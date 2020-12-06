@@ -15,6 +15,8 @@ use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main,
 use crate::interpreter::run_function;
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
 use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::java::lang::string::JString;
+use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
@@ -109,6 +111,11 @@ impl ThreadState {
         if int_state.throw().is_some() || *int_state.terminate() {
             unimplemented!()
         }
+        //todo read and copy props here
+        let key = JString::from_rust(jvm, int_state, "java.home".to_string());
+        let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/".to_string());
+        System::props(jvm, int_state).set_property(jvm, int_state, key, value);
+
         int_state.pop_frame(init_frame_guard);
     }
 

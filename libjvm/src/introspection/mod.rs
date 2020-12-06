@@ -176,6 +176,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
         int_state,
         int_state.current_loader(jvm).clone(),
     );
+    //todo exception making code maybe should be here idk
     match class_lookup_result {
         Ok(class_object) => new_local_ref_public(Some(class_object), int_state),
         Err(_) => null_mut()

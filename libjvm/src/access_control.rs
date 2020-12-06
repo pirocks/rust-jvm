@@ -26,7 +26,7 @@ unsafe extern "system" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action
     int_state.push_current_operand_stack(JavaValue::Object(action));
     //todo shouldn't this be invoke_virtual
     invoke_virtual_method_i(jvm, int_state, expected_descriptor, runtime_class.clone(), run_method.method_i(), &run_method);
-    int_state.print_stack_trace();
+    // int_state.print_stack_trace();
     if int_state.throw().is_some() {
         return null_mut();
     }

@@ -382,7 +382,7 @@ fn run_single_instruction(
         InstructionInfo::fstore_2 => fstore(interpreter_state.current_frame_mut(), 2),
         InstructionInfo::fstore_3 => fstore(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::fsub => unimplemented!(),
-        InstructionInfo::getfield(cp) => get_field(interpreter_state.current_frame_mut(), cp, false),
+        InstructionInfo::getfield(cp) => get_field(interpreter_state, cp, false),
         InstructionInfo::getstatic(cp) => get_static(jvm, interpreter_state, cp),
         InstructionInfo::goto_(target) => goto_(interpreter_state.current_frame_mut(), target),
         InstructionInfo::goto_w(_) => unimplemented!(),

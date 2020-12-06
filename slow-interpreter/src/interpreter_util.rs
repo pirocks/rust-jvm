@@ -210,6 +210,8 @@ fn check_inited_class_impl(
             int_state.set_throw(class_not_found_exception.object().into());
             err
         } else {
+            dbg!(class_name);
+            int_state.print_stack_trace();
             panic!()
         }
     })?;

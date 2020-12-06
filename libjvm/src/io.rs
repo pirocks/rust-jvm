@@ -1,13 +1,17 @@
-use jvmti_jni_bindings::{jint, jlong};
+use std::ffi::CStr;
+
+use jvmti_jni_bindings::{fopen, jint, jlong};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NativePath(arg1: *mut ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char {
-    unimplemented!()
+    // dbg!(CStr::from_ptr(arg1).to_str().unwrap());
+    arg1
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Open(fname: *const ::std::os::raw::c_char, flags: jint, mode: jint) -> jint {
-    unimplemented!()
+    assert_eq!(flags, 0);
+    libc::open(fname, mode)
 }
 
 

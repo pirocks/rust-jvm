@@ -12,6 +12,7 @@ use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::interpreter::monitor_for_function;
 use crate::interpreter_util::check_inited_class;
+use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
@@ -100,6 +101,11 @@ pub fn run_native_method(
                     Java_java_lang_invoke_MethodHandleNatives_getMembers(&mut args)
                 } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
                     unimplemented!()
+                } else if &mangled == "Java_sun_misc_Perf_registerNatives" {
+                    //todo not really sure what to do here, for now nothing
+                    None
+                } else if &mangled == "Java_sun_misc_Perf_createLong" {
+                    Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8).java_value())//todo this is incorrect and should be implemented properly.
                 } else {
                     int_state.print_stack_trace();
                     dbg!(mangled);

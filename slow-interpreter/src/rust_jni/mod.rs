@@ -40,14 +40,17 @@ impl LibJavaLoading {
         let nio_path = path.replace("libjava.so", "libnio.so");
         let awt_path = path.replace("libjava.so", "libawt.so");
         let xawt_path = path.replace("libjava.so", "libawt_xawt.so");
+        let zip_path = path.replace("libjava.so", "libzip.so");
         let nio_lib = Library::new(nio_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
         let libawt = Library::new(awt_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
         let libxawt = Library::new(xawt_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
+        let libzip = Library::new(zip_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
         LibJavaLoading {
             libjava: lib,
             libnio: nio_lib,
             libawt,
             libxawt,
+            libzip,
             registered_natives: RwLock::new(HashMap::new()),
         }
     }
@@ -77,8 +80,14 @@ pub fn call(
                                     //todo maybe do something about this nesting lol
                                     match state.libjava.libxawt.get(mangled.as_bytes()) {
                                         Ok(o) => o,
-                                        Err(e) => {
-                                            return Result::Err(e);
+                                        Err(_) => {
+                                            //todo maybe do something about this nesting lol
+                                            match state.libjava.libzip.get(mangled.as_bytes()) {
+                                                Ok(o) => o,
+                                                Err(e) => {
+                                                    return Result::Err(e);
+                                                }
+                                            }
                                         }
                                     }
                                 }

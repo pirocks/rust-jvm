@@ -69,13 +69,20 @@ fn get_static_impl(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: 
     stack.push(field_value);
 }
 
-pub fn get_field(current_frame: &mut StackEntry, cp: u16, _debug: bool) {
+pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let view = &current_frame.class_pointer().view();
     let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let object_ref = current_frame.pop();
     match object_ref {
         JavaValue::Object(o) => {
-            let fields = o.as_ref().unwrap().unwrap_normal_object().fields.borrow();
+            let fields = match o.as_ref() {
+                Some(x) => x,
+                None => {
+                    int_state.print_stack_trace();
+                    unimplemented!()
+                }
+            }.unwrap_normal_object().fields.borrow();
             if fields.get(field_name.as_str()).is_none() {
                 dbg!(&o);
                 dbg!(&fields.keys());

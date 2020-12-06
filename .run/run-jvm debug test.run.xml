@@ -14,6 +14,7 @@
       <env name="JNI_H" value="$USER_HOME$/Desktop/jdk8u232-b09/include/" />
       <env name="RUSTFLAGS" value="-C force-frame-pointers=y" />
       <env name="RUST_BACKTRACE" value="full" />
+      <env name="RUSTC_WRAPPER" value="$USER_HOME$/.cargo/bin/sccache"/>
     </envs>
     <method v="2">
       <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
