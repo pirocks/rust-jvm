@@ -2,12 +2,11 @@ pub mod heap_byte_buffer {
     use std::sync::Arc;
 
     use classfile_view::view::ptype_view::PTypeView;
-    use jvmti_jni_bindings::{jbyte, jint, JVM_Available};
+    use jvmti_jni_bindings::{jbyte, jint};
     use rust_jvm_common::classnames::ClassName;
 
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
-    use crate::java::lang::string::JString;
     use crate::java_values::{ArrayObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -23,7 +22,7 @@ pub mod heap_byte_buffer {
 
     impl HeapByteBuffer {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, buf: Vec<jbyte>, off: jint, len: jint) -> Self {
-            let heap_byte_buffer_class = check_inited_class(jvm, int_state, &ClassName::Str("HeapByteBuffer".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();
+            let heap_byte_buffer_class = check_inited_class(jvm, int_state, &ClassName::Str("java/nio/HeapByteBuffer".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();
             push_new_object(jvm, int_state, &heap_byte_buffer_class, None);
             let thread_object = int_state.pop_current_operand_stack();
 
