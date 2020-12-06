@@ -223,10 +223,22 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
                     let res = &mut arr.elems.borrow_mut()[array_idx];
                     *res = JavaValue::Object(from_object(to_put));
                 }
-                Object::Object(_) => unimplemented!(),
+                Object::Object(obj) => {
+                    let field_id = offset as FieldId;
+                    let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
+                    let field_view = runtime_class.view().field(i as usize);
+                    assert!(!field_view.is_static());
+                    let name = field_view.field_name();
+                    obj.fields.borrow_mut().insert(name, JavaValue::Object(from_object(to_put)));
+                },
             }
         }
     }
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putObject(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, to_put: jobject) {
+    Java_sun_misc_Unsafe_putObjectVolatile(env, the_unsafe, obj, offset, to_put)
 }
 
 pub mod defineClass;

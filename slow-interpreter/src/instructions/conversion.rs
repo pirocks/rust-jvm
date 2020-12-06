@@ -66,3 +66,8 @@ pub fn d2l(current_frame: &mut StackEntry) {
     let f = current_frame.pop().unwrap_double();
     current_frame.push(JavaValue::Long(f as i64))
 }
+
+pub fn d2f(current_frame: &mut StackEntry) {
+    let f = current_frame.pop().unwrap_double();
+    current_frame.push(JavaValue::Float(f as f32))
+}

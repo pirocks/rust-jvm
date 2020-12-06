@@ -323,7 +323,7 @@ fn run_single_instruction(
         InstructionInfo::caload => caload(jvm, interpreter_state),
         InstructionInfo::castore => castore(interpreter_state.current_frame_mut()),
         InstructionInfo::checkcast(cp) => invoke_checkcast(jvm, interpreter_state, cp),
-        InstructionInfo::d2f => unimplemented!(),
+        InstructionInfo::d2f => d2f(interpreter_state.current_frame_mut()),
         InstructionInfo::d2i => d2i(interpreter_state.current_frame_mut()),
         InstructionInfo::d2l => d2l(interpreter_state.current_frame_mut()),
         InstructionInfo::dadd => dadd(interpreter_state.current_frame_mut()),
