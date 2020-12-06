@@ -93,7 +93,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
             let field_name = field.field_name();
             let mut fields_borrow = normal_obj.fields.borrow_mut();
             let curval = fields_borrow.get(field_name.as_str()).unwrap();
-            ((if to_object(curval.unwrap_object()) == old {
+            let old = from_object(old);
+            ((if (curval.unwrap_object().is_none() && old.is_none()) || (curval.unwrap_object().is_some() && old.is_some() && Arc::ptr_eq(&curval.unwrap_object().unwrap(), &old.unwrap())) {
                 fields_borrow.insert(field_name, JavaValue::Object(from_object(new)));
                 1
             } else {

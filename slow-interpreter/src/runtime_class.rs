@@ -186,6 +186,7 @@ pub fn initialize_class(
     //todo create a extract string which takes index. same for classname
     {
         let view = &runtime_class.view();
+        dbg!(view.name());
         for field in view.fields() {
             if field.is_static() && field.is_final() {
                 //todo do I do this for non-static? Should I?
