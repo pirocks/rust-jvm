@@ -22,8 +22,13 @@ use crate::verifier::TypeSafetyError;
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
     let Frame { locals, stack_map: input_operand_stack, flag_this_uninit } = input_frame;
+    // dbg!("17");
+    // dbg!(&expected_types_on_stack);
+    // dbg!(&input_operand_stack);
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
+    // dbg!("18");
     let next_operand_stack = push_operand_stack(&env.vf, interim_operand_stack, &result_type);
+    // dbg!("19");
     if operand_stack_has_legal_length(env, &next_operand_stack) {
         Result::Ok(Frame { locals, stack_map: next_operand_stack, flag_this_uninit })
     } else {
@@ -143,7 +148,9 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
 pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, method.class);
     let method_view = method_class.method_view_i(method.method_index as usize);
+    // dbg!(method_view.name());
     does_not_override_final_method(vf, class, method)?;
+    // dbg!("1");
     if method_view.is_native() || method_view.is_abstract(){
         Result::Ok(())
     } else {
@@ -186,6 +193,7 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
 
 pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, class);
+    // dbg!("2");
     let method_info = &method_class.method_view_i(method.method_index);
     let code = method_info.code_attribute().unwrap();//todo add CodeView
     let frame_size = code.max_locals;
@@ -203,9 +211,12 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
     let handlers = get_handlers(vf, class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, class, method_info);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().collect());
+    // dbg!("3");
     let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size);
+    // dbg!("4");
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
     handlers_are_legal(&env)?;
+    // dbg!("5");
     merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(frame))?;/*{
         Ok(_) => Result::Ok(()),
         Err(_) => {

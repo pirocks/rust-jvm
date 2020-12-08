@@ -172,6 +172,20 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getByte__J(env: *mut JNIEnv, the_
 
 
 #[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getInt__J(env: *mut JNIEnv, the_unsafe: jobject, ptr: jlong) -> i32 {
+    let ptr: *mut i32 = transmute(ptr);
+    ptr.read()
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getLong__J(env: *mut JNIEnv, the_unsafe: jobject, ptr: jlong) -> i64 {
+    let ptr: *mut i64 = transmute(ptr);
+    ptr.read()
+}
+
+
+#[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_freeMemory(env: *mut JNIEnv, the_unsafe: jobject, ptr: jlong) {
     libc::free(transmute(ptr))
 }

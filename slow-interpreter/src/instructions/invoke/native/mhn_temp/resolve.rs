@@ -182,7 +182,9 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
             } else if ref_kind == JVM_REF_invokeInterface {
                 unimplemented!()
             } else if ref_kind == JVM_REF_invokeSpecial {
-                unimplemented!()
+                //todo this is incorrect b/c it will get the virtual function
+                let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone());
+                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false);
             } else {
                 panic!()
             }

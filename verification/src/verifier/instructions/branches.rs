@@ -296,26 +296,38 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
         class_name: ClassName::Str(method_class_name.to_string()),
         loader: current_loader.clone(),
     });
-    is_assignable(&env.vf, &current_class, &method_class)?;
+    // dbg!("10");
+    // dbg!(&current_class);
+    // dbg!(&method_class);
+    // is_assignable(&env.vf, &current_class, &method_class)?;//todo the spec puts this here, but I think the spec is wrong
+    // dbg!("11");
     let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| {
         PTypeView::from_ptype(x).to_verification_type(&env.class_loader)
     }).collect();
+    // dbg!("12");
     operand_arg_list_copy.push(current_class);
     let return_type = &PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);
+    // dbg!("13");
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types
         .iter().rev()
         .map(|x| { PTypeView::from_ptype(&x).to_verification_type(&env.class_loader) })
         .collect();
+    // dbg!("14");
     operand_arg_list_copy2.push(method_class);
-    valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame.clone())?;//todo uneeded clone
-    let next_frame = valid_type_transition(
-        env,
-        operand_arg_list_copy,
-        &return_type,
-        stack_frame,
-    )?;
+    let next_frame = valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame.clone())?;//todo uneeded clone
+    // dbg!("15");
+    // dbg!(&operand_arg_list_copy);
+    // dbg!(&return_type);
+    // dbg!(&stack_frame);
+    // let next_frame = valid_type_transition(
+    //     env,
+    //     operand_arg_list_copy,
+    //     &return_type,
+    //     stack_frame,
+    // )?;
+    // dbg!("16");
     let exception_frame = exception_stack_frame(locals, flag);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
 }

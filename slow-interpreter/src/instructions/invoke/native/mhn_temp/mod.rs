@@ -82,15 +82,18 @@ pub fn create_method_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
 pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
     let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
     let res_fun = class.view().lookup_method(&method_name, &parsed_desc);//todo move this into classview
-    let method_view = res_fun.unwrap();//todo and if this fails
+    let method_view = match res_fun {
+        Some(x) => x,
+        None => unimplemented!(),
+    };//todo and if this fails
     let md = method_view.desc();
     if method_view.is_static() {
         // dbg!(int_state.current_frame().operand_stack_types());
         // dbg!(&md);
         // dbg!(method_name);
-        // dbg!(method_view.name());
-        // dbg!(class.view().name());
-        // dbg!(method_view.desc_str());
+        dbg!(method_view.name());
+        dbg!(class.view().name());
+        dbg!(method_view.desc_str());
         invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info());
         // dbg!(int_state.current_frame().operand_stack_types());
     } else {

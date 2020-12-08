@@ -435,7 +435,7 @@ fn run_single_instruction(
         InstructionInfo::ineg => ineg(interpreter_state.current_frame_mut()),
         InstructionInfo::instanceof(cp) => invoke_instanceof(jvm, interpreter_state, cp),
         InstructionInfo::invokedynamic(cp) => {
-            // interpreter_state.get_current_frame().print_stack_trace();
+            interpreter_state.print_stack_trace();
             invoke_dynamic(jvm, interpreter_state, cp)
         }
         InstructionInfo::invokeinterface(invoke_i) => invoke_interface(jvm, interpreter_state, invoke_i),

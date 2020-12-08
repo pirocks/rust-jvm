@@ -55,9 +55,9 @@ fn invoke_virtual_method_i_impl(
         // dbg!(op_stack.len());
         let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
         //
-        // dbg!(current_frame.operand_stack_types());
+        dbg!(current_frame.operand_stack_types());
         // dbg!(&expected_descriptor);
-        // dbg!(method_handle.clone().java_value().to_type());
+        dbg!(method_handle.clone().java_value().to_type());
         let form: LambdaForm = method_handle.get_form();
         // dbg!(form.clone().java_value());
         let vmentry: MemberName = form.get_vmentry();
@@ -66,7 +66,8 @@ fn invoke_virtual_method_i_impl(
             //todo handle void return
             assert_ne!(expected_descriptor.return_type, PType::VoidType);
             // dbg!(interpreter_state.current_frame().operand_stack_types());
-            // dbg!(expected_descriptor);
+            dbg!(expected_descriptor);
+            dbg!(vmentry.get_method_type(jvm, interpreter_state).get_ptypes_as_types());
             let res = call_vmentry(jvm, interpreter_state, vmentry);
             // dbg!(interpreter_state.current_frame().operand_stack_types());
             // let _method_handle_old = interpreter_state.pop_current_operand_stack();

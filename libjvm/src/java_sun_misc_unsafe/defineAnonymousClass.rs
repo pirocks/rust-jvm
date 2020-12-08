@@ -50,6 +50,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let class_name = class_view.name();
     bootstrap_loader.add_pre_loaded(&class_name, &parsed);
     // frame.print_stack_trace();
+    // dbg!(&class_name);
     match verify(&vf, &class_view, bootstrap_loader.clone()) {
         Ok(_) => {}
         Err(_) => panic!(),

@@ -249,11 +249,26 @@ pub mod method_handle {
         pub fn internal_member_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MemberName {
             let method_handle_class = check_inited_class(jvm, int_state, &ClassName::method_handle().into(), int_state.current_loader(jvm)).unwrap();
             int_state.push_current_operand_stack(self.clone().java_value());
+            dbg!(self.normal_object.unwrap_normal_object().class_pointer.view().name());
             run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MethodHandle;".to_string());
             int_state.pop_current_operand_stack().cast_member_name()
         }
 
+        pub fn type__(&self) -> MethodType {
+            self.normal_object.lookup_field("type").cast_method_type()
+        }
+
+        pub fn type_(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodType {
+            let method_handle_class = check_inited_class(jvm, int_state, &ClassName::method_type().into(), int_state.current_loader(jvm)).unwrap();
+            int_state.push_current_operand_stack(self.clone().java_value());
+            dbg!(self.normal_object.unwrap_normal_object().class_pointer.view().name());
+            run_static_or_virtual(jvm, int_state, &method_handle_class, "type".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
+            int_state.pop_current_operand_stack().cast_method_type()
+        }
+
+
         getter_gen!(form,LambdaForm,cast_lambda_form);
+
 
         as_object_or_java_value!();
     }
@@ -295,6 +310,17 @@ pub mod method_handle {
             int_state.push_current_operand_stack(name.java_value());
             int_state.push_current_operand_stack(mt.java_value());
             run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string());
+            int_state.pop_current_operand_stack().cast_method_handle()
+        }
+
+        pub fn find_special(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType, special_caller: JClass) -> MethodHandle {
+            let lookup_class = check_inited_class(jvm, int_state, &ClassName::lookup().into(), int_state.current_loader(jvm).clone()).unwrap();
+            int_state.push_current_operand_stack(self.clone().java_value());
+            int_state.push_current_operand_stack(obj.java_value());
+            int_state.push_current_operand_stack(name.java_value());
+            int_state.push_current_operand_stack(mt.java_value());
+            int_state.push_current_operand_stack(special_caller.java_value());
+            run_static_or_virtual(jvm, int_state, &lookup_class, "findSpecial".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;".to_string());
             int_state.pop_current_operand_stack().cast_method_handle()
         }
 

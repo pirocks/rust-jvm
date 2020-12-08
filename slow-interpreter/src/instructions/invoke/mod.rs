@@ -19,7 +19,7 @@ pub mod static_;
 
 pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
-    use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeStatic, MethodHandleView, ReferenceData};
+    use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceData};
     use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
     use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -96,6 +96,10 @@ pub mod dynamic {
                     }
                 }
             }
+            ReferenceData::InvokeSpecial(is) => match is {
+                InvokeSpecial::Interface(_) => todo!(),
+                InvokeSpecial::Method(_) => todo!()
+            }
         };
 
         //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
@@ -123,12 +127,31 @@ pub mod dynamic {
         //todo theres a MHN native for this upcall
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke.method_i(), invoke);
         let call_site = int_state.pop_current_operand_stack().cast_call_site();
+        dbg!(call_site.to_string(jvm, int_state).to_rust_string());
         let target = call_site.get_target(jvm, int_state);
+        dbg!(target.to_string(jvm, int_state).to_rust_string());
+        // dbg!(target.)
         let method_handle_clone = method_handle_class.clone();
         let lookup_res = method_handle_clone.view().lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
-        int_state.push_current_operand_stack(target.java_value());
-        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: vec![], return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke.method_i(), invoke);
+        let args = if int_state.current_frame().operand_stack().is_empty() { vec![] } else {
+            dbg!(target.to_string(jvm, int_state).to_rust_string());
+            let method_type = target.type__();
+            method_type.get_ptypes_as_types()
+        }; //todo also sketch
+        int_state.current_frame_mut().operand_stack_mut().insert(0, target.java_value());//todo sketch af
+        // int_state.push_current_operand_stack(target.java_value());
+        // let target_method_type = call_site.get_target(jvm, int_state).internal_member_name(jvm, int_state).get_method_type(jvm, int_state);
+        // let num_params = target_method_type.get_ptypes_as_types().len();
+        // let operand_stack = int_state.current_frame_mut().operand_stack_mut();
+        // let len = operand_stack.len();
+        // assert!(target_method_type.is sratic)
+        // [(len - 1 - num_params)..(len - 1)].reverse();
+        dbg!(int_state.current_frame().operand_stack_types());
+        //todo not passing final call args?
+        int_state.print_stack_trace();
+        dbg!(&args);
+        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke.method_i(), invoke);
 
         assert!(int_state.throw().is_none());
 
@@ -159,6 +182,23 @@ pub mod dynamic {
                         let target_class = JClass::from_name(jvm, int_state, mr.class());
                         lookup.find_static(jvm, int_state, target_class, name, method_type)
                     }
+                }
+            }
+            ReferenceData::InvokeSpecial(is) => {
+                match is {
+                    InvokeSpecial::Interface(_) => todo!(),
+                    InvokeSpecial::Method(mr) =>
+                        {
+                            //todo dupe
+                            let lookup = Lookup::trusted_lookup(jvm, int_state);
+                            let name = JString::from_rust(jvm, int_state, mr.name_and_type().name());
+                            let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str());
+                            let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None);
+                            let target_class = JClass::from_name(jvm, int_state, mr.class());
+                            let not_sure_if_correct_at_all = int_state.current_frame().class_pointer().view().name();
+                            let special_caller = JClass::from_name(jvm, int_state, not_sure_if_correct_at_all);
+                            lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)
+                        }
                 }
             }
         }

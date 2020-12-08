@@ -101,9 +101,12 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn pop_current_operand_stack(&mut self) -> JavaValue {
+        if self.int_state.as_ref().unwrap().call_stack.last().unwrap().operand_stack().is_empty() {
+            self.print_stack_trace();
+            panic!()
+        }
         let int_state = self.int_state.as_mut().unwrap();
         let current_frame = int_state.call_stack.last_mut().unwrap();
-        assert_ne!(current_frame.operand_stack().len(), 0);
         current_frame.operand_stack_mut().pop().unwrap()
     }
 

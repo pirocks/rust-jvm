@@ -217,7 +217,19 @@ impl MethodHandleView<'_> {
                 };
                 ReferenceData::InvokeStatic(invoke_static)
             }
-            ReferenceKind::InvokeSpecial => unimplemented!(),
+            ReferenceKind::InvokeSpecial => {
+                assert!(self.class_view.backing_class.major_version >= 52);
+                let reference_idx = self.get_raw().reference_index as usize;
+                let invoke_special = match &self.class_view.backing_class.constant_pool[reference_idx].kind {
+                    ConstantKind::Methodref(_) => InvokeSpecial::Method(MethodrefView { class_view: self.class_view, i: reference_idx }),
+                    ConstantKind::InterfaceMethodref(_) => InvokeSpecial::Interface(InterfaceMethodrefView { class_view: self.class_view, i: reference_idx }),
+                    ck => {
+                        dbg!(ck);
+                        panic!()
+                    }
+                };
+                ReferenceData::InvokeSpecial(invoke_special)
+            }
             ReferenceKind::NewInvokeSpecial => unimplemented!(),
             ReferenceKind::InvokeInterface => unimplemented!(),
         }
@@ -227,6 +239,7 @@ impl MethodHandleView<'_> {
 //todo need a better name
 pub enum ReferenceData<'cl> {
     InvokeStatic(InvokeStatic<'cl>),
+    InvokeSpecial(InvokeSpecial<'cl>),
 }
 
 pub enum InvokeStatic<'cl> {
@@ -239,6 +252,11 @@ impl InvokeStatic<'_> {
     // pub fn
 }
 
+pub enum InvokeSpecial<'cl> {
+    Interface(InterfaceMethodrefView<'cl>),
+    //todo should this be a thing
+    Method(MethodrefView<'cl>),
+}
 
 #[derive(Debug)]
 pub struct MethodTypeView<'cl> {
