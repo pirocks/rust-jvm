@@ -130,6 +130,15 @@ impl Monitor {
         jvm.tracing.trace_monitor_notify(self, jvm);
         self.condvar.notify_one();
     }
+
+    pub fn this_thread_holds_lock(&self, jvm: &JVMState) -> bool {
+        match self.owned.read().unwrap().owner.as_ref() {
+            None => false,
+            Some(owner_tid) => {
+                *owner_tid == Monitor::get_tid(jvm)
+            }
+        }
+    }
 }
 
 pub struct MonitorOwnedBySomeoneElse {}

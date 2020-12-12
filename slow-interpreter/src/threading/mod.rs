@@ -414,6 +414,11 @@ impl JavaThread {
         self.status.read().unwrap().alive
     }
 
+    pub fn is_interrupted(&self) -> bool {
+        self.status.read().unwrap().interrupted //todo should probably query suspended status as well
+    }
+
+
     pub fn notify_terminated(&self) {
         let mut status = self.status.write().unwrap();
 

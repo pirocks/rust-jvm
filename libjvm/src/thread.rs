@@ -14,7 +14,7 @@ use parking_lot::Mutex;
 
 use classfile_view::view::ptype_view::PTypeView;
 use descriptor_parser::MethodDescriptor;
-use jvmti_jni_bindings::{jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring};
+use jvmti_jni_bindings::{jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 use slow_interpreter::interpreter::run_function;
@@ -105,19 +105,19 @@ unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, clearInterrupted: jboolean) -> jboolean {
+    let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
-    false as jboolean//todo impl
+    let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
+    let thread = thread_object.get_java_thread(jvm);
+    thread.is_interrupted() as jboolean
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_HoldsLock(env: *mut JNIEnv, threadClass: jclass, obj: jobject) -> jboolean {
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
-    //todo impl this
-    // assert!(CALLED_ONCE);
-    // CALLED_ONCE = false;
-    true as jboolean
+    let jvm = get_state(env);
+    let monitor = &JavaValue::Object(from_object(obj)).unwrap_normal_object().monitor;
+    monitor.this_thread_holds_lock(jvm) as jboolean
 }
 
 #[no_mangle]
