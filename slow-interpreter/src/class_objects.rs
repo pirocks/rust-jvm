@@ -52,10 +52,10 @@ fn regular_class_object(state: &JVMState, ptype: PTypeView, int_state: &mut Inte
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
                 let jstring = JString::from_rust(state, int_state, runtime_class.ptypeview().primitive_name().to_string());
-                r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), jstring.java_value());
+                r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
             }/*else if !runtime_class.ptypeview().is_array() {
                 let jstring = JString::from(state, int_state, runtime_class.ptypeview().unwrap_class_type().get_referred_name().to_string());
-                r.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), jstring.java_value());
+                r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
             }*/
             r
         }
@@ -77,12 +77,12 @@ fn create_a_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
             let bootstrap_arc = boostrap_loader_object.clone();
             if boostrap_loader_object.unwrap_object().is_some()
             {
-                bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("assertionLock".to_string(), boostrap_loader_object.clone());//itself...
-                bootstrap_arc.unwrap_normal_object().fields.borrow_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
-                o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), JavaValue::Object(None));
+                bootstrap_arc.unwrap_normal_object().fields_mut().insert("assertionLock".to_string(), boostrap_loader_object.clone());//itself...
+                bootstrap_arc.unwrap_normal_object().fields_mut().insert("classAssertionStatus".to_string(), JavaValue::Object(None));
+                o.as_ref().unwrap().unwrap_normal_object().fields_mut().insert("classLoader".to_string(), JavaValue::Object(None));
             }
             if !jvm.system_domain_loader {
-                o.as_ref().unwrap().unwrap_normal_object().fields.borrow_mut().insert("classLoader".to_string(), boostrap_loader_object);
+                o.as_ref().unwrap().unwrap_normal_object().fields_mut().insert("classLoader".to_string(), boostrap_loader_object);
             }
         }
         _ => panic!(),

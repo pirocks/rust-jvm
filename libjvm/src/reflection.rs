@@ -30,7 +30,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     assert_eq!(obj, std::ptr::null_mut());//non-static methods not supported atm.
     let method_obj = from_object(method).unwrap();
     let args_not_null = from_object(args0).unwrap();
-    let args_refcell = args_not_null.unwrap_array().elems.borrow();
+    let args_refcell = args_not_null.unwrap_array().mut_array();
     let args = args_refcell.deref();
     let method_name = string_obj_to_string(method_obj.lookup_field("name").unwrap_object());
     let signature = string_obj_to_string(method_obj.lookup_field("signature").unwrap_object());
@@ -62,7 +62,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     } else {
         let temp_1 = from_object(args0).unwrap();
         let array_temp = temp_1.unwrap_array().borrow();
-        let elems_refcell = array_temp.elems.borrow();
+        let elems_refcell = array_temp.mut_array();
         elems_refcell.clone()
     };
     let constructor_obj = from_object(c).unwrap();

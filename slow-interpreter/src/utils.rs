@@ -42,7 +42,7 @@ pub fn lookup_method_parsed_impl(state: &JVMState, class: Arc<RuntimeClass>, nam
 pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
     let temp = str_obj.unwrap().lookup_field("value");
     let chars = temp.unwrap_array();
-    let borrowed_elems = chars.elems.borrow();
+    let borrowed_elems = chars.mut_array();
     let mut res = String::new();
     for char_ in borrowed_elems.deref() {
         res.push(char_.unwrap_char() as u8 as char);

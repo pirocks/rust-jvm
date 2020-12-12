@@ -197,6 +197,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
             dbg!(method_view.desc_str());
             dbg!(method_view.classview().name());
             dbg!(method_name);
+            int_state.print_stack_trace();
             panic!()
         }
     }.deref() {

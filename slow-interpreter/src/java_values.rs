@@ -1,11 +1,14 @@
-use std::cell::{RefCell, RefMut};
+use std::borrow::Borrow;
+use std::cell::{RefCell, RefMut, UnsafeCell};
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
 use std::sync::Arc;
 
+use classfile_parser::parse_validation::ValidatorSettings;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classfile::String_;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_state::InterpreterStateGuard;
@@ -75,7 +78,9 @@ impl CycleDetectingDebug for Object {
         match &self {
             Object::Array(a) => {
                 write!(f, "[")?;
-                a.elems.borrow().iter().for_each(|x| {
+                unsafe {
+                    a.elems.get().as_ref().unwrap()
+                }.iter().for_each(|x| {
                     x.cycle_fmt(prev, f).unwrap();
                     write!(f, ",").unwrap();
                 });
@@ -94,7 +99,7 @@ impl CycleDetectingDebug for NormalObject {
         if o.class_pointer.view().name() == ClassName::class() {
             write!(f, "(Class Object:{:?})", o.class_object_type.as_ref().unwrap().ptypeview())?;//todo needs a JClass type interface
         } else if o.class_pointer.view().name() == ClassName::string() {
-            let fields_borrow = o.fields.borrow();
+            let fields_borrow = o.fields_mut();
             let value_field = fields_borrow.get("value").unwrap();
             match &value_field.unwrap_object() {
                 None => {
@@ -109,7 +114,7 @@ impl CycleDetectingDebug for NormalObject {
             write!(f, "-")?;
 //        write!(f, "{:?}", self.class_pointer.static_vars)?;
             write!(f, "-")?;
-            o.fields.borrow().iter().for_each(|(n, v)| {
+            o.fields_mut().iter().for_each(|(n, v)| {
                 write!(f, "({},", n).unwrap();
                 v.cycle_fmt(prev, f).unwrap();
                 write!(f, ")").unwrap();
@@ -223,9 +228,13 @@ impl JavaValue {
     }
 
     pub fn unwrap_object_nonnull(&self) -> Arc<Object> {
-        self.try_unwrap_object()
-            .unwrap()
-            .unwrap()
+        match match self.try_unwrap_object() {
+            Some(x) => x,
+            None => unimplemented!(),
+        } {
+            Some(x) => x,
+            None => unimplemented!(),
+        }
     }
 
     pub fn unwrap_array(&self) -> &ArrayObject {
@@ -285,7 +294,7 @@ impl JavaValue {
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("".to_string()),
             class_pointer: runtime_class,
-            fields: RefCell::new(HashMap::new()),
+            fields: UnsafeCell::new(HashMap::new()),
             class_object_type,
         })).into()
     }
@@ -306,7 +315,7 @@ impl JavaValue {
 
     pub fn new_vec_from_vec(jvm: &JVMState, vals: Vec<JavaValue>, elem_type: PTypeView) -> JavaValue {
         JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
-            elems: RefCell::new(vals),
+            elems: UnsafeCell::new(vals),
             elem_type,
             monitor: jvm.thread_state.new_monitor("".to_string()),
         }))))
@@ -481,7 +490,7 @@ unsafe impl Sync for Object {}
 
 impl Object {
     pub fn lookup_field(&self, s: &str) -> JavaValue {
-        self.unwrap_normal_object().fields.borrow().get(s).unwrap().clone()
+        self.unwrap_normal_object().fields_mut().get(s).unwrap().clone()
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {
@@ -508,11 +517,11 @@ impl Object {
     pub fn deep_clone(&self, jvm: &JVMState) -> Self {
         match &self {
             Object::Array(a) => {
-                let sub_array = a.elems.borrow().iter().map(|x| x.deep_clone(jvm)).collect();
-                Object::Array(ArrayObject { elems: RefCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.thread_state.new_monitor("".to_string()) })
+                let sub_array = unsafe { a.elems.get().as_ref() }.unwrap().iter().map(|x| x.deep_clone(jvm)).collect();
+                Object::Array(ArrayObject { elems: UnsafeCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.thread_state.new_monitor("".to_string()) })
             }
             Object::Object(o) => {
-                let new_fields = RefCell::new(o.fields.borrow().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
+                let new_fields = UnsafeCell::new(o.fields_mut().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
                 Object::Object(NormalObject {
                     monitor: jvm.thread_state.new_monitor("".to_string()),
                     fields: new_fields,
@@ -552,16 +561,20 @@ impl Object {
 
 #[derive(Debug)]
 pub struct ArrayObject {
-    pub elems: RefCell<Vec<JavaValue>>,
+    pub elems: UnsafeCell<Vec<JavaValue>>,
     pub elem_type: PTypeView,
     pub monitor: Arc<Monitor>,
 }
 
 impl ArrayObject {
+    pub fn mut_array(&self) -> &mut Vec<JavaValue> {
+        unsafe { self.elems.get().as_mut().unwrap() }
+    }
+
     pub fn new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>) -> Self {
         check_inited_class(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())), jvm.bootstrap_loader.clone()).unwrap();
         Self {
-            elems: RefCell::new(elems),
+            elems: UnsafeCell::new(elems),
             elem_type: type_,
             monitor,
         }
@@ -572,11 +585,17 @@ pub struct NormalObject {
     pub monitor: Arc<Monitor>,
     //I guess this never changes so unneeded?
     //todo this refcell is unsafe
-    pub fields: RefCell<HashMap<String, JavaValue>>,
+    pub fields: UnsafeCell<HashMap<String, JavaValue>>,
     //todo this refcell should be for the elememts.
     pub class_pointer: Arc<RuntimeClass>,
     //todo this should just point to the actual class object.
     pub class_object_type: Option<Arc<RuntimeClass>>, //points to the object represented by this class object of relevant
+}
+
+impl NormalObject {
+    pub fn fields_mut(&self) -> &mut HashMap<String, JavaValue> {
+        unsafe { self.fields.get().as_mut().unwrap() }
+    }
 }
 
 impl Debug for NormalObject {
@@ -607,23 +626,23 @@ pub fn default_value(type_: PTypeView) -> JavaValue {
 
 impl ArrayObject {
     pub fn unwrap_object_array(&self) -> Vec<Option<Arc<Object>>> {
-        self.elems.borrow().iter().map(|x| { x.unwrap_object() }).collect()
+        unsafe { self.elems.get().as_ref() }.unwrap().iter().map(|x| { x.unwrap_object() }).collect()
     }
 
-    pub fn unwrap_mut(&self) -> RefMut<Vec<JavaValue>> {
-        self.elems.borrow_mut()
+    pub fn unwrap_mut(&self) -> &mut Vec<JavaValue> {
+        unsafe { self.elems.get().as_mut() }.unwrap()
     }
     pub fn unwrap_object_array_nonnull(&self) -> Vec<Arc<Object>> {
-        self.elems.borrow().iter().map(|x| { x.unwrap_object_nonnull() }).collect()
+        self.mut_array().iter().map(|x| { x.unwrap_object_nonnull() }).collect()
     }
     pub fn unwrap_byte_array(&self) -> Vec<i8> {//todo in future use jbyte for this kinda thing, and in all places where this is an issue
         assert_eq!(self.elem_type, PTypeView::ByteType);
-        self.elems.borrow().iter().map(|x| { x.unwrap_int() as i8 }).collect()
+        self.mut_array().iter().map(|x| { x.unwrap_int() as i8 }).collect()
     }
     pub fn unwrap_char_array(&self) -> String {
         assert_eq!(self.elem_type, PTypeView::CharType);
         let mut res = String::new();
-        self.elems.borrow().iter().for_each(|x| { res.push(x.unwrap_int() as u8 as char) });
+        unsafe { self.elems.get().as_ref() }.unwrap().iter().for_each(|x| { res.push(x.unwrap_int() as u8 as char) });
         res
     }
 }

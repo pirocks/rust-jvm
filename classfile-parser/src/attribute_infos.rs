@@ -112,7 +112,9 @@ fn parse_constant_value_index(p: &mut dyn ParsingContext) -> AttributeType {
 fn parse_bootstrap_methods(p: &mut dyn ParsingContext) -> AttributeType {
     let num_bootstrap_methods = p.read16();
     let mut bootstrap_methods = Vec::with_capacity(num_bootstrap_methods as usize);
-    bootstrap_methods.push(parse_bootstrap_method(p));
+    for _ in 0..num_bootstrap_methods {
+        bootstrap_methods.push(parse_bootstrap_method(p));
+    }
     AttributeType::BootstrapMethods(BootstrapMethods {
         bootstrap_methods
     })

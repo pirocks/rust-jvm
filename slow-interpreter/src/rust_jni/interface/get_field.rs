@@ -69,7 +69,7 @@ unsafe fn get_java_value_field(env: *mut JNIEnv, obj: *mut _jobject, field_id_ra
     let name = view.field(field_i as usize).field_name();
     let notnull = from_object(obj).unwrap();
     let normal_obj = notnull.unwrap_normal_object();
-    let fields_borrow = normal_obj.fields.borrow();
+    let fields_borrow = normal_obj.fields_mut();
     fields_borrow.deref().get(&name).unwrap().clone()
 }
 

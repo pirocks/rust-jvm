@@ -73,7 +73,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(
     let nonnull = from_object(src_obj).unwrap();
     let as_array = nonnull.unwrap_array();//not defined for non-byte-array objects
     assert_eq!(as_array.elem_type, PTypeView::ByteType);
-    let array_mut = as_array.elems.borrow_mut();
+    let array_mut = as_array.mut_array();
     let src_slice = &array_mut.deref()[offset as usize..((offset + len) as usize)];
     let mut src_buffer: Vec<i8> = vec![];
     for src_elem in src_slice {
@@ -145,7 +145,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(
     let notnull = from_object(obj).unwrap();
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
     let field_name = rc.view().field(field_i as usize).field_name();
-    let field_borrow = notnull.unwrap_normal_object().fields.borrow();
+    let field_borrow = notnull.unwrap_normal_object().fields_mut();
     field_borrow.get(&field_name).unwrap().unwrap_int()
 }
 
@@ -207,7 +207,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             match object_to_read.deref() {
                 Object::Array(arr) => {
                     let array_idx = field_id_and_array_idx as usize;
-                    let res = &arr.elems.borrow()[array_idx];
+                    let res = &arr.mut_array()[array_idx];
                     to_object(res.unwrap_object())
                 }
                 Object::Object(_) => unimplemented!(),
@@ -234,7 +234,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
             match object_to_read.deref() {
                 Object::Array(arr) => {
                     let array_idx = offset as usize;
-                    let res = &mut arr.elems.borrow_mut()[array_idx];
+                    let res = &mut arr.mut_array()[array_idx];
                     *res = JavaValue::Object(from_object(to_put));
                 }
                 Object::Object(obj) => {
@@ -243,7 +243,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
                     let field_view = runtime_class.view().field(i as usize);
                     assert!(!field_view.is_static());
                     let name = field_view.field_name();
-                    obj.fields.borrow_mut().insert(name, JavaValue::Object(from_object(to_put)));
+                    obj.fields_mut().insert(name, JavaValue::Object(from_object(to_put)));
                 },
             }
         }

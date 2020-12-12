@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::cell::RefCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::ffi::CStr;
 use std::ops::Deref;
 use std::ptr::null_mut;
@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     }).collect::<Vec<_>>();
     //todo helper function for this:
     let res = Some(Arc::new(Array(ArrayObject {
-        elems: RefCell::new(interface_vec),
+        elems: UnsafeCell::new(interface_vec),
         elem_type: ClassName::class().into(),
         monitor: jvm.thread_state.new_monitor("".to_string()),
     })));

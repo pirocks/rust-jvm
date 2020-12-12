@@ -21,6 +21,8 @@ pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceData};
     use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+    use jvmti_jni_bindings::jint;
+    use rust_jvm_common::classfile::REF_invokeVirtual;
     use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::ptype::{PType, ReferenceType};
 
@@ -28,8 +30,10 @@ pub mod dynamic {
     use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
     use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
+    use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_handle::{Lookup, MethodHandle};
     use crate::java::lang::invoke::method_type::MethodType;
+    use crate::java::lang::member_name::MemberName;
     use crate::java::lang::string::JString;
     use crate::java_values::JavaValue;
 
@@ -53,14 +57,17 @@ pub mod dynamic {
             int_state.current_loader(jvm).clone(),
         );
         let class_pointer_view = int_state.current_class_view().clone();
+        dbg!(cp);
         let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
-
+        dbg!(invoke_dynamic_view.name_and_type().name());
+        dbg!(invoke_dynamic_view.name_and_type().desc_str());
         let other_name = invoke_dynamic_view.name_and_type().name();//todo get better names
         // dbg!(&other_name);
         let other_desc_str = invoke_dynamic_view.name_and_type().desc_str();
+        let other_desc = invoke_dynamic_view.name_and_type().desc_method();
         // dbg!(&other_desc_str);
 
 
@@ -134,12 +141,23 @@ pub mod dynamic {
         let method_handle_clone = method_handle_class.clone();
         let lookup_res = method_handle_clone.view().lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
-        let args = if int_state.current_frame().operand_stack().is_empty() { vec![] } else {
+        let (num_args, args) = if int_state.current_frame().operand_stack().is_empty() {
+            (0, vec![])
+        } else {
             dbg!(target.to_string(jvm, int_state).to_rust_string());
             let method_type = target.type__();
-            method_type.get_ptypes_as_types()
+            let args = method_type.get_ptypes_as_types();
+            let len = int_state.current_frame_mut().operand_stack().len();
+            dbg!(target.clone().java_value().unwrap_normal_object().class_pointer.view().name());
+            let form: LambdaForm = target.get_form();
+            let member_name: MemberName = form.get_vmentry();
+            dbg!(member_name.clazz());
+            dbg!(member_name.get_name_or_null().unwrap().to_rust_string());
+            let static_: bool = member_name.is_static(jvm, int_state);
+            (args.len() + if static_ { 0 } else { 1 }, args)
         }; //todo also sketch
-        int_state.current_frame_mut().operand_stack_mut().insert(0, target.java_value());//todo sketch af
+        let operand_stack_len = int_state.current_frame().operand_stack().len();
+        int_state.current_frame_mut().operand_stack_mut().insert(operand_stack_len - num_args, target.java_value());
         // int_state.push_current_operand_stack(target.java_value());
         // let target_method_type = call_site.get_target(jvm, int_state).internal_member_name(jvm, int_state).get_method_type(jvm, int_state);
         // let num_params = target_method_type.get_ptypes_as_types().len();
@@ -219,7 +237,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                 let array_object = ArrayObject::new_array(
                     jvm,
                     int_state,
-                    elems.borrow().clone(),
+                    temp.unwrap_array().mut_array().clone(),
                     elem_type.clone(),
                     jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
                 );

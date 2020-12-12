@@ -18,7 +18,7 @@ pub fn arraylength(int_state: &mut InterpreterStateGuard) {
     let current_frame = int_state.current_frame_mut();
     let array_o = current_frame.pop().unwrap_object().unwrap();
     let array = array_o.unwrap_array();
-    current_frame.push(JavaValue::Int(array.elems.borrow().len() as i32));
+    current_frame.push(JavaValue::Int(array.mut_array().len() as i32));
 }
 
 

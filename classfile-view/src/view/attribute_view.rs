@@ -53,7 +53,9 @@ pub struct BootstrapMethodView<'cl> {
 
 impl BootstrapMethodView<'_> {
     fn get_raw(&self) -> &BootstrapMethod {
-        &self.backing.get_bootstrap_methods_raw()[self.i]
+        let bootstrap_methods = self.backing.get_bootstrap_methods_raw();
+        dbg!(&bootstrap_methods);
+        &bootstrap_methods[self.i]
     }
 
     pub fn bootstrap_method_ref(&self) -> MethodHandleView {

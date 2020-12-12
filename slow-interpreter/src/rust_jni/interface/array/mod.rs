@@ -11,7 +11,7 @@ pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> j
     let non_null_array: &Object = &from_object(array).unwrap();
     let len = match non_null_array {
         Object::Array(a) => {
-            a.elems.borrow().len()
+            a.mut_array().len()
         }
         Object::Object(_o) => {
             unimplemented!()
@@ -24,14 +24,14 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
     let notnull = from_object(array).unwrap();
     let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
-    let borrow = array.elems.borrow();
+    let borrow = array.mut_array();
     new_local_ref_public(borrow[index as usize].unwrap_object(), int_state)
 }
 
 pub unsafe extern "C" fn set_object_array_element(_env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
     let notnull = from_object(array).unwrap();
     let array = notnull.unwrap_array();
-    let mut borrow_mut = array.elems.borrow_mut();
+    let mut borrow_mut = array.mut_array();
     borrow_mut[index as usize] = from_object(val).into();
 }
 
@@ -51,7 +51,7 @@ pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: 
     }
     match array.elem_type {
         PTypeView::ByteType => {
-            let res = array.elems.borrow().iter().map(|elem| elem.unwrap_byte()).collect::<Vec<_>>();
+            let res = array.mut_array().iter().map(|elem| elem.unwrap_byte()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::CharType => todo!(),

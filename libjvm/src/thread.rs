@@ -73,7 +73,7 @@ unsafe extern "system" fn JVM_SetThreadPriority(env: *mut JNIEnv, thread: jobjec
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Yield(env: *mut JNIEnv, threadClass: jclass) {
-    unimplemented!()
+//todo actually do something here maybe
 }
 
 #[no_mangle]
@@ -105,7 +105,9 @@ unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, clearInterrupted: jboolean) -> jboolean {
-    unimplemented!()
+    let int_state = get_interpreter_state(env);
+    int_state.print_stack_trace();
+    false as jboolean//todo impl
 }
 
 // static mut CALLED_ONCE: bool= true;

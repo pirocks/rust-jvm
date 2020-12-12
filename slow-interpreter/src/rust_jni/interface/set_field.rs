@@ -11,7 +11,7 @@ unsafe fn set_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val:
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
     let notnull = from_object(obj).unwrap();
-    let mut field_borrow = notnull.unwrap_normal_object().fields.borrow_mut();
+    let mut field_borrow = notnull.unwrap_normal_object().fields_mut();
     field_borrow.deref_mut().insert(name, val);
 }
 

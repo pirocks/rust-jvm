@@ -1,5 +1,5 @@
 pub mod method_type {
-    use std::cell::RefCell;
+    use std::cell::{RefCell, UnsafeCell};
     use std::sync::Arc;
 
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -37,7 +37,7 @@ pub mod method_type {
         }
 
         pub fn set_rtype(&self, rtype: JClass) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("rtype".to_string(), rtype.java_value());
+            self.normal_object.unwrap_normal_object().fields_mut().insert("rtype".to_string(), rtype.java_value());
         }
 
         getter_gen!(rtype,JClass,cast_class);
@@ -47,7 +47,7 @@ pub mod method_type {
         }
 
         pub fn set_ptypes(&self, ptypes: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("ptypes".to_string(), ptypes);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("ptypes".to_string(), ptypes);
         }
 
         getter_gen!(ptypes,JavaValue,clone);
@@ -58,23 +58,23 @@ pub mod method_type {
         }
 
         pub fn set_form(&self, form: MethodTypeForm) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("form".to_string(), form.java_value());
+            self.normal_object.unwrap_normal_object().fields_mut().insert("form".to_string(), form.java_value());
         }
 
         pub fn get_form(&self) -> MethodTypeForm {
-            self.normal_object.unwrap_normal_object().fields.borrow().get("form").unwrap().cast_method_type_form()
+            self.normal_object.unwrap_normal_object().fields_mut().get("form").unwrap().cast_method_type_form()
         }
 
         pub fn set_wrap_alt(&self, val: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("ptypes".to_string(), val);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("ptypes".to_string(), val);
         }
 
         pub fn set_invokers(&self, invokers: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("invokers".to_string(), invokers);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("invokers".to_string(), invokers);
         }
 
         pub fn set_method_descriptors(&self, method_descriptor: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("methodDescriptor".to_string(), method_descriptor);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("methodDescriptor".to_string(), method_descriptor);
         }
 
         pub fn parameter_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, int: jint) -> JClass {
@@ -100,7 +100,7 @@ pub mod method_type {
             let res = int_state.pop_current_operand_stack().cast_method_type();
             let ptypes_arr = JavaValue::Object(Some(Arc::new(
                 Object::Array(ArrayObject {
-                    elems: RefCell::new(ptypes.into_iter().map(|x| x.java_value()).collect::<Vec<_>>()),
+                    elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value()).collect::<Vec<_>>()),
                     elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::class())),
                     monitor: jvm.thread_state.new_monitor("".to_string()),
                 }))));
@@ -143,35 +143,35 @@ pub mod method_type_form {
 
     impl MethodTypeForm {
         pub fn set_arg_to_slot_table(&self, int_arr: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("argToSlotTable".to_string(), int_arr);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("argToSlotTable".to_string(), int_arr);
         }
 
         pub fn set_slot_to_arg_table(&self, int_arr: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("slotToArgTable".to_string(), int_arr);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("slotToArgTable".to_string(), int_arr);
         }
 
         pub fn set_arg_counts(&self, counts: jlong) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("argCounts".to_string(), JavaValue::Long(counts));
+            self.normal_object.unwrap_normal_object().fields_mut().insert("argCounts".to_string(), JavaValue::Long(counts));
         }
 
         pub fn set_prim_counts(&self, counts: jlong) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("primCounts".to_string(), JavaValue::Long(counts));
+            self.normal_object.unwrap_normal_object().fields_mut().insert("primCounts".to_string(), JavaValue::Long(counts));
         }
 
         pub fn set_erased_type(&self, type_: MethodType) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("erasedType".to_string(), type_.java_value());
+            self.normal_object.unwrap_normal_object().fields_mut().insert("erasedType".to_string(), type_.java_value());
         }
 
         pub fn set_basic_type(&self, type_: MethodType) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("basicType".to_string(), type_.java_value());
+            self.normal_object.unwrap_normal_object().fields_mut().insert("basicType".to_string(), type_.java_value());
         }
 
         pub fn set_method_handles(&self, method_handle: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("methodHandles".to_string(), method_handle);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("methodHandles".to_string(), method_handle);
         }
 
         pub fn set_lambda_forms(&self, lambda_forms: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("methodHandles".to_string(), lambda_forms);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("methodHandles".to_string(), lambda_forms);
         }
 
         pub fn new(jvm: &JVMState,
@@ -250,7 +250,7 @@ pub mod method_handle {
             let method_handle_class = check_inited_class(jvm, int_state, &ClassName::method_handle().into(), int_state.current_loader(jvm)).unwrap();
             int_state.push_current_operand_stack(self.clone().java_value());
             dbg!(self.normal_object.unwrap_normal_object().class_pointer.view().name());
-            run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MethodHandle;".to_string());
+            run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MemberName;".to_string());
             int_state.pop_current_operand_stack().cast_member_name()
         }
 
@@ -400,9 +400,9 @@ pub mod lambda_form {
         impl Name {
             as_object_or_java_value!();
             pub fn arguments(&self) -> Vec<JavaValue> {
-                self.normal_object.unwrap_normal_object().fields.borrow().get("arguments")
+                self.normal_object.unwrap_normal_object().fields_mut().get("arguments")
                     .unwrap()
-                    .unwrap_array().elems.borrow().clone()
+                    .unwrap_array().mut_array().clone()
             }
 
 
@@ -461,7 +461,7 @@ pub mod lambda_form {
 
     impl LambdaForm {
         pub fn names(&self) -> Vec<Name> {
-            self.normal_object.unwrap_normal_object().fields.borrow().get("names")
+            self.normal_object.unwrap_normal_object().fields_mut().get("names")
                 .unwrap()
                 .unwrap_array()
                 .unwrap_object_array()

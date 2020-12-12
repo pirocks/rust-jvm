@@ -39,8 +39,15 @@ pub mod member_name {
             int_state.pop_current_operand_stack().cast_string()
         }
 
+        pub fn is_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> bool {
+            let member_name_class = check_inited_class(jvm, int_state, &ClassName::member_name().into(), int_state.current_loader(jvm)).unwrap();
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm, int_state, &member_name_class, "isStatic".to_string(), "()Z".to_string());
+            int_state.pop_current_operand_stack().unwrap_boolean() != 0
+        }
+
         pub fn get_name_or_null(&self) -> Option<JString> {
-            let str_jvalue = self.normal_object.unwrap_normal_object().fields.borrow().get(&"name".to_string()).unwrap().clone();
+            let str_jvalue = self.normal_object.unwrap_normal_object().fields_mut().get(&"name".to_string()).unwrap().clone();
             if str_jvalue.unwrap_object().is_none() {
                 None
             } else {
@@ -54,11 +61,11 @@ pub mod member_name {
 
 
         pub fn set_name(&self, new_val: JString) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("name".to_string(), new_val.java_value());
+            self.normal_object.unwrap_normal_object().fields_mut().insert("name".to_string(), new_val.java_value());
         }
 
         pub fn get_clazz_or_null(&self) -> Option<JClass> {
-            let possibly_null = self.normal_object.unwrap_normal_object().fields.borrow().get(&"clazz".to_string()).unwrap().clone();
+            let possibly_null = self.normal_object.unwrap_normal_object().fields_mut().get(&"clazz".to_string()).unwrap().clone();
             if possibly_null.unwrap_object().is_none() {
                 None
             } else {
@@ -71,38 +78,38 @@ pub mod member_name {
         }
 
         pub fn set_clazz(&self, new_val: JClass) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("clazz".to_string(), new_val.java_value());
+            self.normal_object.unwrap_normal_object().fields_mut().insert("clazz".to_string(), new_val.java_value());
         }
 
         pub fn set_type(&self, new_val: MethodType) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("type".to_string(), new_val.java_value());
+            self.normal_object.unwrap_normal_object().fields_mut().insert("type".to_string(), new_val.java_value());
         }
 
 
         pub fn get_type(&self) -> JavaValue {
-            self.normal_object.unwrap_normal_object().fields.borrow().get("type").unwrap().clone()
+            self.normal_object.unwrap_normal_object().fields_mut().get("type").unwrap().clone()
         }
 
         pub fn set_flags(&self, new_val: jint) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("flags".to_string(), JavaValue::Int(new_val));
+            self.normal_object.unwrap_normal_object().fields_mut().insert("flags".to_string(), JavaValue::Int(new_val));
         }
 
 
         getter_gen!(flags,jint,unwrap_int);
         // pub fn get_flags(&self) -> jint {
-        //     self.normal_object.unwrap_normal_object().fields.borrow().get(&"flags".to_string()).unwrap().unwrap_int()
+        //     self.normal_object.unwrap_normal_object().fields_mut().get(&"flags".to_string()).unwrap().unwrap_int()
         // }
 
         pub fn set_resolution(&self, new_val: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("resolution".to_string(), new_val);
+            self.normal_object.unwrap_normal_object().fields_mut().insert("resolution".to_string(), new_val);
         }
 
         pub fn get_resolution(&self) -> JavaValue {
-            self.normal_object.unwrap_normal_object().fields.borrow().get(&"resolution".to_string()).unwrap().clone()
+            self.normal_object.unwrap_normal_object().fields_mut().get(&"resolution".to_string()).unwrap().clone()
         }
 
         pub fn clazz(&self) -> JClass {
-            self.normal_object.unwrap_normal_object().fields.borrow().get("clazz").unwrap().cast_class()
+            self.normal_object.unwrap_normal_object().fields_mut().get("clazz").unwrap().cast_class()
         }
 
         pub fn get_method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodType {
@@ -332,7 +339,7 @@ pub mod integer {
         }
 
         pub fn value(&self) -> jint {
-            self.normal_object.unwrap_normal_object().fields.borrow().get("value").unwrap().unwrap_int()
+            self.normal_object.unwrap_normal_object().fields_mut().get("value").unwrap().unwrap_int()
         }
 
         as_object_or_java_value!();
@@ -361,7 +368,7 @@ pub mod object {
 }
 
 pub mod thread {
-    use std::cell::RefCell;
+    use std::cell::{RefCell, UnsafeCell};
     use std::sync::Arc;
 
     use jvmti_jni_bindings::{jboolean, jint};
@@ -406,7 +413,7 @@ pub mod thread {
             JThread {
                 normal_object: Arc::new(Object::Object(NormalObject {
                     monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
-                    fields: RefCell::new(Default::default()),
+                    fields: UnsafeCell::new(Default::default()),
                     class_pointer: Arc::new(RuntimeClass::Byte),
                     class_object_type: None,
                 }))
@@ -414,7 +421,7 @@ pub mod thread {
         }
 
         pub fn tid(&self) -> JavaThreadId {
-            match self.normal_object.unwrap_normal_object().fields.borrow().get("tid") {
+            match self.normal_object.unwrap_normal_object().fields_mut().get("tid") {
                 Some(x) => x,
                 None => {
                     dbg!(&self.normal_object);
@@ -438,7 +445,7 @@ pub mod thread {
         }
 
         pub fn set_priority(&self, priority: i32) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("priority".to_string(), JavaValue::Int(priority));
+            self.normal_object.unwrap_normal_object().fields_mut().insert("priority".to_string(), JavaValue::Int(priority));
         }
 
         pub fn daemon(&self) -> bool {
@@ -446,7 +453,7 @@ pub mod thread {
         }
 
         pub fn set_thread_status(&self, thread_status: jint) {
-            self.normal_object.unwrap_normal_object().fields.borrow_mut().insert("threadStatus".to_string(), JavaValue::Int(thread_status));
+            self.normal_object.unwrap_normal_object().fields_mut().insert("threadStatus".to_string(), JavaValue::Int(thread_status));
         }
 
 
@@ -549,14 +556,16 @@ pub mod thread_group {
         }
 
         pub fn threads(&self) -> Vec<Option<JThread>> {
-            self.normal_object.lookup_field("threads").unwrap_array().elems.borrow().iter().map(|thread|
-                {
-                    match thread.unwrap_object() {
-                        None => None,
-                        Some(t) => JavaValue::Object(t.into()).cast_thread().into(),
+            unsafe {
+                self.normal_object.lookup_field("threads").unwrap_array().elems.get().as_ref().unwrap().iter().map(|thread|
+                    {
+                        match thread.unwrap_object() {
+                            None => None,
+                            Some(t) => JavaValue::Object(t.into()).cast_thread().into(),
+                        }
                     }
-                }
-            ).collect()
+                ).collect()
+            }
         }
 
         pub fn threads_non_null(&self) -> Vec<JThread> {

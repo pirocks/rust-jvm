@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::transmute;
@@ -143,7 +143,7 @@ impl JVMState {
                 let class_loader_class = check_inited_class(self, int_state, &java_lang_class_loader.into(), current_loader.clone()).unwrap();
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
-                    fields: RefCell::new(HashMap::new()),
+                    fields: UnsafeCell::new(HashMap::new()),
                     class_pointer: class_loader_class,
                     class_object_type: None,
                 }));

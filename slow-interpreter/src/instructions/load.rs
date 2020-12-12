@@ -67,7 +67,7 @@ pub fn aaload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.elems.borrow();
+    let array_refcell = unborrowed.mut_array();
     match array_refcell[index as usize] {
         JavaValue::Object(_) => {}
         _ => panic!(),
@@ -92,7 +92,7 @@ pub fn caload(state: &JVMState, int_state: &mut InterpreterStateGuard) {
     let index = int_state.pop_current_operand_stack().unwrap_int();
     let temp = int_state.pop_current_operand_stack();
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.elems.borrow();
+    let array_refcell = unborrowed.mut_array();
     if index < 0 || index >= array_refcell.len() as i32 {
         throw_array_out_of_bounds(state, int_state);
         return;
@@ -109,7 +109,7 @@ pub fn iaload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.elems.borrow();
+    let array_refcell = unborrowed.mut_array();
     let as_int = array_refcell[index as usize].clone().unwrap_int();
     current_frame.push(JavaValue::Int(as_int))
 }
@@ -119,7 +119,7 @@ pub fn laload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.elems.borrow();
+    let array_refcell = unborrowed.mut_array();
     let long = array_refcell[index as usize].clone().unwrap_long();
     current_frame.push(JavaValue::Long(long))
 }
@@ -129,7 +129,7 @@ pub fn faload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.elems.borrow();
+    let array_refcell = unborrowed.mut_array();
     let f = array_refcell[index as usize].clone().unwrap_float();
     current_frame.push(JavaValue::Float(f))
 }
@@ -138,7 +138,7 @@ pub fn daload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.elems.borrow();
+    let array_refcell = unborrowed.mut_array();
     let d = array_refcell[index as usize].clone().unwrap_double();
     current_frame.push(JavaValue::Double(d))
 }
@@ -148,7 +148,7 @@ pub fn baload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.elems.borrow();
+    let array_refcell = unborrowed.mut_array();
     let as_byte = match array_refcell[index as usize] {
         JavaValue::Byte(i) => i,
         _ => panic!(),

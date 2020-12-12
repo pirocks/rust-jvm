@@ -2,6 +2,7 @@
 #![feature(thread_local)]
 #![feature(box_syntax)]
 #![feature(vec_into_raw_parts)]
+#![feature(unsafe_cell_get_mut)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;

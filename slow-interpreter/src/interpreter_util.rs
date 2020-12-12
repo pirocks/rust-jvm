@@ -46,15 +46,15 @@ fn default_init_fields(
     for field in view.fields() {
         if !field.is_static() {
             //todo should I look for constant val attributes?
-            let _value_i = match field.constant_value_attribute() {
+            /*let _value_i = match field.constant_value_attribute() {
                 None => {}
-                Some(_i) => unimplemented!(),
-            };
+                Some(_i) => _i,
+            };*/
             let name = field.field_name();
             let type_ = field.field_type();
             let val = default_value(type_);
             {
-                object_pointer.clone().unwrap().unwrap_normal_object().fields.borrow_mut().insert(name, val);
+                object_pointer.clone().unwrap().unwrap_normal_object().fields_mut().insert(name, val);
             }
         }
     }

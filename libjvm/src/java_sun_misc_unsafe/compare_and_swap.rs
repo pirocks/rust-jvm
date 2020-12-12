@@ -21,7 +21,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
     let field_name = field.field_name();
     let notnull = from_object(target_obj).unwrap();
     let normal_obj = notnull.unwrap_normal_object();
-    let mut fields_borrow = normal_obj.fields.borrow_mut();
+    let mut fields_borrow = normal_obj.fields_mut();
     let curval = fields_borrow.get(field_name.as_str()).unwrap();
     (if curval.unwrap_int() == old {
         fields_borrow.insert(field_name, JavaValue::Int(new));
@@ -46,7 +46,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
     let field_name = field.field_name();
     let notnull = from_object(target_obj).unwrap();
     let normal_obj = notnull.unwrap_normal_object();
-    let mut fields_borrow = normal_obj.fields.borrow_mut();
+    let mut fields_borrow = normal_obj.fields_mut();
     let curval = fields_borrow.get(field_name.as_str()).unwrap();
     (if curval.unwrap_long() == old {
         fields_borrow.insert(field_name, JavaValue::Long(new));
@@ -91,7 +91,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
             let view = rc.view();
             let field = view.field(field_i as usize);
             let field_name = field.field_name();
-            let mut fields_borrow = normal_obj.fields.borrow_mut();
+            let mut fields_borrow = normal_obj.fields_mut();
             let curval = fields_borrow.get(field_name.as_str()).unwrap();
             let old = from_object(old);
             ((if (curval.unwrap_object().is_none() && old.is_none()) || (curval.unwrap_object().is_some() && old.is_some() && Arc::ptr_eq(&curval.unwrap_object().unwrap(), &old.unwrap())) {

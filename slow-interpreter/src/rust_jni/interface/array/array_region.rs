@@ -30,7 +30,7 @@ pub unsafe extern "C" fn get_int_array_region(_env: *mut JNIEnv, array: jintArra
 
 unsafe fn array_region_integer_types<T: NumCast>(array: jarray, start: jsize, len: jsize, buf: *mut T) {
     let non_null_array_obj = from_object(array).unwrap();
-    let array_ref = non_null_array_obj.unwrap_array().elems.borrow();
+    let array_ref = non_null_array_obj.unwrap_array().mut_array();
     let array = array_ref.deref();
     for i in 0..len {
         let elem = T::from(array[(start + i) as usize].unwrap_int()).unwrap();
@@ -42,7 +42,7 @@ unsafe fn array_region_integer_types<T: NumCast>(array: jarray, start: jsize, le
 //should be templated out at the .unwrap_type() level
 pub unsafe extern "C" fn get_float_array_region(_env: *mut JNIEnv, array: jfloatArray, start: jsize, len: jsize, buf: *mut jfloat) {
     let non_null_array_obj = from_object(array).unwrap();
-    let array_ref = non_null_array_obj.unwrap_array().elems.borrow();
+    let array_ref = non_null_array_obj.unwrap_array().mut_array();
     let array = array_ref.deref();
     for i in 0..len {
         let float = array[(start + i) as usize].unwrap_float() as jfloat;
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn get_float_array_region(_env: *mut JNIEnv, array: jfloat
 
 pub unsafe extern "C" fn get_double_array_region(_env: *mut JNIEnv, array: jdoubleArray, start: jsize, len: jsize, buf: *mut jdouble) {
     let non_null_array_obj = from_object(array).unwrap();
-    let array_ref = non_null_array_obj.unwrap_array().elems.borrow();
+    let array_ref = non_null_array_obj.unwrap_array().mut_array();
     let array = array_ref.deref();
     for i in 0..len {
         let double = array[(start + i) as usize].unwrap_double() as jdouble;
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn get_double_array_region(_env: *mut JNIEnv, array: jdoub
 
 pub unsafe extern "C" fn get_long_array_region(_env: *mut JNIEnv, array: jlongArray, start: jsize, len: jsize, buf: *mut jlong) {
     let non_null_array_obj = from_object(array).unwrap();
-    let array_ref = non_null_array_obj.unwrap_array().elems.borrow();
+    let array_ref = non_null_array_obj.unwrap_array().mut_array();
     let array = array_ref.deref();
     for i in 0..len {
         let long = array[(start + i) as usize].unwrap_long() as jlong;
@@ -127,9 +127,7 @@ unsafe fn set_array_region(array: jarray, start: i32, len: i32, java_value_gette
     let non_nullarray = from_object(array)
         .unwrap();
     let mut vec_mut = non_nullarray
-        .unwrap_array()
-        .elems
-        .borrow_mut();
+        .unwrap_array().mut_array();
     for i in 0..len {
         vec_mut[(start + i) as usize] = java_value_getter(i as isize);
     }

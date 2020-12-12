@@ -49,7 +49,7 @@ pub fn castore(current_frame: &mut StackEntry) {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
-    let array_ref = &mut arrar_ref_o.unwrap_array().elems.borrow_mut();
+    let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let char_ = val as u16;
     array_ref[index as usize] = JavaValue::Char(char_);
 }
@@ -59,7 +59,7 @@ pub fn bastore(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = current_frame.pop().unwrap_object().unwrap();
     assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
-    let array_ref = &mut array_ref_o.unwrap_array().elems.borrow_mut();
+    let array_ref = &mut array_ref_o.unwrap_array().mut_array();
     array_ref[index as usize] = JavaValue::Byte(val as i8);
 }
 
@@ -69,7 +69,7 @@ pub fn fastore(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = current_frame.pop().unwrap_object().unwrap();
     // assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
-    let array_ref = &mut array_ref_o.unwrap_array().elems.borrow_mut();
+    let array_ref = &mut array_ref_o.unwrap_array().mut_array();
     array_ref[index as usize] = JavaValue::Float(val);
 }
 
@@ -78,7 +78,7 @@ pub fn dastore(current_frame: &mut StackEntry) {
     let val = current_frame.pop().unwrap_double();
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = current_frame.pop().unwrap_object().unwrap();
-    let array_ref = &mut array_ref_o.unwrap_array().elems.borrow_mut();
+    let array_ref = &mut array_ref_o.unwrap_array().mut_array();
     array_ref[index as usize] = JavaValue::Double(val);
 }
 
@@ -87,7 +87,7 @@ pub fn iastore(current_frame: &mut StackEntry) {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
-    let array_ref = &mut arrar_ref_o.unwrap_array().elems.borrow_mut();
+    let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let int_ = val;
     array_ref[index as usize] = JavaValue::Int(int_);
 }
@@ -97,7 +97,7 @@ pub fn aastore(current_frame: &mut StackEntry) {
     let val = current_frame.pop();
     let index = current_frame.pop().unwrap_int();
     let arrary_ref_o = current_frame.pop().unwrap_object().unwrap();
-    let mut array_ref = arrary_ref_o.unwrap_array().elems.borrow_mut();
+    let mut array_ref = arrary_ref_o.unwrap_array().mut_array();
     match val {
         JavaValue::Object(_) => {}
         _ => panic!(),
@@ -116,7 +116,7 @@ pub fn lastore(current_frame: &mut StackEntry) {
     let val = current_frame.pop().unwrap_long();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();
-    let array_ref = &mut arrar_ref_o.unwrap_array().elems.borrow_mut();
+    let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let long = val;
     array_ref[index as usize] = JavaValue::Long(long);
 }

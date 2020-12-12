@@ -1,11 +1,13 @@
-use std::cell::RefCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::ops::Deref;
 use std::sync::Arc;
 
+use classfile_view::vtype::VType::Uninitialized;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::sun::misc::unsafe_::Unsafe;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
@@ -17,9 +19,9 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
         Some(o) => {
             match o.deref() {
                 Object::Array(a) => {
-                    let cloned_arr: Vec<_> = a.elems.borrow().iter().cloned().collect();
+                    let cloned_arr: Vec<_> = a.mut_array().iter().cloned().collect();
                     Some(Arc::new(Object::Array(ArrayObject {
-                        elems: RefCell::new(cloned_arr),
+                        elems: UnsafeCell::new(cloned_arr),
                         elem_type: a.elem_type.clone(),
                         monitor: jvm.thread_state.new_monitor("".to_string()),
                     })))
@@ -27,7 +29,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                 Object::Object(o) => {
                     Arc::new(Object::Object(NormalObject {
                         monitor: jvm.thread_state.new_monitor("".to_string()),
-                        fields: RefCell::new(o.fields.borrow().iter().map(|(k, v)| { (k.clone(), v.clone()) }).collect()),
+                        fields: UnsafeCell::new(o.fields_mut().iter().map(|(k, v)| { (k.clone(), v.clone()) }).collect()),
                         class_pointer: o.class_pointer.clone(),
                         class_object_type: o.class_object_type.clone(),
                     })).into()
