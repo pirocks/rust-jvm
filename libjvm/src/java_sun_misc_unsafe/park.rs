@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use jvmti_jni_bindings::{jboolean, jlocation, jlong, JNIEnv, jthread, JVM_Available};
+use jvmti_jni_bindings::{jboolean, jlocation, jlong, JNIEnv, jobject, jthread, JVM_Available};
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::string::get_string_region;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
@@ -11,7 +11,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 /// (i.e., returning for no "reason").
 /// Note: This operation is in the Unsafe class only because unpark is, so it would be strange to place it elsewhere.
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, is_absolute: jboolean, time: jlong) {
+unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: jobject, is_absolute: jboolean, time: jlong) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let current_thread = &jvm.thread_state.get_current_thread();
@@ -40,7 +40,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, is_absolut
 // Params:
 // thread – the thread to unpark.
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_unpark(env: *mut JNIEnv, thread: jthread) {
+unsafe extern "system" fn Java_sun_misc_Unsafe_unpark(env: *mut JNIEnv, _unsafe: jobject, thread: jthread) {
     let jvm = get_state(env);
     let thread_obj = JavaValue::Object(from_object(thread)).cast_thread();
     let target_thread = thread_obj.get_java_thread(jvm);
