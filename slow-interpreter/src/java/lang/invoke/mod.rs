@@ -1,5 +1,5 @@
 pub mod method_type {
-    use std::cell::{RefCell, UnsafeCell};
+    use std::cell::UnsafeCell;
     use std::sync::Arc;
 
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};

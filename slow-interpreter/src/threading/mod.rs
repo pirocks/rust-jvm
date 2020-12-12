@@ -2,10 +2,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Sender};
 use std::thread::LocalKey;
+use std::time::Duration;
 
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
@@ -142,6 +143,8 @@ impl ThreadState {
             jvmti_events_enabled: Default::default(),
             status: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
+            await_on_park: Condvar::new(),
+            num_parks: Mutex::new(0),
         });
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
         bootstrap_thread.notify_alive();
@@ -354,6 +357,8 @@ pub struct JavaThread {
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
     status: RwLock<ThreadStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
+    await_on_park: Condvar,
+    num_parks: Mutex<isize>,
 }
 
 impl JavaThread {
@@ -368,6 +373,8 @@ impl JavaThread {
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
             status: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
+            await_on_park: Condvar::new(),
+            num_parks: Mutex::new(0),
         });
         jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         res
@@ -431,6 +438,25 @@ impl JavaThread {
 
     pub fn status_number(&self) -> jint {
         self.status.read().unwrap().get_thread_status_number(self)
+    }
+
+    pub fn park(&self, time_nanos: u64) {//perhaps this u64 should be a u128 but I believe its fine within my lifetime. Also why would you park a thread that long.
+        let mut num_parks = self.num_parks.lock().unwrap();
+        *num_parks += 1;
+        if *num_parks > 0 {
+            self.status.write().unwrap().parked = true;
+            drop(self.await_on_park.wait_timeout(num_parks, Duration::from_nanos(time_nanos)).unwrap());
+        }
+    }
+
+    pub fn unpark(&self) {
+        self.await_on_park.notify_one();
+        let mut num_parks_guard = self.num_parks.lock().unwrap();
+        *num_parks_guard -= 1;
+        if *num_parks_guard <= 0 {
+            self.status.write().unwrap().parked = false;
+        }
+        drop(num_parks_guard)
     }
 }
 

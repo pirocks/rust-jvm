@@ -368,7 +368,7 @@ pub mod object {
 }
 
 pub mod thread {
-    use std::cell::{RefCell, UnsafeCell};
+    use std::cell::UnsafeCell;
     use std::sync::Arc;
 
     use jvmti_jni_bindings::{jboolean, jint};

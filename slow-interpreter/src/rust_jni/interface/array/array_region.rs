@@ -126,7 +126,7 @@ pub unsafe extern "C" fn set_long_array_region(_env: *mut JNIEnv, array: jdouble
 unsafe fn set_array_region(array: jarray, start: i32, len: i32, java_value_getter: &mut dyn FnMut(isize) -> JavaValue) {
     let non_nullarray = from_object(array)
         .unwrap();
-    let mut vec_mut = non_nullarray
+    let vec_mut = non_nullarray
         .unwrap_array().mut_array();
     for i in 0..len {
         vec_mut[(start + i) as usize] = java_value_getter(i as isize);

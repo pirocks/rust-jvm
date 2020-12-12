@@ -110,8 +110,6 @@ unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, c
     false as jboolean//todo impl
 }
 
-// static mut CALLED_ONCE: bool= true;
-
 #[no_mangle]
 unsafe extern "system" fn JVM_HoldsLock(env: *mut JNIEnv, threadClass: jclass, obj: jobject) -> jboolean {
     let int_state = get_interpreter_state(env);

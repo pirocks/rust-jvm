@@ -1,6 +1,3 @@
-use std::borrow::Borrow;
-use std::sync::Arc;
-
 use classfile_view::loading::LoaderArc;
 use rust_jvm_common::classnames::ClassName;
 use verification::verifier::instructions::special::extract_field_descriptor;
@@ -50,12 +47,6 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let field_value = get_static_impl(jvm, int_state, loader_arc, &field_class_name, &field_name).unwrap();
-    if field_name == "UNSAFE" && int_state.current_class_view().name().get_referred_name() == "java/util/concurrent/locks/LockSupport" {
-        let target_classfile = check_inited_class(jvm, int_state, &field_class_name.clone().into(), loader_arc.clone()).unwrap();
-        dbg!(Arc::as_ptr(&target_classfile));
-        dbg!(target_classfile.static_vars().borrow());
-        dbg!(&field_value);
-    }
     int_state.push_current_operand_stack(field_value);
 }
 

@@ -97,7 +97,7 @@ pub fn aastore(current_frame: &mut StackEntry) {
     let val = current_frame.pop();
     let index = current_frame.pop().unwrap_int();
     let arrary_ref_o = current_frame.pop().unwrap_object().unwrap();
-    let mut array_ref = arrary_ref_o.unwrap_array().mut_array();
+    let array_ref = arrary_ref_o.unwrap_array().mut_array();
     match val {
         JavaValue::Object(_) => {}
         _ => panic!(),

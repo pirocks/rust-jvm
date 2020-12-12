@@ -1,12 +1,9 @@
 use std::alloc::Layout;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
 use std::sync::Arc;
-
-use regex::internal::Input;
 
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
 

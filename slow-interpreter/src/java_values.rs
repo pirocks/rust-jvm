@@ -1,14 +1,11 @@
-use std::borrow::Borrow;
-use std::cell::{RefCell, RefMut, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
 use std::sync::Arc;
 
-use classfile_parser::parse_validation::ValidatorSettings;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classfile::String_;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_state::InterpreterStateGuard;

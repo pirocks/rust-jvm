@@ -21,8 +21,6 @@ pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceData};
     use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
-    use jvmti_jni_bindings::jint;
-    use rust_jvm_common::classfile::REF_invokeVirtual;
     use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::ptype::{PType, ReferenceType};
 

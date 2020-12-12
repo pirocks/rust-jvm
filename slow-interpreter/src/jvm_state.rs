@@ -1,4 +1,4 @@
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::transmute;

@@ -1,5 +1,4 @@
 use std::borrow::Borrow;
-use std::cell::Ref;
 
 use crate::java_values::JavaValue;
 
@@ -25,7 +24,7 @@ pub fn system_array_copy(args: &mut Vec<JavaValue>) {
         to_copy.push(temp);
     }
     for i in 0..(length as usize) {
-        let mut borrowed = dest.mut_array();
+        let borrowed = dest.mut_array();
         borrowed[dest_pos as usize + i] = to_copy[i].clone();
     }
 }

@@ -31,7 +31,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
 pub unsafe extern "C" fn set_object_array_element(_env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
     let notnull = from_object(array).unwrap();
     let array = notnull.unwrap_array();
-    let mut borrow_mut = array.mut_array();
+    let borrow_mut = array.mut_array();
     borrow_mut[index as usize] = from_object(val).into();
 }
 
