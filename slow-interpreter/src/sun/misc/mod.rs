@@ -38,3 +38,43 @@ pub mod unsafe_ {
         as_object_or_java_value!();
     }
 }
+
+pub mod launcher {
+    use std::sync::Arc;
+
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::check_inited_class;
+    use crate::java::lang::class_loader::ClassLoader;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Launcher {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_launcher(&self) -> Launcher {
+            Launcher { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Launcher {
+        pub fn get_launcher(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Launcher {
+            let launcher = check_inited_class(jvm, int_state, &ClassName::Str("sun/misc/Launcher".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();//todo
+            run_static_or_virtual(jvm, int_state, &launcher, "getLauncher".to_string(), "()Lsun/misc/Launcher;".to_string());
+            int_state.pop_current_operand_stack().cast_launcher()
+        }
+
+        pub fn get_loader(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> ClassLoader {
+            let launcher = check_inited_class(jvm, int_state, &ClassName::Str("sun/misc/Launcher".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();//todo
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm, int_state, &launcher, "getLoader".to_string(), "()Ljava/lang/ClassLoader;".to_string());
+            int_state.pop_current_operand_stack().cast_class_loader()
+        }
+
+        as_object_or_java_value!();
+    }
+}
