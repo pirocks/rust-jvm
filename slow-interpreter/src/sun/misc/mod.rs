@@ -21,7 +21,7 @@ pub mod unsafe_ {
 
     impl Unsafe {
         pub fn the_unsafe(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Unsafe {
-            let unsafe_class = check_inited_class(jvm, int_state, &ClassName::unsafe_().into(), int_state.current_loader(jvm)).unwrap();
+            let unsafe_class = check_inited_class(jvm, int_state, ClassName::unsafe_().into()).unwrap();
             let static_vars = unsafe_class.static_vars();
             static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
         }
@@ -63,13 +63,13 @@ pub mod launcher {
 
     impl Launcher {
         pub fn get_launcher(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Launcher {
-            let launcher = check_inited_class(jvm, int_state, &ClassName::Str("sun/misc/Launcher".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();//todo
+            let launcher = check_inited_class(jvm, int_state, ClassName::Str("sun/misc/Launcher".to_string()).into()).unwrap();//todo
             run_static_or_virtual(jvm, int_state, &launcher, "getLauncher".to_string(), "()Lsun/misc/Launcher;".to_string());
             int_state.pop_current_operand_stack().cast_launcher()
         }
 
         pub fn get_loader(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> ClassLoader {
-            let launcher = check_inited_class(jvm, int_state, &ClassName::Str("sun/misc/Launcher".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();//todo
+            let launcher = check_inited_class(jvm, int_state, ClassName::Str("sun/misc/Launcher".to_string()).into()).unwrap();//todo
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &launcher, "getLoader".to_string(), "()Ljava/lang/ClassLoader;".to_string());
             int_state.pop_current_operand_stack().cast_class_loader()

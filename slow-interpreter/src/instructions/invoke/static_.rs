@@ -25,8 +25,7 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let target_class = match check_inited_class(
         jvm,
         int_state,
-        &class_name.into(),
-        loader_arc.clone(),
+        class_name.into(),
     ) {
         Ok(x) => x,
         Err(_) => {

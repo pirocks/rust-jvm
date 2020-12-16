@@ -241,7 +241,7 @@ pub struct Handler {
 pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: LoaderArc) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
-        None => { ClassWithLoader { class_name: ClassName::throwable(), loader: vf.bootstrap_loader.clone() } }
+        None => { ClassWithLoader { class_name: ClassName::throwable(), loader: vf.current_loader.clone() } }
         Some(s) => {
 //            let _classfile = loader.pre_load(loader.clone(),s).unwrap();
             // then class in question exists
@@ -328,7 +328,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     //todo this long and frequently duped
     let args = expand_type_list(vf, parsed_descriptor.parameter_types
         .iter()
-        .map(|x| PTypeView::from_ptype(&x).to_verification_type(&vf.bootstrap_loader))
+        .map(|x| PTypeView::from_ptype(&x).to_verification_type(&vf.current_loader))
         .collect());//todo need to solve loader situation
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
@@ -338,7 +338,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = Rc::new(expand_to_length_verification(this_args, frame_size as usize, VType::TopType));
-    (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.bootstrap_loader))
+    (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.current_loader))
 }
 
 

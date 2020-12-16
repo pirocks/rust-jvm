@@ -140,7 +140,7 @@ impl JVMState {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
                 let current_loader = self.bootstrap_loader.clone();// todo is the bootstrap loader object loaded by the bootstrap loder?
-                let class_loader_class = check_inited_class(self, int_state, &java_lang_class_loader.into(), current_loader.clone()).unwrap();
+                let class_loader_class = check_inited_class(self, int_state, java_lang_class_loader.into()).unwrap();
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
                     fields: UnsafeCell::new(HashMap::new()),
@@ -157,7 +157,7 @@ impl JVMState {
     pub unsafe fn get_int_state<'l>(&self) -> &'l mut InterpreterStateGuard<'l> {
         assert!(self.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
         let ptr = self.thread_state.int_state_guard.with(|refcell| *refcell.borrow().as_ref().unwrap());
-        let res = transmute::<&mut InterpreterStateGuard<'static>, &mut InterpreterStateGuard<'l>>(ptr.as_mut().unwrap());
+        let res = transmute::<&mut InterpreterStateGuard<'static>, &mut InterpreterStateGuard<'l>>(ptr.as_mut().unwrap());//todo make this less sketch maybe
         assert!(res.registered);
         res
     }

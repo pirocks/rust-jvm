@@ -168,7 +168,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
-                            let linkage_error = check_inited_class(jvm, int_state, &ClassName::Str("java/lang/LinkageError".to_string()).into(), jvm.bootstrap_loader.clone()).unwrap();//todo loaders
+                            let linkage_error = check_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into()).unwrap();//todo loaders
                             push_new_object(jvm, int_state, &linkage_error, None);
                             let object = int_state.pop_current_operand_stack().unwrap_object();
                             int_state.set_throw(object);

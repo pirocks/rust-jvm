@@ -41,7 +41,7 @@ pub fn get_or_create_class_object(state: &JVMState,
 
 fn regular_class_object(state: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader_arc: LoaderArc) -> Result<Arc<Object>, ClassLoadingError> {
     // let current_frame = int_state.current_frame_mut();
-    let runtime_class = check_inited_class(state, int_state, &ptype, loader_arc)?;
+    let runtime_class = check_inited_class(state, int_state, ptype.clone())?;
     let res = state.classes.class_object_pool.read().unwrap().get(&ptype).cloned();
     Ok(match res {
         None => {
@@ -66,7 +66,7 @@ fn regular_class_object(state: &JVMState, ptype: PTypeView, int_state: &mut Inte
 fn create_a_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
     let java_lang_class = ClassName::class();
     let current_loader = int_state.current_loader(jvm).clone();
-    let class_class = check_inited_class(jvm, int_state, &java_lang_class.into(), current_loader.clone()).unwrap();
+    let class_class = check_inited_class(jvm, int_state, java_lang_class.into()).unwrap();
     let boostrap_loader_object = jvm.get_or_create_bootstrap_object_loader(int_state);
     //the above would only be required for higher jdks where a class loader object is part of Class.
     //as it stands we can just push to operand stack

@@ -125,7 +125,7 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
             // this is not perfect, ideally we would return an error:
             // return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
             let int_state = get_interpreter_state(env);
-            let thread_class = check_inited_class(jvm, int_state, &ClassName::thread().into(), int_state.current_loader(jvm)).unwrap();
+            let thread_class = check_inited_class(jvm, int_state, ClassName::thread().into()).unwrap();
             let possible_starts = thread_class.view().lookup_method_name(&"start".to_string());
             let thread_start_view = possible_starts.get(0).unwrap();
             jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)

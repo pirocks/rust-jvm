@@ -8,14 +8,14 @@ use jvmti_jni_bindings::{jboolean, jclass, jint, JNIEnv, jobjectArray};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
-use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{check_inited_class_override_loader, push_new_object, run_constructor};
+use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::STRING_INTERNMENT;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
-use slow_interpreter::java::lang::class::JClass;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {

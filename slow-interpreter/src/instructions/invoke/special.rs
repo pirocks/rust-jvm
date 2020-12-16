@@ -20,8 +20,7 @@ pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp:
     let target_class = check_inited_class(
         jvm,
         int_state,
-        &method_class_name.into(),
-        loader_arc.clone(),
+        method_class_name.into(),
     ).unwrap();
     let (target_m_i, final_target_class) = find_target_method(jvm, loader_arc.clone(), method_name, &parsed_descriptor, target_class);
     let target_m = &final_target_class.view().method_view_i(target_m_i);

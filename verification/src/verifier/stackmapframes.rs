@@ -48,10 +48,10 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
             map_frame: Frame {
                 locals: Rc::new(expand_to_length(frame.locals.clone(), frame.max_locals as usize, PTypeView::TopType)
                     .iter()
-                    .map(|x| x.to_verification_type(&vf.bootstrap_loader))
+                    .map(|x| x.to_verification_type(&vf.current_loader))
                     .collect()),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter()
-                    .map(|x| x.to_verification_type(&vf.bootstrap_loader))
+                    .map(|x| x.to_verification_type(&vf.current_loader))
                     .collect::<Vec<_>>()),
                 flag_this_uninit: false,
             },

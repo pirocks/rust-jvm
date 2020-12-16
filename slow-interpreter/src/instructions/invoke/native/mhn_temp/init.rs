@@ -107,7 +107,7 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     } else {
         let class_ptye = clazz.as_type();
         let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-        let inited_class = check_inited_class(jvm, int_state, &class_name.into(), int_state.current_loader(jvm)).unwrap();
+        let inited_class = check_inited_class(jvm, int_state, class_name.into()).unwrap();
         if inited_class.view().is_interface() {
             REF_invokeInterface
         } else {

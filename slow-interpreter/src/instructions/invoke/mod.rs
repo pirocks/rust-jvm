@@ -39,20 +39,17 @@ pub mod dynamic {
         let method_handle_class = check_inited_class(
             jvm,
             int_state,
-            &ClassName::method_handle().into(),
-            int_state.current_loader(jvm).clone(),
+            ClassName::method_handle().into()
         ).unwrap();
         let _method_type_class = check_inited_class(
             jvm,
             int_state,
-            &ClassName::method_type().into(),
-            int_state.current_loader(jvm).clone(),
+            ClassName::method_type().into()
         );
         let _call_site_class = check_inited_class(
             jvm,
             int_state,
-            &ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
-            int_state.current_loader(jvm).clone(),
+            ClassName::Str("java/lang/invoke/CallSite".to_string()).into()
         );
         let class_pointer_view = int_state.current_class_view().clone();
         dbg!(cp);
@@ -251,8 +248,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
     let resolved_class = check_inited_class(
         jvm,
         int_state,
-        &class_name_.into(),
-        loader_arc.clone(),
+        class_name_.into(),
     ).unwrap();
     (resolved_class, expected_method_name, expected_descriptor).into()
 }

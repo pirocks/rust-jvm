@@ -14,7 +14,7 @@ pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
     // int_state.print_stack_trace();
     // dbg!(target_class_name);
-    let target_classfile = match check_inited_class(jvm, int_state, &target_class_name.clone().into(), loader_arc.clone()) {
+    let target_classfile = match check_inited_class(jvm, int_state, target_class_name.clone().into()) {
         Ok(target_classfile) => target_classfile,
         Err(_) => {
             assert!(int_state.throw().is_some());
@@ -51,8 +51,7 @@ pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGua
     check_inited_class(
         jvm,
         int_state,
-        &t,
-        int_state.current_loader(jvm).clone(),
+        t.clone(),
     ).unwrap();
     // }
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t);
@@ -101,7 +100,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    check_inited_class(jvm, int_state, &PTypeView::Ref(type_.clone()), int_state.current_loader(jvm).clone()).unwrap();
+    check_inited_class(jvm, int_state, PTypeView::Ref(type_.clone())).unwrap();
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     // dbg!(&type_);

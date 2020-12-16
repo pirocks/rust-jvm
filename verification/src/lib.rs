@@ -51,12 +51,12 @@ pub struct StackMap {
 
 pub struct VerifierContext {
     pub live_pool_getter: Arc<dyn LivePoolGetter>,
-    pub bootstrap_loader: LoaderArc,
+    pub current_loader: LoaderArc,
 }
 
 impl Clone for VerifierContext {
     fn clone(&self) -> Self {
-        VerifierContext { live_pool_getter: self.live_pool_getter.clone(), bootstrap_loader: self.bootstrap_loader.clone() }
+        VerifierContext { live_pool_getter: self.live_pool_getter.clone(), current_loader: self.current_loader.clone() }
     }
 }
 

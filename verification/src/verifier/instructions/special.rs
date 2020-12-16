@@ -7,8 +7,8 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
 use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_descriptor};
-use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::OperandStack;
@@ -25,7 +25,7 @@ use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
-    let bl = &env.vf.bootstrap_loader.clone();
+    let bl = &env.vf.current_loader.clone();
     let object = VType::Class(ClassWithLoader { class_name: ClassName::object(), loader: bl.clone() });
     type_transition(env, stack_frame, vec![object], VType::IntType)
 }
@@ -100,7 +100,7 @@ fn nth1(i: usize, o: &OperandStack) -> VType {
 }
 
 pub fn instruction_is_type_safe_athrow(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let to_pop = ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.bootstrap_loader.clone() };
+    let to_pop = ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.current_loader.clone() };
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![VType::Class(to_pop)])?;
@@ -110,7 +110,7 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, stack_frame: Frame) ->
 
 //todo duplication with class name parsing and array logic
 pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let object_class = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.bootstrap_loader.clone() };
+    let object_class = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.current_loader.clone() };
     let class = get_class(&env.vf, env.method.class);
     let result_type = match &class.constant_pool_view(index) {
         ConstantInfoView::Class(c) => {

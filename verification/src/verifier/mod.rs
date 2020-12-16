@@ -41,7 +41,7 @@ pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) ->
     if class.loader.initiating_loader_of(&class.class_name) {
         // verifier_context.jvm
         //todo maybe trace load here
-        match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.bootstrap_loader.clone(), verifier_context.live_pool_getter.clone()) {
+        match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.current_loader.clone(), verifier_context.live_pool_getter.clone()) {
             Ok(c) => c,
             Err(_) => panic!(),
         }
@@ -98,7 +98,7 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
         let super_class_name = get_class(vf, class).super_name();
-        let super_class = loaded_class(vf, super_class_name.unwrap(), vf.bootstrap_loader.clone()).unwrap();
+        let super_class = loaded_class(vf, super_class_name.unwrap(), vf.current_loader.clone()).unwrap();
         if class_is_final(vf, &super_class) {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
         }

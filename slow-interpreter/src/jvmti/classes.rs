@@ -189,7 +189,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     null_check!(method_count_ptr);
     null_check!(methods_ptr);
     let class_type = class.as_type();
-    let loaded_class = check_inited_class(jvm, int_state, &class_type, int_state.current_loader(jvm).clone()).unwrap();
+    let loaded_class = check_inited_class(jvm, int_state, class_type).unwrap();
     let res = loaded_class.view().methods().map(|mv| {
         let method_id = jvm.method_table.write().unwrap().get_method_id(loaded_class.clone(), mv.method_i() as u16);
         method_id as jmethodID

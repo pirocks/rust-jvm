@@ -11,7 +11,7 @@ use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
-use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::constructor::Constructor;
 use slow_interpreter::java::lang::reflect::method::Method;
@@ -41,7 +41,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
     }
     let runtime_class = of_class_obj.as_runtime_class();
     let methods = get_all_methods(jvm, int_state, runtime_class);
-    let method_class = check_inited_class(jvm, int_state, &ClassName::method().into(), loader.clone()).unwrap();
+    let method_class = check_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {

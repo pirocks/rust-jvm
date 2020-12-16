@@ -41,7 +41,7 @@ pub fn modify_local_variable(vf: &VerifierContext, index: usize, type_: VType, l
 }
 
 pub fn instruction_is_type_safe_aastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let object = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.bootstrap_loader.clone() };
+    let object = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.current_loader.clone() };
     let object_type = VType::Class(object);
     let object_array = VType::ArrayReferenceType(PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())));
     let locals = stack_frame.locals.clone();

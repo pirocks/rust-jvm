@@ -34,7 +34,7 @@ fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class
 
 pub fn is_bootstrap_loader(vf: &VerifierContext, loader: &LoaderArc) -> bool {
     //Arc::ptr_eq(loader, &vf.bootstrap_loader)//todo this is bad
-    loader.name() == vf.bootstrap_loader.name()
+    loader.name() == vf.current_loader.name()
 }
 
 pub fn get_class_methods<'l>(vf: &VerifierContext, class: &'l ClassWithLoader) -> Vec<ClassWithLoaderMethod<'l>> {
@@ -175,7 +175,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             VType::Class(_) => Result::Ok(()),
             VType::ArrayReferenceType(_) => Result::Ok(()),
             //todo really need to do something about these magic strings
-            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: ClassName::object(), loader: vf.bootstrap_loader.clone() }), to),
+            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: ClassName::object(), loader: vf.current_loader.clone() }), to),
         },
         VType::OneWord => match to {
             VType::OneWord => Result::Ok(()),
@@ -250,7 +250,7 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
         VType::ArrayReferenceType(a1) => {
             match right {
                 VType::Class(c) => {
-                    if c.class_name == ClassName::object() && vf.bootstrap_loader.name() == c.loader.name() {
+                    if c.class_name == ClassName::object() && vf.current_loader.name() == c.loader.name() {
                         return Result::Ok(());
                     }
                     unimplemented!()
@@ -272,7 +272,7 @@ fn is_java_assignable_array_types(vf: &VerifierContext, left: &PTypeView, right:
     if !atom(&left) && !atom(&right) {
         //todo is this bootstrap loader thing ok?
         //todo in general there needs to be a better way of handling this
-        return is_java_assignable(vf, &left.to_verification_type(&vf.bootstrap_loader), &right.to_verification_type(&vf.bootstrap_loader));//todo so is this correct or does the spec handle this in full generality?
+        return is_java_assignable(vf, &left.to_verification_type(&vf.current_loader), &right.to_verification_type(&vf.current_loader));//todo so is this correct or does the spec handle this in full generality?
     }
     Result::Err(unknown_error_verifying!())
 }
@@ -400,7 +400,7 @@ pub fn final_method_not_overridden(
 
 pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let super_class_name = class_super_class_name(vf, class);
-    let super_class = loaded_class(vf, super_class_name, vf.bootstrap_loader.clone())?;
+    let super_class = loaded_class(vf, super_class_name, vf.current_loader.clone())?;
     let super_methods_list = get_class_methods(vf, &super_class);
     final_method_not_overridden(vf, method, &super_class, &super_methods_list)
 }

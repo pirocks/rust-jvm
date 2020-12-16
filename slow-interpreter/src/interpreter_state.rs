@@ -8,7 +8,6 @@ use rust_jvm_common::classfile::CPIndex;
 
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
-use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntry;
 use crate::threading::JavaThread;
 
@@ -71,19 +70,12 @@ impl<'l> InterpreterStateGuard<'l> {
         }
     }
 
-    pub fn current_class_pointer(&self) -> &Arc<RuntimeClass> {
-        &self.current_frame().class_pointer()
-    }
-
     pub fn current_loader(&self, jvm: &JVMState) -> LoaderArc {
-        //todo fix the loader situation
-        // let cp = self.current_class_pointer();
-        // cp.loader(jvm)
-        jvm.bootstrap_loader.clone()
+        self.current_frame().class_pointer().loader(jvm)
     }
 
     pub fn current_class_view(&self) -> &Arc<ClassView> {
-        self.current_class_pointer().view()
+        self.current_frame().class_pointer().view()
     }
 
 

@@ -20,7 +20,7 @@ fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, 
 }
 
 pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: &PTypeView) {
-    let object = get_or_create_class_object(jvm, res_class_type, int_state, jvm.bootstrap_loader.clone()).unwrap();
+    let object = get_or_create_class_object(jvm, res_class_type, int_state, int_state.current_loader(jvm)).unwrap();
     // dbg!(object.clone().lookup_field("name"));
     // dbg!(object.clone());
     // dbg!(object.unwrap_normal_object().fields.borrow());
@@ -35,12 +35,11 @@ fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s
 
 pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
     let java_lang_string = ClassName::string();
-    let current_loader = jvm.bootstrap_loader.clone();
+    let current_loader = interpreter_state.current_loader(jvm);
     let string_class = check_inited_class(
         jvm,
         interpreter_state,
-        &java_lang_string.into(),
-        current_loader.clone(),
+        java_lang_string.into(),
     ).unwrap();
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();

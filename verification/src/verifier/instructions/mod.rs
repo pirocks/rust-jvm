@@ -190,7 +190,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 //todo how does bootstrap loader from throwable make its way into this
                 //todo why do I take the class name when I already know it
                 is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name, loader: env.class_loader.clone() }),
-                              &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.bootstrap_loader.clone() }))
+                              &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.current_loader.clone() }))
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
             }
@@ -625,11 +625,11 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
         ConstantInfoView::Double(_) => VType::DoubleType,
         ConstantInfoView::Class(_c) => {
             let class_name = ClassName::class();
-            VType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
+            VType::Class(ClassWithLoader { class_name, loader: vf.current_loader.clone() })
         }
         ConstantInfoView::String(_) => {
             let class_name = ClassName::string();
-            VType::Class(ClassWithLoader { class_name, loader: vf.bootstrap_loader.clone() })
+            VType::Class(ClassWithLoader { class_name, loader: vf.current_loader.clone() })
         }
         ConstantInfoView::MethodHandle(_) => unimplemented!(),
         ConstantInfoView::MethodType(_) => unimplemented!(),
@@ -637,7 +637,7 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
         ConstantInfoView::InvokeDynamic(_) => unimplemented!(),
         ConstantInfoView::LiveObject(idx) => {
             let type_ = vf.live_pool_getter.elem_type(*idx);
-            PTypeView::Ref(type_).to_verification_type(&vf.bootstrap_loader.clone())
+            PTypeView::Ref(type_).to_verification_type(&vf.current_loader.clone())
         }
         _ => {
             dbg!(c);
@@ -664,9 +664,9 @@ pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_fram
     let type_ = match const_ {
         ConstantInfoView::Integer(_) => VType::IntType,
         ConstantInfoView::Float(_) => VType::FloatType,
-        ConstantInfoView::Class(_) => VType::Class(ClassWithLoader { class_name: ClassName::class(), loader: env.vf.bootstrap_loader.clone() }),
-        ConstantInfoView::String(_) => VType::Class(ClassWithLoader { class_name: ClassName::string(), loader: env.vf.bootstrap_loader.clone() }),
-        ConstantInfoView::MethodType(_) => VType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/invoke/MethodType"), loader: env.vf.bootstrap_loader.clone() }),
+        ConstantInfoView::Class(_) => VType::Class(ClassWithLoader { class_name: ClassName::class(), loader: env.vf.current_loader.clone() }),
+        ConstantInfoView::String(_) => VType::Class(ClassWithLoader { class_name: ClassName::string(), loader: env.vf.current_loader.clone() }),
+        ConstantInfoView::MethodType(_) => VType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/invoke/MethodType"), loader: env.vf.current_loader.clone() }),
         _ => panic!()
     };
     type_transition(env, stack_frame, vec![], type_)

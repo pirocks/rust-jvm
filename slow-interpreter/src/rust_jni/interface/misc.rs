@@ -46,7 +46,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         None => return null_mut(),
         Some(n) => n,
     };
-    let _inited_class = check_inited_class(jvm, int_state, &super_name.clone().into(), int_state.current_loader(jvm)).unwrap();
+    let _inited_class = check_inited_class(jvm, int_state, super_name.clone().into()).unwrap();
     load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
 }
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sup_vtype = sup_type.to_verification_type(loader);
 
 
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), bootstrap_loader: jvm.bootstrap_loader.clone() };
+    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), current_loader: jvm.bootstrap_loader.clone() };
     let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
     res as jboolean
 }
@@ -154,13 +154,13 @@ pub fn get_all_methods(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cl
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_inited_class(jvm, int_state, &ClassName::object().into(), class.loader(jvm).clone()).unwrap();
+        let object = check_inited_class(jvm, int_state, ClassName::object().into()).unwrap();
         object.view().methods().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name().unwrap();
-        let super_ = check_inited_class(jvm, int_state, &name.into(), class.loader(jvm).clone()).unwrap();
+        let super_ = check_inited_class(jvm, int_state, name.into()).unwrap();
         for (c, i) in get_all_methods(jvm, int_state, super_) {
             res.push((c, i));
         }
@@ -176,13 +176,13 @@ pub fn get_all_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cla
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_inited_class(jvm, int_state, &ClassName::object().into(), class.loader(jvm).clone()).unwrap();
+        let object = check_inited_class(jvm, int_state, ClassName::object().into()).unwrap();
         object.view().fields().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name();
-        let super_ = check_inited_class(jvm, int_state, &name.unwrap().into(), class.loader(jvm).clone()).unwrap();
+        let super_ = check_inited_class(jvm, int_state, name.unwrap().into()).unwrap();
         for (c, i) in get_all_fields(jvm, int_state, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }

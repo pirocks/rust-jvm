@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-use slow_interpreter::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object, run_constructor};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_inited_class(jvm, int_state, &target_class_name.into(), int_state.current_loader(jvm).clone()).unwrap();
+    let target_runtime_class = check_inited_class(jvm, int_state, target_class_name.into()).unwrap();
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {

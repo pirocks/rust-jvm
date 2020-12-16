@@ -105,7 +105,7 @@ impl Loader for BootstrapLoader {
                 self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone(), live_pool_getter.clone())?;
             }
             let backing_class = class_view.backing_class();
-            match verify(&VerifierContext { live_pool_getter, bootstrap_loader: bl.clone() }, &class_view, self_arc) {
+            match verify(&VerifierContext { live_pool_getter, current_loader: bl.clone() }, &class_view, self_arc) {
                 Ok(_) => {}
                 Err(_) => panic!(),
             };

@@ -26,7 +26,7 @@ use rust_jvm_common::ptype::PType;
 
 use crate::interpreter::run_function;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::interpreter_util::check_inited_class;
+use crate::interpreter_util::check_inited_class_override_loader;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java_values::{ArrayObject, JavaValue};
@@ -34,6 +34,7 @@ use crate::java_values::Object::Array;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntry;
+use crate::sun::misc::launcher::Launcher;
 use crate::threading::JavaThread;
 
 #[macro_use]
@@ -71,9 +72,13 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     //     Result::Ok(())
     // } else {
     dbg!(&jvm.main_class_name);
-    let main = check_inited_class(jvm, int_state, &jvm.main_class_name.clone().into(), jvm.bootstrap_loader.clone()).unwrap();
+
+    let launcher = Launcher::get_launcher(jvm, int_state);
+    let main_loader = launcher.get_loader(jvm, int_state).to_jvm_loader();
+
+    let main = check_inited_class_override_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader.clone()).unwrap();
     let main_view = main.view();
-    let main_i = locate_main_method(&jvm.bootstrap_loader, &main_view.backing_class());
+    let main_i = locate_main_method(&main_loader.clone(), &main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;

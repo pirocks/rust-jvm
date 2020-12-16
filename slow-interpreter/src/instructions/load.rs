@@ -79,8 +79,7 @@ fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGua
     let bounds_class = check_inited_class(
         jvm,
         int_state,
-        &ClassName::new("java/lang/ArrayIndexOutOfBoundsException").into(),
-        int_state.current_loader(jvm),
+        ClassName::new("java/lang/ArrayIndexOutOfBoundsException").into(),
     ).unwrap();
     push_new_object(jvm, int_state, &bounds_class, None);
     let obj = int_state.current_frame_mut().pop();
