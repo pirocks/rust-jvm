@@ -44,14 +44,14 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     //todo maybe have an anon loader for this
     let current_loader = int_state.current_loader(jvm);
 
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), current_loader: current_loader.clone() };
+    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classes: todo!(), current_loader: current_loader.name() };
     let class_view = ClassView::from(parsed.clone());
     File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
     let class_name = class_view.name();
     current_loader.add_pre_loaded(&class_name, &parsed);
     // frame.print_stack_trace();
     // dbg!(&class_name);
-    match verify(&vf, &class_view, current_loader.clone()) {
+    match verify(&vf, &class_view, current_loader.name()) {
         Ok(_) => {}
         Err(_) => panic!(),
     };

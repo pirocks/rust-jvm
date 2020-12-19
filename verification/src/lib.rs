@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use elapsed::measure_time;
 
-use classfile_view::loading::{ClassWithLoader, LivePoolGetter, LoaderArc};
+use classfile_view::loading::{Classes, ClassWithLoader, LivePoolGetter, LoaderName};
 use classfile_view::view::ClassView;
 use classfile_view::vtype::VType;
 
@@ -17,7 +17,7 @@ pub mod verifier;
 
 // static mut TOTAL_VERIFICATION: Duration = Duration::from_micros(0);
 
-pub fn verify(vf: &VerifierContext, to_verify: &ClassView, loader: LoaderArc) -> Result<(), TypeSafetyError> {
+pub fn verify(vf: &VerifierContext, to_verify: &ClassView, loader: LoaderName) -> Result<(), TypeSafetyError> {
     // dbg!(to_verify.name());
     let (_time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify.name(),
@@ -49,16 +49,12 @@ pub struct StackMap {
     pub map_frame: Frame,
 }
 
-pub struct VerifierContext {
+pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter>,
-    pub current_loader: LoaderArc,
+    pub classes: &'l Classes,
+    pub current_loader: LoaderName,
 }
 
-impl Clone for VerifierContext {
-    fn clone(&self) -> Self {
-        VerifierContext { live_pool_getter: self.live_pool_getter.clone(), current_loader: self.current_loader.clone() }
-    }
-}
 
 #[derive(Eq, Debug)]
 pub struct OperandStack {

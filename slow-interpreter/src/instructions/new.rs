@@ -9,7 +9,6 @@ use crate::interpreter_util::{check_inited_class, push_new_object};
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
 pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
-    let loader_arc = &int_state.current_frame_mut().class_pointer().loader(jvm);
     let view = &int_state.current_frame_mut().class_pointer().view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
     // int_state.print_stack_trace();

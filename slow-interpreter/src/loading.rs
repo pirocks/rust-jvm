@@ -10,7 +10,6 @@ use classfile_view::view::ClassView;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::{class_name, ClassName};
-use verification::{VerifierContext, verify};
 
 #[derive(Debug)]
 pub struct Classpath {
@@ -89,63 +88,64 @@ impl Loader for BootstrapLoader {
     }
 
     fn load_class(&self, self_arc: LoaderArc, class: &ClassName, bl: LoaderArc, live_pool_getter: Arc<dyn LivePoolGetter>) -> Result<Arc<ClassView>, ClassLoadingError> {
-        if !self.initiating_loader_of(class) {
-            // trace!("loading {}", class.get_referred_name());
-            let class_view = self.pre_load(class)?;
-            if class != &ClassName::object() {
-                if class_view.super_name() == None {
-                    self.load_class(self_arc.clone(), &ClassName::object(), bl.clone(), live_pool_getter.clone())?;
-                } else {
-                    let super_class_name = class_view.super_name();
-                    self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone(), live_pool_getter.clone())?;
-                }
-            }
-            for i in class_view.interfaces() {
-                let interface_name = i.interface_name();
-                self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone(), live_pool_getter.clone())?;
-            }
-            let backing_class = class_view.backing_class();
-            match verify(&VerifierContext { live_pool_getter, current_loader: bl.clone() }, &class_view, self_arc) {
-                Ok(_) => {}
-                Err(_) => panic!(),
-            };
-            self.loaded.write().unwrap().insert(class.clone(), (Arc::new(ClassView::from(backing_class.clone())), backing_class));
-        }
-        let c = self.loaded.read().unwrap().get(class).unwrap().clone();
-        Result::Ok(c.0)
+        // if !self.initiating_loader_of(class) {
+        //     // trace!("loading {}", class.get_referred_name());
+        //     let class_view = self.pre_load(class)?;
+        //     if class != &ClassName::object() {
+        //         if class_view.super_name() == None {
+        //             self.load_class(self_arc.clone(), &ClassName::object(), bl.clone(), live_pool_getter.clone())?;
+        //         } else {
+        //             let super_class_name = class_view.super_name();
+        //             self.load_class(self_arc.clone(), &super_class_name.unwrap(), bl.clone(), live_pool_getter.clone())?;
+        //         }
+        //     }
+        //     for i in class_view.interfaces() {
+        //         let interface_name = i.interface_name();
+        //         self.load_class(self_arc.clone(), &ClassName::Str(interface_name), bl.clone(), live_pool_getter.clone())?;
+        //     }
+        //     let backing_class = class_view.backing_class();
+        //     match verify(&VerifierContext { live_pool_getter, current_loader: bl.clone() }, &class_view, self_arc) {
+        //         Ok(_) => {}
+        //         Err(_) => panic!(),
+        //     };
+        //     self.loaded.write().unwrap().insert(class.clone(), (Arc::new(ClassView::from(backing_class.clone())), backing_class));
+        // }
+        // let c = self.loaded.read().unwrap().get(class).unwrap().clone();
+        // Result::Ok(c.0)
+        todo!()
     }
 
     fn name(&self) -> LoaderName {
         LoaderName::BootstrapLoader
     }
 
-    //todo hacky and janky
-    // as a fix for self_arc we could wrap Arc, and have that struct impl loader
-    fn pre_load(&self, name: &ClassName) -> Result<Arc<ClassView>, ClassLoadingError> {
-        //todo assert self arc is same
-        //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
-        let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.1.clone());
-        let res = match maybe_classfile {
-            None => {
-                self.classpath.lookup(name)
-            }
-            Some(c) => Result::Ok(c),
-        };
-        match res {
-            Ok(c) => {
-                let class_view = Arc::new(ClassView::from(c.clone()));
-                self.parsed.write().unwrap().insert(class_name(&c),
-                                                    (class_view.clone(), c));
-                Result::Ok(class_view)
-            }
-            Err(e) => {
-                dbg!(e);
-
-                dbg!(name);
-                Result::Err(ClassLoadingError::ClassNotFoundException)
-            }
-        }
-    }
+    // //todo hacky and janky
+    // // as a fix for self_arc we could wrap Arc, and have that struct impl loader
+    // fn pre_load(&self, name: &ClassName) -> Result<Arc<ClassView>, ClassLoadingError> {
+    //     //todo assert self arc is same
+    //     //todo race potential every time we check for contains_key if there is potential for removal from struct which there may or may not be
+    //     let maybe_classfile: Option<Arc<Classfile>> = self.parsed.read().unwrap().get(name).map(|x| x.1.clone());
+    //     let res = match maybe_classfile {
+    //         None => {
+    //             self.classpath.lookup(name)
+    //         }
+    //         Some(c) => Result::Ok(c),
+    //     };
+    //     match res {
+    //         Ok(c) => {
+    //             let class_view = Arc::new(ClassView::from(c.clone()));
+    //             self.parsed.write().unwrap().insert(class_name(&c),
+    //                                                 (class_view.clone(), c));
+    //             Result::Ok(class_view)
+    //         }
+    //         Err(e) => {
+    //             dbg!(e);
+    //
+    //             dbg!(name);
+    //             Result::Err(ClassLoadingError::ClassNotFoundException)
+    //         }
+    //     }
+    // }
 
     fn add_pre_loaded(&self, name: &ClassName, classfile: &Arc<Classfile>) {
         self.parsed.write().unwrap().insert(name.clone(),

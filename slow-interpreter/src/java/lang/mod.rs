@@ -235,8 +235,6 @@ pub mod class {
 pub mod class_loader {
     use std::sync::Arc;
 
-    use classfile_view::loading::Loader;
-
     use crate::java_values::{JavaValue, Object};
 
     pub struct ClassLoader {

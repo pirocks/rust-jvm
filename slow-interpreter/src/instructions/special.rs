@@ -131,7 +131,7 @@ fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, in
     }
 }
 
-fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_: &Arc<RuntimeClass>, i: InterfaceView) -> Arc<RuntimeClass> {
+fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i: InterfaceView) -> Arc<RuntimeClass> {
     let intf_name = i.interface_name();
     check_inited_class(jvm, int_state, ClassName::Str(intf_name).into()).unwrap()
 }
@@ -144,7 +144,7 @@ pub fn inherits_from(state: &JVMState, int_state: &mut InterpreterStateGuard, in
     let mut interfaces_match = false;
 
     for (_, i) in inherits.view().interfaces().enumerate() {
-        let interface = runtime_interface_class(state, int_state, inherits, i);
+        let interface = runtime_interface_class(state, int_state, i);
         interfaces_match |= interface.view().name() == parent.view().name();
     }
 

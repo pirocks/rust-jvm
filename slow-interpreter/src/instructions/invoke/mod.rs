@@ -62,7 +62,7 @@ pub mod dynamic {
         let other_name = invoke_dynamic_view.name_and_type().name();//todo get better names
         // dbg!(&other_name);
         let other_desc_str = invoke_dynamic_view.name_and_type().desc_str();
-        let other_desc = invoke_dynamic_view.name_and_type().desc_method();
+        // let other_desc = invoke_dynamic_view.name_and_type().desc_method();
         // dbg!(&other_desc_str);
 
 
@@ -142,7 +142,6 @@ pub mod dynamic {
             dbg!(target.to_string(jvm, int_state).to_rust_string());
             let method_type = target.type__();
             let args = method_type.get_ptypes_as_types();
-            let len = int_state.current_frame_mut().operand_stack().len();
             dbg!(target.clone().java_value().unwrap_normal_object().class_pointer.view().name());
             let form: LambdaForm = target.get_form();
             let member_name: MemberName = form.get_vmentry();
@@ -220,7 +219,6 @@ pub mod dynamic {
 
 fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let view = int_state.current_class_view();
-    let loader_arc = &int_state.current_loader(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => match r {
@@ -228,7 +226,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
             ReferenceTypeView::Array(_a) => if expected_method_name == *"clone" {
                 //todo replace with proper native impl
                 let temp = int_state.pop_current_operand_stack().unwrap_object().unwrap();
-                let ArrayObject { elems, elem_type, monitor: _monitor } = temp.unwrap_array();
+                let ArrayObject { elems: _, elem_type, monitor: _monitor } = temp.unwrap_array();
                 let array_object = ArrayObject::new_array(
                     jvm,
                     int_state,

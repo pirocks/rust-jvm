@@ -37,20 +37,23 @@ pub struct InternalFrame {
 
 //todo impl on VerifierContext
 pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<ClassView> {
+    Arc::new(ClassView::from(verifier_context.classes.pre_load(class.class_name.clone(), class.loader.clone()).unwrap()))
+
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
-    if class.loader.initiating_loader_of(&class.class_name) {
-        // verifier_context.jvm
-        //todo maybe trace load here
-        match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.current_loader.clone(), verifier_context.live_pool_getter.clone()) {
-            Ok(c) => c,
-            Err(_) => panic!(),
-        }
-    } else {
-        match class.loader.pre_load(&class.class_name) {
-            Ok(c) => c,
-            Err(_) => panic!(),
-        }
-    }
+    // if class.loader.initiating_loader_of(&class.class_name) {
+    //     // verifier_context.jvm
+    //     //todo maybe trace load here
+    //     match class.loader.clone().load_class(class.loader.clone(), &class.class_name, verifier_context.current_loader.clone(), verifier_context.live_pool_getter.clone()) {
+    //         Ok(c) => c,
+    //         Err(_) => panic!(),
+    //     }
+    // } else {
+    //     match class.loader.pre_load(&class.class_name) {
+    //         Ok(c) => c,
+    //         Err(_) => panic!(),
+    //     }
+    // }
+    // unimplemented!()
 }
 
 #[derive(Debug)]
@@ -88,7 +91,7 @@ pub enum TypeSafetyError {
 //todo could be an impl method on VerifierContext
 pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if class.class_name == ClassName::object() {
-        if !is_bootstrap_loader(vf, &class.loader) {
+        if !is_bootstrap_loader(&class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
         }
     } else {

@@ -3,7 +3,6 @@ use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
-use classfile_view::loading::LoaderArc;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;

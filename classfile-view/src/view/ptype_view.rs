@@ -4,7 +4,7 @@ use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
-use crate::loading::{ClassWithLoader, LoaderArc};
+use crate::loading::{ClassWithLoader, LoaderName};
 use crate::vtype::VType;
 
 #[derive(Debug)]
@@ -73,7 +73,7 @@ impl PTypeView {
         }
     }
 
-    pub fn to_verification_type(&self, loader: &LoaderArc) -> VType {
+    pub fn to_verification_type(&self, loader: &LoaderName) -> VType {
         match self {
             PTypeView::ByteType => VType::IntType,
             PTypeView::CharType => VType::IntType,

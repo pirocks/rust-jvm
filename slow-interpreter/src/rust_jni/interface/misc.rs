@@ -64,11 +64,13 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sup_type = JavaValue::Object(sup_not_null.into()).cast_class().as_type();
 
     let loader = &int_state.current_loader(jvm);
-    let sub_vtype = sub_type.to_verification_type(loader);
-    let sup_vtype = sup_type.to_verification_type(loader);
+    let loader_name = loader.name();
+    let sub_vtype = sub_type.to_verification_type(&loader_name);
+    let sup_vtype = sup_type.to_verification_type(&loader_name);
 
 
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), current_loader: jvm.bootstrap_loader.clone() };
+    //todo should this be current loader?
+    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classes: todo!(), current_loader: loader_name };
     let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
     res as jboolean
 }

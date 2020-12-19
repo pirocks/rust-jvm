@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use classfile_view::loading::*;
+use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
@@ -12,8 +13,7 @@ use crate::verifier::TypeSafetyError;
 use crate::VerifierContext;
 
 pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    //(!Arc::ptr_eq(&class1.loader, &class2.loader)) ||// todo this is bad
-    class1.loader.name() != class2.loader.name() ||
+    class1.loader != class2.loader ||
         different_package_name(vf, class1, class2)
 }
 
@@ -32,9 +32,8 @@ fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class
 }
 
 
-pub fn is_bootstrap_loader(vf: &VerifierContext, loader: &LoaderArc) -> bool {
-    //Arc::ptr_eq(loader, &vf.bootstrap_loader)//todo this is bad
-    loader.name() == vf.current_loader.name()
+pub fn is_bootstrap_loader(loader: &LoaderName) -> bool {
+    loader == &BootstrapLoader
 }
 
 pub fn get_class_methods<'l>(vf: &VerifierContext, class: &'l ClassWithLoader) -> Vec<ClassWithLoaderMethod<'l>> {
@@ -50,11 +49,11 @@ pub fn class_is_final(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
 }
 
 
-pub fn loaded_class(_vf: &VerifierContext, class_name: ClassName, loader: LoaderArc) -> Result<ClassWithLoader, TypeSafetyError> {
-    if loader.initiating_loader_of(&class_name) {
+pub fn loaded_class(vf: &VerifierContext, class_name: ClassName, loader: LoaderName) -> Result<ClassWithLoader, TypeSafetyError> {
+    if vf.classes.class_loaded_by(&class_name, &loader) {
         Result::Ok(ClassWithLoader { class_name, loader })
     } else {
-        match loader.pre_load(&class_name) {
+        match vf.classes.pre_load(class_name.clone(), loader.clone()) {
             Ok(_) => Result::Ok(ClassWithLoader { class_name, loader }),
             Err(_) => unimplemented!(),
         }
@@ -140,7 +139,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                 if is_assignable(vf, &VType::Reference, to).is_err() {
                     //todo okay to use name like that?
                     if c.class_name == ClassName::object() &&
-                        c.loader.name() == LoaderName::BootstrapLoader {
+                        c.loader == LoaderName::BootstrapLoader {
                         return Result::Ok(());
                     }
                 }
@@ -250,7 +249,7 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
         VType::ArrayReferenceType(a1) => {
             match right {
                 VType::Class(c) => {
-                    if c.class_name == ClassName::object() && vf.current_loader.name() == c.loader.name() {
+                    if c.class_name == ClassName::object() && vf.current_loader == c.loader {
                         return Result::Ok(());
                     }
                     unimplemented!()
@@ -308,10 +307,10 @@ pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> 
     classfile.super_name().unwrap()
 }
 
-pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: LoaderArc, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
+pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: LoaderName, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
     if chain_start.class_name == ClassName::object() {
         //todo magic constant
-        if is_bootstrap_loader(vf, &loader) {
+        if is_bootstrap_loader(&loader) {
             return Result::Ok(());
         } else {
             return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
@@ -345,7 +344,7 @@ pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: 
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     if class.class_name == ClassName::object() {
-        if is_bootstrap_loader(vf, &class.loader) {
+        if is_bootstrap_loader(&class.loader) {
             Result::Ok(())
         } else {
             Result::Err(TypeSafetyError::NotSafe("Loading Object w/o bootstrap loader".to_string()))

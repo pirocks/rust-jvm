@@ -214,7 +214,7 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
     // dbg!("3");
     let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size);
     // dbg!("4");
-    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
+    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf };
     handlers_are_legal(&env)?;
     // dbg!("5");
     merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(frame))?;/*{
@@ -238,7 +238,7 @@ pub struct Handler {
     pub class_name: Option<ClassName>,
 }
 
-pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: LoaderArc) -> ClassWithLoader {
+pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: LoaderName) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
         None => { ClassWithLoader { class_name: ClassName::throwable(), loader: vf.current_loader.clone() } }
@@ -275,9 +275,9 @@ pub struct Environment<'l> {
     pub frame_size: u16,
     pub max_stack: u16,
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
-    pub class_loader: LoaderArc,
+    pub class_loader: LoaderName,
     pub handlers: Vec<Handler>,
-    pub vf: VerifierContext,
+    pub vf: &'l VerifierContext<'l>,
 }
 
 #[derive(Debug)]

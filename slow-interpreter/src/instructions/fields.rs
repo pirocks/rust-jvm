@@ -10,7 +10,6 @@ use crate::java_values::JavaValue;
 
 pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = &int_state.current_class_view();
-    let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let target_classfile = check_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
     let stack = int_state.current_frame_mut().operand_stack_mut();
@@ -23,7 +22,6 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
 
 pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = &int_state.current_class_view();
-    let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let _target_classfile = check_inited_class(jvm, int_state, field_class_name.into()).unwrap();
     let stack = &mut int_state.current_frame_mut().operand_stack_mut();

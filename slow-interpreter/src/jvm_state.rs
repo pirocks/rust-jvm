@@ -139,7 +139,6 @@ impl JVMState {
         match loader_guard.get(&self.bootstrap_loader.name()) {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-                let current_loader = self.bootstrap_loader.clone();// todo is the bootstrap loader object loaded by the bootstrap loder?
                 let class_loader_class = check_inited_class(self, int_state, java_lang_class_loader.into()).unwrap();
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
