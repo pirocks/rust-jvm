@@ -8,6 +8,8 @@ use std::sync::mpsc::{channel, Sender};
 use std::thread::LocalKey;
 use std::time::Duration;
 
+use classfile_view::loading::LoaderName;
+use classfile_view::loading::LoaderName::BootstrapLoader;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
@@ -91,10 +93,9 @@ impl ThreadState {
     }
 
     fn jvm_init_from_main_thread(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-        let bl = &jvm.bootstrap_loader;
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-        let system_class = check_inited_class_override_loader(jvm, int_state, &ClassName::system().into(), bl.clone()).unwrap();
+        let system_class = check_inited_class_override_loader(jvm, int_state, &ClassName::system().into(), LoaderName::BootstrapLoader).unwrap();
 
         let init_method_view = locate_init_system_class(&system_class);
         let mut locals = vec![];
@@ -156,7 +157,7 @@ impl ThreadState {
         let thread_classfile = check_inited_class_override_loader(jvm,
                                                                   &mut new_int_state,
                                                                   &ClassName::thread().into(),
-                                                                  jvm.bootstrap_loader.clone(),
+                                                                  LoaderName::BootstrapLoader
         ).unwrap();
 
 

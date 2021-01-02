@@ -3,6 +3,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
+use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;
@@ -30,14 +31,15 @@ pub enum RuntimeClass {
 
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub struct RuntimeClassArray {
-    pub sub_class: Arc<RuntimeClass>
+    pub sub_class: Arc<RuntimeClass>,
+    pub(crate) loader: LoaderName,
 }
 
 
 pub struct RuntimeClassClass {
     classfile: Arc<Classfile>,
     class_view: Arc<ClassView>,
-    loader: LoaderArc,
+    loader: LoaderName,
     static_vars: RwLock<HashMap<String, JavaValue>>,
 }
 
@@ -93,17 +95,17 @@ impl RuntimeClass {
         }
     }
 
-    pub fn loader(&self, jvm: &JVMState) -> LoaderArc {
+    pub fn loader(&self, jvm: &JVMState) -> LoaderName {
         match self {
-            RuntimeClass::Byte => jvm.bootstrap_loader.clone(),
-            RuntimeClass::Boolean => jvm.bootstrap_loader.clone(),
-            RuntimeClass::Short => jvm.bootstrap_loader.clone(),
-            RuntimeClass::Char => jvm.bootstrap_loader.clone(),
-            RuntimeClass::Int => jvm.bootstrap_loader.clone(),
-            RuntimeClass::Long => jvm.bootstrap_loader.clone(),
-            RuntimeClass::Float => jvm.bootstrap_loader.clone(),
-            RuntimeClass::Double => jvm.bootstrap_loader.clone(),
-            RuntimeClass::Void => jvm.bootstrap_loader.clone(),
+            RuntimeClass::Byte => LoaderName::BootstrapLoader,
+            RuntimeClass::Boolean => LoaderName::BootstrapLoader,
+            RuntimeClass::Short => LoaderName::BootstrapLoader,
+            RuntimeClass::Char => LoaderName::BootstrapLoader,
+            RuntimeClass::Int => LoaderName::BootstrapLoader,
+            RuntimeClass::Long => LoaderName::BootstrapLoader,
+            RuntimeClass::Float => LoaderName::BootstrapLoader,
+            RuntimeClass::Double => LoaderName::BootstrapLoader,
+            RuntimeClass::Void => LoaderName::BootstrapLoader,
             RuntimeClass::Array(a) => a.sub_class.loader(jvm),//todo technically this is wrong
             RuntimeClass::Object(o) => o.loader.clone(),
         }
@@ -135,21 +137,21 @@ impl Debug for RuntimeClassClass {
 impl Hash for RuntimeClassClass {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.classfile.hash(state);
-        self.loader.name().to_string().hash(state)
+        self.loader.to_string().hash(state)
     }
 }
 
 impl PartialEq for RuntimeClassClass {
     fn eq(&self, other: &Self) -> bool {
         // Arc::ptr_eq(&self.loader, &other.loader) &&//todo fix this
-        self.loader.name() == other.loader.name() &&
+        self.loader == other.loader &&
             self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
     }
 }
 
 impl Eq for RuntimeClass {}
 
-pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderArc) -> RuntimeClass {
+pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderName) -> RuntimeClass {
     let mut res = HashMap::new();
     for field in &classfile.fields {
         if (field.access_flags & ACC_STATIC) > 0 {

@@ -20,7 +20,7 @@ pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i
     let this_pointer = this_pointer_o.unwrap_normal_object();
     *int_state.current_frame_mut().operand_stack_mut() = checkpoint;
     let target_class = this_pointer.class_pointer.clone();
-    let (target_method_i, final_target_class) = find_target_method(jvm, loader_arc.clone(), expected_method_name, &expected_descriptor, target_class);
+    let (target_method_i, final_target_class) = find_target_method(jvm, expected_method_name, &expected_descriptor, target_class);
 
     invoke_virtual_method_i(jvm, int_state, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.view().method_view_i(target_method_i));
 }

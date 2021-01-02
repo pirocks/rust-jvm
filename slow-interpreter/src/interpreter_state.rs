@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::mem::transmute;
 use std::sync::{Arc, RwLockWriteGuard};
 
-use classfile_view::loading::LoaderArc;
+use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::classfile::CPIndex;
 
@@ -70,7 +70,7 @@ impl<'l> InterpreterStateGuard<'l> {
         }
     }
 
-    pub fn current_loader(&self, jvm: &JVMState) -> LoaderArc {
+    pub fn current_loader(&self, jvm: &JVMState) -> LoaderName {
         self.current_frame().class_pointer().loader(jvm)
     }
 

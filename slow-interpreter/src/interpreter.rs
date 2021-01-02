@@ -280,8 +280,7 @@ pub fn monitor_for_function(
             let class_object = get_or_create_class_object(
                 jvm,
                 &class_name.clone().into(),
-                int_state,
-                int_state.current_loader(jvm).clone(),
+                int_state
             ).unwrap();
             class_object.unwrap_normal_object().monitor.clone()
         } else {

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use classfile_view::loading::LoaderArc;
 use rust_jvm_common::classnames::ClassName;
 use verification::verifier::instructions::special::extract_field_descriptor;
 
@@ -46,7 +45,7 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader(jvm);
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    let field_value = get_static_impl(jvm, int_state, loader_arc, &field_class_name, &field_name).unwrap();
+    let field_value = get_static_impl(jvm, int_state, &field_class_name, &field_name).unwrap();
     if field_name == "UNSAFE" && int_state.current_class_view().name().get_referred_name() == "java/util/concurrent/locks/LockSupport" {
         let target_classfile = check_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
         dbg!(Arc::as_ptr(&target_classfile));
@@ -57,11 +56,11 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
     int_state.push_current_operand_stack(field_value);
 }
 
-fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, loader_arc: &LoaderArc, field_class_name: &ClassName, field_name: &str) -> Option<JavaValue> {
+fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_class_name: &ClassName, field_name: &str) -> Option<JavaValue> {
     let target_classfile = check_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
-        let interface_lookup_res = get_static_impl(jvm, int_state, loader_arc, &ClassName::Str(interfaces.interface_name()), field_name);
+        let interface_lookup_res = get_static_impl(jvm, int_state, &ClassName::Str(interfaces.interface_name()), field_name);
         if interface_lookup_res.is_some() {
             return interface_lookup_res;
         }
@@ -73,7 +72,7 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, loader
             let possible_super = target_classfile.view().super_name();
             match possible_super {
                 None => None,
-                Some(super_) => { return get_static_impl(jvm, int_state, loader_arc, &super_, field_name).into(); }
+                Some(super_) => { return get_static_impl(jvm, int_state, &super_, field_name).into(); }
             }
         }
         Some(val) => {

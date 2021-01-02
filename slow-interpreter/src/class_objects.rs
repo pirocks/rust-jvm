@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use classfile_view::loading::{ClassLoadingError, LoaderArc};
+use classfile_view::loading::ClassLoadingError;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
 
@@ -14,7 +14,6 @@ use crate::runtime_class::RuntimeClass;
 pub fn get_or_create_class_object(state: &JVMState,
                                   type_: &PTypeView,
                                   int_state: &mut InterpreterStateGuard,
-                                  loader_arc: LoaderArc,
 ) -> Result<Arc<Object>, ClassLoadingError> {
     regular_class_object(state, type_.clone(), int_state)
 }

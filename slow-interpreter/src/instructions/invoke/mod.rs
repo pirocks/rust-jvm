@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use classfile_view::loading::LoaderArc;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
@@ -253,10 +252,9 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
 
 pub fn find_target_method(
     state: &JVMState,
-    loader_arc: LoaderArc,
     expected_method_name: String,
     parsed_descriptor: &MethodDescriptor,
     target_class: Arc<RuntimeClass>,
 ) -> (usize, Arc<RuntimeClass>) {
-    lookup_method_parsed(state, target_class, expected_method_name, parsed_descriptor, &loader_arc).unwrap()
+    lookup_method_parsed(state, target_class, expected_method_name, parsed_descriptor).unwrap()
 }

@@ -52,8 +52,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(
         let interface_obj = get_or_create_class_object(
             jvm,
             &ClassName::Str(interface.interface_name()).into(),
-            int_state,
-            runtime_class.loader(jvm).clone(),
+            int_state
         );
         let interface_class = new_local_ref_public(interface_obj.unwrap().into(), int_state);
         interfaces_ptr.read().add(i).write(interface_class)
@@ -106,7 +105,7 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
     let mut res_vec = vec![];
 
     jvm.classes.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
-        let class_object = get_or_create_class_object(jvm, &runtime_class.ptypeview(), int_state, runtime_class.loader(jvm).clone());
+        let class_object = get_or_create_class_object(jvm, &runtime_class.ptypeview(), int_state);
         res_vec.push(new_local_ref_public(class_object.unwrap().into(), int_state))
     });
     class_count_ptr.write(res_vec.len() as i32);

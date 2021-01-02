@@ -16,6 +16,7 @@ extern crate va_list;
 use std::error::Error;
 use std::sync::Arc;
 
+use classfile_view::loading::LoaderName;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
@@ -77,7 +78,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
 
     let main = check_inited_class_override_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader.clone()).unwrap();
     let main_view = main.view();
-    let main_i = locate_main_method(&main_loader.clone(), &main_view.backing_class());
+    let main_i = locate_main_method(&main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
@@ -135,7 +136,7 @@ fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {
     method_views.first().unwrap().clone()
 }
 
-fn locate_main_method(_bl: &LoaderArc, main: &Arc<Classfile>) -> usize {
+fn locate_main_method(main: &Arc<Classfile>) -> usize {
     let string_name = ClassName::string();
     let string_class = PTypeView::Ref(ReferenceTypeView::Class(string_name));
     let string_array = PTypeView::Ref(ReferenceTypeView::Array(string_class.into()));

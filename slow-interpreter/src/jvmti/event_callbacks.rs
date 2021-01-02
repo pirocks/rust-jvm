@@ -183,8 +183,7 @@ impl SharedLibJVMTI {
                 let thread = new_local_ref_public(current_thread_from_rust, int_state);
                 let klass_obj = get_or_create_class_object(jvm,
                                                            &class.clone().into(),
-                                                           int_state,
-                                                           jvm.bootstrap_loader.clone()).unwrap();
+                                                           int_state).unwrap();
                 let klass = to_object(klass_obj.into());
                 let event = ClassPrepareEvent { thread, klass };
                 self.ClassPrepare(jvm, int_state, event);

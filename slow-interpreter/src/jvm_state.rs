@@ -11,7 +11,7 @@ use std::time::Instant;
 use by_address::ByAddress;
 use libloading::Library;
 
-use classfile_view::loading::{LivePoolGetter, LoaderArc, LoaderName};
+use classfile_view::loading::{LivePoolGetter, LoaderName};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classnames::ClassName;
@@ -34,7 +34,7 @@ use crate::tracing::TracingSettings;
 pub struct JVMState {
     pub(crate) properties: Vec<String>,
     loaders: RwLock<HashMap<LoaderName, Arc<Object>>>,
-    pub bootstrap_loader: LoaderArc,
+    // pub bootstrap_loader: LoaderArc,//todo what Should this be?
     pub system_domain_loader: bool,
     pub string_pool: StringPool,
     pub start_instant: Instant,
@@ -58,15 +58,14 @@ pub struct JVMState {
     // pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,//so technically isn't 'static, but we need to be able to store this in a localkey
 
     pub unittest_mode: bool,
-    pub resolved_method_handles: RwLock<HashMap<ByAddress<Arc<Object>>, MethodId>>
+    pub resolved_method_handles: RwLock<HashMap<ByAddress<Arc<Object>>, MethodId>>,
 }
 
 pub struct Classes {
     //todo maybe switch to coarser locking due to probabilty of races here
-    pub prepared_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub initializing_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub initialized_classes: RwLock<HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub class_object_pool: RwLock<HashMap<PTypeView, Arc<Object>>>,
+    pub initializing_classes: RwLock<HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>>,
+    pub initialized_classes: RwLock<HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>>,
+    pub class_object_pool: RwLock<HashMap<LoaderName, HashMap<PTypeView, Arc<Object>>>>,
     //anon classes
     pub anon_class_counter: AtomicUsize,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
@@ -99,7 +98,6 @@ impl JVMState {
         let jvm = Self {
             properties,
             loaders: RwLock::new(HashMap::new()),
-            bootstrap_loader,
             system_domain_loader: true,
             libjava: LibJavaLoading::new_java_loading(libjava),
             string_pool: StringPool {
@@ -107,7 +105,6 @@ impl JVMState {
             },
             start_instant: Instant::now(),
             classes: Classes {
-                prepared_classes: RwLock::new(HashMap::new()),
                 initializing_classes: RwLock::new(HashMap::new()),
                 initialized_classes: RwLock::new(HashMap::new()),
                 class_object_pool: RwLock::new(HashMap::new()),
@@ -126,7 +123,7 @@ impl JVMState {
             live: AtomicBool::new(false),
             // int_state_guard: &INT_STATE_GUARD
             unittest_mode,
-            resolved_method_handles: RwLock::new(HashMap::new())
+            resolved_method_handles: RwLock::new(HashMap::new()),
         };
         (args, jvm)
     }
@@ -136,7 +133,7 @@ impl JVMState {
             return JavaValue::Object(None);
         }
         let mut loader_guard = self.loaders.write().unwrap();
-        match loader_guard.get(&self.bootstrap_loader.name()) {
+        match loader_guard.get(&LoaderName::BootstrapLoader) {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
                 let class_loader_class = check_inited_class(self, int_state, java_lang_class_loader.into()).unwrap();
@@ -146,7 +143,7 @@ impl JVMState {
                     class_pointer: class_loader_class,
                     class_object_type: None,
                 }));
-                loader_guard.insert(self.bootstrap_loader.name(), res.clone());
+                loader_guard.insert(LoaderName::BootstrapLoader, res.clone());
                 JavaValue::Object(res.into())
             }
             Some(res) => { JavaValue::Object(res.clone().into()) }

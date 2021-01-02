@@ -212,8 +212,7 @@ pub mod class {
 
         pub fn from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: ClassName) -> JClass {
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
-            let loader_arc = int_state.current_loader(jvm).clone();
-            JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state, loader_arc).unwrap().into()).cast_class()
+            JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state).unwrap().into()).cast_class()
         }
 
         pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView) -> JClass{
@@ -235,6 +234,8 @@ pub mod class {
 pub mod class_loader {
     use std::sync::Arc;
 
+    use classfile_view::loading::LoaderName;
+
     use crate::java_values::{JavaValue, Object};
 
     pub struct ClassLoader {
@@ -248,7 +249,7 @@ pub mod class_loader {
     }
 
     impl ClassLoader {
-        pub fn to_jvm_loader(&self) -> Arc<dyn Loader + Send + Sync> {
+        pub fn to_jvm_loader(&self) -> LoaderName {
             todo!()
         }
 
