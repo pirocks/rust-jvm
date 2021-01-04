@@ -53,7 +53,7 @@ pub mod init;
 pub fn create_method_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, frame: &mut StackEntry, signature: &str) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
-    let loader_arc = int_state.current_loader(jvm).clone();
+    let loader_arc = int_state.current_loader().clone();
     let method_type_class = check_inited_class(jvm, int_state, ClassName::method_type().into()).unwrap();
     push_new_object(jvm, int_state, &method_type_class, None);
     let this = int_state.pop_current_operand_stack();

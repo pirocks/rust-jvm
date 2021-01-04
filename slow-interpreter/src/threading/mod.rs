@@ -9,7 +9,6 @@ use std::thread::LocalKey;
 use std::time::Duration;
 
 use classfile_view::loading::LoaderName;
-use classfile_view::loading::LoaderName::BootstrapLoader;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};

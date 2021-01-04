@@ -63,7 +63,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sub_type = JavaValue::Object(sub_not_null.into()).cast_class().as_type();
     let sup_type = JavaValue::Object(sup_not_null.into()).cast_class().as_type();
 
-    let loader = &int_state.current_loader(jvm);
+    let loader = &int_state.current_loader();
     let sub_vtype = sub_type.to_verification_type(&loader);
     let sup_vtype = sup_type.to_verification_type(&loader);
 

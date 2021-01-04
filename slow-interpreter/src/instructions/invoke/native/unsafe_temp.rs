@@ -6,7 +6,8 @@
 use crate::java_values::JavaValue;
 use crate::JVMState;
 
-pub fn shouldBeInitialized(state: &JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
-    let class_name_to_check = args[1].cast_class().as_type();
-    JavaValue::Boolean(state.classes.initialized_classes.read().unwrap().get(&class_name_to_check).is_some() as u8).into()
+pub fn shouldBeInitialized(jvm: &JVMState, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+    let class_to_check = args[1].cast_class().as_runtime_class();
+    let is_init = jvm.classes.read().unwrap().is_initialized(class_to_check).unwrap_or(false);
+    JavaValue::Boolean(is_init as u8).into()
 }

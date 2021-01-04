@@ -70,8 +70,8 @@ impl<'l> InterpreterStateGuard<'l> {
         }
     }
 
-    pub fn current_loader(&self, jvm: &JVMState) -> LoaderName {
-        self.current_frame().class_pointer().loader(jvm)
+    pub fn current_loader(&self) -> LoaderName {
+        self.current_frame().class_pointer().loader()
     }
 
     pub fn current_class_view(&self) -> &Arc<ClassView> {

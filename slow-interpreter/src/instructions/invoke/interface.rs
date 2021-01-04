@@ -9,7 +9,7 @@ use crate::interpreter_util::check_inited_class;
 pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, invoke_interface: InvokeInterface) {
     // invoke_interface.count;//todo use this?
     let view = &int_state.current_class_view();
-    let loader_arc = &int_state.current_loader(jvm);
+    let loader_arc = &int_state.current_loader();
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &view);
     let class_name_ = class_name_type.unwrap_class_type();
     let _target_class = check_inited_class(jvm, int_state, class_name_.into()).unwrap();
@@ -20,7 +20,7 @@ pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i
     let this_pointer = this_pointer_o.unwrap_normal_object();
     *int_state.current_frame_mut().operand_stack_mut() = checkpoint;
     let target_class = this_pointer.class_pointer.clone();
-    let (target_method_i, final_target_class) = find_target_method(jvm, expected_method_name, &expected_descriptor, target_class);
+    let (target_method_i, final_target_class) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
 
     invoke_virtual_method_i(jvm, int_state, expected_descriptor, final_target_class.clone(), target_method_i, &final_target_class.view().method_view_i(target_method_i));
 }

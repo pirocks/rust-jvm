@@ -19,7 +19,7 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
 //todo handle monitor enter and exit
 //handle init cases
     let view = int_state.current_class_view();
-    let loader_arc = int_state.current_loader(jvm);
+    let loader_arc = int_state.current_loader();
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &view);
     let class_name = class_name_type.unwrap_class_type();
     let target_class = match check_inited_class(
@@ -33,7 +33,7 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
             return;
         }
     };
-    let (target_method_i, final_target_method) = find_target_method(jvm, expected_method_name, &expected_descriptor, target_class);
+    let (target_method_i, final_target_method) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
 
     invoke_static_impl(
         jvm,

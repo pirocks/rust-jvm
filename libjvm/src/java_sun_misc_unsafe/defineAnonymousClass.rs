@@ -42,7 +42,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     }
     let parsed = Arc::new(unpatched);
     //todo maybe have an anon loader for this
-    let current_loader = int_state.current_loader(jvm);
+    let current_loader = int_state.current_loader();
 
     let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classes: todo!(), current_loader: current_loader.name() };
     let class_view = ClassView::from(parsed.clone());

@@ -28,7 +28,7 @@ use slow_interpreter::stack_entry::StackEntry;
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let loader = int_state.current_loader(jvm).clone();
+    let loader = int_state.current_loader().clone();
     let of_class_obj = JavaValue::Object(from_object(ofClass)).cast_class();
     let int_state = get_interpreter_state(env);
     JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj)
@@ -77,7 +77,7 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &JVMState, int_state: &mut Interpr
     }
     let target_classview = &class_obj.view();
     let constructors = target_classview.lookup_method_name(&"<init>".to_string());
-    let loader = int_state.current_loader(jvm).clone();
+    let loader = int_state.current_loader().clone();
     let mut object_array = vec![];
 
     constructors.iter().filter(|m| {

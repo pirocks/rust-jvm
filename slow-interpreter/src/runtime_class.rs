@@ -95,7 +95,7 @@ impl RuntimeClass {
         }
     }
 
-    pub fn loader(&self, jvm: &JVMState) -> LoaderName {
+    pub fn loader(&self) -> LoaderName {
         match self {
             RuntimeClass::Byte => LoaderName::BootstrapLoader,
             RuntimeClass::Boolean => LoaderName::BootstrapLoader,
@@ -106,7 +106,7 @@ impl RuntimeClass {
             RuntimeClass::Float => LoaderName::BootstrapLoader,
             RuntimeClass::Double => LoaderName::BootstrapLoader,
             RuntimeClass::Void => LoaderName::BootstrapLoader,
-            RuntimeClass::Array(a) => a.sub_class.loader(jvm),//todo technically this is wrong
+            RuntimeClass::Array(a) => a.loader.clone(),
             RuntimeClass::Object(o) => o.loader.clone(),
         }
     }
@@ -143,7 +143,6 @@ impl Hash for RuntimeClassClass {
 
 impl PartialEq for RuntimeClassClass {
     fn eq(&self, other: &Self) -> bool {
-        // Arc::ptr_eq(&self.loader, &other.loader) &&//todo fix this
         self.loader == other.loader &&
             self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
     }

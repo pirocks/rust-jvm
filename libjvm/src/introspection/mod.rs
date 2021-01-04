@@ -36,7 +36,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let interface_vec = from_jclass(cls).as_runtime_class().view().interfaces().map(|interface| {
-        let class_obj = get_or_create_class_object(jvm, &ClassName::Str(interface.interface_name()).into(), int_state, int_state.current_loader(jvm)).unwrap();
+        let class_obj = get_or_create_class_object(jvm, &ClassName::Str(interface.interface_name()).into(), int_state, int_state.current_loader()).unwrap();
         JavaValue::Object(Some(class_obj))
     }).collect::<Vec<_>>();
     //todo helper function for this:
@@ -174,7 +174,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
         jvm,
         &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))),
         int_state,
-        int_state.current_loader(jvm).clone(),
+        int_state.current_loader().clone(),
     );
     //todo exception making code maybe should be here idk
     match class_lookup_result {

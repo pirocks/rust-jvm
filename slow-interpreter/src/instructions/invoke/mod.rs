@@ -252,9 +252,10 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
 
 pub fn find_target_method(
     state: &JVMState,
+    int_state: &mut InterpreterStateGuard,
     expected_method_name: String,
     parsed_descriptor: &MethodDescriptor,
     target_class: Arc<RuntimeClass>,
 ) -> (usize, Arc<RuntimeClass>) {
-    lookup_method_parsed(state, target_class, expected_method_name, parsed_descriptor).unwrap()
+    lookup_method_parsed(state, int_state, target_class, expected_method_name, parsed_descriptor).unwrap()
 }

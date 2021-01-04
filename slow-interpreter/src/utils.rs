@@ -4,16 +4,17 @@ use std::sync::Arc;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
 
+use crate::interpreter_state::InterpreterStateGuard;
+use crate::interpreter_util::check_inited_class;
 use crate::java_values::Object;
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
-//todo the fact that I need a loader for this is dumb
-pub fn lookup_method_parsed(state: &JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
-    lookup_method_parsed_impl(state, class, name, descriptor)
+pub fn lookup_method_parsed(state: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
+    lookup_method_parsed_impl(state, int_state, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(state: &JVMState, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
     let posible_methods = class.view().lookup_method_name(&name);
     let filtered = posible_methods.into_iter().filter(|m| {
         if m.is_signature_polymorphic() {
@@ -27,8 +28,8 @@ pub fn lookup_method_parsed_impl(state: &JVMState, class: Arc<RuntimeClass>, nam
         None => {
             let class_name = class.view().super_name().unwrap();
             let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));
-            let super_class = state.classes.initialized_classes.read().unwrap().get(todo!()).unwrap().get(&lookup_type).unwrap().clone(); //todo this unwrap could fail, and this should really be using check_inited_class
-            lookup_method_parsed_impl(state, super_class, name, descriptor)
+            let super_class = check_inited_class(jvm, int_state, lookup_type).unwrap(); //todo this unwrap could fail, and this should really be using check_inited_class
+            lookup_method_parsed_impl(jvm, int_state, super_class, name, descriptor)
         }
         Some(method_view) => {
             Some((method_view.method_i(), class.clone()))

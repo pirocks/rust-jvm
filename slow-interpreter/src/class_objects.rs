@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use classfile_view::loading::ClassLoadingError;
+use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
 
@@ -11,11 +12,18 @@ use crate::java_values::{JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 
 //todo do something about this class object crap
-pub fn get_or_create_class_object(state: &JVMState,
+pub fn get_or_create_class_object(jvm: &JVMState,
                                   type_: &PTypeView,
                                   int_state: &mut InterpreterStateGuard,
 ) -> Result<Arc<Object>, ClassLoadingError> {
-    regular_class_object(state, type_.clone(), int_state)
+    get_or_creat_class_object_override_loader(jvm, type_, int_state, int_state.current_loader())
+}
+
+pub fn get_or_creat_class_object_override_loader(jvm: &JVMState,
+                                                 type_: &PTypeView,
+                                                 int_state: &mut InterpreterStateGuard,
+                                                 loader: LoaderName) -> Result<Arc<Object>, ClassLoadingError> {
+    regular_class_object(jvm, type_.clone(), int_state, loader)
 }
 
 // fn array_object(state: &JVMState, array_sub_type: &PTypeView, current_frame: &StackEntry) -> Arc<Object> {
@@ -38,19 +46,20 @@ pub fn get_or_create_class_object(state: &JVMState,
 //     }
 // }
 
-fn regular_class_object(state: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard) -> Result<Arc<Object>, ClassLoadingError> {
+fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader: LoaderName) -> Result<Arc<Object>, ClassLoadingError> {
     // let current_frame = int_state.current_frame_mut();
-    let runtime_class = check_inited_class(state, int_state, ptype.clone())?;
-    let res = state.classes.class_object_pool.read().unwrap().get(&ptype).cloned();
+    let runtime_class = check_inited_class(jvm, int_state, ptype.clone())?;
+    let classes = jvm.classes.write().unwrap();
+    let res = classes.class_object_pool.get(&loader).unwrap().get(&ptype).cloned();
     Ok(match res {
         None => {
-            let r = create_a_class_object(state, int_state, runtime_class.clone());
+            let r = create_a_class_object(jvm, int_state, runtime_class.clone());
             //todo likely race condition created by expectation that Integer.class == Integer.class, maybe let it happen anyway?
-            state.classes.class_object_pool.write().unwrap().insert(ptype, r.clone());
+            classes.class_object_pool.entry(int_state.current_loader()).or_insert(HashMap::new()).insert(ptype, r.clone());
             if runtime_class.ptypeview().is_primitive() {
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
-                let jstring = JString::from_rust(state, int_state, runtime_class.ptypeview().primitive_name().to_string());
+                let jstring = JString::from_rust(jvm, int_state, runtime_class.ptypeview().primitive_name().to_string());
                 r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
             }/*else if !runtime_class.ptypeview().is_array() {
                 let jstring = JString::from(state, int_state, runtime_class.ptypeview().unwrap_class_type().get_referred_name().to_string());

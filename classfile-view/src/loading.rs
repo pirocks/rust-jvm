@@ -30,11 +30,13 @@ impl Display for ClassLoadingError {
 impl std::error::Error for ClassLoadingError {}
 
 
+pub type LoaderIndex = usize;
+
 #[derive(Debug)]
 #[derive(Eq)]
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub enum LoaderName {
-    Class(ClassName),
+    UserDefinedLoader(LoaderIndex),
     BootstrapLoader,
 }
 
@@ -43,28 +45,17 @@ impl PartialEq for LoaderName {
         match self {
             LoaderName::BootstrapLoader => match other {
                 LoaderName::BootstrapLoader => true,
-                LoaderName::Class(_) => false
+                LoaderName::UserDefinedLoader(_) => false
             },
-            LoaderName::Class(c1) => match other {
-                LoaderName::Class(c2) => c1 == c2,
-                LoaderName::BootstrapLoader => false,
+
+            LoaderName::UserDefinedLoader(idx) => match other {
+                LoaderName::UserDefinedLoader(other_idx) => other_idx == idx,
+                LoaderName::BootstrapLoader => false
             }
         }
     }
 }
 
-impl Hash for LoaderName {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            LoaderName::Class(c) => {
-                c.hash(state)
-            }
-            LoaderName::BootstrapLoader => {
-                state.write_i8(0);
-            }
-        }
-    }
-}
 
 impl Display for LoaderName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -72,7 +63,7 @@ impl Display for LoaderName {
             LoaderName::BootstrapLoader => {
                 write!(f, "<bl>")
             }
-            LoaderName::Class(_) => unimplemented!()
+            LoaderName::UserDefinedLoader(idx) => todo!()
         }
     }
 }

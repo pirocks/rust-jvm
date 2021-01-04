@@ -10,7 +10,9 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::special::invoke_special_impl;
+use crate::java::lang::class_loader::ClassLoader;
 use crate::java_values::{default_value, JavaValue, Object};
+use crate::jvm_state::ClassStatus;
 use crate::runtime_class::{prepare_class, RuntimeClass, RuntimeClassArray};
 use crate::runtime_class::initialize_class;
 
@@ -22,7 +24,7 @@ pub fn push_new_object(
     target_classfile: &Arc<RuntimeClass>,
     class_object_type: Option<Arc<RuntimeClass>>,
 ) {
-    let loader_arc = target_classfile.loader(jvm);//&int_state.current_frame().class_pointer().loader(jvm).clone();//todo fix loaders.
+    let loader_arc = target_classfile.loader();//&int_state.current_frame().class_pointer().loader(jvm).clone();//todo fix loaders.
     let object_pointer = JavaValue::new_object(jvm, target_classfile.clone(), class_object_type);
     let new_obj = JavaValue::Object(object_pointer.clone());
     default_init_fields(jvm, int_state, loader_arc.clone(), object_pointer, target_classfile.view());
@@ -79,7 +81,7 @@ pub fn run_constructor(
 }
 
 pub fn check_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
-    check_inited_class_override_loader(jvm, int_state, &ptype, int_state.current_loader(jvm))
+    check_inited_class_override_loader(jvm, int_state, &ptype, int_state.current_loader())
 }
 
 
@@ -91,12 +93,17 @@ pub fn check_inited_class_override_loader(
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     //todo racy/needs sychronization
     let before = int_state.int_state.as_ref().unwrap().call_stack.len();
-    if !jvm.classes.initialized_classes.read().unwrap().get(&loader).unwrap().contains_key(&ptype) && !jvm.classes.initializing_classes.read().unwrap().get(&loader).unwrap().contains_key(&ptype) {
-        //todo the below is jank
-        match ptype.try_unwrap_ref_type() {
-            None => {}
-            Some(ref_) => {
-                match ref_ {
+    let maybe_status = jvm.classes.read().unwrap().get_status(loader.clone(), ptype.clone());
+    let res = match maybe_status {
+        None => {
+            match ptype {
+                PTypeView::ByteType => {}
+                PTypeView::CharType => {}
+                PTypeView::DoubleType => {}
+                PTypeView::FloatType => {}
+                PTypeView::IntType => {}
+                PTypeView::LongType => {}
+                PTypeView::Ref(ref_) => match ref_ {
                     ReferenceTypeView::Class(class_name) => {
                         if class_name == &ClassName::raw_byte() {
                             return check_inited_class_override_loader(jvm, int_state, &PTypeView::ByteType, loader);
@@ -128,71 +135,73 @@ pub fn check_inited_class_override_loader(
                     }
                     ReferenceTypeView::Array(_) => {}
                 }
+                PTypeView::ShortType => {}
+                PTypeView::BooleanType => {}
+                PTypeView::VoidType => {}
+                PTypeView::TopType | PTypeView::NullType | PTypeView::Uninitialized(_) | PTypeView::UninitializedThis | PTypeView::UninitializedThisOrClass(_) => panic!()
             }
         }
-        if let Some(class_name) = ptype.unwrap_type_to_name() {
-            jvm.tracing.trace_class_loads(&class_name)
-        }
-        let new_rclass = match &ptype {
-            PTypeView::ByteType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Byte)//todo duplication with last line
-            }
-            PTypeView::CharType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Char)//todo duplication with last line
-            }
-            PTypeView::DoubleType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Double)
-            }
-            PTypeView::FloatType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Float)//todo duplication with last line
-            }
-            PTypeView::IntType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Int)//todo duplication with last line
-            }
-            PTypeView::LongType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Long)//todo duplication with last line
-            }
-            PTypeView::Ref(ref_) => match ref_ {
-                ReferenceTypeView::Class(class_name) => {
-                    check_inited_class_impl(jvm, int_state, class_name, loader.clone())?
+        Some(status) => match status {
+            ClassStatus::PREPARED => {
+                if let Some(class_name) = ptype.unwrap_type_to_name() {
+                    jvm.tracing.trace_class_loads(&class_name)
                 }
-                ReferenceTypeView::Array(arr) => {
-                    let array_type_class = check_inited_class_override_loader(jvm, int_state, arr.deref(), loader.clone())?;
-                    Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class: array_type_class, loader: loader.clone() }))
+                match &ptype {
+                    PTypeView::ByteType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Byte)//todo duplication with last line
+                    }
+                    PTypeView::CharType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Char)//todo duplication with last line
+                    }
+                    PTypeView::DoubleType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Double)
+                    }
+                    PTypeView::FloatType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Float)//todo duplication with last line
+                    }
+                    PTypeView::IntType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Int)//todo duplication with last line
+                    }
+                    PTypeView::LongType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Long)//todo duplication with last line
+                    }
+                    PTypeView::Ref(ref_) => match ref_ {
+                        ReferenceTypeView::Class(class_name) => {
+                            check_inited_class_impl(jvm, int_state, class_name, loader.clone())?
+                        }
+                        ReferenceTypeView::Array(arr) => {
+                            let array_type_class = check_inited_class_override_loader(jvm, int_state, arr.deref(), loader.clone())?;
+                            Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class: array_type_class, loader: loader.clone() }))
+                        }
+                    },
+                    PTypeView::ShortType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Short)//todo duplication with last line
+                    }
+                    PTypeView::BooleanType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Boolean)//todo duplication with last line
+                    }
+                    PTypeView::VoidType => {
+                        check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
+                        Arc::new(RuntimeClass::Void)//todo duplication with last line
+                    }
+                    PTypeView::TopType | PTypeView::NullType | PTypeView::Uninitialized(_) | PTypeView::UninitializedThis |
+                    PTypeView::UninitializedThisOrClass(_) => panic!(),
                 }
-            },
-            PTypeView::ShortType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Short)//todo duplication with last line
             }
-            PTypeView::BooleanType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Boolean)//todo duplication with last line
-            }
-            PTypeView::VoidType => {
-                check_inited_class_override_loader(jvm, int_state, &ptype.primitive_to_non_primitive_equiv().into(), loader.clone())?;
-                Arc::new(RuntimeClass::Void)//todo duplication with last line
-            }
-            PTypeView::TopType | PTypeView::NullType | PTypeView::Uninitialized(_) | PTypeView::UninitializedThis |
-            PTypeView::UninitializedThisOrClass(_) => panic!(),
-        };
-        jvm.classes.initialized_classes.write().unwrap().entry(loader.clone()).or_insert(HashMap::new()).insert(ptype.clone(), new_rclass);
-        // jvm.jvmti_state.built_in_jdwp.class_prepare(jvm, ptype)//todo this should really happen in the function that actually does preparing
-    } else {}
-    //todo race?
-    //todo these should be reads not writes
-    let res = match jvm.classes.initialized_classes.write().unwrap().entry(loader.clone()).or_insert(HashMap::new()).get(ptype) {
-        None => {
-            jvm.classes.initializing_classes.write().unwrap().entry(loader).or_insert(HashMap::new()).get(ptype).unwrap().clone()
+            ClassStatus::INITIALIZING => todo!(),
+            ClassStatus::INITIALIZED => todo!()
         }
-        Some(class) => class.clone(),
     };
+    //todo race?
+    jvm.classes.write().unwrap().transition_initialized(new_rclass.loader(), ptype.clone());
     let after = int_state.int_state.as_ref().unwrap().call_stack.len();
     assert_eq!(after, before);
     Ok(res)
@@ -205,10 +214,12 @@ fn check_inited_class_impl(
     loader: LoaderName,
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     match loader.clone() {
-        LoaderName::Class(c) => {}
         LoaderName::BootstrapLoader => {
             todo!()
             // jvm.classes.
+        }
+        LoaderName::UserDefinedLoader(_) => {
+            todo!()
         }
     }
     let target_classfile = todo!();//loader_arc.clone().load_class(loader_arc.clone(), &class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter()).map_err(|err| {
@@ -235,9 +246,6 @@ fn check_inited_class_impl(
     match &jvm.jvmti_state {
         None => {}
         Some(jvmti) => {
-            // if class_name == &ClassName::Str("java/lang/Thread".to_string()) {
-            //     println!("here")
-            // }
             jvmti.built_in_jdwp.class_prepare(jvm, &class_name, int_state);
         }
     }

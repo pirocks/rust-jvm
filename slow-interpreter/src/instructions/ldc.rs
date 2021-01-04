@@ -35,7 +35,7 @@ fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s
 
 pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
     let java_lang_string = ClassName::string();
-    let current_loader = interpreter_state.current_loader(jvm);
+    let current_loader = interpreter_state.current_loader();
     let string_class = check_inited_class(
         jvm,
         interpreter_state,
@@ -55,7 +55,7 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     ))))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
-    let (constructor_i, final_target_class) = find_target_method(jvm, "<init>".to_string(), &expected_descriptor, string_class);
+    let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry::new_java_frame(final_target_class, constructor_i as u16, args);
     let function_call_frame = interpreter_state.push_frame(next_entry);
     run_function(jvm, interpreter_state);

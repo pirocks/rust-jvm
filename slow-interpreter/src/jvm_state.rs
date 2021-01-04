@@ -5,7 +5,7 @@ use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use by_address::ByAddress;
@@ -41,7 +41,7 @@ pub struct JVMState {
     //todo needs to be used for all instances of getClass
     pub libjava: LibJavaLoading,
 
-    pub classes: Classes,
+    pub classes: RwLock<Classes>,
 
     pub main_class_name: ClassName,
 
@@ -62,13 +62,65 @@ pub struct JVMState {
 }
 
 pub struct Classes {
-    //todo maybe switch to coarser locking due to probabilty of races here
-    pub initializing_classes: RwLock<HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>>,
-    pub initialized_classes: RwLock<HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>>,
-    pub class_object_pool: RwLock<HashMap<LoaderName, HashMap<PTypeView, Arc<Object>>>>,
-    //anon classes
-    pub anon_class_counter: AtomicUsize,
-    pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
+    prepared_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
+    initializing_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
+    initialized_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub class_object_pool: HashMap<LoaderName, HashMap<PTypeView, Arc<Object>>>,
+    pub anon_class_live_object_ldc_pool: Arc<Vec<Arc<Object>>>,
+}
+
+pub enum ClassStatus {
+    PREPARED,
+    INITIALIZING,
+    INITIALIZED,
+}
+
+impl Classes {
+    pub fn get_loaded_classes(&self) -> impl Iterator<Item=(LoaderName, PTypeView)> + '_ {
+        let prepared_classes = self.prepared_classes.iter().flat_map(|(loader, classes)| {
+            classes.keys().map(move |ptype| (loader.clone(), ptype.clone()))
+        });
+
+        let initializing_classes = self.initializing_classes.iter().flat_map(|(loader, classes)| {
+            classes.keys().map(move |ptype| (loader.clone(), ptype.clone()))
+        });
+
+        let initialized_classes = self.initialized_classes.iter().flat_map(|(loader, classes)| {
+            classes.keys().map(move |ptype| (loader.clone(), ptype.clone()))
+        });
+
+        prepared_classes.chain(initializing_classes).chain(initialized_classes)
+    }
+
+    pub fn get_status(&self, loader: LoaderName, class_name: PTypeView) -> Option<ClassStatus> {
+        if self.prepared_classes.get(&loader).unwrap().contains_key(&class_name) {
+            return ClassStatus::PREPARED.into();
+        }
+        if self.initializing_classes.get(&loader).unwrap().contains_key(&class_name) {//todo that unwrap prob shouldn't be there
+            return ClassStatus::INITIALIZING.into();
+        }
+        if self.initializing_classes.get(&loader).unwrap().contains_key(&class_name) {//todo that unwrap prob shouldn't be there
+            return ClassStatus::INITIALIZED.into();
+        }
+        None
+    }
+
+
+    pub fn is_initialized(&self, class: Arc<RuntimeClass>) -> Option<bool> {
+        matches!(self.get_status(class.loader(),class.ptypeview())?,INITIALIZING).into()
+    }
+
+    pub fn transition_prepared(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
+        todo!()
+    }
+
+    pub fn transition_initializing(&mut self, loader: LoaderName, class_name: PTypeView) {
+        todo!()
+    }
+
+    pub fn transition_initialized(&mut self, loader: LoaderName, class_name: PTypeView) {
+        todo!()
+    }
 }
 
 
@@ -104,13 +156,13 @@ impl JVMState {
                 entries: HashSet::new()
             },
             start_instant: Instant::now(),
-            classes: Classes {
-                initializing_classes: RwLock::new(HashMap::new()),
-                initialized_classes: RwLock::new(HashMap::new()),
-                class_object_pool: RwLock::new(HashMap::new()),
-                anon_class_live_object_ldc_pool: Arc::new(RwLock::new(vec![])),
-                anon_class_counter: AtomicUsize::new(0),
-            },
+            classes: RwLock::new(Classes {
+                prepared_classes: HashMap::new(),
+                initializing_classes: HashMap::new(),
+                initialized_classes: HashMap::new(),
+                class_object_pool: HashMap::new(),
+                anon_class_live_object_ldc_pool: Arc::new(vec![]),
+            }),
             main_class_name,
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
@@ -169,7 +221,7 @@ pub struct JVMTIState {
 }
 
 struct LivePoolGetterImpl {
-    anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>
+    anon_class_live_object_ldc_pool: Arc<Vec<Arc<Object>>>
 }
 
 #[derive(Debug)]
@@ -203,7 +255,7 @@ impl LibJavaLoading {
 
 impl LivePoolGetter for LivePoolGetterImpl {
     fn elem_type(&self, idx: usize) -> ReferenceTypeView {
-        let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
+        let object = &self.anon_class_live_object_ldc_pool[idx];
         JavaValue::Object(object.clone().into()).to_type().unwrap_ref_type().clone()
         // ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.view().name())//todo handle arrays
     }
@@ -224,6 +276,6 @@ impl JVMState {
     }
 
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter> {
-        Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.classes.anon_class_live_object_ldc_pool.clone() })
+        Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.classes.read().unwrap().anon_class_live_object_ldc_pool.clone() })
     }
 }

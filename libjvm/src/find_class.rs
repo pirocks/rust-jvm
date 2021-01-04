@@ -47,12 +47,12 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     // dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
-    let loaded = int_state.current_loader(jvm).find_loaded_class(&class_name);
+    let loaded = int_state.current_loader().find_loaded_class(&class_name);
     match loaded {
         None => null_mut(),
         Some(view) => {
             //todo what if name is long/int etc.
-            get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, int_state.current_loader(jvm));
+            get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, int_state.current_loader());
             new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
         }
     }

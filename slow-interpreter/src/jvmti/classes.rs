@@ -98,14 +98,48 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
+///Get Loaded Classes
+///
+///     jvmtiError
+///     GetLoadedClasses(jvmtiEnv* env,
+///                 jint* class_count_ptr,
+///                 jclass** classes_ptr)
+///
+/// Return an array of all classes loaded in the virtual machine.
+/// The number of classes in the array is returned via class_count_ptr, and the array itself via classes_ptr.
+///
+/// Array classes of all types (including arrays of primitive types) are included in the returned list.
+/// Primitive classes (for example, java.lang.Integer.TYPE) are not included in this list.
+///
+/// Phase	Callback Safe	Position	Since
+/// may only be called during the live phase 	No 	78	1.0
+///
+/// Capabilities
+/// Required Functionality
+///
+/// Parameters
+/// Name 	Type 	Description
+/// class_count_ptr	jint*	On return, points to the number of classes.
+///
+/// Agent passes a pointer to a jint. On return, the jint has been set.
+/// classes_ptr	jclass**	On return, points to an array of references, one for each class.
+///
+/// Agent passes a pointer to a jclass*. On return, the jclass* points to a newly allocated array of size *class_count_ptr.
+/// The array should be freed with Deallocate. The objects returned by classes_ptr are JNI local references and must be managed.
+///
+/// Errors
+/// This function returns either a universal error or one of the following errors
+/// Error 	Description
+/// JVMTI_ERROR_NULL_POINTER	class_count_ptr is NULL.
+/// JVMTI_ERROR_NULL_POINTER	classes_ptr is NULL.
 pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
     let mut res_vec = vec![];
 
-    jvm.classes.initialized_classes.read().unwrap().iter().for_each(|(_, runtime_class)| {
-        let class_object = get_or_create_class_object(jvm, &runtime_class.ptypeview(), int_state);
+    jvm.classes.read().unwrap().get_loaded_classes().for_each(|(loader, ptype)| {
+        let class_object = get_or_create_class_object(jvm, &ptype, int_state);
         res_vec.push(new_local_ref_public(class_object.unwrap().into(), int_state))
     });
     class_count_ptr.write(res_vec.len() as i32);
