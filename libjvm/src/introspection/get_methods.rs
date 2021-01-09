@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use classfile_view::loading::{Loader, LoaderArc};
+use classfile_view::loading::{LoaderIndex, LoaderName};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -34,7 +34,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj)
 }
 
-fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, publicOnly: u8, loader: LoaderArc, of_class_obj: JClass) -> jobjectArray {
+fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, publicOnly: u8, loader: LoaderName, of_class_obj: JClass) -> jobjectArray {
     let class_ptype = &of_class_obj.as_type();
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()

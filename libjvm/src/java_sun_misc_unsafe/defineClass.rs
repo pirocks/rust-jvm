@@ -19,7 +19,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     let class_name = ClassName::Str(jname.to_rust_string());
     let classfile = Arc::new(parse_class_file(&mut byte_array.as_slice()));
     // int_state.print_stack_trace();
-    int_state.current_loader().add_pre_loaded(&class_name, &classfile);
-    load_class_constant_by_type(jvm, int_state, &class_name.into());
-    to_object(int_state.pop_current_operand_stack().unwrap_object())
+    todo!()
+    // int_state.current_loader().add_pre_loaded(&class_name, &classfile);
+    // load_class_constant_by_type(jvm, int_state, &class_name.into());
+    // to_object(int_state.pop_current_operand_stack().unwrap_object())
 }

@@ -11,7 +11,7 @@ use std::time::Instant;
 use by_address::ByAddress;
 use libloading::Library;
 
-use classfile_view::loading::{LivePoolGetter, LoaderName};
+use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classnames::ClassName;
@@ -42,7 +42,7 @@ pub struct JVMState {
     pub libjava: LibJavaLoading,
 
     pub classes: RwLock<Classes>,
-
+    pub class_loaders: RwLock<HashMap<LoaderIndex, Arc<Object>>>,
     pub main_class_name: ClassName,
 
     pub classpath: Arc<Classpath>,
@@ -66,7 +66,7 @@ pub struct Classes {
     initializing_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
     initialized_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub class_object_pool: HashMap<LoaderName, HashMap<PTypeView, Arc<Object>>>,
-    pub anon_class_live_object_ldc_pool: Arc<Vec<Arc<Object>>>,
+    pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
 }
 
 pub enum ClassStatus {
@@ -161,8 +161,9 @@ impl JVMState {
                 initializing_classes: HashMap::new(),
                 initialized_classes: HashMap::new(),
                 class_object_pool: HashMap::new(),
-                anon_class_live_object_ldc_pool: Arc::new(vec![]),
+                anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
             }),
+            class_loaders: RwLock::new(HashMap::new()),
             main_class_name,
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
@@ -221,7 +222,7 @@ pub struct JVMTIState {
 }
 
 struct LivePoolGetterImpl {
-    anon_class_live_object_ldc_pool: Arc<Vec<Arc<Object>>>
+    anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>
 }
 
 #[derive(Debug)]
@@ -255,7 +256,7 @@ impl LibJavaLoading {
 
 impl LivePoolGetter for LivePoolGetterImpl {
     fn elem_type(&self, idx: usize) -> ReferenceTypeView {
-        let object = &self.anon_class_live_object_ldc_pool[idx];
+        let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
         JavaValue::Object(object.clone().into()).to_type().unwrap_ref_type().clone()
         // ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.view().name())//todo handle arrays
     }

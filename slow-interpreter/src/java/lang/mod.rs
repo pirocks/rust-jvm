@@ -235,9 +235,16 @@ pub mod class_loader {
     use std::sync::Arc;
 
     use classfile_view::loading::LoaderName;
+    use rust_jvm_common::classnames::ClassName;
 
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::check_inited_class;
+    use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
 
+    #[derive(Clone)]
     pub struct ClassLoader {
         normal_object: Arc<Object>
     }
@@ -251,6 +258,19 @@ pub mod class_loader {
     impl ClassLoader {
         pub fn to_jvm_loader(&self) -> LoaderName {
             todo!()
+        }
+
+        pub fn load_class(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: JString) {
+            int_state.push_current_operand_stack(self.clone().java_value());
+            int_state.push_current_operand_stack(name.java_value());
+            let class_loader = check_inited_class(jvm, int_state, ClassName::classloader().into()).unwrap();
+            run_static_or_virtual(
+                jvm,
+                int_state,
+                &class_loader,
+                "loadClass".to_string(),
+                "(Ljava/lang/String;)Ljava/lang/Class;".to_string(),
+            );
         }
 
         as_object_or_java_value!();

@@ -192,8 +192,12 @@ impl ClassName {
         Self::new("java/lang/ThreadGroup")
     }
 
-    pub fn constructor() -> Self{
+    pub fn constructor() -> Self {
         Self::new("java/lang/reflect/Constructor")
+    }
+
+    pub fn classloader() -> Self {
+        Self::new("java/lang/ClassLoader")
     }
 }
 

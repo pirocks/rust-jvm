@@ -49,7 +49,7 @@ pub fn get_or_creat_class_object_override_loader(jvm: &JVMState,
 fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader: LoaderName) -> Result<Arc<Object>, ClassLoadingError> {
     // let current_frame = int_state.current_frame_mut();
     let runtime_class = check_inited_class(jvm, int_state, ptype.clone())?;
-    let classes = jvm.classes.write().unwrap();
+    let mut classes = jvm.classes.write().unwrap();
     let res = classes.class_object_pool.get(&loader).unwrap().get(&ptype).cloned();
     Ok(match res {
         None => {

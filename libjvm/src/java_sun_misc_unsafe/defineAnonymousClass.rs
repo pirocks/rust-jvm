@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Write;
+use std::ops::DerefMut;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -44,34 +45,35 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     //todo maybe have an anon loader for this
     let current_loader = int_state.current_loader();
 
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classes: todo!(), current_loader: current_loader.name() };
+    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classes: todo!(), current_loader };
     let class_view = ClassView::from(parsed.clone());
     File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
     let class_name = class_view.name();
-    current_loader.add_pre_loaded(&class_name, &parsed);
+    // current_loader.add_pre_loaded(&class_name, &parsed);
     // frame.print_stack_trace();
     // dbg!(&class_name);
-    match verify(&vf, &class_view, current_loader.name()) {
-        Ok(_) => {}
-        Err(_) => panic!(),
-    };
-    load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(class_name)));
-    int_state.pop_current_operand_stack()
+    // match verify(&vf, &class_view, current_loader.name()) {
+    //     Ok(_) => {}
+    //     Err(_) => panic!(),
+    // };
+    // load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(class_name)));
+    // int_state.pop_current_operand_stack()
+    todo!()
 }
 
 
-fn patch_all(state: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
+fn patch_all(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| {
         match maybe_patch {
             None => {}
             Some(patch) => {
-                patch_single(patch, state, frame, unpatched, i);
+                patch_single(patch, jvm, frame, unpatched, i);
             }
         }
     });
-    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", state.classes.anon_class_counter.fetch_add(1, Ordering::SeqCst));
+    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", jvm.classes.read().unwrap().anon_class_live_object_ldc_pool.read().unwrap().len());
     let name_index = unpatched.constant_pool.len() as u16;
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
@@ -168,7 +170,8 @@ class_name == ClassName::long() ||
 }*/ else {
         // dbg!(&class_name);
         // assert!(class_name == ClassName::unsafe_() || class_name == ClassName::direct_method_handle());//for now keep a white list of allowed classes here until the above are properly implemented
-        let mut anon_class_write_guard = state.classes.anon_class_live_object_ldc_pool.write().unwrap();
+        let classes_guard = state.classes.write().unwrap();
+        let mut anon_class_write_guard = classes_guard.anon_class_live_object_ldc_pool.write().unwrap();
         let live_object_i = anon_class_write_guard.len();
         anon_class_write_guard.push(patch.clone());
         unpatched.constant_pool[i] = ConstantKind::LiveObject(live_object_i).into();
