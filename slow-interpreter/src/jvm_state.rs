@@ -14,6 +14,7 @@ use libloading::Library;
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use rust_jvm_common::classfile::ConstantKind::LiveObject;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 
@@ -23,7 +24,7 @@ use crate::interpreter_util::check_inited_class;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::{JavaValue, NormalObject, Object};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
-use crate::loading::{BootstrapLoader, Classpath};
+use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
 use crate::native_allocation::NativeAllocator;
 use crate::options::{JVMOptions, SharedLibraryPaths};
@@ -93,16 +94,15 @@ impl Classes {
     }
 
     pub fn get_status(&self, loader: LoaderName, class_name: PTypeView) -> Option<ClassStatus> {
-        if self.prepared_classes.get(&loader).unwrap().contains_key(&class_name) {
-            return ClassStatus::PREPARED.into();
+        if self.initialized_classes.get(&loader).unwrap().contains_key(&class_name) {//todo that unwrap prob shouldn't be there
+            ClassStatus::INITIALIZED.into()
+        } else if self.initializing_classes.get(&loader).unwrap().contains_key(&class_name) {//todo that unwrap prob shouldn't be there
+            ClassStatus::INITIALIZING.into()
+        } else if self.prepared_classes.get(&loader).unwrap().contains_key(&class_name) {
+            ClassStatus::PREPARED.into()
+        } else {
+            None
         }
-        if self.initializing_classes.get(&loader).unwrap().contains_key(&class_name) {//todo that unwrap prob shouldn't be there
-            return ClassStatus::INITIALIZING.into();
-        }
-        if self.initializing_classes.get(&loader).unwrap().contains_key(&class_name) {//todo that unwrap prob shouldn't be there
-            return ClassStatus::INITIALIZED.into();
-        }
-        None
     }
 
 
@@ -111,15 +111,23 @@ impl Classes {
     }
 
     pub fn transition_prepared(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
-        todo!()
+        self.prepared_classes.entry(loader).or_default().insert(class.ptypeview(), class);
     }
 
-    pub fn transition_initializing(&mut self, loader: LoaderName, class_name: PTypeView) {
-        todo!()
+    pub fn transition_initializing(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
+        self.initializing_classes.entry(loader).or_default().insert(class.ptypeview(), class);
     }
 
-    pub fn transition_initialized(&mut self, loader: LoaderName, class_name: PTypeView) {
-        todo!()
+    pub fn transition_initialized(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
+        self.initialized_classes.entry(loader).or_default().insert(class.ptypeview(), class);
+    }
+
+    pub fn get_initializing_class(&self, loader: LoaderName, ptype: &PTypeView) -> Arc<RuntimeClass> {
+        self.initializing_classes.get(&loader).unwrap().get(ptype).unwrap().clone()
+    }
+
+    pub fn get_initialized_class(&self, loader: LoaderName, ptype: &PTypeView) -> Arc<RuntimeClass> {
+        self.initialized_classes.get(&loader).unwrap().get(ptype).unwrap().clone()
     }
 }
 
@@ -129,12 +137,6 @@ impl JVMState {
         let JVMOptions { main_class_name, classpath, args, shared_libs, enable_tracing, enable_jvmti, properties, unittest_mode } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
-        let bootstrap_loader = Arc::new(BootstrapLoader {
-            loaded: RwLock::new(HashMap::new()),
-            parsed: RwLock::new(HashMap::new()),
-            name: RwLock::new(LoaderName::BootstrapLoader),
-            classpath: classpath_arc.clone(),
-        });
 
 
         let tracing = if enable_tracing { TracingSettings::new() } else { TracingSettings::disabled() };
@@ -147,22 +149,30 @@ impl JVMState {
             }.into()
         } else { None };
         let thread_state = ThreadState::new();
+        let mut prepared_classes = HashMap::new();
+        prepared_classes.insert(LoaderName::BootstrapLoader, HashMap::new());
+        let mut initializing_classes = HashMap::new();
+        initializing_classes.insert(LoaderName::BootstrapLoader, HashMap::new());
+        let mut initialized_classes = HashMap::new();
+        initialized_classes.insert(LoaderName::BootstrapLoader, HashMap::new());
+        let classes = RwLock::new(Classes {
+            prepared_classes,
+            initializing_classes,
+            initialized_classes,
+            class_object_pool: HashMap::new(),
+            anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
+        });
+        let string_pool = StringPool {
+            entries: HashSet::new()
+        };
         let jvm = Self {
             properties,
             loaders: RwLock::new(HashMap::new()),
             system_domain_loader: true,
             libjava: LibJavaLoading::new_java_loading(libjava),
-            string_pool: StringPool {
-                entries: HashSet::new()
-            },
+            string_pool,
             start_instant: Instant::now(),
-            classes: RwLock::new(Classes {
-                prepared_classes: HashMap::new(),
-                initializing_classes: HashMap::new(),
-                initialized_classes: HashMap::new(),
-                class_object_pool: HashMap::new(),
-                anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
-            }),
+            classes,
             class_loaders: RwLock::new(HashMap::new()),
             main_class_name,
             classpath: classpath_arc,

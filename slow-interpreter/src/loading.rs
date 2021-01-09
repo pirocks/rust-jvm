@@ -64,14 +64,14 @@ impl Classpath {
     }
 }
 
-#[derive(Debug)]
-pub struct BootstrapLoader {
-    pub loaded: RwLock<HashMap<ClassName, (Arc<ClassView>, Arc<Classfile>)>>,
-    pub parsed: RwLock<HashMap<ClassName, (Arc<ClassView>, Arc<Classfile>)>>,
-    pub name: RwLock<LoaderName>,
-    //for now the classpath is immutable so no locks are needed.
-    pub classpath: Arc<Classpath>,
-}
+// #[derive(Debug)]
+// pub struct BootstrapLoader {
+//     pub loaded: RwLock<HashMap<ClassName, (Arc<ClassView>, Arc<Classfile>)>>,
+//     pub parsed: RwLock<HashMap<ClassName, (Arc<ClassView>, Arc<Classfile>)>>,
+//     pub name: RwLock<LoaderName>,
+//     //for now the classpath is immutable so no locks are needed.
+//     pub classpath: Arc<Classpath>,
+// }
 
 //
 // impl Loader for BootstrapLoader {
@@ -153,8 +153,8 @@ pub struct BootstrapLoader {
 //     }
 // }
 
-impl BootstrapLoader {
-    // fn search_class_files(&self, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+// impl BootstrapLoader {
+// fn search_class_files(&self, name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
     //     let found_class_file = self.classpath.classpath_base.iter().map(|x| {
     //         let mut path_buf = x.to_path_buf();
     //         path_buf.push(format!("{}.class", name.get_referred_name()));
@@ -172,6 +172,6 @@ impl BootstrapLoader {
     //             Result::Ok(Arc::new(classfile))
     //         }
     //     }
-    // }
-}
+// }
+// }
 

@@ -50,12 +50,15 @@ fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut Interp
     // let current_frame = int_state.current_frame_mut();
     let runtime_class = check_inited_class(jvm, int_state, ptype.clone())?;
     let mut classes = jvm.classes.write().unwrap();
-    let res = classes.class_object_pool.get(&loader).unwrap().get(&ptype).cloned();
+    let res = classes.class_object_pool.entry(loader).or_default().get(&ptype).cloned();
     Ok(match res {
         None => {
+            drop(classes);
             let r = create_a_class_object(jvm, int_state, runtime_class.clone());
+            let mut classes = jvm.classes.write().unwrap();
             //todo likely race condition created by expectation that Integer.class == Integer.class, maybe let it happen anyway?
-            classes.class_object_pool.entry(int_state.current_loader()).or_insert(HashMap::new()).insert(ptype, r.clone());
+            classes.class_object_pool.entry(int_state.current_loader()).or_default().insert(ptype, r.clone());
+            drop(classes);//todo get rid of these manual drops
             if runtime_class.ptypeview().is_primitive() {
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so

@@ -7,11 +7,14 @@ use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::classfile::AttributeType::LocalVariableTable;
+use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::java::lang::class_loader::ClassLoader;
+use crate::java::lang::class_not_found_exception;
 use crate::java::lang::string::JString;
 use crate::java_values::{default_value, JavaValue, Object};
 use crate::jvm_state::ClassStatus;
@@ -36,14 +39,13 @@ pub fn push_new_object(
 fn default_init_fields(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
-    loader_arc: LoaderName,
+    loader: LoaderName,
     object_pointer: Option<Arc<Object>>,
     view: &ClassView,
-) {
-    if view.super_name().is_some() {
-        let super_name = view.super_name();
-        let loaded_super = todo!();
-        default_init_fields(jvm, int_state, loader_arc.clone(), object_pointer.clone(), &loaded_super);
+) -> Result<(), ClassLoadingError> {
+    if let Some(super_name) = view.super_name() {
+        let loaded_super = check_inited_class_override_loader(jvm, int_state, &super_name.into(), loader.clone())?;
+        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &loaded_super.view())?;
     }
     for field in view.fields() {
         if !field.is_static() {
@@ -60,6 +62,7 @@ fn default_init_fields(
             }
         }
     }
+    Ok(())
 }
 
 pub fn run_constructor(
@@ -83,6 +86,7 @@ pub fn run_constructor(
 }
 
 pub fn check_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+    dbg!(&ptype);
     check_inited_class_override_loader(jvm, int_state, &ptype, int_state.current_loader())
 }
 
@@ -102,12 +106,12 @@ pub fn check_inited_class_override_loader(
         }
         Some(status) => match status {
             ClassStatus::PREPARED => from_prepared_to_inited(jvm, int_state, &ptype, loader.clone()),
-            ClassStatus::INITIALIZING => todo!(),
-            ClassStatus::INITIALIZED => todo!()
+            ClassStatus::INITIALIZING => return Ok(jvm.classes.read().unwrap().get_initializing_class(loader, ptype)),
+            ClassStatus::INITIALIZED => return Ok(jvm.classes.read().unwrap().get_initialized_class(loader, ptype))
         }
     }?;
     //todo race?
-    jvm.classes.write().unwrap().transition_initialized(loader, res.ptypeview());
+    jvm.classes.write().unwrap().transition_initialized(loader, res.clone());
     let after = int_state.int_state.as_ref().unwrap().call_stack.len();
     assert_eq!(after, before);
     Ok(res)
@@ -138,39 +142,39 @@ fn unknown_class_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
         PTypeView::ByteType => {
             // move init init
             Arc::new(RuntimeClass::Byte)
-        },
+        }
         PTypeView::CharType => {
             // move init init
             Arc::new(RuntimeClass::Char)
-        },
+        }
         PTypeView::DoubleType => {
             // move init init
             Arc::new(RuntimeClass::Double)
-        },
+        }
         PTypeView::FloatType => {
             // move init init
             Arc::new(RuntimeClass::Float)
-        },
+        }
         PTypeView::IntType => {
             // move init init
             Arc::new(RuntimeClass::Int)
-        },
+        }
         PTypeView::LongType => {
             // move init init
             Arc::new(RuntimeClass::Long)
-        },
+        }
         PTypeView::ShortType => {
             // move init init
             Arc::new(RuntimeClass::Short)
-        },
+        }
         PTypeView::BooleanType => {
             // move init init
             Arc::new(RuntimeClass::Boolean)
-        },
+        }
         PTypeView::VoidType => {
             // move init init
             Arc::new(RuntimeClass::Void)
-        },
+        }
         PTypeView::Ref(ref_) => match ref_ {
             ReferenceTypeView::Class(class_name) => {
                 if class_name == &ClassName::raw_byte() {
@@ -221,43 +225,38 @@ fn check_inited_class_impl(
             Ok(todo!())
         }
         LoaderName::BootstrapLoader => {
-            check_inited_class_impl(jvm, int_state, class_name, loader)
+            let target_classfile = match jvm.classpath.lookup(class_name) {
+                Ok(target_classfile) => target_classfile,
+                Err(err) => {
+                    if class_name == &ClassName::new("sun/dc/DuctusRenderingEngine") {
+                        let jclass_name = JString::from_rust(jvm, int_state, class_name.get_referred_name().to_string());
+                        let class_not_found_exception = class_not_found_exception::ClassNotFoundException::new(jvm, int_state, jclass_name);
+                        int_state.set_throw(class_not_found_exception.object().into());
+                        return Err(err);
+                    } else {
+                        dbg!(class_name);
+                        int_state.print_stack_trace();
+                        panic!()
+                    }
+                }
+            };
+            let ptype = PTypeView::Ref(ReferenceTypeView::Class(class_name.clone()));
+            let prepared = Arc::new(prepare_class(jvm, target_classfile.clone(), loader.clone()));
+            if let Some(super_name) = prepared.view().super_name() {
+                check_inited_class_override_loader(jvm, int_state, &super_name.into(), loader)?;
+            };
+            jvm.classes.write().unwrap().transition_prepared(LoaderName::BootstrapLoader, prepared.clone());
+            jvm.classes.write().unwrap().transition_initializing(LoaderName::BootstrapLoader, prepared.clone());
+            if let Some(jvmti) = &jvm.jvmti_state {
+                jvmti.built_in_jdwp.class_prepare(jvm, &class_name, int_state);
+            }
+
+            let inited_target = initialize_class(prepared.clone(), jvm, int_state);
+            if inited_target.is_none() {
+                return Err(ClassLoadingError::ClassNotFoundException);
+            }
+            jvm.classes.write().unwrap().transition_initialized(LoaderName::BootstrapLoader, prepared.clone());
+            Ok(prepared)
         }
     };
-    //todo
-    // let target_classfile = todo!();//loader_arc.clone().load_class(loader_arc.clone(), &class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter()).map_err(|err| {
-    // int_state.print_stack_trace();
-    // if class_name == &ClassName::new("sun/dc/DuctusRenderingEngine") {
-    //     let jclass_name = JString::from_rust(jvm, int_state, class_name.get_referred_name().to_string());
-    //     let class_not_found_exception = class_not_found_exception::ClassNotFoundException::new(jvm, int_state, jclass_name);
-    //     int_state.set_throw(class_not_found_exception.object().into());
-    //     err
-    // } else {
-    //     dbg!(class_name);
-    //     int_state.print_stack_trace();
-    //     panic!()
-    // }
-    // })?;
-    // let ptype = PTypeView::Ref(ReferenceTypeView::Class(class_name.clone()));
-    // let prepared = Arc::new(prepare_class(jvm, target_classfile.backing_class(), loader.clone()));
-    // jvm.classes.prepared_classes.write().unwrap().insert(ptype.clone(), prepared.clone());
-    // jvm.classes.initializing_classes.write().unwrap().entry(loader.clone()).or_insert(HashMap::new()).insert(ptype.clone(), prepared.clone());
-    // match prepared.view().super_name() {
-    //     None => {}
-    //     Some(super_name) => { check_inited_class(jvm, int_state, super_name.into())?; }
-    // };
-    // match &jvm.jvmti_state {
-    //     None => {}
-    //     Some(jvmti) => {
-    //         jvmti.built_in_jdwp.class_prepare(jvm, &class_name, int_state);
-    //     }
-    // }
-    //
-    // let inited_target = initialize_class(prepared, jvm, int_state);
-    // if inited_target.is_none() {
-    //     return Err(ClassLoadingError::ClassNotFoundException);
-    // }
-    // jvm.classes.initialized_classes.write().unwrap().entry(loader.clone()).or_insert(HashMap::new()).insert(ptype.clone(), inited_target.unwrap());
-    // let res = jvm.classes.initialized_classes.read().unwrap().get(&loader).unwrap().get(&ptype).unwrap().clone();
-    // Ok(res)
 }

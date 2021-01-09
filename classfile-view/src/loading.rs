@@ -34,7 +34,7 @@ pub type LoaderIndex = usize;
 
 #[derive(Debug)]
 #[derive(Eq)]
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Copy)]
 pub enum LoaderName {
     UserDefinedLoader(LoaderIndex),
     BootstrapLoader,
