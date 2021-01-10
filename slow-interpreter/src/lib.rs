@@ -114,7 +114,7 @@ fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, arg
 
 
 fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);

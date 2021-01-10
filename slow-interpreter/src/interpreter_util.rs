@@ -10,6 +10,8 @@ use descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::classfile::AttributeType::LocalVariableTable;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use verification::{VerifierContext, verify};
+use verification::verifier::TypeSafetyError;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::special::invoke_special_impl;
@@ -32,7 +34,7 @@ pub fn push_new_object(
     let loader_arc = target_classfile.loader();//&int_state.current_frame().class_pointer().loader(jvm).clone();//todo fix loaders.
     let object_pointer = JavaValue::new_object(jvm, target_classfile.clone(), class_object_type);
     let new_obj = JavaValue::Object(object_pointer.clone());
-    default_init_fields(jvm, int_state, loader_arc.clone(), object_pointer, target_classfile.view());
+    default_init_fields(jvm, int_state, loader_arc.clone(), object_pointer, target_classfile.view()).unwrap();
     int_state.current_frame_mut().push(new_obj);
 }
 
@@ -86,7 +88,6 @@ pub fn run_constructor(
 }
 
 pub fn check_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
-    dbg!(&ptype);
     check_inited_class_override_loader(jvm, int_state, &ptype, int_state.current_loader())
 }
 
@@ -105,7 +106,7 @@ pub fn check_inited_class_override_loader(
             unknown_class_load(jvm, int_state, ptype, loader.clone())
         }
         Some(status) => match status {
-            ClassStatus::PREPARED => from_prepared_to_inited(jvm, int_state, &ptype, loader.clone()),
+            ClassStatus::PREPARED => from_prepared_to_inited(jvm, int_state, &ptype, loader.clone()), //todo this is wrong?
             ClassStatus::INITIALIZING => return Ok(jvm.classes.read().unwrap().get_initializing_class(loader, ptype)),
             ClassStatus::INITIALIZED => return Ok(jvm.classes.read().unwrap().get_initialized_class(loader, ptype))
         }
@@ -240,7 +241,13 @@ fn check_inited_class_impl(
                     }
                 }
             };
-            let ptype = PTypeView::Ref(ReferenceTypeView::Class(class_name.clone()));
+            if let Err(_) = verify(&VerifierContext {
+                live_pool_getter: jvm.get_live_object_pool_getter(),
+                classfile_getter: jvm.get_class_getter(loader),
+                current_loader: loader,
+            }, &Arc::new(ClassView::from(target_classfile.clone())), loader) {
+                panic!()
+            }
             let prepared = Arc::new(prepare_class(jvm, target_classfile.clone(), loader.clone()));
             if let Some(super_name) = prepared.view().super_name() {
                 check_inited_class_override_loader(jvm, int_state, &super_name.into(), loader)?;

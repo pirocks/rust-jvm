@@ -71,7 +71,7 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn current_loader(&self) -> LoaderName {
-        self.current_frame().class_pointer().loader()
+        self.current_frame().loader()
     }
 
     pub fn current_class_view(&self) -> &Arc<ClassView> {

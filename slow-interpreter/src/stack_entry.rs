@@ -3,6 +3,7 @@ use std::sync::Arc;
 use bimap::BiMap;
 use by_address::ByAddress;
 
+use classfile_view::loading::LoaderName;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::jobject;
@@ -30,6 +31,7 @@ struct NonNativeFrameData {
 
 #[derive(Debug)]
 pub struct StackEntry {
+    loader: LoaderName,
     opaque_frame_optional: Option<OpaqueFrameOptional>,
     non_native_data: Option<NonNativeFrameData>,
     local_vars: Vec<JavaValue>,
@@ -38,9 +40,10 @@ pub struct StackEntry {
 }
 
 impl StackEntry {
-    pub fn new_completely_opaque_frame() -> Self {
+    pub fn new_completely_opaque_frame(loader: LoaderName) -> Self {
         //need a better name here
         Self {
+            loader,
             opaque_frame_optional: None,
             non_native_data: None,
             local_vars: vec![],
@@ -53,6 +56,7 @@ impl StackEntry {
         let max_locals = class_pointer.view().method_view_i(method_i as usize).method_info().code_attribute().unwrap().max_locals;
         assert!(args.len() >= max_locals as usize);
         Self {
+            loader: class_pointer.loader(),
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
             non_native_data: Some(NonNativeFrameData { pc: 0, pc_offset: 0 }),
             local_vars: args,
@@ -63,6 +67,7 @@ impl StackEntry {
 
     pub fn new_native_frame(class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
         Self {
+            loader: class_pointer.loader(),
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
             non_native_data: None,
             local_vars: args,
@@ -163,6 +168,10 @@ impl StackEntry {
 
     pub fn local_vars_types(&self) -> Vec<PTypeView> {
         self.local_vars().iter().map(|type_| type_.to_type()).collect()
+    }
+
+    pub fn loader(&self) -> LoaderName {
+        self.loader
     }
 }
 

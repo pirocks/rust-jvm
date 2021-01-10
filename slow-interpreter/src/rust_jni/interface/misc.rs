@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::transmute;
+use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
 
@@ -69,7 +70,8 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 
 
     //todo should this be current loader?
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classes: todo!(), current_loader: loader.clone() };
+    int_state.print_stack_trace();
+    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: todo!(), current_loader: loader.clone() };
     let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
     res as jboolean
 }

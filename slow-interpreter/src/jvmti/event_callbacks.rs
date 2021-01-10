@@ -144,7 +144,7 @@ impl SharedLibJVMTI {
     pub fn vm_inited(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, main_thread: Arc<JavaThread>) {
         if *self.vm_init_enabled.read().unwrap() {
             unsafe {
-                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
                 let main_thread_object = main_thread.thread_object();
                 let event = VMInitEvent {
                     thread: new_local_ref_public(main_thread_object.object().into(), int_state)
@@ -158,7 +158,7 @@ impl SharedLibJVMTI {
 
     pub fn thread_start(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, jthread: JThread) {
         if *self.thread_start_enabled.read().unwrap() {
-            let event_handling_frame = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+            let event_handling_frame = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
             while !jvm.vm_live() {};//todo ofc theres a better way of doing this, but we are required to wait for vminit by the spec.
             assert!(jvm.vm_live());
             unsafe {
@@ -174,7 +174,7 @@ impl SharedLibJVMTI {
     pub fn class_prepare(&self, jvm: &JVMState, class: &ClassName, int_state: &mut InterpreterStateGuard) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             unsafe {
-                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
                 //give the other events this long thing
                 let current_thread_from_rust = jvm.thread_state
                     .try_get_current_thread()
@@ -195,7 +195,7 @@ impl SharedLibJVMTI {
     pub fn breakpoint(&self, jvm: &JVMState, method: MethodId, location: i64, int_state: &mut InterpreterStateGuard) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
             unsafe {
-                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
                 let thread = new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().into(), int_state);
                 let method = transmute(method);
                 self.Breakpoint(jvm, int_state, BreakpointEvent {
@@ -263,7 +263,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let guard = self.vm_init_callback.read().unwrap();
         let f_pointer = *guard.as_ref().unwrap();
         std::mem::drop(guard);
-        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         f_pointer(jvmti, jni, thread);
         int_state.pop_frame(frame_for_event);
     }
@@ -297,7 +297,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
         let ThreadStartEvent { thread } = event;
-        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         if let Some(callback) = self.thread_start_callback.read().unwrap().as_ref() {
             callback(jvmti_env, jni_env, thread)
         }
@@ -317,7 +317,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jni_env = get_interface(jvm, int_state);
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let ExceptionEvent { thread, method, location, exception, catch_method, catch_location } = event;
-        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         (self.exception_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location, exception, catch_method, catch_location);
         int_state.pop_frame(frame_for_event);
     }
@@ -356,7 +356,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jvmti_env = get_jvmti_interface(jvm, int_state);//todo deal with these leaks
         let jni_env = get_interface(jvm, int_state);
         let ClassPrepareEvent { thread, klass } = event;
-        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
         int_state.pop_frame(frame_for_event);
     }
@@ -400,7 +400,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
         let BreakpointEvent { thread, method, location } = event;
-        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         let guard = self.breakpoint_callback.read().unwrap();
         let func_pointer = guard.as_ref().unwrap();
         (func_pointer)(jvmti_env, jni_env, thread, method, location);

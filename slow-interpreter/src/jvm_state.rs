@@ -12,11 +12,14 @@ use by_address::ByAddress;
 use libloading::Library;
 
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
+use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use jvmti_jni_bindings::{JavaVM, jint, jio_fprintf, jlong, JNIInvokeInterface_, jobject};
+use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classfile::ConstantKind::LiveObject;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
+use verification::ClassFileGetter;
 
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -288,5 +291,24 @@ impl JVMState {
 
     pub fn get_live_object_pool_getter(&self) -> Arc<dyn LivePoolGetter> {
         Arc::new(LivePoolGetterImpl { anon_class_live_object_ldc_pool: self.classes.read().unwrap().anon_class_live_object_ldc_pool.clone() })
+    }
+}
+
+impl JVMState {
+    pub fn get_class_getter<'l>(&'l self, loader: LoaderName) -> Arc<dyn ClassFileGetter + 'l> {
+        assert_eq!(loader, LoaderName::BootstrapLoader);
+        Arc::new(BootstrapLoaderClassGetter {
+            jvm: self
+        })
+    }
+}
+
+pub struct BootstrapLoaderClassGetter<'l> {
+    jvm: &'l JVMState
+}
+
+impl ClassFileGetter for BootstrapLoaderClassGetter<'_> {
+    fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile> {
+        self.jvm.classpath.lookup(&class).unwrap()
     }
 }

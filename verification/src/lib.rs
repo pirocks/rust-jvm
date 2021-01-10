@@ -5,9 +5,11 @@ use std::sync::Arc;
 
 use elapsed::measure_time;
 
-use classfile_view::loading::{Classes, ClassWithLoader, LivePoolGetter, LoaderName};
+use classfile_view::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
 use classfile_view::view::ClassView;
 use classfile_view::vtype::VType;
+use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classnames::ClassName;
 
 use crate::verifier::class_is_type_safe;
 use crate::verifier::Frame;
@@ -51,10 +53,15 @@ pub struct StackMap {
 
 pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter>,
-    pub classes: &'l Classes,
+    pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
+    // pub classes: &'l ,
     pub current_loader: LoaderName,
 }
 
+
+pub trait ClassFileGetter {
+    fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile>;
+}
 
 #[derive(Eq, Debug)]
 pub struct OperandStack {

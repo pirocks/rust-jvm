@@ -50,14 +50,15 @@ pub fn class_is_final(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
 
 
 pub fn loaded_class(vf: &VerifierContext, class_name: ClassName, loader: LoaderName) -> Result<ClassWithLoader, TypeSafetyError> {
-    if vf.classes.class_loaded_by(&class_name, &loader) {
-        Result::Ok(ClassWithLoader { class_name, loader })
-    } else {
-        match vf.classes.pre_load(class_name.clone(), loader.clone()) {
-            Ok(_) => Result::Ok(ClassWithLoader { class_name, loader }),
-            Err(_) => unimplemented!(),
-        }
-    }
+    Result::Ok(ClassWithLoader { class_name, loader })
+    // if vf.classes.class_loaded_by(&class_name, &loader) {
+    //     Result::Ok(ClassWithLoader { class_name, loader })
+    // } else {
+    //     match vf.classes.pre_load(class_name.clone(), loader.clone()) {
+    //         Ok(_) => Result::Ok(ClassWithLoader { class_name, loader }),
+    //         Err(_) => unimplemented!(),
+    //     }
+    // }
 }
 
 

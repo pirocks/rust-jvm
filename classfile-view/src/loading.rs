@@ -7,7 +7,6 @@ use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock};
 
-use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::view::ptype_view::ReferenceTypeView;
@@ -87,35 +86,35 @@ impl Display for LoaderName {
 pub const BOOTSTRAP_LOADER_NAME: &str = "bl";
 
 
-pub struct Classes {
-    //todo what about loaders with the same name? is that even possible?
-    classes: RwLock<HashMap<ClassName, HashMap<LoaderName, Arc<Classfile>>>>,
-    classpath_lookup: Box<dyn LookupInClassPath>,
-}
+// pub struct Classes {
+//     //todo what about loaders with the same name? is that even possible?
+//     classes: RwLock<HashMap<ClassName, HashMap<LoaderName, Arc<Classfile>>>>,
+//     classpath_lookup: Box<dyn LookupInClassPath>,
+// }
 
-pub trait LookupInClassPath {
-    fn lookup(&self, class_name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError>;
-}
-
-impl Classes {
-    pub fn class_loaded_by(&self, class: &ClassName, loader: &LoaderName) -> bool {
-        match self.classes.read().unwrap().get(class) {
-            None => false,
-            Some(class) => {
-                class.contains_key(loader)
-            }
-        }
-    }
-
-    pub fn pre_load(&self, class: ClassName, loader: LoaderName) -> Result<Arc<Classfile>, ClassLoadingError> {
-        let mut guard = self.classes.write().unwrap();
-        let class_entry = guard.entry(class.clone()).or_insert(HashMap::new());
-        match class_entry.get(&loader) {
-            None => { self.classpath_lookup.lookup(&class) }
-            Some(class_file) => Ok(class_file.clone())
-        }
-    }
-}
+// pub trait LookupInClassPath {
+//     fn lookup(&self, class_name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError>;
+// }
+//
+// impl Classes {
+//     pub fn class_loaded_by(&self, class: &ClassName, loader: &LoaderName) -> bool {
+//         match self.classes.read().unwrap().get(class) {
+//             None => false,
+//             Some(class) => {
+//                 class.contains_key(loader)
+//             }
+//         }
+//     }
+//
+//     pub fn pre_load(&self, class: ClassName, loader: LoaderName) -> Result<Arc<Classfile>, ClassLoadingError> {
+//         let mut guard = self.classes.write().unwrap();
+//         let class_entry = guard.entry(class.clone()).or_insert(HashMap::new());
+//         match class_entry.get(&loader) {
+//             None => { self.classpath_lookup.lookup(&class) }
+//             Some(class_file) => Ok(class_file.clone())
+//         }
+//     }
+// }
 
 
 // pub struct EmptyLoader {}

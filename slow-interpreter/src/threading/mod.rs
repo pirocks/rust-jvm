@@ -70,7 +70,7 @@ impl ThreadState {
             int_state.register_interpreter_state_guard(jvm);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
-            set_properties(jvm, &mut int_state);
+
             assert!(!jvm.live.load(Ordering::SeqCst));
             jvm.live.store(true, Ordering::SeqCst);
             if let Some(jvmti) = jvm.jvmti_state.as_ref() {
@@ -82,7 +82,7 @@ impl ThreadState {
             if let Some(jvmti) = jvm.jvmti_state.as_ref() {
                 jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
             }
-            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));//todo think this is correct, check
             unsafe { jvm.libjava.load(jvm, &mut int_state); }//todo not sure if this should be here
             int_state.pop_frame(push_guard);
             run_main(args, jvm, &mut int_state).unwrap();
@@ -112,6 +112,7 @@ impl ThreadState {
         if int_state.throw().is_some() || *int_state.terminate() {
             unimplemented!()
         }
+        set_properties(jvm, int_state);
         //todo read and copy props here
         let key = JString::from_rust(jvm, int_state, "java.home".to_string());
         let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/".to_string());
@@ -150,22 +151,22 @@ impl ThreadState {
         bootstrap_thread.notify_alive();
         let mut new_int_state = InterpreterStateGuard::new(jvm, &bootstrap_thread);
         new_int_state.register_interpreter_state_guard(jvm);
-        let frame = StackEntry::new_completely_opaque_frame();
+        let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader);
         let frame_for_bootstrapping = new_int_state.push_frame(frame);
 
         let thread_classfile = check_inited_class_override_loader(jvm,
                                                                   &mut new_int_state,
                                                                   &ClassName::thread().into(),
-                                                                  LoaderName::BootstrapLoader
+                                                                  LoaderName::BootstrapLoader,
         ).unwrap();
-
 
         push_new_object(jvm, &mut new_int_state, &thread_classfile, None);
         let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
-        check_inited_class_override_loader(jvm, &mut new_int_state, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), LoaderName::BootstrapLoader).expect("Well this isn't meant to happen. couldn't load the Thread group class so there's not much that can be done.");
-        let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state);
+        let thread_group_class = check_inited_class_override_loader(jvm, &mut new_int_state, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), LoaderName::BootstrapLoader)
+            .expect("Well this isn't meant to happen. couldn't load the Thread group class so there's not much that can be done.");
+        let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state, thread_group_class);
         *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
         new_int_state.pop_frame(frame_for_bootstrapping);
@@ -217,11 +218,12 @@ impl ThreadState {
         self.all_java_threads.read().unwrap().get(&tid).cloned()
     }
 
-    pub fn start_thread_from_obj(&self, jvm: &'static JVMState, obj: JThread, invisible_to_java: bool) -> Arc<JavaThread> {
+    pub fn start_thread_from_obj(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, obj: JThread, invisible_to_java: bool) -> Arc<JavaThread> {
         let underlying = self.threads.create_thread(obj.name().to_rust_string().into());
 
         let (send, recv) = channel();
-        let java_thread = JavaThread::new(jvm, obj, underlying, invisible_to_java);
+        let java_thread = JavaThread::new(jvm, obj.clone(), underlying, invisible_to_java);
+        let loader_name = obj.get_context_class_loader(jvm, int_state).map(|class_loader| class_loader.to_jvm_loader()).unwrap_or(LoaderName::BootstrapLoader);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
             jvm.thread_state.set_current_thread(java_thread.clone());
@@ -233,7 +235,7 @@ impl ThreadState {
                 jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
             }
 
-            let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame());
+            let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name));
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);
             interpreter_state_guard.pop_frame(frame_for_run_call);
             java_thread.notify_terminated();

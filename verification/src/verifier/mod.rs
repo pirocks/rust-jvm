@@ -37,7 +37,8 @@ pub struct InternalFrame {
 
 //todo impl on VerifierContext
 pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<ClassView> {
-    Arc::new(ClassView::from(verifier_context.classes.pre_load(class.class_name.clone(), class.loader.clone()).unwrap()))
+    Arc::new(ClassView::from(verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone())))
+    // Arc::new(ClassView::from(verifier_context.classes.pre_load(class.class_name.clone(), class.loader.clone()).unwrap()))
 
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
     // if class.loader.initiating_loader_of(&class.class_name) {

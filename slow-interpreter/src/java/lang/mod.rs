@@ -402,6 +402,7 @@ pub mod thread {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java::lang::thread_group::JThreadGroup;
     use crate::java_values::{NormalObject, Object};
@@ -530,6 +531,24 @@ pub mod thread {
             int_state.pop_current_operand_stack().cast_thread()
         }
 
+
+        pub fn get_context_class_loader(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Option<ClassLoader> {
+            let thread_class = check_inited_class(jvm, int_state, ClassName::thread().into()).unwrap();
+            int_state.push_current_operand_stack(self.clone().java_value());
+            run_static_or_virtual(
+                jvm,
+                int_state,
+                &thread_class,
+                "getContextClassLoader".to_string(),
+                "()Ljava/lang/ClassLoader;".to_string(),
+            );
+            let res = int_state.pop_current_operand_stack();
+            if res.unwrap_object().is_none() {
+                return None
+            }
+            res.cast_class_loader().into()
+        }
+
         as_object_or_java_value!();
     }
 }
@@ -545,6 +564,7 @@ pub mod thread_group {
     use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
     use crate::java_values::{JavaValue, Object};
+    use crate::runtime_class::RuntimeClass;
 
     #[derive(Debug, Clone)]
     pub struct JThreadGroup {
@@ -571,8 +591,7 @@ pub mod thread_group {
 
     impl JThreadGroup {
         pub fn init(jvm: &JVMState,
-                        int_state: &mut InterpreterStateGuard) -> JThreadGroup {
-            let thread_group_class = check_inited_class(jvm, int_state, ClassName::Str("java/lang/ThreadGroup".to_string()).into()).unwrap();
+                    int_state: &mut InterpreterStateGuard, thread_group_class: Arc<RuntimeClass>) -> JThreadGroup {
             push_new_object(jvm, int_state, &thread_group_class, None);
             let thread_group_object = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.clone()],

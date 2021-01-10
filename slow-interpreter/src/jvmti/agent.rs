@@ -47,7 +47,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         let jvmti = get_jvmti_interface(jvm, &mut int_state);
         let jni_env = get_interface(jvm, &mut int_state);
         assert!(int_state.int_state.as_ref().unwrap().call_stack.is_empty());
-        let frame_for_agent = int_state.push_frame(StackEntry::new_completely_opaque_frame());
+        let frame_for_agent = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
         int_state.pop_frame(frame_for_agent);
         java_thread.notify_terminated()
