@@ -2,12 +2,15 @@ use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::ptr::null_mut;
 
+use classfile_view::loading::LoaderName;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType::Ref;
-use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::class_objects::{get_or_creat_class_object_override_loader, get_or_create_class_object};
+use slow_interpreter::interpreter_util::check_inited_class_override_loader;
 use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::jvm_state::ClassStatus;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
@@ -19,7 +22,8 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     //todo duplication
     let class_name = ClassName::Str(name_str);
     //todo not sure if this implementation is correct
-    todo!()
+    //todo need to keep track of initiating loader here
+    to_object(get_or_creat_class_object_override_loader(jvm, &class_name.into(), int_state, LoaderName::BootstrapLoader).unwrap().into())
     // let loaded = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter());
     // match loaded {
     //     Result::Err(_) => null_mut(),
@@ -48,7 +52,18 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     // dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
-    todo!();
+    dbg!(loader);
+    let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
+    let maybe_status = jvm.classes.read().unwrap().get_status(loader_name, class_name.into());
+
+    match maybe_status {
+        None => {
+            return null_mut()
+        }
+        Some(_) => todo!()
+    }
+
+
     // let loaded = int_state.current_loader().find_loaded_class(&class_name);
     // match loaded {
     //     None => null_mut(),

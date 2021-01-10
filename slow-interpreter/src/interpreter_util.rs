@@ -220,7 +220,7 @@ fn check_inited_class_impl(
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     return match loader {
         LoaderName::UserDefinedLoader(idx) => {
-            let loader: ClassLoader = JavaValue::Object(jvm.class_loaders.read().unwrap()[&idx].clone().into()).cast_class_loader();
+            let loader: ClassLoader = JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().0.clone().into()).cast_class_loader();
             let class_name_as_jstring = JString::from_rust(jvm, int_state, class_name.get_referred_name().to_string());
             loader.load_class(jvm, int_state, class_name_as_jstring);
             Ok(todo!())

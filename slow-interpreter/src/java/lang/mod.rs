@@ -234,6 +234,8 @@ pub mod class {
 pub mod class_loader {
     use std::sync::Arc;
 
+    use by_address::ByAddress;
+
     use classfile_view::loading::LoaderName;
     use rust_jvm_common::classnames::ClassName;
 
@@ -256,8 +258,18 @@ pub mod class_loader {
     }
 
     impl ClassLoader {
-        pub fn to_jvm_loader(&self) -> LoaderName {
-            todo!()
+        pub fn to_jvm_loader(&self, jvm: &JVMState) -> LoaderName {
+            let mut loaders_guard = jvm.class_loaders.write().unwrap();
+            let loader_index_lookup = loaders_guard.get_by_right(&ByAddress(self.normal_object.clone()));
+            LoaderName::UserDefinedLoader(match loader_index_lookup {
+                Some(x) => *x,
+                None => {
+                    let new_loader_id = loaders_guard.len();
+                    loaders_guard.insert(new_loader_id, ByAddress(self.normal_object.clone()));
+                    //todo this whole mess needs a register class loader function which addes to approprate classes data structure
+                    new_loader_id
+                },
+            })
         }
 
         pub fn load_class(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: JString) {

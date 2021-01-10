@@ -223,7 +223,7 @@ impl ThreadState {
 
         let (send, recv) = channel();
         let java_thread = JavaThread::new(jvm, obj.clone(), underlying, invisible_to_java);
-        let loader_name = obj.get_context_class_loader(jvm, int_state).map(|class_loader| class_loader.to_jvm_loader()).unwrap_or(LoaderName::BootstrapLoader);
+        let loader_name = obj.get_context_class_loader(jvm, int_state).map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
             jvm.thread_state.set_current_thread(java_thread.clone());

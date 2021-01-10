@@ -3,6 +3,7 @@ use std::io::Write;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::atomic::Ordering::AcqRel;
 
 use classfile_parser::parse_class_file;
 use classfile_view::view::ClassView;
@@ -14,6 +15,7 @@ use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::runtime_class::prepare_class;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use verification::{VerifierContext, verify};
@@ -45,20 +47,22 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     //todo maybe have an anon loader for this
     let current_loader = int_state.current_loader();
 
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: todo!(), current_loader };
+    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader };
     let class_view = ClassView::from(parsed.clone());
     File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
     let class_name = class_view.name();
-    // current_loader.add_pre_loaded(&class_name, &parsed);
-    // frame.print_stack_trace();
-    // dbg!(&class_name);
-    // match verify(&vf, &class_view, current_loader.name()) {
-    //     Ok(_) => {}
-    //     Err(_) => panic!(),
-    // };
-    // load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(class_name)));
-    // int_state.pop_current_operand_stack()
-    todo!()
+    let prepared = Arc::new(prepare_class(jvm, parsed.clone(), current_loader));
+    jvm.classes.write().unwrap().transition_prepared(current_loader, prepared.clone());
+    int_state.print_stack_trace();
+    dbg!(&class_name);
+    match verify(&vf, &class_view, current_loader) {
+        Ok(_) => {}
+        Err(_) => panic!(),
+    };
+    //todo need to run clinit
+    jvm.classes.write().unwrap().transition_initializing(current_loader, prepared);
+    load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(class_name)));
+    int_state.pop_current_operand_stack()
 }
 
 

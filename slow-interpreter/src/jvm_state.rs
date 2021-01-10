@@ -8,6 +8,7 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
+use bimap::BiMap;
 use by_address::ByAddress;
 use libloading::Library;
 
@@ -46,7 +47,7 @@ pub struct JVMState {
     pub libjava: LibJavaLoading,
 
     pub classes: RwLock<Classes>,
-    pub class_loaders: RwLock<HashMap<LoaderIndex, Arc<Object>>>,
+    pub class_loaders: RwLock<BiMap<LoaderIndex, ByAddress<Arc<Object>>>>,
     pub main_class_name: ClassName,
 
     pub classpath: Arc<Classpath>,
@@ -97,11 +98,11 @@ impl Classes {
     }
 
     pub fn get_status(&self, loader: LoaderName, class_name: PTypeView) -> Option<ClassStatus> {
-        if self.initialized_classes.get(&loader).unwrap().contains_key(&class_name) {//todo that unwrap prob shouldn't be there
+        if self.initialized_classes.get(&loader)?.contains_key(&class_name) {//todo that unwrap prob shouldn't be there
             ClassStatus::INITIALIZED.into()
-        } else if self.initializing_classes.get(&loader).unwrap().contains_key(&class_name) {//todo that unwrap prob shouldn't be there
+        } else if self.initializing_classes.get(&loader)?.contains_key(&class_name) {//todo that unwrap prob shouldn't be there
             ClassStatus::INITIALIZING.into()
-        } else if self.prepared_classes.get(&loader).unwrap().contains_key(&class_name) {
+        } else if self.prepared_classes.get(&loader)?.contains_key(&class_name) {
             ClassStatus::PREPARED.into()
         } else {
             None
@@ -176,7 +177,7 @@ impl JVMState {
             string_pool,
             start_instant: Instant::now(),
             classes,
-            class_loaders: RwLock::new(HashMap::new()),
+            class_loaders: RwLock::new(BiMap::new()),
             main_class_name,
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
@@ -309,6 +310,10 @@ pub struct BootstrapLoaderClassGetter<'l> {
 
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_> {
     fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile> {
-        self.jvm.classpath.lookup(&class).unwrap()
+        assert_eq!(loader, LoaderName::BootstrapLoader);
+        match self.jvm.classes.read().unwrap().prepared_classes.get(&loader).unwrap().get(&class.clone().into()) {
+            Some(x) => x.view().backing_class(),
+            None => self.jvm.classpath.lookup(&class).unwrap(),
+        }
     }
 }
