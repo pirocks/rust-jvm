@@ -71,7 +71,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 
     //todo should this be current loader?
     int_state.print_stack_trace();
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: todo!(), current_loader: loader.clone() };
+    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader: loader.clone() };
     let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
     res as jboolean
 }

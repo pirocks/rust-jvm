@@ -16,10 +16,25 @@ pub struct Classpath {
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>,
     jar_cache: RwLock<HashMap<Box<Path>, Box<JarHandle>>>,
+    class_cache: RwLock<HashMap<ClassName, Arc<Classfile>>>
 }
 
 impl Classpath {
     pub fn lookup(&self, class_name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+        let mut guard = self.class_cache.write().unwrap();
+        match guard.get(class_name) {
+            None => {
+                let res = self.lookup_cache_miss(class_name);
+                if let Ok(classfile) = res.as_ref() {
+                    guard.insert(class_name.clone(), classfile.clone());
+                }
+                res
+            }
+            Some(res) => Ok(res.clone())
+        }
+    }
+
+    pub fn lookup_cache_miss(&self, class_name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         for x in &self.classpath_base {
             for dir_member in x.read_dir().unwrap() {
                 let dir_member = dir_member.unwrap();
@@ -52,7 +67,7 @@ impl Classpath {
     }
 
     pub fn from_dirs(dirs: Vec<Box<Path>>) -> Self {
-        Self { classpath_base: dirs, jar_cache: RwLock::new(HashMap::new()) }
+        Self { classpath_base: dirs, jar_cache: RwLock::new(HashMap::new()), class_cache: Default::default() }
     }
 
     pub fn classpath_string(&self) -> String {
