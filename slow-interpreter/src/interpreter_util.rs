@@ -8,6 +8,7 @@ use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_method_descriptor;
+use jvmti_jni_bindings::jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED;
 use rust_jvm_common::classfile::AttributeType::LocalVariableTable;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
@@ -217,17 +218,19 @@ fn check_inited_class_impl(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     class_name: &ClassName,
-    loader: LoaderName,
+    loader_name: LoaderName,
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     // if class_name.get_referred_name().as_str() == "java/lang/invoke/DirectMethodHandle$Lazy"{
     //     unsafe { breakpoint(); }
     // }
-    return match loader {
+    return match loader_name {
         LoaderName::UserDefinedLoader(idx) => {
             let loader: ClassLoader = JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().0.clone().into()).cast_class_loader();
             let class_name_as_jstring = JString::from_rust(jvm, int_state, class_name.get_referred_name().to_string());
             loader.load_class(jvm, int_state, class_name_as_jstring);
-            Ok(todo!())
+            let class_ = jvm.classes.read().unwrap().get_initializing_class(LoaderName::BootstrapLoader, &class_name.clone().into());
+            jvm.classes.write().unwrap().initiating_loaders.entry(class_.clone()).or_insert(loader_name);
+            Ok(class_)
         }
         LoaderName::BootstrapLoader => {
             let target_classfile = match jvm.classpath.lookup(class_name) {
@@ -247,14 +250,14 @@ fn check_inited_class_impl(
             };
             if let Err(_) = verify(&VerifierContext {
                 live_pool_getter: jvm.get_live_object_pool_getter(),
-                classfile_getter: jvm.get_class_getter(loader),
-                current_loader: loader,
-            }, &Arc::new(ClassView::from(target_classfile.clone())), loader) {
+                classfile_getter: jvm.get_class_getter(loader_name),
+                current_loader: loader_name,
+            }, &Arc::new(ClassView::from(target_classfile.clone())), loader_name) {
                 panic!()
             }
-            let prepared = Arc::new(prepare_class(jvm, target_classfile.clone(), loader.clone()));
+            let prepared = Arc::new(prepare_class(jvm, target_classfile.clone(), loader_name.clone()));
             if let Some(super_name) = prepared.view().super_name() {
-                check_inited_class_override_loader(jvm, int_state, &super_name.into(), loader)?;
+                check_inited_class_override_loader(jvm, int_state, &super_name.into(), loader_name)?;
             };
             jvm.classes.write().unwrap().transition_prepared(LoaderName::BootstrapLoader, prepared.clone());
             jvm.classes.write().unwrap().transition_initializing(LoaderName::BootstrapLoader, prepared.clone());
