@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::intrinsics::breakpoint;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::atomic::Ordering::AcqRel;
@@ -218,6 +219,9 @@ fn check_inited_class_impl(
     class_name: &ClassName,
     loader: LoaderName,
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+    // if class_name.get_referred_name().as_str() == "java/lang/invoke/DirectMethodHandle$Lazy"{
+    //     unsafe { breakpoint(); }
+    // }
     return match loader {
         LoaderName::UserDefinedLoader(idx) => {
             let loader: ClassLoader = JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().0.clone().into()).cast_class_loader();

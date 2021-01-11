@@ -3,6 +3,8 @@
 #![feature(box_syntax)]
 #![feature(vec_into_raw_parts)]
 #![feature(unsafe_cell_get_mut)]
+#![feature(core_intrinsics)]
+#![feature(entry_insert)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;

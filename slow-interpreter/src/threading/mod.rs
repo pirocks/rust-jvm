@@ -85,7 +85,9 @@ impl ThreadState {
             let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));//todo think this is correct, check
             unsafe { jvm.libjava.load(jvm, &mut int_state); }//todo not sure if this should be here
             int_state.pop_frame(push_guard);
+            let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));
             run_main(args, jvm, &mut int_state).unwrap();
+            int_state.pop_frame(main_frame_guard);
             main_thread.notify_terminated()
         }, box ());
         (main_thread_clone, main_send)

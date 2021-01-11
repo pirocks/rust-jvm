@@ -67,13 +67,15 @@ pub struct JVMState {
 }
 
 pub struct Classes {
-    prepared_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
-    initializing_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
-    initialized_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub prepared_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub initializing_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub initialized_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub class_object_pool: HashMap<LoaderName, HashMap<PTypeView, Arc<Object>>>,
+    pub anon_classes: RwLock<Vec<Arc<RuntimeClass>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
 }
 
+#[derive(Debug)]
 pub enum ClassStatus {
     PREPARED,
     INITIALIZING,
@@ -115,15 +117,15 @@ impl Classes {
     }
 
     pub fn transition_prepared(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
-        self.prepared_classes.entry(loader).or_default().insert(class.ptypeview(), class);
+        self.prepared_classes.entry(loader).or_default().entry(class.ptypeview()).insert(class);
     }
 
     pub fn transition_initializing(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
-        self.initializing_classes.entry(loader).or_default().insert(class.ptypeview(), class);
+        self.initializing_classes.entry(loader).or_default().entry(class.ptypeview()).insert(class);
     }
 
     pub fn transition_initialized(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
-        self.initialized_classes.entry(loader).or_default().insert(class.ptypeview(), class);
+        self.initialized_classes.entry(loader).or_default().entry(class.ptypeview()).insert(class);
     }
 
     pub fn get_initializing_class(&self, loader: LoaderName, ptype: &PTypeView) -> Arc<RuntimeClass> {
@@ -164,6 +166,7 @@ impl JVMState {
             initializing_classes,
             initialized_classes,
             class_object_pool: HashMap::new(),
+            anon_classes: Default::default(),
             anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
         });
         let string_pool = StringPool {

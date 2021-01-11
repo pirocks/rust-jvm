@@ -45,7 +45,10 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
     let view = &int_state.current_class_view();
     let loader_arc = &int_state.current_loader();
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    let field_value = get_static_impl(jvm, int_state, &field_class_name, &field_name).unwrap();
+    let field_value = match get_static_impl(jvm, int_state, &field_class_name, &field_name) {
+        None => { return; }
+        Some(val) => val
+    };
     if field_name == "UNSAFE" && int_state.current_class_view().name().get_referred_name() == "java/util/concurrent/locks/LockSupport" {
         let target_classfile = check_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
         dbg!(Arc::as_ptr(&target_classfile));
@@ -57,7 +60,17 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
 }
 
 fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_class_name: &ClassName, field_name: &str) -> Option<JavaValue> {
-    let target_classfile = check_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
+    let target_classfile = match check_inited_class(jvm, int_state, field_class_name.clone().into()) {
+        Ok(x) => x,
+        Err(err) => {
+            dbg!(err);
+            dbg!(field_class_name);
+            dbg!(int_state.current_loader());
+            int_state.print_stack_trace();
+            return None;
+            unimplemented!()
+        }
+    };
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
         let interface_lookup_res = get_static_impl(jvm, int_state, &ClassName::Str(interfaces.interface_name()), field_name);

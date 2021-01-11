@@ -6,11 +6,12 @@ use std::sync::atomic::Ordering;
 use std::sync::atomic::Ordering::AcqRel;
 
 use classfile_parser::parse_class_file;
+use classfile_view::loading::LoaderName;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{JavaValue, Object};
@@ -22,6 +23,8 @@ use verification::{VerifierContext, verify};
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JNIEnv, the_unsafe: jobject, parent_class: jobject, byte_array: jbyteArray, patches: jobjectArray) -> jclass {
+    //todo, big open question here is what if the class has same name as already existing. Also apparently this class should not be part of any loader
+
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut args = vec![];
@@ -38,7 +41,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8).collect();
     //todo for debug, delete later
     let mut unpatched = parse_class_file(&mut byte_array.as_slice());
-
+    dbg!(unpatched.constant_pool[unpatched.methods[0].name_index as usize].extract_string_from_utf8());
     // int_state.print_stack_trace();
     if args[3].unwrap_object().is_some() {
         patch_all(jvm, &int_state.current_frame_mut(), &mut args, &mut unpatched);
@@ -51,18 +54,33 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let class_view = ClassView::from(parsed.clone());
     File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
     let class_name = class_view.name();
+    dbg!(&jvm.classes.read().unwrap().prepared_classes.get(&LoaderName::BootstrapLoader).unwrap().keys());
     let prepared = Arc::new(prepare_class(jvm, parsed.clone(), current_loader));
+    jvm.classes.write().unwrap().anon_classes.write().unwrap().push(prepared.clone());
+    dbg!(prepared.view().methods().map(|method| method.name()).collect::<Vec<_>>());
+    dbg!(jvm.classes.read().unwrap().prepared_classes.get(&current_loader).unwrap().contains_key(&prepared.ptypeview()));
     jvm.classes.write().unwrap().transition_prepared(current_loader, prepared.clone());
-    int_state.print_stack_trace();
+    dbg!(jvm.classes.read().unwrap().prepared_classes.get(&current_loader).unwrap().contains_key(&prepared.ptypeview()));
+    dbg!(jvm.classes.read().unwrap().initializing_classes.get(&current_loader).unwrap().contains_key(&prepared.ptypeview()));
+    dbg!(jvm.classes.read().unwrap().initialized_classes.get(&current_loader).unwrap().contains_key(&prepared.ptypeview()));
     dbg!(&class_name);
     match verify(&vf, &class_view, current_loader) {
         Ok(_) => {}
         Err(_) => panic!(),
     };
     //todo need to run clinit
-    jvm.classes.write().unwrap().transition_initializing(current_loader, prepared);
+    jvm.classes.write().unwrap().transition_initialized(current_loader, prepared.clone());
+    dbg!(prepared.ptypeview());
+    // dbg!(jvm.classes.read().unwrap().initializing_classes.get(&current_loader).unwrap().get(&prepared.ptypeview()).unwrap().view().methods().map(|m|m.name()).collect::<Vec<_>>());
+    dbg!(jvm.classes.read().unwrap().get_status(LoaderName::BootstrapLoader, prepared.ptypeview()));
+    int_state.print_stack_trace();
+    // jvm.classes.write().unwrap().class_object_pool.entry(current_loader).or_default().remove(&prepared.ptypeview());
     load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(class_name)));
-    int_state.pop_current_operand_stack()
+    let res = int_state.pop_current_operand_stack();
+    dbg!(res.clone().cast_class().as_runtime_class().view().methods().map(|method| method.name()).collect::<Vec<_>>());
+    dbg!(res.clone().cast_class().as_runtime_class().ptypeview());
+    assert!(Arc::ptr_eq(&res.clone().cast_class().as_runtime_class(), &prepared));
+    res
 }
 
 
@@ -77,7 +95,9 @@ fn patch_all(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>, unpa
             }
         }
     });
-    let new_name = format!("java/lang/invoke/LambdaForm$DMH/{}", jvm.classes.read().unwrap().anon_class_live_object_ldc_pool.read().unwrap().len());
+    let old_name_temp = class_name(&unpatched);
+    let old_name = old_name_temp.get_referred_name();
+    let new_name = format!("{}/{}", old_name, jvm.classes.read().unwrap().anon_classes.read().unwrap().len());
     let name_index = unpatched.constant_pool.len() as u16;
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
