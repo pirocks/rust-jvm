@@ -101,6 +101,14 @@ pub fn check_inited_class_override_loader(
     loader: LoaderName,
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     //todo racy/needs sychronization
+    match jvm.classes.read().unwrap().get_status(LoaderName::BootstrapLoader, ptype.clone()) {
+        None => {}
+        Some(status) => match status {
+            ClassStatus::PREPARED => {}
+            ClassStatus::INITIALIZING => return Ok(jvm.classes.read().unwrap().get_initializing_class(LoaderName::BootstrapLoader, ptype)),
+            ClassStatus::INITIALIZED => return Ok(jvm.classes.read().unwrap().get_initialized_class(LoaderName::BootstrapLoader, ptype))
+        }
+    }
     let before = int_state.int_state.as_ref().unwrap().call_stack.len();
     let maybe_status = jvm.classes.read().unwrap().get_status(loader.clone(), ptype.clone());
     let res = match maybe_status {
@@ -229,8 +237,12 @@ fn check_inited_class_impl(
             let class_name_as_jstring = JString::from_rust(jvm, int_state, class_name.get_referred_name().to_string());
             loader.load_class(jvm, int_state, class_name_as_jstring);
             let class_ = jvm.classes.read().unwrap().get_initializing_class(LoaderName::BootstrapLoader, &class_name.clone().into());
+            let new_class = Arc::new(class_.with_different_loader(loader_name));
+            jvm.classes.write().unwrap().transition_initializing(loader_name, new_class.clone());
+            jvm.classes.write().unwrap().transition_initialized(loader_name, new_class.clone());
+            //todo need to make a copy of runtime class and change loader to correct.
             jvm.classes.write().unwrap().initiating_loaders.entry(class_.clone()).or_insert(loader_name);
-            Ok(class_)
+            Ok(new_class)
         }
         LoaderName::BootstrapLoader => {
             let target_classfile = match jvm.classpath.lookup(class_name) {

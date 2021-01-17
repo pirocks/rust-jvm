@@ -52,6 +52,7 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
         chars,
         PTypeView::CharType,
         jvm.thread_state.new_monitor("monitor for a string".to_string()),
+        interpreter_state.current_loader()
     ))))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };

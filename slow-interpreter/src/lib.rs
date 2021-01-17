@@ -76,7 +76,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
 
     let launcher = Launcher::get_launcher(jvm, int_state);
     let main_loader = launcher.get_loader(jvm, int_state).to_jvm_loader(jvm);
-
+    dbg!(main_loader);
     let main = check_inited_class_override_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader.clone()).unwrap();
     let main_view = main.view();
     let main_i = locate_main_method(&main_view.backing_class());
@@ -109,6 +109,7 @@ fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, arg
         arg_strings,
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
+        int_state.current_loader()
     )))));
     let local_vars = int_state.current_frame_mut().local_vars_mut();
     local_vars[0] = arg_array;

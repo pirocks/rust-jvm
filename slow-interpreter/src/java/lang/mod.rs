@@ -241,7 +241,7 @@ pub mod class_loader {
 
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::check_inited_class;
+    use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader};
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
@@ -275,7 +275,7 @@ pub mod class_loader {
         pub fn load_class(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: JString) {
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(name.java_value());
-            let class_loader = check_inited_class(jvm, int_state, ClassName::classloader().into()).unwrap();
+            let class_loader = check_inited_class_override_loader(jvm, int_state, &ClassName::classloader().into(), LoaderName::BootstrapLoader).unwrap();
             run_static_or_virtual(
                 jvm,
                 int_state,
@@ -292,11 +292,13 @@ pub mod class_loader {
 pub mod string {
     use std::sync::Arc;
 
+    use classfile_view::loading::LoaderName;
+    use rust_jvm_common::classfile::ConstantKind::LiveObject;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object, run_constructor};
     use crate::java_values::{ArrayObject, JavaValue};
     use crate::java_values::Object;
     use crate::utils::string_obj_to_string;
@@ -318,7 +320,7 @@ pub mod string {
         }
 
         pub fn from_rust(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
-            let string_class = check_inited_class(jvm, int_state, ClassName::string().into()).unwrap();
+            let string_class = check_inited_class_override_loader(jvm, int_state, &ClassName::string().into(), LoaderName::BootstrapLoader).unwrap();
             push_new_object(jvm, int_state, &string_class, None);
             // dbg!(int_state.current_frame().local_vars());
             // dbg!(int_state.current_frame().operand_stack());
@@ -327,7 +329,7 @@ pub mod string {
             let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>();
             let array = JavaValue::Object(Some(
                 Arc::new(
-                    Object::Array(ArrayObject::new_array(jvm, int_state, vec1, ClassName::string().into(), jvm.thread_state.new_monitor("monitor for a string".to_string())))
+                    Object::Array(ArrayObject::new_array(jvm, int_state, vec1, ClassName::string().into(), jvm.thread_state.new_monitor("monitor for a string".to_string()), LoaderName::BootstrapLoader))
                 )
             ));
             run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array],

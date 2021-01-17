@@ -7,6 +7,7 @@ use std::sync::{Arc, RwLock};
 use libloading::Library;
 use libloading::os::unix::RTLD_NOW;
 
+use classfile_view::loading::LoaderName;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 
@@ -144,7 +145,7 @@ impl SharedLibJVMTI {
     pub fn vm_inited(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, main_thread: Arc<JavaThread>) {
         if *self.vm_init_enabled.read().unwrap() {
             unsafe {
-                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
+                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));
                 let main_thread_object = main_thread.thread_object();
                 let event = VMInitEvent {
                     thread: new_local_ref_public(main_thread_object.object().into(), int_state)
@@ -158,7 +159,7 @@ impl SharedLibJVMTI {
 
     pub fn thread_start(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, jthread: JThread) {
         if *self.thread_start_enabled.read().unwrap() {
-            let event_handling_frame = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
+            let event_handling_frame = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));
             while !jvm.vm_live() {};//todo ofc theres a better way of doing this, but we are required to wait for vminit by the spec.
             assert!(jvm.vm_live());
             unsafe {

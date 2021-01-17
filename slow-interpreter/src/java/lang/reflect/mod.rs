@@ -94,6 +94,7 @@ fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         exception_table,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
+        int_state.current_loader()
     )))))
 }
 
@@ -111,6 +112,7 @@ fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         res,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
+        int_state.current_loader()
     )))))
 }
 
@@ -354,6 +356,7 @@ pub mod field {
                 annotations,
                 PTypeView::ByteType,
                 jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
+                int_state.current_loader()
             )))));
 
             run_constructor(

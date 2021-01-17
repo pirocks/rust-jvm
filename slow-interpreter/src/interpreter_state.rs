@@ -202,7 +202,10 @@ impl<'l> InterpreterStateGuard<'l> {
                 if method_view.is_native() {
                     println!("{}.{} {} {}", name.get_referred_name(), meth_name, method_view.desc_str(), i)
                 } else {
-                    println!("{}.{} {} {} pc: {}", name.get_referred_name(), meth_name, method_view.desc_str(), i, stack_entry.pc())
+                    println!("{}.{} {} {} pc: {} {}", name
+                        .get_referred_name(), meth_name,
+                             method_view.desc_str(), i, stack_entry
+                                 .pc(), stack_entry.loader())
                 }
             }
         }

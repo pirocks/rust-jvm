@@ -4,12 +4,13 @@ use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
 use std::sync::Arc;
 
+use classfile_view::loading::LoaderName;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::interpreter_util::check_inited_class;
+use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader};
 use crate::jvm_state::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::threading::monitors::Monitor;
@@ -284,6 +285,7 @@ impl JavaValue {
             vec![],
             PTypeView::ByteType,
             jvm.thread_state.new_monitor("".to_string()),
+            int_state.current_loader()
         )))))
     }
     pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
@@ -307,6 +309,7 @@ impl JavaValue {
             buf,
             elem_type,
             jvm.thread_state.new_monitor("array object monitor".to_string()),
+            int_state.current_loader()
         ))))
     }
 
@@ -537,7 +540,7 @@ impl Object {
     }
 
     pub fn object_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, object_array: Vec<JavaValue>, class_type: PTypeView) -> Object {
-        Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string())))
+        Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string()), int_state.current_loader()))
     }
 
     pub fn monitor(&self) -> &Monitor {
@@ -568,8 +571,8 @@ impl ArrayObject {
         unsafe { self.elems.get().as_mut().unwrap() }
     }
 
-    pub fn new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>) -> Self {
-        check_inited_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone()))).unwrap();
+    pub fn new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>, loader: LoaderName) -> Self {
+        check_inited_class_override_loader(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())), loader).unwrap();
         Self {
             elems: UnsafeCell::new(elems),
             elem_type: type_,

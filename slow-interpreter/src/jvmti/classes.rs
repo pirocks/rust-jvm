@@ -138,7 +138,8 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
     let mut res_vec = vec![];
 
-    jvm.classes.read().unwrap().get_loaded_classes().for_each(|(loader, ptype)| {
+    let collected = jvm.classes.read().unwrap().get_loaded_classes().collect::<Vec<_>>();
+    collected.iter().for_each(|(loader, ptype)| {
         let class_object = get_or_create_class_object(jvm, &ptype, int_state);
         res_vec.push(new_local_ref_public(class_object.unwrap().into(), int_state))
     });

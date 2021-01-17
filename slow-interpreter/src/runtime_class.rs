@@ -126,6 +126,31 @@ impl RuntimeClass {
             RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
         }
     }
+
+    pub fn with_different_loader(&self, new_loader: LoaderName) -> RuntimeClass {
+        match self {
+            RuntimeClass::Byte => RuntimeClass::Byte,
+            RuntimeClass::Boolean => RuntimeClass::Boolean,
+            RuntimeClass::Short => RuntimeClass::Short,
+            RuntimeClass::Char => RuntimeClass::Char,
+            RuntimeClass::Int => RuntimeClass::Int,
+            RuntimeClass::Long => RuntimeClass::Long,
+            RuntimeClass::Float => RuntimeClass::Float,
+            RuntimeClass::Double => RuntimeClass::Double,
+            RuntimeClass::Void => RuntimeClass::Void,
+            RuntimeClass::Array(arr) => {
+                RuntimeClass::Array(RuntimeClassArray { sub_class: Arc::new(arr.sub_class.with_different_loader(new_loader)), loader: new_loader })
+            }
+            RuntimeClass::Object(obj) => {
+                RuntimeClass::Object(RuntimeClassClass {
+                    classfile: obj.classfile.clone(),
+                    class_view: obj.class_view.clone(),
+                    loader: new_loader,
+                    static_vars: RwLock::new(obj.static_vars.read().unwrap().clone()),
+                })
+            }
+        }
+    }
 }
 
 impl Debug for RuntimeClassClass {

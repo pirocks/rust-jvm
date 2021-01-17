@@ -72,6 +72,7 @@ pub fn create_method_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
         ptypes_as_classes,
         class_type,
         jvm.thread_state.new_monitor("monitor for a method type".to_string()),
+        int_state.current_loader()
     ))).into());
     run_constructor(jvm, int_state, method_type_class, vec![this.clone(), rtype, ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
     frame.push(this);
@@ -91,9 +92,9 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
         // dbg!(int_state.current_frame().operand_stack_types());
         // dbg!(&md);
         // dbg!(method_name);
-        dbg!(method_view.name());
-        dbg!(class.view().name());
-        dbg!(method_view.desc_str());
+        // dbg!(method_view.name());
+        // dbg!(class.view().name());
+        // dbg!(method_view.desc_str());
         invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info());
         // dbg!(int_state.current_frame().operand_stack_types());
     } else {

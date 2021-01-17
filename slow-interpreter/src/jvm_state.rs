@@ -260,7 +260,7 @@ impl LibJavaLoading {
             let on_load = library.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
             let onload_fn_ptr = on_load.deref();
             let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
-            dbg!(interface);
+            // dbg!(interface);
             onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());//todo check return res
         }
         //todo I have no idea why this is needed, but is

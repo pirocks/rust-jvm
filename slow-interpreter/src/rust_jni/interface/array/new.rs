@@ -60,5 +60,6 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: PTypeView) -> jarray 
                                                                             the_vec,
                                                                             elem_type,
                                                                             jvm.thread_state.new_monitor("monitor for jni created byte array".to_string()),
+                                                                            int_state.current_loader()
     )))), int_state)
 }

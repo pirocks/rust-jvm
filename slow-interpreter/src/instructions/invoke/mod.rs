@@ -51,13 +51,13 @@ pub mod dynamic {
             ClassName::Str("java/lang/invoke/CallSite".to_string()).into()
         );
         let class_pointer_view = int_state.current_class_view().clone();
-        dbg!(cp);
+        // dbg!(cp);
         let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
-        dbg!(invoke_dynamic_view.name_and_type().name());
-        dbg!(invoke_dynamic_view.name_and_type().desc_str());
+        // dbg!(invoke_dynamic_view.name_and_type().name());
+        // dbg!(invoke_dynamic_view.name_and_type().desc_str());
         let other_name = invoke_dynamic_view.name_and_type().name();//todo get better names
         // dbg!(&other_name);
         let other_desc_str = invoke_dynamic_view.name_and_type().desc_str();
@@ -128,9 +128,9 @@ pub mod dynamic {
         //todo theres a MHN native for this upcall
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke.method_i(), invoke);
         let call_site = int_state.pop_current_operand_stack().cast_call_site();
-        dbg!(call_site.to_string(jvm, int_state).to_rust_string());
+        // dbg!(call_site.to_string(jvm, int_state).to_rust_string());
         let target = call_site.get_target(jvm, int_state);
-        dbg!(target.to_string(jvm, int_state).to_rust_string());
+        // dbg!(target.to_string(jvm, int_state).to_rust_string());
         // dbg!(target.)
         let method_handle_clone = method_handle_class.clone();
         let lookup_res = method_handle_clone.view().lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
@@ -138,14 +138,14 @@ pub mod dynamic {
         let (num_args, args) = if int_state.current_frame().operand_stack().is_empty() {
             (0, vec![])
         } else {
-            dbg!(target.to_string(jvm, int_state).to_rust_string());
+            // dbg!(target.to_string(jvm, int_state).to_rust_string());
             let method_type = target.type__();
             let args = method_type.get_ptypes_as_types();
-            dbg!(target.clone().java_value().unwrap_normal_object().class_pointer.view().name());
+            // dbg!(target.clone().java_value().unwrap_normal_object().class_pointer.view().name());
             let form: LambdaForm = target.get_form();
             let member_name: MemberName = form.get_vmentry();
-            dbg!(member_name.clazz());
-            dbg!(member_name.get_name_or_null().unwrap().to_rust_string());
+            // dbg!(member_name.clazz());
+            // dbg!(member_name.get_name_or_null().unwrap().to_rust_string());
             let static_: bool = member_name.is_static(jvm, int_state);
             (args.len() + if static_ { 0 } else { 1 }, args)
         }; //todo also sketch
@@ -158,10 +158,10 @@ pub mod dynamic {
         // let len = operand_stack.len();
         // assert!(target_method_type.is sratic)
         // [(len - 1 - num_params)..(len - 1)].reverse();
-        dbg!(int_state.current_frame().operand_stack_types());
+        // dbg!(int_state.current_frame().operand_stack_types());
         //todo not passing final call args?
         int_state.print_stack_trace();
-        dbg!(&args);
+        // dbg!(&args);
         invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke.method_i(), invoke);
 
         assert!(int_state.throw().is_none());
@@ -232,6 +232,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                     temp.unwrap_array().mut_array().clone(),
                     elem_type.clone(),
                     jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
+                    int_state.current_loader()
                 );
                 int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(array_object)))));
                 return None;

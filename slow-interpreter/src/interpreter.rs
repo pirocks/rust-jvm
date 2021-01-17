@@ -54,65 +54,6 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized, &class_name__);
-    // if meth_name == "emitStaticInvoke"{
-    //     let value = interpreter_state.current_frame().local_vars()[2].clone();
-    //     if value.unwrap_object().is_some() {
-    //         dbg!(value.clone().cast_object().to_string(jvm, interpreter_state).to_rust_string());
-    //         dbg!(value.clone());
-    //         for arg in value.clone().unwrap_object_nonnull().lookup_field("arguments").unwrap_array().unwrap_object_array() {
-    //             dbg!(JavaValue::Object(arg).cast_object().to_string(jvm, interpreter_state).to_rust_string());
-    //         }
-    //     }
-    // }
-    // if meth_name == "emitPushArgument"{
-    //     let value = interpreter_state.current_frame().local_vars()[2].clone();
-    //     if value.try_unwrap_normal_object().is_some() {
-    //         dbg!(value.cast_object().to_string(jvm, interpreter_state).to_rust_string());
-    //     }
-    // }
-    // if meth_name == "emitImplicitConversion"{
-    //     let ptype = interpreter_state.current_frame().local_vars()[1].cast_object().to_string(jvm,interpreter_state).to_rust_string();
-    //     dbg!(ptype);
-    //     let pclass = interpreter_state.current_frame().local_vars()[2].cast_object().to_string(jvm,interpreter_state).to_rust_string();
-    //     dbg!(pclass);
-    //     let arg = interpreter_state.current_frame().local_vars()[2].cast_object().to_string(jvm,interpreter_state).to_rust_string();
-    //     dbg!(arg);
-    // }
-    // if meth_name == "makePreparedFieldLambdaForm" {
-    //     dbg!(interpreter_state.current_frame().local_vars());
-    // }
-    // if meth_name == "emitPushArguments"{
-    //     let name = interpreter_state.current_frame().local_vars()[1].cast_lambda_form_name();
-    //     let args = name.arguments();
-    //     if args.len() == 3 {
-    //         let name2 = args[2].cast_lambda_form_name();
-    //         let named_function: NamedFunction = name2.get_function();
-    //         let member : MemberName = named_function.get_member();
-    //         interpreter_state.print_stack_trace();
-    //         dbg!(member.to_string(jvm,interpreter_state).to_rust_string());
-    //         let type_ = name2.get_type();
-    //         dbg!(type_.get_btChar());
-    //         dbg!(type_.get_btClass());
-    //         dbg!(type_.get_name().to_rust_string());
-    //         dbg!(type_.get_ordinal());
-    //     }
-    //
-    // }
-    //
-    // if meth_name == "emitPushArgument" && method.desc().parameter_types[1] == PType::IntType {
-    //     let name = interpreter_state.current_frame().local_vars()[1].cast_lambda_form_name();
-    //     // dbg!(name.clone().java_value());
-    //     let named_function: NamedFunction = name.get_function();
-    //     // dbg!(named_function);
-    //     let member : MemberName = named_function.get_member();
-    //     let method_type = named_function.method_type(jvm, interpreter_state);
-    //     let param_index = &interpreter_state.current_frame().local_vars()[2].unwrap_int();
-    //     dbg!(param_index);
-    //     dbg!(named_function.java_value().unwrap_object_nonnull().lookup_field("resolvedHandle"));
-    //     dbg!(method_type.parameter_type(jvm, interpreter_state, *param_index));
-    //     dbg!(member.to_string(jvm,interpreter_state).to_rust_string());
-    //
-    // }
 
 
     while !*interpreter_state.terminate() && !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
@@ -120,16 +61,6 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
         suspend_check(interpreter_state);
-        // if meth_name == "array" {
-        //     dbg!(&instruct);
-        //     dbg!(interpreter_state.current_frame().operand_stack_types());
-        // }
-        // if instruct == InstructionInfo::areturn {
-        //     if interpreter_state.current_frame().operand_stack().len() == 0 {
-        //         dbg!(meth_name.clone());
-        //         dbg!(class_pointer.view().name());
-        //     }
-        // }
         run_single_instruction(jvm, interpreter_state, instruct);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
@@ -165,39 +96,6 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
             update_pc_for_next_instruction(interpreter_state);
         }
     }
-    // //
-    // if meth_name == "hash" {
-    //     dbg!(interpreter_state.previous_frame().operand_stack().last());
-    // }
-
-    // if meth_name == "getMethodOrFieldType" {
-    //     dbg!(interpreter_state.previous_frame().operand_stack().last());
-    //
-    // }
-    //
-    // if meth_name == "getInvocationType" {
-    //     dbg!(interpreter_state.previous_frame().operand_stack().last());
-    //
-    // }
-
-    // if meth_name == "makePreparedFieldLambdaForm" {
-    //     let should_be_lambda_form = interpreter_state.previous_frame().operand_stack().last();
-    //     // dbg!(should_be_lambda_form);
-    //     if let Some(lambda_form) = should_be_lambda_form{
-    //         let names = lambda_form.cast_lambda_form().names();
-    //         assert_eq!(names.len(),5);
-    //         let name = &names[4];
-    //         let args = name.arguments();
-    //         assert_eq!(args.len(),3);
-    //         // dbg!(&args[2]);
-    //         let name2 = args[2].cast_lambda_form_name();
-    //         let type_ = name2.get_type();
-    //         dbg!(type_.get_btChar());
-    //         dbg!(type_.get_btClass());
-    //         dbg!(type_.get_name().to_rust_string());
-    //         dbg!(type_.get_ordinal());
-    //     }
-    // }
     if synchronized {//todo synchronize better so that natives are synced
         monitor.unwrap().unlock(jvm);
     }

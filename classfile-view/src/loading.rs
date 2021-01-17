@@ -62,7 +62,9 @@ impl Display for LoaderName {
             LoaderName::BootstrapLoader => {
                 write!(f, "<bl>")
             }
-            LoaderName::UserDefinedLoader(idx) => todo!()
+            LoaderName::UserDefinedLoader(idx) => {
+                write!(f, "{}", *idx)
+            }
         }
     }
 }

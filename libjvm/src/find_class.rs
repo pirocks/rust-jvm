@@ -52,7 +52,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     // dbg!(&name_str);
     //todo what if not bl
     let class_name = ClassName::Str(name_str);
-    dbg!(loader);
+    // dbg!(loader);
     let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
     let maybe_status = jvm.classes.read().unwrap().get_status(loader_name, class_name.into());
 

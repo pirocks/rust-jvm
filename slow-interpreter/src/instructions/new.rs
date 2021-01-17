@@ -13,7 +13,8 @@ pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
     // int_state.print_stack_trace();
     // dbg!(target_class_name);
-    let target_classfile = match check_inited_class(jvm, int_state, target_class_name.clone().into()) {
+    let target_classfile = match check_inited_class(jvm,
+                                                    int_state, target_class_name.clone().into()) {
         Ok(target_classfile) => target_classfile,
         Err(_) => {
             assert!(int_state.throw().is_some());
@@ -125,6 +126,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
             new_vec,
             next_type.clone(),
             jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string()),
+            int_state.current_loader()
         ))).into());
         current_type = next_type;
     }

@@ -63,8 +63,18 @@ fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut Interp
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
                 let jstring = JString::from_rust(jvm, int_state, runtime_class.ptypeview().primitive_name().to_string());
-                dbg!(&jstring.to_rust_string());
+                // dbg!(&jstring.to_rust_string());
                 r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
+                let classes_guard = jvm.classes.read().unwrap();
+                let bl = LoaderName::BootstrapLoader;
+                let initiating_loader = classes_guard.initiating_loaders.get(&runtime_class).unwrap_or(&bl);
+                let loader_val = match initiating_loader {
+                    LoaderName::UserDefinedLoader(idx) => {
+                        JavaValue::Object(Some(jvm.class_loaders.read().unwrap().get_by_left(idx).unwrap().0.clone()))
+                    }
+                    LoaderName::BootstrapLoader => JavaValue::Object(None)
+                };
+                r.unwrap_normal_object().fields_mut().insert("classLoader".to_string(), loader_val);
             }/*else if !runtime_class.ptypeview().is_array() {
                 let jstring = JString::from(state, int_state, runtime_class.ptypeview().unwrap_class_type().get_referred_name().to_string());
                 r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
