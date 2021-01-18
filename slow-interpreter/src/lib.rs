@@ -27,7 +27,7 @@ use rust_jvm_common::ptype::PType;
 
 use crate::interpreter::run_function;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::interpreter_util::check_inited_class_override_loader;
+use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader};
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java_values::{ArrayObject, JavaValue};
@@ -83,9 +83,12 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
-    let stack_entry = StackEntry::new_java_frame(main, main_i as u16, vec![JavaValue::Top; num_vars as usize]);
+    let stack_entry = StackEntry::new_java_frame(main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
     let main_frame_guard = int_state.push_frame(stack_entry);
 
+    dbg!(int_state.current_loader());
+    dbg!(main.loader());
+    dbg!(check_inited_class(jvm, int_state, main.ptypeview()).unwrap().loader());
     setup_program_args(&jvm, int_state, args);
     run_function(&jvm, int_state);
     if int_state.throw().is_some() || *int_state.terminate() {

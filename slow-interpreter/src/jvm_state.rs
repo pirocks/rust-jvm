@@ -70,7 +70,7 @@ pub struct Classes {
     pub prepared_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub initializing_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub initialized_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub initiating_loaders: HashMap<Arc<RuntimeClass>, LoaderName>,
+    pub initiating_loaders: HashMap<PTypeView, LoaderName>,
     pub class_object_pool: HashMap<LoaderName, HashMap<PTypeView, Arc<Object>>>,
     pub anon_classes: RwLock<Vec<Arc<RuntimeClass>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,

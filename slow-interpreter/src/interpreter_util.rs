@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::atomic::Ordering::AcqRel;
 
+use classfile_parser::code::InstructionTypeNum::return_;
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -90,7 +91,8 @@ pub fn run_constructor(
 }
 
 pub fn check_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
-    check_inited_class_override_loader(jvm, int_state, &ptype, int_state.current_loader())
+    let res = check_inited_class_override_loader(jvm, int_state, &ptype, int_state.current_loader());
+    res
 }
 
 
@@ -98,15 +100,18 @@ pub fn check_inited_class_override_loader(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     ptype: &PTypeView,
-    loader: LoaderName,
+    mut loader: LoaderName,
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     //todo racy/needs sychronization
-    match jvm.classes.read().unwrap().get_status(LoaderName::BootstrapLoader, ptype.clone()) {
-        None => {}
-        Some(status) => match status {
-            ClassStatus::PREPARED => {}
-            ClassStatus::INITIALIZING => return Ok(jvm.classes.read().unwrap().get_initializing_class(LoaderName::BootstrapLoader, ptype)),
-            ClassStatus::INITIALIZED => return Ok(jvm.classes.read().unwrap().get_initialized_class(LoaderName::BootstrapLoader, ptype))
+    let maybe_new_loader = jvm.classes.read().unwrap().initiating_loaders.get(&ptype).cloned();
+    match maybe_new_loader {
+        None => {
+            // dbg!(ptype);
+        }
+        Some(new_loader) => {
+            // dbg!(ptype);
+            // dbg!(new_loader);
+            loader = new_loader;
         }
     }
     let before = int_state.int_state.as_ref().unwrap().call_stack.len();
@@ -241,7 +246,7 @@ fn check_inited_class_impl(
             jvm.classes.write().unwrap().transition_initializing(loader_name, new_class.clone());
             jvm.classes.write().unwrap().transition_initialized(loader_name, new_class.clone());
             //todo need to make a copy of runtime class and change loader to correct.
-            jvm.classes.write().unwrap().initiating_loaders.entry(class_.clone()).or_insert(loader_name);
+            jvm.classes.write().unwrap().initiating_loaders.entry(class_name.clone().into()).or_insert(loader_name);
             Ok(new_class)
         }
         LoaderName::BootstrapLoader => {
@@ -271,6 +276,7 @@ fn check_inited_class_impl(
             if let Some(super_name) = prepared.view().super_name() {
                 check_inited_class_override_loader(jvm, int_state, &super_name.into(), loader_name)?;
             };
+            jvm.classes.write().unwrap().initiating_loaders.entry(class_name.clone().into()).or_insert(loader_name);
             jvm.classes.write().unwrap().transition_prepared(LoaderName::BootstrapLoader, prepared.clone());
             jvm.classes.write().unwrap().transition_initializing(LoaderName::BootstrapLoader, prepared.clone());
             if let Some(jvmti) = &jvm.jvmti_state {

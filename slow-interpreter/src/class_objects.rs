@@ -67,7 +67,7 @@ fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut Interp
                 r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
                 let classes_guard = jvm.classes.read().unwrap();
                 let bl = LoaderName::BootstrapLoader;
-                let initiating_loader = classes_guard.initiating_loaders.get(&runtime_class).unwrap_or(&bl);
+                let initiating_loader = classes_guard.initiating_loaders.get(&runtime_class.ptypeview()).unwrap_or(&bl);
                 let loader_val = match initiating_loader {
                     LoaderName::UserDefinedLoader(idx) => {
                         JavaValue::Object(Some(jvm.class_loaders.read().unwrap().get_by_left(idx).unwrap().0.clone()))
