@@ -2,13 +2,15 @@ use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::ptr::null_mut;
 
+use nix::sys::aio::aio_suspend;
+
 use classfile_view::loading::LoaderName;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType::Ref;
-use slow_interpreter::class_objects::{get_or_creat_class_object_override_loader, get_or_create_class_object};
-use slow_interpreter::interpreter_util::check_inited_class_override_loader;
+use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_override_loader};
+use slow_interpreter::interpreter_util::{check_inited_class_override_loader, find_class_from_bootloader};
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvm_state::ClassStatus;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
@@ -21,9 +23,17 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let name_str = CStr::from_ptr(name).to_str().unwrap().to_string();
     //todo duplication
     let class_name = ClassName::Str(name_str);
-    //todo not sure if this implementation is correct
-    //todo need to keep track of initiating loader here
-    to_object(get_or_creat_class_object_override_loader(jvm, &class_name.into(), int_state, LoaderName::BootstrapLoader).unwrap().into())
+    dbg!(&class_name);
+
+    let loader_obj = int_state.previous_frame().local_vars()[0].cast_class_loader();
+    let current_loader = loader_obj.to_jvm_loader(jvm);
+    let runtime_class_res = find_class_from_bootloader(jvm, int_state, current_loader, class_name.clone()).unwrap();
+    assert_eq!(runtime_class_res.loader(), current_loader);
+
+    let res = to_object(get_or_create_class_object_override_loader(jvm, &class_name.into(), int_state, current_loader).unwrap().into());
+
+    // assert_eq!(JavaValue::Object(from_object(res)).cast_class().get_class_loader(jvm, int_state).map(|loader| loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader), current_loader); //todo techincally this shouldn't be callled at all on laoded classes?
+    res
     // let loaded = jvm.bootstrap_loader.load_class(jvm.bootstrap_loader.clone(), &class_name, jvm.bootstrap_loader.clone(), jvm.get_live_object_pool_getter());
     // match loaded {
     //     Result::Err(_) => null_mut(),
@@ -51,28 +61,30 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl
-    let class_name = ClassName::Str(name_str);
+    let class_name = ClassName::Str(name_str.replace(".", "/"));
+
     // dbg!(loader);
-    let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
-    let maybe_status = jvm.classes.read().unwrap().get_status(loader_name, class_name.into());
+    // let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
+    // let maybe_status = jvm.classes.read().unwrap().get_status(loader_name, class_name.into());
+    //
+    // match maybe_status {
+    //     None => {
+    //         return null_mut();
+    //     }
+    //     Some(_) => todo!()
+    // }
 
-    match maybe_status {
-        None => {
-            return null_mut()
+
+    dbg!(&class_name);
+    let loaded = jvm.classes.write().unwrap().is_loaded(&class_name.clone().into());
+    match loaded {
+        None => null_mut(),
+        Some(view) => {
+            // todo what if name is long/int etc.
+            let res = get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state).unwrap();
+            new_local_ref_public(res.into(), int_state)
         }
-        Some(_) => todo!()
     }
-
-
-    // let loaded = int_state.current_loader().find_loaded_class(&class_name);
-    // match loaded {
-    //     None => null_mut(),
-    //     Some(view) => {
-    //         todo what if name is long/int etc.
-    // get_or_create_class_object(jvm, &PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state, int_state.current_loader());
-    // new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
-    // }
-    // }
 }
 
 

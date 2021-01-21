@@ -572,7 +572,7 @@ impl ArrayObject {
     }
 
     pub fn new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>, loader: LoaderName) -> Self {
-        check_inited_class_override_loader(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())), loader).unwrap();
+        // check_inited_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone()))).unwrap();//todo should probably do this
         Self {
             elems: UnsafeCell::new(elems),
             elem_type: type_,

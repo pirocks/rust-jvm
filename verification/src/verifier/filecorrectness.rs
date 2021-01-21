@@ -311,11 +311,13 @@ pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> 
 pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: LoaderName, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
     if chain_start.class_name == ClassName::object() {
         //todo magic constant
-        if is_bootstrap_loader(&loader) {
-            return Result::Ok(());
-        } else {
-            return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
-        }
+        return Ok(());
+        //todo need to still sorta do this check
+        // if is_bootstrap_loader(&loader) {
+        //     return Result::Ok(());
+        // } else {
+        //     return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
+        // }
     }
     let class = loaded_class(vf, chain_start.class_name.clone(), loader.clone())?;//todo loader duplication
     let super_class_name = class_super_class_name(vf, &class);
@@ -345,11 +347,12 @@ pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: 
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     if class.class_name == ClassName::object() {
-        if is_bootstrap_loader(&class.loader) {
-            Result::Ok(())
-        } else {
-            Result::Err(TypeSafetyError::NotSafe("Loading Object w/o bootstrap loader".to_string()))
-        }
+        return Ok(())
+        // if is_bootstrap_loader(&class.loader) {
+        //     Result::Ok(())
+        // } else {
+        //     Result::Err(TypeSafetyError::NotSafe("Loading Object w/o bootstrap loader".to_string()))
+        // }
     } else if is_private(vf, method, class) || is_static(vf, method, class) {
         Result::Ok(())
     } else {

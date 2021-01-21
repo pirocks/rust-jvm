@@ -92,9 +92,10 @@ pub enum TypeSafetyError {
 //todo could be an impl method on VerifierContext
 pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if class.class_name == ClassName::object() {
-        if !is_bootstrap_loader(&class.loader) {
-            return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
-        }
+        //todo this check needs to sorta exist
+        // if !is_bootstrap_loader(&class.loader) {
+        //     return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
+        // }
     } else {
         let mut chain = vec![];
         super_class_chain(vf, class, class.loader.clone(), &mut chain)?;

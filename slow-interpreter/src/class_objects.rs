@@ -6,7 +6,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object};
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
@@ -16,14 +16,14 @@ pub fn get_or_create_class_object(jvm: &JVMState,
                                   type_: &PTypeView,
                                   int_state: &mut InterpreterStateGuard,
 ) -> Result<Arc<Object>, ClassLoadingError> {
-    get_or_creat_class_object_override_loader(jvm, type_, int_state, int_state.current_loader())
+    regular_class_object(jvm, type_.clone(), int_state, int_state.current_loader(), false)
 }
 
-pub fn get_or_creat_class_object_override_loader(jvm: &JVMState,
-                                                 type_: &PTypeView,
-                                                 int_state: &mut InterpreterStateGuard,
-                                                 loader: LoaderName) -> Result<Arc<Object>, ClassLoadingError> {
-    regular_class_object(jvm, type_.clone(), int_state, loader)
+pub fn get_or_create_class_object_override_loader(jvm: &JVMState,
+                                                  type_: &PTypeView,
+                                                  int_state: &mut InterpreterStateGuard,
+                                                  loader: LoaderName) -> Result<Arc<Object>, ClassLoadingError> {
+    regular_class_object(jvm, type_.clone(), int_state, loader, true)
 }
 
 // fn array_object(state: &JVMState, array_sub_type: &PTypeView, current_frame: &StackEntry) -> Arc<Object> {
@@ -46,9 +46,10 @@ pub fn get_or_creat_class_object_override_loader(jvm: &JVMState,
 //     }
 // }
 
-fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader: LoaderName) -> Result<Arc<Object>, ClassLoadingError> {
+fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader: LoaderName, override_: bool) -> Result<Arc<Object>, ClassLoadingError> {
     // let current_frame = int_state.current_frame_mut();
-    let runtime_class = check_inited_class(jvm, int_state, ptype.clone())?;
+    let runtime_class = if override_ { check_inited_class_override_loader(jvm, int_state, &ptype, loader)? } else { check_inited_class(jvm, int_state, ptype.clone())? };
+    // assert_eq!(runtime_class.loader(),loader);
     let mut classes = jvm.classes.write().unwrap();
     let res = classes.class_object_pool.entry(loader).or_default().get(&ptype).cloned();
     Ok(match res {
@@ -63,14 +64,10 @@ fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut Interp
                 //handles edge case of classes whose names do not correspond to the name of the class they represent
                 //normally names are obtained with getName0 which gets handled in libjvm.so
                 let jstring = JString::from_rust(jvm, int_state, runtime_class.ptypeview().primitive_name().to_string());
-                // dbg!(&jstring.to_rust_string());
                 r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
-                let classes_guard = jvm.classes.read().unwrap();
-                let bl = LoaderName::BootstrapLoader;
-                let initiating_loader = classes_guard.initiating_loaders.get(&runtime_class.ptypeview()).unwrap_or(&bl);
-                let loader_val = match initiating_loader {
+                let loader_val = match runtime_class.loader() {
                     LoaderName::UserDefinedLoader(idx) => {
-                        JavaValue::Object(Some(jvm.class_loaders.read().unwrap().get_by_left(idx).unwrap().0.clone()))
+                        JavaValue::Object(Some(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().0.clone()))
                     }
                     LoaderName::BootstrapLoader => JavaValue::Object(None)
                 };

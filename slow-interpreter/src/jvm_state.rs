@@ -70,7 +70,6 @@ pub struct Classes {
     pub prepared_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub initializing_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub initialized_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub initiating_loaders: HashMap<PTypeView, LoaderName>,
     pub class_object_pool: HashMap<LoaderName, HashMap<PTypeView, Arc<Object>>>,
     pub anon_classes: RwLock<Vec<Arc<RuntimeClass>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
@@ -136,6 +135,10 @@ impl Classes {
     pub fn get_initialized_class(&self, loader: LoaderName, ptype: &PTypeView) -> Arc<RuntimeClass> {
         self.initialized_classes.get(&loader).unwrap().get(ptype).unwrap().clone()
     }
+
+    pub fn is_loaded(&self, ptype: &PTypeView) -> Option<Arc<RuntimeClass>> {
+        self.prepared_classes.iter().flat_map(|(_, prepared)| prepared.get(ptype)).next().cloned()
+    }
 }
 
 
@@ -166,7 +169,6 @@ impl JVMState {
             prepared_classes,
             initializing_classes,
             initialized_classes,
-            initiating_loaders: Default::default(),
             class_object_pool: HashMap::new(),
             anon_classes: Default::default(),
             anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
@@ -315,8 +317,8 @@ pub struct BootstrapLoaderClassGetter<'l> {
 
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_> {
     fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile> {
-        assert_eq!(loader, LoaderName::BootstrapLoader);
-        match self.jvm.classes.read().unwrap().prepared_classes.get(&loader).unwrap().get(&class.clone().into()) {
+        // assert_eq!(loader, LoaderName::BootstrapLoader);
+        match self.jvm.classes.write().unwrap().prepared_classes.entry(loader).or_insert(HashMap::new()).get(&class.clone().into()) {
             Some(x) => x.view().backing_class(),
             None => self.jvm.classpath.lookup(&class).unwrap(),
         }

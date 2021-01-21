@@ -242,6 +242,7 @@ pub mod class_loader {
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader};
+    use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
@@ -272,7 +273,7 @@ pub mod class_loader {
             })
         }
 
-        pub fn load_class(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: JString) {
+        pub fn load_class(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: JString) -> JClass {
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(name.java_value());
             let class_loader = check_inited_class_override_loader(jvm, int_state, &ClassName::classloader().into(), LoaderName::BootstrapLoader).unwrap();
@@ -283,6 +284,8 @@ pub mod class_loader {
                 "loadClass".to_string(),
                 "(Ljava/lang/String;)Ljava/lang/Class;".to_string(),
             );
+            assert!(int_state.throw().is_none());
+            int_state.pop_current_operand_stack().cast_class()
         }
 
         as_object_or_java_value!();
@@ -290,6 +293,7 @@ pub mod class_loader {
 }
 
 pub mod string {
+    use std::cell::UnsafeCell;
     use std::sync::Arc;
 
     use classfile_view::loading::LoaderName;
@@ -301,6 +305,7 @@ pub mod string {
     use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object, run_constructor};
     use crate::java_values::{ArrayObject, JavaValue};
     use crate::java_values::Object;
+    use crate::sun::misc::unsafe_::Unsafe;
     use crate::utils::string_obj_to_string;
 
     #[derive(Clone)]
@@ -327,11 +332,13 @@ pub mod string {
             let string_object = int_state.pop_current_operand_stack();
 
             let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>();
-            let array = JavaValue::Object(Some(
-                Arc::new(
-                    Object::Array(ArrayObject::new_array(jvm, int_state, vec1, ClassName::string().into(), jvm.thread_state.new_monitor("monitor for a string".to_string()), LoaderName::BootstrapLoader))
-                )
-            ));
+            let array_object = ArrayObject {
+                elems: UnsafeCell::new(vec1),
+                elem_type: ClassName::string().into(),
+                monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
+            };
+            //todo what about check_initied_class for this array type
+            let array = JavaValue::Object(Some(Arc::new(Object::Array(array_object))));
             run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array],
                             "([C)V".to_string());
             string_object.cast_string()
