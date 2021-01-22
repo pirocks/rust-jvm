@@ -119,6 +119,10 @@ pub fn check_inited_class_override_loader(
     }?;
     //todo race?
     jvm.classes.write().unwrap().transition_initialized(loader, res.clone());
+    if ptype == &ClassName::Str("Test3".to_string()).into() {
+        dbg!(&res);
+        dbg!(&res.loader());
+    }
     let after = int_state.int_state.as_ref().unwrap().call_stack.len();
     assert_eq!(after, before);
     Ok(res)
