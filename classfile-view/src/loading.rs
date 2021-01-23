@@ -1,11 +1,9 @@
 use core::fmt;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::fmt::Error;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, RwLock};
 
 use rust_jvm_common::classnames::ClassName;
 

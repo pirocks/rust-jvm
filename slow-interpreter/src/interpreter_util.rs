@@ -106,6 +106,9 @@ pub fn check_inited_class_override_loader(
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     //todo racy/needs sychronization
     let before = int_state.int_state.as_ref().unwrap().call_stack.len();
+    if ptype == &ClassName::Str("Swing".to_string()).into() {
+        dbg!(&loader);
+    }
     let maybe_status = jvm.classes.read().unwrap().get_status(loader.clone(), ptype.clone());
     let res = match maybe_status {
         None => {
@@ -119,10 +122,6 @@ pub fn check_inited_class_override_loader(
     }?;
     //todo race?
     jvm.classes.write().unwrap().transition_initialized(loader, res.clone());
-    if ptype == &ClassName::Str("Test3".to_string()).into() {
-        dbg!(&res);
-        dbg!(&res.loader());
-    }
     let after = int_state.int_state.as_ref().unwrap().call_stack.len();
     assert_eq!(after, before);
     Ok(res)
@@ -233,10 +232,12 @@ fn check_inited_class_impl(
     // }
     return match loader_name {
         LoaderName::UserDefinedLoader(idx) => {
+            dbg!(loader_name);
             let loader: ClassLoader = JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().0.clone().into()).cast_class_loader();
-            let class_name_as_jstring = JString::from_rust(jvm, int_state, class_name.get_referred_name().to_string());
+            dbg!(loader.to_string(jvm, int_state).to_rust_string());
+            let class_name_as_jstring = JString::from_rust(jvm, int_state, class_name.get_referred_name().to_string().replace("/", "."));
             let res = loader.load_class(jvm, int_state, class_name_as_jstring);
-            Ok(res.as_runtime_class())
+            Ok(Arc::new(res.as_runtime_class().with_different_loader(loader_name)))
             // let class_ = jvm.classes.read().unwrap().get_initializing_class(LoaderName::BootstrapLoader, &class_name.clone().into());
             // let new_class = Arc::new(class_.with_different_loader(loader_name));
             // jvm.classes.write().unwrap().transition_initializing(loader_name, new_class.clone());

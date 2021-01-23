@@ -10,7 +10,7 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::OperandStack;
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
-use crate::verifier::filecorrectness::{class_is_final, get_class_methods, is_bootstrap_loader, super_class_chain};
+use crate::verifier::filecorrectness::{class_is_final, get_class_methods, super_class_chain};
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
 use crate::verifier::filecorrectness::loaded_class;

@@ -75,9 +75,13 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     dbg!(&jvm.main_class_name);
 
     let launcher = Launcher::get_launcher(jvm, int_state);
-    let main_loader = launcher.get_loader(jvm, int_state).to_jvm_loader(jvm);
+    let loader_obj = launcher.get_loader(jvm, int_state);
+    let main_loader = loader_obj.to_jvm_loader(jvm);
+    dbg!(loader_obj.to_string(jvm, int_state).to_rust_string());
     dbg!(main_loader);
+    dbg!(jvm.classes.read().unwrap().prepared_classes.values().map(|val| val.keys().collect::<Vec<_>>()).collect::<Vec<_>>());
     let main = check_inited_class_override_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader.clone()).unwrap();
+    dbg!(main.loader());
     let main_view = main.view();
     let main_i = locate_main_method(&main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();

@@ -10,7 +10,6 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader};
 use crate::jvm_state::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::threading::monitors::Monitor;

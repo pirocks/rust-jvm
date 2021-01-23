@@ -266,6 +266,7 @@ pub mod class_loader {
                 Some(x) => *x,
                 None => {
                     let new_loader_id = loaders_guard.len();
+                    assert!(!loaders_guard.contains_left(&new_loader_id));
                     loaders_guard.insert(new_loader_id, ByAddress(self.normal_object.clone()));
                     //todo this whole mess needs a register class loader function which addes to approprate classes data structure
                     new_loader_id

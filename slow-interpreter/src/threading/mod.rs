@@ -16,7 +16,7 @@ use userspace_threads::{Thread, Threads};
 use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
 use crate::interpreter::run_function;
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
-use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object};
+use crate::interpreter_util::{check_inited_class_override_loader, push_new_object};
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;

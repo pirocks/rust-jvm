@@ -1,9 +1,7 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use classfile_parser::code::InstructionTypeNum::drem;
 use classfile_view::loading::{ClassLoadingError, LoaderName};
-use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -94,6 +92,17 @@ fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut Interp
             };
             if ptype == ClassName::Str("Test3".to_string()).into() {
                 dbg!(&loader_val);
+            }
+            match ptype {
+                PTypeView::Ref(ref_) => {
+                    match ref_ {
+                        ReferenceTypeView::Class(name) => {
+                            r.unwrap_normal_object().fields_mut().insert("name".to_string(), JString::from_rust(jvm, int_state, name.get_referred_name().replace("/", ".")).java_value());
+                        }
+                        ReferenceTypeView::Array(_) => {}
+                    }
+                }
+                _ => {}
             }
             r.unwrap_normal_object().fields_mut().insert("classLoader".to_string(), loader_val);
             r

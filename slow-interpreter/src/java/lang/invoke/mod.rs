@@ -1,3 +1,5 @@
+pub struct ExceptionError;
+
 pub mod method_type {
     use std::cell::UnsafeCell;
     use std::sync::Arc;
@@ -216,6 +218,7 @@ pub mod method_handle {
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
+    use crate::java::lang::invoke::ExceptionError;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
@@ -303,14 +306,17 @@ pub mod method_handle {
         }
 
 
-        pub fn find_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> MethodHandle {
+        pub fn find_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> Result<MethodHandle, ExceptionError> {
             let lookup_class = check_inited_class(jvm, int_state, ClassName::lookup().into()).unwrap();
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(obj.java_value());
             int_state.push_current_operand_stack(name.java_value());
             int_state.push_current_operand_stack(mt.java_value());
             run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string());
-            int_state.pop_current_operand_stack().cast_method_handle()
+            if int_state.throw().is_some() {
+                return Err(ExceptionError);
+            }
+            Ok(int_state.pop_current_operand_stack().cast_method_handle())
         }
 
         pub fn find_special(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType, special_caller: JClass) -> MethodHandle {

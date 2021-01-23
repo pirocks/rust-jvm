@@ -19,6 +19,7 @@ pub mod static_;
 pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceData};
+    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
     use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -27,28 +28,30 @@ pub mod dynamic {
     use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
     use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
+    use crate::java::lang::invoke::ExceptionError;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_handle::{Lookup, MethodHandle};
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
     use crate::java::lang::string::JString;
     use crate::java_values::JavaValue;
+    use crate::utils::lookup_method_parsed;
 
     pub fn invoke_dynamic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
         let method_handle_class = check_inited_class(
             jvm,
             int_state,
-            ClassName::method_handle().into()
+            ClassName::method_handle().into(),
         ).unwrap();
         let _method_type_class = check_inited_class(
             jvm,
             int_state,
-            ClassName::method_type().into()
+            ClassName::method_type().into(),
         );
         let _call_site_class = check_inited_class(
             jvm,
             int_state,
-            ClassName::Str("java/lang/invoke/CallSite".to_string()).into()
+            ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
         );
         let class_pointer_view = int_state.current_class_view().clone();
         // dbg!(cp);
@@ -67,20 +70,29 @@ pub mod dynamic {
 
         let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
         let method_ref = bootstrap_method_view.bootstrap_method_ref();
-        let bootstrap_method_handle = method_handle_from_method_view(jvm, int_state, &method_ref);
+        let bootstrap_method_handle = match method_handle_from_method_view(jvm, int_state, &method_ref) {
+            Ok(res) => res,
+            Err(_) => return
+        };
         let arg_iterator = bootstrap_method_view.bootstrap_args();
-        let args = arg_iterator.map(|x| {
-            match x {
+        let mut args = vec![];
+
+        for x in arg_iterator {
+            args.push(match x {
                 BootstrapArgView::String(s) => JString::from_rust(jvm, int_state, s.string()).java_value(),
                 BootstrapArgView::Class(c) => JClass::from_name(jvm, int_state, c.name()).java_value(),
                 BootstrapArgView::Integer(i) => JavaValue::Int(i.int),
                 BootstrapArgView::Long(_) => unimplemented!(),
                 BootstrapArgView::Float(_) => unimplemented!(),
                 BootstrapArgView::Double(_) => unimplemented!(),
-                BootstrapArgView::MethodHandle(mh) => method_handle_from_method_view(jvm, int_state, &mh).java_value(),
+                BootstrapArgView::MethodHandle(mh) => match method_handle_from_method_view(jvm, int_state, &mh) {
+                    Ok(method_handle_obj) => method_handle_obj,
+                    Err(_) => return
+                }.java_value(),
                 BootstrapArgView::MethodType(mt) => desc_from_rust_str(jvm, int_state, mt.get_descriptor())
-            }
-        }).collect::<Vec<JavaValue>>();
+            })
+        }
+
         // dbg!(args.iter().map(|j| j.to_type()).collect::<Vec<_>>());
 
 
@@ -178,9 +190,9 @@ pub mod dynamic {
         method_type.java_value()
     }
 
-    fn method_handle_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_ref: &MethodHandleView) -> MethodHandle {
+    fn method_handle_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_ref: &MethodHandleView) -> Result<MethodHandle, ExceptionError> {
         let methodref_view = method_ref.clone();
-        match methodref_view.get_reference_data() {
+        Ok(match methodref_view.get_reference_data() {
             ReferenceData::InvokeStatic(is) => {
                 match is {
                     InvokeStatic::Interface(_) => unimplemented!(),
@@ -191,7 +203,7 @@ pub mod dynamic {
                         let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str());
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None);
                         let target_class = JClass::from_name(jvm, int_state, mr.class());
-                        lookup.find_static(jvm, int_state, target_class, name, method_type)
+                        lookup.find_static(jvm, int_state, target_class, name, method_type)?
                     }
                 }
             }
@@ -212,7 +224,7 @@ pub mod dynamic {
                         }
                 }
             }
-        }
+        })
     }
 }
 
@@ -232,7 +244,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                     temp.unwrap_array().mut_array().clone(),
                     elem_type.clone(),
                     jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
-                    int_state.current_loader()
+                    int_state.current_loader(),
                 );
                 int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(array_object)))));
                 return None;
