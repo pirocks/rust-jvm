@@ -6,11 +6,11 @@ use rust_jvm_common::classnames::ClassName;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::run_function;
-use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
@@ -22,17 +22,11 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let loader_arc = int_state.current_loader();
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &view);
     let class_name = class_name_type.unwrap_class_type();
-    let target_class = match check_inited_class(
+    let target_class = assert_inited_or_initing_class(
         jvm,
         int_state,
         class_name.into(),
-    ) {
-        Ok(x) => x,
-        Err(_) => {
-            assert!(int_state.throw().is_some());
-            return;
-        }
-    };
+    );
     let (target_method_i, final_target_method) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
 
     invoke_static_impl(

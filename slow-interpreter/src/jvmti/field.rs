@@ -24,7 +24,7 @@ pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, f
 fn get_field(klass: jclass, field: jfieldID, jvm: &JVMState) -> (Arc<ClassView>, u16) {
     let field_id: FieldId = field as usize;
     let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
-    unsafe { Arc::ptr_eq(&from_jclass(klass).as_runtime_class(), &runtime_class); }
+    unsafe { Arc::ptr_eq(&from_jclass(klass).as_runtime_class(jvm), &runtime_class); }
     let view = runtime_class.view();
     (view.clone(), i)
 }
@@ -60,7 +60,7 @@ pub unsafe extern "C" fn get_class_fields(
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
     let class_obj = from_jclass(klass);
-    let runtime_class = class_obj.as_runtime_class();
+    let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
     let num_fields = class_view.num_fields();
     field_count_ptr.write(num_fields as jint);

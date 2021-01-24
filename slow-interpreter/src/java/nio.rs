@@ -5,8 +5,9 @@ pub mod heap_byte_buffer {
     use jvmti_jni_bindings::{jbyte, jint};
     use rust_jvm_common::classnames::ClassName;
 
+    use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java_values::{ArrayObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -22,8 +23,8 @@ pub mod heap_byte_buffer {
 
     impl HeapByteBuffer {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, buf: Vec<jbyte>, off: jint, len: jint) -> Self {
-            let heap_byte_buffer_class = check_inited_class(jvm, int_state, ClassName::Str("java/nio/HeapByteBuffer".to_string()).into()).unwrap();
-            push_new_object(jvm, int_state, &heap_byte_buffer_class, None);
+            let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, int_state, ClassName::Str("java/nio/HeapByteBuffer".to_string()).into());
+            push_new_object(jvm, int_state, &heap_byte_buffer_class);
             let thread_object = int_state.pop_current_operand_stack();
 
             let elems = buf.into_iter().map(|byte| JavaValue::Byte(byte)).collect();

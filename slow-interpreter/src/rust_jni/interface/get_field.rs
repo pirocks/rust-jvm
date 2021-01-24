@@ -75,8 +75,9 @@ unsafe fn get_java_value_field(env: *mut JNIEnv, obj: *mut _jobject, field_id_ra
 
 
 pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {
+    let jvm = get_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let runtime_class = from_jclass(clazz).as_runtime_class();
+    let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
     let view = &runtime_class.view();
     for field_i in 0..view.num_fields() {
         //todo check descriptor
@@ -130,7 +131,7 @@ unsafe fn get_static_field(env: *mut JNIEnv, klass: jclass, field_id_raw: jfield
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
     let jclass = from_jclass(klass);
-    jclass.as_runtime_class().static_vars().borrow().get(&name).unwrap().clone()
+    jclass.as_runtime_class(jvm).static_vars().borrow().get(&name).unwrap().clone()
 }
 
 

@@ -11,10 +11,11 @@ use descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use crate::interpreter_util::{push_new_object, run_constructor};
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue};
@@ -54,8 +55,8 @@ pub fn create_method_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
     let loader_arc = int_state.current_loader().clone();
-    let method_type_class = check_inited_class(jvm, int_state, ClassName::method_type().into()).unwrap();
-    push_new_object(jvm, int_state, &method_type_class, None);
+    let method_type_class = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
+    push_new_object(jvm, int_state, &method_type_class);
     let this = int_state.pop_current_operand_stack();
     let method_descriptor = parse_method_descriptor(signature).unwrap();
     let rtype = JavaValue::Object(get_or_create_class_object(jvm, &PTypeView::from_ptype(&method_descriptor.return_type), int_state).unwrap().into());

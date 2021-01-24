@@ -4,8 +4,8 @@ use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETI
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_METHOD, REFERENCE_KIND_SHIFT};
-use crate::interpreter_util::check_inited_class;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
 use crate::java_values::JavaValue;
@@ -26,7 +26,7 @@ pub fn MHN_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mu
         match case {
             InitAssertionCase::CHECK_EXACT_TYPE => {
                 assert_eq!(mname.get_flags(), 100728840);
-                assert_eq!(mname.get_clazz().as_type().unwrap_class_type(), ClassName::new("java/lang/invoke/Invokers"));
+                assert_eq!(mname.get_clazz().as_type(jvm).unwrap_class_type(), ClassName::new("java/lang/invoke/Invokers"));
             }
         }
     }
@@ -105,9 +105,9 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     let invoke_type_flag = ((if (flags & ACC_STATIC as i32) > 0 {
         REF_invokeStatic
     } else {
-        let class_ptye = clazz.as_type();
+        let class_ptye = clazz.as_type(jvm);
         let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-        let inited_class = check_inited_class(jvm, int_state, class_name.into()).unwrap();
+        let inited_class = assert_inited_or_initing_class(jvm, int_state, class_name.into());
         if inited_class.view().is_interface() {
             REF_invokeInterface
         } else {

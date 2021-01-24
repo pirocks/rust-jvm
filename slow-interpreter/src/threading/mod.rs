@@ -14,9 +14,10 @@ use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::run_function;
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
-use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object};
+use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
@@ -96,7 +97,7 @@ impl ThreadState {
     fn jvm_init_from_main_thread(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-        let system_class = check_inited_class_override_loader(jvm, int_state, &ClassName::system().into(), LoaderName::BootstrapLoader).unwrap();
+        let system_class = assert_inited_or_initing_class(jvm, int_state, ClassName::system().into());
 
         let init_method_view = locate_init_system_class(&system_class);
         let mut locals = vec![];
@@ -156,18 +157,13 @@ impl ThreadState {
         let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader);
         let frame_for_bootstrapping = new_int_state.push_frame(frame);
 
-        let thread_classfile = check_inited_class_override_loader(jvm,
-                                                                  &mut new_int_state,
-                                                                  &ClassName::thread().into(),
-                                                                  LoaderName::BootstrapLoader,
-        ).unwrap();
+        let thread_classfile = assert_inited_or_initing_class(jvm, &mut new_int_state, ClassName::thread().into());
 
-        push_new_object(jvm, &mut new_int_state, &thread_classfile, None);
+        push_new_object(jvm, &mut new_int_state, &thread_classfile);
         let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
-        let thread_group_class = check_inited_class_override_loader(jvm, &mut new_int_state, &ClassName::Str("java/lang/ThreadGroup".to_string()).into(), LoaderName::BootstrapLoader)
-            .expect("Well this isn't meant to happen. couldn't load the Thread group class so there's not much that can be done.");
+        let thread_group_class = assert_inited_or_initing_class(jvm, &mut new_int_state, ClassName::Str("java/lang/ThreadGroup".to_string()).into());
         let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state, thread_group_class);
         *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());

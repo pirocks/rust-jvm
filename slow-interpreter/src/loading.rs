@@ -4,9 +4,8 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 use classfile_parser::parse_class_file;
-use classfile_view::loading::{ClassLoadingError, LoaderName};
+use classfile_view::loading::ClassLoadingError;
 use classfile_view::loading::ClassLoadingError::ClassNotFoundException;
-use classfile_view::view::ClassView;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;

@@ -5,9 +5,10 @@ use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;
-use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::interpreter_util::push_new_object;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
 use crate::resolvers::methods::{ResolutionError, resolve_invoke_static, resolve_invoke_virtual};
@@ -87,7 +88,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     // int_state.print_stack_trace();
 
     let assertion_case = if &member_name.get_name().to_rust_string() == "cast" &&
-        member_name.get_clazz().as_type().unwrap_class_type() == ClassName::class() &&
+        member_name.get_clazz().as_type(jvm).unwrap_class_type() == ClassName::class() &&
         member_name.to_string(jvm, int_state).to_rust_string() == "java.lang.Class.cast(Object)Object/invokeVirtual"
     {
         // assert_eq!(member_name.get_flags(), 83951616);
@@ -139,12 +140,12 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     let kind = flags_val & ALL_KINDS;
     match kind {
         IS_FIELD => {
-            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz().as_runtime_class());
+            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz().as_runtime_class(jvm));
 
             let name = member_name.get_name().to_rust_string();
 
             let typejclass = member_name.get_type().cast_class();
-            let target_ptype = typejclass.as_type();
+            let target_ptype = typejclass.as_type(jvm);
             let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
                 let field = c.view().field(*i);
                 field.field_name() == name &&
@@ -168,8 +169,8 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
-                            let linkage_error = check_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into()).unwrap();//todo loaders
-                            push_new_object(jvm, int_state, &linkage_error, None);
+                            let linkage_error = assert_inited_or_initing_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into());//todo loaders
+                            push_new_object(jvm, int_state, &linkage_error);
                             let object = int_state.pop_current_operand_stack().unwrap_object();
                             int_state.set_throw(object);
                             return None;
@@ -192,7 +193,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         _ => panic!()
     }
     let clazz = member_name.get_clazz();
-    let _clazz_as_runtime_class = clazz.as_runtime_class();
+    let _clazz_as_runtime_class = clazz.as_runtime_class(jvm);
     let _name = member_name.get_name().to_rust_string();
     let _type_ = type_java_value.unwrap_normal_object();
     if let Some(assertion_case) = assertion_case {

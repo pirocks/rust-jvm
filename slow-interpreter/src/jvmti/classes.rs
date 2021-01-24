@@ -5,8 +5,8 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
 
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
-use crate::interpreter_util::check_inited_class;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
@@ -20,7 +20,7 @@ pub unsafe extern "C" fn get_source_file_name(
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetSourceFileName");
     let class_obj = from_jclass(klass);
-    let runtime_class = class_obj.as_runtime_class();
+    let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
     let sourcefile = class_view.sourcefile_attr();
     if let Some(file) = sourcefile {
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(
     let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
     let class_obj = from_jclass(klass);
-    let runtime_class = class_obj.as_runtime_class();
+    let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
     let num_interfaces = class_view.num_interfaces();
     interface_count_ptr.write(num_interfaces as i32);
@@ -66,7 +66,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
     let class = from_object(transmute(klass)).unwrap();//todo handle null
     let res = {
-        let type_ = &JavaValue::Object(class.into()).cast_class().as_type();
+        let type_ = &JavaValue::Object(class.into()).cast_class().as_type(jvm);
         let mut status = 0;
         status |= JVMTI_CLASS_STATUS_PREPARED as i32;
         status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
@@ -153,7 +153,7 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(transmute(klass)).unwrap();
-    let class_object_ptype = JavaValue::Object(notnull_class.into()).cast_class().as_type();
+    let class_object_ptype = JavaValue::Object(notnull_class.into()).cast_class().as_type(jvm);
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
         let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
@@ -222,8 +222,8 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     };
     null_check!(method_count_ptr);
     null_check!(methods_ptr);
-    let class_type = class.as_type();
-    let loaded_class = check_inited_class(jvm, int_state, class_type).unwrap();
+    let class_type = class.as_type(jvm);
+    let loaded_class = assert_inited_or_initing_class(jvm, int_state, class_type);
     let res = loaded_class.view().methods().map(|mv| {
         let method_id = jvm.method_table.write().unwrap().get_method_id(loaded_class.clone(), mv.method_i() as u16);
         method_id as jmethodID

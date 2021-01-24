@@ -10,10 +10,10 @@ use crate::runtime_class::RuntimeClass;
 
 pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> (Method, usize, Arc<RuntimeClass>) {
 	let method_type = member_name.get_type().cast_method_type();
-	let return_type = method_type.get_rtype_as_type();
-	let parameter_types = method_type.get_ptypes_as_types();
+	let return_type = method_type.get_rtype_as_type(jvm);
+	let parameter_types = method_type.get_ptypes_as_types(jvm);
 	let method_descriptor = MethodDescriptor { parameter_types, return_type };
-	let runtime_class = member_name.get_clazz().as_runtime_class();
+	let runtime_class = member_name.get_clazz().as_runtime_class(jvm);
 	//todo dup
 	let temp = runtime_class.view().lookup_method_name(&member_name.get_name().to_rust_string());
 	let res = temp.iter().find(|candidate| {
@@ -29,9 +29,9 @@ pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterSta
 
 pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName, synthetic: &mut bool) -> Result<(Method, usize, Arc<RuntimeClass>), ResolutionError> {
 	let method_type = member_name.get_type().cast_method_type();
-	let return_type = method_type.get_rtype_as_type();
-	let parameter_types = method_type.get_ptypes_as_types();
-	let runtime_class = member_name.get_clazz().as_runtime_class();
+	let return_type = method_type.get_rtype_as_type(jvm);
+	let parameter_types = method_type.get_ptypes_as_types(jvm);
+	let runtime_class = member_name.get_clazz().as_runtime_class(jvm);
 	// dbg!(&runtime_class);
 	// dbg!(runtime_class.view().name());
 	// dbg!(member_name.get_name().to_rust_string());

@@ -94,7 +94,8 @@ impl CycleDetectingDebug for NormalObject {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
         let o = self;
         if o.class_pointer.view().name() == ClassName::class() {
-            write!(f, "(Class Object:{:?})", o.class_object_type.as_ref().unwrap().ptypeview())?;//todo needs a JClass type interface
+            write!(f, "need a jvm pointer here to give more info on class object")?;
+            // write!(f, "(Class Object:{:?})", o.class_object_type.as_ref().unwrap().ptypeview())?;//todo needs a JClass type interface
         } else if o.class_pointer.view().name() == ClassName::string() {
             let fields_borrow = o.fields_mut();
             let value_field = fields_borrow.get("value").unwrap();
@@ -284,16 +285,15 @@ impl JavaValue {
             vec![],
             PTypeView::ByteType,
             jvm.thread_state.new_monitor("".to_string()),
-            int_state.current_loader()
+            int_state.current_loader(),
         )))))
     }
-    pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>, class_object_type: Option<Arc<RuntimeClass>>) -> Option<Arc<Object>> {
+    pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("".to_string()),
             class_pointer: runtime_class,
             fields: UnsafeCell::new(HashMap::new()),
-            class_object_type,
         })).into()
     }
 
@@ -525,7 +525,6 @@ impl Object {
                     monitor: jvm.thread_state.new_monitor("".to_string()),
                     fields: new_fields,
                     class_pointer: o.class_pointer.clone(),
-                    class_object_type: o.class_object_type.clone(),
                 })
             }
         }

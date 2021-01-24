@@ -2,9 +2,9 @@ use rust_jvm_common::classfile::InvokeInterface;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::{invoke_virtual_method_i, setup_virtual_args};
-use crate::interpreter_util::check_inited_class;
 
 pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, invoke_interface: InvokeInterface) {
     // invoke_interface.count;//todo use this?
@@ -12,7 +12,7 @@ pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i
     let loader_arc = &int_state.current_loader();
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &view);
     let class_name_ = class_name_type.unwrap_class_type();
-    let _target_class = check_inited_class(jvm, int_state, class_name_.into()).unwrap();
+    let _target_class = assert_inited_or_initing_class(jvm, int_state, class_name_.into());
     let mut args = vec![];
     let checkpoint = int_state.current_frame().operand_stack().clone();
     setup_virtual_args(int_state.current_frame_mut(), &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);

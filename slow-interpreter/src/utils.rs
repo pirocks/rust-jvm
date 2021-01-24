@@ -4,8 +4,8 @@ use std::sync::Arc;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
 
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::interpreter_util::check_inited_class;
 use crate::java_values::Object;
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
@@ -28,7 +28,7 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
         None => {
             let class_name = class.view().super_name().unwrap();
             let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));
-            let super_class = check_inited_class(jvm, int_state, lookup_type).unwrap(); //todo this unwrap could fail, and this should really be using check_inited_class
+            let super_class = assert_inited_or_initing_class(jvm, int_state, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
             lookup_method_parsed_impl(jvm, int_state, super_class, name, descriptor)
         }
         Some(method_view) => {

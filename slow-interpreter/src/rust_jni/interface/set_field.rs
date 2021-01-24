@@ -95,7 +95,7 @@ unsafe fn set_static_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfield
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(field_id_raw as usize);
     let view = &rc.view();
     let field_name = view.field(field_i as usize).field_name();
-    let static_class = from_jclass(clazz).as_runtime_class();
+    let static_class = from_jclass(clazz).as_runtime_class(jvm);
     static_class.static_vars().insert(field_name, value);
 }
 

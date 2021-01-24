@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
-use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use classfile_view::loading::LoaderName;
@@ -13,8 +12,9 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::run_function;
 use crate::java_values::{default_value, JavaValue};
+use crate::jvm_state::ClassStatus;
 
-#[derive(Debug, PartialEq, Hash)]
+#[derive(Debug)]
 pub enum RuntimeClass {
     Byte,
     Boolean,
@@ -29,7 +29,7 @@ pub enum RuntimeClass {
     Object(RuntimeClassClass),
 }
 
-#[derive(Debug, PartialEq, Hash, Eq)]
+#[derive(Debug)]
 pub struct RuntimeClassArray {
     pub sub_class: Arc<RuntimeClass>,
     pub(crate) loader: LoaderName,
@@ -39,8 +39,9 @@ pub struct RuntimeClassArray {
 pub struct RuntimeClassClass {
     classfile: Arc<Classfile>,
     class_view: Arc<ClassView>,
-    loader: LoaderName,
-    static_vars: RwLock<HashMap<String, JavaValue>>,
+    static_vars: RwLock<Option<HashMap<String, JavaValue>>>,
+    //class may not be prepared
+    status: ClassStatus,
 }
 
 impl RuntimeClass {
@@ -95,22 +96,6 @@ impl RuntimeClass {
         }
     }
 
-    pub fn loader(&self) -> LoaderName {
-        match self {
-            RuntimeClass::Byte => LoaderName::BootstrapLoader,
-            RuntimeClass::Boolean => LoaderName::BootstrapLoader,
-            RuntimeClass::Short => LoaderName::BootstrapLoader,
-            RuntimeClass::Char => LoaderName::BootstrapLoader,
-            RuntimeClass::Int => LoaderName::BootstrapLoader,
-            RuntimeClass::Long => LoaderName::BootstrapLoader,
-            RuntimeClass::Float => LoaderName::BootstrapLoader,
-            RuntimeClass::Double => LoaderName::BootstrapLoader,
-            RuntimeClass::Void => LoaderName::BootstrapLoader,
-            RuntimeClass::Array(a) => a.loader.clone(),
-            RuntimeClass::Object(o) => o.loader.clone(),
-        }
-    }
-
     pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue>> {
         match self {
             RuntimeClass::Byte => unimplemented!(),
@@ -123,7 +108,7 @@ impl RuntimeClass {
             RuntimeClass::Double => unimplemented!(),
             RuntimeClass::Void => unimplemented!(),
             RuntimeClass::Array(_) => unimplemented!(),
-            RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
+            RuntimeClass::Object(o) => todo!(),
         }
     }
 
@@ -145,10 +130,26 @@ impl RuntimeClass {
                 RuntimeClass::Object(RuntimeClassClass {
                     classfile: obj.classfile.clone(),
                     class_view: obj.class_view.clone(),
-                    loader: new_loader,
                     static_vars: RwLock::new(obj.static_vars.read().unwrap().clone()),
+                    status: todo!(),
                 })
             }
+        }
+    }
+
+    pub fn status(&self) -> ClassStatus {
+        match self {
+            RuntimeClass::Byte => todo!(),
+            RuntimeClass::Boolean => todo!(),
+            RuntimeClass::Short => todo!(),
+            RuntimeClass::Char => todo!(),
+            RuntimeClass::Int => todo!(),
+            RuntimeClass::Long => todo!(),
+            RuntimeClass::Float => todo!(),
+            RuntimeClass::Double => todo!(),
+            RuntimeClass::Void => todo!(),
+            RuntimeClass::Array(a) => a.sub_class.status(),
+            RuntimeClass::Object(o) => o.status
         }
     }
 }
@@ -159,21 +160,21 @@ impl Debug for RuntimeClassClass {
     }
 }
 
-impl Hash for RuntimeClassClass {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.classfile.hash(state);
-        self.loader.to_string().hash(state)
-    }
-}
+// impl Hash for RuntimeClassClass {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         self.classfile.hash(state);
+//
+//     }
+// }
+//
+// impl PartialEq for RuntimeClassClass {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.loader == other.loader &&
+//             self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
+//     }
+// }
 
-impl PartialEq for RuntimeClassClass {
-    fn eq(&self, other: &Self) -> bool {
-        self.loader == other.loader &&
-            self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
-    }
-}
-
-impl Eq for RuntimeClass {}
+// impl Eq for RuntimeClass {}
 
 pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderName) -> RuntimeClass {
     let mut res = HashMap::new();
@@ -189,8 +190,8 @@ pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderN
     RuntimeClassClass {
         class_view: Arc::new(ClassView::from(classfile.clone())),
         classfile,
-        loader,
-        static_vars: RwLock::new(res),
+        static_vars: RwLock::new(res.into()),
+        status: todo!(),
     }.into()
 }
 

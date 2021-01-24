@@ -2,16 +2,18 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use crate::runtime_class::RuntimeClass;
 use jvmti_jni_bindings::_jmethodID;
+
+use crate::runtime_class::RuntimeClass;
 
 type MethodTableIndex = usize;
 pub type MethodId = MethodTableIndex;
-pub fn from_jmethod_id(jmethod : *mut _jmethodID) -> MethodId{
+
+pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
     jmethod as MethodId
 }
 
-#[derive(Eq)]
+//todo switch to by address
 pub struct RuntimeClassWrapper(Arc<RuntimeClass>);
 
 impl Hash for RuntimeClassWrapper {

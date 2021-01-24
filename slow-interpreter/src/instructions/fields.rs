@@ -4,13 +4,13 @@ use rust_jvm_common::classnames::ClassName;
 use verification::verifier::instructions::special::extract_field_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
-use crate::interpreter_util::check_inited_class;
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::java_values::JavaValue;
 
 pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = &int_state.current_class_view();
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    let target_classfile = check_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
+    let target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
     let stack = int_state.current_frame_mut().operand_stack_mut();
     let field_value = stack.pop().unwrap();
     if field_name.as_str() == "NF_internalMemberName" {
@@ -22,7 +22,7 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
 pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = &int_state.current_class_view();
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    let _target_classfile = check_inited_class(jvm, int_state, field_class_name.into()).unwrap();
+    let _target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.into());
     let stack = &mut int_state.current_frame_mut().operand_stack_mut();
     let val = stack.pop().unwrap();
     let object_ref = stack.pop().unwrap();
@@ -50,7 +50,7 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         Some(val) => val
     };
     if field_name == "UNSAFE" && int_state.current_class_view().name().get_referred_name() == "java/util/concurrent/locks/LockSupport" {
-        let target_classfile = check_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
+        let target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
         dbg!(Arc::as_ptr(&target_classfile));
         dbg!(target_classfile.static_vars().keys());
         dbg!(target_classfile.static_vars().values());
@@ -60,17 +60,7 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
 }
 
 fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_class_name: &ClassName, field_name: &str) -> Option<JavaValue> {
-    let target_classfile = match check_inited_class(jvm, int_state, field_class_name.clone().into()) {
-        Ok(x) => x,
-        Err(err) => {
-            dbg!(err);
-            dbg!(field_class_name);
-            dbg!(int_state.current_loader());
-            int_state.print_stack_trace();
-            return None;
-            unimplemented!()
-        }
-    };
+    let target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
         let interface_lookup_res = get_static_impl(jvm, int_state, &ClassName::Str(interfaces.interface_name()), field_name);

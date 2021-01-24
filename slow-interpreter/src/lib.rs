@@ -26,9 +26,9 @@ use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::run_function;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader};
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java_values::{ArrayObject, JavaValue};
@@ -67,6 +67,7 @@ pub mod field_table;
 pub mod native_allocation;
 pub mod threading;
 mod resolvers;
+pub mod class_loading;
 
 pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
     // if jvm.unittest_mode {
@@ -80,9 +81,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let main_loader = loader_obj.to_jvm_loader(jvm);
     dbg!(loader_obj.to_string(jvm, int_state).to_rust_string());
     dbg!(main_loader);
-    dbg!(jvm.classes.read().unwrap().prepared_classes.values().map(|val| val.keys().collect::<Vec<_>>()).collect::<Vec<_>>());
-    let main = check_inited_class_override_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader.clone()).unwrap();
-    dbg!(main.loader());
+    let main = assert_inited_or_initing_class(jvm, int_state, jvm.main_class_name.clone().into());
     let main_view = main.view();
     let main_i = locate_main_method(&main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
@@ -92,8 +91,6 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let main_frame_guard = int_state.push_frame(stack_entry);
 
     dbg!(int_state.current_loader());
-    dbg!(main.loader());
-    dbg!(check_inited_class(jvm, int_state, main.ptypeview()).unwrap().loader());
     setup_program_args(&jvm, int_state, args);
     assert_ne!(int_state.current_loader(), LoaderName::BootstrapLoader);
     run_function(&jvm, int_state);

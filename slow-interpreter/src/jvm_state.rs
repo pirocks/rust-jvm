@@ -13,18 +13,16 @@ use by_address::ByAddress;
 use libloading::Library;
 
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
-use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{JavaVM, jint, jio_fprintf, jlong, JNIInvokeInterface_, jobject};
+use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classfile::ConstantKind::LiveObject;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use verification::ClassFileGetter;
 
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::interpreter_util::check_inited_class;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::{JavaValue, NormalObject, Object};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
@@ -67,14 +65,16 @@ pub struct JVMState {
 }
 
 pub struct Classes {
-    pub initiating_loaders: BiMap<LoaderName, Arc<RuntimeClass>>,
+    pub loaded_classes_by_type: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
+    pub initiating_loaders: HashMap<ByAddress<Arc<RuntimeClass>>, LoaderName>,
     pub class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>>,
     pub anon_classes: RwLock<Vec<Arc<RuntimeClass>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ClassStatus {
+    UNPREPARED,
     PREPARED,
     INITIALIZING,
     INITIALIZED,
@@ -82,60 +82,25 @@ pub enum ClassStatus {
 
 impl Classes {
     pub fn get_loaded_classes(&self) -> impl Iterator<Item=(LoaderName, PTypeView)> + '_ {
-        let prepared_classes = self.prepared_classes.iter().flat_map(|(loader, classes)| {
-            classes.keys().map(move |ptype| (loader.clone(), ptype.clone()))
-        });
-
-        let initializing_classes = self.initializing_classes.iter().flat_map(|(loader, classes)| {
-            classes.keys().map(move |ptype| (loader.clone(), ptype.clone()))
-        });
-
-        let initialized_classes = self.initialized_classes.iter().flat_map(|(loader, classes)| {
-            classes.keys().map(move |ptype| (loader.clone(), ptype.clone()))
-        });
-
-        prepared_classes.chain(initializing_classes).chain(initialized_classes)
+        self.loaded_classes_by_type.iter().flat_map(|(l, rc)| rc.keys().map(move |ptype| (*l, ptype.clone())))
     }
 
     pub fn get_status(&self, loader: LoaderName, class_name: PTypeView) -> Option<ClassStatus> {
-        if self.initialized_classes.get(&loader)?.contains_key(&class_name) {//todo that unwrap prob shouldn't be there
-            ClassStatus::INITIALIZED.into()
-        } else if self.initializing_classes.get(&loader)?.contains_key(&class_name) {//todo that unwrap prob shouldn't be there
-            ClassStatus::INITIALIZING.into()
-        } else if self.prepared_classes.get(&loader)?.contains_key(&class_name) {
-            ClassStatus::PREPARED.into()
-        } else {
-            None
-        }
+        // if self.initialized_classes.get(&loader)?.contains_key(&class_name) {//todo that unwrap prob shouldn't be there
+        //     ClassStatus::INITIALIZED.into()
+        // } else if self.initializing_classes.get(&loader)?.contains_key(&class_name) {//todo that unwrap prob shouldn't be there
+        //     ClassStatus::INITIALIZING.into()
+        // } else if self.prepared_classes.get(&loader)?.contains_key(&class_name) {
+        //     ClassStatus::PREPARED.into()
+        // } else {
+        //     None
+        // }
+        todo!()
     }
 
-
-    pub fn is_initialized(&self, class: Arc<RuntimeClass>) -> Option<bool> {
-        matches!(self.get_status(class.loader(),class.ptypeview())?,INITIALIZING).into()
-    }
-
-    pub fn transition_prepared(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
-        self.prepared_classes.entry(loader).or_default().entry(class.ptypeview()).insert(class);
-    }
-
-    pub fn transition_initializing(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
-        self.initializing_classes.entry(loader).or_default().entry(class.ptypeview()).insert(class);
-    }
-
-    pub fn transition_initialized(&mut self, loader: LoaderName, class: Arc<RuntimeClass>) {
-        self.initialized_classes.entry(loader).or_default().entry(class.ptypeview()).insert(class);
-    }
-
-    pub fn get_initializing_class(&self, loader: LoaderName, ptype: &PTypeView) -> Arc<RuntimeClass> {
-        self.initializing_classes.get(&loader).unwrap().get(ptype).unwrap().clone()
-    }
-
-    pub fn get_initialized_class(&self, loader: LoaderName, ptype: &PTypeView) -> Arc<RuntimeClass> {
-        self.initialized_classes.get(&loader).unwrap().get(ptype).unwrap().clone()
-    }
 
     pub fn is_loaded(&self, ptype: &PTypeView) -> Option<Arc<RuntimeClass>> {
-        self.prepared_classes.iter().flat_map(|(_, prepared)| prepared.get(ptype)).next().cloned()
+        todo!()
     }
 }
 
@@ -157,17 +122,10 @@ impl JVMState {
             }.into()
         } else { None };
         let thread_state = ThreadState::new();
-        let mut prepared_classes = HashMap::new();
-        prepared_classes.insert(LoaderName::BootstrapLoader, HashMap::new());
-        let mut initializing_classes = HashMap::new();
-        initializing_classes.insert(LoaderName::BootstrapLoader, HashMap::new());
-        let mut initialized_classes = HashMap::new();
-        initialized_classes.insert(LoaderName::BootstrapLoader, HashMap::new());
         let classes = RwLock::new(Classes {
-            prepared_classes,
-            initializing_classes,
-            initialized_classes,
-            class_object_pool: HashMap::new(),
+            loaded_classes_by_type: Default::default(),
+            initiating_loaders: Default::default(),
+            class_object_pool: Default::default(),
             anon_classes: Default::default(),
             anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
         });
@@ -208,12 +166,11 @@ impl JVMState {
         match loader_guard.get(&LoaderName::BootstrapLoader) {
             None => {
                 let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-                let class_loader_class = check_inited_class(self, int_state, java_lang_class_loader.into()).unwrap();
+                let class_loader_class = assert_inited_or_initing_class(self, int_state, java_lang_class_loader.into());
                 let res = Arc::new(Object::Object(NormalObject {
                     monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
                     fields: UnsafeCell::new(HashMap::new()),
                     class_pointer: class_loader_class,
-                    class_object_type: None,
                 }));
                 loader_guard.insert(LoaderName::BootstrapLoader, res.clone());
                 JavaValue::Object(res.into())
@@ -251,7 +208,7 @@ pub struct LibJavaLoading {
     pub libawt: Library,
     pub libxawt: Library,
     pub libzip: Library,
-    pub registered_natives: RwLock<HashMap<Arc<RuntimeClass>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
+    pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass>>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
 }
 
 impl LibJavaLoading {
@@ -316,9 +273,6 @@ pub struct BootstrapLoaderClassGetter<'l> {
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_> {
     fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile> {
         // assert_eq!(loader, LoaderName::BootstrapLoader);
-        match self.jvm.classes.write().unwrap().prepared_classes.entry(loader).or_insert(HashMap::new()).get(&class.clone().into()) {
-            Some(x) => x.view().backing_class(),
-            None => self.jvm.classpath.lookup(&class).unwrap(),
-        }
+        todo!()
     }
 }

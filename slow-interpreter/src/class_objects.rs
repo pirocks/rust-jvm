@@ -5,7 +5,8 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object};
+use crate::class_loading::assert_inited_or_initing_class;
+use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
@@ -48,12 +49,11 @@ pub fn get_or_create_class_object_override_loader(jvm: &JVMState,
 fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader: LoaderName, override_: bool) -> Result<Arc<Object>, ClassLoadingError> {
     // let current_frame = int_state.current_frame_mut();
     let guard = jvm.classes.write().unwrap();
-    let runtime_class = if let Some(class) = guard.is_loaded(&ptype) {
+    let runtime_class = todo!();/*if let Some(class) = guard.is_loaded(&ptype) {
         let res = class;
         drop(guard);
         if ptype == ClassName::Str("Test3".to_string()).into() {
             dbg!(&res);
-            dbg!(res.loader());
         }
         res
     } else {
@@ -63,7 +63,7 @@ fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut Interp
         } else {
             check_inited_class(jvm, int_state, ptype.clone())?
         }
-    };
+    };*/
     // assert_eq!(runtime_class.loader(),loader);
     let mut classes = jvm.classes.write().unwrap();
     let res = classes.class_object_pool.entry(runtime_class.loader()).or_default().get(&ptype).cloned();
@@ -113,11 +113,11 @@ fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut Interp
 
 fn create_a_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptypev: Arc<RuntimeClass>) -> Arc<Object> {
     let java_lang_class = ClassName::class();
-    let class_class = check_inited_class(jvm, int_state, java_lang_class.into()).unwrap();
+    let class_class = assert_inited_or_initing_class(jvm, int_state, java_lang_class.into());
     let boostrap_loader_object = jvm.get_or_create_bootstrap_object_loader(int_state);
     //the above would only be required for higher jdks where a class loader object is part of Class.
     //as it stands we can just push to operand stack
-    push_new_object(jvm, int_state, &class_class, ptypev.into());
+    push_new_object(jvm, int_state, &class_class);
     let object = int_state.pop_current_operand_stack();
     match object.clone() {
         JavaValue::Object(o) => {

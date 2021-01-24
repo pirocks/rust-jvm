@@ -126,9 +126,10 @@ pub mod method {
     use rust_jvm_common::classnames::ClassName;
     use type_safe_proc_macro_utils::getter_gen;
 
+    use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
@@ -189,8 +190,8 @@ pub mod method {
                           parameter_annotations: JavaValue,
                           annotation_default: JavaValue,
         ) -> Method {
-            let method_class = check_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
-            push_new_object(jvm, int_state, &method_class, None);
+            let method_class = assert_inited_or_initing_class(jvm, int_state, ClassName::method().into());
+            push_new_object(jvm, int_state, &method_class);
             let method_object = int_state.pop_current_operand_stack();
             let full_args = vec![method_object.clone(),
                                  clazz.java_value(),
@@ -240,9 +241,10 @@ pub mod constructor {
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
+    use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
@@ -291,9 +293,9 @@ pub mod constructor {
             slot: jint,
             signature: JString,
         ) -> Constructor {
-            let constructor_class = check_inited_class(jvm, int_state, ClassName::constructor().into()).unwrap();
+            let constructor_class = assert_inited_or_initing_class(jvm, int_state, ClassName::constructor().into());
             //todo impl these
-            push_new_object(jvm, int_state, &constructor_class, None);
+            push_new_object(jvm, int_state, &constructor_class);
             let constructor_object = int_state.pop_current_operand_stack();
 
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state);
@@ -314,7 +316,8 @@ pub mod field {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
-    use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+    use crate::class_loading::assert_inited_or_initing_class;
+    use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
     use crate::java_values::{ArrayObject, JavaValue, Object};
@@ -341,8 +344,8 @@ pub mod field {
             signature: JString,
             annotations: Vec<JavaValue>,
         ) -> Self {
-            let field_classfile = check_inited_class(jvm, int_state, ClassName::field().into()).unwrap();
-            push_new_object(jvm, int_state, &field_classfile, None);
+            let field_classfile = assert_inited_or_initing_class(jvm, int_state, ClassName::field().into());
+            push_new_object(jvm, int_state, &field_classfile);
             let field_object = int_state.pop_current_operand_stack();
 
 

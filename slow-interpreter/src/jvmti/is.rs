@@ -1,6 +1,7 @@
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jclass, JNI_FALSE, JNI_TRUE, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
 
+use crate::jvm_state::JVMState;
 use crate::jvmti::get_state;
 use crate::rust_jni::native_util::try_from_jclass;
 
@@ -34,7 +35,7 @@ use crate::rust_jni::native_util::try_from_jclass;
 pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_array_class_ptr: *mut jboolean) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "IsArrayClass");
-    let res = match is_array_impl(klass) {
+    let res = match is_array_impl(jvm, klass) {
         Ok(res) => res,
         Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err)
     };
@@ -42,12 +43,12 @@ pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_ar
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-pub unsafe fn is_array_impl(cls: jclass) -> Result<u8, jvmtiError> {
+pub unsafe fn is_array_impl(jvm: &JVMState, cls: jclass) -> Result<u8, jvmtiError> {
     let jclass = match try_from_jclass(cls) {
         None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,
     };
-    let ptype = jclass.as_type();
+    let ptype = jclass.as_type(jvm);
     let is_array = ptype.is_array();
     Result::Ok((if is_array { JNI_TRUE } else { JNI_FALSE }) as jboolean)
 }
@@ -87,7 +88,7 @@ pub unsafe extern "C" fn is_interface(env: *mut jvmtiEnv, klass: jclass, is_inte
     let is_interface = match try_from_jclass(klass) {
         None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,
-    }.as_runtime_class().try_view().map(|x| x.is_interface()).unwrap_or(false);
+    }.as_runtime_class(jvm).try_view().map(|x| x.is_interface()).unwrap_or(false);
     let res = if is_interface { JNI_TRUE } else { JNI_FALSE };
     is_interface_ptr.write(res as jboolean);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)

@@ -6,10 +6,11 @@ use descriptor_parser::MethodDescriptor;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
 use crate::interpreter::run_function;
-use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 
@@ -35,15 +36,14 @@ fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s
 
 pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
     let java_lang_string = ClassName::string();
-    let current_loader = interpreter_state.current_loader();
-    let string_class = check_inited_class(
+    let string_class = assert_inited_or_initing_class(
         jvm,
         interpreter_state,
         java_lang_string.into(),
-    ).unwrap();
+    );
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
-    push_new_object(jvm, interpreter_state, &string_class, None);//todo what if stack overflows here?
+    push_new_object(jvm, interpreter_state, &string_class);//todo what if stack overflows here, like creating the exception
     let string_object = interpreter_state.pop_current_operand_stack();
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
@@ -52,7 +52,7 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
         chars,
         PTypeView::CharType,
         jvm.thread_state.new_monitor("monitor for a string".to_string()),
-        interpreter_state.current_loader()
+        interpreter_state.current_loader(),
     ))))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };

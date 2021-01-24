@@ -8,7 +8,8 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
-    let type_ = from_jclass(clazz).as_type();
+    let jvm = get_state(env);
+    let type_ = from_jclass(clazz).as_type(jvm);
     let res = new_array(env, len, type_);
     let res_safe = from_object(res).unwrap();
     for jv in res_safe.unwrap_array().mut_array().iter_mut() {

@@ -1,17 +1,19 @@
 use std::sync::Arc;
 
+use by_address::ByAddress;
+
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::interpreter::monitor_for_function;
-use crate::interpreter_util::check_inited_class;
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
@@ -24,7 +26,7 @@ pub fn run_native_method(
     method_i: usize) {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack().len();
-    check_inited_class(jvm, int_state, view.name().into()).unwrap();
+    assert_inited_or_initing_class(jvm, int_state, view.name().into());
     assert_eq!(before, int_state.current_frame().operand_stack().len());
     let method = &view.method_view_i(method_i);
     if !method.is_static() {
@@ -61,13 +63,13 @@ pub fn run_native_method(
     } else if meth_name == *"arraycopy" {
         system_array_copy(&mut args);
         None
-    } else if jvm.libjava.registered_natives.read().unwrap().contains_key(&class) &&
-        jvm.libjava.registered_natives.read().unwrap().get(&class).unwrap().read().unwrap().contains_key(&(method_i as u16))
+    } else if jvm.libjava.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
+        jvm.libjava.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16))
     {
         //todo dup
         let res_fn = {
             let reg_natives = jvm.libjava.registered_natives.read().unwrap();
-            let reg_natives_for_class = reg_natives.get(&class).unwrap().read().unwrap();
+            let reg_natives_for_class = reg_natives.get(&ByAddress(class.clone())).unwrap().read().unwrap();
             *reg_natives_for_class.get(&(method_i as u16)).unwrap()
         };
         call_impl(jvm, int_state, class.clone(), args, parsed, &res_fn, !method.is_static())

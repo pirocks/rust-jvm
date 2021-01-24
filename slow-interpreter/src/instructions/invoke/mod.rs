@@ -5,7 +5,7 @@ use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::interpreter_util::check_inited_class;
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 use crate::utils::lookup_method_parsed;
@@ -19,14 +19,13 @@ pub mod static_;
 pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceData};
-    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
     use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::ptype::{PType, ReferenceType};
 
     use crate::{InterpreterStateGuard, JVMState};
+    use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-    use crate::interpreter_util::check_inited_class;
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::ExceptionError;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
@@ -35,20 +34,19 @@ pub mod dynamic {
     use crate::java::lang::member_name::MemberName;
     use crate::java::lang::string::JString;
     use crate::java_values::JavaValue;
-    use crate::utils::lookup_method_parsed;
 
     pub fn invoke_dynamic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-        let method_handle_class = check_inited_class(
+        let method_handle_class = assert_inited_or_initing_class(
             jvm,
             int_state,
             ClassName::method_handle().into(),
-        ).unwrap();
-        let _method_type_class = check_inited_class(
+        );
+        let _method_type_class = assert_inited_or_initing_class(
             jvm,
             int_state,
             ClassName::method_type().into(),
         );
-        let _call_site_class = check_inited_class(
+        let _call_site_class = assert_inited_or_initing_class(
             jvm,
             int_state,
             ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
@@ -152,7 +150,7 @@ pub mod dynamic {
         } else {
             // dbg!(target.to_string(jvm, int_state).to_rust_string());
             let method_type = target.type__();
-            let args = method_type.get_ptypes_as_types();
+            let args = method_type.get_ptypes_as_types(jvm);
             // dbg!(target.clone().java_value().unwrap_normal_object().class_pointer.view().name());
             let form: LambdaForm = target.get_form();
             let member_name: MemberName = form.get_vmentry();
@@ -255,11 +253,11 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         _ => panic!()
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
-    let resolved_class = check_inited_class(
+    let resolved_class = assert_inited_or_initing_class(
         jvm,
         int_state,
         class_name_.into(),
-    ).unwrap();
+    );
     (resolved_class, expected_method_name, expected_descriptor).into()
 }
 

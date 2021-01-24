@@ -5,7 +5,8 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{Atype, MultiNewArray};
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::interpreter_util::{check_inited_class, push_new_object};
+use crate::class_loading::assert_inited_or_initing_class;
+use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
 pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
@@ -13,15 +14,9 @@ pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
     // int_state.print_stack_trace();
     // dbg!(target_class_name);
-    let target_classfile = match check_inited_class(jvm,
-                                                    int_state, target_class_name.clone().into()) {
-        Ok(target_classfile) => target_classfile,
-        Err(_) => {
-            assert!(int_state.throw().is_some());
-            return;
-        }
-    };
-    push_new_object(jvm, int_state, &target_classfile, None);
+    let target_classfile = assert_inited_or_initing_class(jvm,
+                                                          int_state, target_class_name.clone().into());
+    push_new_object(jvm, int_state, &target_classfile);
 }
 
 
@@ -48,11 +43,11 @@ pub fn anewarray(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u1
 
 pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, len: i32, t: PTypeView) {
     // if let Some(name) = t.unwrap_type_to_name(){
-    check_inited_class(
+    assert_inited_or_initing_class(
         jvm,
         int_state,
         t.clone(),
-    ).unwrap();
+    );
     // }
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t);
     int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap())))
@@ -100,7 +95,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    check_inited_class(jvm, int_state, PTypeView::Ref(type_.clone())).unwrap();
+    assert_inited_or_initing_class(jvm, int_state, PTypeView::Ref(type_.clone()));
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     // dbg!(&type_);
@@ -126,7 +121,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
             new_vec,
             next_type.clone(),
             jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string()),
-            int_state.current_loader()
+            int_state.current_loader(),
         ))).into());
         current_type = next_type;
     }

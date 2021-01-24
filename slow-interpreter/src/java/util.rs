@@ -4,8 +4,8 @@ pub mod properties {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
+    use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
-    use crate::interpreter_util::check_inited_class;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
 
@@ -23,7 +23,7 @@ pub mod properties {
 
     impl Properties {
         pub fn set_property(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, key: JString, value: JString) {
-            let properties_class = check_inited_class(jvm, int_state, ClassName::properties().into()).unwrap();
+            let properties_class = assert_inited_or_initing_class(jvm, int_state, ClassName::properties().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(key.java_value());
             int_state.push_current_operand_stack(value.java_value());

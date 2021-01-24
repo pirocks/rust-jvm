@@ -1,7 +1,8 @@
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
-use crate::interpreter_util::{check_inited_class, push_new_object, run_constructor};
+use crate::class_loading::assert_inited_or_initing_class;
+use crate::interpreter_util::{push_new_object, run_constructor};
 use crate::java_values::JavaValue;
 
 pub fn aload(current_frame: &mut StackEntry, n: usize) {
@@ -76,12 +77,12 @@ pub fn aaload(current_frame: &mut StackEntry) {
 }
 
 fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let bounds_class = check_inited_class(
+    let bounds_class = assert_inited_or_initing_class(
         jvm,
         int_state,
         ClassName::new("java/lang/ArrayIndexOutOfBoundsException").into(),
-    ).unwrap();
-    push_new_object(jvm, int_state, &bounds_class, None);
+    );
+    push_new_object(jvm, int_state, &bounds_class);
     let obj = int_state.current_frame_mut().pop();
     run_constructor(jvm, int_state, bounds_class, vec![obj.clone()], "()V".to_string());
     int_state.set_throw(obj.unwrap_object());

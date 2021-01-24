@@ -11,11 +11,11 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT, run_static_or_virtual};
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::resolved_class;
 use crate::interpreter::run_function;
-use crate::interpreter_util::check_inited_class;
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, Object};
@@ -203,11 +203,11 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
     }.deref() {
         Object::Array(_a) => {
 //todo so spec seems vague about this, but basically assume this is an Object
-            let object_class = check_inited_class(
+            let object_class = assert_inited_or_initing_class(
                 jvm,
                 int_state,
                 ClassName::object().into(),
-            ).unwrap();
+            );
             object_class
         }
         Object::Object(o) => {

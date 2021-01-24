@@ -1,10 +1,9 @@
-use std::borrow::Borrow;
 use std::sync::Arc;
 
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::interpreter_util::check_inited_class;
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::java::util::properties::Properties;
 use crate::java_values::{JavaValue, Object};
 
@@ -14,8 +13,8 @@ pub struct System {
 
 impl System {
     pub fn props(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Properties {
-        let system_class = check_inited_class(jvm, int_state, ClassName::system().into()).unwrap();
-        let prop_jv = system_class.static_vars().borrow().get("props").unwrap().clone();
+        let system_class = assert_inited_or_initing_class(jvm, int_state, ClassName::system().into());
+        let prop_jv = system_class.static_vars().get("props").unwrap().clone();
         prop_jv.cast_properties()
     }
 
