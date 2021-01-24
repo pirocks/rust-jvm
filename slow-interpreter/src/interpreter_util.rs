@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::atomic::Ordering::AcqRel;
 
-use classfile_parser::code::InstructionTypeNum::return_;
+use classfile_parser::code::InstructionTypeNum::{daload, return_};
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -106,7 +106,7 @@ pub fn check_inited_class_override_loader(
 ) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     //todo racy/needs sychronization
     let before = int_state.int_state.as_ref().unwrap().call_stack.len();
-    if ptype == &ClassName::Str("Swing".to_string()).into() {
+    if ptype == &ClassName::Str("javax/swing/JFrame".to_string()).into() {
         dbg!(&loader);
     }
     let maybe_status = jvm.classes.read().unwrap().get_status(loader.clone(), ptype.clone());
@@ -278,6 +278,8 @@ pub fn find_class_from_bootloader(jvm: &JVMState, int_state: &mut InterpreterSta
     }
     let prepared = Arc::new(prepare_class(jvm, target_classfile.clone(), loader_name));
     if let Some(super_name) = prepared.view().super_name() {
+        dbg!(&super_name);
+        dbg!(int_state.current_loader());
         check_inited_class(jvm, int_state, super_name.into())?;
     };
     jvm.classes.write().unwrap().transition_prepared(loader_name, prepared.clone());

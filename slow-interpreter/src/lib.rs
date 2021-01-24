@@ -18,6 +18,7 @@ extern crate va_list;
 use std::error::Error;
 use std::sync::Arc;
 
+use classfile_view::loading::LoaderName;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
@@ -94,6 +95,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     dbg!(main.loader());
     dbg!(check_inited_class(jvm, int_state, main.ptypeview()).unwrap().loader());
     setup_program_args(&jvm, int_state, args);
+    assert_ne!(int_state.current_loader(), LoaderName::BootstrapLoader);
     run_function(&jvm, int_state);
     if int_state.throw().is_some() || *int_state.terminate() {
         int_state.print_stack_trace();

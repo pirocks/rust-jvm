@@ -587,8 +587,6 @@ pub struct NormalObject {
     pub fields: UnsafeCell<HashMap<String, JavaValue>>,
     //todo this refcell should be for the elememts.
     pub class_pointer: Arc<RuntimeClass>,
-    //todo this should just point to the actual class object.
-    pub class_object_type: Option<Arc<RuntimeClass>>, //points to the object represented by this class object of relevant
 }
 
 impl NormalObject {

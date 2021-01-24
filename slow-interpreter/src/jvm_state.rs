@@ -67,10 +67,8 @@ pub struct JVMState {
 }
 
 pub struct Classes {
-    pub prepared_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub initializing_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub initialized_classes: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub class_object_pool: HashMap<LoaderName, HashMap<PTypeView, Arc<Object>>>,
+    pub initiating_loaders: BiMap<LoaderName, Arc<RuntimeClass>>,
+    pub class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>>,
     pub anon_classes: RwLock<Vec<Arc<RuntimeClass>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
 }
