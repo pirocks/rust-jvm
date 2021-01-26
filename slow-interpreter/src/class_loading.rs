@@ -44,7 +44,7 @@ pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
                                 }
                                 ReferenceTypeView::Array(sub_type) => {
                                     let sub_class = check_loaded_class(jvm, int_state, ptype);
-                                    RuntimeClass::Array(RuntimeClassArray { sub_class })
+                                    Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }))
                                 }
                             }
                         }
@@ -79,7 +79,6 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                 let classfile = jvm.classpath.lookup(&class_name).unwrap();
                 let class_view = Arc::new(ClassView::from(classfile.clone()));
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
-                    classfile,
                     class_view: class_view.clone(),
                     static_vars: Default::default(),
                     status: ClassStatus::UNPREPARED,
@@ -90,8 +89,8 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                     class_pointer: Arc::new(RuntimeClass::Object(todo!())),
                 }));
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object), ByAddress(res.clone()));
-                if let Some(name) = class_view.super_name() {
-                    check_loaded_class(jvm, int_state, class_name.into())
+                if let Some(super_name) = class_view.super_name() {
+                    check_loaded_class(jvm, int_state, super_name.into());
                 }
                 res
             }

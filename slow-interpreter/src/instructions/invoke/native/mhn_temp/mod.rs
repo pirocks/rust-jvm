@@ -54,16 +54,15 @@ pub mod init;
 pub fn create_method_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, frame: &mut StackEntry, signature: &str) {
     //todo should this actually be resolving or is that only for MHN_init. Why is this done in native code anyway
     //todo need to use MethodTypeForm.findForm
-    let loader_arc = int_state.current_loader().clone();
     let method_type_class = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
     push_new_object(jvm, int_state, &method_type_class);
     let this = int_state.pop_current_operand_stack();
     let method_descriptor = parse_method_descriptor(signature).unwrap();
-    let rtype = JavaValue::Object(get_or_create_class_object(jvm, &PTypeView::from_ptype(&method_descriptor.return_type), int_state).unwrap().into());
+    let rtype = JavaValue::Object(get_or_create_class_object(jvm, PTypeView::from_ptype(&method_descriptor.return_type), int_state).unwrap().into());
 
     let mut ptypes_as_classes: Vec<JavaValue> = vec![];
     for x in method_descriptor.parameter_types.iter() {
-        let class_object = get_or_create_class_object(jvm, &PTypeView::from_ptype(&x), int_state).unwrap();
+        let class_object = get_or_create_class_object(jvm, PTypeView::from_ptype(&x), int_state).unwrap();
         ptypes_as_classes.push(JavaValue::Object(class_object.into()))
     }
     let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));
@@ -72,9 +71,7 @@ pub fn create_method_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
         int_state,
         ptypes_as_classes,
         class_type,
-        jvm.thread_state.new_monitor("monitor for a method type".to_string()),
-        int_state.current_loader()
-    ))).into());
+        jvm.thread_state.new_monitor("monitor for a method type".to_string())))).into());
     run_constructor(jvm, int_state, method_type_class, vec![this.clone(), rtype, ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string());
     frame.push(this);
 }

@@ -17,10 +17,10 @@ pub fn push_new_object(
     int_state: &mut InterpreterStateGuard,
     target_classfile: &Arc<RuntimeClass>
 ) {
-    let loader_arc = todo!()/*target_classfile.loader()*/;//&int_state.current_frame().class_pointer().loader(jvm).clone();//todo fix loaders.
     let object_pointer = JavaValue::new_object(jvm, target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
-    default_init_fields(jvm, int_state, loader_arc.clone(), object_pointer, target_classfile.view()).unwrap();
+    let loader = jvm.classes.read().unwrap().get_initiating_loader(target_classfile);
+    default_init_fields(jvm, int_state, loader, object_pointer, target_classfile.view()).unwrap();
     int_state.current_frame_mut().push(new_obj);
 }
 
@@ -33,7 +33,7 @@ fn default_init_fields(
 ) -> Result<(), ClassLoadingError> {
     if let Some(super_name) = view.super_name() {
         let loaded_super = assert_inited_or_initing_class(jvm, int_state, super_name.into());//todo this shouldn't be doing any loading so its okay to not override loader
-        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &loaded_super.view());
+        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &loaded_super.view()).unwrap();
     }
     for field in view.fields() {
         if !field.is_static() {

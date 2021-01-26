@@ -43,7 +43,6 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
     //todo make sure class pointer is updated correctly
 
     let view = &int_state.current_class_view();
-    let loader_arc = &int_state.current_loader();
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let field_value = match get_static_impl(jvm, int_state, &field_class_name, &field_name) {
         None => { return; }

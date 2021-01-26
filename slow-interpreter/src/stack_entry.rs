@@ -57,7 +57,7 @@ impl StackEntry {
         let max_locals = class_pointer.view().method_view_i(method_i as usize).method_info().code_attribute().unwrap().max_locals;
         assert!(args.len() >= max_locals as usize);
         Self {
-            loader: jvm.classes.write().unwrap().initiating_loaders.get(&ByAddress(class_pointer.clone())).unwrap().clone(),
+            loader: jvm.classes.read().unwrap().get_initiating_loader(&class_pointer),
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
             non_native_data: Some(NonNativeFrameData { pc: 0, pc_offset: 0 }),
             local_vars: args,
@@ -66,9 +66,9 @@ impl StackEntry {
         }
     }
 
-    pub fn new_native_frame(class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
+    pub fn new_native_frame(jvm: &JVMState, class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
         Self {
-            loader: jvm.classes.write().unwrap().initiating_loaders.get(&ByAddress(class_pointer.clone())).unwrap().clone(),//todo dup, make into function
+            loader: jvm.classes.read().unwrap().get_initiating_loader(&class_pointer),
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
             non_native_data: None,
             local_vars: args,

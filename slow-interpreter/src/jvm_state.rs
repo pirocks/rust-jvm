@@ -85,22 +85,15 @@ impl Classes {
         self.loaded_classes_by_type.iter().flat_map(|(l, rc)| rc.keys().map(move |ptype| (*l, ptype.clone())))
     }
 
-    pub fn get_status(&self, loader: LoaderName, class_name: PTypeView) -> Option<ClassStatus> {
-        // if self.initialized_classes.get(&loader)?.contains_key(&class_name) {//todo that unwrap prob shouldn't be there
-        //     ClassStatus::INITIALIZED.into()
-        // } else if self.initializing_classes.get(&loader)?.contains_key(&class_name) {//todo that unwrap prob shouldn't be there
-        //     ClassStatus::INITIALIZING.into()
-        // } else if self.prepared_classes.get(&loader)?.contains_key(&class_name) {
-        //     ClassStatus::PREPARED.into()
-        // } else {
-        //     None
-        // }
-        todo!()
-    }
-
 
     pub fn is_loaded(&self, ptype: &PTypeView) -> Option<Arc<RuntimeClass>> {
         todo!()
+    }
+
+    pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass>) -> LoaderName {
+        let (res, actual_class) = self.initiating_loaders.get(&class_.ptypeview()).unwrap();
+        assert!(Arc::ptr_eq(class_, actual_class));
+        *res
     }
 }
 

@@ -36,7 +36,6 @@ pub struct RuntimeClassArray {
 
 
 pub struct RuntimeClassClass {
-    classfile: Arc<Classfile>,
     pub(crate) class_view: Arc<ClassView>,
     pub(crate) static_vars: RwLock<Option<HashMap<String, JavaValue>>>,
     //class may not be prepared
@@ -107,34 +106,10 @@ impl RuntimeClass {
             RuntimeClass::Double => unimplemented!(),
             RuntimeClass::Void => unimplemented!(),
             RuntimeClass::Array(_) => unimplemented!(),
-            RuntimeClass::Object(o) => todo!(),
+            RuntimeClass::Object(_) => todo!(),
         }
     }
 
-    pub fn with_different_loader(&self, new_loader: LoaderName) -> RuntimeClass {
-        match self {
-            RuntimeClass::Byte => RuntimeClass::Byte,
-            RuntimeClass::Boolean => RuntimeClass::Boolean,
-            RuntimeClass::Short => RuntimeClass::Short,
-            RuntimeClass::Char => RuntimeClass::Char,
-            RuntimeClass::Int => RuntimeClass::Int,
-            RuntimeClass::Long => RuntimeClass::Long,
-            RuntimeClass::Float => RuntimeClass::Float,
-            RuntimeClass::Double => RuntimeClass::Double,
-            RuntimeClass::Void => RuntimeClass::Void,
-            RuntimeClass::Array(arr) => {
-                RuntimeClass::Array(RuntimeClassArray { sub_class: Arc::new(arr.sub_class.with_different_loader(new_loader)), loader: new_loader })
-            }
-            RuntimeClass::Object(obj) => {
-                RuntimeClass::Object(RuntimeClassClass {
-                    classfile: obj.classfile.clone(),
-                    class_view: obj.class_view.clone(),
-                    static_vars: RwLock::new(obj.static_vars.read().unwrap().clone()),
-                    status: todo!(),
-                })
-            }
-        }
-    }
 
     pub fn status(&self) -> ClassStatus {
         match self {
@@ -186,11 +161,11 @@ pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderN
             res.insert(name, val);
         }
     }
+    //todo doesn't cover all fields and need to deal with super, same name issue
     RuntimeClassClass {
         class_view: Arc::new(ClassView::from(classfile.clone())),
-        classfile,
         static_vars: RwLock::new(res.into()),
-        status: todo!(),
+        status: ClassStatus::PREPARED,
     }.into()
 }
 
@@ -242,7 +217,7 @@ pub fn initialize_class(
         locals.push(JavaValue::Top);
     }
 
-    let new_stack = StackEntry::new_java_frame(class_arc.clone(), clinit.method_i() as u16, locals);
+    let new_stack = StackEntry::new_java_frame(jvm, class_arc.clone(), clinit.method_i() as u16, locals);
     //todo these java frames may have to be converted to native?
     let new_function_frame = interpreter_state.push_frame(new_stack);
     run_function(jvm, interpreter_state);

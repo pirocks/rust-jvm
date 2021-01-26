@@ -4,11 +4,11 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;
-use jvmti_jni_bindings::{jboolean, jclass, jint, JNIEnv, jobjectArray};
+use jvmti_jni_bindings::{jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
-use slow_interpreter::interpreter_util::{check_inited_class_override_loader, push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
@@ -25,14 +25,15 @@ unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
-    let class_obj = from_jclass(ofClass).as_runtime_class();
+    let jvm = get_state(env);
+    let class_obj = from_jclass(ofClass).as_runtime_class(jvm);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut object_array = vec![];
     class_obj.view().fields().enumerate().for_each(|(i, f)| {
         //todo so this is big and messy put I don't really see a way to simplify
         let field_class_name_ = class_obj.clone().view().name();
-        load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
+        load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
         let parent_runtime_class = int_state.pop_current_operand_stack();
 
         let field_name = f.field_name();
@@ -44,7 +45,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let slot = i as i32;
         let clazz = parent_runtime_class.cast_class();
         let name = JString::from_rust(jvm, int_state, field_name).intern(jvm, int_state);
-        let type_ = JClass::from_type(jvm, int_state, &PTypeView::from_ptype(&field_type));
+        let type_ = JClass::from_type(jvm, int_state, PTypeView::from_ptype(&field_type));
         let signature = JString::from_rust(jvm, int_state, field_desc_str);
         let annotations_ = vec![];//todo impl annotations.
 
@@ -66,8 +67,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             int_state,
             object_array,
             PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
-            jvm.thread_state.new_monitor("".to_string()),
-            int_state.current_loader()
+            jvm.thread_state.new_monitor("".to_string())
         ))));
     new_local_ref_public(res, int_state)
 }

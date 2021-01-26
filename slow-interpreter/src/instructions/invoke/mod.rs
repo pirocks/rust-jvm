@@ -241,8 +241,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                     int_state,
                     temp.unwrap_array().mut_array().clone(),
                     elem_type.clone(),
-                    jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
-                    int_state.current_loader(),
+                    jvm.thread_state.new_monitor("monitor for cloned object".to_string())
                 );
                 int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(array_object)))));
                 return None;

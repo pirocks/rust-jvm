@@ -60,7 +60,6 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: PTypeView) -> jarray 
     new_local_ref_public(Some(Arc::new(Object::Array(ArrayObject::new_array(jvm, int_state,
                                                                             the_vec,
                                                                             elem_type,
-                                                                            jvm.thread_state.new_monitor("monitor for jni created byte array".to_string()),
-                                                                            int_state.current_loader()
+                                                                            jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())
     )))), int_state)
 }

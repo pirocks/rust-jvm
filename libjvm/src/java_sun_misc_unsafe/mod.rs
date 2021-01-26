@@ -98,9 +98,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putByte__JB(env: *mut JNIEnv,
 unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEnv, the_unsafe: jobject,
                                                                  field_obj: jobject,
 ) -> jlong {
+    let jvm = get_state(env);
     let jfield = JavaValue::Object(from_object(field_obj)).cast_field();
     let name = jfield.name().to_rust_string();
-    let clazz = jfield.clazz().as_runtime_class();
+    let clazz = jfield.clazz().as_runtime_class(jvm);
     let class_view = clazz.view();
     let mut field_i = None;
     class_view.fields().enumerate().for_each(|(i, f)| {
@@ -118,9 +119,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
                                                                  field_obj: jobject,
 ) -> jlong {
     //todo major duplication
+    let jvm = get_state(env);
     let jfield = JavaValue::Object(from_object(field_obj)).cast_field();
     let name = jfield.name().to_rust_string();
-    let clazz = jfield.clazz().as_runtime_class();
+    let clazz = jfield.clazz().as_runtime_class(jvm);
     let class_view = clazz.view();
     let mut field_i = None;
     class_view.fields().enumerate().for_each(|(i, f)| {

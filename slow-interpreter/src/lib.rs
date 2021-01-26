@@ -87,7 +87,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
-    let stack_entry = StackEntry::new_java_frame(main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
+    let stack_entry = StackEntry::new_java_frame(jvm, main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
     let main_frame_guard = int_state.push_frame(stack_entry);
 
     dbg!(int_state.current_loader());
@@ -114,8 +114,7 @@ fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, arg
         int_state,
         arg_strings,
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
-        jvm.thread_state.new_monitor("arg array monitor".to_string()),
-        int_state.current_loader()
+        jvm.thread_state.new_monitor("arg array monitor".to_string())
     )))));
     let local_vars = int_state.current_frame_mut().local_vars_mut();
     local_vars[0] = arg_array;

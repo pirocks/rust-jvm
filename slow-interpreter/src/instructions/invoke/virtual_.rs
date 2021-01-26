@@ -85,7 +85,7 @@ fn invoke_virtual_method_i_impl(
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         setup_virtual_args(current_frame, &expected_descriptor, &mut args, max_locals);
-        let next_entry = StackEntry::new_java_frame(target_class, target_method_i as u16, args);
+        let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let frame_for_function = interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
         interpreter_state.pop_frame(frame_for_function);

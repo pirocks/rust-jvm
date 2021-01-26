@@ -214,11 +214,11 @@ pub mod class {
 
         pub fn from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: ClassName) -> JClass {
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
-            JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state).unwrap().into()).cast_class()
+            JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().into()).cast_class()
         }
 
-        pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView) -> JClass{
-            load_class_constant_by_type(jvm, int_state, &ptype);
+        pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> JClass {
+            load_class_constant_by_type(jvm, int_state, ptype);
             let res = int_state.pop_current_operand_stack().unwrap_object();
             JavaValue::Object(res).cast_class()
         }

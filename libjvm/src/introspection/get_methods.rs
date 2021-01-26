@@ -9,9 +9,10 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
+use slow_interpreter::class_loading::check_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
-use slow_interpreter::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::constructor::Constructor;
 use slow_interpreter::java::lang::reflect::method::Method;
@@ -35,13 +36,13 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
 }
 
 fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, publicOnly: u8, loader: LoaderName, of_class_obj: JClass) -> jobjectArray {
-    let class_ptype = &of_class_obj.as_type();
+    let class_ptype = &of_class_obj.as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
     }
-    let runtime_class = of_class_obj.as_runtime_class();
+    let runtime_class = of_class_obj.as_runtime_class(jvm);
     let methods = get_all_methods(jvm, int_state, runtime_class);
-    let method_class = check_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
+    let method_class = check_inited_class(jvm, int_state, ClassName::method().into());
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {
@@ -64,12 +65,13 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
+    let jvm = get_state(env);
     let temp1 = from_object(ofClass);
     let class_obj = JavaValue::Object(temp1).cast_class();
-    let class_type = class_obj.as_type();
+    let class_type = class_obj.as_type(jvm);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    JVM_GetClassDeclaredConstructors_impl(jvm, int_state, &class_obj.as_runtime_class(), publicOnly > 0, class_type)
+    JVM_GetClassDeclaredConstructors_impl(jvm, int_state, &class_obj.as_runtime_class(jvm), publicOnly > 0, class_type)
 }
 
 fn JVM_GetClassDeclaredConstructors_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: &RuntimeClass, publicOnly: bool, class_type: PTypeView) -> jobjectArray {

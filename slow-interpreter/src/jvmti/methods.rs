@@ -89,8 +89,8 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     let runtime_class = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().0;//todo handle error
     let class_object = get_or_create_class_object(
         jvm,
-        &PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
-        int_state
+        PTypeView::Ref(ReferenceTypeView::Class(runtime_class.view().name())),
+        int_state,
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(new_local_ref_public(class_object.unwrap().into(), int_state));
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)

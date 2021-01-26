@@ -11,10 +11,11 @@ unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobj
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
-    if from_jclass(ofClass).as_type().is_primitive() {
+    let jvm = get_state(env);
+    if from_jclass(ofClass).as_type(jvm).is_primitive() {
         return std::ptr::null_mut();
     }
-    let em = from_jclass(ofClass).as_runtime_class().view().enclosing_method_view();
+    let em = from_jclass(ofClass).as_runtime_class(jvm).view().enclosing_method_view();
     match em {
         None => std::ptr::null_mut(),
         Some(_) => unimplemented!(),

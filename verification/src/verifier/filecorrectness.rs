@@ -49,7 +49,7 @@ pub fn class_is_final(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
 }
 
 
-pub fn loaded_class(vf: &VerifierContext, class_name: ClassName, loader: LoaderName) -> Result<ClassWithLoader, TypeSafetyError> {
+pub fn loaded_class(_vf: &VerifierContext, class_name: ClassName, loader: LoaderName) -> Result<ClassWithLoader, TypeSafetyError> {
     Result::Ok(ClassWithLoader { class_name, loader })
     // if vf.classes.class_loaded_by(&class_name, &loader) {
     //     Result::Ok(ClassWithLoader { class_name, loader })

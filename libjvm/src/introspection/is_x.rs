@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jboolean, jclass, jdouble, JNIEnv, JVM_Available};
+use jvmti_jni_bindings::{jboolean, jclass, jdouble, JNIEnv, JVM_Available, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::java_values::JavaValue;
@@ -18,8 +18,9 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
+    let jvm = get_state(env);
     let obj = from_object(cls);
-    let runtime_class = JavaValue::Object(obj).cast_class().as_runtime_class();
+    let runtime_class = JavaValue::Object(obj).cast_class().as_runtime_class(jvm);
     (match runtime_class.deref() {
         RuntimeClass::Byte => false,
         RuntimeClass::Boolean => false,
@@ -39,13 +40,15 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    is_array_impl(cls).unwrap()
+    let jvm = get_state(env);
+    is_array_impl(jvm, cls).unwrap()
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
-    let type_ = JavaValue::Object(from_object(cls)).cast_class().as_type();
+    let jvm = get_state(env);
+    let type_ = JavaValue::Object(from_object(cls)).cast_class().as_type(jvm);
     type_.is_primitive() as jboolean
 }
 

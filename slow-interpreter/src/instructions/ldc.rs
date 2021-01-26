@@ -17,10 +17,10 @@ use crate::java_values::{ArrayObject, JavaValue, Object};
 fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
     let res_class_name = c.class_name();
     let type_ = PTypeView::Ref(res_class_name);
-    load_class_constant_by_type(state, int_state, &type_);
+    load_class_constant_by_type(state, int_state, type_);
 }
 
-pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: &PTypeView) {
+pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: PTypeView) {
     let object = get_or_create_class_object(jvm, res_class_type, int_state).unwrap();
     // dbg!(object.clone().lookup_field("name"));
     // dbg!(object.clone());
@@ -51,13 +51,12 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
         interpreter_state,
         chars,
         PTypeView::CharType,
-        jvm.thread_state.new_monitor("monitor for a string".to_string()),
-        interpreter_state.current_loader(),
+        jvm.thread_state.new_monitor("monitor for a string".to_string())
     ))))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
-    let next_entry = StackEntry::new_java_frame(final_target_class, constructor_i as u16, args);
+    let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
     let function_call_frame = interpreter_state.push_frame(next_entry);
     run_function(jvm, interpreter_state);
     interpreter_state.pop_frame(function_call_frame);

@@ -5,17 +5,20 @@ use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
+use num_cpus::get;
+
 use classfile_view::loading::ClassLoadingError;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
+use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
+use slow_interpreter::class_loading::check_inited_class;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
-use slow_interpreter::interpreter_util::{check_inited_class, check_inited_class_override_loader, push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
@@ -35,8 +38,8 @@ pub mod method_annotations;
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let interface_vec = from_jclass(cls).as_runtime_class().view().interfaces().map(|interface| {
-        let class_obj = get_or_create_class_object(jvm, &ClassName::Str(interface.interface_name()).into(), int_state).unwrap();
+    let interface_vec = from_jclass(cls).as_runtime_class(jvm).view().interfaces().map(|interface| {
+        let class_obj = get_or_create_class_object(jvm, ClassName::Str(interface.interface_name()).into(), int_state).unwrap();
         JavaValue::Object(Some(class_obj))
     }).collect::<Vec<_>>();
     //todo helper function for this:
@@ -65,9 +68,9 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let object = from_object(cls);
-    let temp = JavaValue::Object(object).cast_class().as_type();
+    let temp = JavaValue::Object(object).cast_class().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
-    new_local_ref_public(JClass::from_type(jvm, int_state, &object_class.unwrap_array()).java_value().unwrap_object(), int_state)
+    new_local_ref_public(JClass::from_type(jvm, int_state, object_class.unwrap_array()).java_value().unwrap_object(), int_state)
 }
 
 #[no_mangle]
@@ -75,18 +78,18 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let jclass = from_jclass(cls);
-    let type_ = jclass.as_type();
+    let type_ = jclass.as_type(jvm);
     if type_.is_primitive() {
         // is primitive
         // essentially an abstract class of the non-primitive version
         //todo find a better way to do this
         let obj = from_object(cls);
-        let type_ = JavaValue::Object(obj).cast_class().as_type();
+        let type_ = JavaValue::Object(obj).cast_class().as_type(jvm);
         let name = type_.unwrap_type_to_name().unwrap();
-        let class_for_access_flags = check_inited_class(jvm, int_state, name.into()).unwrap();
+        let class_for_access_flags = check_inited_class(jvm, int_state, name.into());
         (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
     } else {
-        jclass.as_runtime_class().view().access_flags() as jint
+        jclass.as_runtime_class(jvm).view().access_flags() as jint
     }
 }
 
@@ -111,7 +114,8 @@ pub mod get_methods;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
-    let res = from_jclass(cls).as_runtime_class().view().access_flags() as i32;
+    let jvm = get_state(env);
+    let res = from_jclass(cls).as_runtime_class(jvm).view().access_flags() as i32;
     res
 }
 
@@ -147,7 +151,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
-    load_class_constant_by_type(jvm, int_state, &type_);
+    load_class_constant_by_type(jvm, int_state, type_);
     let jclass = int_state.pop_current_operand_stack().unwrap_object();
     new_local_ref_public(jclass, int_state)
 }
@@ -172,8 +176,8 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let class_lookup_result = get_or_create_class_object(
         jvm,
-        &PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))),
-        int_state
+        PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))),
+        int_state,
     );
     //todo exception making code maybe should be here idk
     match class_lookup_result {
@@ -185,7 +189,8 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
-    let obj = from_jclass(cls).as_runtime_class();
+    let jvm = get_state(env);
+    let obj = from_jclass(cls).as_runtime_class(jvm);
     let full_name = &obj.ptypeview().class_name_representation().replace("/", ".");//todo need a standard way of doing this
     new_string_with_string(env, full_name.to_string())
 }

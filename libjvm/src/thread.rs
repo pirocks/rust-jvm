@@ -18,7 +18,7 @@ use jvmti_jni_bindings::{jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobje
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 use slow_interpreter::interpreter::run_function;
-use slow_interpreter::interpreter_util::{check_inited_class_override_loader, push_new_object};
+use slow_interpreter::interpreter_util::push_new_object;
 use slow_interpreter::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;

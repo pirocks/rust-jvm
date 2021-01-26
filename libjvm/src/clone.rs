@@ -31,7 +31,6 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                         monitor: jvm.thread_state.new_monitor("".to_string()),
                         fields: UnsafeCell::new(o.fields_mut().iter().map(|(k, v)| { (k.clone(), v.clone()) }).collect()),
                         class_pointer: o.class_pointer.clone(),
-                        class_object_type: o.class_object_type.clone(),
                     })).into()
                 }
             }

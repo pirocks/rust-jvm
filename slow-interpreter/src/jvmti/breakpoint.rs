@@ -12,7 +12,7 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
     let method_id = from_jmethod_id(method);
     // dbg!(&method_id);
     let lookup_res = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
-    let mv = lookup_res.0.view().method_view_i(lookup_res.1 as usize);
+    // let mv = lookup_res.0.view().method_view_i(lookup_res.1 as usize);
     // dbg!(mv.name());
     // dbg!(mv.classview().name());
     let mut breakpoint_guard = jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap();

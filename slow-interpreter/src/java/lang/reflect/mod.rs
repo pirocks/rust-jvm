@@ -85,7 +85,7 @@ fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
             PTypeView::Ref(x)
         })
         .map(|x| {
-            JClass::from_type(jvm, int_state, &x).java_value()
+            JClass::from_type(jvm, int_state, x).java_value()
         })
         .collect();
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
@@ -93,8 +93,7 @@ fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         int_state,
         exception_table,
         class_type,
-        jvm.thread_state.new_monitor("".to_string()),
-        int_state.current_loader()
+        jvm.thread_state.new_monitor("".to_string())
     )))))
 }
 
@@ -103,7 +102,7 @@ fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard
     let mut res = vec![];
     let parsed = method_view.desc();
     for param_type in parsed.parameter_types {
-        res.push(JClass::from_type(jvm, int_state, &PTypeView::from_ptype(&param_type)).java_value());
+        res.push(JClass::from_type(jvm, int_state, PTypeView::from_ptype(&param_type)).java_value());
     }
 
     JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
@@ -111,8 +110,7 @@ fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         int_state,
         res,
         class_type,
-        jvm.thread_state.new_monitor("".to_string()),
-        int_state.current_loader()
+        jvm.thread_state.new_monitor("".to_string())
     )))))
 }
 
@@ -153,7 +151,7 @@ pub mod method {
             let clazz = {
                 let field_class_name = method_view.classview().name();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
-                load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name)));
+                load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name)));
                 int_state.pop_current_operand_stack().cast_class()
             };
             let name = {
@@ -163,7 +161,7 @@ pub mod method {
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view);
             let return_type = {
                 let rtype = method_view.desc().return_type;
-                JClass::from_type(jvm, int_state, &PTypeView::from_ptype(&rtype))
+                JClass::from_type(jvm, int_state, PTypeView::from_ptype(&rtype))
             };
             let exception_types = exception_types_table(jvm, int_state, &method_view);
             let modifiers = get_modifiers(&method_view);
@@ -269,7 +267,7 @@ pub mod constructor {
             let clazz = {
                 let field_class_name = class_obj.view().name();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
-                load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(field_class_name.clone())));
+                load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name.clone())));
                 int_state.pop_current_operand_stack().cast_class()
             };
 
@@ -358,8 +356,7 @@ pub mod field {
                 int_state,
                 annotations,
                 PTypeView::ByteType,
-                jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
-                int_state.current_loader()
+                jvm.thread_state.new_monitor("monitor for annotations array".to_string())
             )))));
 
             run_constructor(

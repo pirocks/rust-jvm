@@ -120,8 +120,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
             int_state,
             new_vec,
             next_type.clone(),
-            jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string()),
-            int_state.current_loader(),
+            jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string())
         ))).into());
         current_type = next_type;
     }

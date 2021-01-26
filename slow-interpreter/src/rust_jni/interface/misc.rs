@@ -35,7 +35,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let jvm = get_state(env);
     let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
     assert!(remaining.is_empty());
-    load_class_constant_by_type(jvm, int_state, &PTypeView::from_ptype(&type_));
+    load_class_constant_by_type(jvm, int_state, PTypeView::from_ptype(&type_));
     let obj = int_state.pop_current_operand_stack().unwrap_object();
     new_local_ref_public(obj, int_state)
 }
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
     let _inited_class = assert_inited_or_initing_class(jvm, int_state, super_name.clone().into());
-    load_class_constant_by_type(jvm, int_state, &PTypeView::Ref(ReferenceTypeView::Class(super_name)));
+    load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
 }
 
