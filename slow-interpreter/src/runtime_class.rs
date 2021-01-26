@@ -32,16 +32,15 @@ pub enum RuntimeClass {
 #[derive(Debug)]
 pub struct RuntimeClassArray {
     pub sub_class: Arc<RuntimeClass>,
-    pub(crate) loader: LoaderName,
 }
 
 
 pub struct RuntimeClassClass {
     classfile: Arc<Classfile>,
-    class_view: Arc<ClassView>,
-    static_vars: RwLock<Option<HashMap<String, JavaValue>>>,
+    pub(crate) class_view: Arc<ClassView>,
+    pub(crate) static_vars: RwLock<Option<HashMap<String, JavaValue>>>,
     //class may not be prepared
-    status: ClassStatus,
+    pub(crate) status: ClassStatus,
 }
 
 impl RuntimeClass {

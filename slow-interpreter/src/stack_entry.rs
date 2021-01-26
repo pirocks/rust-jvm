@@ -10,6 +10,7 @@ use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classfile::CPIndex;
 
 use crate::java_values::{JavaValue, Object};
+use crate::jvm_state::JVMState;
 use crate::runtime_class::RuntimeClass;
 
 /// If the frame is opaque then this data is optional.
@@ -52,11 +53,11 @@ impl StackEntry {
         }
     }
 
-    pub fn new_java_frame(class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
+    pub fn new_java_frame(jvm: &JVMState, class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
         let max_locals = class_pointer.view().method_view_i(method_i as usize).method_info().code_attribute().unwrap().max_locals;
         assert!(args.len() >= max_locals as usize);
         Self {
-            loader: todo!(),
+            loader: jvm.classes.write().unwrap().initiating_loaders.get(&ByAddress(class_pointer.clone())).unwrap().clone(),
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
             non_native_data: Some(NonNativeFrameData { pc: 0, pc_offset: 0 }),
             local_vars: args,
@@ -67,7 +68,7 @@ impl StackEntry {
 
     pub fn new_native_frame(class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
         Self {
-            loader: todo!(),
+            loader: jvm.classes.write().unwrap().initiating_loaders.get(&ByAddress(class_pointer.clone())).unwrap().clone(),//todo dup, make into function
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
             non_native_data: None,
             local_vars: args,

@@ -49,21 +49,7 @@ pub fn get_or_create_class_object_override_loader(jvm: &JVMState,
 fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader: LoaderName, override_: bool) -> Result<Arc<Object>, ClassLoadingError> {
     // let current_frame = int_state.current_frame_mut();
     let guard = jvm.classes.write().unwrap();
-    let runtime_class = todo!();/*if let Some(class) = guard.is_loaded(&ptype) {
-        let res = class;
-        drop(guard);
-        if ptype == ClassName::Str("Test3".to_string()).into() {
-            dbg!(&res);
-        }
-        res
-    } else {
-        drop(guard);
-        if override_ {
-            check_inited_class_override_loader(jvm, int_state, &ptype, loader)?
-        } else {
-            check_inited_class(jvm, int_state, ptype.clone())?
-        }
-    };*/
+    let runtime_class = todo!();
     // assert_eq!(runtime_class.loader(),loader);
     let mut classes = jvm.classes.write().unwrap();
     let res = classes.class_object_pool.entry(runtime_class.loader()).or_default().get(&ptype).cloned();
@@ -80,19 +66,13 @@ fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut Interp
                 //normally names are obtained with getName0 which gets handled in libjvm.so
                 let jstring = JString::from_rust(jvm, int_state, runtime_class.ptypeview().primitive_name().to_string());
                 r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
-            }/*else if !runtime_class.ptypeview().is_array() {
-                let jstring = JString::from(state, int_state, runtime_class.ptypeview().unwrap_class_type().get_referred_name().to_string());
-                r.unwrap_normal_object().fields_mut().insert("name".to_string(), jstring.java_value());
-            }*/
+            }
             let loader_val = match runtime_class.loader() {
                 LoaderName::UserDefinedLoader(idx) => {
                     JavaValue::Object(Some(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().0.clone()))
                 }
                 LoaderName::BootstrapLoader => JavaValue::Object(None)
             };
-            if ptype == ClassName::Str("Test3".to_string()).into() {
-                dbg!(&loader_val);
-            }
             match ptype {
                 PTypeView::Ref(ref_) => {
                     match ref_ {
