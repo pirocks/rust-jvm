@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
+use classfile_parser::code::InstructionTypeNum::checkcast;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{Atype, MultiNewArray};
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
@@ -14,8 +15,8 @@ pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
     // int_state.print_stack_trace();
     // dbg!(target_class_name);
-    let target_classfile = assert_inited_or_initing_class(jvm,
-                                                          int_state, target_class_name.clone().into());
+    let target_classfile = check_initing_or_inited_class(jvm,
+                                                         int_state, target_class_name.clone().into());
     push_new_object(jvm, int_state, &target_classfile);
 }
 
@@ -43,7 +44,7 @@ pub fn anewarray(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u1
 
 pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, len: i32, t: PTypeView) {
     // if let Some(name) = t.unwrap_type_to_name(){
-    assert_inited_or_initing_class(
+    check_initing_or_inited_class(
         jvm,
         int_state,
         t.clone(),

@@ -62,7 +62,7 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_
     let target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
-        let interface_lookup_res = get_static_impl(jvm, int_state, &ClassName::Str(interfaces.interface_name()), field_name);
+        let interface_lookup_res = get_static_impl(jvm, int_state, &interfaces.interface_name(), field_name);
         if interface_lookup_res.is_some() {
             return interface_lookup_res;
         }

@@ -302,7 +302,7 @@ pub mod string {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
-    use crate::class_loading::assert_inited_or_initing_class;
+    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java_values::{ArrayObject, JavaValue};
@@ -326,7 +326,7 @@ pub mod string {
         }
 
         pub fn from_rust(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
-            let string_class = assert_inited_or_initing_class(jvm, int_state, ClassName::string().into());
+            let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into());
             push_new_object(jvm, int_state, &string_class);
             // dbg!(int_state.current_frame().local_vars());
             // dbg!(int_state.current_frame().operand_stack());
@@ -347,7 +347,7 @@ pub mod string {
 
         pub fn intern(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
             int_state.push_current_operand_stack(self.clone().java_value());
-            let thread_class = assert_inited_or_initing_class(jvm, int_state, ClassName::string().into());
+            let thread_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into());
             run_static_or_virtual(
                 jvm,
                 int_state,

@@ -133,7 +133,7 @@ fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, in
 
 fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i: InterfaceView) -> Arc<RuntimeClass> {
     let intf_name = i.interface_name();
-    assert_inited_or_initing_class(jvm, int_state, ClassName::Str(intf_name).into())
+    assert_inited_or_initing_class(jvm, int_state, intf_name.into())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>

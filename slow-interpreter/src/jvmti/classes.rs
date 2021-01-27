@@ -51,7 +51,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(
     for (i, interface) in class_view.interfaces().enumerate() {
         let interface_obj = get_or_create_class_object(
             jvm,
-            ClassName::Str(interface.interface_name()).into(),
+            interface.interface_name().into(),
             int_state,
         );
         let interface_class = new_local_ref_public(interface_obj.unwrap().into(), int_state);

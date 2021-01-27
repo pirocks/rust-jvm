@@ -14,7 +14,7 @@ use rust_jvm_common::classnames::ClassName;
 use userspace_threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::interpreter::run_function;
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
 use crate::interpreter_util::push_new_object;
@@ -157,7 +157,7 @@ impl ThreadState {
         let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader);
         let frame_for_bootstrapping = new_int_state.push_frame(frame);
 
-        let thread_classfile = assert_inited_or_initing_class(jvm, &mut new_int_state, ClassName::thread().into());
+        let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::thread().into());
 
         push_new_object(jvm, &mut new_int_state, &thread_classfile);
         let thread_object = new_int_state.pop_current_operand_stack().cast_thread();

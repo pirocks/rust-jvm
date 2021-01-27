@@ -55,7 +55,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
     let class_name = class_view.name();
     // dbg!(&jvm.classes.read().unwrap().prepared_classes.get(&LoaderName::BootstrapLoader).unwrap().keys());
-    let prepared = Arc::new(prepare_class(jvm, parsed.clone(), current_loader));
+    let prepared = Arc::new(prepare_class(jvm, parsed.clone(), todo!()));
     todo!()
 }
 

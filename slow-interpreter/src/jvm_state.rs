@@ -1,5 +1,6 @@
 use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::RandomState;
 use std::ffi::c_void;
 use std::mem::transmute;
 use std::ops::Deref;
@@ -13,6 +14,7 @@ use by_address::ByAddress;
 use libloading::Library;
 
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
+use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
@@ -30,7 +32,7 @@ use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
 use crate::native_allocation::NativeAllocator;
 use crate::options::{JVMOptions, SharedLibraryPaths};
-use crate::runtime_class::RuntimeClass;
+use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
 
@@ -70,6 +72,7 @@ pub struct Classes {
     pub class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>>,
     pub anon_classes: RwLock<Vec<Arc<RuntimeClass>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
+    pub class_class: Arc<RuntimeClass>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -115,13 +118,7 @@ impl JVMState {
             }.into()
         } else { None };
         let thread_state = ThreadState::new();
-        let classes = RwLock::new(Classes {
-            loaded_classes_by_type: Default::default(),
-            initiating_loaders: Default::default(),
-            class_object_pool: Default::default(),
-            anon_classes: Default::default(),
-            anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
-        });
+        let classes = JVMState::init_classes(&classpath_arc);
         let string_pool = StringPool {
             entries: HashSet::new()
         };
@@ -149,6 +146,26 @@ impl JVMState {
             resolved_method_handles: RwLock::new(HashMap::new()),
         };
         (args, jvm)
+    }
+
+    fn init_classes(classpath_arc: &Arc<Classpath>) -> RwLock<Classes> {
+        //todo turn this into a ::new
+        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
+            class_view: Arc::new(ClassView::from(classpath_arc.lookup(&ClassName::class()).unwrap())),
+            static_vars: Default::default(),
+            status: ClassStatus::UNPREPARED.into(),
+        }));
+        let mut initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass>), RandomState> = Default::default();
+        initiating_loaders.insert(ClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
+        let classes = RwLock::new(Classes {
+            loaded_classes_by_type: Default::default(),
+            initiating_loaders,
+            class_object_pool: Default::default(),
+            anon_classes: Default::default(),
+            anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
+            class_class,
+        });
+        classes
     }
 
     pub fn get_or_create_bootstrap_object_loader(&self, int_state: &mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
@@ -200,13 +217,13 @@ pub struct LibJavaLoading {
     pub libnio: Library,
     pub libawt: Library,
     pub libxawt: Library,
-    pub libzip: Library,
+    // pub libzip: Library,
     pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass>>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
 }
 
 impl LibJavaLoading {
     pub unsafe fn load(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt, &self.libzip] {//todo reenable
+        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt/*, &self.libzip*/] {//todo reenable
             let on_load = library.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
             let onload_fn_ptr = on_load.deref();
             let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);

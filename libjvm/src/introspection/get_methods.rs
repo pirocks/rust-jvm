@@ -9,7 +9,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
-use slow_interpreter::class_loading::check_inited_class;
+use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
@@ -42,7 +42,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
     }
     let runtime_class = of_class_obj.as_runtime_class(jvm);
     let methods = get_all_methods(jvm, int_state, runtime_class);
-    let method_class = check_inited_class(jvm, int_state, ClassName::method().into());
+    let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into());
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {

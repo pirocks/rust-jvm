@@ -1,3 +1,5 @@
+use rust_jvm_common::classnames::ClassName;
+
 use crate::view::ClassView;
 
 pub struct InterfaceView<'l> {
@@ -17,8 +19,8 @@ impl<'l> InterfaceView<'l> {
     fn from(c: &ClassView, i: usize) -> InterfaceView {
         InterfaceView { view: c, i }
     }
-    pub fn interface_name(&self) -> String {
-        self.view.backing_class.extract_class_from_constant_pool_name(self.view.backing_class.interfaces[self.i])
+    pub fn interface_name(&self) -> ClassName {
+        ClassName::Str(self.view.backing_class.extract_class_from_constant_pool_name(self.view.backing_class.interfaces[self.i]))
     }
 }
 

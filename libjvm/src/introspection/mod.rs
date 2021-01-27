@@ -15,7 +15,7 @@ use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEn
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
-use slow_interpreter::class_loading::check_inited_class;
+use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
@@ -39,7 +39,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let interface_vec = from_jclass(cls).as_runtime_class(jvm).view().interfaces().map(|interface| {
-        let class_obj = get_or_create_class_object(jvm, ClassName::Str(interface.interface_name()).into(), int_state).unwrap();
+        let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state).unwrap();
         JavaValue::Object(Some(class_obj))
     }).collect::<Vec<_>>();
     //todo helper function for this:
@@ -86,7 +86,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
         let obj = from_object(cls);
         let type_ = JavaValue::Object(obj).cast_class().as_type(jvm);
         let name = type_.unwrap_type_to_name().unwrap();
-        let class_for_access_flags = check_inited_class(jvm, int_state, name.into());
+        let class_for_access_flags = check_initing_or_inited_class(jvm, int_state, name.into());
         (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
     } else {
         jclass.as_runtime_class(jvm).view().access_flags() as jint

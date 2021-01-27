@@ -14,6 +14,7 @@ pub fn get_or_create_class_object(jvm: &JVMState,
                                   _int_state: &mut InterpreterStateGuard,
 ) -> Result<Arc<Object>, ClassLoadingError> {
     let guard = jvm.classes.write().unwrap();
+    dbg!(&type_)
     let (_loader, arc) = guard.initiating_loaders.get(&type_).unwrap();
     Ok(guard.class_object_pool.get_by_right(&ByAddress(arc.clone())).unwrap().clone().0)
 }

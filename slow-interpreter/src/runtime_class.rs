@@ -37,9 +37,9 @@ pub struct RuntimeClassArray {
 
 pub struct RuntimeClassClass {
     pub(crate) class_view: Arc<ClassView>,
-    pub(crate) static_vars: RwLock<Option<HashMap<String, JavaValue>>>,
+    pub(crate) static_vars: RwLock<HashMap<String, JavaValue>>,
     //class may not be prepared
-    pub(crate) status: ClassStatus,
+    pub(crate) status: RwLock<ClassStatus>,
 }
 
 impl RuntimeClass {
@@ -106,7 +106,7 @@ impl RuntimeClass {
             RuntimeClass::Double => unimplemented!(),
             RuntimeClass::Void => unimplemented!(),
             RuntimeClass::Array(_) => unimplemented!(),
-            RuntimeClass::Object(_) => todo!(),
+            RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
         }
     }
 
@@ -123,7 +123,23 @@ impl RuntimeClass {
             RuntimeClass::Double => todo!(),
             RuntimeClass::Void => todo!(),
             RuntimeClass::Array(a) => a.sub_class.status(),
-            RuntimeClass::Object(o) => o.status
+            RuntimeClass::Object(o) => *o.status.read().unwrap()
+        }
+    }
+
+    pub fn set_status(&self, status: ClassStatus) {
+        match self {
+            RuntimeClass::Byte => todo!(),
+            RuntimeClass::Boolean => todo!(),
+            RuntimeClass::Short => todo!(),
+            RuntimeClass::Char => todo!(),
+            RuntimeClass::Int => todo!(),
+            RuntimeClass::Long => todo!(),
+            RuntimeClass::Float => todo!(),
+            RuntimeClass::Double => todo!(),
+            RuntimeClass::Void => todo!(),
+            RuntimeClass::Array(a) => a.sub_class.set_status(status),
+            RuntimeClass::Object(o) => *o.status.write().unwrap() = status,
         }
     }
 }
@@ -150,8 +166,7 @@ impl Debug for RuntimeClassClass {
 
 // impl Eq for RuntimeClass {}
 
-pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderName) -> RuntimeClass {
-    let mut res = HashMap::new();
+pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, res: &mut HashMap<String, JavaValue>) {
     for field in &classfile.fields {
         if (field.access_flags & ACC_STATIC) > 0 {
             let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
@@ -161,12 +176,6 @@ pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, loader: LoaderN
             res.insert(name, val);
         }
     }
-    //todo doesn't cover all fields and need to deal with super, same name issue
-    RuntimeClassClass {
-        class_view: Arc::new(ClassView::from(classfile.clone())),
-        static_vars: RwLock::new(res.into()),
-        status: ClassStatus::PREPARED,
-    }.into()
 }
 
 
@@ -201,12 +210,11 @@ pub fn initialize_class(
         }
     }
     //todo detecting if assertions are enabled?
-    let class_arc = runtime_class;
-    let view = &class_arc.view();
+    let view = &runtime_class.view();
     let lookup_res = view.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
     let clinit = match lookup_res.get(0) {
-        None => return class_arc.into(),
+        None => return runtime_class.into(),
         Some(x) => x,
     };
     //todo should I really be manipulating the interpreter state like this
@@ -217,7 +225,7 @@ pub fn initialize_class(
         locals.push(JavaValue::Top);
     }
 
-    let new_stack = StackEntry::new_java_frame(jvm, class_arc.clone(), clinit.method_i() as u16, locals);
+    let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
     //todo these java frames may have to be converted to native?
     let new_function_frame = interpreter_state.push_frame(new_stack);
     run_function(jvm, interpreter_state);
@@ -229,7 +237,7 @@ pub fn initialize_class(
     let function_return = interpreter_state.function_return_mut();
     if *function_return {
         *function_return = false;
-        return class_arc.into();
+        return runtime_class.into();
     }
     panic!()
 }

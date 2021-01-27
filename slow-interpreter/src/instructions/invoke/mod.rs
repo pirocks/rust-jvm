@@ -5,7 +5,7 @@ use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 use crate::utils::lookup_method_parsed;
@@ -252,7 +252,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         _ => panic!()
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
-    let resolved_class = assert_inited_or_initing_class(
+    let resolved_class = check_initing_or_inited_class(
         jvm,
         int_state,
         class_name_.into(),
