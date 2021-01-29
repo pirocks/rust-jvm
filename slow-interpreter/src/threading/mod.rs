@@ -163,7 +163,7 @@ impl ThreadState {
         let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
-        let thread_group_class = assert_inited_or_initing_class(jvm, &mut new_int_state, ClassName::Str("java/lang/ThreadGroup".to_string()).into());
+        let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::Str("java/lang/ThreadGroup".to_string()).into());
         let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state, thread_group_class);
         *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());

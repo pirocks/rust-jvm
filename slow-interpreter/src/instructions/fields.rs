@@ -85,6 +85,7 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_
 }
 
 pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
+    int_state.print_stack_trace();
     let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let view = &current_frame.class_pointer().view();
     let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
@@ -102,6 +103,7 @@ pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
                 dbg!(&o);
                 dbg!(&fields.keys());
             }
+            dbg!(&field_name);
             let res = fields.get(field_name.as_str()).unwrap().clone();
             current_frame.push(res);
         }

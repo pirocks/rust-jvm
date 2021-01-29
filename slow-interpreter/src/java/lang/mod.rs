@@ -302,7 +302,7 @@ pub mod string {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
-    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+    use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java_values::{ArrayObject, JavaValue};

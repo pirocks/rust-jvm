@@ -22,7 +22,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use verification::ClassFileGetter;
 
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_loaded_class};
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
@@ -122,7 +122,7 @@ impl JVMState {
         let string_pool = StringPool {
             entries: HashSet::new()
         };
-        let jvm = Self {
+        let mut jvm = Self {
             properties,
             loaders: RwLock::new(HashMap::new()),
             system_domain_loader: true,
@@ -145,7 +145,19 @@ impl JVMState {
             unittest_mode,
             resolved_method_handles: RwLock::new(HashMap::new()),
         };
+        jvm.add_class_class_class_object();
         (args, jvm)
+    }
+
+    fn add_class_class_class_object(&mut self) {
+        let mut classes = self.classes.write().unwrap();
+        let class_object = Arc::new(Object::Object(NormalObject {
+            monitor: self.thread_state.new_monitor("class class object monitor".to_string()),
+            fields: UnsafeCell::new(Default::default()),
+            class_pointer: classes.class_class.clone(),
+        }));
+        let runtime_class = ByAddress(classes.class_class.clone());
+        classes.class_object_pool.insert(ByAddress(class_object), runtime_class);
     }
 
     fn init_classes(classpath_arc: &Arc<Classpath>) -> RwLock<Classes> {
@@ -157,10 +169,11 @@ impl JVMState {
         }));
         let mut initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass>), RandomState> = Default::default();
         initiating_loaders.insert(ClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
+        let mut class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>> = Default::default();
         let classes = RwLock::new(Classes {
             loaded_classes_by_type: Default::default(),
             initiating_loaders,
-            class_object_pool: Default::default(),
+            class_object_pool,
             anon_classes: Default::default(),
             anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
             class_class,

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
-use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;
@@ -113,15 +112,15 @@ impl RuntimeClass {
 
     pub fn status(&self) -> ClassStatus {
         match self {
-            RuntimeClass::Byte => todo!(),
-            RuntimeClass::Boolean => todo!(),
-            RuntimeClass::Short => todo!(),
-            RuntimeClass::Char => todo!(),
-            RuntimeClass::Int => todo!(),
-            RuntimeClass::Long => todo!(),
-            RuntimeClass::Float => todo!(),
-            RuntimeClass::Double => todo!(),
-            RuntimeClass::Void => todo!(),
+            RuntimeClass::Byte => ClassStatus::INITIALIZED,
+            RuntimeClass::Boolean => ClassStatus::INITIALIZED,
+            RuntimeClass::Short => ClassStatus::INITIALIZED,
+            RuntimeClass::Char => ClassStatus::INITIALIZED,
+            RuntimeClass::Int => ClassStatus::INITIALIZED,
+            RuntimeClass::Long => ClassStatus::INITIALIZED,
+            RuntimeClass::Float => ClassStatus::INITIALIZED,
+            RuntimeClass::Double => ClassStatus::INITIALIZED,
+            RuntimeClass::Void => ClassStatus::INITIALIZED,
             RuntimeClass::Array(a) => a.sub_class.status(),
             RuntimeClass::Object(o) => *o.status.read().unwrap()
         }

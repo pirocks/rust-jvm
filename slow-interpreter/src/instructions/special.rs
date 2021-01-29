@@ -7,7 +7,7 @@ use rust_jvm_common::classfile::{IInc, Wide};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::java_values;
 use crate::java_values::JavaValue;
 use crate::java_values::Object::{Array, Object};
@@ -109,7 +109,7 @@ pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, u
         Object(object) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
-                    let instanceof_class = assert_inited_or_initing_class(jvm, int_state, instance_of_class_name.into());
+                    let instanceof_class = check_resolved_class(jvm, int_state, instance_of_class_name.into());//todo check if this should be here
                     let object_class = object.class_pointer.clone();
                     if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
                         int_state.push_current_operand_stack(JavaValue::Int(1))

@@ -6,17 +6,28 @@ use classfile_view::loading::ClassLoadingError;
 use classfile_view::view::ptype_view::PTypeView;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::class_loading::check_resolved_class;
 use crate::java_values::Object;
 
 //todo do something about this class object crap
 pub fn get_or_create_class_object(jvm: &JVMState,
                                   type_: PTypeView,
-                                  _int_state: &mut InterpreterStateGuard,
+                                  int_state: &mut InterpreterStateGuard,
 ) -> Result<Arc<Object>, ClassLoadingError> {
     let guard = jvm.classes.write().unwrap();
-    dbg!(&type_)
-    let (_loader, arc) = guard.initiating_loaders.get(&type_).unwrap();
-    Ok(guard.class_object_pool.get_by_right(&ByAddress(arc.clone())).unwrap().clone().0)
+    dbg!(&type_);
+    let arc = match guard.initiating_loaders.get(&type_) {
+        Some((_loader, x)) => {
+            let res = x.clone();
+            drop(guard);
+            res
+        },
+        None => {
+            drop(guard);
+            check_resolved_class(jvm, int_state, type_)
+        }
+    };
+    Ok(jvm.classes.write().unwrap().class_object_pool.get_by_right(&ByAddress(arc.clone())).unwrap().clone().0)
 }
 
 // fn regular_class_object(jvm: &JVMState, ptype: PTypeView, int_state: &mut InterpreterStateGuard, loader: LoaderName, override_: bool) -> Result<Arc<Object>, ClassLoadingError> {
