@@ -24,7 +24,7 @@ pub mod dynamic {
     use rust_jvm_common::ptype::{PType, ReferenceType};
 
     use crate::{InterpreterStateGuard, JVMState};
-    use crate::class_loading::assert_inited_or_initing_class;
+    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::ExceptionError;
@@ -36,17 +36,17 @@ pub mod dynamic {
     use crate::java_values::JavaValue;
 
     pub fn invoke_dynamic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-        let method_handle_class = assert_inited_or_initing_class(
+        let method_handle_class = check_initing_or_inited_class(
             jvm,
             int_state,
             ClassName::method_handle().into(),
         );
-        let _method_type_class = assert_inited_or_initing_class(
+        let _method_type_class = check_initing_or_inited_class(
             jvm,
             int_state,
             ClassName::method_type().into(),
         );
-        let _call_site_class = assert_inited_or_initing_class(
+        let _call_site_class = check_initing_or_inited_class(
             jvm,
             int_state,
             ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),

@@ -5,7 +5,7 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_resolved_class};
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::java_values::{default_value, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
@@ -32,7 +32,7 @@ fn default_init_fields(
     view: &ClassView,
 ) -> Result<(), ClassLoadingError> {
     if let Some(super_name) = view.super_name() {
-        let loaded_super = assert_inited_or_initing_class(jvm, int_state, super_name.into());//todo this shouldn't be doing any loading so its okay to not override loader
+        let loaded_super = check_resolved_class(jvm, int_state, super_name.into());
         default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &loaded_super.view()).unwrap();
     }
     for field in view.fields() {

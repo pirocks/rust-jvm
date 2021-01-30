@@ -6,7 +6,7 @@ use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::setup_virtual_args;
@@ -16,7 +16,7 @@ use crate::runtime_class::RuntimeClass;
 pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, int_state.current_frame_mut().class_pointer().view());
     let method_class_name = method_class_type.unwrap_class_type();
-    let target_class = assert_inited_or_initing_class(
+    let target_class = check_initing_or_inited_class(
         jvm,
         int_state,
         method_class_name.into(),

@@ -96,7 +96,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    assert_inited_or_initing_class(jvm, int_state, PTypeView::Ref(type_.clone()));
+    check_initing_or_inited_class(jvm, int_state, PTypeView::Ref(type_.clone()));
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     // dbg!(&type_);

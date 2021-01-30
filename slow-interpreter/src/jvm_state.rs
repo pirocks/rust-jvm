@@ -151,9 +151,13 @@ impl JVMState {
 
     fn add_class_class_class_object(&mut self) {
         let mut classes = self.classes.write().unwrap();
+        //todo desketchify this
+        let mut fields: HashMap<String, JavaValue, RandomState> = Default::default();
+        fields.insert("name".to_string(), JavaValue::Object(None));
+        fields.insert("classLoader".to_string(), JavaValue::Object(None));
         let class_object = Arc::new(Object::Object(NormalObject {
             monitor: self.thread_state.new_monitor("class class object monitor".to_string()),
-            fields: UnsafeCell::new(Default::default()),
+            fields: UnsafeCell::new(fields),
             class_pointer: classes.class_class.clone(),
         }));
         let runtime_class = ByAddress(classes.class_class.clone());
@@ -181,26 +185,6 @@ impl JVMState {
         classes
     }
 
-    pub fn get_or_create_bootstrap_object_loader(&self, int_state: &mut InterpreterStateGuard) -> JavaValue {//todo this should really take frame as a parameter
-        if !self.vm_live() {
-            return JavaValue::Object(None);
-        }
-        let mut loader_guard = self.loaders.write().unwrap();
-        match loader_guard.get(&LoaderName::BootstrapLoader) {
-            None => {
-                let java_lang_class_loader = ClassName::new("java/lang/ClassLoader");
-                let class_loader_class = assert_inited_or_initing_class(self, int_state, java_lang_class_loader.into());
-                let res = Arc::new(Object::Object(NormalObject {
-                    monitor: self.thread_state.new_monitor("bootstrap loader object monitor".to_string()),
-                    fields: UnsafeCell::new(HashMap::new()),
-                    class_pointer: class_loader_class,
-                }));
-                loader_guard.insert(LoaderName::BootstrapLoader, res.clone());
-                JavaValue::Object(res.into())
-            }
-            Some(res) => { JavaValue::Object(res.clone().into()) }
-        }
-    }
 
     pub unsafe fn get_int_state<'l>(&self) -> &'l mut InterpreterStateGuard<'l> {
         assert!(self.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
@@ -230,7 +214,7 @@ pub struct LibJavaLoading {
     pub libnio: Library,
     pub libawt: Library,
     pub libxawt: Library,
-    // pub libzip: Library,
+    pub libzip: Library,
     pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass>>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
 }
 

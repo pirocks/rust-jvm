@@ -170,9 +170,11 @@ pub mod class {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
+    use crate::class_loading::check_initing_or_inited_class;
     use crate::class_objects::get_or_create_class_object;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::instructions::ldc::load_class_constant_by_type;
+    use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java_values::{JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
@@ -210,6 +212,23 @@ pub mod class {
             int_state.pop_current_operand_stack()
                 .unwrap_object()
                 .map(|cl| JavaValue::Object(cl.into()).cast_class_loader())
+        }
+
+        pub fn new_bootstrap_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Self {
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into());
+            push_new_object(jvm, int_state, &class_class);
+            let res = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::Object(None)], "(Ljava/lang/ClassLoader;)V".to_string());
+            res.cast_class()
+        }
+
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, loader: ClassLoader) -> Self {
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into());
+            push_new_object(jvm, int_state, &class_class);
+            let res = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], "()V".to_string());
+            res.cast_class()
         }
 
         pub fn from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: ClassName) -> JClass {

@@ -14,7 +14,7 @@ use rust_jvm_common::classnames::ClassName;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
 
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         None => return null_mut(),
         Some(n) => n,
     };
-    let _inited_class = assert_inited_or_initing_class(jvm, int_state, super_name.clone().into());
+    let _inited_class = assert_loaded_class(jvm, int_state, super_name.clone().into());
     load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name)));
     new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
 }
