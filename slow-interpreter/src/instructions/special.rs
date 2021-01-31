@@ -7,7 +7,7 @@ use rust_jvm_common::classfile::{IInc, Wide};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
-use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_resolved_class};
 use crate::java_values;
 use crate::java_values::JavaValue;
 use crate::java_values::Object::{Array, Object};
@@ -33,7 +33,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
         Object(o) => {
             let view = &int_state.current_frame_mut().class_pointer().view();
             let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
-            let instanceof_class = assert_inited_or_initing_class(jvm, int_state, instance_of_class_name.into());
+            let instanceof_class = check_initing_or_inited_class(jvm, int_state, instance_of_class_name.into());
             let object_class = o.class_pointer.clone();
             if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
@@ -55,8 +55,8 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
             let cast_succeeds = match &a.elem_type {
                 PTypeView::Ref(_) => {
                     //todo wrong for varying depth arrays?
-                    let actual_runtime_class = assert_inited_or_initing_class(jvm, int_state, a.elem_type.unwrap_class_type().into());
-                    let expected_runtime_class = assert_inited_or_initing_class(jvm, int_state, expected_type.unwrap_class_type().into());
+                    let actual_runtime_class = check_initing_or_inited_class(jvm, int_state, a.elem_type.unwrap_class_type().into());
+                    let expected_runtime_class = check_initing_or_inited_class(jvm, int_state, expected_type.unwrap_class_type().into());
                     inherits_from(jvm, int_state, &actual_runtime_class, &expected_runtime_class)
                 }
                 _ => {
@@ -125,7 +125,7 @@ pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, u
 
 fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
     if inherits.view().super_name().is_some() {
-        Some(assert_inited_or_initing_class(jvm, int_state, inherits.view().super_name().unwrap().into()))
+        Some(check_initing_or_inited_class(jvm, int_state, inherits.view().super_name().unwrap().into()))
     } else {
         None
     }
@@ -133,7 +133,7 @@ fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, in
 
 fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i: InterfaceView) -> Arc<RuntimeClass> {
     let intf_name = i.interface_name();
-    assert_inited_or_initing_class(jvm, int_state, intf_name.into())
+    check_initing_or_inited_class(jvm, int_state, intf_name.into())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>

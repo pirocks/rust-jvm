@@ -80,6 +80,7 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
             for interface in class.view().interfaces() {
                 check_initing_or_inited_class(jvm, int_state, interface.interface_name().into());
             }
+            assert!(int_state.throw().is_none());
             let res = initialize_class(class, jvm, int_state).unwrap();
             res.set_status(ClassStatus::INITIALIZED);
             res
@@ -174,7 +175,7 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                 (class_object, res)
             }
             ReferenceTypeView::Array(sub_type) => {
-                let sub_class = check_initing_or_inited_class(jvm, int_state, sub_type.deref().clone());
+                let sub_class = check_resolved_class(jvm, int_state, sub_type.deref().clone());
                 //todo handle class objects for arraus
                 (create_class_object(jvm, int_state, None, BootstrapLoader), Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
             }

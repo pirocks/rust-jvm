@@ -30,7 +30,9 @@ pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterSt
 
 fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
     let res_string = s.string();
-    let string = JString::from_rust(jvm, int_state, res_string).intern(jvm, int_state).java_value();
+    assert!(int_state.throw().is_none());
+    let before_intern = JString::from_rust(jvm, int_state, res_string);
+    let string = before_intern.intern(jvm, int_state).java_value();
     int_state.push_current_operand_stack(string);
 }
 
@@ -120,7 +122,8 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState, int_state:
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
-            int_state.pop_current_operand_stack().cast_string().intern(jvm, int_state).java_value()
+            let string_value = int_state.pop_current_operand_stack();
+            string_value.cast_string().intern(jvm, int_state).java_value()
         }
         _ => panic!()
     }

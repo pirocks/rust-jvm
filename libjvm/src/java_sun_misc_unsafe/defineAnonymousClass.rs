@@ -69,6 +69,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let class_object = create_class_object(jvm, int_state, None, current_loader);
     let mut classes = jvm.classes.write().unwrap();
     let current_loader = int_state.current_loader();
+    classes.anon_classes.write().unwrap().push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
     classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
     classes.class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));

@@ -95,6 +95,9 @@ impl Classes {
 
     pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass>) -> LoaderName {
         let (res, actual_class) = self.initiating_loaders.get(&class_.ptypeview()).unwrap();
+        // dbg!(res);
+        // dbg!(class_.view().name());
+        // dbg!(actual_class.view().name());
         assert!(Arc::ptr_eq(class_, actual_class));
         *res
     }
@@ -173,7 +176,7 @@ impl JVMState {
         }));
         let mut initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass>), RandomState> = Default::default();
         initiating_loaders.insert(ClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
-        let mut class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>> = Default::default();
+        let class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>> = Default::default();
         let classes = RwLock::new(Classes {
             loaded_classes_by_type: Default::default(),
             initiating_loaders,

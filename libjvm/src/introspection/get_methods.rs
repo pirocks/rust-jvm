@@ -53,8 +53,8 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
         }
     }).for_each(|(c, i)| {
         let method_view = c.view().method_view_i(*i);
-        dbg!(method_view.name());
-        dbg!(method_view.desc_str());
+        // dbg!(method_view.name());
+        // dbg!(method_view.desc_str());
         let method = Method::method_object_from_method_view(jvm, int_state, &method_view);
         object_array.push(method.java_value());
     });

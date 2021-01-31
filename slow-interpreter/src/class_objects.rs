@@ -16,7 +16,7 @@ pub fn get_or_create_class_object(jvm: &JVMState,
 ) -> Result<Arc<Object>, ClassLoadingError> {
     let arc = check_resolved_class(jvm, int_state, type_);
     // dbg!(arc.view().name());
-    int_state.print_stack_trace();
+    // int_state.print_stack_trace();
     Ok(jvm.classes.write().unwrap().class_object_pool.get_by_right(&ByAddress(arc.clone())).unwrap().clone().0)
 }
 

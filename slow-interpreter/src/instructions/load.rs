@@ -65,6 +65,7 @@ pub fn dload(current_frame: &mut StackEntry, n: usize) {
 
 
 pub fn aaload(int_state: &mut InterpreterStateGuard) {
+    // int_state.print_stack_trace();
     let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();

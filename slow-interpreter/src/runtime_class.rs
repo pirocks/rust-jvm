@@ -190,6 +190,7 @@ pub fn initialize_class(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
 ) -> Option<Arc<RuntimeClass>> {
+    assert!(interpreter_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname

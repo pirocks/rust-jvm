@@ -170,7 +170,7 @@ pub mod dynamic {
         // [(len - 1 - num_params)..(len - 1)].reverse();
         // dbg!(int_state.current_frame().operand_stack_types());
         //todo not passing final call args?
-        int_state.print_stack_trace();
+        // int_state.print_stack_trace();
         // dbg!(&args);
         invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke.method_i(), invoke);
 

@@ -6,7 +6,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{Atype, MultiNewArray};
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_resolved_class};
 use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
@@ -44,7 +44,7 @@ pub fn anewarray(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u1
 
 pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, len: i32, t: PTypeView) {
     // if let Some(name) = t.unwrap_type_to_name(){
-    check_initing_or_inited_class(
+    check_resolved_class(
         jvm,
         int_state,
         t.clone(),
@@ -96,7 +96,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    check_initing_or_inited_class(jvm, int_state, PTypeView::Ref(type_.clone()));
+    check_resolved_class(jvm, int_state, PTypeView::Ref(type_.clone()));
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     // dbg!(&type_);

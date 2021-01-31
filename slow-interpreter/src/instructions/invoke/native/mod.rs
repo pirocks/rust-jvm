@@ -93,6 +93,7 @@ pub fn run_native_method(
                     //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
                     shouldBeInitialized(jvm, &mut args)
                 } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
+                    dbg!(&args);
                     if shouldBeInitialized(jvm, &mut args).unwrap().unwrap_int() != 1 {
                         panic!()
                     }
