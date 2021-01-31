@@ -177,12 +177,12 @@ impl PTypeView {
     pub fn class_name_representation(&self) -> String {
         let mut res = String::new();
         match self {
-            PTypeView::ByteType => res.push('B'),
-            PTypeView::CharType => res.push('C'),
-            PTypeView::DoubleType => res.push('D'),
-            PTypeView::FloatType => res.push('F'),
-            PTypeView::IntType => res.push('I'),
-            PTypeView::LongType => res.push('J'),
+            PTypeView::ByteType => res.push_str("byte"),
+            PTypeView::CharType => res.push_str("char"),
+            PTypeView::DoubleType => res.push_str("double"),
+            PTypeView::FloatType => res.push_str("float"),
+            PTypeView::IntType => res.push_str("int"),
+            PTypeView::LongType => res.push_str("long"),
             PTypeView::Ref(ref_) => {
                 match ref_ {
                     ReferenceTypeView::Class(c) => {
@@ -194,9 +194,9 @@ impl PTypeView {
                     }
                 }
             }
-            PTypeView::ShortType => res.push('S'),
-            PTypeView::BooleanType => res.push('Z'),
-            PTypeView::VoidType => res.push('V'),
+            PTypeView::ShortType => res.push_str("short"),
+            PTypeView::BooleanType => res.push_str("boolean"),
+            PTypeView::VoidType => res.push_str("void"),
             _ => panic!(),
         }
         res

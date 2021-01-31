@@ -35,10 +35,10 @@ pub struct RuntimeClassArray {
 
 
 pub struct RuntimeClassClass {
-    pub(crate) class_view: Arc<ClassView>,
-    pub(crate) static_vars: RwLock<HashMap<String, JavaValue>>,
+    pub class_view: Arc<ClassView>,
+    pub static_vars: RwLock<HashMap<String, JavaValue>>,
     //class may not be prepared
-    pub(crate) status: RwLock<ClassStatus>,
+    pub status: RwLock<ClassStatus>,
 }
 
 impl RuntimeClass {

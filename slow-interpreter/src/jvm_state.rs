@@ -16,7 +16,7 @@ use libloading::Library;
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use jvmti_jni_bindings::{JavaVM, jint, jio_fprintf, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
@@ -75,7 +75,7 @@ pub struct Classes {
     pub class_class: Arc<RuntimeClass>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClassStatus {
     UNPREPARED,
     PREPARED,
@@ -90,7 +90,7 @@ impl Classes {
 
 
     pub fn is_loaded(&self, ptype: &PTypeView) -> Option<Arc<RuntimeClass>> {
-        todo!()
+        self.initiating_loaders.get(&ptype)?.1.clone().into()
     }
 
     pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass>) -> LoaderName {
@@ -220,7 +220,7 @@ pub struct LibJavaLoading {
 
 impl LibJavaLoading {
     pub unsafe fn load(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt/*, &self.libzip*/] {//todo reenable
+        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt, &self.libzip] {//todo reenable
             let on_load = library.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
             let onload_fn_ptr = on_load.deref();
             let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
@@ -279,7 +279,7 @@ pub struct BootstrapLoaderClassGetter<'l> {
 
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_> {
     fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile> {
-        // assert_eq!(loader, LoaderName::BootstrapLoader);
-        todo!()
+        assert_eq!(loader, LoaderName::BootstrapLoader);
+        self.jvm.classpath.lookup(&class).unwrap()
     }
 }

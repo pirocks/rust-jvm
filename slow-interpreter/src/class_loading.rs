@@ -61,6 +61,9 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
             check_initing_or_inited_class(jvm, int_state, ClassName::void().into());
             return class;
         }
+        RuntimeClass::Array(a) => {
+            check_initing_or_inited_class(jvm, int_state, a.sub_class.ptypeview());
+        }
         _ => {}
     }
     match class.status() {
@@ -185,7 +188,7 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
     runtime_class
 }
 
-fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: Option<ClassName>, loader: LoaderName) -> Arc<Object> {
+pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: Option<ClassName>, loader: LoaderName) -> Arc<Object> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
             JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into())
@@ -202,7 +205,7 @@ fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, na
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             fields: UnsafeCell::new(fields),
             class_pointer: jvm.classes.read().unwrap().class_class.clone(),
-        }))
+        }));
     }
     let class_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
@@ -212,6 +215,14 @@ fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, na
             JClass::new_bootstrap_loader(jvm, int_state)
         }
     };
+    // match name {
+    //     None => {}
+    //     Some(name) => {
+    //         if ((|| { Some(jvm.classes.read().unwrap().loaded_classes_by_type.get(&BootstrapLoader)?.get(&ClassName::string().into())?.status()) })()) == ClassStatus::INITIALIZED.into() {
+    //             class_object.set_name_(JString::from_rust(jvm, int_state, name.get_referred_name().to_string()))
+    //         }
+    //     }
+    // }
     class_object.object()
 }
 

@@ -176,6 +176,7 @@ pub mod class {
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
+    use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
 
@@ -247,6 +248,24 @@ pub mod class {
         //     let loader_arc = int_state.current_loader(jvm).clone();
         //     JavaValue::Object(get_or_create_class_object(jvm, &type_, int_state, loader_arc).into()).cast_class()
         // }
+
+        pub fn get_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
+            int_state.push_current_operand_stack(self.clone().java_value());
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into());
+            run_static_or_virtual(
+                jvm,
+                int_state,
+                &class_class,
+                "getName".to_string(),
+                "()Ljava/lang/String;".to_string(),
+            );
+            int_state.pop_current_operand_stack().cast_string()
+        }
+
+        pub fn set_name_(&self, name: JString) {
+            let normal_object = self.normal_object.unwrap_normal_object();
+            normal_object.fields_mut().insert("name".to_string(), name.java_value());
+        }
 
         as_object_or_java_value!();
     }
@@ -366,6 +385,7 @@ pub mod string {
 
         pub fn intern(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
             int_state.push_current_operand_stack(self.clone().java_value());
+            //todo fix these incorrect variable names
             let thread_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into());
             run_static_or_virtual(
                 jvm,

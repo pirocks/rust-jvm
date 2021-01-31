@@ -25,7 +25,7 @@ use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::interpreter::run_function;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
@@ -80,7 +80,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let main_loader = loader_obj.to_jvm_loader(jvm);
     dbg!(loader_obj.to_string(jvm, int_state).to_rust_string());
     dbg!(main_loader);
-    let main = assert_inited_or_initing_class(jvm, int_state, jvm.main_class_name.clone().into());
+    let main = check_initing_or_inited_class(jvm, int_state, jvm.main_class_name.clone().into());
     let main_view = main.view();
     let main_i = locate_main_method(&main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
@@ -91,7 +91,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
 
     dbg!(int_state.current_loader());
     setup_program_args(&jvm, int_state, args);
-    assert_ne!(int_state.current_loader(), LoaderName::BootstrapLoader);
+    // assert_ne!(int_state.current_loader(), LoaderName::BootstrapLoader);
     run_function(&jvm, int_state);
     if int_state.throw().is_some() || *int_state.terminate() {
         int_state.print_stack_trace();

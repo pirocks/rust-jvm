@@ -93,6 +93,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     assert_ne!(utf, std::ptr::null());
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
+    int_state.print_stack_trace();
     let float = CString::new("float").unwrap();
     let float_cstr = float.into_raw();
     let double = CString::new("double").unwrap();
@@ -112,28 +113,29 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     let void = CString::new("void").unwrap();
     let void_cstr = void.into_raw();
     let (class_name, as_str, ptype) = if libc::strncmp(float_cstr, utf, libc::strlen(float_cstr) + 1) == 0 {
-        (ClassName::float(), "float", PTypeView::FloatType)
+        (ClassName::raw_float(), "float", PTypeView::FloatType)
     } else if libc::strncmp(double_cstr, utf, libc::strlen(double_cstr) + 1) == 0 {
-        (ClassName::double(), "double", PTypeView::DoubleType)
+        (ClassName::raw_double(), "double", PTypeView::DoubleType)
     } else if libc::strncmp(int_cstr, utf, libc::strlen(int_cstr) + 1) == 0 {
-        (ClassName::int(), "int", PTypeView::IntType)
+        (ClassName::raw_int(), "int", PTypeView::IntType)
     } else if libc::strncmp(boolean_cstr, utf, libc::strlen(boolean_cstr) + 1) == 0 {
-        (ClassName::boolean(), "boolean", PTypeView::BooleanType)
+        (ClassName::raw_boolean(), "boolean", PTypeView::BooleanType)
     } else if libc::strncmp(char_cstr, utf, libc::strlen(char_cstr) + 1) == 0 {
-        (ClassName::character(), "character", PTypeView::CharType)
+        (ClassName::raw_char(), "char", PTypeView::CharType)
     } else if libc::strncmp(long_cstr, utf, libc::strlen(long_cstr) + 1) == 0 {
-        (ClassName::long(), "long", PTypeView::LongType)
+        (ClassName::raw_long(), "long", PTypeView::LongType)
     } else if libc::strncmp(byte_cstr, utf, libc::strlen(byte_cstr) + 1) == 0 {
-        (ClassName::byte(), "byte", PTypeView::ByteType)
+        (ClassName::raw_byte(), "byte", PTypeView::ByteType)
     } else if libc::strncmp(short_cstr, utf, libc::strlen(short_cstr) + 1) == 0 {
-        (ClassName::short(), "short", PTypeView::ShortType)
+        (ClassName::raw_short(), "short", PTypeView::ShortType)
     } else if libc::strncmp(void_cstr, utf, libc::strlen(void_cstr) + 1) == 0 {
-        (ClassName::void(), "void", PTypeView::VoidType)
+        (ClassName::raw_void(), "void", PTypeView::VoidType)
     } else {
         dbg!((*utf) as u8 as char);
         unimplemented!()
     };
 
     let res = get_or_create_class_object(jvm, ptype, int_state).unwrap();//todo what if not using bootstap loader
+    dbg!(JavaValue::Object(res.clone().into()).cast_class().get_name(jvm, int_state).to_rust_string());
     new_local_ref_public(res.into(), int_state)
 }

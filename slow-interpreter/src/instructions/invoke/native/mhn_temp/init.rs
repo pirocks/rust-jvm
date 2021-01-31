@@ -4,7 +4,7 @@ use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETI
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::instructions::invoke::native::mhn_temp::{IS_METHOD, REFERENCE_KIND_SHIFT};
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
@@ -107,7 +107,7 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     } else {
         let class_ptye = clazz.as_type(jvm);
         let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-        let inited_class = assert_inited_or_initing_class(jvm, int_state, class_name.into());
+        let inited_class = check_initing_or_inited_class(jvm, int_state, class_name.into());
         if inited_class.view().is_interface() {
             REF_invokeInterface
         } else {

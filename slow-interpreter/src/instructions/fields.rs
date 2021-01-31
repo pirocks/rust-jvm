@@ -87,11 +87,8 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_
 pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
     let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let view = &current_frame.class_pointer().view();
-    dbg!(view.name());
     let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
     let object_ref = current_frame.pop();
-    dbg!(object_ref.unwrap_normal_object().monitor.name.as_str());
-    dbg!(object_ref.unwrap_normal_object().class_pointer.view().name());
     match object_ref {
         JavaValue::Object(o) => {
             let fields = match o.as_ref() {
@@ -104,8 +101,8 @@ pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
             if fields.get(field_name.as_str()).is_none() {
                 dbg!(&o);
                 dbg!(&fields.keys());
+                dbg!(&field_name);
             }
-            dbg!(&field_name);
             let res = fields.get(field_name.as_str()).unwrap().clone();
             current_frame.push(res);
         }

@@ -1,9 +1,14 @@
+use std::collections::HashMap;
+use std::env::current_exe;
 use std::fs::File;
 use std::io::Write;
 use std::ops::DerefMut;
-use std::sync::Arc;
+use std::panic::resume_unwind;
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::Ordering;
 use std::sync::atomic::Ordering::AcqRel;
+
+use by_address::ByAddress;
 
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;
@@ -12,11 +17,13 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
 use rust_jvm_common::classnames::{class_name, ClassName};
+use slow_interpreter::class_loading::create_class_object;
+use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{JavaValue, Object};
-use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::runtime_class::prepare_class;
+use slow_interpreter::jvm_state::{ClassStatus, JVMState};
+use slow_interpreter::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use verification::{VerifierContext, verify};
@@ -54,9 +61,21 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let class_view = ClassView::from(parsed.clone());
     File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
     let class_name = class_view.name();
-    // dbg!(&jvm.classes.read().unwrap().prepared_classes.get(&LoaderName::BootstrapLoader).unwrap().keys());
-    let prepared = Arc::new(prepare_class(jvm, parsed.clone(), todo!()));
-    todo!()
+    let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
+        class_view: Arc::new(class_view),
+        static_vars: Default::default(),
+        status: RwLock::new(ClassStatus::UNPREPARED),
+    }));
+    let mut classes = jvm.classes.write().unwrap();
+    let current_loader = int_state.current_loader();
+    classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
+    classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
+    classes.class_object_pool.insert(ByAddress(create_class_object(jvm, int_state, None, current_loader)), ByAddress(runtime_class.clone()));
+    prepare_class(jvm, parsed.clone(), &mut *runtime_class.static_vars());
+    runtime_class.set_status(ClassStatus::PREPARED);
+    runtime_class.set_status(ClassStatus::INITIALIZING);
+    initialize_class(runtime_class.clone(), jvm, int_state).unwrap();
+    JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into())
 }
 
 
