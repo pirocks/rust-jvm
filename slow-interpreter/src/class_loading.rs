@@ -98,7 +98,7 @@ pub fn assert_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard
 
 pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
     // todo cleanup how these guards work
-    let mut guard = jvm.classes.write().unwrap();
+    let guard = jvm.classes.write().unwrap();
     match guard.initiating_loaders.get(&ptype) {
         None => {
             let loader = int_state.current_loader();
@@ -120,7 +120,7 @@ pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
                                     class_loader.load_class(jvm, int_state, java_string).as_runtime_class(jvm)
                                 }
                                 ReferenceTypeView::Array(sub_type) => {
-                                    let sub_class = check_loaded_class(jvm, int_state, ptype);
+                                    let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone());
                                     Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }))
                                 }
                             }

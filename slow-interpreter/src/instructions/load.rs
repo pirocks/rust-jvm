@@ -64,7 +64,8 @@ pub fn dload(current_frame: &mut StackEntry, n: usize) {
 }
 
 
-pub fn aaload(current_frame: &mut StackEntry) {
+pub fn aaload(int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();

@@ -197,7 +197,7 @@ fn run_single_instruction(
     instruct: InstructionInfo,
 ) {
     match instruct {
-        InstructionInfo::aaload => aaload(interpreter_state.current_frame_mut()),
+        InstructionInfo::aaload => aaload(interpreter_state),
         InstructionInfo::aastore => aastore(interpreter_state.current_frame_mut()),
         InstructionInfo::aconst_null => aconst_null(interpreter_state.current_frame_mut()),
         InstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), n as usize),

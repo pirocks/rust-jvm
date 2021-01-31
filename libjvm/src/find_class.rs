@@ -93,7 +93,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     assert_ne!(utf, std::ptr::null());
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
     let float = CString::new("float").unwrap();
     let float_cstr = float.into_raw();
     let double = CString::new("double").unwrap();

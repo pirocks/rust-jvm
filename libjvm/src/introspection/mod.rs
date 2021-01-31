@@ -191,7 +191,6 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
     let obj = from_jclass(cls).as_runtime_class(jvm);
     let full_name = &obj.ptypeview().class_name_representation().replace("/", ".");//todo need a standard way of doing this
     new_string_with_string(env, full_name.to_string())
