@@ -7,7 +7,7 @@ use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
@@ -93,10 +93,9 @@ pub fn run_native_method(
                     //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
                     shouldBeInitialized(jvm, &mut args)
                 } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
-                    dbg!(&args);
-                    if shouldBeInitialized(jvm, &mut args).unwrap().unwrap_int() != 1 {
-                        panic!()
-                    }
+                    let jclass = args[1].cast_class();
+                    let ptype = jclass.as_runtime_class(jvm).ptypeview();
+                    check_initing_or_inited_class(jvm, int_state, ptype);
                     None
                 } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
                     Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, &mut args)

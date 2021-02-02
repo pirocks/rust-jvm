@@ -1,17 +1,23 @@
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::ptr::null_mut;
+use std::sync::Arc;
 
+use by_address::ByAddress;
 use nix::sys::aio::aio_suspend;
 
 use classfile_view::loading::LoaderName;
+use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType::Ref;
+use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvm_state::ClassStatus;
+use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
@@ -22,11 +28,26 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let name_str = CStr::from_ptr(name).to_str().unwrap().to_string();
     //todo duplication
     let class_name = ClassName::Str(name_str);
-    dbg!(&class_name);
 
     let loader_obj = int_state.previous_frame().local_vars()[0].cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
-    todo!()
+    let mut guard = jvm.classes.write().unwrap();
+    let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
+        None => {
+            drop(guard);
+            let runtime_class = bootstrap_load(jvm, int_state, class_name.into());
+            let ptype = runtime_class.ptypeview();
+            let mut guard = jvm.classes.write().unwrap();
+            guard.initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, runtime_class.clone()));//todo wrong?
+            guard.loaded_classes_by_type.entry(BootstrapLoader).or_insert(HashMap::new()).insert(ptype, runtime_class.clone());
+            runtime_class
+        },
+        Some(runtime_class) => {
+            runtime_class.clone()
+        }
+    };
+    let mut guard = jvm.classes.write().unwrap();
+    to_object(guard.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().0.into())
     // let runtime_class_res = find_class_from_bootloader(jvm, int_state, current_loader, class_name.clone()).unwrap();
     // assert_eq!(runtime_class_res.loader(), current_loader);
 
@@ -75,7 +96,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     // }
 
 
-    dbg!(&class_name);
+    // dbg!(&class_name);
     let loaded = jvm.classes.write().unwrap().is_loaded(&class_name.clone().into());
     match loaded {
         None => null_mut(),
@@ -135,6 +156,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     };
 
     let res = get_or_create_class_object(jvm, ptype, int_state).unwrap();//todo what if not using bootstap loader
-    dbg!(JavaValue::Object(res.clone().into()).cast_class().get_name(jvm, int_state).to_rust_string());
+    // dbg!(JavaValue::Object(res.clone().into()).cast_class().get_name(jvm, int_state).to_rust_string());
     new_local_ref_public(res.into(), int_state)
 }
