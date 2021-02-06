@@ -8,6 +8,7 @@ use classfile_view::view::HasAccessFlags;
 use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
 
+use crate::class_loading::check_initing_or_inited_class;
 use crate::java_values::JavaValue;
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
@@ -127,11 +128,17 @@ pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, na
 
 unsafe fn get_static_field(env: *mut JNIEnv, klass: jclass, field_id_raw: jfieldID) -> JavaValue {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
     let jclass = from_jclass(klass);
-    jclass.as_runtime_class(jvm).static_vars().borrow().get(&name).unwrap().clone()
+    dbg!(&name);
+    dbg!(view.name());
+    let rc = jclass.as_runtime_class(jvm);
+    check_initing_or_inited_class(jvm, int_state, rc.ptypeview()).unwrap();
+    let guard = rc.static_vars();
+    guard.borrow().get(&name).unwrap().clone()
 }
 
 

@@ -35,10 +35,10 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
-            let runtime_class = bootstrap_load(jvm, int_state, class_name.into());
+            let runtime_class = bootstrap_load(jvm, int_state, class_name.into()).unwrap();
             let ptype = runtime_class.ptypeview();
             let mut guard = jvm.classes.write().unwrap();
-            guard.initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, runtime_class.clone()));//todo wrong?
+            guard.initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, runtime_class.clone()));//todo wrong loader?
             guard.loaded_classes_by_type.entry(BootstrapLoader).or_insert(HashMap::new()).insert(ptype, runtime_class.clone());
             runtime_class
         },

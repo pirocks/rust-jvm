@@ -6,7 +6,7 @@ use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::setup_virtual_args;
@@ -20,7 +20,7 @@ pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp:
         jvm,
         int_state,
         method_class_name.into(),
-    );
+    ).unwrap();
     let (target_m_i, final_target_class) = find_target_method(jvm, int_state, method_name, &parsed_descriptor, target_class);
     let target_m = &final_target_class.view().method_view_i(target_m_i);
     invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone(), target_m);

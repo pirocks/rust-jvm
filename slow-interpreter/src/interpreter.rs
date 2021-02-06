@@ -7,7 +7,7 @@ use jvmti_jni_bindings::ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_resolved_class};
+use crate::class_loading::check_resolved_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::arithmetic::*;
 use crate::instructions::branch::*;
@@ -76,7 +76,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
                         break;
                     } else {
                         let catch_runtime_name = interpreter_state.current_class_view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_name().unwrap_name();
-                        let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into());
+                        let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into()).unwrap();
                         if inherits_from(jvm, interpreter_state, &throw_class, &catch_class) {
                             interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                             interpreter_state.set_throw(None);

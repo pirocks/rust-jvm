@@ -6,7 +6,7 @@ use classfile_view::loading::ClassLoadingError;
 use classfile_view::view::ptype_view::PTypeView;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
+use crate::class_loading::check_resolved_class;
 use crate::java_values::Object;
 
 //todo do something about this class object crap
@@ -14,7 +14,7 @@ pub fn get_or_create_class_object(jvm: &JVMState,
                                   type_: PTypeView,
                                   int_state: &mut InterpreterStateGuard,
 ) -> Result<Arc<Object>, ClassLoadingError> {
-    let arc = check_resolved_class(jvm, int_state, type_);
+    let arc = check_resolved_class(jvm, int_state, type_)?;
     // dbg!(arc.view().name());
     // int_state.print_stack_trace();
     Ok(jvm.classes.write().unwrap().class_object_pool.get_by_right(&ByAddress(arc.clone())).unwrap().clone().0)

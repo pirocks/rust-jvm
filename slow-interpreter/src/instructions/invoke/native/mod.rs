@@ -95,7 +95,7 @@ pub fn run_native_method(
                 } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
                     let jclass = args[1].cast_class();
                     let ptype = jclass.as_runtime_class(jvm).ptypeview();
-                    check_initing_or_inited_class(jvm, int_state, ptype);
+                    check_initing_or_inited_class(jvm, int_state, ptype).unwrap();
                     None
                 } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
                     Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, &mut args)

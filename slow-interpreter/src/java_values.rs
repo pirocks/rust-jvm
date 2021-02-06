@@ -8,7 +8,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
+use crate::class_loading::check_resolved_class;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::RuntimeClass;
@@ -568,7 +568,7 @@ impl ArrayObject {
     }
 
     pub fn new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>) -> Self {
-        check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())));
+        check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone()))).unwrap();
         Self {
             elems: UnsafeCell::new(elems),
             elem_type: type_,

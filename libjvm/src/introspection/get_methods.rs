@@ -42,7 +42,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
     }
     let runtime_class = of_class_obj.as_runtime_class(jvm);
     let methods = get_all_methods(jvm, int_state, runtime_class);
-    let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into());
+    let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
     let mut object_array = vec![];
     //todo do we need to filter out constructors?
     methods.iter().filter(|(c, i)| {

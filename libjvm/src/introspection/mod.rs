@@ -20,6 +20,8 @@ use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
+use slow_interpreter::java::lang::class_not_found_exception::ClassNotFoundException;
+use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
@@ -86,7 +88,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
         let obj = from_object(cls);
         let type_ = JavaValue::Object(obj).cast_class().as_type(jvm);
         let name = type_.unwrap_type_to_name().unwrap();
-        let class_for_access_flags = check_initing_or_inited_class(jvm, int_state, name.into());
+        let class_for_access_flags = check_initing_or_inited_class(jvm, int_state, name.into()).unwrap();
         (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
     } else {
         jclass.as_runtime_class(jvm).view().access_flags() as jint
@@ -176,13 +178,15 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let class_lookup_result = get_or_create_class_object(
         jvm,
-        PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name))),
+        PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name.clone()))),
         int_state,
     );
     //todo exception making code maybe should be here idk
     match class_lookup_result {
         Ok(class_object) => new_local_ref_public(Some(class_object), int_state),
-        Err(_) => null_mut()
+        Err(err) => {
+            null_mut()
+        }
     }
 }
 

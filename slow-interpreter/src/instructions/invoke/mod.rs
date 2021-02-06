@@ -5,7 +5,7 @@ use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use crate::class_loading::check_initing_or_inited_class;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 use crate::utils::lookup_method_parsed;
@@ -24,7 +24,7 @@ pub mod dynamic {
     use rust_jvm_common::ptype::{PType, ReferenceType};
 
     use crate::{InterpreterStateGuard, JVMState};
-    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+    use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::ExceptionError;
@@ -40,17 +40,17 @@ pub mod dynamic {
             jvm,
             int_state,
             ClassName::method_handle().into(),
-        );
+        ).unwrap();
         let _method_type_class = check_initing_or_inited_class(
             jvm,
             int_state,
             ClassName::method_type().into(),
-        );
+        ).unwrap();
         let _call_site_class = check_initing_or_inited_class(
             jvm,
             int_state,
             ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
-        );
+        ).unwrap();
         let class_pointer_view = int_state.current_class_view().clone();
         // dbg!(cp);
         let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
@@ -256,7 +256,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         jvm,
         int_state,
         class_name_.into(),
-    );
+    ).unwrap();
     (resolved_class, expected_method_name, expected_descriptor).into()
 }
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use classfile_view::view::ptype_view::ReferenceTypeView;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class};
+use crate::class_loading::assert_loaded_class;
 use crate::java::lang::class::JClass;
 use crate::runtime_class::RuntimeClass;
 

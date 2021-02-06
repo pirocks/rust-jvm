@@ -16,13 +16,12 @@ use libloading::Library;
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{JavaVM, jint, jio_fprintf, jlong, JNIInvokeInterface_, jobject};
+use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use verification::ClassFileGetter;
 
-use crate::class_loading::{assert_inited_or_initing_class, check_loaded_class};
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;

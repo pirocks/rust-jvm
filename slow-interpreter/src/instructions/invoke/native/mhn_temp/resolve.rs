@@ -5,7 +5,7 @@ use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::interpreter_util::push_new_object;
@@ -169,7 +169,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
-                            let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into());//todo loaders
+                            let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into()).unwrap();//todo loaders
                             push_new_object(jvm, int_state, &linkage_error);
                             let object = int_state.pop_current_operand_stack().unwrap_object();
                             int_state.set_throw(object);

@@ -59,7 +59,7 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
 }
 
 fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_class_name: &ClassName, field_name: &str) -> Option<JavaValue> {
-    let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into());
+    let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
         let interface_lookup_res = get_static_impl(jvm, int_state, &interfaces.interface_name(), field_name);

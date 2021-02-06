@@ -2,7 +2,7 @@ use rust_jvm_common::classfile::InvokeInterface;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::{invoke_virtual_method_i, setup_virtual_args};
 

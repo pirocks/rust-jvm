@@ -216,7 +216,7 @@ pub mod class {
         }
 
         pub fn new_bootstrap_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Self {
-            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into());
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into()).unwrap();//todo replace these unwraps
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::Object(None)], "(Ljava/lang/ClassLoader;)V".to_string());
@@ -225,7 +225,7 @@ pub mod class {
 
 
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, loader: ClassLoader) -> Self {
-            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into());
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into()).unwrap();
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], "()V".to_string());
@@ -251,7 +251,7 @@ pub mod class {
 
         pub fn get_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
             int_state.push_current_operand_stack(self.clone().java_value());
-            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into());
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into()).unwrap();
             run_static_or_virtual(
                 jvm,
                 int_state,
@@ -364,7 +364,7 @@ pub mod string {
         }
 
         pub fn from_rust(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> JString {
-            let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into());
+            let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into()).unwrap();
             push_new_object(jvm, int_state, &string_class);
             // dbg!(int_state.current_frame().local_vars());
             // dbg!(int_state.current_frame().operand_stack());
@@ -386,7 +386,7 @@ pub mod string {
         pub fn intern(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
             int_state.push_current_operand_stack(self.clone().java_value());
             //todo fix these incorrect variable names
-            let thread_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into());
+            let thread_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into()).unwrap();
             run_static_or_virtual(
                 jvm,
                 int_state,
@@ -703,7 +703,7 @@ pub mod class_not_found_exception {
 
     use rust_jvm_common::classnames::ClassName;
 
-    use crate::class_loading::assert_inited_or_initing_class;
+    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
@@ -725,7 +725,7 @@ pub mod class_not_found_exception {
         as_object_or_java_value!();
 
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JString) -> ClassNotFoundException {
-            let class_not_found_class = assert_inited_or_initing_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into());
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into()).unwrap();
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), class.java_value()],

@@ -14,7 +14,7 @@ use rust_jvm_common::classnames::ClassName;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
 
-use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class, check_initing_or_inited_class};
+use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
@@ -157,13 +157,13 @@ pub fn get_all_methods(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cl
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into());
+        let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into()).unwrap();
         object.view().methods().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name().unwrap();
-        let super_ = check_initing_or_inited_class(jvm, int_state, name.into());
+        let super_ = check_initing_or_inited_class(jvm, int_state, name.into()).unwrap();
         for (c, i) in get_all_methods(jvm, int_state, super_) {
             res.push((c, i));
         }
@@ -179,13 +179,13 @@ pub fn get_all_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cla
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into());
+        let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into()).unwrap();
         object.view().fields().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
         let name = class.view().super_name();
-        let super_ = check_initing_or_inited_class(jvm, int_state, name.unwrap().into());
+        let super_ = check_initing_or_inited_class(jvm, int_state, name.unwrap().into()).unwrap();
         for (c, i) in get_all_fields(jvm, int_state, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }

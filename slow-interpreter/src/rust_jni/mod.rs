@@ -80,7 +80,7 @@ pub fn call(
                                     //todo maybe do something about this nesting lol
                                     match state.libjava.libxawt.get(mangled.as_bytes()) {
                                         Ok(o) => o,
-                                        Err(e) => {
+                                        Err(_) => {
                                             //todo maybe do something about this nesting lol
                                             match state.libjava.libzip.get(mangled.as_bytes()) {
                                                 Ok(o) => o,

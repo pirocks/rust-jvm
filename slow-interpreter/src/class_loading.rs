@@ -6,8 +6,7 @@ use std::sync::Arc;
 
 use by_address::ByAddress;
 
-use classfile_parser::parse_validation::AttributeEnclosingType::Class;
-use classfile_view::loading::LoaderName;
+use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -16,53 +15,54 @@ use rust_jvm_common::classnames::ClassName;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
+use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, NormalObject, Object};
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
 //todo only use where spec says
-pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
-    let class = check_loaded_class(jvm, int_state, ptype.clone());
+pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+    let class = check_loaded_class(jvm, int_state, ptype.clone())?;
     match class.deref() {
         RuntimeClass::Byte => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::byte().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::byte().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Boolean => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::boolean().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::boolean().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Short => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::short().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::short().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Char => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::character().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::character().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Int => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::int().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::int().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Long => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::long().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::long().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Float => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::float().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::float().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Double => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::double().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::double().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Void => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::void().into());
-            return class;
+            check_initing_or_inited_class(jvm, int_state, ClassName::void().into()).unwrap();
+            return Ok(class);
         }
         RuntimeClass::Array(a) => {
-            check_initing_or_inited_class(jvm, int_state, a.sub_class.ptypeview());
+            check_initing_or_inited_class(jvm, int_state, a.sub_class.ptypeview()).unwrap();
         }
         _ => {}
     }
@@ -75,18 +75,18 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
         ClassStatus::PREPARED => {
             class.set_status(ClassStatus::INITIALIZING);
             if let Some(super_name) = class.view().super_name() {
-                check_initing_or_inited_class(jvm, int_state, super_name.into());
+                check_initing_or_inited_class(jvm, int_state, super_name.into()).unwrap();
             }
             for interface in class.view().interfaces() {
-                check_initing_or_inited_class(jvm, int_state, interface.interface_name().into());
+                check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap();
             }
             assert!(int_state.throw().is_none());
             let res = initialize_class(class, jvm, int_state).unwrap();
             res.set_status(ClassStatus::INITIALIZED);
-            res
+            Ok(res)
         }
-        ClassStatus::INITIALIZING => class,
-        ClassStatus::INITIALIZED => class,
+        ClassStatus::INITIALIZING => Ok(class),
+        ClassStatus::INITIALIZED => Ok(class),
     }
 }
 
@@ -97,7 +97,7 @@ pub fn assert_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard
     }
 }
 
-pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
+pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     // todo cleanup how these guards work
     let guard = jvm.classes.write().unwrap();
     match guard.initiating_loaders.get(&ptype) {
@@ -121,7 +121,7 @@ pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
                                     class_loader.load_class(jvm, int_state, java_string).as_runtime_class(jvm)
                                 }
                                 ReferenceTypeView::Array(sub_type) => {
-                                    let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone());
+                                    let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
                                     Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }))
                                 }
                             }
@@ -134,19 +134,19 @@ pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
                 }
                 LoaderName::BootstrapLoader => {
                     drop(guard);
-                    bootstrap_load(jvm, int_state, ptype)
+                    bootstrap_load(jvm, int_state, ptype)?
                 }
             };
             let mut guard = jvm.classes.write().unwrap();
             guard.initiating_loaders.entry(res.ptypeview()).or_insert((loader, res.clone()));
             guard.loaded_classes_by_type.entry(loader).or_insert(HashMap::new()).insert(res.ptypeview(), res.clone());
-            res
+            Ok(res)
         }
-        Some((_, res)) => res.clone()
+        Some((_, res)) => Ok(res.clone())
     }
 }
 
-pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
+pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     let (class_object, runtime_class) = match ptype.clone() {
         PTypeView::ByteType => (create_class_object(jvm, int_state, ClassName::new("byte").into(), BootstrapLoader), Arc::new(RuntimeClass::Byte)),
         PTypeView::CharType => (create_class_object(jvm, int_state, ClassName::new("char").into(), BootstrapLoader), Arc::new(RuntimeClass::Char)),
@@ -156,7 +156,15 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
         PTypeView::LongType => (create_class_object(jvm, int_state, ClassName::new("long").into(), BootstrapLoader), Arc::new(RuntimeClass::Long)),
         PTypeView::Ref(ref_) => match ref_ {
             ReferenceTypeView::Class(class_name) => {
-                let classfile = jvm.classpath.lookup(&class_name).unwrap();
+                let classfile = match jvm.classpath.lookup(&class_name) {
+                    Ok(x) => x,
+                    Err(_) => {
+                        let class_name_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().clone());
+                        let exception = ClassNotFoundException::new(jvm, int_state, class_name_string).object();
+                        int_state.set_throw(exception.into());
+                        return Err(ClassLoadingError::ClassNotFoundException);
+                    }
+                };
                 let class_view = Arc::new(ClassView::from(classfile.clone()));
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
@@ -167,15 +175,15 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                 let class_object = create_class_object(jvm, int_state, class_name.into(), BootstrapLoader);
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
                 if let Some(super_name) = class_view.super_name() {
-                    check_loaded_class(jvm, int_state, super_name.into());
+                    check_loaded_class(jvm, int_state, super_name.into()).unwrap();
                 }
                 for interface in class_view.interfaces() {
-                    check_loaded_class(jvm, int_state, interface.interface_name().into());
+                    check_loaded_class(jvm, int_state, interface.interface_name().into()).unwrap();
                 }
                 (class_object, res)
             }
             ReferenceTypeView::Array(sub_type) => {
-                let sub_class = check_resolved_class(jvm, int_state, sub_type.deref().clone());
+                let sub_class = check_resolved_class(jvm, int_state, sub_type.deref().clone()).unwrap();
                 //todo handle class objects for arraus
                 (create_class_object(jvm, int_state, None, BootstrapLoader), Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
             }
@@ -186,7 +194,7 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
         _ => todo!()
     };
     jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
-    runtime_class
+    Ok(runtime_class)
 }
 
 pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: Option<ClassName>, loader: LoaderName) -> Arc<Object> {
@@ -228,7 +236,7 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
 }
 
 
-pub fn check_resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
+pub fn check_resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
     check_loaded_class(jvm, int_state, ptype)
 }
 

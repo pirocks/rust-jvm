@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use classfile_parser::code::InstructionTypeNum::checkcast;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{Atype, MultiNewArray};
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_resolved_class};
+use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
 use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
@@ -16,7 +15,7 @@ pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     // int_state.print_stack_trace();
     // dbg!(target_class_name);
     let target_classfile = check_initing_or_inited_class(jvm,
-                                                         int_state, target_class_name.clone().into());
+                                                         int_state, target_class_name.clone().into()).unwrap();
     push_new_object(jvm, int_state, &target_classfile);
 }
 
@@ -48,7 +47,7 @@ pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGua
         jvm,
         int_state,
         t.clone(),
-    );
+    ).unwrap();
     // }
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t);
     int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap())))
@@ -96,7 +95,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    check_resolved_class(jvm, int_state, PTypeView::Ref(type_.clone()));
+    check_resolved_class(jvm, int_state, PTypeView::Ref(type_.clone())).unwrap();
     //todo need to start doing this at some point
     let mut dimensions = vec![];
     // dbg!(&type_);
