@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::sync::Arc;
 
 use rust_jvm_common::classnames::ClassName;
@@ -22,7 +23,7 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
 pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = &int_state.current_class_view();
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
-    let _target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.into());//todo sus this should be assert
+    let _target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into());//todo sus this should be assert
     let stack = &mut int_state.current_frame_mut().operand_stack_mut();
     let val = stack.pop().unwrap();
     let object_ref = stack.pop().unwrap();

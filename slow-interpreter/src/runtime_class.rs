@@ -6,6 +6,7 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::classfile::{ACC_STATIC, Classfile};
+use rust_jvm_common::classnames::class_name;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::ldc::from_constant_pool_entry;
@@ -165,7 +166,11 @@ impl Debug for RuntimeClassClass {
 
 // impl Eq for RuntimeClass {}
 
-pub fn prepare_class(_jvm: &JVMState, classfile: Arc<Classfile>, res: &mut HashMap<String, JavaValue>) {
+pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, classfile: Arc<Classfile>, res: &mut HashMap<String, JavaValue>) {
+    if let Some(jvmti) = jvm.jvmti_state.as_ref() {
+        jvmti.built_in_jdwp.class_prepare(jvm, &class_name(&classfile), int_state)
+    }
+
     for field in &classfile.fields {
         if (field.access_flags & ACC_STATIC) > 0 {
             let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();

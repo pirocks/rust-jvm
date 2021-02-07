@@ -100,6 +100,9 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         monitor.unwrap().unlock(jvm);
     }
     jvm.tracing.function_exit_guard(function_enter_guard);
+    if meth_name == "getCARD8" {
+        dbg!(interpreter_state.previous_frame().operand_stack().last().unwrap());
+    }
     // jvm.tracing.trace_function_exit(
     //     &class_name__,
     //     &meth_name,

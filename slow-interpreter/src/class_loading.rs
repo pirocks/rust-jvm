@@ -69,7 +69,7 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
     }
     match class.status() {
         ClassStatus::UNPREPARED => {
-            prepare_class(jvm, class.view().backing_class(), &mut *class.static_vars());
+            prepare_class(jvm, int_state, class.view().backing_class(), &mut *class.static_vars());
             class.set_status(ClassStatus::PREPARED);
             check_initing_or_inited_class(jvm, int_state, ptype)
         }

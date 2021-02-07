@@ -74,7 +74,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
     classes.class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
     drop(classes);
-    prepare_class(jvm, parsed.clone(), &mut *runtime_class.static_vars());
+    prepare_class(jvm, int_state, parsed.clone(), &mut *runtime_class.static_vars());
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state).unwrap();

@@ -1,3 +1,5 @@
+use std::mem::transmute;
+
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
@@ -15,11 +17,11 @@ pub fn fconst_2(current_frame: &mut StackEntry) {
 
 
 pub fn bipush(current_frame: &mut StackEntry, b: u8) {
-    current_frame.push(JavaValue::Int(b as i32))
+    current_frame.push(JavaValue::Int(unsafe { transmute::<u8, i8>(b) } as i32))//todo get rid of unneeded transmute
 }
 
 pub fn sipush(current_frame: &mut StackEntry, val: u16) {
-    current_frame.push(JavaValue::Int(val as i32));
+    current_frame.push(JavaValue::Int(unsafe { transmute::<u16, i16>(val) } as i32));
 }
 
 
