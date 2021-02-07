@@ -13,7 +13,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     add_prop(env, p0, "sun.boot.class.path".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/jce.jar:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes".to_string());
     add_prop(env, p0, "java.class.path".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/jce.jar:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes".to_string());
     add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string());
-    add_prop(env, p0, "java.home".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/".to_string())
+    add_prop(env, p0, "java.home".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())
 }
 
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jobject {

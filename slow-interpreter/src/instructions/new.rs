@@ -55,10 +55,7 @@ pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGua
 
 
 pub fn newarray(jvm: &JVMState, int_state: &mut InterpreterStateGuard, a_type: Atype) {
-    let count = match int_state.pop_current_operand_stack() {
-        JavaValue::Int(i) => { i }
-        _ => panic!()
-    };
+    let count = int_state.pop_current_operand_stack().unwrap_int();
     let type_ = match a_type {
         Atype::TChar => {
             PTypeView::CharType
@@ -120,7 +117,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
             int_state,
             new_vec,
             next_type.clone(),
-            jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string())
+            jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string()),
         ))).into());
         current_type = next_type;
     }

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use num_cpus::get;
 
-use classfile_view::loading::ClassLoadingError;
+use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -16,7 +16,7 @@ use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::class_loading::check_initing_or_inited_class;
-use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
@@ -173,17 +173,31 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     loader: jobject,
     caller: jclass,
 ) -> jclass {
+    //todo handle loader
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let class_lookup_result = get_or_create_class_object(
+    let p_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name.clone())));
+
+    let loader_name = from_object(loader)
+        .map(|loader_obj| JavaValue::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
+
+    let class_lookup_result = get_or_create_class_object_force_loader(
         jvm,
-        PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name.clone()))),
+        p_type.clone(),
         int_state,
+        loader_name,
     );
     //todo exception making code maybe should be here idk
     match class_lookup_result {
-        Ok(class_object) => new_local_ref_public(Some(class_object), int_state),
+        Ok(class_object) => {
+            if init != 0 {
+                check_initing_or_inited_class(jvm, int_state, p_type);
+            }
+
+
+            new_local_ref_public(Some(class_object), int_state)
+        }
         Err(err) => {
             null_mut()
         }

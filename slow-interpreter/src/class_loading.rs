@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use by_address::ByAddress;
 
+use classfile_parser::code::InstructionTypeNum::drem;
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::ClassView;
@@ -98,11 +99,15 @@ pub fn assert_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard
 }
 
 pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
-    // todo cleanup how these guards work
+    let loader = int_state.current_loader();
+    check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
+}
+
+pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView, loader: LoaderName) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+// todo cleanup how these guards work
     let guard = jvm.classes.write().unwrap();
     match guard.initiating_loaders.get(&ptype) {
         None => {
-            let loader = int_state.current_loader();
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
                     let loader_obj = jvm.class_loaders.write().unwrap().get_by_left(&loader_idx).unwrap().clone().0;
@@ -117,10 +122,12 @@ pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
                         PTypeView::Ref(ref_) => {
                             match ref_ {
                                 ReferenceTypeView::Class(class_name) => {
-                                    let java_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().clone());
+                                    drop(guard);
+                                    let java_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().replace("/", ".").clone());
                                     class_loader.load_class(jvm, int_state, java_string).as_runtime_class(jvm)
                                 }
                                 ReferenceTypeView::Array(sub_type) => {
+                                    drop(guard);
                                     let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
                                     Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }))
                                 }
@@ -134,11 +141,11 @@ pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
                 }
                 LoaderName::BootstrapLoader => {
                     drop(guard);
-                    bootstrap_load(jvm, int_state, ptype)?
+                    bootstrap_load(jvm, int_state, ptype.clone())?
                 }
             };
             let mut guard = jvm.classes.write().unwrap();
-            guard.initiating_loaders.entry(res.ptypeview()).or_insert((loader, res.clone()));
+            guard.initiating_loaders.entry(res.ptypeview()).insert((loader, res.clone()));
             guard.loaded_classes_by_type.entry(loader).or_insert(HashMap::new()).insert(res.ptypeview(), res.clone());
             Ok(res)
         }

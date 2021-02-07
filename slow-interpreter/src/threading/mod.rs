@@ -118,7 +118,7 @@ impl ThreadState {
         set_properties(jvm, int_state);
         //todo read and copy props here
         let key = JString::from_rust(jvm, int_state, "java.home".to_string());
-        let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/".to_string());
+        let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string());
         System::props(jvm, int_state).set_property(jvm, int_state, key, value);
 
         int_state.pop_frame(init_frame_guard);
