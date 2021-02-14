@@ -22,14 +22,14 @@ argparse = "0.2.2"
 
 [workspace]
 members = ["rust-jvm-common",
-           "classfile-parser",
-           "verification",
-           "slow-interpreter",
-           "jar-manipulation",
-           "libjvm",
-           "descriptor-parser",
-           "classfile-view",
-           "jvmti-jni-bindings",
-           "userspace-threads",
-           "type-safe-proc-macro-utils"
-           ]
+    "classfile-parser",
+    "verification",
+    "slow-interpreter",
+    "jar-manipulation",
+    "libjvm",
+    "descriptor-parser",
+    "classfile-view",
+    "jvmti-jni-bindings",
+    "threads",
+    "type-safe-proc-macro-utils"
+]

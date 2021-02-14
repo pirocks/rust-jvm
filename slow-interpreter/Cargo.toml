@@ -14,7 +14,7 @@ classfile-view = { path = "../classfile-view" }
 descriptor-parser = { path = "../descriptor-parser" }
 jar-manipulation = { path = "../jar-manipulation" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
-userspace-threads = { path = "../userspace-threads" }
+threads = { path = "../threads" }
 type-safe-proc-macro-utils = { path = "../type-safe-proc-macro-utils" }
 libffi = { git = 'https://github.com/pirocks/libffi-rs.git' }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }

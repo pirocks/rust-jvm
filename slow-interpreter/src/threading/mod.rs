@@ -11,7 +11,7 @@ use std::time::Duration;
 use classfile_view::loading::LoaderName;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
-use userspace_threads::{Thread, Threads};
+use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
