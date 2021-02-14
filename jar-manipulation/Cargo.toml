@@ -11,9 +11,9 @@ edition = "2018"
 [dependencies]
 tempfile = "3.1.0"
 regex = "1.3.1"
-rust-jvm-common = {path = "../rust-jvm-common"}
-zip = "0.5.4"
-classfile-parser = {path = "../classfile-parser"}
+rust-jvm-common = { path = "../rust-jvm-common" }
+zip = "0.5.10"
+classfile-parser = { path = "../classfile-parser" }
 
 [dev-dependencies]
 ntest_timeout = "0.3.0"
