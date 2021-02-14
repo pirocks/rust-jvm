@@ -298,7 +298,6 @@ impl InvokeDynamicView<'_> {
     }
     //todo this is wrong, there are multiple bootstrap methods.
     pub fn bootstrap_method(&self) -> BootstrapMethodView {
-        dbg!(self.bootstrap_method_attr_index);
         BootstrapMethodView { backing: self.class_view.bootstrap_methods_attr(), i: self.bootstrap_method_attr_index as usize }
     }
 }
