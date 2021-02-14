@@ -37,7 +37,6 @@ use crate::tracing::TracingSettings;
 
 pub struct JVMState {
     pub(crate) properties: Vec<String>,
-    loaders: RwLock<HashMap<LoaderName, Arc<Object>>>,
     // pub bootstrap_loader: LoaderArc,//todo what Should this be?
     pub system_domain_loader: bool,
     pub string_pool: StringPool,
@@ -128,7 +127,6 @@ impl JVMState {
         };
         let mut jvm = Self {
             properties,
-            loaders: RwLock::new(HashMap::new()),
             system_domain_loader: true,
             libjava: LibJavaLoading::new_java_loading(libjava),
             string_pool,
