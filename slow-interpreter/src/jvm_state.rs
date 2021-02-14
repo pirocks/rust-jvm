@@ -41,7 +41,6 @@ pub struct JVMState {
     pub system_domain_loader: bool,
     pub string_pool: StringPool,
     pub start_instant: Instant,
-    //todo needs to be used for all instances of getClass
     pub libjava: LibJavaLoading,
 
     pub classes: RwLock<Classes>,
@@ -58,8 +57,6 @@ pub struct JVMState {
     pub field_table: RwLock<FieldTable>,
     pub native_interface_allocations: NativeAllocator,
     pub(crate) live: AtomicBool,
-    // pub int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,//so technically isn't 'static, but we need to be able to store this in a localkey
-
     pub unittest_mode: bool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<Arc<Object>>, MethodId>>,
 
@@ -67,6 +64,7 @@ pub struct JVMState {
 }
 
 pub struct Classes {
+    //todo needs to be used for all instances of getClass
     pub loaded_classes_by_type: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
     pub initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass>)>,
     pub class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>>,
