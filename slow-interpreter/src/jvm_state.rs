@@ -60,7 +60,8 @@ pub struct JVMState {
     pub unittest_mode: bool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<Arc<Object>>, MethodId>>,
 
-    pub include_name_field: AtomicBool
+    pub include_name_field: AtomicBool,
+    pub store_generated_classes: bool
 }
 
 pub struct Classes {
@@ -104,7 +105,7 @@ impl Classes {
 
 impl JVMState {
     pub fn new(jvm_options: JVMOptions) -> (Vec<String>, Self) {
-        let JVMOptions { main_class_name, classpath, args, shared_libs, enable_tracing, enable_jvmti, properties, unittest_mode } = jvm_options;
+        let JVMOptions { main_class_name, classpath, args, shared_libs, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_classes } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
 
@@ -144,7 +145,8 @@ impl JVMState {
             // int_state_guard: &INT_STATE_GUARD
             unittest_mode,
             resolved_method_handles: RwLock::new(HashMap::new()),
-            include_name_field: AtomicBool::new(false)
+            include_name_field: AtomicBool::new(false),
+            store_generated_classes
         };
         jvm.add_class_class_class_object();
         (args, jvm)

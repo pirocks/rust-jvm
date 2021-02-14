@@ -31,6 +31,7 @@ fn main() {
     let mut enable_tracing = false;
     let mut enable_jvmti = false;
     let mut unittest_mode = false;
+    let mut store_generated_options = false;
     let mut libjdwp: String = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjdwp.so".to_string();
     {
         let mut ap = ArgumentParser::new();
@@ -55,6 +56,7 @@ fn main() {
         ap.refer(&mut enable_jvmti).add_option(&["--jvmti"], StoreTrue, "Enable JVMTI");
         ap.refer(&mut properties).add_option(&["--properties"], List, "Set JVM Properties");
         ap.refer(&mut unittest_mode).add_option(&["--unittest-mode"], StoreTrue, "Enable Unittest mode. This causes the main class to be ignored");
+        ap.refer(&mut store_generated_options).add_option(&["--store-anon-class"], StoreTrue, "Enables writing out of classes defined with Unsafe.defineClass");
         ap.parse_args_or_exit();
     }
 
@@ -64,7 +66,7 @@ fn main() {
 
     let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
-    let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode);
+    let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options);
 
     let (args, jvm) = JVMState::new(jvm_options);
     unsafe { JVM = (jvm).into() }
