@@ -14,7 +14,6 @@ use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
 
 pub fn arraylength(int_state: &mut InterpreterStateGuard) {
-    // int_state.print_stack_trace();
     let current_frame = int_state.current_frame_mut();
     let array_o = current_frame.pop().unwrap_object().unwrap();
     let array = array_o.unwrap_array();
@@ -83,7 +82,6 @@ pub fn invoke_instanceof(state: &JVMState, int_state: &mut InterpreterStateGuard
     let unwrapped = possibly_null.unwrap();
     let view = &int_state.current_class_view();
     let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_name();
-    // assert!(instance_of_class_type.try_unwrap_name().is_none());
     instance_of_impl(state, int_state, unwrapped, instance_of_class_type);
 }
 

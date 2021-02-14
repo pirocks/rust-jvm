@@ -47,31 +47,17 @@ fn invoke_virtual_method_i_impl(
     target_method: &MethodView,
 ) {
     if target_method.is_signature_polymorphic() {
-        // interpreter_state.print_stack_trace();
         let current_frame = interpreter_state.current_frame_mut();
 
-        // setup_virtual_args(current_frame, &expected_descriptor, &mut args, expected_descriptor.parameter_types.len() as u16 + 1);
         let op_stack = current_frame.operand_stack();
-        // dbg!(op_stack.len());
         let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
-        //
-        // dbg!(current_frame.operand_stack_types());
-        // dbg!(&expected_descriptor);
-        // dbg!(method_handle.clone().java_value().to_type());
         let form: LambdaForm = method_handle.get_form();
-        // dbg!(form.clone().java_value());
         let vmentry: MemberName = form.get_vmentry();
         if target_method.name() == "invoke" || target_method.name() == "invokeBasic" || target_method.name() == "invokeExact" {
             //todo do conversion.
             //todo handle void return
             assert_ne!(expected_descriptor.return_type, PType::VoidType);
-            // dbg!(interpreter_state.current_frame().operand_stack_types());
-            // dbg!(expected_descriptor);
-            // dbg!(vmentry.get_method_type(jvm, interpreter_state).get_ptypes_as_types());
             let res = call_vmentry(jvm, interpreter_state, vmentry);
-            // dbg!(interpreter_state.current_frame().operand_stack_types());
-            // let _method_handle_old = interpreter_state.pop_current_operand_stack();
-            // dbg!(interpreter_state.current_frame().operand_stack_types());
             interpreter_state.push_current_operand_stack(res);
         } else {
             unimplemented!()
@@ -119,16 +105,9 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let res_method = class.view().method_view_i(method_i as usize);
-        // dbg!(interpreter_state.current_frame().class_pointer().ptypeview());
-        // dbg!(res_method.classview().name());
-        // dbg!(res_method.name());
-        // dbg!(res_method.desc());
-        // dbg!(interpreter_state.current_frame().operand_stack_types());
-        // interpreter_state.print_stack_trace();
         run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str());
         assert!(interpreter_state.throw().is_none());
         let res = interpreter_state.pop_current_operand_stack();
-        // dbg!(&res.to_type());
         res
     } else {
         unimplemented!()
@@ -252,8 +231,6 @@ pub fn virtual_method_lookup(
                 md.parameter_types == cur_desc.parameter_types //we don't check return types b/c these could be subclassed
             }
     }).unwrap_or_else(|| {
-        // dbg!(&current_frame.operand_stack);
-        // dbg!(&current_frame.local_vars);
         dbg!(method_name);
         dbg!(md);
         dbg!(c.view().name());

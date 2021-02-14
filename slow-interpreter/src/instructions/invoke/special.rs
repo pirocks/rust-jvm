@@ -39,8 +39,6 @@ pub fn invoke_special_impl(
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {
-        // interpreter_state.print_stack_trace();
-
         run_native_method(jvm, interpreter_state, final_target_class, target_m_i);
     } else {
         let mut args = vec![];

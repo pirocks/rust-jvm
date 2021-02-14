@@ -32,10 +32,6 @@ pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStat
 	let return_type = method_type.get_rtype_as_type(jvm);
 	let parameter_types = method_type.get_ptypes_as_types(jvm);
 	let runtime_class = member_name.get_clazz().as_runtime_class(jvm);
-	// dbg!(&runtime_class);
-	// dbg!(runtime_class.view().name());
-	// dbg!(member_name.get_name().to_rust_string());
-	// dbg!(runtime_class.view().methods().map(|method| method.name()).collect::<Vec<_>>());
 	let method_descriptor = MethodDescriptor { parameter_types, return_type };
 	let res = runtime_class.view().lookup_method_name(&member_name.get_name().to_rust_string()).iter().find(|m| {
 		if m.is_signature_polymorphic() {
