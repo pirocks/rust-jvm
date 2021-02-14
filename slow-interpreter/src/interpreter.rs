@@ -332,7 +332,6 @@ fn run_single_instruction(
         InstructionInfo::ineg => ineg(interpreter_state.current_frame_mut()),
         InstructionInfo::instanceof(cp) => invoke_instanceof(jvm, interpreter_state, cp),
         InstructionInfo::invokedynamic(cp) => {
-            interpreter_state.print_stack_trace();
             invoke_dynamic(jvm, interpreter_state, cp)
         }
         InstructionInfo::invokeinterface(invoke_i) => invoke_interface(jvm, interpreter_state, invoke_i),
@@ -431,14 +430,17 @@ fn dcmpl(current_frame: &mut StackEntry) {
     current_frame.push(JavaValue::Int(res));
 }
 
-fn athrow(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
-    println!("EXCEPTION:");
+fn athrow(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let exception_obj = {
         let value = interpreter_state.pop_current_operand_stack();
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.unwrap_object_nonnull()
     };
-    dbg!(exception_obj.lookup_field("detailMessage"));
-    interpreter_state.print_stack_trace();
+    if jvm.debug_print_exceptions {
+        println!("EXCEPTION:");
+        dbg!(exception_obj.lookup_field("detailMessage"));
+        interpreter_state.debug_print_stack_trace();
+    }
+
     interpreter_state.set_throw(exception_obj.into());
 }

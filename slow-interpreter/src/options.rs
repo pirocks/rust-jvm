@@ -17,7 +17,8 @@ pub struct JVMOptions {
     pub(crate) enable_jvmti: bool,
     pub(crate) properties: Vec<String>,
     pub(crate) unittest_mode: bool,
-    pub(crate) store_generated_classes: bool
+    pub(crate) store_generated_classes: bool,
+    pub(crate) debug_print_exceptions: bool,
 }
 
 impl JVMOptions {
@@ -31,6 +32,7 @@ impl JVMOptions {
                properties: Vec<String>,
                unittest_mode: bool,
                store_generated_classes: bool,
+               debug_print_exceptions: bool,
     ) -> Self {
         Self {
             main_class_name,
@@ -42,6 +44,7 @@ impl JVMOptions {
             properties,
             unittest_mode,
             store_generated_classes,
+            debug_print_exceptions
         }
     }
 }
