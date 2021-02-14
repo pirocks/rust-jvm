@@ -907,20 +907,20 @@ dependencies = [
  "futures-intrusive",
  "jar-manipulation",
  "jvmti-jni-bindings",
-    "libc",
-    "libffi",
-    "libloading 0.6.5",
-    "lock_api",
-    "nix",
-    "num",
-    "parking_lot",
-    "regex",
-    "rust-jvm-common",
-    "thread-priority",
-    "threads",
-    "type-safe-proc-macro-utils",
-    "va_list",
-    "verification",
+ "libc",
+ "libffi",
+ "libloading 0.6.5",
+ "lock_api",
+ "nix",
+ "num",
+ "parking_lot",
+ "regex",
+ "rust-jvm-common",
+ "thread-priority",
+ "threads",
+ "type-safe-proc-macro-utils",
+ "va_list",
+ "verification",
 ]
 
 [[package]]
@@ -1052,18 +1052,18 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d40c6d1b69745a6ec6fb1ca717914848da4b44ae29d9b3080cbee91d72a69b14"
 dependencies = [
-    "lazy_static",
+ "lazy_static",
 ]
 
 [[package]]
 name = "threads"
 version = "0.1.0"
 dependencies = [
-    "bindgen",
-    "libc",
-    "lock_api",
-    "nix",
-    "parking_lot",
+ "bindgen",
+ "libc",
+ "lock_api",
+ "nix",
+ "parking_lot",
 ]
 
 [[package]]
@@ -1072,9 +1072,9 @@ version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6db9e6914ab8b1ae1c260a4ae7a49b6c5611b40328a735b21862567685e73255"
 dependencies = [
-    "libc",
-    "wasi 0.10.0+wasi-snapshot-preview1",
-    "winapi",
+ "libc",
+ "wasi 0.10.0+wasi-snapshot-preview1",
+ "winapi",
 ]
 
 [[package]]
