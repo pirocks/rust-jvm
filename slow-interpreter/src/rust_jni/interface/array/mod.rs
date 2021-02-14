@@ -105,8 +105,8 @@ pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: 
 }
 
 
-pub unsafe extern "C" fn get_long_array_elements(env: *mut JNIEnv, array: jlongArray, isCopy: *mut jboolean) -> *mut jlong {
-    get_primitive_array_critical(env, array, isCopy) as *mut jlong
+pub unsafe extern "C" fn get_long_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jlong {
+    get_primitive_array_critical(env, array, is_copy) as *mut jlong
 }
 
 pub unsafe extern "C" fn release_long_array_elements(env: *mut JNIEnv, array: jlongArray, elems: *mut jlong, mode: jint) {

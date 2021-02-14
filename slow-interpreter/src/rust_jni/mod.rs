@@ -11,7 +11,7 @@ use libffi::middle::Arg;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use libffi::middle::Type;
-use libloading::{Error, Library};
+use libloading::Library;
 use libloading::os::unix::RTLD_NOW;
 use libloading::Symbol;
 

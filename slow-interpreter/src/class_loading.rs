@@ -91,7 +91,7 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
     }
 }
 
-pub fn assert_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
+pub fn assert_loaded_class(jvm: &JVMState, _int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
     match jvm.classes.read().unwrap().initiating_loaders.get(&ptype) {
         None => panic!(),
         Some((_, res)) => res.clone()
@@ -227,7 +227,7 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         }));
     }
     let class_object = match loader {
-        LoaderName::UserDefinedLoader(idx) => {
+        LoaderName::UserDefinedLoader(_idx) => {
             JClass::new(jvm, int_state, loader_object.cast_class_loader())
         }
         BootstrapLoader => {
