@@ -71,21 +71,12 @@ mod resolvers;
 pub mod class_loading;
 
 pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
-    // if jvm.unittest_mode {
-    //     run_tests(jvm, int_state);
-    //     Result::Ok(())
-    // } else {
-    dbg!(&jvm.main_class_name);
-
     let launcher = Launcher::get_launcher(jvm, int_state);
     let loader_obj = launcher.get_loader(jvm, int_state);
     let main_loader = loader_obj.to_jvm_loader(jvm);
-    dbg!(loader_obj.to_string(jvm, int_state).to_rust_string());
-    dbg!(main_loader);
 
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader).expect("failed to load main class");
     check_loaded_class(jvm, int_state, main.ptypeview()).expect("failed to init main class");
-    dbg!(jvm.classes.read().unwrap().get_initiating_loader(&main));
     let main_view = main.view();
     let main_i = locate_main_method(&main_view.backing_class());
     let main_thread = jvm.thread_state.get_main_thread();
@@ -94,9 +85,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let stack_entry = StackEntry::new_java_frame(jvm, main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
     let main_frame_guard = int_state.push_frame(stack_entry);
 
-    dbg!(int_state.current_loader());
     setup_program_args(&jvm, int_state, args);
-    // assert_ne!(int_state.current_loader(), LoaderName::BootstrapLoader);
     jvm.include_name_field.store(true, Ordering::SeqCst);
     run_function(&jvm, int_state);
     if int_state.throw().is_some() || *int_state.terminate() {
