@@ -18,7 +18,6 @@ use slow_interpreter::options::JVMOptions;
 use slow_interpreter::threading::MainThreadStartInfo;
 
 pub mod class_loading;
-pub mod classpath_indexing;
 
 
 static mut JVM: Option<JVMState> = None;
