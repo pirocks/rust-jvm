@@ -94,7 +94,7 @@ impl<'l> InterpreterStateGuard<'l> {
 
     pub fn pop_current_operand_stack(&mut self) -> JavaValue {
         if self.int_state.as_ref().unwrap().call_stack.last().unwrap().operand_stack().is_empty() {
-            self.print_stack_trace();
+            self.debug_print_stack_trace();
             panic!()
         }
         let int_state = self.int_state.as_mut().unwrap();
@@ -193,7 +193,7 @@ impl<'l> InterpreterStateGuard<'l> {
         self.current_frame().method_i()
     }
 
-    pub fn print_stack_trace(&self) {
+    pub fn debug_print_stack_trace(&self) {
         for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
             if stack_entry.try_method_i().is_some() && stack_entry.method_i() > 0 {
                 let name = stack_entry.class_pointer().view().name();

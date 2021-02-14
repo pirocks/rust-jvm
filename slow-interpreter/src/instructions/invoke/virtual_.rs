@@ -188,7 +188,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
     let c = match match this_pointer.unwrap_object() {
         Some(x) => x,
         None => {
-            int_state.print_stack_trace();
+            int_state.debug_print_stack_trace();
             let method_i = int_state.current_frame().method_i();
             let method_view = int_state.current_frame().class_pointer().view().method_view_i(method_i as usize);
             dbg!(&method_view.code_attribute().unwrap().code);
@@ -199,7 +199,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
             dbg!(method_view.desc_str());
             dbg!(method_view.classview().name());
             dbg!(method_name);
-            int_state.print_stack_trace();
+            int_state.debug_print_stack_trace();
             panic!()
         }
     }.deref() {
@@ -257,7 +257,7 @@ pub fn virtual_method_lookup(
         dbg!(method_name);
         dbg!(md);
         dbg!(c.view().name());
-        int_state.print_stack_trace();
+        int_state.debug_print_stack_trace();
         dbg!(int_state.current_frame().operand_stack_types());
         dbg!(int_state.current_frame().local_vars_types());
         dbg!(int_state.previous_frame().operand_stack_types());

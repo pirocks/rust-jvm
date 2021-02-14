@@ -61,7 +61,8 @@ pub struct JVMState {
     pub resolved_method_handles: RwLock<HashMap<ByAddress<Arc<Object>>, MethodId>>,
 
     pub include_name_field: AtomicBool,
-    pub store_generated_classes: bool
+    pub store_generated_classes: bool,
+    pub debug_print_exceptions: bool
 }
 
 pub struct Classes {

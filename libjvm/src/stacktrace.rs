@@ -10,7 +10,6 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jobject) -> jint {
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
     0//todo impl
 }
 

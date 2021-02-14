@@ -236,7 +236,6 @@ pub fn initialize_class(
     run_function(jvm, interpreter_state);
     interpreter_state.pop_frame(new_function_frame);
     if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
-        interpreter_state.print_stack_trace();
         return None;
     }
     let function_return = interpreter_state.function_return_mut();

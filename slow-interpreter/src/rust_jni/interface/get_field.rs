@@ -85,7 +85,6 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
         return fieldid;
     }
     let int_state = get_interpreter_state(env);
-    int_state.print_stack_trace();
     match view.super_name() {
         None => {}
         Some(super_) => {
@@ -93,7 +92,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
             return get_field_id_impl(env, &name.to_string(), runtime_class.clone(), runtime_class.view()).unwrap()//todo fix this incorrecdtness
         }
     }
-    int_state.print_stack_trace();
+    int_state.debug_print_stack_trace();
     dbg!(view.name());
     dbg!(name);
     panic!()

@@ -38,7 +38,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
             if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
             } else {
-                int_state.print_stack_trace();
+                int_state.debug_print_stack_trace();
                 dbg!(object_class.view().name());
                 dbg!(instanceof_class.view().name());
                 unimplemented!()

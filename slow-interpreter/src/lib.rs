@@ -89,7 +89,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     jvm.include_name_field.store(true, Ordering::SeqCst);
     run_function(&jvm, int_state);
     if int_state.throw().is_some() || *int_state.terminate() {
-        int_state.print_stack_trace();
+        int_state.debug_print_stack_trace();
         unimplemented!()
     }
     int_state.pop_frame(main_frame_guard);

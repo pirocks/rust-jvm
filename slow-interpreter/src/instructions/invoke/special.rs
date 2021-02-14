@@ -35,7 +35,7 @@ pub fn invoke_special_impl(
     target_m: &MethodView,
 ) {
     if final_target_class.view().method_view_i(target_m_i).is_signature_polymorphic() {
-        interpreter_state.print_stack_trace();
+        interpreter_state.debug_print_stack_trace();
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {

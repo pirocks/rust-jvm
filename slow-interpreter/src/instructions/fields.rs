@@ -85,7 +85,7 @@ pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
             let fields = match o.as_ref() {
                 Some(x) => x,
                 None => {
-                    int_state.print_stack_trace();
+                    int_state.debug_print_stack_trace();
                     unimplemented!()
                 }
             }.unwrap_normal_object().fields_mut();
@@ -97,7 +97,7 @@ pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
             let res = match fields.get(field_name.as_str()) {
                 Some(x) => x,
                 None => {
-                    int_state.print_stack_trace();
+                    int_state.debug_print_stack_trace();
                     panic!()
                 },
             }.clone();

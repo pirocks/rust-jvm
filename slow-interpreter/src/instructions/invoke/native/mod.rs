@@ -109,7 +109,7 @@ pub fn run_native_method(
                 } else if &mangled == "Java_sun_misc_Perf_createLong" {
                     Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8).java_value())//todo this is incorrect and should be implemented properly.
                 } else {
-                    int_state.print_stack_trace();
+                    int_state.debug_print_stack_trace();
                     dbg!(mangled);
                     panic!()
                 }

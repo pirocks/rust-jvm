@@ -109,7 +109,7 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
             int_state.push_current_operand_stack(JavaValue::Int(int));
         }
         _ => {
-            int_state.print_stack_trace();
+            int_state.debug_print_stack_trace();
             dbg!(&pool_entry);
             unimplemented!()
         }
