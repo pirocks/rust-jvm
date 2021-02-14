@@ -61,18 +61,9 @@ fn main() {
         ap.parse_args_or_exit();
     }
 
-    // if verbose {
-    // info!("in verbose mode, which currently doesn't really do anything, b/c I'm always verbose, since I program in java a lot.");
-    // }
-
-
     //todo hacky
     properties.push("java.ext.dirs".to_string());
     properties.push("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/ext".to_string());
-
-    // properties.push("java.home".to_string());
-    // properties.push("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/".to_string());
-
 
     let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
