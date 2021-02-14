@@ -4,7 +4,7 @@ use std::mem::{size_of, transmute};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
 
-use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class};
+use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};

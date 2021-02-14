@@ -1,6 +1,7 @@
+use std::ffi::c_void;
 use std::intrinsics::transmute;
 use std::ops::Deref;
-use std::ptr::null_mut;
+use std::ptr::{null, null_mut};
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
@@ -9,7 +10,7 @@ use slow_interpreter::field_table::FieldId;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
-use slow_interpreter::rust_jni::native_util::{from_object, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 use crate::introspection::JVM_GetCallerClass;
 
@@ -95,6 +96,13 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putByte__JB(env: *mut JNIEnv,
 }
 
 #[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__JI(env: *mut JNIEnv, the_unsafe: jobject, address: jlong, int_: jint) {
+    let int_addr: *mut jint = transmute(address);
+    int_addr.write(int_)
+}
+
+
+#[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEnv, the_unsafe: jobject,
                                                                  field_obj: jobject,
 ) -> jlong {
@@ -144,11 +152,22 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(
     offset: jlong,
 ) -> jint {
     let jvm = get_state(env);
-    let notnull = from_object(obj).unwrap();
-    let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-    let field_name = rc.view().field(field_i as usize).field_name();
-    let field_borrow = notnull.unwrap_normal_object().fields_mut();
-    field_borrow.get(&field_name).unwrap().unwrap_int()
+    let int_state = get_interpreter_state(env);
+    match from_object(obj) {
+        Some(notnull) => {
+            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+            let field_name = rc.view().field(field_i as usize).field_name();
+            let field_borrow = notnull.unwrap_normal_object().fields_mut();
+            field_borrow.get(&field_name).unwrap().unwrap_int()
+        }
+        None => {
+            //static
+            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+            let field_name = rc.view().field(field_i as usize).field_name();
+            let static_vars = rc.static_vars();
+            static_vars.get(&field_name).unwrap().unwrap_int()
+        }
+    }
 }
 
 
@@ -246,7 +265,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
                     assert!(!field_view.is_static());
                     let name = field_view.field_name();
                     obj.fields_mut().insert(name, JavaValue::Object(from_object(to_put)));
-                },
+                }
             }
         }
     }
@@ -255,6 +274,16 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putObject(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, to_put: jobject) {
     Java_sun_misc_Unsafe_putObjectVolatile(env, the_unsafe, obj, offset, to_put)
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_setMemory(env: *mut JNIEnv, the_unsafe: jobject, o: jobject, offset: jlong, bytes: jlong, value: jbyte) {
+    assert_eq!(o, null_mut());
+
+    for i in offset..(offset + bytes) {
+        let address = i as *mut jbyte;
+        address.write(value)
+    }
 }
 
 pub mod defineClass;

@@ -228,7 +228,7 @@ pub mod class {
             let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into()).unwrap();
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack();
-            run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], "()V".to_string());
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], "(Ljava/lang/ClassLoader;)V".to_string());
             res.cast_class()
         }
 
@@ -703,7 +703,7 @@ pub mod class_not_found_exception {
 
     use rust_jvm_common::classnames::ClassName;
 
-    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+    use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;

@@ -46,6 +46,12 @@ pub fn dsub(current_frame: &mut StackEntry) {
     current_frame.push(JavaValue::Double(value1 - value2));
 }
 
+pub fn fsub(current_frame: &mut StackEntry) {
+    let value2 = current_frame.pop().unwrap_float();
+    let value1 = current_frame.pop().unwrap_float();
+    current_frame.push(JavaValue::Float(value1 - value2));
+}
+
 pub fn lmul(current_frame: &mut StackEntry) {
     let first = current_frame.pop().unwrap_long();
     let second = current_frame.pop().unwrap_long();

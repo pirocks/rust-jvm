@@ -3,10 +3,10 @@ use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
 
-use classfile_parser::code::InstructionTypeNum::drem;
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::ClassView;
@@ -217,6 +217,9 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         let mut fields: HashMap<String, JavaValue, RandomState> = Default::default();
         fields.insert("name".to_string(), JavaValue::Object(None));
         fields.insert("classLoader".to_string(), JavaValue::Object(None));
+        fields.insert("reflectionData".to_string(), JavaValue::Object(None));
+        fields.insert("genericInfo".to_string(), JavaValue::Object(None));
+        fields.insert("classRedefinedCount".to_string(), JavaValue::Int(0));
         return Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             fields: UnsafeCell::new(fields),
@@ -231,14 +234,14 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
             JClass::new_bootstrap_loader(jvm, int_state)
         }
     };
-    // match name {
-    //     None => {}
-    //     Some(name) => {
-    //         if ((|| { Some(jvm.classes.read().unwrap().loaded_classes_by_type.get(&BootstrapLoader)?.get(&ClassName::string().into())?.status()) })()) == ClassStatus::INITIALIZED.into() {
-    //             class_object.set_name_(JString::from_rust(jvm, int_state, name.get_referred_name().to_string()))
-    //         }
-    //     }
-    // }
+    match name {
+        None => {}
+        Some(name) => {
+            if jvm.include_name_field.load(Ordering::SeqCst) {
+                class_object.set_name_(JString::from_rust(jvm, int_state, name.get_referred_name().replace("/", ".").to_string()))
+            }
+        }
+    }
     class_object.object()
 }
 

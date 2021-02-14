@@ -76,7 +76,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 }
 
 
-pub static mut STRING_INTERNMENT: Option<HashMap<String, Arc<Object>>> = None;
+pub static mut STRING_INTERNMENT: Option<HashMap<Vec<u16>, Arc<Object>>> = None;
 
 pub unsafe fn intern_impl(str_unsafe: jstring) -> jstring {
     //todo fix this entire function
@@ -87,15 +87,15 @@ pub unsafe fn intern_impl(str_unsafe: jstring) -> jstring {
     let str_obj = from_object(str_unsafe);
     let char_array_ptr = str_obj.clone().unwrap().lookup_field("value").unwrap_object().unwrap();
     let char_array = char_array_ptr.unwrap_array().mut_array();
-    let mut native_string = String::with_capacity(char_array.len());
+    let mut native_string_bytes = Vec::with_capacity(char_array.len());
     for char_ in &*char_array {
-        native_string.push(char_.unwrap_char() as u8 as char);
+        native_string_bytes.push(char_.unwrap_char());
     }
-    if STRING_INTERNMENT.as_ref().unwrap().contains_key(&native_string) {
-        let res = STRING_INTERNMENT.as_ref().unwrap().get(&native_string).unwrap().clone();
+    if STRING_INTERNMENT.as_ref().unwrap().contains_key(&native_string_bytes) {
+        let res = STRING_INTERNMENT.as_ref().unwrap().get(&native_string_bytes).unwrap().clone();
         to_object(res.into())
     } else {
-        STRING_INTERNMENT.as_mut().unwrap().insert(native_string, str_obj.as_ref().unwrap().clone());
+        STRING_INTERNMENT.as_mut().unwrap().insert(native_string_bytes, str_obj.as_ref().unwrap().clone());
         to_object(str_obj)
     }
 }

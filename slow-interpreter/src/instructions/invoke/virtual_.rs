@@ -78,13 +78,12 @@ fn invoke_virtual_method_i_impl(
         }
         return;
     }
-    let current_frame = interpreter_state.current_frame_mut();
     if target_method.is_native() {
         run_native_method(jvm, interpreter_state, target_class, target_method_i)
     } else if !target_method.is_abstract() {
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-        setup_virtual_args(current_frame, &expected_descriptor, &mut args, max_locals);
+        setup_virtual_args(interpreter_state, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let frame_for_function = interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
@@ -136,13 +135,16 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     }
 }
 
-pub fn setup_virtual_args(current_frame: &mut StackEntry, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
+pub fn setup_virtual_args(int_state: &mut InterpreterStateGuard, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
+    let current_frame = int_state.current_frame_mut();
+    // dbg!(current_frame.operand_stack_types());
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
     }
     let mut i = 1;
     for _ in &expected_descriptor.parameter_types {
         let value = current_frame.pop();
+        // dbg!(ptype);
         match value.clone() {
             JavaValue::Long(_) | JavaValue::Double(_) => {
                 args[i] = JavaValue::Top;

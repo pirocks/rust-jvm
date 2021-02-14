@@ -4,9 +4,10 @@ use std::mem::transmute;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
+use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_initing_or_inited_class;
 use crate::java_values::JavaValue;
@@ -79,14 +80,35 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     let jvm = get_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
-    let view = &runtime_class.view();
-    for field_i in 0..view.num_fields() {
-        //todo check descriptor
-        if view.field(field_i).field_name() == name {
-            return new_field_id(get_state(env), runtime_class, field_i);
+    let view = runtime_class.view();
+
+    if let Some(fieldid) = get_field_id_impl(env, &name, runtime_class.clone(), view) {
+        return fieldid;
+    }
+    let int_state = get_interpreter_state(env);
+    int_state.print_stack_trace();
+    match view.super_name() {
+        None => {}
+        Some(super_) => {
+            let runtime_class = check_initing_or_inited_class(jvm, int_state, super_.clone().into()).unwrap();
+            return get_field_id_impl(env, &name.to_string(), runtime_class.clone(), runtime_class.view()).unwrap()//todo fix this incorrecdtness
         }
     }
+    int_state.print_stack_trace();
+    dbg!(view.name());
+    dbg!(name);
     panic!()
+}
+
+unsafe fn get_field_id_impl(env: *mut JNIEnv, name: &String, runtime_class: Arc<RuntimeClass>, view: &Arc<ClassView>) -> Option<jfieldID> {
+    for field_i in 0..view.num_fields() {
+        //todo check descriptor
+        let field_name = view.field(field_i).field_name();
+        if &field_name == name {
+            return new_field_id(get_state(env), runtime_class, field_i).into();
+        }
+    }
+    None
 }
 
 pub fn new_field_id(jvm: &JVMState, runtime_class: Arc<RuntimeClass>, field_i: usize) -> jfieldID {
@@ -133,8 +155,8 @@ unsafe fn get_static_field(env: *mut JNIEnv, klass: jclass, field_id_raw: jfield
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
     let jclass = from_jclass(klass);
-    dbg!(&name);
-    dbg!(view.name());
+    // dbg!(&name);
+    // dbg!(view.name());
     let rc = jclass.as_runtime_class(jvm);
     check_initing_or_inited_class(jvm, int_state, rc.ptypeview()).unwrap();
     let guard = rc.static_vars();

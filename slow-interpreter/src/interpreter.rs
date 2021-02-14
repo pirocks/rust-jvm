@@ -100,9 +100,6 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         monitor.unwrap().unlock(jvm);
     }
     jvm.tracing.function_exit_guard(function_enter_guard);
-    if meth_name == "getCARD8" {
-        dbg!(interpreter_state.previous_frame().operand_stack().last().unwrap());
-    }
     // jvm.tracing.trace_function_exit(
     //     &class_name__,
     //     &meth_name,
@@ -281,7 +278,7 @@ fn run_single_instruction(
         InstructionInfo::fstore_1 => fstore(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::fstore_2 => fstore(interpreter_state.current_frame_mut(), 2),
         InstructionInfo::fstore_3 => fstore(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::fsub => unimplemented!(),
+        InstructionInfo::fsub => fsub(interpreter_state.current_frame_mut()),
         InstructionInfo::getfield(cp) => get_field(interpreter_state, cp, false),
         InstructionInfo::getstatic(cp) => get_static(jvm, interpreter_state, cp),
         InstructionInfo::goto_(target) => goto_(interpreter_state.current_frame_mut(), target),

@@ -1,10 +1,16 @@
 use std::borrow::Borrow;
 use std::ops::Deref;
+use std::sync::Arc;
 
+use classfile_view::view::HasAccessFlags;
+use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
+use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
+use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
@@ -30,6 +36,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     let jvm = get_state(env);
     assert_eq!(obj, std::ptr::null_mut());//non-static methods not supported atm.
     let method_obj = from_object(method).unwrap();
+    // dbg!(JavaValue::Object(method_obj.clone().into()).cast_method().to_string(jvm,int_state).to_rust_string());
     let args_not_null = from_object(args0).unwrap();
     let args_refcell = args_not_null.unwrap_array().mut_array();
     let args = args_refcell.deref();
@@ -46,11 +53,24 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {
-        dbg!(arg);
         int_state.push_current_operand_stack(arg.clone());
     }
 
-    run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, signature);
+    //todo clean this up
+    let parsed_md = parse_method_descriptor(&signature).unwrap();
+    // if !args.is_empty(){
+    //     dbg!(args[0].unwrap_normal_object().class_pointer.view().name());
+    // }
+    let is_virtual = !target_runtime_class.view().lookup_method(&method_name, &parsed_md).unwrap().is_static();
+    // dbg!(is_virtual);
+    // dbg!(&method_name);
+    // dbg!(&parsed_md);
+    if is_virtual {
+        invoke_virtual(jvm, int_state, &method_name, &parsed_md);
+    } else {
+        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, signature);
+    }
+
     new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
 }
 
@@ -64,7 +84,20 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         let temp_1 = from_object(args0).unwrap();
         let array_temp = temp_1.unwrap_array().borrow();
         let elems_refcell = array_temp.mut_array();
-        elems_refcell.clone()
+        elems_refcell.clone().iter().map(|jv| match jv {
+            JavaValue::Object(o) => {
+                if let Some(o) = o {
+                    if let Object::Object(obj) = o.deref() {
+                        //todo handle others
+                        if obj.class_pointer.view().name() == ClassName::Str("java/lang/Integer".to_string()) {
+                            return obj.fields_mut().get("value").unwrap().clone()
+                        }
+                    }
+                }
+                jv.clone()
+            }
+            _ => jv.clone()
+        }).collect::<Vec<_>>()
     };
     let constructor_obj = from_object(c).unwrap();
     let signature_str_obj = constructor_obj.lookup_field("signature");
@@ -75,6 +108,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let obj = int_state.pop_current_operand_stack();
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());
+    // dbg!(&full_args);
     run_constructor(jvm, int_state, clazz, full_args, signature);
     new_local_ref_public(obj.unwrap_object(), int_state)
 }

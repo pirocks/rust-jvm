@@ -16,6 +16,9 @@ extern crate va_list;
 
 use std::error::Error;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use std::thread::sleep;
+use std::time::Duration;
 
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -24,7 +27,7 @@ use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
-use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
+use crate::class_loading::{check_loaded_class, check_loaded_class_force_loader};
 use crate::interpreter::run_function;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
@@ -94,12 +97,14 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     dbg!(int_state.current_loader());
     setup_program_args(&jvm, int_state, args);
     // assert_ne!(int_state.current_loader(), LoaderName::BootstrapLoader);
+    jvm.include_name_field.store(true, Ordering::SeqCst);
     run_function(&jvm, int_state);
     if int_state.throw().is_some() || *int_state.terminate() {
         int_state.print_stack_trace();
         unimplemented!()
     }
     int_state.pop_frame(main_frame_guard);
+    sleep(Duration::new(100, 0));//todo need to wait for other threads or something
     Result::Ok(())
     // }
 }

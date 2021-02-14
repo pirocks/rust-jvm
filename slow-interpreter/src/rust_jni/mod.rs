@@ -11,7 +11,7 @@ use libffi::middle::Arg;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use libffi::middle::Type;
-use libloading::Library;
+use libloading::{Error, Library};
 use libloading::os::unix::RTLD_NOW;
 use libloading::Symbol;
 
@@ -41,16 +41,19 @@ impl LibJavaLoading {
         let awt_path = path.replace("libjava.so", "libawt.so");
         let xawt_path = path.replace("libjava.so", "libawt_xawt.so");
         let zip_path = path.replace("libjava.so", "libzip.so");
+        let libfontmanager_path = path.replace("libjava.so", "libfontmanager.so");
         let nio_lib = Library::new(nio_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
         let libawt = Library::new(awt_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
         let libxawt = Library::new(xawt_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
         let libzip = Library::new(zip_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
+        let libfontmanager = Library::new(libfontmanager_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
         LibJavaLoading {
             libjava: lib,
             libnio: nio_lib,
             libawt,
             libxawt,
             libzip,
+            libfontmanager,
             registered_natives: RwLock::new(HashMap::new()),
         }
     }
@@ -84,8 +87,13 @@ pub fn call(
                                             //todo maybe do something about this nesting lol
                                             match state.libjava.libzip.get(mangled.as_bytes()) {
                                                 Ok(o) => o,
-                                                Err(e) => {
-                                                    return Result::Err(e);
+                                                Err(_) => {
+                                                    match state.libjava.libfontmanager.get(mangled.as_bytes()) {
+                                                        Ok(o) => o,
+                                                        Err(e) => {
+                                                            return Result::Err(e);
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

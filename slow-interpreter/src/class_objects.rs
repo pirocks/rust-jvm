@@ -6,7 +6,7 @@ use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::ptype_view::PTypeView;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{check_loaded_class_force_loader, check_resolved_class};
+use crate::class_loading::check_loaded_class_force_loader;
 use crate::java_values::Object;
 
 //todo do something about this class object crap

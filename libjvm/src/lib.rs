@@ -1,5 +1,6 @@
 #![feature(box_syntax)]
 #![feature(entry_insert)]
+#![feature(with_options)]
 //#![feature(asm)]
 
 #![allow(non_snake_case)]

@@ -1,9 +1,9 @@
 use std::os::raw::c_void;
 
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{jarray, jboolean, jint, JNIEnv, jobject, jobjectArray, jsize};
+use jvmti_jni_bindings::{jarray, jboolean, jbyte, jint, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jsize};
 
-use crate::java_values::Object;
+use crate::java_values::{JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state};
 
@@ -39,8 +39,37 @@ pub mod array_region;
 pub mod new;
 
 
-pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, _array: jarray, _carray: *mut ::std::os::raw::c_void, _mode: jint) {
-    //todo implement
+pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, array: jarray, carray: *mut ::std::os::raw::c_void, mode: jint) {
+    // assert_eq!(mode, 0);
+    if mode == JNI_ABORT as i32 {
+        return;
+    }
+    //todo handle JNI_COMMIT
+    let not_null = from_object(array).unwrap();
+    let array = not_null.unwrap_array();
+    let array_type = &array.elem_type;
+    let array = array.mut_array();
+    for (i, elem) in array.iter_mut().enumerate() {
+        match array_type {
+            PTypeView::ByteType => {
+                *elem = JavaValue::Byte((carray as *const jbyte).offset(i as isize).read());
+            }
+            PTypeView::CharType => todo!(),
+            PTypeView::DoubleType => todo!(),
+            PTypeView::FloatType => todo!(),
+            PTypeView::IntType => {
+                *elem = JavaValue::Int((carray as *const jint).offset(i as isize).read());
+            }
+            PTypeView::LongType => {
+                *elem = JavaValue::Long((carray as *const jlong).offset(i as isize).read());
+            }
+            PTypeView::Ref(_) => todo!(),
+            PTypeView::ShortType => todo!(),
+            PTypeView::BooleanType => todo!(),
+            PTypeView::VoidType => todo!(),
+            _ => todo!()
+        }
+    }
 }
 
 pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
@@ -58,7 +87,11 @@ pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: 
         PTypeView::DoubleType => todo!(),
         PTypeView::FloatType => todo!(),
         PTypeView::IntType => todo!(),
-        PTypeView::LongType => todo!(),
+        PTypeView::LongType => {
+            //todo dup
+            let res = array.mut_array().iter().map(|elem| elem.unwrap_long()).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        }
         PTypeView::Ref(_) => todo!(),
         PTypeView::ShortType => todo!(),
         PTypeView::BooleanType => todo!(),
@@ -69,4 +102,13 @@ pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: 
         PTypeView::UninitializedThis => todo!(),
         PTypeView::UninitializedThisOrClass(_) => todo!(),
     }
+}
+
+
+pub unsafe extern "C" fn get_long_array_elements(env: *mut JNIEnv, array: jlongArray, isCopy: *mut jboolean) -> *mut jlong {
+    get_primitive_array_critical(env, array, isCopy) as *mut jlong
+}
+
+pub unsafe extern "C" fn release_long_array_elements(env: *mut JNIEnv, array: jlongArray, elems: *mut jlong, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
 }

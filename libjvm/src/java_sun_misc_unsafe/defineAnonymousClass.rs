@@ -59,7 +59,11 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
 
     let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader };
     let class_view = ClassView::from(parsed.clone());
-    File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write(byte_array.clone().as_slice()).unwrap();
+    File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
+    define_class(jvm, int_state, parsed, current_loader, class_view)
+}
+
+pub fn define_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassView) -> JavaValue {
     let class_name = class_view.name();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: Arc::new(class_view),

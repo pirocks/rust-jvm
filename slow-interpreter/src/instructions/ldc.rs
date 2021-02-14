@@ -96,6 +96,7 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     match &pool_entry {
         ConstantInfoView::String(s) => {
             let string_value = JString::from_rust(jvm, int_state, s.string()).intern(jvm, int_state).java_value();
+            // dbg!(string_value.cast_string().to_rust_string());
             int_state.push_current_operand_stack(string_value)
         }
         ConstantInfoView::Class(c) => load_class_constant(jvm, int_state, &c),
@@ -108,7 +109,8 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
             int_state.push_current_operand_stack(JavaValue::Int(int));
         }
         _ => {
-            // dbg!(&pool_entry.kind);
+            int_state.print_stack_trace();
+            dbg!(&pool_entry);
             unimplemented!()
         }
     }

@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::sync::Arc;
 
 use rust_jvm_common::classnames::ClassName;
@@ -49,13 +48,6 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         None => { return; }
         Some(val) => val
     };
-    if field_name == "UNSAFE" && int_state.current_class_view().name().get_referred_name() == "java/util/concurrent/locks/LockSupport" {
-        let target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
-        dbg!(Arc::as_ptr(&target_classfile));
-        dbg!(target_classfile.static_vars().keys());
-        dbg!(target_classfile.static_vars().values());
-        dbg!(&field_value);
-    }
     int_state.push_current_operand_stack(field_value);
 }
 
@@ -104,7 +96,13 @@ pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
                 dbg!(&fields.keys());
                 dbg!(&field_name);
             }
-            let res = fields.get(field_name.as_str()).unwrap().clone();
+            let res = match fields.get(field_name.as_str()) {
+                Some(x) => x,
+                None => {
+                    int_state.print_stack_trace();
+                    panic!()
+                },
+            }.clone();
             current_frame.push(res);
         }
         _ => panic!(),

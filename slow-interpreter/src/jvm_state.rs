@@ -63,6 +63,8 @@ pub struct JVMState {
 
     pub unittest_mode: bool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<Arc<Object>>, MethodId>>,
+
+    pub include_name_field: AtomicBool
 }
 
 pub struct Classes {
@@ -146,6 +148,7 @@ impl JVMState {
             // int_state_guard: &INT_STATE_GUARD
             unittest_mode,
             resolved_method_handles: RwLock::new(HashMap::new()),
+            include_name_field: AtomicBool::new(false)
         };
         jvm.add_class_class_class_object();
         (args, jvm)
@@ -217,12 +220,13 @@ pub struct LibJavaLoading {
     pub libawt: Library,
     pub libxawt: Library,
     pub libzip: Library,
+    pub libfontmanager: Library,
     pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass>>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
 }
 
 impl LibJavaLoading {
     pub unsafe fn load(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt, &self.libzip] {//todo reenable
+        for library in vec![&self.libjava, &self.libnio, &self.libawt, &self.libxawt, &self.libzip, &self.libfontmanager] {//todo reenable
             let on_load = library.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
             let onload_fn_ptr = on_load.deref();
             let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
