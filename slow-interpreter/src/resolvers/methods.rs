@@ -46,7 +46,6 @@ pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStat
 		}
 	}).cloned();//todo assert only one match
 	if !res.is_some() {
-		int_state.debug_print_stack_trace();
 		return Err(ResolutionError::Linkage);//todo handle this in virtual and more generally have correct error handling
 	}
 	assert!(res.is_some());

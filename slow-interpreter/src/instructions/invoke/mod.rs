@@ -57,13 +57,8 @@ pub mod dynamic {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
-        // dbg!(invoke_dynamic_view.name_and_type().name());
-        // dbg!(invoke_dynamic_view.name_and_type().desc_str());
         let other_name = invoke_dynamic_view.name_and_type().name();//todo get better names
-        // dbg!(&other_name);
         let other_desc_str = invoke_dynamic_view.name_and_type().desc_str();
-        // let other_desc = invoke_dynamic_view.name_and_type().desc_method();
-        // dbg!(&other_desc_str);
 
 
         let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
@@ -91,9 +86,6 @@ pub mod dynamic {
             })
         }
 
-        // dbg!(args.iter().map(|j| j.to_type()).collect::<Vec<_>>());
-
-
         //A call site specifier gives a symbolic reference to a method handle which is to serve as
         // the bootstrap method for a dynamic call site (§4.7.23).The method handle is resolved to
         // obtain a reference to an instance of java.lang.invoke.MethodHandle (§5.4.3.5)
@@ -118,7 +110,6 @@ pub mod dynamic {
         let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.clone());
         let name_jstring = JString::from_rust(jvm, int_state, other_name.clone()).java_value();
 
-        // dbg!(bootstrap_method_handle.clone().java_value().to_type());
         int_state.push_current_operand_stack(bootstrap_method_handle.java_value());
         int_state.push_current_operand_stack(lookup_for_this.java_value());
         int_state.push_current_operand_stack(name_jstring);
@@ -126,49 +117,29 @@ pub mod dynamic {
         for arg in args {
             int_state.push_current_operand_stack(arg);//todo check order is correct
         }
-        // dbg!(&name);
-        // dbg!(&desc_str);
         let method_handle_clone = method_handle_class.clone();
         let lookup_res = method_handle_clone.view().lookup_method_name("invoke");
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
-        // dbg!(int_state.current_frame().operand_stack_types());
-        // dbg!(invoke.desc_str());
-        // dbg!(invoke.name());
         //todo theres a MHN native for this upcall
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke.method_i(), invoke);
         let call_site = int_state.pop_current_operand_stack().cast_call_site();
-        // dbg!(call_site.to_string(jvm, int_state).to_rust_string());
         let target = call_site.get_target(jvm, int_state);
-        // dbg!(target.to_string(jvm, int_state).to_rust_string());
-        // dbg!(target.)
         let method_handle_clone = method_handle_class.clone();
         let lookup_res = method_handle_clone.view().lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
         let (num_args, args) = if int_state.current_frame().operand_stack().is_empty() {
             (0, vec![])
         } else {
-            // dbg!(target.to_string(jvm, int_state).to_rust_string());
             let method_type = target.type__();
             let args = method_type.get_ptypes_as_types(jvm);
-            // dbg!(target.clone().java_value().unwrap_normal_object().class_pointer.view().name());
             let form: LambdaForm = target.get_form();
             let member_name: MemberName = form.get_vmentry();
-            // dbg!(member_name.clazz());
-            // dbg!(member_name.get_name_or_null().unwrap().to_rust_string());
             let static_: bool = member_name.is_static(jvm, int_state);
             (args.len() + if static_ { 0 } else { 1 }, args)
         }; //todo also sketch
         let operand_stack_len = int_state.current_frame().operand_stack().len();
         int_state.current_frame_mut().operand_stack_mut().insert(operand_stack_len - num_args, target.java_value());
-        // int_state.push_current_operand_stack(target.java_value());
-        // let target_method_type = call_site.get_target(jvm, int_state).internal_member_name(jvm, int_state).get_method_type(jvm, int_state);
-        // let num_params = target_method_type.get_ptypes_as_types().len();
-        // let operand_stack = int_state.current_frame_mut().operand_stack_mut();
-        // let len = operand_stack.len();
-        // assert!(target_method_type.is sratic)
-        // [(len - 1 - num_params)..(len - 1)].reverse();
-        // dbg!(int_state.current_frame().operand_stack_types());
         //todo not passing final call args?
         // int_state.print_stack_trace();
         // dbg!(&args);
@@ -177,7 +148,6 @@ pub mod dynamic {
         assert!(int_state.throw().is_none());
 
         let res = int_state.pop_current_operand_stack();
-        // dbg!(&res);
         int_state.push_current_operand_stack(res);
     }
 
