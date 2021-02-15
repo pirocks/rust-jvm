@@ -14,8 +14,8 @@ use rust_jvm_common::classnames::ClassName;
 pub struct Classpath {
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>,
-    jar_cache: RwLock<HashMap<Box<Path>, Box<JarHandle>>>,
-    class_cache: RwLock<HashMap<ClassName, Arc<Classfile>>>
+    jar_cache: RwLock<HashMap<Box<Path>, Box<JarHandle<File>>>>,
+    class_cache: RwLock<HashMap<ClassName, Arc<Classfile>>>,
 }
 
 impl Classpath {

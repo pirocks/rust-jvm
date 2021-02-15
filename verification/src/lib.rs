@@ -17,10 +17,7 @@ use crate::verifier::TypeSafetyError;
 
 pub mod verifier;
 
-// static mut TOTAL_VERIFICATION: Duration = Duration::from_micros(0);
-
 pub fn verify(vf: &VerifierContext, to_verify: &ClassView, loader: LoaderName) -> Result<(), TypeSafetyError> {
-    // dbg!(to_verify.name());
     let (_time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify.name(),
         loader,
@@ -36,12 +33,6 @@ pub fn verify(vf: &VerifierContext, to_verify: &ClassView, loader: LoaderName) -
             }
         }
     });
-    /*unsafe {
-        TOTAL_VERIFICATION = TOTAL_VERIFICATION.checked_add(time.duration()).unwrap();
-        println!("Total: {}", ElapsedDuration::new(TOTAL_VERIFICATION));
-        println!("Vtype clone Count: {}", VCLONE_COUNT);
-    }
-    println!("Verification Time: {}", time);*/
     res
 }
 

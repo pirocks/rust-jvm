@@ -83,13 +83,10 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame)  {
             PTypeView::DoubleType | PTypeView::LongType => panic!(),
             PTypeView::TopType => {
                 let second_removed_maybe = frame.locals.pop();
-                match second_removed_maybe {
-                    None => {}
-                    Some(second_removed) => {
-                        match second_removed {
-                            PTypeView::DoubleType | PTypeView::LongType => {}
-                            _ => { frame.locals.push(second_removed) }
-                        }
+                if let Some(second_removed) = second_removed_maybe {
+                    match second_removed {
+                        PTypeView::DoubleType | PTypeView::LongType => {}
+                        _ => { frame.locals.push(second_removed) }
                     }
                 }
             }
