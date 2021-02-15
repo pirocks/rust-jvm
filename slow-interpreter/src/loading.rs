@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
-use classfile_parser::{ClassfileParsingError, parse_class_file};
+use classfile_parser::parse_class_file;
 use classfile_view::loading::ClassLoadingError;
 use classfile_view::loading::ClassLoadingError::ClassNotFoundException;
 use jar_manipulation::JarHandle;

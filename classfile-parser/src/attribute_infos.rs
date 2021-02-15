@@ -258,7 +258,7 @@ fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> Result<StackMapFra
             })
         }
         RESERVED_LOWER..RESERVED_UPPER => {
-            todo!("This is reserved stackmap entry")
+            return Err(ClassfileParsingError::UsedReservedStackMapEntry)
         }
         SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED => {
             let offset_delta = p.read16()?;
@@ -307,7 +307,7 @@ fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> Result<StackMapFra
             })
         }
         _ => {
-            todo!("{}", type_of_frame)
+            return Err(ClassfileParsingError::WrongStackMapFrameType)
         }
     })
 }
@@ -349,7 +349,9 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> Result<PType, Cla
             }
         }
         ITEM_UNINITIALIZED => { PType::Uninitialized(UninitializedVariableInfo { offset: p.read16()? }) }
-        _ => { todo!("{}", type_) }
+        _ => {
+            return Err(ClassfileParsingError::WrongPtype)
+        }
     })
 }
 

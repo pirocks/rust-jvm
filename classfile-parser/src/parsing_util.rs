@@ -18,8 +18,6 @@ pub(crate) struct ReadParsingContext<'l> {
     pub(crate) constant_pool: Option<Vec<ConstantInfo>>,
 }
 
-const IO_ERROR_MSG: &str = "Some sort of error in reading a classfile";
-
 impl ParsingContext for ReadParsingContext<'_> {
     fn read8(&mut self) -> Result<u8, ClassfileParsingError> {
         let mut buffer = [0; 1];

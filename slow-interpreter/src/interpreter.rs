@@ -57,7 +57,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
 
 
     while !*interpreter_state.terminate() && !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
-        let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code, &meth_name);
+        let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
         suspend_check(interpreter_state);
@@ -148,7 +148,7 @@ fn breakpoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     }
 }
 
-fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &str) -> (InstructionInfo, usize) {
+fn current_instruction(current_frame: &StackEntry, code: &Code) -> (InstructionInfo, usize) {
     let current = &code.code_raw[current_frame.pc()..];
     let mut context = CodeParserContext { offset: current_frame.pc(), iter: current.iter() };
     let parsedq = parse_instruction(&mut context).expect("but this parsed the first time round");

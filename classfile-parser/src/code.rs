@@ -1,11 +1,9 @@
-use std::convert::TryInto;
 use std::slice::Iter;
 
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
 use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray, TableSwitch, Wide};
-use rust_jvm_common::classfile::ConstantKind::Class;
 
 use crate::ClassfileParsingError;
 
