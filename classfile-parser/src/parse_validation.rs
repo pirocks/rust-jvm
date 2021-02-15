@@ -31,6 +31,7 @@ pub enum ClassfileError {
     FinalAndVolatileIncompatible,
     ExpectedClassEntry,
     InvalidConstant,
+    Java9FeatureNotSupported
 }
 
 pub enum AttributeEnclosingType {
@@ -144,6 +145,7 @@ impl ValidatorSettings {
         match &ci.kind {
             ConstantKind::Utf8(_) => {
                 //nothing to validate, if it was successfully converted to a rust string it is utf8.
+                //todo so this isn't quite correct this is a modified utf8 which may not translate to rust utf-8
             }
             ConstantKind::Integer(_) | ConstantKind::Float(_) => {
                 //nothing to validate. Any bytes here are valid.
@@ -164,16 +166,16 @@ impl ValidatorSettings {
             }
             ConstantKind::MethodType(mt) => { self.is_utf8_check(mt.descriptor_index, c)?; }
             ConstantKind::Dynamic(_) => {
-                //todo part of java9+, which is currently beyond the scope of this project
+                return Result::Err(ClassfileError::Java9FeatureNotSupported);
             }
             ConstantKind::InvokeDynamic(_) => {
                 //todo part of invoke_dynamic, which is a work in progress
             }
             ConstantKind::Module(_) => {
-                //todo part of java9+, which is currently beyond the scope of this project
+                return Result::Err(ClassfileError::Java9FeatureNotSupported);
             }
             ConstantKind::Package(_) => {
-                //todo part of java9+, which is currently beyond the scope of this project
+                return Result::Err(ClassfileError::Java9FeatureNotSupported);
             }
             ConstantKind::InvalidConstant(_) => {
                 return Result::Err(ClassfileError::InvalidConstant);
