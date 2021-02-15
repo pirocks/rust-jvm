@@ -439,7 +439,6 @@ fn parse_code(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfilePars
     let attributes = parse_attributes(p, attributes_count)?;
 
     let parsed_code = parse_code_raw(code.as_slice())?;
-    //todo add empty stackmap table
     Ok(AttributeType::Code(Code {
         max_stack,
         max_locals,
