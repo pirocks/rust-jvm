@@ -13,3 +13,4 @@ swipl.log
 test_/
 /jvmti-jni-bindings/gen/
 /terminal-build/
+/threads/gen/
