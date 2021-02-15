@@ -24,6 +24,6 @@ unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *con
     let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
     File::create("withsource").unwrap().write_all(slice).unwrap();
-    let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)));
+    let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     to_object(define_class(jvm, int_state, parsed.clone(), loader_name, ClassView::from(parsed)).unwrap_object())
 }

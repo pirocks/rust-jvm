@@ -151,19 +151,8 @@ fn breakpoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
 fn current_instruction(current_frame: &StackEntry, code: &Code, meth_name: &str) -> (InstructionInfo, usize) {
     let current = &code.code_raw[current_frame.pc()..];
     let mut context = CodeParserContext { offset: current_frame.pc(), iter: current.iter() };
-    let parsedq = parse_instruction(&mut context);
-    match &parsedq {
-        None => {
-            dbg!(&context.offset);
-            dbg!(&meth_name);
-            // dbg!(class_name_);
-            dbg!(&code.code_raw);
-            dbg!(&code.code);
-            panic!();
-        }
-        Some(_) => {}
-    };
-    (parsedq.unwrap(), context.offset - current_frame.pc())
+    let parsedq = parse_instruction(&mut context).expect("but this parsed the first time round");
+    (parsedq, context.offset - current_frame.pc())
 }
 
 pub fn monitor_for_function(

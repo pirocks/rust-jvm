@@ -20,7 +20,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let class_name = ClassName::Str(jname.to_rust_string());//todo need to parse arrays here
-    let classfile = Arc::new(parse_class_file(&mut byte_array.as_slice()));
+    let classfile = Arc::new(parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification"));
     let class_view = Arc::new(ClassView::from(classfile.clone()));
     let loader_name = if loader != null_mut() {
         JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm)

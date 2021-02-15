@@ -5,6 +5,7 @@ use std::fmt::Error;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 
+use classfile_parser::ClassfileParsingError;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::view::ptype_view::ReferenceTypeView;
@@ -16,6 +17,15 @@ pub trait LivePoolGetter {
 #[derive(Debug)]
 pub enum ClassLoadingError {
     ClassNotFoundException,
+    ClassFileInvalid(ClassfileParsingError),
+    // ClassFormatError , UnsupportedClassVersionError
+    ClassVerificationError,// java.lang.VerifyError
+}
+
+impl From<ClassfileParsingError> for ClassLoadingError {
+    fn from(error: ClassfileParsingError) -> Self {
+        ClassLoadingError::ClassFileInvalid(error)
+    }
 }
 
 impl Display for ClassLoadingError {

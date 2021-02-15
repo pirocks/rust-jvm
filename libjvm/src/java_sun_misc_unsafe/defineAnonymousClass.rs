@@ -47,7 +47,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let _parent_class = &args[1];//todo idk what this is for which is potentially problematic
     let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8).collect();
     //todo for debug, delete later
-    let mut unpatched = parse_class_file(&mut byte_array.as_slice());
+    let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
     // dbg!(unpatched.constant_pool[unpatched.methods[0].name_index as usize].extract_string_from_utf8());
     // int_state.print_stack_trace();
     if args[3].unwrap_object().is_some() {
