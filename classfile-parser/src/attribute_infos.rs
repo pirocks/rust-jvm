@@ -50,6 +50,7 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> Result<AttributeInfo, Clas
     } else if name == "LocalVariableTypeTable" {
         parse_local_variable_type_table(p)
     } else {
+        //todo silently ignore unknown attributes
         unimplemented!("{}", name);
     }?;
     Ok(AttributeInfo {

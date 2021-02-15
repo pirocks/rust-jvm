@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, AttributeInfo, AttributeType, Class, Classfile, ConstantInfo, ConstantKind, FieldInfo, Fieldref, InterfaceMethodref, MethodInfo, Methodref, NameAndType, String_, Utf8};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, AttributeInfo, AttributeType, Class, Classfile, Code, ConstantInfo, ConstantKind, FieldInfo, Fieldref, InterfaceMethodref, MethodInfo, Methodref, NameAndType, String_, Utf8};
 
 use crate::EXPECTED_CLASSFILE_MAGIC;
 
@@ -32,11 +32,17 @@ pub enum ClassfileError {
     ExpectedClassEntry,
     InvalidConstant,
     Java9FeatureNotSupported,
-    ExpectedNameAndType
+    ExpectedNameAndType,
+    TooManyOfSameAttribute,
+    AttributeOnWrongType,
+    NativeOrAbstractCannotHaveCode,
+    EmptyCode,
+    MissingCodeAttribute
 }
 
-pub enum AttributeEnclosingType {
-    Method,
+pub enum AttributeEnclosingType<'l> {
+    Method(&'l MethodInfo),
+    Code(&'l Code),
     Class,
     Field,
 }
@@ -105,7 +111,7 @@ impl ValidatorSettings {
             self.validate_method_info(f, c)?;
         }
         for attr in &c.attributes {
-            self.validate_attribute(attr, c, &AttributeEnclosingType::Class)?;
+            self.validate_attribute(AttributeValidationContext::default(), attr, c, &AttributeEnclosingType::Class)?;
         }
         Result::Ok(())
     }
@@ -296,14 +302,20 @@ impl ValidatorSettings {
         //there are number of other constraints on method access_flags, these should be handled by classfile verifier.
         self.is_utf8_check(m.name_index, c)?;
         self.is_utf8_check(m.descriptor_index, c)?;
+        let mut attribute_validation_context = AttributeValidationContext::default();
         for attr in &m.attributes {
-            self.validate_attribute(attr, c, &AttributeEnclosingType::Method)?;
+            self.validate_attribute(&mut attribute_validation_context, attr, c, &AttributeEnclosingType::Method(m))?;
+        }
+        if !m.is_native() && !m.is_abstract() {
+            if !attribute_validation_context.has_been_code {
+                return Err(ClassfileError::MissingCodeAttribute)
+            }
         }
         Result::Ok(())
     }
 
 
-    pub fn validate_attribute(&self, a: &AttributeInfo, _c: &Classfile, _attr: &AttributeEnclosingType) -> Result<(), ClassfileError> {
+    pub fn validate_attribute(&self, attribute_validation_context: &mut AttributeValidationContext, a: &AttributeInfo, c: &Classfile, attr: &AttributeEnclosingType) -> Result<(), ClassfileError> {
         //todo finish up attribute validation implementation
         match &a.attribute_type {
             AttributeType::SourceFile(_) |
@@ -330,8 +342,12 @@ impl ValidatorSettings {
             AttributeType::Module(_) => {}
             AttributeType::NestHost(_) => {}
             AttributeType::NestMembers(_) => {}
-            AttributeType::ConstantValue(_cv) => {}
-            AttributeType::Code(_) => {}
+            AttributeType::ConstantValue(cv) => {
+                ValidatorSettings::validate_constant_value(attribute_validation_context);
+            }
+            AttributeType::Code(code) => {
+                self.validate_code(attribute_validation_context, &c, attr, &code)
+            }
             AttributeType::Exceptions(_) => {}
             AttributeType::RuntimeVisibleParameterAnnotations(_) => {}
             AttributeType::RuntimeInvisibleParameterAnnotations(_) => {}
@@ -346,5 +362,70 @@ impl ValidatorSettings {
             AttributeType::RuntimeInvisibleTypeAnnotations(_) => {}
         }
         Result::Ok(())
+    }
+
+    fn validate_code(&self, attribute_validation_context: &mut AttributeValidationContext, c: &&Classfile, attr: &AttributeEnclosingType, code: &&Code) -> Result<(), ClassfileError> {
+        match attr {
+            AttributeEnclosingType::Method(m) => {
+                if m.is_native() || m.is_abstract() {
+                    return Result::Err(ClassfileError::NativeOrAbstractCannotHaveCode);
+                }
+            }
+            _ => return Result::Err(ClassfileError::AttributeOnWrongType)
+        }
+        if attribute_validation_context.has_been_code {
+            return Result::Err(ClassfileError::TooManyOfSameAttribute);
+        }
+        attribute_validation_context.has_been_code = true;
+        let Code { attributes, code_raw, exception_table, .. } = code;
+        if code_raw.len() == 0 {
+            return Result::Err(ClassfileError::EmptyCode);
+        }
+        for exception in exception_table {
+            match &c.constant_pool[exception.catch_type as usize].kind {
+                ConstantKind::Class(class) => {
+                    self.validate_class_info(c, class)
+                }
+                _ => return Result::Err(ClassfileError::ExpectedClassEntry)
+            }
+            //everything else here is the verifiers problem
+        }
+        let mut new_attribute_validation_context = AttributeValidationContext::default();
+        for attribute in attributes {
+            self.validate_attribute(&mut new_attribute_validation_context, attribute, c, &AttributeEnclosingType::Code(code))
+            //todo validate that there are only line number tables local variable tables , type tables , and stackmap table
+        }
+        Ok(())
+    }
+
+    fn validate_constant_value(attribute_validation_context: &mut AttributeValidationContext) -> Result<(), ClassfileError> {
+//so the spec says:
+        //If the ACC_STATIC flag in the access_flags item of the field_info structure is set,
+        // then the field represented by the field_info structure is assigned the value
+        // represented  by  its  ConstantValue  attribute  as  part  of  the  initialization
+        // of  the class or interface declaring the field (§5.5). This occurs prior to the invocation
+        // of the class or interface initialization method of that class or interface (§2.9).
+        // •  Otherwise, the Java Virtual Machine must silently ignore the attribute
+        //so we ignore this other than at most one constraint.
+        if attribute_validation_context.has_been_constant_value {
+            return Result::Err(ClassfileError::TooManyOfSameAttribute);
+        }
+        attribute_validation_context.has_been_constant_value = true;
+        Ok(())
+    }
+}
+
+
+pub struct AttributeValidationContext {
+    has_been_constant_value: bool,
+    has_been_code: bool,//todo make sure this is checked
+}
+
+impl Default for AttributeValidationContext {
+    fn default() -> Self {
+        AttributeValidationContext {
+            has_been_constant_value: false,
+            has_been_code: false,
+        }
     }
 }
