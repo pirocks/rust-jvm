@@ -306,25 +306,34 @@ fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> StackMapFrame {
             })
         }
         _ => {
-            unimplemented!("{}", type_of_frame)
+            todo!("{}", type_of_frame)
         }
     }
 }
 
 fn parse_verification_type_info(p: &mut dyn ParsingContext) -> PType {
     let type_ = p.read8();
-    //todo magic constants
+    const ITEM_TOP: u8 = 0;
+    const ITEM_INTEGER: u8 = 1;
+    const ITEM_FLOAT: u8 = 2;
+    const ITEM_DOUBLE: u8 = 3;
+    const ITEM_LONG: u8 = 4;
+    const ITEM_NULL: u8 = 5;
+    const ITEM_UNINITIALIZED_THIS: u8 = 6;
+    const ITEM_OBJECT: u8 = 7;
+    const ITEM_UNINITIALIZED: u8 = 8;
     match type_ {
-        0 => PType::TopType,
-        1 => PType::IntType,
-        2 => PType::FloatType,
-        3 => PType::DoubleType,
-        4 => PType::LongType,
-        5 => PType::NullType,
-        6 => PType::UninitializedThis,
-        7 => {
+        ITEM_TOP => PType::TopType,
+        ITEM_INTEGER => PType::IntType,
+        ITEM_FLOAT => PType::FloatType,
+        ITEM_DOUBLE => PType::DoubleType,
+        ITEM_LONG => PType::LongType,
+        ITEM_NULL => PType::NullType,
+        ITEM_UNINITIALIZED_THIS => PType::UninitializedThis,
+        ITEM_OBJECT => {
             let original_index = p.read16();
             let index = match &p.constant_pool_borrow()[original_index as usize].kind {
+                //todo what is going on here?
                 ConstantKind::Utf8(_u) => { panic!();/*original_index */ }
                 ConstantKind::Class(c) => c.name_index,
                 ConstantKind::String(_c) => panic!(),
@@ -338,8 +347,8 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> PType {
                 PType::Ref(ReferenceType::Class(ClassName::Str(type_descriptor)))
             }
         }
-        8 => { PType::Uninitialized(UninitializedVariableInfo { offset: p.read16() }) }
-        _ => { unimplemented!("{}", type_) }
+        ITEM_UNINITIALIZED => { PType::Uninitialized(UninitializedVariableInfo { offset: p.read16() }) }
+        _ => { todo!("{}", type_) }
     }
 }
 
