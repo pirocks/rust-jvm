@@ -233,58 +233,81 @@ fn parse_stack_map_table(p: &mut dyn ParsingContext) -> AttributeType {
 
 fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> StackMapFrame {
     let type_of_frame = p.read8();
-    //todo magic constants
-//    match type_of_frame {
-    if type_of_frame <= 63 {//todo <= or <
-        StackMapFrame::SameFrame(SameFrame { offset_delta: type_of_frame as u16 })
-    } else if 64 <= type_of_frame && type_of_frame <= 127 {
-        StackMapFrame::SameLocals1StackItemFrame(SameLocals1StackItemFrame {
-            offset_delta: (type_of_frame - 64) as u16,
-            stack: parse_verification_type_info(p),
-        })
-    } else if 252 <= type_of_frame && type_of_frame <= 254 { //todo <= or <
-        let offset_delta = p.read16();
-        let locals_size = type_of_frame - 251;
-        let mut locals = Vec::with_capacity(locals_size as usize);
-        for _ in 0..locals_size {
-            locals.push(parse_verification_type_info(p))
+    const SAME_FRAME_LOWER: u8 = 0;
+    const SAME_FRAME_UPPER: u8 = 64;
+    const SAME_LOCALS_1_STACK_LOWER: u8 = 64;
+    const SAME_LOCALS_1_STACK_UPPER: u8 = 128;
+    const RESERVED_LOWER: u8 = 128;
+    const RESERVED_UPPER: u8 = 246;
+    const SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED: u8 = 247;
+    const CHOP_FRAME_LOWER: u8 = 248;
+    const CHOPE_FRAME_UPPER: u8 = 251;
+    const SAME_FRAME_EXTENDED: u8 = 251;
+    const APPEND_FRAME_LOWER: u8 = 252;
+    const APPEND_FRAME_UPPER: u8 = 255;
+    const FULL_FRAME: u8 = 255;
+    match type_of_frame {
+        SAME_FRAME_LOWER..SAME_FRAME_UPPER => {
+            StackMapFrame::SameFrame(SameFrame { offset_delta: type_of_frame as u16 })
         }
-        StackMapFrame::AppendFrame(AppendFrame {
-            offset_delta,
-            locals,
-        })
-    } else if type_of_frame == 255 {
-        let offset_delta = p.read16();
-        let number_of_locals = p.read16();
-        let mut locals = Vec::with_capacity(number_of_locals as usize);
-        for _ in 0..number_of_locals {
-            locals.push(parse_verification_type_info(p));
+        SAME_LOCALS_1_STACK_LOWER..SAME_LOCALS_1_STACK_UPPER => {
+            StackMapFrame::SameLocals1StackItemFrame(SameLocals1StackItemFrame {
+                offset_delta: (type_of_frame - SAME_LOCALS_1_LOWER_LIMIT) as u16,
+                stack: parse_verification_type_info(p),
+            })
         }
-        let number_of_stack_items = p.read16();
-        let mut stack = Vec::with_capacity(number_of_stack_items as usize);
-        for _ in 0..number_of_stack_items {
-            stack.push(parse_verification_type_info(p));
+        RESERVED_LOWER..RESERVED_UPPER => {
+            todo!("This is reserved stackmap entry")
         }
-        StackMapFrame::FullFrame(FullFrame {
-            offset_delta,
-            number_of_locals,
-            locals,
-            number_of_stack_items,
-            stack,
-        })
-    } else if type_of_frame >= 248 && type_of_frame <= 250 {
-        let offset_delta = p.read16();
-        let k_frames_to_chop = 251 - type_of_frame;
-        StackMapFrame::ChopFrame(ChopFrame { offset_delta, k_frames_to_chop })
-    } else if type_of_frame == 251 {
-        let offset_delta = p.read16();
-        StackMapFrame::SameFrameExtended(SameFrameExtended { offset_delta })
-    } else if type_of_frame == 247 {
-        let offset_delta = p.read16();
-        let stack = parse_verification_type_info(p);
-        StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack })
-    } else {
-        unimplemented!("{}", type_of_frame)
+        SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED => {
+            let offset_delta = p.read16();
+            let stack = parse_verification_type_info(p);
+            StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack })
+        }
+        CHOP_FRAME_LOWER..CHOPE_FRAME_UPPER => {
+            let offset_delta = p.read16();
+            let k_frames_to_chop = 251 - type_of_frame;
+            StackMapFrame::ChopFrame(ChopFrame { offset_delta, k_frames_to_chop })
+        }
+        SAME_FRAME_EXTENDED => {
+            let offset_delta = p.read16();
+            StackMapFrame::SameFrameExtended(SameFrameExtended { offset_delta })
+        }
+        APPEND_FRAME_LOWER..APPEND_FRAME_UPPER => {
+            let offset_delta = p.read16();
+            let locals_size = type_of_frame - 251;
+            let mut locals = Vec::with_capacity(locals_size as usize);
+            for _ in 0..locals_size {
+                locals.push(parse_verification_type_info(p))
+            }
+            StackMapFrame::AppendFrame(AppendFrame {
+                offset_delta,
+                locals,
+            })
+        }
+        FULL_FRAME => {
+            let offset_delta = p.read16();
+            let number_of_locals = p.read16();
+            let mut locals = Vec::with_capacity(number_of_locals as usize);
+            for _ in 0..number_of_locals {
+                locals.push(parse_verification_type_info(p));
+            }
+            let number_of_stack_items = p.read16();
+            let mut stack = Vec::with_capacity(number_of_stack_items as usize);
+            for _ in 0..number_of_stack_items {
+                stack.push(parse_verification_type_info(p));
+            }
+            StackMapFrame::FullFrame(FullFrame {
+                offset_delta,
+                number_of_locals,
+                locals,
+                number_of_stack_items,
+                stack,
+            })
+        }
+        _ => {
+            unimplemented!("{}", type_of_frame)
+        }
     }
 }
 
