@@ -10,3 +10,5 @@ edition = "2018"
 path = "src/lib.rs"
 
 [dependencies]
+num-traits = "0.2"
+num-derive = "0.2"

@@ -58,7 +58,7 @@ impl Classpath {
             new_path.push(format!("{}.class", class_name.get_referred_name()));
             if new_path.is_file() {
                 let file_read = &mut File::open(new_path).unwrap();
-                let classfile = parse_class_file(file_read);
+                let classfile = parse_class_file(file_read)?;
                 return Result::Ok(Arc::new(classfile));
             }
         }

@@ -19,7 +19,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
         .expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let parsed_descriptor = method_info.desc();
     let empty_stack_map = StackMapTable { entries: Vec::new() };
-    let stack_map: &StackMapTable = stack_map_table_attribute(code).get_or_insert(&empty_stack_map);
+    let stack_map: &StackMapTable = stack_map_table_attribute(code).unwrap_or(&empty_stack_map);
     let this_pointer = if method_info.is_static() {
         None
     } else {

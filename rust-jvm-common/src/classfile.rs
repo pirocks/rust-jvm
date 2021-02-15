@@ -1,6 +1,7 @@
-#![allow(non_upper_case_globals)]
-
 use std::hash::Hasher;
+
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 
 use crate::classnames::class_name;
 use crate::ptype::PType;
@@ -695,6 +696,7 @@ pub struct MultiNewArray {
 #[derive(Eq, PartialEq)]
 #[repr(u8)]
 #[derive(Copy, Clone)]
+#[derive(FromPrimitive)]
 pub enum Atype {
     TBoolean = 4,
     TChar = 5,
