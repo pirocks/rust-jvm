@@ -31,7 +31,8 @@ pub enum ClassfileError {
     FinalAndVolatileIncompatible,
     ExpectedClassEntry,
     InvalidConstant,
-    Java9FeatureNotSupported
+    Java9FeatureNotSupported,
+    ExpectedNameAndType
 }
 
 pub enum AttributeEnclosingType {
@@ -116,7 +117,6 @@ impl ValidatorSettings {
         Result::Ok(())
     }
 
-    //todo duplication here clean up with a macro or something?
     pub fn is_utf8_check<'l>(&self, cpi: u16, c: &'l Classfile) -> Result<&'l Utf8, ClassfileError> {
         self.index_check(cpi, c)?;
         match &c.constant_pool[cpi as usize].kind {
@@ -137,7 +137,7 @@ impl ValidatorSettings {
         self.index_check(cpi, c)?;
         match &c.constant_pool[cpi as usize].kind {
             ConstantKind::NameAndType(nt) => Result::Ok(nt),
-            _ => Result::Err(ClassfileError::ExpectedUtf8CPEntry)
+            _ => Result::Err(ClassfileError::ExpectedNameAndType)
         }
     }
 
