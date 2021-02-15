@@ -1,7 +1,6 @@
 use std::hash::Hasher;
 
 use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
 
 use crate::classnames::class_name;
 use crate::ptype::PType;
@@ -1036,7 +1035,6 @@ pub const ACC_SYNTHETIC: u16 = 0x1000;
 pub const ACC_ANNOTATION: u16 = 0x2000;
 pub const ACC_ENUM: u16 = 0x4000;
 pub const ACC_MODULE: u16 = 0x8000;
-//}
 
 pub const REF_getField: u8 = 1;
 pub const REF_getStatic: u8 = 2;
@@ -1049,8 +1047,6 @@ pub const REF_newInvokeSpecial: u8 = 8;
 pub const REF_invokeInterface: u8 = 9;
 
 #[derive(Debug)]
-//#[derive(Eq)]
-//#[derive(Copy, Clone)]
 pub struct Classfile {
     pub magic: u32,
     pub minor_version: u16,
