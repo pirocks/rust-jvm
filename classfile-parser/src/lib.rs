@@ -78,7 +78,7 @@ pub fn parse_methods(p: &mut dyn ParsingContext, methods_count: u16) -> Result<V
 pub fn parse_class_file(read: &mut dyn Read) -> Result<Classfile, ClassfileParsingError> {
     let mut p = ReadParsingContext { constant_pool: None, read: &mut BufReader::new(read) };
     let mut class_file = parse_from_context(&mut p)?;
-    class_file.constant_pool = p.constant_pool();//todo to avoid this yuckiness two pass parsing could be used
+    class_file.constant_pool = p.constant_pool();
     Ok(class_file)
 }
 
