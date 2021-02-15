@@ -12,7 +12,6 @@ use std::path::PathBuf;
 //     res.to_string()
 // }
 
-//TODO TONS OF DUPLICATION WITH JNI-BINDINGS
 fn main() {
     let jvm_include_path = env::var("JVM_H").unwrap_or("/home/francis/build/openjdk-jdk8u/jdk/src/share/javavm/export/".to_string());
     let jvm_md_include_path = env::var("JVM_MD_H").unwrap_or("/home/francis/Clion/rust-jvm/jvmti-jni-bindings/".to_string());
