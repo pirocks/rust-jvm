@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_SYNTHETIC, ACC_VOLATILE, AttributeInfo, AttributeType, Class, Classfile, Code, ConstantInfo, ConstantKind, EnclosingMethod, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, LocalVariableTableEntry, MethodInfo, Methodref, NameAndType, String_, Utf8};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_SYNTHETIC, ACC_VOLATILE, Annotation, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, MethodInfo, Methodref, NameAndType, String_, Utf8};
 
+use crate::code::InstructionTypeNum::return_;
 use crate::EXPECTED_CLASSFILE_MAGIC;
-use crate::parse_validation::ClassfileError::{ExpectedNameAndType, ExpectedUtf8CPEntry};
+use crate::parse_validation::ClassfileError::{ExpectedClassEntry, ExpectedDoubleCPEntry, ExpectedFloatCPEntry, ExpectedIntegerCPEntry, ExpectedNameAndType, ExpectedUtf8CPEntry};
 
 pub const MAX_ARRAY_DIMENSIONS: usize = 255;
 
@@ -19,6 +20,10 @@ pub enum ClassfileError {
     BadMinorVersion,
     BadConstantPoolIndex,
     ExpectedUtf8CPEntry,
+    ExpectedIntegerCPEntry,
+    ExpectedLongCPEntry,
+    ExpectedDoubleCPEntry,
+    ExpectedFloatCPEntry,
     BadNameInCP,
     TooManyArrayDimensionsInName,
     SomehowManagedToParseAnInMemoryOnlyFeatureOfClassfiles,
@@ -164,7 +169,7 @@ impl ValidatorSettings {
                 // I completely agree with the spec on this:
                 //In retrospect, making 8-byte constants take two constant pool entries was a poor choice.
             }
-            ConstantKind::Class(class_info) => self.validate_class_info(&c, &class_info)?,
+            ConstantKind::Class(class_info) => self.validate_class_info_impl(&c, &class_info)?,
             ConstantKind::String(string) => self.validate_string(c, string)?,
             ConstantKind::Fieldref(fr) => self.validate_field_ref(c, fr)?,
             ConstantKind::Methodref(mr) => self.validate_method_ref(c, mr)?,
@@ -229,7 +234,16 @@ impl ValidatorSettings {
         Result::Ok(())
     }
 
-    pub fn validate_class_info(&self, c: &Classfile, class_info: &Class) -> Result<(), ClassfileError> {
+    pub fn validate_class_info(&self, c: &Classfile, i: u16) -> Result<(), ClassfileError> {
+        match &c.constant_pool[i as usize].kind {
+            ConstantKind::Class(class_info) => {
+                self.validate_class_info_impl(&c, &class_info)
+            }
+            _ => return Err(ExpectedClassEntry)
+        }
+    }
+
+    fn validate_class_info_impl(&self, c: &Classfile, class_info: &Class) -> Result<(), ClassfileError> {
         self.index_check(class_info.name_index, c)?;
         //from the spec:
         //The value of the name_index item must be a valid index into the
@@ -372,19 +386,28 @@ impl ValidatorSettings {
                     _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
             }
-            AttributeType::LocalVariableTypeTable(_) |
+            AttributeType::LocalVariableTypeTable(lvtt) => {
+                match attr {
+                    AttributeEnclosingType::Code(code) => {
+                        for LocalVariableTypeTableEntry { start_pc, length, name_index, descriptor_index, .. } in lvtt.type_table {
+                            if start_pc >= code.code_raw.len() as u16 {
+                                return Err(ClassfileError::BadPC);
+                            }
+                            if start_pc + length > code.code_raw.len() as u16 {
+                                return Err(ClassfileError::BadPC);
+                            }
+                            self.validate_utf8(c, name_index)?;
+                            self.validate_utf8(c, descriptor_index)?;
+                        }
+                    }
+                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                }
+            }
             AttributeType::Deprecated(_) => {
-                //from spec:
-                //Six attributes are not critical to correct interpretation of the class file by either
-                // the Java Virtual Machine or the class libraries of the Java SE platform, but are
-                // useful for tools:
-                // • SourceFile
-                // • SourceDebugExtension
-                // • LineNumberTable
-                // • LocalVariableTable
-                // • LocalVariableTypeTable
-                // • Deprecated
-                // in other words we don't validate or use these for now. todo
+                match attr {
+                    AttributeEnclosingType::Code(_) => return Err(ClassfileError::AttributeOnWrongType),
+                    _ => {}
+                }
             }
             AttributeType::InnerClasses(ic) => {
                 for x in &ic.classes {
@@ -412,7 +435,16 @@ impl ValidatorSettings {
             AttributeType::Exceptions(exc) => {
                 self.validate_exceptions(attribute_validation_context, &c, attr, exc)?;
             }
-            AttributeType::RuntimeVisibleParameterAnnotations(_) => {}
+            AttributeType::RuntimeVisibleParameterAnnotations(annotations) => {
+                match attr {
+                    AttributeEnclosingType::Method(_) => {},
+                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                }
+                for annotation in &annotations.annotations {
+                    self.validate_annotation(&c, annotation)?;
+                }
+                //todo at most one
+            }
             AttributeType::RuntimeInvisibleParameterAnnotations(_) => {}
             AttributeType::AnnotationDefault(_) => {}
             AttributeType::MethodParameters(_) => {}
@@ -423,8 +455,24 @@ impl ValidatorSettings {
                 let index = sig.signature_index;
                 self.validate_utf8(&c, index)?;
             }
-            AttributeType::RuntimeVisibleAnnotations(_) => {}
-            AttributeType::RuntimeInvisibleAnnotations(_) => {}
+            AttributeType::RuntimeVisibleAnnotations(annotations) => {
+                match attr {
+                    AttributeEnclosingType::Code(_) => return Err(ClassfileError::AttributeOnWrongType),
+                    _ => {}
+                }
+                for annotation in &annotations.annotations {
+                    self.validate_annotation(&c, annotation)?;
+                }
+            }
+            AttributeType::RuntimeInvisibleAnnotations(annotations) => {
+                match attr {
+                    AttributeEnclosingType::Code(_) => return Err(ClassfileError::AttributeOnWrongType),
+                    _ => {}
+                }
+                for annotation in &annotations.annotations {
+                    self.validate_annotation(&c, annotation)?;
+                }
+            }
             AttributeType::StackMapTable(_) => {
                 //todo should validate the ptype pointers here, but since they have already been converted to ptypes...
             }
@@ -432,6 +480,43 @@ impl ValidatorSettings {
             AttributeType::RuntimeInvisibleTypeAnnotations(_) => {}
         }
         Result::Ok(())
+    }
+
+    fn validate_annotation(&self, c: &Classfile, annotation: &Annotation) -> Result<(), ClassfileError> {
+        self.validate_utf8(c, annotation.type_index)?;
+        for ElementValuePair { element_name_index, value } in &annotation.element_value_pairs {
+            self.validate_utf8(c, *element_name_index)?;
+            self.validate_element_value(c, value)
+        }
+        Ok(())
+    }
+
+    fn validate_element_value(&self, c: &Classfile, value: &ElementValue) -> Result<(), ClassfileError> {
+        match value {
+            ElementValue::Byte(index) => self.validate_integer(c, *index)?,
+            ElementValue::Char(index) => self.validate_integer(c, *index)?,
+            ElementValue::Double(index) => self.validate_double(c, *index)?,
+            ElementValue::Float(index) => self.validate_float(c, *index)?,
+            ElementValue::Int(index) => self.validate_integer(c, *index)?,
+            ElementValue::Long(index) => self.validate_long(c, *index)?,
+            ElementValue::Short(index) => self.validate_integer(c, *index)?,
+            ElementValue::Boolean(index) => self.validate_integer(c, *index)?,
+            ElementValue::String(index) => self.validate_utf8(c, *index)?,
+            ElementValue::EnumType(EnumConstValue { type_name_index, const_name_index }) => {
+                self.validate_utf8(c, *type_name_index)?;
+                self.validate_utf8(c, *const_name_index)?;
+            }
+            ElementValue::Class(ClassInfoIndex { class_info_index }) => {
+                self.validate_class_info(c, *class_info_index)
+            }
+            ElementValue::AnnotationType(AnnotationValue { annotation }) => self.validate_annotation(c, &annotation)?,
+            ElementValue::ArrayType(ArrayValue { values }) => {
+                for value in values {
+                    self.validate_element_value(c, value)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     fn validate_enclosing_method(&self, attribute_validation_context: &mut AttributeValidationContext, ,c: &Classfile, attr: &AttributeEnclosingType, encm: &EnclosingMethod) -> Result<(), ClassfileError> {
@@ -470,6 +555,41 @@ impl ValidatorSettings {
         match &c.constant_pool[index as usize].kind {
             ConstantKind::Utf8(_) => {}
             _ => return Err(ExpectedUtf8CPEntry)
+        }
+        Ok(())
+    }
+
+    fn validate_integer(&self, c: &Classfile, index: u16) -> Result<(), ClassfileError> {
+        self.index_check(index, c)?;
+        match &c.constant_pool[index as usize].kind {
+            ConstantKind::Integer(_) => {}
+            _ => return Err(ExpectedIntegerCPEntry)
+        }
+        Ok(())
+    }
+
+    fn validate_long(&self, c: &Classfile, index: u16) -> Result<(), ClassfileError> {
+        self.index_check(index, c)?;
+        match &c.constant_pool[index as usize].kind {
+            ConstantKind::Long(_) => {}
+            _ => return Err(ExpectedLongCPEntry)
+        }
+        Ok(())
+    }
+
+    fn validate_double(&self, c: &Classfile, index: u16) -> Result<(), ClassfileError> {
+        self.index_check(index, c)?;
+        match &c.constant_pool[index as usize].kind {
+            ConstantKind::Integer(_) => {}
+            _ => return Err(ExpectedDoubleCPEntry)
+        }
+        Ok(())
+    }
+    fn validate_float(&self, c: &Classfile, index: u16) -> Result<(), ClassfileError> {
+        self.index_check(index, c)?;
+        match &c.constant_pool[index as usize].kind {
+            ConstantKind::Integer(_) => {}
+            _ => return Err(ExpectedFloatCPEntry)
         }
         Ok(())
     }
@@ -538,13 +658,7 @@ impl ValidatorSettings {
         if i == 0 {
             return Ok(());
         }
-        self.index_check(i, c)?;
-        match &c.constant_pool[i as usize].kind {
-            ConstantKind::Class(class) => {
-                self.validate_class_info(c, class)
-            }
-            _ => return Result::Err(ClassfileError::ExpectedClassEntry)
-        }
+        self.validate_class_info(c, i)
     }
 }
 
