@@ -268,7 +268,7 @@ fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> Result<StackMapFra
         }
         CHOP_FRAME_LOWER..CHOPE_FRAME_UPPER => {
             let offset_delta = p.read16()?;
-            let k_frames_to_chop = 251 - type_of_frame;
+            let k_frames_to_chop = CHOPE_FRAME_UPPER - type_of_frame;
             StackMapFrame::ChopFrame(ChopFrame { offset_delta, k_frames_to_chop })
         }
         SAME_FRAME_EXTENDED => {
