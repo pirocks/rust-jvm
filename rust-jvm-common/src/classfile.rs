@@ -96,25 +96,26 @@ pub struct Exceptions {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleParameterAnnotations {
-    //todo
+    pub parameter_annotations: Vec<Vec<Annotation>>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleParameterAnnotations {
-    //todo
+    pub parameter_annotations: Vec<Vec<Annotation>>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct AnnotationDefault {
-    //todo
+    pub default_value: ElementValue
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct MethodParameters {
-    //todo
+    pub name_index: u16,
+    pub access_flags: u16,
 }
 
 #[derive(Debug)]
@@ -139,14 +140,13 @@ pub struct Signature {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleAnnotations {
-    //todo
     pub annotations: Vec<Annotation>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleAnnotations {
-    //todo
+    pub annotations: Vec<Annotation>
 }
 
 #[derive(Debug)]
@@ -303,14 +303,80 @@ pub struct StackMapTable {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+pub struct LocalVarTargetTableEntry {
+    pub start_pc: u16,
+    pub length: u16,
+    pub index: u16,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub enum TargetInfo {
+    TypeParameterTarget {
+        type_parameter_index: u8
+    },
+    SuperTypeTarget {
+        supertype_index: u16
+    },
+    TypeParameterBoundTarget {
+        type_parameter_index: u8,
+        bound_index: u8,
+    },
+    EmptyTarget,
+    MethodFormalParameterTarget {
+        formal_parameter_index: u8
+    },
+    ThrowsTarget {
+        throws_type_index: u16
+    },
+    LocalVarTarget {
+        table: Vec<LocalVarTargetTableEntry>
+    },
+    CatchTarget {
+        exception_table_entry: u16
+    },
+    OffsetTarget {
+        offset: u16
+    },
+    TypeArgumentTarget {
+        offset: u16,
+        type_argument_index: u8,
+    },
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct TypePathEntry {
+    pub type_path_kind: u8,
+    pub type_argument_index: u8,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct TypePath {
+    pub path: Vec<TypePathEntry>
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct TypeAnnotation {
+    pub target_type: TargetInfo,
+    pub target_path: TypePath,
+    pub type_index: u16,
+    pub element_value_pairs: Vec<ElementValuePair>,
+}
+
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleTypeAnnotations {
-    //todo
+    pub annotations: Vec<TypeAnnotation>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleTypeAnnotations {
-    //todo
+    pub annotations: Vec<TypeAnnotation>
 }
 
 #[derive(Debug)]

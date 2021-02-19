@@ -1,4 +1,4 @@
-use crate::classfile::{ACC_STATIC, ConstantInfo, ConstantKind, CPIndex, FieldInfo, MethodInfo};
+use crate::classfile::{ACC_STATIC, ConstantInfo, ConstantKind, CPIndex, Exceptions, FieldInfo, MethodInfo};
 use crate::classfile::ACC_ABSTRACT;
 use crate::classfile::ACC_FINAL;
 use crate::classfile::ACC_INTERFACE;
@@ -150,6 +150,15 @@ impl MethodInfo {
             }
         }
         panic!("Method has no code attribute, which is unusual given code is sorta the point of a method.")
+    }
+
+    pub fn exception_attribute(&self) -> Option<&Exceptions> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::Exceptions(exceptions) = &attr.attribute_type {
+                return Some(exceptions);
+            }
+        }
+        None
     }
 
     pub fn descriptor_str(&self, class_file: &Classfile) -> String {
