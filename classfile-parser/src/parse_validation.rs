@@ -421,26 +421,24 @@ impl ValidatorSettings {
                     AttributeEnclosingType::Class(_) => {}
                     _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
-                for BootstrapMethods { bootstrap_methods } in bootstrap_methods {
-                    for BootstrapMethod { bootstrap_method_ref, bootstrap_arguments } in bootstrap_methods {
-                        self.index_check(*bootstrap_method_ref, c)?;
-                        match c.constant_pool[*bootstrap_method_ref as usize].kind {
-                            ConstantKind::MethodHandle(_) => {}
-                            _ => return Err(ClassfileError::BadConstantPoolEntry)
-                        }
-                        for bootstrap_arg in bootstrap_arguments {
-                            self.index_check(*bootstrap_arg, c)?;
-                            match c.constant_pool[*bootstrap_arg as usize].kind {
-                                ConstantKind::Integer(_) |
-                                ConstantKind::Float(_) |
-                                ConstantKind::Long(_) |
-                                ConstantKind::Double(_) |
-                                ConstantKind::Class(_) |
-                                ConstantKind::String(_) |
-                                ConstantKind::MethodHandle(_) |
-                                ConstantKind::MethodType(_) => {}
-                                _ => return Err(ClassfileError::BadConstantPoolEntry),
-                            }
+                for BootstrapMethod { bootstrap_method_ref, bootstrap_arguments } in bootstrap_methods {
+                    self.index_check(*bootstrap_method_ref, c)?;
+                    match c.constant_pool[*bootstrap_method_ref as usize].kind {
+                        ConstantKind::MethodHandle(_) => {}
+                        _ => return Err(ClassfileError::BadConstantPoolEntry)
+                    }
+                    for bootstrap_arg in bootstrap_arguments {
+                        self.index_check(*bootstrap_arg, c)?;
+                        match c.constant_pool[*bootstrap_arg as usize].kind {
+                            ConstantKind::Integer(_) |
+                            ConstantKind::Float(_) |
+                            ConstantKind::Long(_) |
+                            ConstantKind::Double(_) |
+                            ConstantKind::Class(_) |
+                            ConstantKind::String(_) |
+                            ConstantKind::MethodHandle(_) |
+                            ConstantKind::MethodType(_) => {}
+                            _ => return Err(ClassfileError::BadConstantPoolEntry),
                         }
                     }
                 }
@@ -507,7 +505,7 @@ impl ValidatorSettings {
                     return Err(TooManyOfSameAttribute);
                 }
                 attribute_validation_context.has_been_method_parameters = true;
-                self.validate_utf8(c, *name_index)
+                self.validate_utf8(c, *name_index)?;
             }
             AttributeType::Synthetic(_) => {
                 ValidatorSettings::validate_synthetic(attr)?;
@@ -535,7 +533,7 @@ impl ValidatorSettings {
                 }
             }
             AttributeType::StackMapTable(_) => {
-                //todo should validate the ptype pointers here, but since they have already been converted to ptypes...
+                //should validate the ptype pointers here, but since they have already been converted to ptypes...
             }
             AttributeType::RuntimeVisibleTypeAnnotations(annotations) => {
                 if attribute_validation_context.has_been_runtime_visible_type_annotations {
