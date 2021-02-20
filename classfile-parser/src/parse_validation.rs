@@ -570,7 +570,7 @@ impl ValidatorSettings {
             }
             TargetInfo::TypeParameterBoundTarget { .. } => {}
             TargetInfo::EmptyTarget => {}
-            TargetInfo::MethodFormalParameterTarget { .. } => {}
+            TargetInfo::FormalParameterTarget { .. } => {}
             TargetInfo::ThrowsTarget { throws_type_index } => {
                 match attr {
                     AttributeEnclosingType::Method(method) => {

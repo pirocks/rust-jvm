@@ -29,7 +29,7 @@ pub struct EnclosingMethod {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SourceDebugExtension {
-    //todo
+    pub debug_extension: Vec<u8>
 }
 
 #[derive(Debug)]
@@ -38,12 +38,6 @@ pub struct BootstrapMethods {
     //todo
     pub bootstrap_methods: Vec<BootstrapMethod>
 }
-
-//#[derive(Debug)]
-//#[derive(Eq, PartialEq)]
-//pub struct Module {
-//    //todo
-//}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -120,9 +114,7 @@ pub struct MethodParameters {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Synthetic {
-    //todo
-}
+pub struct Synthetic {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -323,7 +315,7 @@ pub enum TargetInfo {
         bound_index: u8,
     },
     EmptyTarget,
-    MethodFormalParameterTarget {
+    FormalParameterTarget {
         formal_parameter_index: u8
     },
     ThrowsTarget {
