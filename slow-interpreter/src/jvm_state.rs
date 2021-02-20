@@ -247,7 +247,6 @@ impl LivePoolGetter for LivePoolGetterImpl {
     fn elem_type(&self, idx: usize) -> ReferenceTypeView {
         let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
         JavaValue::Object(object.clone().into()).to_type().unwrap_ref_type().clone()
-        // ReferenceTypeView::Class(object.unwrap_normal_object().class_pointer.view().name())//todo handle arrays
     }
 }
 

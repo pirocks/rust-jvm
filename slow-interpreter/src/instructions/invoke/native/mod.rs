@@ -4,7 +4,7 @@ use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::ACC_SYNCHRONIZED;
+use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -52,7 +52,7 @@ pub fn run_native_method(
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()));
     assert!(int_state.current_frame_mut().is_native());
 
-    let monitor = monitor_for_function(jvm, int_state, method, method.access_flags() & ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
+    let monitor = monitor_for_function(jvm, int_state, method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
     if let Some(m) = monitor.as_ref() {
         m.lock(jvm)
     }

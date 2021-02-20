@@ -297,14 +297,6 @@ pub fn is_java_subclass_of(_vf: &VerifierContext, _sub: &ClassWithLoader, _super
 pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> ClassName {
     //todo dup, this must exist elsewhere
     let classfile = get_class(vf, class);
-//    let class_entry = &classfile.constant_pool_view(classfile.super_class as usize);
-//    let utf8 = match &class_entry.kind {
-//        ConstantKind::Class(c) => {
-//            &classfile.constant_pool_view(c.name_index as usize)
-//        }
-//        _ => panic!()
-//    };
-//    ClassName::Str(utf8.extract_string_from_utf8())//todo use weak ref + index instead
     classfile.super_name().unwrap()
 }
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::ACC_SYNCHRONIZED;
+use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
 
@@ -40,7 +40,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let view = interpreter_state.current_class_view().clone();
     let method_i = interpreter_state.current_method_i();
     let method = view.method_view_i(method_i as usize);
-    let synchronized = method.access_flags() & ACC_SYNCHRONIZED as u16 > 0;
+    let synchronized = method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
     let meth_name = method.name();
     let class_name__ = view.name();

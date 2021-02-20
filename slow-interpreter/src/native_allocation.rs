@@ -17,7 +17,7 @@ pub enum AllocationType {
 }
 
 pub struct NativeAllocator {
-    pub(crate) allocations: RwLock<HashMap<usize, AllocationType>>//todo impl defualt or something
+    pub(crate) allocations: RwLock<HashMap<usize, AllocationType>>//todo impl default or something
 }
 
 unsafe impl Send for NativeAllocator {}
