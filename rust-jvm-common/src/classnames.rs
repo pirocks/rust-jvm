@@ -22,14 +22,9 @@ impl PartialEq for NameReference {
     }
 }
 
-//#[derive(Debug)]
 #[derive(Eq)]
-//#[derive(Hash)]
 pub enum ClassName {
-    //    Ref(NameReference),
     Str(String),
-    //todo deprecate
-    SharedStr(Arc<StringPoolEntry>),
 }
 
 impl ClassName {
@@ -216,16 +211,9 @@ impl PartialEq for ClassName {
 impl std::clone::Clone for ClassName {
     fn clone(&self) -> Self {
         match self {
-            /*ClassName::Ref(r) => {
-                ClassName::Ref(NameReference {
-                    index: r.index,
-                    class_file: r.class_file.clone(),
-                })
-            }*/
             ClassName::Str(s) => {
                 ClassName::Str(s.clone())//todo fix
             }
-            ClassName::SharedStr(s) => ClassName::SharedStr(s.clone())
         }
     }
 }
@@ -240,22 +228,12 @@ impl std::fmt::Debug for ClassName {
 impl ClassName {
     pub fn get_referred_name(&self) -> &String {
         match self {
-            ClassName::Str(s) => { s }//todo this clone may be expensive, ditch?
-            ClassName::SharedStr(s) => { s.deref() }
+            ClassName::Str(s) => { s }
         }
     }
 }
 
 
 pub fn class_name(class: &Classfile) -> ClassName {
-//    let class_info_entry = match &(class.constant_pool[class.this_class as usize]).kind {
-//        ConstantKind::Class(c) => { c }
-//        _ => { panic!() }
-//    };
-
     ClassName::Str(class.extract_class_from_constant_pool_name(class.this_class))
-    /*return ClassName::Ref(NameReference {
-        class_file: Arc::downgrade(&class),
-        index: class_info_entry.name_index,
-    });*/
 }
