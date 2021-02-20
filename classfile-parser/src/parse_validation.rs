@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameters, Methodref, NameAndType, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
 
 use crate::EXPECTED_CLASSFILE_MAGIC;
 use crate::parse_validation::ClassfileError::{ExpectedClassEntry, ExpectedDoubleCPEntry, ExpectedFloatCPEntry, ExpectedIntegerCPEntry, ExpectedLongCPEntry, ExpectedNameAndType, ExpectedUtf8CPEntry, TooManyOfSameAttribute};
@@ -187,12 +187,6 @@ impl ValidatorSettings {
             }
             ConstantKind::InvokeDynamic(_) => {
                 //todo part of invoke_dynamic, which is a work in progress
-            }
-            ConstantKind::Module(_) => {
-                return Result::Err(ClassfileError::Java9FeatureNotSupported);
-            }
-            ConstantKind::Package(_) => {
-                return Result::Err(ClassfileError::Java9FeatureNotSupported);
             }
             ConstantKind::InvalidConstant(_) => {
                 return Result::Err(ClassfileError::InvalidConstant);
@@ -411,6 +405,10 @@ impl ValidatorSettings {
                     AttributeEnclosingType::Class(_) => {}
                     _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
+                if attribute_validation_context.has_been_inner_class {
+                    return Result::Err(ClassfileError::TooManyOfSameAttribute);
+                }
+                attribute_validation_context.has_been_inner_class = true;
             }
             AttributeType::EnclosingMethod(encm) => {
                 self.validate_enclosing_method(attribute_validation_context, &c, attr, &encm)?;
@@ -446,7 +444,6 @@ impl ValidatorSettings {
                 }
                 attribute_validation_context.has_been_bootstrap_methods = true;
             }
-            AttributeType::Module(_) => {}
             AttributeType::NestHost(_) => {}
             AttributeType::NestMembers(_) => {}
             AttributeType::ConstantValue(_) => {
@@ -495,7 +492,7 @@ impl ValidatorSettings {
                 attribute_validation_context.has_been_annotation_default = true;
                 self.validate_element_value(c, default_value)?;
             }
-            AttributeType::MethodParameters(MethodParameters { name_index, access_flags: _ }) => {
+            AttributeType::MethodParameters(MethodParameters { parameters }) => {
                 match attr {
                     AttributeEnclosingType::Method(_) => {}
                     _ => return Err(ClassfileError::AttributeOnWrongType)
@@ -504,7 +501,9 @@ impl ValidatorSettings {
                     return Err(TooManyOfSameAttribute);
                 }
                 attribute_validation_context.has_been_method_parameters = true;
-                self.validate_utf8(c, *name_index)?;
+                for MethodParameter { name_index, .. } in parameters {
+                    self.validate_utf8(c, *name_index)?;
+                }
             }
             AttributeType::Synthetic(_) => {
                 ValidatorSettings::validate_synthetic(attr)?;
@@ -552,6 +551,7 @@ impl ValidatorSettings {
                     self.validate_type_annotation(c, attr, type_annotation)?;
                 }
             }
+            AttributeType::Unknown => {}
         }
         Result::Ok(())
     }
@@ -585,7 +585,7 @@ impl ValidatorSettings {
             TargetInfo::LocalVarTarget { table } => {
                 match attr {
                     AttributeEnclosingType::Code(code) => {
-                        for LocalVarTargetTableEntry { start_pc, length, index } in table {
+                        for LocalVarTargetTableEntry { start_pc, length, .. } in table {
                             ValidatorSettings::validate_pcs(code, start_pc, length)?;
                         }
                     }

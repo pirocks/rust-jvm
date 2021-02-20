@@ -8,14 +8,12 @@ use crate::ptype::PType;
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SourceFile {
-    //todo
     pub sourcefile_index: CPIndex
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct InnerClasses {
-    //todo
     pub classes: Vec<InnerClass>
 }
 
@@ -35,21 +33,18 @@ pub struct SourceDebugExtension {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct BootstrapMethods {
-    //todo
     pub bootstrap_methods: Vec<BootstrapMethod>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct NestHost {
-    //todo
     pub host_class_index: u16
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ConstantValue {
-    //todo
     pub constant_value_index: u16
 }
 
@@ -83,7 +78,6 @@ pub struct LineNumberTableEntry {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Exceptions {
-    //todo
     pub exception_index_table: Vec<u16>
 }
 
@@ -127,13 +121,11 @@ pub struct Synthetic {}
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Deprecated {
-    //todo
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Signature {
-    //todo
     pub signature_index: u16
 }
 
@@ -152,14 +144,12 @@ pub struct RuntimeInvisibleAnnotations {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct LineNumberTable {
-    //todo
     pub line_number_table: Vec<LineNumberTableEntry>
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct LocalVariableTable {
-    //todo
     pub local_variable_table: Vec<LocalVariableTableEntry>
 }
 
@@ -186,7 +176,6 @@ pub struct LocalVariableTypeTableEntry {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct LocalVariableTypeTable {
-    //todo
     pub type_table: Vec<LocalVariableTypeTableEntry>
 }
 
@@ -393,7 +382,6 @@ pub enum AttributeType {
     EnclosingMethod(EnclosingMethod),
     SourceDebugExtension(SourceDebugExtension),
     BootstrapMethods(BootstrapMethods),
-    Module(Module),
     NestHost(NestHost),
     NestMembers(NestMembers),
     ConstantValue(ConstantValue),
@@ -414,6 +402,7 @@ pub enum AttributeType {
     StackMapTable(StackMapTable),
     RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations),
     RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
+    Unknown
 }
 
 #[derive(Debug)]
@@ -647,17 +636,6 @@ pub struct InvokeDynamic {
     pub name_and_type_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Module {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-pub struct Package {
-    //todo
-}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -682,8 +660,6 @@ pub enum ConstantKind {
     MethodType(MethodType),
     Dynamic(Dynamic),
     InvokeDynamic(InvokeDynamic),
-    Module(Module),
-    Package(Package),
     InvalidConstant(InvalidConstant),
     LiveObject(usize),//live object pool index
 }

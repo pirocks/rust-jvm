@@ -1,9 +1,7 @@
-use std::collections::hash_map::map_try_reserve_error;
-
 use descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::classfile::{Annotation, AnnotationDefault, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodParameter, MethodParameters, NestHost, NestMembers, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable, Synthetic, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, UninitializedVariableInfo};
+use rust_jvm_common::classfile::AttributeType::Unknown;
 use rust_jvm_common::classfile::EnclosingMethod;
-use rust_jvm_common::classfile::TargetInfo::TypeArgumentTarget;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
@@ -50,6 +48,7 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> Result<AttributeInfo, Clas
             for _ in 0..attribute_length {
                 p.read8()?;
             }
+            Ok(Unknown)
         }
     }?;
     Ok(AttributeInfo {

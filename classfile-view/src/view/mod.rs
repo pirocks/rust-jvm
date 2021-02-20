@@ -104,8 +104,6 @@ impl ClassView {
                 bootstrap_method_attr_index: id.bootstrap_method_attr_index,
                 name_and_type_index: id.name_and_type_index,
             }),
-            ConstantKind::Module(_) => unimplemented!(),
-            ConstantKind::Package(_) => unimplemented!(),
             ConstantKind::InvalidConstant(_) => unimplemented!(),
             ConstantKind::LiveObject(idx) => ConstantInfoView::LiveObject(*idx)
         }
