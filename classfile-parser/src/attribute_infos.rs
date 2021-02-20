@@ -1,5 +1,5 @@
 use descriptor_parser::parse_field_descriptor;
-use rust_jvm_common::classfile::{Annotation, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, NestHost, NestMembers, RuntimeVisibleAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceFile, StackMapFrame, StackMapTable, UninitializedVariableInfo};
+use rust_jvm_common::classfile::{Annotation, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, NestHost, NestMembers, RuntimeVisibleAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceFile, StackMapFrame, StackMapTable, UninitializedVariableInfo};
 use rust_jvm_common::classfile::EnclosingMethod;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -16,42 +16,38 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> Result<AttributeInfo, Clas
     assert!(is_utf8(&name_pool.kind).is_some());
     let name_struct = is_utf8(&name_pool.kind).ok_or(ClassfileParsingError::NoAttributeName)?;
     let name = &name_struct.string;
-    let attribute_type = if name == "Code" {
-        parse_code(p)
-    } else if name == "LineNumberTable" {
-        parse_line_number_table(p)
-    } else if name == "LocalVariableTable" {
-        parse_local_variable_table(p)
-    } else if name == "SourceFile" {
-        parse_sourcefile(p)
-    } else if name == "StackMapTable" {
-        parse_stack_map_table(p)
-    } else if name == "RuntimeVisibleAnnotations" {
-        parse_runtime_visible_annotations(p)
-    } else if name == "Signature" {
-        parse_signature(p)
-    } else if name == "Exceptions" {
-        parse_exceptions(p)
-    } else if name == "Deprecated" {
-        parse_deprecated(p)
-    } else if name == "InnerClasses" {
-        parse_inner_classes(p)
-    } else if name == "BootstrapMethods" {
-        parse_bootstrap_methods(p)
-    } else if name == "ConstantValue" {
-        parse_constant_value_index(p)
-    } else if name == "NestMembers" {
-        //todo validate at most one constraints
-        parse_nest_members(p)
-    } else if name == "NestHost" {
-        parse_nest_host(p)
-    } else if name == "EnclosingMethod" {
-        parse_enclosing_method(p)
-    } else if name == "LocalVariableTypeTable" {
-        parse_local_variable_type_table(p)
-    } else {
-        //todo silently ignore unknown attributes
-        unimplemented!("{}", name);
+    let attribute_type = match name.as_str() {
+        "ConstantValue" => parse_constant_value_index(p),
+        "Code" => parse_code(p),
+        "StackMapTable" => parse_stack_map_table(p),
+        "Exceptions" => parse_exceptions(p),
+        "InnerClasses" => parse_inner_classes(p),
+        "EnclosingMethod" => parse_enclosing_method(p),
+        "Synthetic" => todo!(),
+        "Signature" => parse_signature(p),
+        "SourceFile" => parse_sourcefile(p),
+        "SourceDebugExtension" => todo!(),
+        "LineNumberTable" => parse_line_number_table(p),
+        "LocalVariableTable" => parse_local_variable_table(p),
+        "LocalVariableTypeTable" => parse_local_variable_type_table(p),
+        "Deprecated" => parse_deprecated(p),
+        "RuntimeVisibleAnnotations" => parse_runtime_visible_annotations(p),
+        "RuntimeInVisibleAnnotations" => todo!(),
+        "RuntimeVisibleParameterAnnotations" => todo!(),
+        "RuntimeInVisibleParameterAnnotations" => todo!(),
+        "RuntimeVisibleTypeAnnotations" => todo!(),
+        "RuntimeInVisibleTypeAnnotations" => todo!(),
+        "AnnotationDefault" => todo!(),
+        "BootstrapMethods" => parse_bootstrap_methods(p),
+        "MethodParameters" => todo!(),
+        //java 9+ but gets parsed anyway:
+        "NestMembers" => parse_nest_members(p),
+        "NestHost" => parse_nest_host(p),
+        _ => {
+            for _ in 0..attribute_length {
+                p.read8()?;
+            }
+        }
     }?;
     Ok(AttributeInfo {
         attribute_name_index,
@@ -173,12 +169,18 @@ fn parse_signature(p: &mut dyn ParsingContext) -> Result<AttributeType, Classfil
 fn parse_element_value(p: &mut dyn ParsingContext) -> Result<ElementValue, ClassfileParsingError> {
     let tag = p.read8()? as char;
     Ok(match tag {
-        'B' => { unimplemented!() }
-        'C' => { unimplemented!() }
-        'S' => { unimplemented!() }
-        's' => {
-            ElementValue::String(p.read16()?)
-        }
+        'B' => { ElementValue::Byte(p.read16()?) }
+        'C' => { ElementValue::Char(p.read16()?) }
+        'D' => { ElementValue::Double(p.read16()?) }
+        'F' => { ElementValue::Float(p.read16()?) }
+        'I' => { ElementValue::Int(p.read16()?) }
+        'J' => { ElementValue::Long(p.read16()?) }
+        'S' => { ElementValue::Short(p.read16()?) }
+        'Z' => { ElementValue::Boolean(p.read16()?) }
+        's' => { ElementValue::String(p.read16()?) }
+        'e' => { ElementValue::EnumType(parse_enum_const_value(p)?) }
+        'c' => { ElementValue::Class(ClassInfoIndex { class_info_index: p.read16()? }) }
+        '@' => { ElementValue::AnnotationType(AnnotationValue { annotation: parse_annotation(p)? }) }
         '[' => {
             let num_values = p.read16()?;
             let mut values = vec![];
@@ -187,8 +189,14 @@ fn parse_element_value(p: &mut dyn ParsingContext) -> Result<ElementValue, Class
             }
             ElementValue::ArrayType(ArrayValue { values })
         }
-        _ => { unimplemented!("{}", tag) }
+        _ => return Err(ClassfileParsingError::WrongTag)
     })
+}
+
+fn parse_enum_const_value(p: &mut dyn ParsingContext) -> Result<EnumConstValue, ClassfileParsingError> {
+    let type_name_index = p.read16()?;
+    let const_name_index = p.read16()?;
+    Ok(EnumConstValue { type_name_index, const_name_index })
 }
 
 fn parse_element_value_pair(p: &mut dyn ParsingContext) -> Result<ElementValuePair, ClassfileParsingError> {
