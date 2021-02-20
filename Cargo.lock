@@ -882,17 +882,18 @@ dependencies = [
 name = "rust-jvm"
 version = "0.1.0"
 dependencies = [
- "argparse",
- "classfile-parser",
- "classfile-view",
- "descriptor-parser",
- "jar-manipulation",
- "jvm",
- "jvmti-jni-bindings",
- "rust-jvm-common",
- "slow-interpreter",
- "type-safe-proc-macro-utils",
- "verification",
+    "argparse",
+    "classfile-parser",
+    "classfile-view",
+    "descriptor-parser",
+    "jar-manipulation",
+    "jvm",
+    "jvmti-jni-bindings",
+    "rust-jvm-common",
+    "sketch-jvm-version-of-utf8",
+    "slow-interpreter",
+    "type-safe-proc-macro-utils",
+    "verification",
 ]
 
 [[package]]
@@ -986,14 +987,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 
 [[package]]
+name = "sketch-jvm-version-of-utf8"
+version = "0.1.0"
+
+[[package]]
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
- "bimap",
- "bindgen",
- "by_address",
- "classfile-parser",
- "classfile-view",
+    "bimap",
+    "bindgen",
+    "by_address",
+    "classfile-parser",
+    "classfile-view",
  "descriptor-parser",
  "errno",
  "futures-intrusive",

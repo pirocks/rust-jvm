@@ -331,7 +331,6 @@ impl ValidatorSettings {
 
 
     pub fn validate_attribute(&self, attribute_validation_context: &mut AttributeValidationContext, a: &AttributeInfo, c: &Classfile, attr: &AttributeEnclosingType) -> Result<(), ClassfileError> {
-        //todo finish up attribute validation implementation
         match &a.attribute_type {
             AttributeType::SourceFile(sourcefile) => {
                 self.validate_utf8(c, sourcefile.sourcefile_index)?;
@@ -821,7 +820,6 @@ impl ValidatorSettings {
 pub struct AttributeValidationContext {
     has_been_constant_value: bool,
     has_been_code: bool,
-    //todo make sure this is checked
     has_been_exceptions: bool,
     has_been_enclosing_method: bool,
     has_been_inner_class: bool,
