@@ -176,7 +176,6 @@ impl MethodInfo {
     pub fn is_native(&self) -> bool {
         self.access_flags & ACC_NATIVE > 0
     }
-    //todo need a find method function
 }
 
 

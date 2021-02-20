@@ -24,7 +24,7 @@ pub enum PType {
     Uninitialized(UninitializedVariableInfo),
     UninitializedThis,
 
-    //todo hack. so b/c stackmapframes doesn't really know what type to give to UnitialziedThis, b/c invoke special could have happened or not
+    //todo hack. so b/c stackmapframes doesn't really know what type to give to UninitializedThis, b/c invoke special could have happened or not
     // I suspect that Uninitialized might work for this, but making my own anyway
     UninitializedThisOrClass(Box<PType>),
 
