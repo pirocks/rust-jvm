@@ -1,7 +1,7 @@
 use std::collections::hash_map::map_try_reserve_error;
 
 use descriptor_parser::parse_field_descriptor;
-use rust_jvm_common::classfile::{Annotation, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, NestHost, NestMembers, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable, Synthetic, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, UninitializedVariableInfo};
+use rust_jvm_common::classfile::{Annotation, AnnotationDefault, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodParameter, MethodParameters, NestHost, NestMembers, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable, Synthetic, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, UninitializedVariableInfo};
 use rust_jvm_common::classfile::EnclosingMethod;
 use rust_jvm_common::classfile::TargetInfo::TypeArgumentTarget;
 use rust_jvm_common::classnames::ClassName;
@@ -40,9 +40,9 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> Result<AttributeInfo, Clas
         "RuntimeInVisibleParameterAnnotations" => parse_runtime_invisible_parameter_annotations(p),
         "RuntimeVisibleTypeAnnotations" => parse_runtime_visible_type_annotations(p),
         "RuntimeInVisibleTypeAnnotations" => parse_runtime_invisible_type_annotations(p),
-        "AnnotationDefault" => todo!(),
+        "AnnotationDefault" => parse_annotation_default(p),
         "BootstrapMethods" => parse_bootstrap_methods(p),
-        "MethodParameters" => todo!(),
+        "MethodParameters" => parse_method_parameters(p),
         //java 9+ but gets parsed anyway:
         "NestMembers" => parse_nest_members(p),
         "NestHost" => parse_nest_host(p),
@@ -355,6 +355,22 @@ fn parse_type_path(p: &mut dyn ParsingContext) -> Result<TypePath, ClassfilePars
     Ok(TypePath { path })
 }
 
+
+fn parse_annotation_default(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
+    let default_value = parse_element_value(p)?;
+    Ok(AttributeType::AnnotationDefault(AnnotationDefault { default_value }))
+}
+
+fn parse_method_parameters(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
+    let mut parameters = vec![];
+    let parameters_count = p.read8()?;
+    for _ in 0..parameters_count {
+        let access_flags = p.read16()?;
+        let name_index = access_flags;
+        parameters.push(MethodParameter { name_index, access_flags })
+    }
+    Ok(AttributeType::MethodParameters(MethodParameters { parameters }))
+}
 
 fn parse_stack_map_table(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let number_of_entries = p.read16()?;

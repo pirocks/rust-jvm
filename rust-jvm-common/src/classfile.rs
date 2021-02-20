@@ -105,11 +105,19 @@ pub struct AnnotationDefault {
     pub default_value: ElementValue
 }
 
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+pub struct MethodParameter {
+    pub name_index: u16,
+    pub access_flags: u16,
+}
+
+
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct MethodParameters {
-    pub name_index: u16,
-    pub access_flags: u16,
+    pub parameters: Vec<MethodParameter>
 }
 
 #[derive(Debug)]
