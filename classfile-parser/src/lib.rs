@@ -93,7 +93,8 @@ pub enum ClassfileParsingError {
     WrongPtype,
     UsedReservedStackMapEntry,
     WrongStackMapFrameType,
-    WrongTag
+    WrongTag,
+    WromngCPEntry,
 }
 
 impl Error for ClassfileParsingError {}

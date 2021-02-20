@@ -482,11 +482,8 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> Result<PType, Cla
         ITEM_OBJECT => {
             let original_index = p.read16()?;
             let index = match &p.constant_pool_borrow()[original_index as usize].kind {
-                //todo what is going on here?
-                ConstantKind::Utf8(_u) => { panic!();/*original_index */ }
                 ConstantKind::Class(c) => c.name_index,
-                ConstantKind::String(_c) => panic!(),
-                _ => { panic!() }
+                _ => { return Err(ClassfileParsingError::WromngCPEntry) }
             };
             let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8();
             if type_descriptor.starts_with('[') {
