@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::fmt;
 use std::io::{BufReader, Read};
 
-use rust_jvm_common::classfile::{AttributeType, Classfile, Code, FieldInfo, MethodInfo, StackMapTable};
+use rust_jvm_common::classfile::{Classfile, FieldInfo, MethodInfo};
 
 use crate::attribute_infos::parse_attributes;
 use crate::ClassfileParsingError::WrongMagic;
@@ -16,17 +16,6 @@ use crate::parsing_util::ReadParsingContext;
 pub mod attribute_infos;
 pub mod code;
 pub mod constant_infos;
-
-//todo why is this here?
-pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
-    for attr in code.attributes.iter() {
-        if let AttributeType::StackMapTable(table) = &attr.attribute_type {
-            return Some(table);
-        }
-    }
-    None
-}
-
 
 const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 
@@ -109,7 +98,7 @@ impl Display for ClassfileParsingError {
 fn parse_from_context(p: &mut dyn ParsingContext) -> Result<Classfile, ClassfileParsingError> {
     let magic: u32 = p.read32()?;
     if magic != EXPECTED_CLASSFILE_MAGIC {
-        return Err(WrongMagic)
+        return Err(WrongMagic);
     }
     let minor_version: u16 = p.read16()?;
     let major_version: u16 = p.read16()?;

@@ -1,16 +1,24 @@
 use std::rc::Rc;
 
-use classfile_parser::stack_map_table_attribute;
 use classfile_view::loading::*;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classfile::{AppendFrame, ChopFrame, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable};
+use rust_jvm_common::classfile::{AppendFrame, AttributeType, ChopFrame, Code, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable};
 
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;
 use crate::verifier::{Frame, InternalFrame};
 use crate::verifier::codecorrectness::expand_to_length;
+
+pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
+    for attr in code.attributes.iter() {
+        if let AttributeType::StackMapTable(table) = &attr.attribute_type {
+            return Some(table);
+        }
+    }
+    None
+}
 
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodView) -> Vec<StackMap> {
     let mut res = vec![];
