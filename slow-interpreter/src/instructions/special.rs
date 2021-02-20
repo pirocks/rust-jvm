@@ -189,6 +189,9 @@ pub fn wide(current_frame: &mut StackEntry, w: Wide) {
         Wide::Ret(_) => {
             unimplemented!()
         }
+        Wide::Dstore(_) => {
+            unimplemented!()
+        }
         Wide::IInc(iinc) => {
             let IInc { index, const_ } = iinc;
             let mut val = current_frame.local_vars()[index as usize].unwrap_int();

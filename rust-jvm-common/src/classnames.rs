@@ -2,11 +2,9 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::ops::Deref;
-use std::sync::{Arc, Weak};
+use std::sync::Weak;
 
 use crate::classfile::Classfile;
-use crate::string_pool::StringPoolEntry;
 
 #[derive(Debug)]
 pub struct NameReference {

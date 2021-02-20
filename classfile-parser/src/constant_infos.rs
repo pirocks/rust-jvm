@@ -1,6 +1,7 @@
 use rust_jvm_common::classfile::{Class, ConstantInfo, ConstantKind, Fieldref, Float, Integer, InterfaceMethodref, InvalidConstant, InvokeDynamic, Long, MethodHandle, Methodref, MethodType, NameAndType, String_, Utf8};
+use rust_jvm_common::classfile::*;
 use rust_jvm_common::classfile::Double;
-use rust_jvm_common::classfile::ReferenceKind::{InvokeInterface, InvokeSpecial, InvokeStatic, InvokeVirtual};
+use rust_jvm_common::classfile::ReferenceKind::{GetField, GetStatic, InvokeInterface, InvokeSpecial, InvokeStatic, InvokeVirtual, NewInvokeSpecial, PutField, PutStatic};
 
 use crate::ClassfileParsingError;
 use crate::parsing_util::ParsingContext;
@@ -25,11 +26,7 @@ const INTERFACE_METHODREF_CONST_NUM: u8 = 11;
 const NAME_AND_TYPE_CONST_NUM: u8 = 12;
 const METHOD_HANDLE_CONST_NUM: u8 = 15;
 const METHOD_TYPE_CONST_NUM: u8 = 16;
-const DYNAMIC_CONST_NUM: u8 = 17;
 const INVOKE_DYNAMIC_CONST_NUM: u8 = 18;
-const MODULE_CONST_NUM: u8 = 19;
-const PACKAGE_CONST_NUM: u8 = 20;
-const INVALID_CONSTANT_CONST_NUM: u8 = 21;
 
 pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, ClassfileParsingError> {
     let kind = p.read8()?;
@@ -93,6 +90,7 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, C
             ConstantKind::NameAndType(NameAndType { name_index, descriptor_index })
         }
         METHOD_HANDLE_CONST_NUM => {
+
             //1 REF_getField getfield C.f:T
             // 2 REF_getStatic getstatic C.f:T
             // 3 REF_putField putfield C.f:T
@@ -106,14 +104,17 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, C
             // C.<init>:(A*)V
             // 9 REF_invokeInterface invokeinterface C.m:(A*)T
             let reference_kind = match p.read8()? {
-                5 => InvokeVirtual,
-                6 => InvokeStatic,
-                7 => InvokeSpecial,
-                8 => InvokeSpecial,
-                9 => InvokeInterface,
-                u8 => {
-                    dbg!(u8);
-                    unimplemented!()
+                REF_GET_FIELD => GetField,
+                REF_GET_STATIC => GetStatic,
+                REF_PUT_FIELD => PutField,
+                REF_PUT_STATIC => PutStatic,
+                REF_INVOKE_VIRTUAL => InvokeVirtual,
+                REF_INVOKE_STATIC => InvokeStatic,
+                REF_INVOKE_SPECIAL => InvokeSpecial,
+                REF_NEW_INVOKE_SPECIAL => NewInvokeSpecial,
+                REF_INVOKE_INTERFACE => InvokeInterface,
+                _ => {
+                    return Err(ClassfileParsingError::WrongTag)
                 }
             };
             let reference_index = p.read16()?;
@@ -128,7 +129,6 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, C
                 descriptor_index
             })
         }
-        DYNAMIC_CONST_NUM => { unimplemented!() }
         INVOKE_DYNAMIC_CONST_NUM => {
             let bootstrap_method_attr_index = p.read16()?;
             let name_and_type_index = p.read16()?;
@@ -137,14 +137,8 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, C
                 name_and_type_index,
             })
         }
-        MODULE_CONST_NUM => { unimplemented!() }
-        PACKAGE_CONST_NUM => { unimplemented!() }
-        INVALID_CONSTANT_CONST_NUM => {
-            unimplemented!();
-        }
         _ => {
-            dbg!(kind);
-            unimplemented!();
+            return Err(ClassfileParsingError::WrongTag)
         }
     };
     Ok(ConstantInfo { kind: result_kind })

@@ -3,7 +3,7 @@ use std::slice::Iter;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray, TableSwitch, Wide};
+use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray, TableSwitch, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 
 use crate::ClassfileParsingError;
 
@@ -60,7 +60,7 @@ fn read_table_switch(c: &mut CodeParserContext) -> Result<TableSwitch, Classfile
     };
     let default = read_i32(c)?;
     let low = read_i32(c)?;
-    let high = read_i32(c)?;//technically these should all be expects
+    let high = read_i32(c)?;
     let num_to_read = high - low + 1;
     let mut offsets = vec![];
     for _ in 0..num_to_read {
@@ -78,21 +78,22 @@ fn read_wide(c: &mut CodeParserContext) -> Result<Wide, ClassfileParsingError> {
         let const_ = read_i16(c)?;
         Wide::IInc(IInc { index, const_ })
     } else {
+        let index = read_u16(c)?;
         //iload, fload, aload, lload, dload, istore,
         // fstore, astore, lstore, dstore, or ret
         match opcode {
-            InstructionTypeNum::iload => unimplemented!(),
-            InstructionTypeNum::fload => unimplemented!(),
-            InstructionTypeNum::aload => unimplemented!(),
-            InstructionTypeNum::lload => unimplemented!(),
-            InstructionTypeNum::dload => unimplemented!(),
-            InstructionTypeNum::istore => unimplemented!(),
-            InstructionTypeNum::fstore => unimplemented!(),
-            InstructionTypeNum::astore => unimplemented!(),
-            InstructionTypeNum::lstore => unimplemented!(),
-            InstructionTypeNum::dstore => unimplemented!(),
-            InstructionTypeNum::ret => unimplemented!(),
-            _ => panic!()
+            InstructionTypeNum::iload => Wide::Iload(WideIload { index }),
+            InstructionTypeNum::fload => Wide::Fload(WideFload { index }),
+            InstructionTypeNum::aload => Wide::Aload(WideAload { index }),
+            InstructionTypeNum::lload => Wide::Lload(WideLload { index }),
+            InstructionTypeNum::dload => Wide::Dload(WideDload { index }),
+            InstructionTypeNum::istore => Wide::Istore(WideIstore { index }),
+            InstructionTypeNum::fstore => Wide::Fstore(WideFstore { index }),
+            InstructionTypeNum::astore => Wide::Astore(WideAstore { index }),
+            InstructionTypeNum::lstore => Wide::Lstore(WideLstore { index }),
+            InstructionTypeNum::dstore => Wide::Dstore(WideDstore { index }),
+            InstructionTypeNum::ret => Wide::Ret(WideRet { index }),
+            _ => return Err(ClassfileParsingError::WrongTag)
         }
     })
 }

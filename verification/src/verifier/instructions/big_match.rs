@@ -260,6 +260,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             Wide::Fstore(_) => unimplemented!(),
             Wide::Astore(_) => unimplemented!(),
             Wide::Lstore(_) => unimplemented!(),
+            Wide::Dstore(_) => unimplemented!(),
             Wide::Ret(_) => unimplemented!(),
             Wide::IInc(iinc) => instruction_is_type_safe_iinc(iinc.index as usize, env, stack_frame),
         },

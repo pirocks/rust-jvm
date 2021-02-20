@@ -120,8 +120,7 @@ pub struct Synthetic {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Deprecated {
-}
+pub struct Deprecated {}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -402,7 +401,7 @@ pub enum AttributeType {
     StackMapTable(StackMapTable),
     RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations),
     RuntimeInvisibleTypeAnnotations(RuntimeInvisibleTypeAnnotations),
-    Unknown
+    Unknown,
 }
 
 #[derive(Debug)]
@@ -774,6 +773,7 @@ pub enum Wide {
     Fstore(WideFstore),
     Astore(WideAstore),
     Lstore(WideLstore),
+    Dstore(WideDstore),
     Ret(WideRet),
     IInc(IInc),
 }
@@ -783,52 +783,89 @@ pub enum Wide {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideIload {}
+pub struct WideIload {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideFload {}
+pub struct WideFload {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideAload {}
+pub struct WideAload {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideLload {}
+pub struct WideLload {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideDload {}
+pub struct WideDload {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideIstore {}
+pub struct WideIstore {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideFstore {}
+pub struct WideFstore {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideAstore {}
+pub struct WideAstore {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideLstore {}
+pub struct WideLstore {
+    pub index: u16,
+
+}
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Clone)]
-pub struct WideRet {}
+pub struct WideDstore {
+    pub index: u16,
+
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq)]
+#[derive(Clone)]
+pub struct WideRet {
+    pub index: u16,
+}
 
 
 #[derive(Debug)]
@@ -1078,15 +1115,15 @@ pub const ACC_ANNOTATION: u16 = 0x2000;
 pub const ACC_ENUM: u16 = 0x4000;
 pub const ACC_MODULE: u16 = 0x8000;
 
-pub const REF_getField: u8 = 1;
-pub const REF_getStatic: u8 = 2;
-pub const REF_putField: u8 = 3;
-pub const REF_putStatic: u8 = 4;
-pub const REF_invokeVirtual: u8 = 5;
-pub const REF_invokeStatic: u8 = 6;
-pub const REF_invokeSpecial: u8 = 7;
-pub const REF_newInvokeSpecial: u8 = 8;
-pub const REF_invokeInterface: u8 = 9;
+pub const REF_GET_FIELD: u8 = 1;
+pub const REF_GET_STATIC: u8 = 2;
+pub const REF_PUT_FIELD: u8 = 3;
+pub const REF_PUT_STATIC: u8 = 4;
+pub const REF_INVOKE_VIRTUAL: u8 = 5;
+pub const REF_INVOKE_STATIC: u8 = 6;
+pub const REF_INVOKE_SPECIAL: u8 = 7;
+pub const REF_NEW_INVOKE_SPECIAL: u8 = 8;
+pub const REF_INVOKE_INTERFACE: u8 = 9;
 
 #[derive(Debug)]
 pub struct Classfile {

@@ -1,6 +1,6 @@
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_invokeInterface, REF_invokeSpecial, REF_invokeStatic, REF_invokeVirtual};
+use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE, REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -103,19 +103,19 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     //static v. invoke_virtual v. interface
     //see MethodHandles::init_method_MemberName
     let invoke_type_flag = ((if (flags & ACC_STATIC as i32) > 0 {
-        REF_invokeStatic
+        REF_INVOKE_STATIC
     } else {
         let class_ptye = clazz.as_type(jvm);
         let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
         let inited_class = check_initing_or_inited_class(jvm, int_state, class_name.into()).unwrap();
         if inited_class.view().is_interface() {
-            REF_invokeInterface
+            REF_INVOKE_INTERFACE
         } else {
             //todo if you are wondering why this is needed, I'm as confused as you are.
             if inited_class.view().is_final() {
-                REF_invokeSpecial
+                REF_INVOKE_SPECIAL
             } else {
-                REF_invokeVirtual
+                REF_INVOKE_VIRTUAL
             }
         }
     } as u32) << REFERENCE_KIND_SHIFT) as i32;
