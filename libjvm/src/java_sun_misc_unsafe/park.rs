@@ -16,7 +16,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: j
     let int_state = get_interpreter_state(env);
     let current_thread = &jvm.thread_state.get_current_thread();
     if time == 0 {
-        current_thread.park(u64::max_value())//todo this is technically wrong
+        current_thread.park(u64::MAX)//todo this is technically wrong
     }
     if is_absolute != 0 {
         let now = SystemTime::now();

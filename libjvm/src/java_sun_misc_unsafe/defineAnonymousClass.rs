@@ -46,10 +46,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
 pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mut args: &mut Vec<JavaValue>) -> JavaValue {
     let _parent_class = &args[1];//todo idk what this is for which is potentially problematic
     let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8).collect();
-    //todo for debug, delete later
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
-    // dbg!(unpatched.constant_pool[unpatched.methods[0].name_index as usize].extract_string_from_utf8());
-    // int_state.print_stack_trace();
     if args[3].unwrap_object().is_some() {
         patch_all(jvm, &int_state.current_frame_mut(), &mut args, &mut unpatched);
     }
@@ -123,82 +120,9 @@ fn patch_single(
     // Class: any java.lang.Class object
     // String: any object (not just a java.lang.String)
     // InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments//nyi means not yet implemented
-    // dbg!(&class_name);
-    let _kind = /*if class_name == ClassName::int() {
-    let int_val = JavaValue::Object(patch.clone().into()).cast_integer().value();
-    unpatched.constant_pool[i] = ConstantKind::Integer(Integer { bytes: int_val as u32 }).into();
-} else*/ /*if
-class_name == ClassName::long() ||
-    class_name == ClassName::float() ||
-    class_name == ClassName::double() {
-    frame.print_stack_trace();
-
-    unimplemented!()
-} else*/ if class_name == ClassName::string().into() {
+    let _kind = if class_name == ClassName::string().into() {
         unimplemented!()
-    } /*else if class_name == ClassName::class() {
-    unimplemented!()
-}*/ /*else if class_name == ClassName::method_handle() || class_name == ClassName::direct_method_handle() {//todo should be using innstanceof here
-    dbg!(&unpatched.constant_pool[i]);
-    dbg!(&unpatched.constant_pool.iter().enumerate().collect::<Vec<_>>());
-    if class_name == ClassName::direct_method_handle() {
-        let patch_fields = patch.unwrap_normal_object().fields.borrow_mut();
-        let member_name_obj = patch_fields.get("member").unwrap();
-        let member_name_obj_fields = member_name_obj.unwrap_normal_object().fields.borrow();
-        let name_i = {
-            let name = member_name_obj_fields.get("name").unwrap();
-            let member_name = string_obj_to_string(name.unwrap_object());
-            let res_i = unpatched.constant_pool.len();
-            unpatched.constant_pool.push(ConstantKind::Utf8(Utf8 {
-                length: member_name.len() as u16,
-                string: member_name,
-            }).into());
-            res_i
-        };
-        let class_i = {
-            let clazz = member_name_obj_fields.get("clazz").unwrap();
-            let clazz_ptype_borrow = clazz.unwrap_normal_object().class_object_ptype.borrow();
-            let clazz_name_as_class_name = clazz_ptype_borrow.as_ref().unwrap().unwrap_class_type();
-            let clazz_name = clazz_name_as_class_name.get_referred_name();
-            let utf_i = unpatched.constant_pool.len();
-            unpatched.constant_pool.push(ConstantKind::Utf8(Utf8 {
-                length: clazz_name.len() as u16,
-                string: clazz_name.to_string(),
-            }).into());
-            let class_i = unpatched.constant_pool.len();
-            unpatched.constant_pool.push(ConstantKind::Class(Class { name_index: utf_i as u16 }).into());
-            class_i
-        };
-        let descriptor_i = {
-            let type_ = member_name_obj_fields.get("type").unwrap();
-            let method_type = type_.unwrap_normal_object().cast_method_type();
-            let method_descriptor = method_type.to_string(state,frame.clone()).to_rust_string();
-
-
-            let descriptor_i = unpatched.constant_pool.len();
-            unpatched.constant_pool.push(ConstantKind::Utf8(Utf8 {
-                length: method_descriptor.len() as u16,
-                string: method_descriptor,
-            }).into());
-            descriptor_i
-        };
-
-        let nt_i = unpatched.constant_pool.len();
-        unpatched.constant_pool.push(ConstantKind::NameAndType(NameAndType {
-            name_index: name_i as u16,
-            descriptor_index: descriptor_i as u16,
-        }).into());
-
-        unpatched.constant_pool[i] = ConstantKind::InterfaceMethodref(InterfaceMethodref {
-            class_index: class_i as u16,
-            nt_index: nt_i as u16
-        }).into();
     } else {
-        unimplemented!()
-    }
-}*/ else {
-        // dbg!(&class_name);
-        // assert!(class_name == ClassName::unsafe_() || class_name == ClassName::direct_method_handle());//for now keep a white list of allowed classes here until the above are properly implemented
         let classes_guard = state.classes.write().unwrap();
         let mut anon_class_write_guard = classes_guard.anon_class_live_object_ldc_pool.write().unwrap();
         let live_object_i = anon_class_write_guard.len();
