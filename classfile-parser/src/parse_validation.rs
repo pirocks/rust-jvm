@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
+use sketch_jvm_version_of_utf8::ValidationError;
 
 use crate::EXPECTED_CLASSFILE_MAGIC;
 use crate::parse_validation::ClassfileError::{ExpectedClassEntry, ExpectedDoubleCPEntry, ExpectedFloatCPEntry, ExpectedIntegerCPEntry, ExpectedLongCPEntry, ExpectedNameAndType, ExpectedUtf8CPEntry, TooManyOfSameAttribute};
@@ -47,7 +48,13 @@ pub enum ClassfileError {
     BadPC,
     BadIndex,
     TypePathError,
+    BadUTF8
+}
 
+impl From<ValidationError> for ClassfileError {
+    fn from(_: ValidationError) -> Self {
+        Self::BadUTF8
+    }
 }
 
 pub enum AttributeEnclosingType<'l> {

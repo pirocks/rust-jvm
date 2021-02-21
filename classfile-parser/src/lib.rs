@@ -6,6 +6,7 @@ use std::fmt;
 use std::io::{BufReader, Read};
 
 use rust_jvm_common::classfile::{Classfile, FieldInfo, MethodInfo};
+use sketch_jvm_version_of_utf8::ValidationError;
 
 use crate::attribute_infos::parse_attributes;
 use crate::ClassfileParsingError::WrongMagic;
@@ -84,6 +85,13 @@ pub enum ClassfileParsingError {
     WrongStackMapFrameType,
     WrongTag,
     WromngCPEntry,
+    UTFValidationError(ValidationError)
+}
+
+impl From<ValidationError> for ClassfileParsingError {
+    fn from(err: ValidationError) -> Self {
+        Self::UTFValidationError(err)
+    }
 }
 
 impl Error for ClassfileParsingError {}

@@ -12,3 +12,4 @@ path = "src/lib.rs"
 [dependencies]
 num-traits = "0.2"
 num-derive = "0.2"
+sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }

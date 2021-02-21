@@ -13,7 +13,7 @@ impl ConstantInfo {
     pub fn extract_string_from_utf8(&self) -> String {
         match &(self).kind {
             ConstantKind::Utf8(s) => {
-                s.string.clone()
+                s.string.to_string()
             }
             other => {
                 dbg!(other);

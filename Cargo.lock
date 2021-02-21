@@ -202,6 +202,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "rust-jvm-common",
+ "sketch-jvm-version-of-utf8",
  "timebomb",
 ]
 
@@ -882,18 +883,18 @@ dependencies = [
 name = "rust-jvm"
 version = "0.1.0"
 dependencies = [
-    "argparse",
-    "classfile-parser",
-    "classfile-view",
-    "descriptor-parser",
-    "jar-manipulation",
-    "jvm",
-    "jvmti-jni-bindings",
-    "rust-jvm-common",
-    "sketch-jvm-version-of-utf8",
-    "slow-interpreter",
-    "type-safe-proc-macro-utils",
-    "verification",
+ "argparse",
+ "classfile-parser",
+ "classfile-view",
+ "descriptor-parser",
+ "jar-manipulation",
+ "jvm",
+ "jvmti-jni-bindings",
+ "rust-jvm-common",
+ "sketch-jvm-version-of-utf8",
+ "slow-interpreter",
+ "type-safe-proc-macro-utils",
+ "verification",
 ]
 
 [[package]]
@@ -902,6 +903,7 @@ version = "0.1.0"
 dependencies = [
  "num-derive",
  "num-traits",
+ "sketch-jvm-version-of-utf8",
 ]
 
 [[package]]
@@ -994,21 +996,21 @@ version = "0.1.0"
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
-    "bimap",
-    "bindgen",
-    "by_address",
-    "classfile-parser",
-    "classfile-view",
-    "descriptor-parser",
-    "errno",
-    "futures-intrusive",
-    "jar-manipulation",
-    "jvmti-jni-bindings",
-    "libc",
-    "libffi",
-    "libloading 0.6.5",
-    "lock_api 0.3.4",
-    "nix",
+ "bimap",
+ "bindgen",
+ "by_address",
+ "classfile-parser",
+ "classfile-view",
+ "descriptor-parser",
+ "errno",
+ "futures-intrusive",
+ "jar-manipulation",
+ "jvmti-jni-bindings",
+ "libc",
+ "libffi",
+ "libloading 0.6.5",
+ "lock_api 0.3.4",
+ "nix",
  "num",
  "parking_lot 0.11.1",
  "regex",

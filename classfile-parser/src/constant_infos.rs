@@ -2,6 +2,7 @@ use rust_jvm_common::classfile::{Class, ConstantInfo, ConstantKind, Fieldref, Fl
 use rust_jvm_common::classfile::*;
 use rust_jvm_common::classfile::Double;
 use rust_jvm_common::classfile::ReferenceKind::{GetField, GetStatic, InvokeInterface, InvokeSpecial, InvokeStatic, InvokeVirtual, NewInvokeSpecial, PutField, PutStatic};
+use sketch_jvm_version_of_utf8::PossiblyJVMString;
 
 use crate::ClassfileParsingError;
 use crate::parsing_util::ParsingContext;
@@ -37,7 +38,7 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, C
             for _ in 0..length {
                 buffer.push(p.read8()?)
             }
-            let str_ = unsafe { String::from_utf8_unchecked(buffer) };//.expect("Invalid utf8 in constant pool");
+            let str_ = PossiblyJVMString::new(buffer).validate()?.to_string()?;
             ConstantKind::Utf8(Utf8 { length, string: str_ })
         }
         INTEGER_CONST_NUM => {
