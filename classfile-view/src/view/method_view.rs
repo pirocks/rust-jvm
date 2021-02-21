@@ -115,7 +115,6 @@ impl MethodView<'_> {
 
 
 pub struct MethodIterator<'l> {
-    //todo create a from and remove pub(crate)
     pub(crate) class_view: &'l ClassView,
     pub(crate) i: usize,
 }

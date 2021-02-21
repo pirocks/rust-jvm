@@ -34,8 +34,8 @@ impl Clone for JarHandle<File> {
 pub struct NoClassFoundInJarError {}
 
 impl std::fmt::Display for NoClassFoundInJarError {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        unimplemented!()
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -49,7 +49,7 @@ impl JarHandle<File> {
     }
 
     pub fn lookup(&mut self, class_name: &ClassName) -> Result<Arc<Classfile>, Box<dyn Error>> {
-        let lookup_res = &mut self.zip_archive.by_name(format!("{}.class", class_name.get_referred_name()).as_str())?;//todo dup
+        let lookup_res = &mut self.zip_archive.by_name(format!("{}.class", class_name.get_referred_name()).as_str())?;
         if lookup_res.is_file() {
             Result::Ok(Arc::new(parse_class_file(lookup_res)?))
         } else {

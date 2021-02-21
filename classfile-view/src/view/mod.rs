@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use std::mem::transmute;
 use std::sync::{Arc, RwLock};
 
 use descriptor_parser::MethodDescriptor;
@@ -8,7 +7,7 @@ use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NAT
 use rust_jvm_common::classnames::{class_name, ClassName};
 
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, SourceFileView};
-use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, DoubleView, FieldrefView, FloatView, IntegerView, InterfaceMethodrefView, InvokeDynamicView, LongView, MethodHandleView, MethodrefView, MethodTypeView, NameAndTypeView, StringView};
+use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, DoubleView, FieldrefView, FloatView, IntegerView, InterfaceMethodrefView, InvokeDynamicView, LongView, MethodHandleView, MethodrefView, MethodTypeView, NameAndTypeView, StringView, Utf8View};
 use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
 use crate::view::method_view::{MethodIterator, MethodView};
@@ -77,21 +76,19 @@ impl ClassView {
     pub fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
         let backing_class = self.backing_class.clone();
         match &self.backing_class.constant_pool[i].kind {
-            ConstantKind::Utf8(_) => unimplemented!(),
-            ConstantKind::Integer(i) => ConstantInfoView::Integer(IntegerView { int: i.bytes as i32 }),//todo
+            ConstantKind::Utf8(utf8) => ConstantInfoView::Utf8(Utf8View { str: utf8.string.clone() }),
+            ConstantKind::Integer(i) => ConstantInfoView::Integer(IntegerView { int: i.bytes as i32 }),
             ConstantKind::Float(f) => ConstantInfoView::Float(FloatView {
                 float: f32::from_bits(f.bytes)
-            }),//todo
+            }),
             ConstantKind::Long(l) => ConstantInfoView::Long(LongView {
-                long: unsafe {
-                    transmute((l.high_bytes as u64) << 32 | l.low_bytes as u64)
-                }
-            }),//todo
+                long: ((l.high_bytes as u64) << 32 | l.low_bytes as u64) as i64
+            }),
             ConstantKind::Double(d) => ConstantInfoView::Double(DoubleView {
                 double: f64::from_bits((d.high_bytes as u64) << 32 | d.low_bytes as u64)
-            }),//todo
+            }),
             ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
-            ConstantKind::String(s) => ConstantInfoView::String(StringView { class_view: self, string_index: s.string_index as usize }),//todo
+            ConstantKind::String(s) => ConstantInfoView::String(StringView { class_view: self, string_index: s.string_index as usize }),
             ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { class_view: self, i }),
             ConstantKind::Methodref(_) => ConstantInfoView::Methodref(MethodrefView { class_view: self, i }),
             ConstantKind::InterfaceMethodref(_) => ConstantInfoView::InterfaceMethodref(InterfaceMethodrefView { class_view: self, i }),

@@ -99,10 +99,6 @@ impl OperandStack {
         o
     }
 
-    pub fn new_reverse_display_order(_types: &[VType]) -> OperandStack {
-        unimplemented!()
-    }
-
     pub fn empty() -> OperandStack {
         OperandStack { data: VecDeque::new() }
     }

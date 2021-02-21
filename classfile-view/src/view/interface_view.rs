@@ -9,7 +9,6 @@ pub struct InterfaceView<'l> {
 
 
 pub struct InterfaceIterator<'l> {
-    //todo create a from and remove pub(crate)
     pub(crate) view: &'l ClassView,
     pub(crate) i: usize,
 }

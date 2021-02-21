@@ -666,7 +666,6 @@ pub enum ConstantKind {
 
 #[derive(Debug)]
 #[derive(Eq)]
-//#[derive(Copy, Clone)]
 pub struct ConstantInfo {
     pub kind: ConstantKind,
 }

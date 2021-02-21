@@ -157,10 +157,6 @@ impl Thread {
         assert!(guard.alive.load(Ordering::SeqCst));
         std::mem::drop(guard.thread_finished.wait(guard.finished_mutex.lock().unwrap()).unwrap());
     }
-
-    // fn rust_thread(&self) -> &std::thread::Thread {
-    //     self.rust_join_handle.as_ref().unwrap().thread()
-    // }
 }
 
 pub enum SignalReason {
@@ -182,23 +178,6 @@ impl Threads {
         };
     }
 
-    // unsafe fn trigger_signal(&self, t: &Thread, reason: SignalReason) {
-    //     let metadata_void_ptr = Box::leak(box reason) as *mut SignalReason as *mut c_void;
-    //     let sigval_ = sigval { sival_ptr: metadata_void_ptr };
-    //     let res = pthread_sigqueue(*t.pthread_id.as_ref().unwrap(), transmute(Signal::SIGUSR1), sigval_);
-    //     if res != 0 {
-    //         dbg!(gettid());
-    //         dbg!(errno());
-    //         dbg!(res);
-    //         panic!()
-    //     }
-    // }
-
-    /*pub fn await_all_threads_death(&self) {
-        let all_threads_read_guard = self.all_threads.read().unwrap();
-        all_threads_read_guard.values().find(|thread| { thread.is_alive() });
-        unimplemented!()
-    }*/
 }
 
 extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _data: *mut libc::c_void) {

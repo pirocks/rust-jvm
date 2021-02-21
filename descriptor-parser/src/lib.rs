@@ -112,7 +112,6 @@ pub fn parse_field_type(str_: &str) -> Option<(&str, PType)> {
         parse_base_type(str_).or_else(|| {
             parse_object_type(str_).or_else(|| {
                 ("", PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))).into()//todo fallback for when parsing maformedtypes names
-//                panic!("{}", str_)
             })
         })
     })

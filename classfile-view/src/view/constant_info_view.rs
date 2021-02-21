@@ -10,7 +10,7 @@ use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[derive(Debug)]
 pub struct Utf8View {
-    //todo
+    pub str: String
 }
 
 #[derive(Debug)]
@@ -348,10 +348,4 @@ impl ConstantInfoView<'_> {
         }
     }
 
-    /*pub fn unwrap_utf8(&self) -> String{
-        match self{
-            ConstantInfoView::Utf8(utf8) => utf8,
-            _ => panic!(),
-        }
-    }*/
 }
