@@ -26,15 +26,6 @@ unsafe extern "system" fn JVM_SocketShutdown(fd: jint, howto: jint) -> jint {
     libc::shutdown(fd, howto)
 }
 
-fn retry_on_eintr(to_retry: impl Fn() -> i32) -> i32 {
-    loop {
-        let err = to_retry();
-        if nix::errno::errno() != EINTR || err != -1 {
-            return err;
-        }
-    }
-}
-
 #[no_mangle]
 unsafe extern "system" fn JVM_Recv(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
     retry_on_eintr(|| libc::recv(fd, buf, nBytes as usize, flags) as i32)

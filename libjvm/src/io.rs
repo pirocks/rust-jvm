@@ -2,32 +2,32 @@ use std::ffi::CStr;
 
 use jvmti_jni_bindings::{fopen, jint, jlong};
 
+use crate::util::retry_on_eintr;
+
 #[no_mangle]
 unsafe extern "system" fn JVM_NativePath(arg1: *mut ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char {
-    // dbg!(CStr::from_ptr(arg1).to_str().unwrap());
     arg1
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Open(fname: *const ::std::os::raw::c_char, flags: jint, mode: jint) -> jint {
-    assert_eq!(flags, 0);
     libc::open(fname, mode)
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Close(fd: jint) -> jint {
-    unimplemented!()
+    libc::close(fd)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Read(fd: jint, buf: *mut ::std::os::raw::c_char, nbytes: jint) -> jint {
-    unimplemented!()
+    retry_on_eintr(|| libc::read(fd, buf, nbytes as usize) as i32)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Write(fd: jint, buf: *mut ::std::os::raw::c_char, nbytes: jint) -> jint {
-    unimplemented!()
+    retry_on_eintr(|| libc::write(fd, buf, nbytes as usize) as i32)
 }
 
 #[no_mangle]
@@ -37,12 +37,12 @@ unsafe extern "system" fn JVM_Available(fd: jint, pbytes: *mut jlong) -> jint {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Lseek(fd: jint, offset: jlong, whence: jint) -> jlong {
-    unimplemented!()
+    libc::lseek(fd, offset, whence)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Sync(fd: jint) -> jint {
-    unimplemented!()
+    libc::fsync(fd)
 }
 
 
