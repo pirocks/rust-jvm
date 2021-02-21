@@ -249,7 +249,7 @@ impl ValidatorSettings {
                         AttributeType::BootstrapMethods(attr) => Some(attr),
                         _ => None
                     }
-                }).ok_or_else(ClassfileError::BadConstantPoolEntry)?;
+                }).ok_or(ClassfileError::BadConstantPoolEntry)?;
                 if *bootstrap_method_attr_index as usize >= bootstrap_attribute.bootstrap_methods.len() {
                     return Err(BadConstantPoolEntry);
                 }
