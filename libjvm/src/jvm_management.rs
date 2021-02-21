@@ -67,13 +67,17 @@ unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props:
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetVersionInfo(env: *mut JNIEnv, info: *mut jvm_version_info, info_size: usize) {
-    (*info).jvm_version = 8;//todo what should I put here?
+    (*info).jvm_version = 8;
+    (*info).set_is_attach_supported(0);
+    (*info).set_update_version(0);
+    (*info).set_special_update_version(0);
+    (*info).set_reserved1(0);
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_SupportsCX8() -> jboolean {
-    false as jboolean//todo this is actually something that might be easy to support.
+    false as jboolean
 }
 
 #[no_mangle]
