@@ -1,8 +1,10 @@
+use nix::sys::socket::setsockopt;
+
 use jvmti_jni_bindings::{jint, sockaddr};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitializeSocketLibrary() -> jint {
-    unimplemented!()
+    0
 }
 
 #[no_mangle]
@@ -12,47 +14,47 @@ unsafe extern "system" fn JVM_Socket(domain: jint, type_: jint, protocol: jint) 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_SocketClose(fd: jint) -> jint {
-    unimplemented!()
+    libc::close(fd)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_SocketShutdown(fd: jint, howto: jint) -> jint {
-    unimplemented!()
+    libc::shutdown(fd, howto)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Recv(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
-    unimplemented!()
+    libc::recv(fd, buf, nBytes as usize, flags) as i32 //todo these need to restart and repeat if not all read
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Send(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
-    unimplemented!()
+    libc::send(fd, buf, nBytes as usize, flags) as i32//todo these need to restart and repeat if not all read
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std::os::raw::c_long) -> jint {
-    unimplemented!()
+    todo!()
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Listen(fd: jint, count: jint) -> jint {
-    unimplemented!()
+    libc::listen(fd, count)//todo these need to restart and repeat if not all read
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Connect(fd: jint, him: *mut sockaddr, len: jint) -> jint {
-    unimplemented!()
+unsafe extern "system" fn JVM_Connect(fd: jint, him: *const sockaddr, len: jint) -> jint {
+    libc::connect(fd, him as *const libc::sockaddr, len as u32)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Bind(fd: jint, him: *mut sockaddr, len: jint) -> jint {
-    unimplemented!()
+    libc::bind(fd, him as *const libc::sockaddr, len as u32)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Accept(fd: jint, him: *mut sockaddr, len: *mut jint) -> jint {
-    unimplemented!()
+    libc::accept(fd, him as *mut libc::sockaddr, len as *mut libc::socklen_t)
 }
 
 #[no_mangle]
@@ -62,12 +64,12 @@ unsafe extern "system" fn JVM_SocketAvailable(fd: jint, result: *mut jint) -> ji
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetSockName(fd: jint, him: *mut sockaddr, len: *mut ::std::os::raw::c_int) -> jint {
-    unimplemented!()
+    libc::getsockname(fd, him as *mut libc::sockaddr, len as *mut libc::socklen_t)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetHostName(name: *mut ::std::os::raw::c_char, namelen: ::std::os::raw::c_int) -> ::std::os::raw::c_int {
-    unimplemented!()
+    libc::gethostname(name, namelen as usize)
 }
 
 #[no_mangle]
@@ -78,7 +80,7 @@ unsafe extern "system" fn JVM_GetSockOpt(
     optval: *mut ::std::os::raw::c_char,
     optlen: *mut ::std::os::raw::c_int,
 ) -> jint {
-    unimplemented!()
+    libc::getsockopt(fd, level, optname, optval, optlen as *mut libc::socklen_t)
 }
 
 #[no_mangle]
@@ -89,6 +91,6 @@ unsafe extern "system" fn JVM_SetSockOpt(
     optval: *const ::std::os::raw::c_char,
     optlen: ::std::os::raw::c_int,
 ) -> jint {
-    unimplemented!()
+    libc::setsockopt(fd, level, optname, optval, optlen as u32)
 }
 
