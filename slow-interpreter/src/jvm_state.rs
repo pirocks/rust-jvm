@@ -35,6 +35,9 @@ use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
 
+pub static mut JVM: Option<JVMState> = None;
+
+
 pub struct JVMState {
     pub(crate) properties: Vec<String>,
     // pub bootstrap_loader: LoaderArc,//todo what Should this be?

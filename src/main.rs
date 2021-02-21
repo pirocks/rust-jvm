@@ -17,9 +17,6 @@ use slow_interpreter::loading::Classpath;
 use slow_interpreter::options::JVMOptions;
 use slow_interpreter::threading::MainThreadStartInfo;
 
-static mut JVM: Option<JVMState> = None;
-
-
 fn main() {
     let mut verbose = false;
     let mut debug = false;

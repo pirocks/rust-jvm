@@ -7,7 +7,7 @@ use slow_interpreter::rust_jni::native_util::get_state;
 unsafe extern "system" fn JVM_CurrentTimeMillis(env: *mut JNIEnv, ignored: jclass) -> jlong {
     let now = Instant::now();
     let jvm = get_state(env);
-    now.duration_since(jvm.start_instant).as_millis() as jlong //todo dup
+    now.duration_since(jvm.start_instant).as_millis() as jlong
 }
 
 #[no_mangle]

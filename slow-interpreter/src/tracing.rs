@@ -1,3 +1,5 @@
+use std::sync::RwLock;
+
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
 
@@ -6,8 +8,8 @@ use crate::threading::JavaThreadId;
 use crate::threading::monitors::Monitor;
 
 pub struct TracingSettings {
-    trace_function_end: bool,
-    trace_function_start: bool,
+    pub trace_function_end: RwLock<bool>,
+    pub trace_function_start: RwLock<bool>,
     trace_jni_register: bool,
     _trace_jni_dynamic_link: bool,
     //todo implement this trace
@@ -25,8 +27,8 @@ pub struct TracingSettings {
 impl TracingSettings {
     pub fn new() -> Self {
         TracingSettings {
-            trace_function_end: false,
-            trace_function_start: false,
+            trace_function_end: RwLock::new(false),
+            trace_function_start: RwLock::new(false),
             trace_jni_register: false,
             _trace_jni_dynamic_link: false,
             trace_class_loads: false,
@@ -43,8 +45,8 @@ impl TracingSettings {
 
     pub fn disabled() -> Self {
         Self {
-            trace_function_end: false,
-            trace_function_start: false,
+            trace_function_end: RwLock::new(false),
+            trace_function_start: RwLock::new(false),
             trace_jni_register: false,
             _trace_jni_dynamic_link: false,
             trace_class_loads: false,
@@ -69,7 +71,7 @@ impl TracingSettings {
             method_desc,
             current_depth,
             threadtid,
-            trace_function_end: self.trace_function_end,
+            trace_function_end: *self.trace_function_end.read().unwrap(),
         }
     }
 
