@@ -98,8 +98,8 @@ impl Error for ClassfileParsingError {}
 
 
 impl Display for ClassfileParsingError {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
-        unimplemented!()
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, ReferenceKind, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
 use sketch_jvm_version_of_utf8::ValidationError;
 
 use crate::EXPECTED_CLASSFILE_MAGIC;
-use crate::parse_validation::ClassfileError::{ExpectedClassEntry, ExpectedDoubleCPEntry, ExpectedFloatCPEntry, ExpectedIntegerCPEntry, ExpectedLongCPEntry, ExpectedNameAndType, ExpectedUtf8CPEntry, TooManyOfSameAttribute};
+use crate::parse_validation::ClassfileError::{BadConstantPoolEntry, ExpectedClassEntry, ExpectedDoubleCPEntry, ExpectedFloatCPEntry, ExpectedIntegerCPEntry, ExpectedLongCPEntry, ExpectedNameAndType, ExpectedUtf8CPEntry, TooManyOfSameAttribute};
 
 pub const MAX_ARRAY_DIMENSIONS: usize = 255;
 
@@ -48,7 +48,7 @@ pub enum ClassfileError {
     BadPC,
     BadIndex,
     TypePathError,
-    BadUTF8
+    BadUTF8,
 }
 
 impl From<ValidationError> for ClassfileError {
@@ -169,7 +169,6 @@ impl ValidatorSettings {
         match &ci.kind {
             ConstantKind::Utf8(_) => {
                 //nothing to validate, if it was successfully converted to a rust string it is utf8.
-                //todo so this isn't quite correct this is a modified utf8 which may not translate to rust utf-8
             }
             ConstantKind::Integer(_) | ConstantKind::Float(_) => {
                 //nothing to validate. Any bytes here are valid.
@@ -185,8 +184,53 @@ impl ValidatorSettings {
             ConstantKind::Methodref(mr) => self.validate_method_ref(c, mr)?,
             ConstantKind::InterfaceMethodref(imr) => self.validate_interface_method_ref(c, imr)?,
             ConstantKind::NameAndType(nt) => self.validate_name_and_type(c, nt)?,
-            ConstantKind::MethodHandle(_mh) => {
-                //todo part of invoke_dynamic, which is a work in progress
+            ConstantKind::MethodHandle(mh) => {
+                self.index_check(mh.reference_index, c)?;
+                match mh.reference_kind {
+                    ReferenceKind::GetField |
+                    ReferenceKind::GetStatic |
+                    ReferenceKind::PutField |
+                    ReferenceKind::PutStatic => {
+                        match &c.constant_pool[mh.reference_index as usize].kind {
+                            ConstantKind::Fieldref(field_ref) => {
+                                self.validate_field_ref(c, field_ref)?;
+                            }
+                            _ => return Err(ClassfileError::BadConstantPoolEntry)
+                        }
+                    }
+                    ReferenceKind::InvokeVirtual |
+                    ReferenceKind::NewInvokeSpecial => {
+                        match &c.constant_pool[mh.reference_index as usize].kind {
+                            ConstantKind::Methodref(method_ref) => {
+                                self.validate_method_ref(c, method_ref)?;
+                            }
+                            _ => return Err(ClassfileError::BadConstantPoolEntry)
+                        }
+                    }
+                    ReferenceKind::InvokeStatic |
+                    ReferenceKind::InvokeSpecial => {
+                        match &c.constant_pool[mh.reference_index as usize].kind {
+                            ConstantKind::Methodref(method_ref) => {
+                                self.validate_method_ref(c, method_ref)?;
+                            }
+                            ConstantKind::InterfaceMethodref(method_ref) => {
+                                if c.major_version < 52 {
+                                    return Err(BadConstantPoolEntry);
+                                }
+                                self.validate_interface_method_ref(c, method_ref)?;
+                            }
+                            _ => return Err(ClassfileError::BadConstantPoolEntry)
+                        }
+                    }
+                    ReferenceKind::InvokeInterface => {
+                        match &c.constant_pool[mh.reference_index as usize].kind {
+                            ConstantKind::InterfaceMethodref(method_ref) => {
+                                self.validate_interface_method_ref(c, method_ref)?;
+                            }
+                            _ => return Err(ClassfileError::BadConstantPoolEntry)
+                        }
+                    }
+                }
             }
             ConstantKind::MethodType(mt) => { self.is_utf8_check(mt.descriptor_index, c)?; }
             ConstantKind::Dynamic(_) => {
@@ -256,7 +300,6 @@ impl ValidatorSettings {
         // interface name encoded in internal form (§4.2.1).
         match &c.constant_pool[class_info.name_index as usize].kind {
             ConstantKind::Utf8(utf8) => {
-                //todo validate the utf8 before use
                 let name_string = &utf8.string;
                 self.validate_class_name(&name_string)?;
             }
