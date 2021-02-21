@@ -41,7 +41,7 @@ impl BootstrapMethodsView<'_> {
     }
 
     pub fn bootstrap_methods(&self) -> BootstrapMethodIterator {
-        unimplemented!()
+        BootstrapMethodIterator { view: self.clone(), i: 0 }
     }
 }
 

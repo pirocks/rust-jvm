@@ -41,13 +41,10 @@ pub struct ClassPoolElemView {
 
 impl ClassPoolElemView {
     pub fn class_name(&self) -> ReferenceTypeView {
-        //todo should really find a way of getting this into a string pool
         let name_str = self.backing_class.constant_pool[self.name_index].extract_string_from_utf8();
-
         //todo parse_class_name needs to be used more elsewhere
         let type_ = PTypeView::from_ptype(&parse_class_name(&name_str));
         type_.unwrap_ref_type().clone()
-        // ClassName::Str(name_str)
     }
 }
 
@@ -300,21 +297,6 @@ impl InvokeDynamicView<'_> {
     pub fn bootstrap_method(&self) -> BootstrapMethodView {
         BootstrapMethodView { backing: self.class_view.bootstrap_methods_attr(), i: self.bootstrap_method_attr_index as usize }
     }
-}
-
-#[derive(Debug)]
-pub struct ModuleView {
-    //todo
-}
-
-#[derive(Debug)]
-pub struct PackageView {
-    //todo
-}
-
-#[derive(Debug)]
-pub struct InvalidConstantView {
-    //todo
 }
 
 #[derive(Debug)]

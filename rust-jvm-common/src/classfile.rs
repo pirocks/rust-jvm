@@ -657,7 +657,6 @@ pub enum ConstantKind {
     NameAndType(NameAndType),
     MethodHandle(MethodHandle),
     MethodType(MethodType),
-    Dynamic(Dynamic),
     InvokeDynamic(InvokeDynamic),
     InvalidConstant(InvalidConstant),
     LiveObject(usize),//live object pool index

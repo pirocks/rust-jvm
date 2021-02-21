@@ -95,13 +95,12 @@ impl ClassView {
             ConstantKind::NameAndType(_) => ConstantInfoView::NameAndType(NameAndTypeView { class_view: self, i }),
             ConstantKind::MethodHandle(_) => ConstantInfoView::MethodHandle(MethodHandleView { class_view: self, i }),
             ConstantKind::MethodType(_) => ConstantInfoView::MethodType(MethodTypeView { class_view: self, i }),
-            ConstantKind::Dynamic(_) => unimplemented!(),
             ConstantKind::InvokeDynamic(id) => ConstantInfoView::InvokeDynamic(InvokeDynamicView {
                 class_view: self,
                 bootstrap_method_attr_index: id.bootstrap_method_attr_index,
                 name_and_type_index: id.name_and_type_index,
             }),
-            ConstantKind::InvalidConstant(_) => unimplemented!(),
+            ConstantKind::InvalidConstant(_) => panic!(),
             ConstantKind::LiveObject(idx) => ConstantInfoView::LiveObject(*idx)
         }
     }

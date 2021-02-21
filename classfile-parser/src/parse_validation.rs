@@ -233,9 +233,6 @@ impl ValidatorSettings {
                 }
             }
             ConstantKind::MethodType(mt) => { self.is_utf8_check(mt.descriptor_index, c)?; }
-            ConstantKind::Dynamic(_) => {
-                return Result::Err(ClassfileError::Java9FeatureNotSupported);
-            }
             ConstantKind::InvokeDynamic(InvokeDynamic { bootstrap_method_attr_index, name_and_type_index }) => {
                 self.index_check(*name_and_type_index, c)?;
                 match &c.constant_pool[*name_and_type_index as usize].kind {
