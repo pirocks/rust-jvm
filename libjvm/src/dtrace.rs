@@ -2,21 +2,21 @@ use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNIEnv};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DTraceGetVersion(env: *mut JNIEnv) -> jint {
-    unimplemented!()
+    -1
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DTraceIsProbeEnabled(env: *mut JNIEnv, method: jmethodID) -> jboolean {
-    unimplemented!()
+    u8::from(false)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DTraceDispose(env: *mut JNIEnv, activation_handle: jlong) {
-    unimplemented!()
+
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DTraceIsSupported(env: *mut JNIEnv) -> jboolean {
-    unimplemented!()
+    u8::from(false)
 }
 
