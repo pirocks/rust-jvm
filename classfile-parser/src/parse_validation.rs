@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, ReferenceKind, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, InvokeDynamic, LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, ReferenceKind, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
 use sketch_jvm_version_of_utf8::ValidationError;
 
 use crate::EXPECTED_CLASSFILE_MAGIC;
@@ -236,8 +236,23 @@ impl ValidatorSettings {
             ConstantKind::Dynamic(_) => {
                 return Result::Err(ClassfileError::Java9FeatureNotSupported);
             }
-            ConstantKind::InvokeDynamic(_) => {
-                //todo part of invoke_dynamic, which is a work in progress
+            ConstantKind::InvokeDynamic(InvokeDynamic { bootstrap_method_attr_index, name_and_type_index }) => {
+                self.index_check(*name_and_type_index, c)?;
+                match &c.constant_pool[*name_and_type_index as usize].kind {
+                    ConstantKind::NameAndType(nt) => {
+                        self.validate_name_and_type(c, nt)?;
+                    }
+                    _ => return Err(ClassfileError::BadConstantPoolEntry)
+                }
+                let bootstrap_attribute = c.attributes.iter().find_map(|attr| {
+                    match &attr.attribute_type {
+                        AttributeType::BootstrapMethods(attr) => Some(attr),
+                        _ => None
+                    }
+                }).ok_or_else(ClassfileError::BadConstantPoolEntry)?;
+                if *bootstrap_method_attr_index as usize >= bootstrap_attribute.bootstrap_methods.len() {
+                    return Err(BadConstantPoolEntry);
+                }
             }
             ConstantKind::InvalidConstant(_) => {
                 return Result::Err(ClassfileError::InvalidConstant);
