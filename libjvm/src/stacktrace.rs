@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use classfile_view::view::attribute_view::SourceFileView;
-use jvmti_jni_bindings::{jint, JNIEnv, jobject};
+use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
 use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobject) {
@@ -53,12 +53,24 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jobject) -> jint {
     let int_state = get_interpreter_state(env);
-    0//todo impl
+    let jvm = get_state(env);
+    match jvm.stacktraces_by_throwable.read().unwrap().get(&from_object(throwable).unwrap()) {
+        Some(x) => x,
+        None => return JNI_ERR,
+    }.len() as i32
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: jobject, index: jint) -> jobject {
-    unimplemented!()
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
+    match match jvm.stacktraces_by_throwable.read().unwrap().get(&from_object(throwable).unwrap()) {
+        Some(x) => x,
+        None => todo!(),
+    }.get(index as usize) {
+        None => todo!(),
+        Some(element) => to_object(element.object().into())
+    }
 }
 
 #[no_mangle]
