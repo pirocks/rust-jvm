@@ -1,6 +1,46 @@
 pub mod invoke;
 
 
+pub mod stack_trace_element {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::jint;
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::string::JString;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    #[derive(Clone, Debug)]
+    pub struct StackTraceElement {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_stack_trace_element(&self) -> StackTraceElement {
+            StackTraceElement { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl StackTraceElement {
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, declaring_class: JString, method_name: JString, file_name: JString, line_number: jint) -> StackTraceElement {
+            let class_ = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/StackTraceElement").into()).unwrap();//todo replace these unwraps
+            push_new_object(jvm, int_state, &class_);
+            let res = int_state.pop_current_operand_stack();
+            let full_args = vec![res.clone(), declaring_class.java_value(), method_name.java_value(), file_name.java_value(), JavaValue::Int(
+                line_number
+            )];
+            run_constructor(jvm, int_state, class_, full_args, "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V".to_string());
+            res.cast_stack_trace_element()
+        }
+
+        as_object_or_java_value!();
+    }
+}
+
 pub mod member_name {
     use std::sync::Arc;
 

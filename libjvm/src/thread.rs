@@ -48,12 +48,10 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     let jvm = get_state(env);
 
     let int_state = get_interpreter_state(env);
-    // int_state.print_stack_trace();
     let java_thread = match JavaValue::Object(from_object(thread)).cast_thread().try_get_java_thread(jvm) {
         None => return 0 as jboolean,
         Some(jt) => jt,
     };
-    // assert!(!java_thread.invisible_to_java);
     let alive = java_thread.is_alive();
     alive as jboolean
 }
@@ -75,7 +73,7 @@ unsafe extern "system" fn JVM_SetThreadPriority(env: *mut JNIEnv, thread: jobjec
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Yield(env: *mut JNIEnv, threadClass: jclass) {
-//todo actually do something here maybe
+    //todo actually do something here maybe
 }
 
 #[no_mangle]
@@ -144,7 +142,29 @@ unsafe extern "system" fn JVM_DumpThreads(env: *mut JNIEnv, threadClass: jclass,
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetThreadStateValues(env: *mut JNIEnv, javaThreadState: jint) -> jintArray {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let names = match javaThreadState {
+        JAVA_THREAD_STATE_NEW => {
+            vec![]
+        }
+        JAVA_THREAD_STATE_RUNNABLE => {
+            vec![]
+        }
+        JAVA_THREAD_STATE_BLOCKED => {
+            vec![]
+        }
+        JAVA_THREAD_STATE_WAITING => {
+            vec![]
+        }
+        JAVA_THREAD_STATE_TIMED_WAITING => {
+            vec![]
+        }
+        JAVA_THREAD_STATE_TERMINATED => {
+            vec![]
+        }
+        _ => return null_mut()
+    }.into_iter().map(|int| JavaValue::Int(int)).collect::<Vec<_>>();
 }
 
 #[no_mangle]

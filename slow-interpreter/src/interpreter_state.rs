@@ -210,6 +210,10 @@ impl<'l> InterpreterStateGuard<'l> {
             }
         }
     }
+
+    pub fn cloned_stack_snapshot(&self) -> Vec<StackEntry> {
+        self.int_state.as_ref().unwrap().call_stack.clone()
+    }
 }
 
 #[must_use = "Must handle frame push guard. "]

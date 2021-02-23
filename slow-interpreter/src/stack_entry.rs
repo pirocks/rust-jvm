@@ -15,7 +15,7 @@ use crate::runtime_class::RuntimeClass;
 
 /// If the frame is opaque then this data is optional.
 /// This data would typically be present in a native function call, but not be present in JVMTI frames
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct OpaqueFrameOptional {
     class_pointer: Arc<RuntimeClass>,
     method_i: CPIndex,
@@ -23,14 +23,14 @@ struct OpaqueFrameOptional {
 
 ///This data is only present in non-native frames,
 /// program counter is not meaningful in a native frame
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct NonNativeFrameData {
     pc: usize,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
     pc_offset: isize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StackEntry {
     loader: LoaderName,
     opaque_frame_optional: Option<OpaqueFrameOptional>,

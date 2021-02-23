@@ -25,6 +25,7 @@ use verification::ClassFileGetter;
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
+use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{JavaValue, NormalObject, Object};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
@@ -65,7 +66,9 @@ pub struct JVMState {
 
     pub include_name_field: AtomicBool,
     pub store_generated_classes: bool,
-    pub debug_print_exceptions: bool
+    pub debug_print_exceptions: bool,
+
+    pub stacktraces_by_throwable: RwLock<HashMap<Arc<Object>, Vec<StackTraceElement>>>
 }
 
 pub struct Classes {
