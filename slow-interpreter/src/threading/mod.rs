@@ -26,6 +26,7 @@ use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
+use crate::threading::ResumeError::NotSuspended;
 
 pub struct ThreadState {
     pub(crate) threads: Threads,
@@ -485,11 +486,27 @@ impl JavaThread {
             res
         }
     }
+
+    pub unsafe fn resume_thread(&self) -> Result<(), ResumeError> {
+        let SuspendedStatus { suspended, suspend_condvar } = &self.suspended;
+        let mut suspend_guard = suspended.lock().unwrap();
+        if !*suspend_guard {
+            Err(NotSuspended)
+        } else {
+            *suspend_guard = false;
+            suspend_condvar.notify_one();//notify one and notify all should be the same here
+            Ok(())
+        }
+    }
 }
 
 pub enum SuspendError {
     AlreadySuspended,
     NotAlive,
+}
+
+pub enum ResumeError {
+    NotSuspended
 }
 
 pub mod monitors;

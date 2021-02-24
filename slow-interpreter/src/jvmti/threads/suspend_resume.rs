@@ -1,11 +1,11 @@
 use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
 
-use crate::interpreter_state::{InterpreterStateGuard, SuspendedStatus};
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::from_object;
-use crate::threading::SuspendError;
+use crate::threading::{ResumeError, SuspendError};
 
 ///Suspend Thread List
 ///
@@ -157,6 +157,7 @@ pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> j
     //todo handle capabilities for this
     assert!(jvm.vm_live());
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThread");
+    let int_state = get_interpreter_state(env);
     let res = resume_thread_impl(jvm, thread);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
@@ -200,6 +201,7 @@ pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> j
 /// JVMTI_ERROR_NULL_POINTER	results is NULL.
 pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThreadList");
     assert!(jvm.vm_live());
     null_check!(request_list);
@@ -226,13 +228,10 @@ unsafe fn resume_thread_impl(jvm: &JVMState, thread_raw: jthread) -> jvmtiError 
         Some(jthread) => jthread,
     };
     let java_thread = jthread.get_java_thread(jvm);
-    let SuspendedStatus { suspended, suspend_condvar } = &java_thread.suspended;
-    let mut suspend_guard = suspended.lock().unwrap();
-    if !*suspend_guard {
-        jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED
-    } else {
-        *suspend_guard = false;
-        suspend_condvar.notify_one();//notify one and notify all should be the same here
-        jvmtiError_JVMTI_ERROR_NONE
+    match java_thread.resume_thread() {
+        Ok(_) => jvmtiError_JVMTI_ERROR_NONE,
+        Err(err) => match err {
+            ResumeError::NotSuspended => jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED
+        }
     }
 }

@@ -66,12 +66,20 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
 
 #[no_mangle]
 unsafe extern "system" fn JVM_SuspendThread(env: *mut JNIEnv, thread: jobject) {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let java_thread = JavaValue::Object(from_object(thread)).cast_thread().get_java_thread(jvm);
+    let _ = java_thread.suspend_thread(int_state);
+    //javadoc doesn't say anything about error handling so we just don't anything
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ResumeThread(env: *mut JNIEnv, thread: jobject) {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let java_thread = JavaValue::Object(from_object(thread)).cast_thread().get_java_thread(jvm);
+    let _ = java_thread.resume_thread();
+    //javadoc doesn't say anything about error handling so we just don't anything
 }
 
 #[no_mangle]
