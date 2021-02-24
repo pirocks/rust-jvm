@@ -316,9 +316,6 @@ pub enum ConstantInfoView<'cl> {
     MethodType(MethodTypeView<'cl>),
     Dynamic(DynamicView),
     InvokeDynamic(InvokeDynamicView<'cl>),
-    Module(ModuleView),
-    Package(PackageView),
-    InvalidConstant(InvalidConstantView),
     LiveObject(usize),
 }
 

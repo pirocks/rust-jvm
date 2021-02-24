@@ -104,7 +104,6 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
 unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclass) -> jclass {
     //todo unimplemented for now
     std::ptr::null_mut()
-    //unimplemented!()
 }
 
 #[no_mangle]

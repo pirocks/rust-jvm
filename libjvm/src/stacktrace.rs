@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use by_address::ByAddress;
+
 use classfile_view::view::attribute_view::SourceFileView;
 use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
@@ -32,9 +34,9 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
             Some(line_number_table) => {
                 //todo have a lookup funciton for this
                 let mut cur_line = -1;
-                for LineNumberTableEntry { start_pc, line_number } in line_number_table.line_number_table {
-                    if (start_pc as usize) <= stack_entry.pc() {
-                        cur_line = line_number as jint;
+                for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
+                    if (*start_pc as usize) <= stack_entry.pc() {
+                        cur_line = *line_number as jint;
                     }
                 }
                 cur_line
@@ -47,14 +49,14 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number))
     }).collect::<Vec<_>>();
     let mut stack_traces_guard = jvm.stacktraces_by_throwable.write().unwrap();
-    stack_traces_guard.insert(from_object(throwable).unwrap(), stack_entry_objs);
+    stack_traces_guard.insert(ByAddress(from_object(throwable).unwrap()), stack_entry_objs);
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jobject) -> jint {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match jvm.stacktraces_by_throwable.read().unwrap().get(&from_object(throwable).unwrap()) {
+    match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(from_object(throwable).unwrap())) {
         Some(x) => x,
         None => return JNI_ERR,
     }.len() as i32
@@ -64,16 +66,16 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
 unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: jobject, index: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match match jvm.stacktraces_by_throwable.read().unwrap().get(&from_object(throwable).unwrap()) {
+    match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(from_object(throwable).unwrap())) {
         Some(x) => x,
         None => todo!(),
     }.get(index as usize) {
         None => todo!(),
-        Some(element) => to_object(element.object().into())
+        Some(element) => to_object(element.clone().object().into())
     }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CountStackFrames(env: *mut JNIEnv, thread: jobject) -> jint {
-    unimplemented!()
+    todo!()
 }

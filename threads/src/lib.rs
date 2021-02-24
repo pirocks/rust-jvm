@@ -157,6 +157,10 @@ impl Thread {
         assert!(guard.alive.load(Ordering::SeqCst));
         std::mem::drop(guard.thread_finished.wait(guard.finished_mutex.lock().unwrap()).unwrap());
     }
+
+    pub unsafe fn is_this_thread(&self) -> bool {
+        self.pthread_id == pthread_self().into()
+    }
 }
 
 pub enum SignalReason {

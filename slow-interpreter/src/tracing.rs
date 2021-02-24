@@ -62,7 +62,7 @@ impl TracingSettings {
     }
 
     pub fn trace_function_enter<'l>(&self, classname: &'l ClassName, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
-        if self.trace_function_start {
+        if *self.trace_function_start.read().unwrap() {
             println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
         }
         FunctionEnterExitTraceGuard {

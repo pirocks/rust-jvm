@@ -1,4 +1,4 @@
-use std::ffi::CStr;
+use std::ffi::{c_void, CStr};
 
 use jvmti_jni_bindings::{fopen, jint, jlong};
 
@@ -22,12 +22,12 @@ unsafe extern "system" fn JVM_Close(fd: jint) -> jint {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Read(fd: jint, buf: *mut ::std::os::raw::c_char, nbytes: jint) -> jint {
-    retry_on_eintr(|| libc::read(fd, buf, nbytes as usize) as i32)
+    retry_on_eintr(|| libc::read(fd, buf as *mut c_void, nbytes as usize) as i32)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Write(fd: jint, buf: *mut ::std::os::raw::c_char, nbytes: jint) -> jint {
-    retry_on_eintr(|| libc::write(fd, buf, nbytes as usize) as i32)
+    retry_on_eintr(|| libc::write(fd, buf as *mut c_void, nbytes as usize) as i32)
 }
 
 #[no_mangle]

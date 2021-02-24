@@ -12,7 +12,7 @@ use std::sync::Arc;
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 
 use rust_jvm_common::classnames::ClassName;
-use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::jvm_state::{JVM, JVMState};
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::options::JVMOptions;
 use slow_interpreter::threading::MainThreadStartInfo;

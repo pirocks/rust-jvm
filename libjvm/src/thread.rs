@@ -27,7 +27,7 @@ use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref, new_local_ref_public};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
-use slow_interpreter::threading::JavaThread;
+use slow_interpreter::threading::{JavaThread, SuspendError};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -40,7 +40,15 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exception: jobject) {
-    unimplemented!()
+    //todo do not print ThreadDeath on reaching top of thread
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let target_thread = JavaValue::Object(from_object(thread)).cast_thread().get_java_thread(jvm);
+    if let Err(_err) = target_thread.suspend_thread(int_state) {
+        // it appears we should ignore any errors here.
+        //todo unclear what happens when one calls start on stopped thread. javadoc says terminate immediately, but what does that mean/ do we do this
+    }
+    target_thread.interpreter_state.write().unwrap().throw = from_object(exception);
 }
 
 #[no_mangle]
@@ -144,24 +152,24 @@ unsafe extern "system" fn JVM_DumpThreads(env: *mut JNIEnv, threadClass: jclass,
 unsafe extern "system" fn JVM_GetThreadStateValues(env: *mut JNIEnv, javaThreadState: jint) -> jintArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let names = match javaThreadState {
+    let names = match javaThreadState as u32 {
         JAVA_THREAD_STATE_NEW => {
-            vec![]
+            vec![todo!()]
         }
         JAVA_THREAD_STATE_RUNNABLE => {
-            vec![]
+            vec![todo!()]
         }
         JAVA_THREAD_STATE_BLOCKED => {
-            vec![]
+            vec![todo!()]
         }
         JAVA_THREAD_STATE_WAITING => {
-            vec![]
+            vec![todo!()]
         }
         JAVA_THREAD_STATE_TIMED_WAITING => {
-            vec![]
+            vec![todo!()]
         }
         JAVA_THREAD_STATE_TERMINATED => {
-            vec![]
+            vec![todo!()]
         }
         _ => return null_mut()
     }.into_iter().map(|int| JavaValue::Int(int)).collect::<Vec<_>>();
@@ -173,7 +181,7 @@ unsafe extern "system" fn JVM_GetThreadStateNames(env: *mut JNIEnv, javaThreadSt
 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let names = match javaThreadState {
+    let names = match javaThreadState as u32 {
         JAVA_THREAD_STATE_NEW => {
             vec![JString::from_rust(jvm, int_state, "NEW".to_string())]
         }

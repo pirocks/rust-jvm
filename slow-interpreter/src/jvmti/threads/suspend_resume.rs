@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
 use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
 
-use crate::interpreter::suspend_check;
 use crate::interpreter_state::{InterpreterStateGuard, SuspendedStatus};
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::from_object;
+use crate::threading::SuspendError;
 
 ///Suspend Thread List
 ///
@@ -71,24 +69,15 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
 unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> jvmtiError {
     let jthread = get_thread_or_error!(thread_object_raw);
     let java_thread = jthread.get_java_thread(jvm);
-    let SuspendedStatus { suspended, suspend_condvar: _ } = &java_thread.suspended;
-    let mut suspended_guard = suspended.lock().unwrap();
-    let res = if *suspended_guard {
-        jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED
-    } else {
-        *suspended_guard = true;
-        jvmtiError_JVMTI_ERROR_NONE
-    };
-    if Arc::ptr_eq(&java_thread, int_state.thread) {
-        assert_eq!(java_thread.java_tid, int_state.thread.java_tid);
-        suspend_check(int_state);
-    }
-    if !java_thread.is_alive() {
-        jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
-    } else {
-        res
+    match java_thread.suspend_thread(int_state) {
+        Ok(_) => jvmtiError_JVMTI_ERROR_NONE,
+        Err(err) => match err {
+            SuspendError::AlreadySuspended => jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED,
+            SuspendError::NotAlive => jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
+        }
     }
 }
+
 
 pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, _thread: jthread) -> jvmtiError {
     let jvm = get_state(env);

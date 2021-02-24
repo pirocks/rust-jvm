@@ -15,7 +15,7 @@ use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-use crate::interpreter::run_function;
+use crate::interpreter::{run_function, suspend_check};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
@@ -447,6 +447,7 @@ impl JavaThread {
     }
 
     pub fn park(&self, time_nanos: u64) {//perhaps this u64 should be a u128 but I believe its fine within my lifetime. Also why would you park a thread that long.
+        unsafe { assert!(self.underlying_thread.is_this_thread()) }
         let mut num_parks = self.num_parks.lock().unwrap();
         *num_parks += 1;
         if *num_parks > 0 {
@@ -464,7 +465,31 @@ impl JavaThread {
         }
         drop(num_parks_guard)
     }
+
+    pub unsafe fn suspend_thread(&self, int_state: &mut InterpreterStateGuard) -> Result<(), SuspendError> {
+        let SuspendedStatus { suspended, suspend_condvar: _ } = &self.suspended;
+        let mut suspended_guard = suspended.lock().unwrap();
+        let res = if *suspended_guard {
+            Err(SuspendError::AlreadySuspended)
+        } else {
+            *suspended_guard = true;
+            Ok(())
+        };
+        if self.underlying_thread.is_this_thread() {
+            assert_eq!(self.java_tid, int_state.thread.java_tid);
+            suspend_check(int_state);
+        }
+        if !self.is_alive() {
+            Err(SuspendError::NotAlive)
+        } else {
+            res
+        }
+    }
 }
 
+pub enum SuspendError {
+    AlreadySuspended,
+    NotAlive,
+}
 
 pub mod monitors;

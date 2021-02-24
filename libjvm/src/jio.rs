@@ -28,7 +28,7 @@ unsafe extern "C" fn jio_fprintf(
     fmt: *const ::std::os::raw::c_char,
     args: *mut __va_list_tag,
 ) -> ::std::os::raw::c_int {
-    libc::fprintf(stream as *mut libc::FILE, count, fmt, args)
+    libc::fprintf(stream as *mut libc::FILE, fmt, args)
 }
 
 

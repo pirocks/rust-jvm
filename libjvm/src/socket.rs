@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use std::time::Instant;
 
 use nix::errno::Errno::EINTR;
@@ -5,6 +6,8 @@ use nix::sys::socket::setsockopt;
 
 use classfile_parser::code::InstructionTypeNum::{lookupswitch, ret};
 use jvmti_jni_bindings::{jint, sockaddr};
+
+use crate::util::retry_on_eintr;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitializeSocketLibrary() -> jint {
@@ -28,12 +31,12 @@ unsafe extern "system" fn JVM_SocketShutdown(fd: jint, howto: jint) -> jint {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Recv(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
-    retry_on_eintr(|| libc::recv(fd, buf, nBytes as usize, flags) as i32)
+    retry_on_eintr(|| libc::recv(fd, buf as *mut c_void, nBytes as usize, flags) as i32)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Send(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
-    retry_on_eintr(|| libc::send(fd, buf, nBytes as usize, flags) as i32)
+    retry_on_eintr(|| libc::send(fd, buf as *mut c_void, nBytes as usize, flags) as i32)
 }
 
 #[no_mangle]
@@ -46,7 +49,7 @@ unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std:
             revents: 0,
         };
         let err = libc::poll(&mut pollfd as *mut libc::pollfd, 1, timeout as i32);
-        if nix::errno::errno() == EINTR && err == -1 {
+        if nix::errno::errno() == EINTR as i32 && err == -1 {
             if timeout >= 0 {
                 if Instant::now().duration_since(start).as_millis() >= timeout as u128 {
                     return 0;
@@ -81,7 +84,7 @@ unsafe extern "system" fn JVM_Accept(fd: jint, him: *mut sockaddr, len: *mut jin
 #[no_mangle]
 unsafe extern "system" fn JVM_SocketAvailable(fd: jint, result: *mut jint) -> jint {
     //mostly stolen from os::socket_available in hotspot
-    if libc::ioctl(fd, FIONREAD, result) < 0 {
+    if libc::ioctl(fd, libc::FIONREAD, result) < 0 {
         1
     } else {
         0
@@ -106,7 +109,7 @@ unsafe extern "system" fn JVM_GetSockOpt(
     optval: *mut ::std::os::raw::c_char,
     optlen: *mut ::std::os::raw::c_int,
 ) -> jint {
-    libc::getsockopt(fd, level, optname, optval, optlen as *mut libc::socklen_t)
+    libc::getsockopt(fd, level, optname, optval as *mut c_void, optlen as *mut libc::socklen_t)
 }
 
 #[no_mangle]
@@ -117,6 +120,6 @@ unsafe extern "system" fn JVM_SetSockOpt(
     optval: *const ::std::os::raw::c_char,
     optlen: ::std::os::raw::c_int,
 ) -> jint {
-    libc::setsockopt(fd, level, optname, optval, optlen as u32)
+    libc::setsockopt(fd, level, optname, optval as *mut c_void, optlen as u32)
 }
 

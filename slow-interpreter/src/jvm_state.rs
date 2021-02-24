@@ -68,7 +68,7 @@ pub struct JVMState {
     pub store_generated_classes: bool,
     pub debug_print_exceptions: bool,
 
-    pub stacktraces_by_throwable: RwLock<HashMap<Arc<Object>, Vec<StackTraceElement>>>
+    pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<Arc<Object>>, Vec<StackTraceElement>>>
 }
 
 pub struct Classes {
@@ -154,7 +154,8 @@ impl JVMState {
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
             store_generated_classes,
-            debug_print_exceptions
+            debug_print_exceptions,
+            stacktraces_by_throwable: RwLock::new(HashMap::new())
         };
         jvm.add_class_class_class_object();
         (args, jvm)
