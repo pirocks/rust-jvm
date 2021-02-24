@@ -247,6 +247,12 @@ impl ThreadState {
         self.all_java_threads.read().unwrap()
     }
 
+    pub fn get_all_alive_threads(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Vec<Arc<JavaThread>> {
+        self.all_java_threads.read().unwrap().values().filter(|thread| {
+            thread.thread_object().is_alive(jvm, int_state) != 0
+        }).cloned().collect::<Vec<_>>()
+    }
+
     pub fn get_system_thread_group(&self) -> JThreadGroup {
         self.system_thread_group.read().unwrap().as_ref().unwrap().clone()
     }
@@ -255,17 +261,6 @@ impl ThreadState {
 thread_local! {
     static CURRENT_JAVA_THREAD: RefCell<Option<Arc<JavaThread>>> = RefCell::new(None);
 }
-
-// pub mod libawt_hack {
-//     use std::ptr::null_mut;
-//
-//     use jvmti_jni_bindings::JavaVM;
-//
-//     extern "C" {
-//     #[no_mangle]
-//     pub static mut jvm: *mut JavaVM;
-//     }
-// }
 
 pub type JavaThreadId = i64;
 

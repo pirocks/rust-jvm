@@ -157,7 +157,6 @@ pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> j
     //todo handle capabilities for this
     assert!(jvm.vm_live());
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThread");
-    let int_state = get_interpreter_state(env);
     let res = resume_thread_impl(jvm, thread);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
@@ -201,7 +200,6 @@ pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> j
 /// JVMTI_ERROR_NULL_POINTER	results is NULL.
 pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ResumeThreadList");
     assert!(jvm.vm_live());
     null_check!(request_list);

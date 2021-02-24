@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Condvar, RwLock, RwLockWriteGuard};
 use std::thread::sleep;
 use std::time::Duration;
+use test::NamePadding::PadNone;
 
 use nix::sys::pthread::pthread_self;
 use nix::unistd::gettid;
@@ -116,7 +117,9 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    todo!("This seems to need signals or some shit. Seems hard to implement")
 }
 
 #[no_mangle]
@@ -142,8 +145,13 @@ unsafe extern "system" fn JVM_DumpAllStacks(env: *mut JNIEnv, unused: jclass) {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, dummy: jclass) -> jobjectArray {
-    unimplemented!()//todo already mostly implemented as part of jvmti
+unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) -> jobjectArray {
+    //the dummy appears b/c stuff gets called from static native fucntion in jni, and someone didn't want to get rid of param and just have a direct function pointer
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let jobjects = jvm.thread_state.get_all_alive_threads(jvm, int_state).into_iter().map(|java_thread| JavaValue::Object(java_thread.try_thread_object().map(|jthread| jthread.object()))).collect::<Vec<_>>()
+    let object_array = JavaValue::new_vec_from_vec(jvm, jobjects, ClassName::thread().into()).unwrap_object();
+    new_local_ref_public(object_array, int_state)
 }
 
 #[no_mangle]
