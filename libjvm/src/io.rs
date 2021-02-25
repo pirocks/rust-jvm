@@ -6,7 +6,7 @@ use crate::util::retry_on_eintr;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NativePath(arg1: *mut ::std::os::raw::c_char) -> *mut ::std::os::raw::c_char {
-    arg1
+    arg1//todo is this corrext
 }
 
 #[no_mangle]

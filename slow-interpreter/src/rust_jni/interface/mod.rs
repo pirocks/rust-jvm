@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use std::mem::transmute;
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::JNINativeInterface_;
+use jvmti_jni_bindings::{jint, JNIEnv, JNINativeInterface_};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::rust_jni::interface::array::*;
@@ -46,21 +46,21 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         reserved1: unsafe { transmute(int_state) },
         reserved2: std::ptr::null_mut(),
         reserved3: std::ptr::null_mut(),
-        GetVersion: None,
-        DefineClass: None,
+        GetVersion: Some(get_version), //todo
+        DefineClass: None, //todo
         FindClass: Some(find_class),
-        FromReflectedMethod: None,
-        FromReflectedField: None,
-        ToReflectedMethod: None,
+        FromReflectedMethod: None, //todo
+        FromReflectedField: None, //todo
+        ToReflectedMethod: None, //todo
         GetSuperclass: Some(get_superclass),
         IsAssignableFrom: Some(is_assignable_from),
-        ToReflectedField: None,
+        ToReflectedField: None, //todo
         Throw: Some(throw),
-        ThrowNew: None,
+        ThrowNew: None, //todo
         ExceptionOccurred: Some(exception_occured),
-        ExceptionDescribe: None,
+        ExceptionDescribe: None, //todo
         ExceptionClear: Some(exception_clear),
-        FatalError: None,
+        FatalError: None, //todo
         PushLocalFrame: Some(push_local_frame),
         PopLocalFrame: Some(pop_local_frame),
         NewGlobalRef: Some(new_global_ref),
@@ -69,10 +69,10 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         IsSameObject: Some(is_same_object),
         NewLocalRef: Some(new_local_ref),
         EnsureLocalCapacity: Some(ensure_local_capacity),
-        AllocObject: None,
+        AllocObject: None, //todo
         NewObject: Some(unsafe { transmute(new_object as *mut c_void) }),
         NewObjectV: Some(unsafe { transmute(new_object_v as *mut c_void) }),
-        NewObjectA: None,
+        NewObjectA: None, //todo
         GetObjectClass: Some(get_object_class),
         IsInstanceOf: Some(is_instance_of),
         GetMethodID: Some(get_method_id),
@@ -106,36 +106,36 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         CallVoidMethod: Some(call_void_method),
         CallVoidMethodV: Some(unsafe { transmute(call_void_method_v as *mut c_void) }),
         CallVoidMethodA: Some(call_void_method_a),
-        CallNonvirtualObjectMethod: None,
-        CallNonvirtualObjectMethodV: None,
-        CallNonvirtualObjectMethodA: None,
-        CallNonvirtualBooleanMethod: None,
-        CallNonvirtualBooleanMethodV: None,
-        CallNonvirtualBooleanMethodA: None,
-        CallNonvirtualByteMethod: None,
-        CallNonvirtualByteMethodV: None,
-        CallNonvirtualByteMethodA: None,
-        CallNonvirtualCharMethod: None,
-        CallNonvirtualCharMethodV: None,
-        CallNonvirtualCharMethodA: None,
-        CallNonvirtualShortMethod: None,
-        CallNonvirtualShortMethodV: None,
-        CallNonvirtualShortMethodA: None,
-        CallNonvirtualIntMethod: None,
-        CallNonvirtualIntMethodV: None,
-        CallNonvirtualIntMethodA: None,
-        CallNonvirtualLongMethod: None,
-        CallNonvirtualLongMethodV: None,
-        CallNonvirtualLongMethodA: None,
-        CallNonvirtualFloatMethod: None,
-        CallNonvirtualFloatMethodV: None,
-        CallNonvirtualFloatMethodA: None,
-        CallNonvirtualDoubleMethod: None,
-        CallNonvirtualDoubleMethodV: None,
-        CallNonvirtualDoubleMethodA: None,
-        CallNonvirtualVoidMethod: None,
-        CallNonvirtualVoidMethodV: None,
-        CallNonvirtualVoidMethodA: None,
+        CallNonvirtualObjectMethod: None, //todo
+        CallNonvirtualObjectMethodV: None, //todo
+        CallNonvirtualObjectMethodA: None, //todo
+        CallNonvirtualBooleanMethod: None, //todo
+        CallNonvirtualBooleanMethodV: None, //todo
+        CallNonvirtualBooleanMethodA: None, //todo
+        CallNonvirtualByteMethod: None, //todo
+        CallNonvirtualByteMethodV: None, //todo
+        CallNonvirtualByteMethodA: None, //todo
+        CallNonvirtualCharMethod: None, //todo
+        CallNonvirtualCharMethodV: None, //todo
+        CallNonvirtualCharMethodA: None, //todo
+        CallNonvirtualShortMethod: None, //todo
+        CallNonvirtualShortMethodV: None, //todo
+        CallNonvirtualShortMethodA: None, //todo
+        CallNonvirtualIntMethod: None, //todo
+        CallNonvirtualIntMethodV: None, //todo
+        CallNonvirtualIntMethodA: None, //todo
+        CallNonvirtualLongMethod: None, //todo
+        CallNonvirtualLongMethodV: None, //todo
+        CallNonvirtualLongMethodA: None, //todo
+        CallNonvirtualFloatMethod: None, //todo
+        CallNonvirtualFloatMethodV: None, //todo
+        CallNonvirtualFloatMethodA: None, //todo
+        CallNonvirtualDoubleMethod: None, //todo
+        CallNonvirtualDoubleMethodV: None, //todo
+        CallNonvirtualDoubleMethodA: None, //todo
+        CallNonvirtualVoidMethod: None, //todo
+        CallNonvirtualVoidMethodV: None, //todo
+        CallNonvirtualVoidMethodA: None, //todo
         GetFieldID: Some(get_field_id),
         GetObjectField: Some(get_object_field),
         GetBooleanField: Some(get_boolean_field),
@@ -207,7 +207,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         SetStaticDoubleField: Some(set_static_double_field),
         NewString: Some(new_string),
         GetStringLength: Some(get_string_utflength),
-        GetStringChars: None,
+        GetStringChars: None, //todo
         ReleaseStringChars: Some(release_string_chars),
         NewStringUTF: Some(new_string_utf),
         GetStringUTFLength: Some(get_string_utflength),
@@ -225,22 +225,22 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         NewLongArray: Some(new_long_array),
         NewFloatArray: Some(new_float_array),
         NewDoubleArray: Some(new_double_array),
-        GetBooleanArrayElements: None,
-        GetByteArrayElements: None,
-        GetCharArrayElements: None,
-        GetShortArrayElements: None,
-        GetIntArrayElements: None,
+        GetBooleanArrayElements: None, //todo
+        GetByteArrayElements: None, //todo
+        GetCharArrayElements: None, //todo
+        GetShortArrayElements: None, //todo
+        GetIntArrayElements: None, //todo
         GetLongArrayElements: Some(get_long_array_elements),
-        GetFloatArrayElements: None,
-        GetDoubleArrayElements: None,
-        ReleaseBooleanArrayElements: None,
-        ReleaseByteArrayElements: None,
-        ReleaseCharArrayElements: None,
-        ReleaseShortArrayElements: None,
-        ReleaseIntArrayElements: None,
+        GetFloatArrayElements: None, //todo
+        GetDoubleArrayElements: None, //todo
+        ReleaseBooleanArrayElements: None, //todo
+        ReleaseByteArrayElements: None, //todo
+        ReleaseCharArrayElements: None, //todo
+        ReleaseShortArrayElements: None, //todo
+        ReleaseIntArrayElements: None, //todo
         ReleaseLongArrayElements: Some(release_long_array_elements),
-        ReleaseFloatArrayElements: None,
-        ReleaseDoubleArrayElements: None,
+        ReleaseFloatArrayElements: None, //todo
+        ReleaseDoubleArrayElements: None, //todo
         GetBooleanArrayRegion: Some(get_boolean_array_region),
         GetByteArrayRegion: Some(get_byte_array_region),
         GetCharArrayRegion: Some(get_char_array_region),
@@ -258,27 +258,29 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         SetFloatArrayRegion: Some(set_float_array_region),
         SetDoubleArrayRegion: Some(set_double_array_region),
         RegisterNatives: Some(register_natives),
-        UnregisterNatives: None,
-        MonitorEnter: None,
-        MonitorExit: None,
+        UnregisterNatives: None, //todo
+        MonitorEnter: None, //todo
+        MonitorExit: None, //todo
         GetJavaVM: Some(get_java_vm),
         GetStringRegion: Some(get_string_region),
         GetStringUTFRegion: Some(get_string_utfregion),
         GetPrimitiveArrayCritical: Some(get_primitive_array_critical),
         ReleasePrimitiveArrayCritical: Some(release_primitive_array_critical),
-        GetStringCritical: None,
-        ReleaseStringCritical: None,
+        GetStringCritical: None, //todo
+        ReleaseStringCritical: None, //todo
         NewWeakGlobalRef: Some(new_weak_global_ref),
         DeleteWeakGlobalRef: Some(delete_weak_global_ref),
         ExceptionCheck: Some(exception_check),
-        NewDirectByteBuffer: None,
-        GetDirectBufferAddress: None,
-        GetDirectBufferCapacity: None,
-        GetObjectRefType: None,
+        NewDirectByteBuffer: None, //todo
+        GetDirectBufferAddress: None, //todo
+        GetDirectBufferCapacity: None, //todo
+        GetObjectRefType: None, //todo
     }
 }
 
-
+unsafe extern "C" fn get_version(env: *mut JNIEnv) -> jint {
+    return 0x00010008
+}
 
 pub mod instance_of;
 pub mod local_frame;

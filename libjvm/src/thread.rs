@@ -22,6 +22,7 @@ use slow_interpreter::interpreter::run_function;
 use slow_interpreter::interpreter_util::push_new_object;
 use slow_interpreter::invoke_interface::get_env;
 use slow_interpreter::java::lang::string::JString;
+use slow_interpreter::java::lang::thread::JThread;
 use slow_interpreter::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
@@ -223,4 +224,10 @@ unsafe extern "system" fn JVM_GetThreadStateNames(env: *mut JNIEnv, javaThreadSt
     }.into_iter().map(|jstring| jstring.java_value()).collect::<Vec<_>>();
     let res = JavaValue::new_vec_from_vec(jvm, names, ClassName::string().into()).unwrap_object();
     new_local_ref_public(res, int_state)
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn JVM_CountStackFrames(env: *mut JNIEnv, thread: jobject) -> jint {
+    todo!()
 }

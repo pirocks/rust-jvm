@@ -63,30 +63,30 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetAllThreads: Some(get_all_threads),
         SuspendThread: Some(suspend_thread),
         ResumeThread: Some(resume_thread),
-        StopThread: None,
+        StopThread: None,//todo impl
         InterruptThread: Some(interrupt_thread),//todo technically these are different.For now should be fine though
         GetThreadInfo: Some(get_thread_info),
-        GetOwnedMonitorInfo: None,
-        GetCurrentContendedMonitor: None,
+        GetOwnedMonitorInfo: None,//todo impl
+        GetCurrentContendedMonitor: None,//todo impl
         RunAgentThread: Some(run_agent_thread),
         GetTopThreadGroups: Some(get_top_thread_groups),
         GetThreadGroupInfo: Some(get_thread_group_info),
-        GetThreadGroupChildren: None,
+        GetThreadGroupChildren: None,//todo impl
         GetFrameCount: Some(get_frame_count),
         GetThreadState: Some(get_thread_state),
-        GetCurrentThread: None,
+        GetCurrentThread: None,//todo impl
         GetFrameLocation: Some(get_frame_location),
-        NotifyFramePop: None,
+        NotifyFramePop: None,//todo impl
         GetLocalObject: Some(get_local_object),
         GetLocalInt: Some(get_local_int),
         GetLocalLong: Some(get_local_long),
         GetLocalFloat: Some(get_local_float),
         GetLocalDouble: Some(get_local_double),
-        SetLocalObject: None,
-        SetLocalInt: None,
-        SetLocalLong: None,
-        SetLocalFloat: None,
-        SetLocalDouble: None,
+        SetLocalObject: None,//todo impl
+        SetLocalInt: None,//todo impl
+        SetLocalLong: None,//todo impl
+        SetLocalFloat: None,//todo impl
+        SetLocalDouble: None,//todo impl
         CreateRawMonitor: Some(create_raw_monitor),
         DestroyRawMonitor: Some(destroy_raw_monitor),
         RawMonitorEnter: Some(raw_monitor_enter),
@@ -97,17 +97,17 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         SetBreakpoint: Some(set_breakpoint),
         ClearBreakpoint: Some(clear_breakpoint),
         reserved40: std::ptr::null_mut(),
-        SetFieldAccessWatch: None,
-        ClearFieldAccessWatch: None,
-        SetFieldModificationWatch: None,
-        ClearFieldModificationWatch: None,
-        IsModifiableClass: None,
+        SetFieldAccessWatch: None,//todo impl
+        ClearFieldAccessWatch: None,//todo impl
+        SetFieldModificationWatch: None,//todo impl
+        ClearFieldModificationWatch: None,//todo impl
+        IsModifiableClass: None,//todo impl
         Allocate: Some(allocate),
         Deallocate: Some(deallocate),
         GetClassSignature: Some(get_class_signature),
         GetClassStatus: Some(get_class_status),
         GetSourceFileName: Some(get_source_file_name),
-        GetClassModifiers: None,
+        GetClassModifiers: None,//todo impl
         GetClassMethods: Some(get_class_methods),
         GetClassFields: Some(get_class_fields),
         GetImplementedInterfaces: Some(get_implemented_interfaces),
@@ -115,38 +115,38 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         IsArrayClass: Some(is_array_class),
         GetClassLoader: Some(get_class_loader),
         GetObjectHashCode: Some(get_object_hash_code),
-        GetObjectMonitorUsage: None,
+        GetObjectMonitorUsage: None,//todo impl
         GetFieldName: Some(get_field_name),
-        GetFieldDeclaringClass: None,
+        GetFieldDeclaringClass: None,//todo impl
         GetFieldModifiers: Some(get_field_modifiers),
         IsFieldSynthetic: Some(is_field_synthetic),
         GetMethodName: Some(get_method_name),
         GetMethodDeclaringClass: Some(get_method_declaring_class),
         GetMethodModifiers: Some(get_method_modifiers),
         reserved67: std::ptr::null_mut(),
-        GetMaxLocals: None,
+        GetMaxLocals: None,//todo impl
         GetArgumentsSize: Some(get_arguments_size),
         GetLineNumberTable: Some(get_line_number_table),
         GetMethodLocation: Some(get_method_location),
         GetLocalVariableTable: Some(get_local_variable_table),
-        SetNativeMethodPrefix: None,
-        SetNativeMethodPrefixes: None,
-        GetBytecodes: None,
+        SetNativeMethodPrefix: None,//todo impl
+        SetNativeMethodPrefixes: None,//todo impl
+        GetBytecodes: None,//todo impl
         IsMethodNative: Some(is_method_native),
         IsMethodSynthetic: Some(is_method_synthetic),
         GetLoadedClasses: Some(get_loaded_classes),
-        GetClassLoaderClasses: None,
-        PopFrame: None,
-        ForceEarlyReturnObject: None,
-        ForceEarlyReturnInt: None,
-        ForceEarlyReturnLong: None,
-        ForceEarlyReturnFloat: None,
-        ForceEarlyReturnDouble: None,
-        ForceEarlyReturnVoid: None,
-        RedefineClasses: None,
+        GetClassLoaderClasses: None,//todo impl
+        PopFrame: None,//todo impl
+        ForceEarlyReturnObject: None,//todo impl
+        ForceEarlyReturnInt: None,//todo impl
+        ForceEarlyReturnLong: None,//todo impl
+        ForceEarlyReturnFloat: None,//todo impl
+        ForceEarlyReturnDouble: None,//todo impl
+        ForceEarlyReturnVoid: None,//todo impl
+        RedefineClasses: None,//todo impl
         GetVersionNumber: Some(get_version_number),
         GetCapabilities: Some(get_capabilities),
-        GetSourceDebugExtension: None,
+        GetSourceDebugExtension: None,//todo impl
         IsMethodObsolete: Some(is_method_obsolete),
         SuspendThreadList: Some(suspend_thread_list),
         ResumeThreadList: Some(resume_thread_list),
@@ -156,62 +156,62 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         reserved97: std::ptr::null_mut(),
         reserved98: std::ptr::null_mut(),
         reserved99: std::ptr::null_mut(),
-        GetAllStackTraces: None,
-        GetThreadListStackTraces: None,
+        GetAllStackTraces: None,//todo impl
+        GetThreadListStackTraces: None,//todo impl
         GetThreadLocalStorage: Some(get_thread_local_storage),
         SetThreadLocalStorage: Some(set_thread_local_storage),
-        GetStackTrace: None,
+        GetStackTrace: None,//todo impl
         reserved105: std::ptr::null_mut(),
         GetTag: Some(get_tag),
         SetTag: Some(set_tag),
-        ForceGarbageCollection: None,
-        IterateOverObjectsReachableFromObject: None,
-        IterateOverReachableObjects: None,
-        IterateOverHeap: None,
-        IterateOverInstancesOfClass: None,
+        ForceGarbageCollection: None,//todo impl
+        IterateOverObjectsReachableFromObject: None,//todo impl
+        IterateOverReachableObjects: None,//todo impl
+        IterateOverHeap: None,//todo impl
+        IterateOverInstancesOfClass: None,//todo impl
         reserved113: std::ptr::null_mut(),
-        GetObjectsWithTags: None,
-        FollowReferences: None,
-        IterateThroughHeap: None,
+        GetObjectsWithTags: None,//todo impl
+        FollowReferences: None,//todo impl
+        IterateThroughHeap: None,//todo impl
         reserved117: std::ptr::null_mut(),
         reserved118: std::ptr::null_mut(),
         reserved119: std::ptr::null_mut(),
-        SetJNIFunctionTable: None,
-        GetJNIFunctionTable: None,
+        SetJNIFunctionTable: None,//todo impl
+        GetJNIFunctionTable: None,//todo impl
         SetEventCallbacks: Some(set_event_callbacks),
-        GenerateEvents: None,
-        GetExtensionFunctions: None,
-        GetExtensionEvents: None,
-        SetExtensionEventCallback: None,
+        GenerateEvents: None,//todo impl
+        GetExtensionFunctions: None,//todo impl
+        GetExtensionEvents: None,//todo impl
+        SetExtensionEventCallback: None,//todo impl
         DisposeEnvironment: Some(dispose_environment),
-        GetErrorName: None,
-        GetJLocationFormat: None,
-        GetSystemProperties: None,
+        GetErrorName: None,//todo impl
+        GetJLocationFormat: None,//todo impl
+        GetSystemProperties: None,//todo impl
         GetSystemProperty: Some(get_system_property),
-        SetSystemProperty: None,
-        GetPhase: None,
-        GetCurrentThreadCpuTimerInfo: None,
-        GetCurrentThreadCpuTime: None,
-        GetThreadCpuTimerInfo: None,
-        GetThreadCpuTime: None,
-        GetTimerInfo: None,
-        GetTime: None,
+        SetSystemProperty: None,//todo impl
+        GetPhase: None,//todo impl
+        GetCurrentThreadCpuTimerInfo: None,//todo impl
+        GetCurrentThreadCpuTime: None,//todo impl
+        GetThreadCpuTimerInfo: None,//todo impl
+        GetThreadCpuTime: None,//todo impl
+        GetTimerInfo: None,//todo impl
+        GetTime: None,//todo impl
         GetPotentialCapabilities: Some(get_potential_capabilities),
         reserved141: std::ptr::null_mut(),
         AddCapabilities: Some(add_capabilities),
-        RelinquishCapabilities: None,
-        GetAvailableProcessors: None,
-        GetClassVersionNumbers: None,
-        GetConstantPool: None,
-        GetEnvironmentLocalStorage: None,
-        SetEnvironmentLocalStorage: None,
-        AddToBootstrapClassLoaderSearch: None,
-        SetVerboseFlag: None,
-        AddToSystemClassLoaderSearch: None,
-        RetransformClasses: None,
-        GetOwnedMonitorStackDepthInfo: None,
-        GetObjectSize: None,
-        GetLocalInstance: None,
+        RelinquishCapabilities: None,//todo impl
+        GetAvailableProcessors: None,//todo impl
+        GetClassVersionNumbers: None,//todo impl
+        GetConstantPool: None,//todo impl
+        GetEnvironmentLocalStorage: None,//todo impl
+        SetEnvironmentLocalStorage: None,//todo impl
+        AddToBootstrapClassLoaderSearch: None,//todo impl
+        SetVerboseFlag: None,//todo impl
+        AddToSystemClassLoaderSearch: None,//todo impl
+        RetransformClasses: None,//todo impl
+        GetOwnedMonitorStackDepthInfo: None,//todo impl
+        GetObjectSize: None,//todo impl
+        GetLocalInstance: None,//todo impl
     }
 }
 
