@@ -1,6 +1,7 @@
 use std::ffi::CStr;
 use std::fs::File;
 use std::io::{Cursor, Write};
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_parser::parse_class_file;
@@ -13,17 +14,19 @@ use crate::java_sun_misc_unsafe::defineAnonymousClass::define_class;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DefineClass(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize, pd: jobject) -> jclass {
-    unimplemented!()
+    JVM_DefineClassWithSource(env, name, loader, buf, len, pd, null_mut())
 }
 
+//todo handle source
+//todo what is pd
 #[no_mangle]
-unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize, pd: jobject, source: *const ::std::os::raw::c_char) -> jclass {
+unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize, _pd: jobject, _source: *const ::std::os::raw::c_char) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let name_string = CStr::from_ptr(name).to_str().unwrap();
     let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
-    File::create("withsource").unwrap().write_all(slice).unwrap();
+    if jvm.store_generated_classes { File::create("withsource").unwrap().write_all(slice).unwrap(); }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     to_object(define_class(jvm, int_state, parsed.clone(), loader_name, ClassView::from(parsed)).unwrap_object())
 }

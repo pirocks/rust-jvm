@@ -24,6 +24,7 @@ use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::{ClassStatus, JVMState};
 use slow_interpreter::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
+use slow_interpreter::rust_jni::interface::{define_class, define_class_safe};
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use verification::{VerifierContext, verify};
@@ -59,30 +60,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     if jvm.store_generated_classes {
         File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
-    define_class(jvm, int_state, parsed, current_loader, class_view)
-}
-
-pub fn define_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassView) -> JavaValue {
-    let class_name = class_view.name();
-    let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
-        class_view: Arc::new(class_view),
-        static_vars: Default::default(),
-        status: RwLock::new(ClassStatus::UNPREPARED),
-    }));
-    let class_object = create_class_object(jvm, int_state, None, current_loader);
-    let mut classes = jvm.classes.write().unwrap();
-    let current_loader = int_state.current_loader();
-    classes.anon_classes.write().unwrap().push(runtime_class.clone());
-    classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
-    classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
-    classes.class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
-    drop(classes);
-    prepare_class(jvm, int_state, parsed.clone(), &mut *runtime_class.static_vars());
-    runtime_class.set_status(ClassStatus::PREPARED);
-    runtime_class.set_status(ClassStatus::INITIALIZING);
-    initialize_class(runtime_class.clone(), jvm, int_state).unwrap();
-    runtime_class.set_status(ClassStatus::INITIALIZED);
-    JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into())
+    define_class_safe(jvm, int_state, parsed, current_loader, class_view)
 }
 
 

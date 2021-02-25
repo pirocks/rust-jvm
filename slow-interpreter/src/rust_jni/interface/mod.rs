@@ -1,11 +1,26 @@
 use std::cell::RefCell;
-use std::ffi::c_void;
+use std::collections::HashMap;
+use std::ffi::{c_void, CStr};
+use std::fs::File;
+use std::io::{Cursor, Write};
 use std::mem::transmute;
 use std::ptr::null_mut;
+use std::sync::{Arc, RwLock};
 
-use jvmti_jni_bindings::{jint, JNIEnv, JNINativeInterface_};
+use by_address::ByAddress;
+
+use classfile_parser::parse_class_file;
+use classfile_view::loading::LoaderName;
+use classfile_view::view::ClassView;
+use jvmti_jni_bindings::{jbyte, jclass, jint, JNIEnv, JNINativeInterface_, jobject, jsize};
+use rust_jvm_common::classfile::Classfile;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::class_loading::create_class_object;
+use crate::class_objects::get_or_create_class_object;
+use crate::java_values::{default_value, JavaValue};
+use crate::jvm_state::ClassStatus;
+use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::interface::array::*;
 use crate::rust_jni::interface::array::array_region::*;
 use crate::rust_jni::interface::array::new::*;
@@ -21,7 +36,7 @@ use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::native_util::get_object_class;
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_object_class, get_state, to_object};
 
 //todo this should be in state impl
 thread_local! {
@@ -46,8 +61,8 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         reserved1: unsafe { transmute(int_state) },
         reserved2: std::ptr::null_mut(),
         reserved3: std::ptr::null_mut(),
-        GetVersion: Some(get_version), //todo
-        DefineClass: None, //todo
+        GetVersion: Some(get_version),
+        DefineClass: Some(define_class),
         FindClass: Some(find_class),
         FromReflectedMethod: None, //todo
         FromReflectedField: None, //todo
@@ -280,6 +295,41 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
 
 unsafe extern "C" fn get_version(env: *mut JNIEnv) -> jint {
     return 0x00010008
+}
+
+pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassView) -> JavaValue {
+    let class_name = class_view.name();
+    let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
+        class_view: Arc::new(class_view),
+        static_vars: Default::default(),
+        status: RwLock::new(ClassStatus::UNPREPARED),
+    }));
+    let class_object = create_class_object(jvm, int_state, None, current_loader);
+    let mut classes = jvm.classes.write().unwrap();
+    let current_loader = int_state.current_loader();
+    classes.anon_classes.write().unwrap().push(runtime_class.clone());
+    classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
+    classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
+    classes.class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
+    drop(classes);
+    prepare_class(jvm, int_state, parsed.clone(), &mut *runtime_class.static_vars());
+    runtime_class.set_status(ClassStatus::PREPARED);
+    runtime_class.set_status(ClassStatus::INITIALIZING);
+    initialize_class(runtime_class.clone(), jvm, int_state).unwrap();
+    runtime_class.set_status(ClassStatus::INITIALIZED);
+    JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into())
+}
+
+unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
+    let name_string = CStr::from_ptr(name).to_str().unwrap();
+    let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
+    let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
+    if jvm.store_generated_classes { File::create("unsafe_define_class").unwrap().write_all(slice).unwrap(); }
+    let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
+    //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
+    to_object(define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassView::from(parsed)).unwrap_object())
 }
 
 pub mod instance_of;
