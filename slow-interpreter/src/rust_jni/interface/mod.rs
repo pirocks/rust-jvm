@@ -12,7 +12,7 @@ use by_address::ByAddress;
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;
 use classfile_view::view::ClassView;
-use jvmti_jni_bindings::{jbyte, jclass, jint, JNIEnv, JNINativeInterface_, jobject, jsize};
+use jvmti_jni_bindings::{jbyte, jclass, jint, jio_vfprintf, jmethodID, JNIEnv, JNINativeInterface_, jobject, jsize, JVM_Available};
 use rust_jvm_common::classfile::Classfile;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -64,7 +64,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetVersion: Some(get_version),
         DefineClass: Some(define_class),
         FindClass: Some(find_class),
-        FromReflectedMethod: None, //todo
+        FromReflectedMethod: Some(from_reflected_method),
         FromReflectedField: None, //todo
         ToReflectedMethod: None, //todo
         GetSuperclass: Some(get_superclass),
@@ -293,8 +293,21 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
     }
 }
 
+unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) -> jmethodID {
+    let jvm = get_state(env);
+    //todo support java.lang.Constructor as well
+    let method_obj = JavaValue::Object(from_object(method)).cast_method();
+    let runtime_class = method_obj.get_clazz().as_runtime_class(jvm);
+    let param_types = method_obj.parameter_types().iter().map(|param| param.as_runtime_class(jvm).ptypeview()).collect::<Vec<_>>();
+    let name = method_obj.get_name().to_rust_string();
+    runtime_class.view().lookup_method_name(&name).iter().find(|candiate_method| {
+        candiate_method.desc().parameter_types == param_types
+    }).map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class, method.method_i() as u16) as jmethodID)
+        .unwrap_or(transmute(-1))
+}
+
 unsafe extern "C" fn get_version(env: *mut JNIEnv) -> jint {
-    return 0x00010008
+    return 0x00010008;
 }
 
 pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassView) -> JavaValue {
@@ -323,7 +336,7 @@ pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
 unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_string = CStr::from_ptr(name).to_str().unwrap();
+    let _name_string = CStr::from_ptr(name).to_str().unwrap();//todo unused?
     let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
     if jvm.store_generated_classes { File::create("unsafe_define_class").unwrap().write_all(slice).unwrap(); }

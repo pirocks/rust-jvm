@@ -93,7 +93,7 @@ fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         int_state,
         exception_table,
         class_type,
-        jvm.thread_state.new_monitor("".to_string())
+        jvm.thread_state.new_monitor("".to_string()),
     )))))
 }
 
@@ -110,7 +110,7 @@ fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         int_state,
         res,
         class_type,
-        jvm.thread_state.new_monitor("".to_string())
+        jvm.thread_state.new_monitor("".to_string()),
     )))))
 }
 
@@ -223,6 +223,10 @@ pub mod method {
 
         pub fn get_name(&self) -> JString {
             self.normal_object.lookup_field("name").cast_string()
+        }
+
+        pub fn parameter_types(&self) -> Vec<JClass> {
+            self.normal_object.lookup_field("parameterTypes").unwrap_array().mut_array().iter().map(|value| value.cast_class()).collect()
         }
 
         getter_gen!(slot,jint,unwrap_int);
@@ -356,7 +360,7 @@ pub mod field {
                 int_state,
                 annotations,
                 PTypeView::ByteType,
-                jvm.thread_state.new_monitor("monitor for annotations array".to_string())
+                jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
             )))));
 
             run_constructor(
