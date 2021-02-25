@@ -33,6 +33,10 @@ impl FieldView<'_> {
     pub fn fields(&self) -> FieldIterator {
         unimplemented!()
     }
+
+    pub fn field_i(&self) -> usize {
+        self.i
+    }
 }
 
 impl HasAccessFlags for FieldView<'_> {

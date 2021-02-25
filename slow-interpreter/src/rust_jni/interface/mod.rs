@@ -12,7 +12,7 @@ use by_address::ByAddress;
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;
 use classfile_view::view::ClassView;
-use jvmti_jni_bindings::{jbyte, jclass, jint, jio_vfprintf, jmethodID, JNIEnv, JNINativeInterface_, jobject, jsize, JVM_Available};
+use jvmti_jni_bindings::{jbyte, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNIEnv, JNINativeInterface_, jobject, jsize, JVM_Available};
 use rust_jvm_common::classfile::Classfile;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -65,7 +65,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         DefineClass: Some(define_class),
         FindClass: Some(find_class),
         FromReflectedMethod: Some(from_reflected_method),
-        FromReflectedField: None, //todo
+        FromReflectedField: Some(from_reflected_field),
         ToReflectedMethod: None, //todo
         GetSuperclass: Some(get_superclass),
         IsAssignableFrom: Some(is_assignable_from),
@@ -305,6 +305,18 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
     }).map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class, method.method_i() as u16) as jmethodID)
         .unwrap_or(transmute(-1))
 }
+
+unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> jfieldID {
+    let jvm = get_state(env);
+    let field_obj = JavaValue::Object(from_object(method)).cast_field();
+    let runtime_class = field_obj.clazz().as_runtime_class(jvm);
+    let field_name = field_obj.name().to_rust_string();
+    runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name)
+        .map(|field| field.field_i())
+        .map(|field_i| jvm.field_table.write().unwrap().get_field_id(runtime_class, field_i as u16) as jfieldID)
+        .unwrap_or(transmute(-1))
+}
+
 
 unsafe extern "C" fn get_version(env: *mut JNIEnv) -> jint {
     return 0x00010008;
