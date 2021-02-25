@@ -248,14 +248,14 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         NewLongArray: Some(new_long_array),
         NewFloatArray: Some(new_float_array),
         NewDoubleArray: Some(new_double_array),
-        GetBooleanArrayElements: None, //todo
-        GetByteArrayElements: None, //todo
-        GetCharArrayElements: None, //todo
-        GetShortArrayElements: None, //todo
-        GetIntArrayElements: None, //todo
+        GetBooleanArrayElements: Some(get_boolean_array_elements),
+        GetByteArrayElements: Some(get_byte_array_elements),
+        GetCharArrayElements: Some(get_char_array_elements),
+        GetShortArrayElements: Some(get_short_array_elements),
+        GetIntArrayElements: Some(get_int_array_elements),
         GetLongArrayElements: Some(get_long_array_elements),
-        GetFloatArrayElements: None, //todo
-        GetDoubleArrayElements: None, //todo
+        GetFloatArrayElements: Some(get_float_array_elements),
+        GetDoubleArrayElements: Some(get_double_array_elements),
         ReleaseBooleanArrayElements: None, //todo
         ReleaseByteArrayElements: None, //todo
         ReleaseCharArrayElements: None, //todo

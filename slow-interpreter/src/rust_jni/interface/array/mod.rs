@@ -2,7 +2,7 @@ use std::mem::size_of;
 use std::os::raw::c_void;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jarray, jboolean, jbyte, jint, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jsize};
+use jvmti_jni_bindings::{jarray, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jsize};
 
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
@@ -106,10 +106,6 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
             let res = array.mut_array().iter().map(|elem| elem.unwrap_long()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
-        PTypeView::Ref(_) => {
-            let res = array.mut_array().iter().map(|elem| to_object(elem.unwrap_object())).collect::<Vec<_>>();
-            return res.leak().as_mut_ptr() as *mut c_void;
-        }
         PTypeView::ShortType => {
             let res = array.mut_array().iter().map(|elem| elem.unwrap_short()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
@@ -118,8 +114,44 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
             let res = array.mut_array().iter().map(|elem| elem.unwrap_boolean()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         },
+        PTypeView::Ref(_) => {
+            let res = array.mut_array().iter().map(|elem| to_object(elem.unwrap_object())).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        }
         _ => panic!(),
     }
+}
+
+pub unsafe extern "C" fn get_byte_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jbyte {
+    get_primitive_array_critical(env, array, is_copy) as *mut jbyte
+}
+
+pub unsafe extern "C" fn get_char_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jchar {
+    get_primitive_array_critical(env, array, is_copy) as *mut jchar
+}
+
+pub unsafe extern "C" fn get_double_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jdouble {
+    get_primitive_array_critical(env, array, is_copy) as *mut jdouble
+}
+
+pub unsafe extern "C" fn get_float_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jfloat {
+    get_primitive_array_critical(env, array, is_copy) as *mut jfloat
+}
+
+pub unsafe extern "C" fn get_int_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jint {
+    get_primitive_array_critical(env, array, is_copy) as *mut jint
+}
+
+pub unsafe extern "C" fn get_short_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jshort {
+    get_primitive_array_critical(env, array, is_copy) as *mut jshort
+}
+
+pub unsafe extern "C" fn get_boolean_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jboolean {
+    get_primitive_array_critical(env, array, is_copy) as *mut jboolean
+}
+
+pub unsafe extern "C" fn get_object_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jobject {
+    get_primitive_array_critical(env, array, is_copy) as *mut jobject
 }
 
 pub unsafe extern "C" fn get_long_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jlong {
