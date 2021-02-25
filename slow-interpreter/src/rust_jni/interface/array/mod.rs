@@ -2,7 +2,7 @@ use std::mem::size_of;
 use std::os::raw::c_void;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jarray, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jsize};
+use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
 
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
@@ -109,11 +109,11 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
         PTypeView::ShortType => {
             let res = array.mut_array().iter().map(|elem| elem.unwrap_short()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
-        },
+        }
         PTypeView::BooleanType => {
             let res = array.mut_array().iter().map(|elem| elem.unwrap_boolean()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
-        },
+        }
         PTypeView::Ref(_) => {
             let res = array.mut_array().iter().map(|elem| to_object(elem.unwrap_object())).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
@@ -156,6 +156,39 @@ pub unsafe extern "C" fn get_object_array_elements(env: *mut JNIEnv, array: jlon
 
 pub unsafe extern "C" fn get_long_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jlong {
     get_primitive_array_critical(env, array, is_copy) as *mut jlong
+}
+
+
+pub unsafe extern "C" fn release_byte_array_elements(env: *mut JNIEnv, array: jbyteArray, elems: *mut jbyte, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
+}
+
+pub unsafe extern "C" fn release_char_array_elements(env: *mut JNIEnv, array: jcharArray, elems: *mut jchar, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
+}
+
+pub unsafe extern "C" fn release_double_array_elements(env: *mut JNIEnv, array: jdoubleArray, elems: *mut jdouble, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
+}
+
+pub unsafe extern "C" fn release_float_array_elements(env: *mut JNIEnv, array: jfloatArray, elems: *mut jfloat, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
+}
+
+pub unsafe extern "C" fn release_int_array_elements(env: *mut JNIEnv, array: jintArray, elems: *mut jint, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
+}
+
+pub unsafe extern "C" fn release_short_array_elements(env: *mut JNIEnv, array: jshortArray, elems: *mut jshort, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
+}
+
+pub unsafe extern "C" fn release_boolean_array_elements(env: *mut JNIEnv, array: jbooleanArray, elems: *mut jboolean, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
+}
+
+pub unsafe extern "C" fn release_object_array_elements(env: *mut JNIEnv, array: jobjectArray, elems: *mut jobject, mode: jint) {
+    release_primitive_array_critical(env, array, elems as *mut c_void, mode)
 }
 
 pub unsafe extern "C" fn release_long_array_elements(env: *mut JNIEnv, array: jlongArray, elems: *mut jlong, mode: jint) {

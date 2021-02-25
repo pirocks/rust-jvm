@@ -256,14 +256,14 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetLongArrayElements: Some(get_long_array_elements),
         GetFloatArrayElements: Some(get_float_array_elements),
         GetDoubleArrayElements: Some(get_double_array_elements),
-        ReleaseBooleanArrayElements: None, //todo
-        ReleaseByteArrayElements: None, //todo
-        ReleaseCharArrayElements: None, //todo
-        ReleaseShortArrayElements: None, //todo
-        ReleaseIntArrayElements: None, //todo
+        ReleaseBooleanArrayElements: Some(release_boolean_array_elements),
+        ReleaseByteArrayElements: Some(release_byte_array_elements),
+        ReleaseCharArrayElements: Some(release_char_array_elements),
+        ReleaseShortArrayElements: Some(release_short_array_elements),
+        ReleaseIntArrayElements: Some(release_int_array_elements),
         ReleaseLongArrayElements: Some(release_long_array_elements),
-        ReleaseFloatArrayElements: None, //todo
-        ReleaseDoubleArrayElements: None, //todo
+        ReleaseFloatArrayElements: Some(release_float_array_elements),
+        ReleaseDoubleArrayElements: Some(release_double_array_elements),
         GetBooleanArrayRegion: Some(get_boolean_array_region),
         GetByteArrayRegion: Some(get_byte_array_region),
         GetCharArrayRegion: Some(get_char_array_region),
