@@ -1,11 +1,12 @@
+use std::mem::size_of;
 use std::os::raw::c_void;
 
-use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jarray, jboolean, jbyte, jint, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jsize};
 
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state};
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
     let non_null_array: &Object = &from_object(array).unwrap();
@@ -72,38 +73,54 @@ pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, arr
     }
 }
 
-pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
+pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
+    let jvm = get_state(env);
     let not_null = from_object(array).unwrap();
     let array = not_null.unwrap_array();
     if !is_copy.is_null() {
         is_copy.write(true as jboolean);
     }
-    match array.elem_type {
+    //dup but difficult to make into template so ehh
+    match &array.elem_type {
         PTypeView::ByteType => {
             let res = array.mut_array().iter().map(|elem| elem.unwrap_byte()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
-        PTypeView::CharType => todo!(),
-        PTypeView::DoubleType => todo!(),
-        PTypeView::FloatType => todo!(),
-        PTypeView::IntType => todo!(),
+        PTypeView::CharType => {
+            let res = array.mut_array().iter().map(|elem| elem.unwrap_char()).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        }
+        PTypeView::DoubleType => {
+            let res = array.mut_array().iter().map(|elem| elem.unwrap_double()).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        }
+        PTypeView::FloatType => {
+            let res = array.mut_array().iter().map(|elem| elem.unwrap_float()).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        }
+        PTypeView::IntType => {
+            let res = array.mut_array().iter().map(|elem| elem.unwrap_int()).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        }
         PTypeView::LongType => {
-            //todo dup
             let res = array.mut_array().iter().map(|elem| elem.unwrap_long()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
-        PTypeView::Ref(_) => todo!(),
-        PTypeView::ShortType => todo!(),
-        PTypeView::BooleanType => todo!(),
-        PTypeView::VoidType => todo!(),
-        PTypeView::TopType => todo!(),
-        PTypeView::NullType => todo!(),
-        PTypeView::Uninitialized(_) => todo!(),
-        PTypeView::UninitializedThis => todo!(),
-        PTypeView::UninitializedThisOrClass(_) => todo!(),
+        PTypeView::Ref(_) => {
+            let res = array.mut_array().iter().map(|elem| to_object(elem.unwrap_object())).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        }
+        PTypeView::ShortType => {
+            let res = array.mut_array().iter().map(|elem| elem.unwrap_short()).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        },
+        PTypeView::BooleanType => {
+            let res = array.mut_array().iter().map(|elem| elem.unwrap_boolean()).collect::<Vec<_>>();
+            return res.leak().as_mut_ptr() as *mut c_void;
+        },
+        _ => panic!(),
     }
 }
-
 
 pub unsafe extern "C" fn get_long_array_elements(env: *mut JNIEnv, array: jlongArray, is_copy: *mut jboolean) -> *mut jlong {
     get_primitive_array_critical(env, array, is_copy) as *mut jlong
