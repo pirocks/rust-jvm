@@ -11,13 +11,21 @@ use by_address::ByAddress;
 
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;
-use classfile_view::view::ClassView;
-use jvmti_jni_bindings::{jbyte, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNIEnv, JNINativeInterface_, jobject, jsize, JVM_Available};
+use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::field_view::FieldView;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use descriptor_parser::parse_field_descriptor;
+use jvmti_jni_bindings::{jboolean, jbyte, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNIEnv, JNINativeInterface_, jobject, jsize, JVM_Available};
 use rust_jvm_common::classfile::Classfile;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::create_class_object;
 use crate::class_objects::get_or_create_class_object;
+use crate::field_table::FieldId;
+use crate::instructions::ldc::load_class_constant_by_type;
+use crate::java::lang::class::JClass;
+use crate::java::lang::reflect::field::Field;
+use crate::java::lang::string::JString;
 use crate::java_values::{default_value, JavaValue};
 use crate::jvm_state::ClassStatus;
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
@@ -36,7 +44,7 @@ use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_object_class, get_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_object_class, get_state, to_object};
 
 //todo this should be in state impl
 thread_local! {
@@ -69,7 +77,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         ToReflectedMethod: None, //todo
         GetSuperclass: Some(get_superclass),
         IsAssignableFrom: Some(is_assignable_from),
-        ToReflectedField: None, //todo
+        ToReflectedField: Some(to_reflected_field),
         Throw: Some(throw),
         ThrowNew: None, //todo
         ExceptionOccurred: Some(exception_occured),
@@ -292,6 +300,48 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetObjectRefType: None, //todo
     }
 }
+
+
+unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, cls: jclass, field_id: jfieldID, is_static: jboolean) -> jobject {
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
+
+    let field_id: FieldId = transmute(field_id);
+    let (rc, i) = jvm.field_table.write().unwrap().lookup(field_id);
+    to_object(field_object_from_view(jvm, int_state, rc.clone(), rc.view().field(i as usize)).unwrap_object())
+}
+
+pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: Arc<RuntimeClass>, f: FieldView) -> JavaValue {
+    let field_class_name_ = class_obj.clone().view().name();
+    load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
+    let parent_runtime_class = int_state.pop_current_operand_stack();
+
+    let field_name = f.field_name();
+
+    let field_desc_str = f.field_desc();
+    let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
+
+    let modifiers = f.access_flags() as i32;
+    let slot = f.field_i() as i32;
+    let clazz = parent_runtime_class.cast_class();
+    let name = JString::from_rust(jvm, int_state, field_name).intern(jvm, int_state);
+    let type_ = JClass::from_type(jvm, int_state, PTypeView::from_ptype(&field_type));
+    let signature = JString::from_rust(jvm, int_state, field_desc_str);
+    let annotations_ = vec![];//todo impl annotations.
+
+    Field::init(
+        jvm,
+        int_state,
+        clazz,
+        name,
+        type_,
+        modifiers,
+        slot,
+        signature,
+        annotations_,
+    ).java_value()
+}
+
 
 unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) -> jmethodID {
     let jvm = get_state(env);
