@@ -384,3 +384,48 @@ pub mod field {
         as_object_or_java_value!();
     }
 }
+
+pub mod constant_pool {
+    use std::sync::Arc;
+
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::push_new_object;
+    use crate::java::lang::class::JClass;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct ConstantPool {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_constant_pool(&self) -> ConstantPool {
+            ConstantPool { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl ConstantPool {
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JClass) -> ConstantPool {
+            let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/reflect/ConstantPool").into()).unwrap();
+            push_new_object(jvm, int_state, &constant_pool_classfile);
+            let constant_pool_object = int_state.pop_current_operand_stack();
+            let res = constant_pool_object.cast_constant_pool();
+            res.set_constant_pool_oop(class);
+            res
+        }
+
+        pub fn get_constant_pool_oop(&self) -> JClass {
+            self.normal_object.lookup_field("constantPoolOop").cast_class()
+        }
+
+
+        pub fn set_constant_pool_oop(&self, jclass: JClass) {
+            *self.normal_object.unwrap_normal_object().fields_mut()["constantPoolOop"] = jclass.java_value();
+        }
+
+        as_object_or_java_value!();
+    }
+}
