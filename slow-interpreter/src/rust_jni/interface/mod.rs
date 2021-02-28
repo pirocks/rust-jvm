@@ -102,9 +102,9 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         NewLocalRef: Some(new_local_ref),
         EnsureLocalCapacity: Some(ensure_local_capacity),
         AllocObject: Some(alloc_object),
-        NewObject: Some(unsafe { transmute(new_object as *mut c_void) }),
+        NewObject: Some(new_object),
         NewObjectV: Some(unsafe { transmute(new_object_v as *mut c_void) }),
-        NewObjectA: None, //todo
+        NewObjectA: Some(new_object_a),
         GetObjectClass: Some(get_object_class),
         IsInstanceOf: Some(is_instance_of),
         GetMethodID: Some(get_method_id),
@@ -593,19 +593,19 @@ pub(crate) unsafe fn push_type_to_operand_stack(int_state: &mut InterpreterState
         PTypeView::ByteType => {
             let byte_ = l.arg_byte();
             int_state.push_current_operand_stack(JavaValue::Byte(byte_))
-        },
+        }
         PTypeView::CharType => {
             let char_ = l.arg_char();
             int_state.push_current_operand_stack(JavaValue::Char(char_))
-        },
+        }
         PTypeView::DoubleType => {
             let double_ = l.arg_double();
             int_state.push_current_operand_stack(JavaValue::Double(double_))
-        },
+        }
         PTypeView::FloatType => {
             let float_ = l.arg_float();
             int_state.push_current_operand_stack(JavaValue::Float(float_))
-        },
+        }
         PTypeView::IntType => {
             let int: i32 = l.arg_int();
             int_state.push_current_operand_stack(JavaValue::Int(int))
@@ -622,11 +622,11 @@ pub(crate) unsafe fn push_type_to_operand_stack(int_state: &mut InterpreterState
         PTypeView::ShortType => {
             let short = l.arg_short();
             int_state.push_current_operand_stack(JavaValue::Short(short))
-        },
+        }
         PTypeView::BooleanType => {
             let boolean_ = l.arg_bool();
             int_state.push_current_operand_stack(JavaValue::Boolean(boolean_))
-        },
+        }
         _ => panic!()
     }
 }

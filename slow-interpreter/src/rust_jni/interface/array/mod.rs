@@ -1,5 +1,6 @@
 use std::mem::size_of;
 use std::os::raw::c_void;
+use std::panic::panic_any;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
@@ -55,20 +56,31 @@ pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, arr
             PTypeView::ByteType => {
                 *elem = JavaValue::Byte((carray as *const jbyte).offset(i as isize).read());
             }
-            PTypeView::CharType => todo!(),
-            PTypeView::DoubleType => todo!(),
-            PTypeView::FloatType => todo!(),
+            PTypeView::CharType => {
+                *elem = JavaValue::Char((carray as *const jchar).offset(i as isize).read());
+            },
+            PTypeView::DoubleType => {
+                *elem = JavaValue::Double((carray as *const jdouble).offset(i as isize).read());
+            },
+            PTypeView::FloatType => {
+                *elem = JavaValue::Float((carray as *const jfloat).offset(i as isize).read());
+            },
             PTypeView::IntType => {
                 *elem = JavaValue::Int((carray as *const jint).offset(i as isize).read());
             }
             PTypeView::LongType => {
                 *elem = JavaValue::Long((carray as *const jlong).offset(i as isize).read());
             }
-            PTypeView::Ref(_) => todo!(),
-            PTypeView::ShortType => todo!(),
-            PTypeView::BooleanType => todo!(),
-            PTypeView::VoidType => todo!(),
-            _ => todo!()
+            PTypeView::Ref(_) => {
+                *elem = JavaValue::Object(from_object((carray as *const jobject).offset(i as isize).read()));
+            },
+            PTypeView::ShortType => {
+                *elem = JavaValue::Short((carray as *const jshort).offset(i as isize).read());
+            },
+            PTypeView::BooleanType => {
+                *elem = JavaValue::Boolean((carray as *const jboolean).offset(i as isize).read());
+            },
+            _ => panic!()
         }
     }
 }

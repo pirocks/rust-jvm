@@ -38,8 +38,7 @@ unsafe fn array_region_integer_types<T: NumCast>(array: jarray, start: jsize, le
     }
 }
 
-//todo a lot of duplication here, but hard to template out.
-//should be templated out at the .unwrap_type() level
+//a lot of duplication here, but hard to template out.
 pub unsafe extern "C" fn get_float_array_region(_env: *mut JNIEnv, array: jfloatArray, start: jsize, len: jsize, buf: *mut jfloat) {
     let non_null_array_obj = from_object(array).unwrap();
     let array_ref = non_null_array_obj.unwrap_array().mut_array();
@@ -73,7 +72,7 @@ pub unsafe extern "C" fn get_long_array_region(_env: *mut JNIEnv, array: jlongAr
 
 pub unsafe extern "C" fn set_boolean_array_region(_env: *mut JNIEnv, array: jbooleanArray, start: jsize, len: jsize, buf: *const jboolean) {
     set_array_region(array, start, len, &mut |index: isize| {
-        JavaValue::Boolean(buf.offset(index).read())//todo bool need to be u8
+        JavaValue::Boolean(buf.offset(index).read())
     })
 }
 
@@ -85,7 +84,7 @@ pub unsafe extern "C" fn set_byte_array_region(_env: *mut JNIEnv, array: jbyteAr
 
 pub unsafe extern "C" fn set_char_array_region(_env: *mut JNIEnv, array: jcharArray, start: jsize, len: jsize, buf: *const jchar) {
     set_array_region(array, start, len, &mut |index: isize| {
-        JavaValue::Char(buf.offset(index).read())//todo instead of char use u16
+        JavaValue::Char(buf.offset(index).read())
     })
 }
 
