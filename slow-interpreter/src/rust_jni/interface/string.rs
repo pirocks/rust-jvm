@@ -1,6 +1,6 @@
 use std::alloc::Layout;
 use std::collections::HashMap;
-use std::ffi::CStr;
+use std::ffi::{c_void, CStr};
 use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
 use std::sync::Arc;
@@ -43,8 +43,9 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
     res
 }
 
-pub unsafe extern "C" fn release_string_chars(_env: *mut JNIEnv, _str: jstring, _chars: *const jchar) {
-    unimplemented!()
+pub unsafe extern "C" fn release_string_chars(env: *mut JNIEnv, _str: jstring, chars: *const jchar) {
+    let jvm = get_state(env);
+    jvm.native_interface_allocations.free(chars as *mut c_void);
 }
 
 

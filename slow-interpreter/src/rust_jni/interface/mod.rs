@@ -313,6 +313,27 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
     }
 }
 
+
+///GetStringChars
+//
+// const jchar * GetStringChars(JNIEnv *env, jstring string,
+// jboolean *isCopy);
+//
+// Returns a pointer to the array of Unicode characters of the string. This pointer is valid until ReleaseStringChars() is called.
+//
+// If isCopy is not NULL, then *isCopy is set to JNI_TRUE if a copy is made; or it is set to JNI_FALSE if no copy is made.
+// LINKAGE:
+// Index 165 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+//
+// string: a Java string object.
+//
+// isCopy: a pointer to a boolean.
+// RETURNS:
+//
+// Returns a pointer to a Unicode string, or NULL if the operation fails.
 pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const jchar {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
