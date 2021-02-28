@@ -8,7 +8,7 @@ use by_address::ByAddress;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_type;
-use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_FALSE, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
+use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
 use verification::verifier::filecorrectness::is_assignable;
@@ -104,6 +104,32 @@ pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: 
         }
     }) as u8
 }
+
+
+///jint UnregisterNatives(JNIEnv *env, jclass clazz);
+//
+// Unregisters native methods of a class. The class goes back to the state before it was linked or registered with its native method functions.
+//
+// This function should not be used in normal native code. Instead, it provides special programs a way to reload and relink native libraries.
+// LINKAGE:
+// Index 216 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+//
+// clazz: a Java class object.
+// RETURNS:
+//
+// Returns “0” on success; returns a negative value on failure.
+pub unsafe extern "C" fn unregister_natives(env: *mut JNIEnv, clazz: jclass) -> jint {
+    let jvm = get_state(env);
+    let rc = from_jclass(clazz).as_runtime_class(jvm);
+    if let None = jvm.libjava.registered_natives.write().unwrap().remove(&ByAddress(rc)) {
+        return JNI_ERR
+    }
+    JNI_OK as i32
+}
+
 
 pub unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                           clazz: jclass,

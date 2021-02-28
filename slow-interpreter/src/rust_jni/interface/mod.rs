@@ -18,7 +18,7 @@ use classfile_view::view::field_view::FieldView;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue, JVM_Available, JVM_GetLastErrorString};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue, JVM_Available, JVM_GetLastErrorString};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
@@ -293,7 +293,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         SetFloatArrayRegion: Some(set_float_array_region),
         SetDoubleArrayRegion: Some(set_double_array_region),
         RegisterNatives: Some(register_natives),
-        UnregisterNatives: None, //todo
+        UnregisterNatives: Some(unregister_natives),
         MonitorEnter: None, //todo
         MonitorExit: None, //todo
         GetJavaVM: Some(get_java_vm),
