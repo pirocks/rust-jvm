@@ -16,7 +16,7 @@ fn run_integration_test(class_name: &str) {
         .unwrap_or(DEFAULT_RT_JAR_LOCATION.to_string());
     let mut resources_path = current_dir().unwrap();
     resources_path.push("resources/test");
-    //todo presumably theres a better way of getting exe location
+    //presumably there's a better way of getting exe location, but likely rewriting these, and this works
 
     let mut java_process = Command::new("target/debug/java")
         .arg("--main").arg(class_name)
