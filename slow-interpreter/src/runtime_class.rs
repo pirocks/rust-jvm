@@ -149,23 +149,6 @@ impl Debug for RuntimeClassClass {
         write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
     }
 }
-
-// impl Hash for RuntimeClassClass {
-//     fn hash<H: Hasher>(&self, state: &mut H) {
-//         self.classfile.hash(state);
-//
-//     }
-// }
-//
-// impl PartialEq for RuntimeClassClass {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.loader == other.loader &&
-//             self.classfile == other.classfile && *self.static_vars.read().unwrap() == *other.static_vars.read().unwrap()
-//     }
-// }
-
-// impl Eq for RuntimeClass {}
-
 pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, classfile: Arc<Classfile>, res: &mut HashMap<String, JavaValue>) {
     if let Some(jvmti) = jvm.jvmti_state.as_ref() {
         jvmti.built_in_jdwp.class_prepare(jvm, &class_name(&classfile), int_state)
