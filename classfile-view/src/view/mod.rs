@@ -73,6 +73,9 @@ impl ClassView {
     pub fn num_methods(&self) -> usize {
         self.backing_class.methods.len()
     }
+    pub fn constant_pool_size(&self) -> usize {
+        self.backing_class.constant_pool.len()
+    }
     pub fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
         let backing_class = self.backing_class.clone();
         match &self.backing_class.constant_pool[i].kind {

@@ -1,5 +1,14 @@
+use std::ptr::null_mut;
+use std::sync::Arc;
+
+use classfile_view::loading::ClassLoadingError;
+use classfile_view::view::constant_info_view::ConstantInfoView;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring};
+use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
+use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
+use slow_interpreter::java_values::Object;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
@@ -12,12 +21,25 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject) -> jint {
-    unimplemented!()
+    let jvm = get_state(env);
+    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    view.constant_pool_size() as i32
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Class(c) => {
+            match get_or_create_class_object(jvm, PTypeView::Ref(c.class_name()), int_state) {
+                Ok(class_obj) => to_object(class_obj.into()),
+                Err(_) => null_mut()
+            }
+        }
+        _ => null_mut()
+    }
 }
 
 #[no_mangle]
