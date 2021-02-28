@@ -20,6 +20,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue, JVM_Available, JVM_GetLastErrorString};
 use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classfile::InstructionInfo::monitorenter;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
@@ -294,8 +295,8 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         SetDoubleArrayRegion: Some(set_double_array_region),
         RegisterNatives: Some(register_natives),
         UnregisterNatives: Some(unregister_natives),
-        MonitorEnter: None, //todo
-        MonitorExit: None, //todo
+        MonitorEnter: Some(monitor_enter),
+        MonitorExit: Some(monitor_exit),
         GetJavaVM: Some(get_java_vm),
         GetStringRegion: Some(get_string_region),
         GetStringUTFRegion: Some(get_string_utfregion),
@@ -311,6 +312,67 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetDirectBufferCapacity: None, //todo
         GetObjectRefType: None, //todo
     }
+}
+
+///MonitorEnter
+//
+// jint MonitorEnter(JNIEnv *env, jobject obj);
+//
+// Enters the monitor associated with the underlying Java object referred to by obj.
+// Enters the monitor associated with the object referred to by obj. The obj reference must not be NULL.
+//
+// Each Java object has a monitor associated with it. If the current thread already owns the monitor associated with obj, it increments a counter in the monitor indicating the number of times this thread has entered the monitor. If the monitor associated with obj is not owned by any thread, the current thread becomes the owner of the monitor, setting the entry count of this monitor to 1. If another thread already owns the monitor associated with obj, the current thread waits until the monitor is released, then tries again to gain ownership.
+//
+// A monitor entered through a MonitorEnter JNI function call cannot be exited using the monitorexit Java virtual machine instruction or a synchronized method return. A MonitorEnter JNI function call and a monitorenter Java virtual machine instruction may race to enter the monitor associated with the same object.
+//
+// To avoid deadlocks, a monitor entered through a MonitorEnter JNI function call must be exited using the MonitorExit JNI call, unless the DetachCurrentThread call is used to implicitly release JNI monitors.
+// LINKAGE:
+// Index 217 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+//
+// obj: a normal Java object or class object.
+// RETURNS:
+//
+// Returns “0” on success; returns a negative value on failure.
+pub unsafe extern "C" fn monitor_enter(env: *mut JNIEnv, obj: jobject) -> jint {
+    let jvm = get_state(env);
+    match from_object(obj) {
+        Some(x) => x,
+        None => return JNI_ERR,
+    }.monitor_lock(jvm);
+    JNI_OK as i32
+}
+
+
+///MonitorExit
+//
+// jint MonitorExit(JNIEnv *env, jobject obj);
+//
+// The current thread must be the owner of the monitor associated with the underlying Java object referred to by obj. The thread decrements the counter indicating the number of times it has entered this monitor. If the value of the counter becomes zero, the current thread releases the monitor.
+//
+// Native code must not use MonitorExit to exit a monitor entered through a synchronized method or a monitorenter Java virtual machine instruction.
+// LINKAGE:
+// Index 218 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+//
+// obj: a normal Java object or class object.
+// RETURNS:
+//
+// Returns “0” on success; returns a negative value on failure.
+// EXCEPTIONS:
+//
+// IllegalMonitorStateException: if the current thread does not own the monitor.
+pub unsafe extern "C" fn monitor_exit(env: *mut JNIEnv, obj: jobject) -> jint {
+    let jvm = get_state(env);
+    match from_object(obj) {
+        Some(x) => x,
+        None => return JNI_ERR,
+    }.monitor_unlock(jvm);
+    JNI_OK as i32
 }
 
 
