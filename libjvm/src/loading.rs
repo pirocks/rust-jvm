@@ -1,14 +1,23 @@
 use std::ptr::null_mut;
+use std::sync::Arc;
 
-use classfile_view::loading::LoaderName;
+use classfile_view::loading::{ClassLoadingError, LoaderName};
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
+use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java::lang::class_loader::ClassLoader;
+use slow_interpreter::java_values::Object;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
-    unimplemented!()
+    let int_state = get_interpreter_state(env);
+    let jvm = get_state(env);
+    let ptype = int_state.current_frame().class_pointer().ptypeview();
+    match get_or_create_class_object(jvm, ptype, int_state) {
+        Ok(class_obj) => to_object(class_obj.into())
+        Err(_) => null_mut()
+    }
 }
 
 #[no_mangle]
