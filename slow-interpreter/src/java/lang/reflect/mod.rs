@@ -130,6 +130,7 @@ pub mod method {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
+    use crate::java::lang::reflect::constructor::Constructor;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
@@ -156,6 +157,9 @@ pub mod method {
             };
             let name = {
                 let name = method_view.name();
+                if name == "<init>" {
+                    return Constructor::constructor_object_from_method_view(jvm, int_state, method_view).java_value().cast_method();
+                }
                 JString::from_rust(jvm, int_state, name).intern(jvm, int_state)
             };
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view);
@@ -267,9 +271,9 @@ pub mod constructor {
     }
 
     impl Constructor {
-        pub fn constructor_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: &RuntimeClass, method_view: &MethodView) -> Constructor {
+        pub fn constructor_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Constructor {
             let clazz = {
-                let field_class_name = class_obj.view().name();
+                let field_class_name = method_view.classview().name();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
                 load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name.clone())));
                 int_state.pop_current_operand_stack().cast_class()

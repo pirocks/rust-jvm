@@ -44,17 +44,16 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
     let methods = runtime_class.view().methods().map(|method| (runtime_class.clone(), method.method_i()));//get_all_methods(jvm, int_state, runtime_class);
     let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
     let mut object_array = vec![];
-    //todo do we need to filter out constructors?
     methods.filter(|(c, i)| {
+        let method_view = c.view().method_view_i(*i);
         if publicOnly > 0 {
-            c.view().method_view_i(*i).is_public()
+            method_view.is_public()
         } else {
-            true
+            let name = method_view.name();
+            name == "<clinit>" || name == "<init>"
         }
     }).for_each(|(c, i)| {
         let method_view = c.view().method_view_i(i);
-        // dbg!(method_view.name());
-        // dbg!(method_view.desc_str());
         let method = Method::method_object_from_method_view(jvm, int_state, &method_view);
         object_array.push(method.java_value());
     });

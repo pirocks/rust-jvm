@@ -460,7 +460,6 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, cls: jclass, methodID
         Some(x) => x,
         None => return null_mut(),
     };
-    //todo support java.lang.Constructor
     let method_view = runtime_class.view().method_view_i(index as usize);
     let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view);
     to_object(method_obj.object().into())
@@ -622,7 +621,6 @@ pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGu
 
 unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) -> jmethodID {
     let jvm = get_state(env);
-    //todo support java.lang.Constructor as well
     let method_obj = JavaValue::Object(from_object(method)).cast_method();
     let runtime_class = method_obj.get_clazz().as_runtime_class(jvm);
     let param_types = method_obj.parameter_types().iter().map(|param| param.as_runtime_class(jvm).ptypeview()).collect::<Vec<_>>();
