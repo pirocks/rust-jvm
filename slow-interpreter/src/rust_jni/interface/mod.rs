@@ -30,6 +30,7 @@ use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::java::lang::class::JClass;
 use crate::java::lang::reflect::field::Field;
+use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
 use crate::java::lang::throwable::Throwable;
 use crate::java_values::{default_value, JavaValue, Object};
@@ -80,7 +81,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         FindClass: Some(find_class),
         FromReflectedMethod: Some(from_reflected_method),
         FromReflectedField: Some(from_reflected_field),
-        ToReflectedMethod: None, //todo
+        ToReflectedMethod: Some(to_reflected_method),
         GetSuperclass: Some(get_superclass),
         IsAssignableFrom: Some(is_assignable_from),
         ToReflectedField: Some(to_reflected_field),
@@ -305,6 +306,35 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetDirectBufferCapacity: None, //todo
         GetObjectRefType: None, //todo
     }
+}
+
+
+///ToReflectedMethod
+//
+// jobject ToReflectedMethod(JNIEnv *env, jclass cls,
+//    jmethodID methodID, jboolean isStatic);
+//
+// Converts a method ID derived from cls to a java.lang.reflect.Method or java.lang.reflect.Constructor object. isStatic must be set to JNI_TRUE if the method ID refers to a static field, and JNI_FALSE otherwise.
+//
+// Throws OutOfMemoryError and returns 0 if fails.
+// LINKAGE:
+//
+// Index 9 in the JNIEnv interface function table.
+// SINCE:
+//
+// JDK/JRE 1.2
+unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, cls: jclass, methodID: jmethodID, isStatic: jboolean) -> jobject {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let method_id: usize = transmute(methodID);
+    let (runtime_class, index) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
+        Some(x) => x,
+        None => return null_mut(),
+    };
+    //todo support java.lang.Constructor
+    let method_view = runtime_class.view().method_view_i(index as usize);
+    let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view);
+    to_object(method_obj.object().into())
 }
 
 
