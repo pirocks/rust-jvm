@@ -42,6 +42,7 @@ use crate::rust_jni::interface::array::array_region::*;
 use crate::rust_jni::interface::array::new::*;
 use crate::rust_jni::interface::call::call_nonstatic::*;
 use crate::rust_jni::interface::call::call_static::*;
+use crate::rust_jni::interface::call::VarargProvider;
 use crate::rust_jni::interface::exception::*;
 use crate::rust_jni::interface::get_field::*;
 use crate::rust_jni::interface::global_ref::*;
@@ -585,6 +586,51 @@ unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw:
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
     to_object(define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassView::from(parsed)).unwrap_object())
 }
+
+
+pub(crate) unsafe fn push_type_to_operand_stack(int_state: &mut InterpreterStateGuard, type_: &PType, l: &mut VarargProvider) {
+    match PTypeView::from_ptype(type_) {
+        PTypeView::ByteType => {
+            let byte_ = l.arg_byte();
+            int_state.push_current_operand_stack(JavaValue::Byte(byte_))
+        },
+        PTypeView::CharType => {
+            let char_ = l.arg_char();
+            int_state.push_current_operand_stack(JavaValue::Char(char_))
+        },
+        PTypeView::DoubleType => {
+            let double_ = l.arg_double();
+            int_state.push_current_operand_stack(JavaValue::Double(double_))
+        },
+        PTypeView::FloatType => {
+            let float_ = l.arg_float();
+            int_state.push_current_operand_stack(JavaValue::Float(float_))
+        },
+        PTypeView::IntType => {
+            let int: i32 = l.arg_int();
+            int_state.push_current_operand_stack(JavaValue::Int(int))
+        }
+        PTypeView::LongType => {
+            let long: i64 = l.arg_long();
+            int_state.push_current_operand_stack(JavaValue::Long(long))
+        }
+        PTypeView::Ref(_) => {
+            let native_object: jobject = l.arg_ptr();
+            let o = from_object(native_object);
+            int_state.push_current_operand_stack(JavaValue::Object(o));
+        }
+        PTypeView::ShortType => {
+            let short = l.arg_short();
+            int_state.push_current_operand_stack(JavaValue::Short(short))
+        },
+        PTypeView::BooleanType => {
+            let boolean_ = l.arg_bool();
+            int_state.push_current_operand_stack(JavaValue::Boolean(boolean_))
+        },
+        _ => panic!()
+    }
+}
+
 
 pub mod instance_of;
 pub mod local_frame;
