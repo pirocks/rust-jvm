@@ -5,18 +5,23 @@ use std::fs::File;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
 use std::ptr::null_mut;
+use std::str::Utf8Error;
 use std::sync::{Arc, RwLock};
 
 use by_address::ByAddress;
 
+use classfile_parser::code::InstructionTypeNum::ladd;
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
+use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::parse_field_descriptor;
-use jvmti_jni_bindings::{jboolean, jbyte, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNIEnv, JNINativeInterface_, jobject, jsize, JVM_Available};
+use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
+use jvmti_jni_bindings::{jboolean, jbyte, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jvalue, JVM_Available, JVM_GetLastErrorString};
 use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ptype::PType;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::create_class_object;
@@ -26,7 +31,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::java::lang::class::JClass;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
-use crate::java_values::{default_value, JavaValue};
+use crate::java_values::{default_value, JavaValue, Object};
 use crate::jvm_state::ClassStatus;
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::interface::array::*;
@@ -79,7 +84,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         IsAssignableFrom: Some(is_assignable_from),
         ToReflectedField: Some(to_reflected_field),
         Throw: Some(throw),
-        ThrowNew: None, //todo
+        ThrowNew: Some(throw_new), //todo
         ExceptionOccurred: Some(exception_occured),
         ExceptionDescribe: None, //todo
         ExceptionClear: Some(exception_clear),
@@ -302,7 +307,59 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
 }
 
 
-unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, cls: jclass, field_id: jfieldID, is_static: jboolean) -> jobject {
+///ThrowNew
+//
+// jint ThrowNew(JNIEnv *env, jclass clazz,
+// const char *message);
+//
+// Constructs an exception object from the specified class with the message specified by message and causes that exception to be thrown.
+// LINKAGE:
+//
+// Index 14 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+//
+// clazz: a subclass of java.lang.Throwable.
+//
+// message: the message used to construct the java.lang.Throwable object. The string is encoded in modified UTF-8.
+// RETURNS:
+//
+// Returns 0 on success; a negative value on failure.
+// THROWS:
+//
+// the newly constructed java.lang.Throwable object.
+unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::std::os::raw::c_char) -> jint {
+    let (constructor_method_id, java_string_object) = {
+        let jvm = get_state(env);
+        let int_state = get_interpreter_state(env);
+        let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
+        let class_view = runtime_class.view();
+        let desc = MethodDescriptor { parameter_types: vec![ClassName::string().into()], return_type: PType::VoidType };
+        let constructor_method_id = match class_view.lookup_method("<init>", &desc) {
+            None => return -1,
+            Some(constructor) => jvm.method_table.write().unwrap().get_method_id(runtime_class, constructor.method_i() as u16)
+        };
+        let rust_string = match CStr::from_ptr(msg).to_str() {
+            Ok(string) => string,
+            Err(_) => return -2
+        }.to_string();
+        let java_string = JString::from_rust(jvm, int_state, rust_string);
+        (constructor_method_id, to_object(java_string.object().into()))
+    };
+    let new_object = env.NewObjectA.as_ref().unwrap();
+    let obj = new_object(env, clazz, transmute(constructor_method_id), &java_string_object as *const jvalue);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    int_state.set_throw(match from_object(obj) {
+        None => return -3,
+        Some(res) => res
+    }.into());
+    JNI_OK as i32
+}
+
+
+unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, cls: jclass, field_id: jfieldID, _is_static: jboolean) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
 
