@@ -27,6 +27,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::create_class_object;
 use crate::class_objects::get_or_create_class_object;
 use crate::field_table::FieldId;
+use crate::instructions::invoke::special::invoke_special_impl;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::class::JClass;
@@ -36,11 +37,13 @@ use crate::java::lang::string::JString;
 use crate::java::lang::throwable::Throwable;
 use crate::java_values::{default_value, JavaValue, Object};
 use crate::jvm_state::ClassStatus;
+use crate::method_table::MethodId;
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::interface::array::*;
 use crate::rust_jni::interface::array::array_region::*;
 use crate::rust_jni::interface::array::new::*;
 use crate::rust_jni::interface::call::call_nonstatic::*;
+use crate::rust_jni::interface::call::call_nonvirtual::{call_nonvirtual_boolean_method, call_nonvirtual_boolean_method_a, call_nonvirtual_boolean_method_v, call_nonvirtual_byte_method, call_nonvirtual_byte_method_a, call_nonvirtual_byte_method_v, call_nonvirtual_char_method, call_nonvirtual_char_method_a, call_nonvirtual_char_method_v, call_nonvirtual_double_method, call_nonvirtual_double_method_a, call_nonvirtual_double_method_v, call_nonvirtual_float_method, call_nonvirtual_float_method_a, call_nonvirtual_float_method_v, call_nonvirtual_int_method, call_nonvirtual_int_method_a, call_nonvirtual_int_method_v, call_nonvirtual_long_method, call_nonvirtual_long_method_a, call_nonvirtual_long_method_v, call_nonvirtual_object_method, call_nonvirtual_object_method_a, call_nonvirtual_object_method_v, call_nonvirtual_short_method, call_nonvirtual_short_method_a, call_nonvirtual_short_method_v, call_nonvirtual_void_method, call_nonvirtual_void_method_a, call_nonvirtual_void_method_v};
 use crate::rust_jni::interface::call::call_static::*;
 use crate::rust_jni::interface::call::VarargProvider;
 use crate::rust_jni::interface::exception::*;
@@ -138,36 +141,36 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         CallVoidMethod: Some(call_void_method),
         CallVoidMethodV: Some(unsafe { transmute(call_void_method_v as *mut c_void) }),
         CallVoidMethodA: Some(call_void_method_a),
-        CallNonvirtualObjectMethod: None, //todo
-        CallNonvirtualObjectMethodV: None, //todo
-        CallNonvirtualObjectMethodA: None, //todo
-        CallNonvirtualBooleanMethod: None, //todo
-        CallNonvirtualBooleanMethodV: None, //todo
-        CallNonvirtualBooleanMethodA: None, //todo
-        CallNonvirtualByteMethod: None, //todo
-        CallNonvirtualByteMethodV: None, //todo
-        CallNonvirtualByteMethodA: None, //todo
-        CallNonvirtualCharMethod: None, //todo
-        CallNonvirtualCharMethodV: None, //todo
-        CallNonvirtualCharMethodA: None, //todo
-        CallNonvirtualShortMethod: None, //todo
-        CallNonvirtualShortMethodV: None, //todo
-        CallNonvirtualShortMethodA: None, //todo
-        CallNonvirtualIntMethod: None, //todo
-        CallNonvirtualIntMethodV: None, //todo
-        CallNonvirtualIntMethodA: None, //todo
-        CallNonvirtualLongMethod: None, //todo
-        CallNonvirtualLongMethodV: None, //todo
-        CallNonvirtualLongMethodA: None, //todo
-        CallNonvirtualFloatMethod: None, //todo
-        CallNonvirtualFloatMethodV: None, //todo
-        CallNonvirtualFloatMethodA: None, //todo
-        CallNonvirtualDoubleMethod: None, //todo
-        CallNonvirtualDoubleMethodV: None, //todo
-        CallNonvirtualDoubleMethodA: None, //todo
-        CallNonvirtualVoidMethod: None, //todo
-        CallNonvirtualVoidMethodV: None, //todo
-        CallNonvirtualVoidMethodA: None, //todo
+        CallNonvirtualObjectMethod: Some(call_nonvirtual_object_method),
+        CallNonvirtualObjectMethodV: Some(unsafe { transmute(call_nonvirtual_object_method_v as *mut c_void) }),
+        CallNonvirtualObjectMethodA: Some(call_nonvirtual_object_method_a),
+        CallNonvirtualBooleanMethod: Some(call_nonvirtual_boolean_method),
+        CallNonvirtualBooleanMethodV: Some(unsafe { transmute(call_nonvirtual_boolean_method_v as *mut c_void) }),
+        CallNonvirtualBooleanMethodA: Some(call_nonvirtual_boolean_method_a),
+        CallNonvirtualByteMethod: Some(call_nonvirtual_byte_method),
+        CallNonvirtualByteMethodV: Some(unsafe { transmute(call_nonvirtual_byte_method_v as *mut c_void) }),
+        CallNonvirtualByteMethodA: Some(call_nonvirtual_byte_method_a),
+        CallNonvirtualCharMethod: Some(call_nonvirtual_char_method),
+        CallNonvirtualCharMethodV: Some(unsafe { transmute(call_nonvirtual_char_method_v as *mut c_void) }),
+        CallNonvirtualCharMethodA: Some(call_nonvirtual_char_method_a),
+        CallNonvirtualShortMethod: Some(call_nonvirtual_short_method),
+        CallNonvirtualShortMethodV: Some(unsafe { transmute(call_nonvirtual_short_method_v as *mut c_void) }),
+        CallNonvirtualShortMethodA: Some(call_nonvirtual_short_method_a),
+        CallNonvirtualIntMethod: Some(call_nonvirtual_int_method),
+        CallNonvirtualIntMethodV: Some(unsafe { transmute(call_nonvirtual_int_method_v as *mut c_void) }),
+        CallNonvirtualIntMethodA: Some(call_nonvirtual_int_method_a),
+        CallNonvirtualLongMethod: Some(call_nonvirtual_long_method),
+        CallNonvirtualLongMethodV: Some(unsafe { transmute(call_nonvirtual_long_method_v as *mut c_void) }),
+        CallNonvirtualLongMethodA: Some(call_nonvirtual_long_method_a),
+        CallNonvirtualFloatMethod: Some(call_nonvirtual_float_method),
+        CallNonvirtualFloatMethodV: Some(unsafe { transmute(call_nonvirtual_float_method_v as *mut c_void) }),
+        CallNonvirtualFloatMethodA: Some(call_nonvirtual_float_method_a),
+        CallNonvirtualDoubleMethod: Some(call_nonvirtual_double_method),
+        CallNonvirtualDoubleMethodV: Some(unsafe { transmute(call_nonvirtual_double_method_v as *mut c_void) }),
+        CallNonvirtualDoubleMethodA: Some(call_nonvirtual_double_method_a),
+        CallNonvirtualVoidMethod: Some(call_nonvirtual_void_method),
+        CallNonvirtualVoidMethodV: Some(unsafe { transmute(call_nonvirtual_void_method_v as *mut c_void) }),
+        CallNonvirtualVoidMethodA: Some(call_nonvirtual_void_method_a),
         GetFieldID: Some(get_field_id),
         GetObjectField: Some(get_object_field),
         GetBooleanField: Some(get_boolean_field),

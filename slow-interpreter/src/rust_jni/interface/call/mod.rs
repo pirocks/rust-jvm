@@ -17,6 +17,8 @@ use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state
 use crate::StackEntry;
 
 pub mod call_nonstatic;
+pub mod call_nonvirtual;
+
 
 unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
     let method_id = from_jmethod_id(method_id);

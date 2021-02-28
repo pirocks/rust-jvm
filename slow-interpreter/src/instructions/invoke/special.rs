@@ -22,8 +22,7 @@ pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp:
         method_class_name.into(),
     ).unwrap();
     let (target_m_i, final_target_class) = find_target_method(jvm, int_state, method_name, &parsed_descriptor, target_class);
-    let target_m = &final_target_class.view().method_view_i(target_m_i);
-    invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone(), target_m);
+    invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone());
 }
 
 pub fn invoke_special_impl(
@@ -32,8 +31,8 @@ pub fn invoke_special_impl(
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,
     final_target_class: Arc<RuntimeClass>,
-    target_m: &MethodView,
 ) {
+    let target_m = &final_target_class.view().method_view_i(target_m_i);
     if final_target_class.view().method_view_i(target_m_i).is_signature_polymorphic() {
         interpreter_state.debug_print_stack_trace();
         dbg!(target_m.name());
