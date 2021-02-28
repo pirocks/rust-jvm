@@ -84,11 +84,11 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         IsAssignableFrom: Some(is_assignable_from),
         ToReflectedField: Some(to_reflected_field),
         Throw: Some(throw),
-        ThrowNew: Some(throw_new), //todo
+        ThrowNew: Some(throw_new),
         ExceptionOccurred: Some(exception_occured),
         ExceptionDescribe: None, //todo
         ExceptionClear: Some(exception_clear),
-        FatalError: None, //todo
+        FatalError: Some(fatal_error),
         PushLocalFrame: Some(push_local_frame),
         PopLocalFrame: Some(pop_local_frame),
         NewGlobalRef: Some(new_global_ref),
@@ -304,6 +304,35 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetDirectBufferCapacity: None, //todo
         GetObjectRefType: None, //todo
     }
+}
+
+
+///FatalError
+//
+// void FatalError(JNIEnv *env, const char *msg);
+//
+// Raises a fatal error and does not expect the VM to recover. This function does not return.
+// LINKAGE:
+//
+// Index 18 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+//
+// msg: an error message. The string is encoded in modified UTF-8.
+// ExceptionCheck
+// We introduce a convenience function to check for pending exceptions without creating a local reference to the exception object.
+//
+// jboolean ExceptionCheck(JNIEnv *env);
+//
+// Returns JNI_TRUE when there is a pending exception; otherwise, returns JNI_FALSE.
+// LINKAGE:
+// Index 228 in the JNIEnv interface function table.
+// SINCE:
+//
+// JDK/JRE 1.2
+unsafe extern "C" fn fatal_error(env: *mut JNIEnv, msg: *const ::std::os::raw::c_char) {
+    panic!("JNI raised a fatal error.\n JNI MSG: {}", CStr::from_ptr(msg).to_string_lossy())
 }
 
 
