@@ -25,6 +25,7 @@ use verification::ClassFileGetter;
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
+use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{JavaValue, NormalObject, Object};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
@@ -68,7 +69,7 @@ pub struct JVMState {
     pub store_generated_classes: bool,
     pub debug_print_exceptions: bool,
 
-    pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<Arc<Object>>, Vec<StackTraceElement>>>
+    pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<Arc<Object>>, Vec<StackTraceElement>>>,
 }
 
 pub struct Classes {
@@ -155,7 +156,7 @@ impl JVMState {
             include_name_field: AtomicBool::new(false),
             store_generated_classes,
             debug_print_exceptions,
-            stacktraces_by_throwable: RwLock::new(HashMap::new())
+            stacktraces_by_throwable: RwLock::new(HashMap::new()),
         };
         jvm.add_class_class_class_object();
         (args, jvm)
@@ -204,6 +205,17 @@ impl JVMState {
         let res = transmute::<&mut InterpreterStateGuard<'static>, &mut InterpreterStateGuard<'l>>(ptr.as_mut().unwrap());//todo make this less sketch maybe
         assert!(res.registered);
         res
+    }
+
+    pub fn get_loader_obj(&self, loader: LoaderName) -> Option<ClassLoader> {
+        match loader {
+            LoaderName::UserDefinedLoader(loader_idx) => {
+                let guard = self.class_loaders.read().unwrap();
+                let jvalue = JavaValue::Object(guard.get_by_left(&loader_idx).unwrap().clone().0.into());
+                Some(jvalue.cast_class_loader())
+            }
+            LoaderName::BootstrapLoader => None
+        }
     }
 }
 
