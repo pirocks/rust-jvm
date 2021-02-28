@@ -1,5 +1,8 @@
+use std::ffi::CStr;
 use std::mem::transmute;
 use std::os::raw::c_char;
+use std::ptr::{null, null_mut};
+use std::str::Utf8Error;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
 
@@ -16,18 +19,14 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
                                        -> jmethodID {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_len = libc::strlen(name);
-    let mut method_name = String::with_capacity(name_len);
-    for i in 0..name_len {
-        method_name.push(name.add(i).read() as u8 as char);
-    }
-
-    let desc_len = libc::strlen(sig);
-    //todo dup
-    let mut method_descriptor_str = String::with_capacity(desc_len);
-    for i in 0..desc_len {
-        method_descriptor_str.push(sig.add(i).read() as u8 as char);
-    }
+    let mut method_name = match CStr::from_ptr(name).to_str() {
+        Ok(method_name) => method_name,
+        Err(_) => return null_mut()
+    };
+    let mut method_descriptor_str = match CStr::from_ptr(sig).to_str() {
+        Ok(method_descriptor_str) => method_descriptor_str,
+        Err(_) => return null_mut()
+    };
 
     let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
     let all_methods = get_all_methods(jvm, int_state, runtime_class);
