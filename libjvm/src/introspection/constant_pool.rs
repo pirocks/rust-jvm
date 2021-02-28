@@ -5,7 +5,7 @@ use classfile_view::loading::ClassLoadingError;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring};
-use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
+use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
 use slow_interpreter::java_values::Object;
@@ -74,22 +74,46 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jint {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Integer(int_) => int_.int,
+        _ => todo!("unclear what to do here")
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jlong {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Long(long_) => long_.long,
+        _ => todo!("unclear what to do here")
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jfloat {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Float(float_) => float_.float,
+        _ => todo!("unclear what to do here")
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jdouble {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Double(double_) => double_.double,
+        _ => todo!("unclear what to do here")
+    }
 }
 
 #[no_mangle]
