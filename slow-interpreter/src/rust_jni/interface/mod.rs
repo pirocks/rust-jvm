@@ -28,6 +28,7 @@ use crate::class_loading::create_class_object;
 use crate::class_objects::get_or_create_class_object;
 use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
+use crate::interpreter_util::push_new_object;
 use crate::java::lang::class::JClass;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
@@ -99,7 +100,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         IsSameObject: Some(is_same_object),
         NewLocalRef: Some(new_local_ref),
         EnsureLocalCapacity: Some(ensure_local_capacity),
-        AllocObject: None, //todo
+        AllocObject: Some(alloc_object),
         NewObject: Some(unsafe { transmute(new_object as *mut c_void) }),
         NewObjectV: Some(unsafe { transmute(new_object_v as *mut c_void) }),
         NewObjectA: None, //todo
@@ -308,6 +309,36 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
     }
 }
 
+
+///AllocObject
+//
+// jobject AllocObject(JNIEnv *env, jclass clazz);
+//
+// Allocates a new Java object without invoking any of the constructors for the object. Returns a reference to the object.
+//
+// The clazz argument must not refer to an array class.
+// LINKAGE:
+//
+// Index 27 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+//
+// clazz: a Java class object.
+// RETURNS:
+//
+// Returns a Java object, or NULL if the object cannot be constructed.
+// THROWS:
+//
+// InstantiationException: if the class is an interface or an abstract class.
+//
+// OutOfMemoryError: if the system runs out of memory.
+unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    push_new_object(jvm, int_state, &from_jclass(clazz).as_runtime_class(jvm));
+    to_object(int_state.pop_current_operand_stack().unwrap_object())
+}
 
 ///ToReflectedMethod
 //
