@@ -1,6 +1,43 @@
 pub mod invoke;
 
 
+pub mod throwable {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::jint;
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::string::JString;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    #[derive(Clone, Debug)]
+    pub struct Throwable {
+        pub(crate) normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_throwable(&self) -> Throwable {
+            Throwable { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Throwable {
+        pub fn print_stack_trace(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> bool {
+            let throwable_class = check_initing_or_inited_class(jvm, int_state, ClassName::throwable().into()).expect("Throwable isn't inited?");
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm, int_state, &throwable_class, "printStackTrace".to_string(), "()V".to_string());
+            int_state.pop_current_operand_stack().unwrap_boolean() != 0
+        }
+        as_object_or_java_value!();
+    }
+}
+
+
 pub mod stack_trace_element {
     use std::sync::Arc;
 

@@ -31,6 +31,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::java::lang::class::JClass;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
+use crate::java::lang::throwable::Throwable;
 use crate::java_values::{default_value, JavaValue, Object};
 use crate::jvm_state::ClassStatus;
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
@@ -86,7 +87,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         Throw: Some(throw),
         ThrowNew: Some(throw_new),
         ExceptionOccurred: Some(exception_occured),
-        ExceptionDescribe: None, //todo
+        ExceptionDescribe: Some(exception_describe),
         ExceptionClear: Some(exception_clear),
         FatalError: Some(fatal_error),
         PushLocalFrame: Some(push_local_frame),
@@ -304,6 +305,37 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetDirectBufferCapacity: None, //todo
         GetObjectRefType: None, //todo
     }
+}
+
+
+///ExceptionDescribe
+//
+// void ExceptionDescribe(JNIEnv *env);
+//
+// Prints an exception and a backtrace of the stack to a system error-reporting channel, such as stderr. This is a convenience routine provided for debugging.
+// LINKAGE:
+//
+// Index 16 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+// ExceptionClear
+//
+// void ExceptionClear(JNIEnv *env);
+//
+// Clears any exception that is currently being thrown. If no exception is currently being thrown, this routine has no effect.
+// LINKAGE:
+//
+// Index 17 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+unsafe extern "C" fn exception_describe(env: *mut JNIEnv) {
+    let int_state = get_interpreter_state(env);
+    if let Some(throwing) = int_state.throw() {
+        JavaValue::Object(throwing.into()).cast_throwable().print_stack_trace(jvm, int_state)
+    }
+    int_state.set_throw(None);
 }
 
 
