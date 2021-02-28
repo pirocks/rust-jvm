@@ -7,11 +7,14 @@ use crate::class_loading::assert_loaded_class;
 use crate::java::lang::class::JClass;
 use crate::runtime_class::RuntimeClass;
 
+//todo move util stuff like varargs into here
+
+
 pub fn class_object_to_runtime_class(obj: &JClass, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Option<Arc<RuntimeClass>> {
     if obj.as_type(jvm).is_primitive() {
         return None;
     }
-    //todo needs to be reimplemented when loaded class sett is fixed.
+    //todo needs to be reimplemented when loaded class set is fixed.
     match obj.as_type(jvm).unwrap_ref_type() {
         ReferenceTypeView::Class(class_name) => {
             assert_loaded_class(jvm, int_state, class_name.clone().into()).into()//todo a better way?
