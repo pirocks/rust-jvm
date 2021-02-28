@@ -8,6 +8,7 @@ use jvmti_jni_bindings::{jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, 
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
+use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 
@@ -90,7 +91,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPo
     let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Long(long_) => long_.long,
-        _ => todo!("unclear what to do here")
+        _ => todo!("unclear what to do here")//should throw illregal arg exception
     }
 }
 
@@ -99,6 +100,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantP
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    //todo bounds check
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Float(float_) => float_.float,
         _ => todo!("unclear what to do here")
@@ -118,12 +120,24 @@ unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constant
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetStringAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::String(string) => to_object(JString::from_rust(jvm, int_state, string.string()).object().into()),
+        _ => todo!("unclear what to do here")
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetUTF8At(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Utf8(utf8) => to_object(JString::from_rust(jvm, int_state, utf8.str.clone()).object().into()),
+        _ => todo!("unclear what to do here")
+    }
 }
 
 #[no_mangle]
