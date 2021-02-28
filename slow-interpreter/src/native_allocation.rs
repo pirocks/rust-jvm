@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::c_void;
+use std::ptr::null_mut;
 use std::sync::RwLock;
 
 use jvmti_jni_bindings::jint;
@@ -28,7 +29,9 @@ impl NativeAllocator {
         let size = size_of::<T>() * len;
         data_ptr.write(self.allocate_malloc(size) as *mut T);
         assert!(len < i32::MAX as usize);
-        len_ptr.write(len as i32);
+        if len_ptr != null_mut() {
+            len_ptr.write(len as i32);
+        }
         for (i, elem) in data.into_iter().enumerate() {
             data_ptr.read().add(i).write(elem)
         }

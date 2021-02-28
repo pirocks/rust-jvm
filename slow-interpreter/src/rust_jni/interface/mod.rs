@@ -4,7 +4,7 @@ use std::ffi::{c_void, CStr};
 use std::fs::File;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
-use std::ptr::null_mut;
+use std::ptr::{null, null_mut};
 use std::str::Utf8Error;
 use std::sync::{Arc, RwLock};
 
@@ -18,7 +18,7 @@ use classfile_view::view::field_view::FieldView;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
-use jvmti_jni_bindings::{jboolean, jbyte, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jvalue, JVM_Available, JVM_GetLastErrorString};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue, JVM_Available, JVM_GetLastErrorString};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
@@ -242,7 +242,7 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         SetStaticDoubleField: Some(set_static_double_field),
         NewString: Some(new_string),
         GetStringLength: Some(get_string_utflength),
-        GetStringChars: None, //todo
+        GetStringChars: Some(get_string_chars),
         ReleaseStringChars: Some(release_string_chars),
         NewStringUTF: Some(new_string_utf),
         GetStringUTFLength: Some(get_string_utflength),
@@ -311,6 +311,17 @@ fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -
         GetDirectBufferCapacity: None, //todo
         GetObjectRefType: None, //todo
     }
+}
+
+pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const jchar {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    *is_copy = u8::from(true);
+    let string: JString = JavaValue::Object(from_object(str)).cast_string();
+    let char_vec = string.value();
+    let mut res = null();
+    jvm.native_interface_allocations.allocate_and_write_vec(char_vec, null_mut(), &mut res as *mut *mut jchar);
+    res
 }
 
 

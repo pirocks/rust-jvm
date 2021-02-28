@@ -414,6 +414,7 @@ pub mod string {
     use std::cell::UnsafeCell;
     use std::sync::Arc;
 
+    use jvmti_jni_bindings::jchar;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -472,6 +473,14 @@ pub mod string {
                 "()Ljava/lang/String;".to_string(),
             );
             int_state.pop_current_operand_stack().cast_string()
+        }
+
+        pub fn value(&self) -> Vec<jchar> {
+            let mut res = vec![];
+            for elem in self.normal_object.lookup_field("value").unwrap_array().unwrap_mut() {
+                res.push(elem.unwrap_char())
+            }
+            res
         }
 
         as_object_or_java_value!();
