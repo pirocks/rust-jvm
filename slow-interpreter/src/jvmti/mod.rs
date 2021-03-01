@@ -63,15 +63,15 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetAllThreads: Some(get_all_threads),
         SuspendThread: Some(suspend_thread),
         ResumeThread: Some(resume_thread),
-        StopThread: None,//todo impl
-        InterruptThread: Some(interrupt_thread),//todo technically these are different.For now should be fine though
+        StopThread: None,//doesn't need impl not in currently supported capabilities
+        InterruptThread: None,//doesn't need impl not in currently supported capabilities
         GetThreadInfo: Some(get_thread_info),
-        GetOwnedMonitorInfo: None,//todo impl
-        GetCurrentContendedMonitor: None,//todo impl
+        GetOwnedMonitorInfo: None,//doesn't need impl not in currently supported capabilities
+        GetCurrentContendedMonitor: None, //doesn't need impl not in currently supported capabilities
         RunAgentThread: Some(run_agent_thread),
         GetTopThreadGroups: Some(get_top_thread_groups),
         GetThreadGroupInfo: Some(get_thread_group_info),
-        GetThreadGroupChildren: None,//todo impl
+        GetThreadGroupChildren: None, //doesn't need impl not in currently supported capabilities
         GetFrameCount: Some(get_frame_count),
         GetThreadState: Some(get_thread_state),
         GetCurrentThread: None,//todo impl
@@ -97,10 +97,10 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         SetBreakpoint: Some(set_breakpoint),
         ClearBreakpoint: Some(clear_breakpoint),
         reserved40: std::ptr::null_mut(),
-        SetFieldAccessWatch: None,//todo impl
-        ClearFieldAccessWatch: None,//todo impl
-        SetFieldModificationWatch: None,//todo impl
-        ClearFieldModificationWatch: None,//todo impl
+        SetFieldAccessWatch: None,//doesn't need impl not in currently supported capabilities
+        ClearFieldAccessWatch: None,//doesn't need impl not in currently supported capabilities
+        SetFieldModificationWatch: None, //doesn't need impl not in currently supported capabilities
+        ClearFieldModificationWatch: None,//doesn't need impl not in currently supported capabilities
         IsModifiableClass: None,//todo impl
         Allocate: Some(allocate),
         Deallocate: Some(deallocate),
@@ -115,7 +115,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         IsArrayClass: Some(is_array_class),
         GetClassLoader: Some(get_class_loader),
         GetObjectHashCode: Some(get_object_hash_code),
-        GetObjectMonitorUsage: None,//todo impl
+        GetObjectMonitorUsage: None,//doesn't need impl not in currently supported capabilities
         GetFieldName: Some(get_field_name),
         GetFieldDeclaringClass: None,//todo impl
         GetFieldModifiers: Some(get_field_modifiers),
@@ -129,24 +129,24 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetLineNumberTable: Some(get_line_number_table),
         GetMethodLocation: Some(get_method_location),
         GetLocalVariableTable: Some(get_local_variable_table),
-        SetNativeMethodPrefix: None,//todo impl
-        SetNativeMethodPrefixes: None,//todo impl
-        GetBytecodes: None,//todo impl
+        SetNativeMethodPrefix: None,//doesn't need impl not in currently supported capabilities
+        SetNativeMethodPrefixes: None,//doesn't need impl not in currently supported capabilities
+        GetBytecodes: None,//doesn't need impl not in currently supported capabilities
         IsMethodNative: Some(is_method_native),
         IsMethodSynthetic: Some(is_method_synthetic),
         GetLoadedClasses: Some(get_loaded_classes),
-        GetClassLoaderClasses: None,//todo impl
+        GetClassLoaderClasses: None,//doesn't need impl not in currently supported capabilities
         PopFrame: None,//todo impl
-        ForceEarlyReturnObject: None,//todo impl
-        ForceEarlyReturnInt: None,//todo impl
-        ForceEarlyReturnLong: None,//todo impl
-        ForceEarlyReturnFloat: None,//todo impl
-        ForceEarlyReturnDouble: None,//todo impl
-        ForceEarlyReturnVoid: None,//todo impl
-        RedefineClasses: None,//todo impl
+        ForceEarlyReturnObject: None,//doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnInt: None,//doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnLong: None,//doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnFloat: None,//doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnDouble: None,//doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnVoid: None,//doesn't need impl not in currently supported capabilities
+        RedefineClasses: None,//doesn't need impl not in currently supported capabilities
         GetVersionNumber: Some(get_version_number),
         GetCapabilities: Some(get_capabilities),
-        GetSourceDebugExtension: None,//todo impl
+        GetSourceDebugExtension: None,//doesn't need impl not in currently supported capabilities
         IsMethodObsolete: Some(is_method_obsolete),
         SuspendThreadList: Some(suspend_thread_list),
         ResumeThreadList: Some(resume_thread_list),
@@ -179,7 +179,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         SetJNIFunctionTable: None,//todo impl
         GetJNIFunctionTable: None,//todo impl
         SetEventCallbacks: Some(set_event_callbacks),
-        GenerateEvents: None,//todo impl
+        GenerateEvents: None,//doesn't need impl not in currently supported capabilities
         GetExtensionFunctions: None,//todo impl
         GetExtensionEvents: None,//todo impl
         SetExtensionEventCallback: None,//todo impl
@@ -190,10 +190,10 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetSystemProperty: Some(get_system_property),
         SetSystemProperty: None,//todo impl
         GetPhase: None,//todo impl
-        GetCurrentThreadCpuTimerInfo: None,//todo impl
-        GetCurrentThreadCpuTime: None,//todo impl
-        GetThreadCpuTimerInfo: None,//todo impl
-        GetThreadCpuTime: None,//todo impl
+        GetCurrentThreadCpuTimerInfo: None,//doesn't need impl not in currently supported capabilities
+        GetCurrentThreadCpuTime: None,//doesn't need impl not in currently supported capabilities
+        GetThreadCpuTimerInfo: None,//doesn't need impl not in currently supported capabilities
+        GetThreadCpuTime: None,//doesn't need impl not in currently supported capabilities
         GetTimerInfo: None,//todo impl
         GetTime: None,//todo impl
         GetPotentialCapabilities: Some(get_potential_capabilities),
@@ -202,14 +202,14 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         RelinquishCapabilities: None,//todo impl
         GetAvailableProcessors: None,//todo impl
         GetClassVersionNumbers: None,//todo impl
-        GetConstantPool: None,//todo impl
+        GetConstantPool: None,//doesn't need impl not in currently supported capabilities
         GetEnvironmentLocalStorage: None,//todo impl
         SetEnvironmentLocalStorage: None,//todo impl
         AddToBootstrapClassLoaderSearch: None,//todo impl
         SetVerboseFlag: None,//todo impl
         AddToSystemClassLoaderSearch: None,//todo impl
-        RetransformClasses: None,//todo impl
-        GetOwnedMonitorStackDepthInfo: None,//todo impl
+        RetransformClasses: None,//doesn't need impl not in currently supported capabilities
+        GetOwnedMonitorStackDepthInfo: None,//doesn't need impl not in currently supported capabilities
         GetObjectSize: None,//todo impl
         GetLocalInstance: None,//todo impl
     }

@@ -78,14 +78,6 @@ unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &JVMState, int_st
     }
 }
 
-
-pub unsafe extern "C" fn interrupt_thread(env: *mut jvmtiEnv, _thread: jthread) -> jvmtiError {
-    let jvm = get_state(env);
-    let _tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
-    unimplemented!();
-    // jvm.tracing.trace_jdwp_function_exit(tracing_guard, suspend_thread(env, thread))//todo this is an ugly hack.
-}
-
 ///Suspend Thread
 ///
 ///     jvmtiError
