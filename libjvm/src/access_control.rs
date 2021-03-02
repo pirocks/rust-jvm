@@ -26,7 +26,6 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     int_state.push_current_operand_stack(JavaValue::Object(action));
     //todo shouldn't this be invoke_virtual
     invoke_virtual_method_i(jvm, int_state, expected_descriptor, runtime_class.clone(), run_method.method_i(), &run_method);
-    // int_state.print_stack_trace();
     if int_state.throw().is_some() {
         return null_mut();
     }
@@ -34,9 +33,18 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     new_local_ref_public(res, int_state)
 }
 
+///Java_java_security_AccessController_getInheritedAccessControlContext
+////**
+//      * Returns the "inherited" AccessControl context. This is the context
+//      * that existed when the thread was created. Package private so
+//      * AccessControlContext can use it.
+//      */
+/// aka this is the inheritedAccessControlContext field on thread object
 #[no_mangle]
 unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    new_local_ref_public(JavaValue::Object(jvm.thread_state.get_current_thread().thread_object().object().into()).cast_thread().get_inherited_access_control_context().object().into(), int_state)
 }
 
 #[no_mangle]

@@ -696,6 +696,10 @@ pub mod thread {
             res.cast_class_loader().into()
         }
 
+        pub fn get_inherited_access_control_context(&self) -> JThread {
+            self.normal_object.lookup_field("inheritedAccessControlContext").cast_thread()
+        }
+
         as_object_or_java_value!();
     }
 }
