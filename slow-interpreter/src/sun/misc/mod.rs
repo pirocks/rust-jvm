@@ -77,4 +77,37 @@ pub mod launcher {
 
         as_object_or_java_value!();
     }
+
+    pub mod ext_class_loader {
+        use std::sync::Arc;
+
+        use rust_jvm_common::classnames::ClassName;
+
+        use crate::class_loading::check_initing_or_inited_class;
+        use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+        use crate::interpreter_state::InterpreterStateGuard;
+        use crate::java_values::{JavaValue, Object};
+        use crate::jvm_state::JVMState;
+        use crate::sun::misc::launcher::Launcher;
+
+        pub struct ExtClassLoader {
+            normal_object: Arc<Object>
+        }
+
+        impl JavaValue {
+            pub fn cast_ext_class_launcher(&self) -> ExtClassLoader {
+                ExtClassLoader { normal_object: self.unwrap_object_nonnull() }
+            }
+        }
+
+        impl ExtClassLoader {
+            pub fn get_ext_class_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> ExtClassLoader {
+                let ext_class_loader = check_initing_or_inited_class(jvm, int_state, ClassName::new("sun/misc/Launcher$ExtClassLoader").into()).unwrap();//todo
+                run_static_or_virtual(jvm, int_state, &ext_class_loader, "getExtClassLoader".to_string(), "()Lsun/misc/Launcher;".to_string());
+                int_state.pop_current_operand_stack().cast_ext_class_launcher()
+            }
+
+            as_object_or_java_value!();
+        }
+    }
 }

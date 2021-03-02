@@ -175,5 +175,9 @@ impl StackEntry {
     pub fn loader(&self) -> LoaderName {
         self.loader
     }
+
+    pub fn privileged_frame(&self) -> bool {
+        todo!()
+    }
 }
 
