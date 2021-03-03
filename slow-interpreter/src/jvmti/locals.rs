@@ -43,7 +43,7 @@ use crate::stack_entry::StackEntry;
 /// Errors
 /// This function returns either a universal error or one of the following errors
 /// Error 	Description
-/// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_access_local_variables. Use AddCapabilities. //todo capabilities
+/// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_access_local_variables. Use AddCapabilities. //todo check capabilities added
 /// JVMTI_ERROR_INVALID_SLOT	Invalid slot.
 /// JVMTI_ERROR_TYPE_MISMATCH	The variable type is not Object or a subclass of Object.
 /// JVMTI_ERROR_OPAQUE_FRAME	Not a visible frame

@@ -47,6 +47,16 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv,
     new_local_ref_public(JavaValue::Object(jvm.thread_state.get_current_thread().thread_object().object().into()).cast_thread().get_inherited_access_control_context().object().into(), int_state)
 }
 
+
+///  /**
+//      * Returns the AccessControl context. i.e., it gets
+//      * the protection domains of all the callers on the stack,
+//      * starting at the first class with a non-null
+//      * ProtectionDomain.
+//      *
+//      * @return the access control context based on the current stack or
+//      *         null if there was only privileged system code.
+//      */
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     //todo this is obscure java stuff that isn't supported atm.

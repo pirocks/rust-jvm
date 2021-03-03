@@ -25,6 +25,7 @@ use crate::jvmti::threads::*;
 use crate::jvmti::threads::suspend_resume::*;
 use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
+use crate::rust_jni::interface::local_frame::new_local_ref_public;
 
 pub mod event_callbacks;
 
@@ -74,7 +75,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetThreadGroupChildren: None, //doesn't need impl not in currently supported capabilities
         GetFrameCount: Some(get_frame_count),
         GetThreadState: Some(get_thread_state),
-        GetCurrentThread: None,//todo impl
+        GetCurrentThread: Some(get_current_thread),
         GetFrameLocation: Some(get_frame_location),
         NotifyFramePop: None,//todo impl
         GetLocalObject: Some(get_local_object),
@@ -213,6 +214,42 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetObjectSize: None,//todo impl
         GetLocalInstance: None,//todo impl
     }
+}
+
+///Get Current Thread
+//
+//     jvmtiError
+//     GetCurrentThread(jvmtiEnv* env,
+//                 jthread* thread_ptr)
+//
+// Get the current thread. The current thread is the Java programming language thread which has called the function.
+//
+// Note that most JVM TI functions that take a thread as an argument will accept NULL to mean the current thread.
+//
+// Phase	Callback Safe	Position	Since
+// may only be called during the start or the live phase 	No 	18	1.1
+//
+// Capabilities
+// Required Functionality
+//
+// Parameters
+// Name 	Type 	Description
+// thread_ptr	jthread*	On return, points to the current thread.
+//
+// Agent passes a pointer to a jthread. On return, the jthread has been set. The object returned by thread_ptr is a JNI local reference and must be managed.
+//
+// Errors
+// This function returns either a universal error or one of the following errors
+// Error 	Description
+// JVMTI_ERROR_NULL_POINTER	thread_ptr is NULL.
+unsafe extern "C" fn get_current_thread(env: *mut jvmtiEnv, thread_ptr: *mut jthread) -> jvmtiError {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    if thread_ptr.is_null() {
+        return jvmtiError_JVMTI_ERROR_NULL_POINTER;
+    }
+    thread_ptr.write(new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().into(), int_state));
+    jvmtiError_JVMTI_ERROR_NONE
 }
 
 
