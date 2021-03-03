@@ -170,14 +170,14 @@ unsafe fn call_non_virtual(env: *mut JNIEnv, obj: jobject, _clazz: jclass, metho
     let (rc, i, method_desc) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
         None => todo!(),
         Some((rc, i)) => {
-            (rc, i, rc.clone().view().method_view_i(i as usize).desc())
+            (rc.clone(), i, rc.clone().view().method_view_i(i as usize).desc())
         }
     };
     int_state.push_current_operand_stack(JavaValue::Object(from_object(obj)));
-    push_params_onto_frame(&mut vararg_provider, int_state, &parsed);
+    push_params_onto_frame(&mut vararg_provider, int_state, &method_desc);
     invoke_special_impl(jvm, int_state, &method_desc, i as usize, rc);
     if !is_void {
-        int_state.pop_current_operand_stack()
+        int_state.pop_current_operand_stack();
     }
     JavaValue::Top
 }

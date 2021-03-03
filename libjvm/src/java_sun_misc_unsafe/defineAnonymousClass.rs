@@ -24,7 +24,7 @@ use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::{ClassStatus, JVMState};
 use slow_interpreter::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
-use slow_interpreter::rust_jni::interface::{define_class, define_class_safe};
+use slow_interpreter::rust_jni::interface::define_class_safe;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use verification::{VerifierContext, verify};

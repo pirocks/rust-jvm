@@ -23,7 +23,8 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject) -> jint {
     let jvm = get_state(env);
-    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    let runtimec_lass = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = runtimec_lass.view();
     view.constant_pool_size() as i32
 }
 
@@ -31,7 +32,8 @@ unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, constantPool
 unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => {
             match get_or_create_class_object(jvm, PTypeView::Ref(c.class_name()), int_state) {
@@ -77,7 +79,8 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
 unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jint {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Integer(int_) => int_.int,
         _ => todo!("unclear what to do here")
@@ -88,7 +91,8 @@ unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoo
 unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jlong {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Long(long_) => long_.long,
         _ => todo!("unclear what to do here")//should throw illregal arg exception
@@ -99,7 +103,8 @@ unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPo
 unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jfloat {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
     //todo bounds check
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Float(float_) => float_.float,
@@ -111,7 +116,8 @@ unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantP
 unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jdouble {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Double(double_) => double_.double,
         _ => todo!("unclear what to do here")
@@ -122,7 +128,8 @@ unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constant
 unsafe extern "system" fn JVM_ConstantPoolGetStringAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::String(string) => to_object(JString::from_rust(jvm, int_state, string.string()).object().into()),
         _ => todo!("unclear what to do here")
@@ -133,7 +140,8 @@ unsafe extern "system" fn JVM_ConstantPoolGetStringAt(env: *mut JNIEnv, constant
 unsafe extern "system" fn JVM_ConstantPoolGetUTF8At(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let view = from_jclass(constantPoolOop).as_runtime_class(jvm).view();
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Utf8(utf8) => to_object(JString::from_rust(jvm, int_state, utf8.str.clone()).object().into()),
         _ => todo!("unclear what to do here")

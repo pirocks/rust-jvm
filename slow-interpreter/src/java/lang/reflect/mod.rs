@@ -427,7 +427,7 @@ pub mod constant_pool {
 
 
         pub fn set_constant_pool_oop(&self, jclass: JClass) {
-            *self.normal_object.unwrap_normal_object().fields_mut()["constantPoolOop"] = jclass.java_value();
+            self.normal_object.unwrap_normal_object().fields_mut().insert("constantPoolOop".to_string(), jclass.java_value());
         }
 
         as_object_or_java_value!();

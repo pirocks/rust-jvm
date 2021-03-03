@@ -68,5 +68,5 @@ pub fn run_constructor(
     for arg in actual_args {
         int_state.push_current_operand_stack(arg.clone());
     }
-    invoke_special_impl(state, int_state, &md, method_view.method_i(), target_classfile.clone(), &method_view);
+    invoke_special_impl(state, int_state, &md, method_view.method_i(), target_classfile.clone());
 }

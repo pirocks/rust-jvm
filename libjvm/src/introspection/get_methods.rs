@@ -50,7 +50,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
             method_view.is_public()
         } else {
             let name = method_view.name();
-            name == "<clinit>" || name == "<init>"
+            name != "<clinit>" && name != "<init>"
         }
     }).for_each(|(c, i)| {
         let method_view = c.view().method_view_i(i);
@@ -90,7 +90,7 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &JVMState, int_state: &mut Interpr
             true
         }
     }).for_each(|m| {
-        let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, class_obj, &m);
+        let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m);
         object_array.push(constructor.java_value())
     });
     let res = Arc::new(Object::object_array(jvm, int_state, object_array, ClassName::constructor().into())).into();

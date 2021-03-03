@@ -4,25 +4,22 @@ use std::ffi::{c_void, CStr};
 use std::fs::File;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
-use std::ptr::{null, null_mut};
-use std::str::Utf8Error;
+use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
 
 use by_address::ByAddress;
 
-use classfile_parser::code::InstructionTypeNum::ladd;
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
-use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue, JVM_Available, JVM_GetLastErrorString};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classfile::InstructionInfo::monitorenter;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::ptype::PType;
+use rust_jvm_common::ptype::{PType, ReferenceType};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::create_class_object;
@@ -402,7 +399,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
     *is_copy = u8::from(true);
     let string: JString = JavaValue::Object(from_object(str)).cast_string();
     let char_vec = string.value();
-    let mut res = null();
+    let mut res = null_mut();
     jvm.native_interface_allocations.allocate_and_write_vec(char_vec, null_mut(), &mut res as *mut *mut jchar);
     res
 }
@@ -489,9 +486,10 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, cls: jclass, methodID
 //
 // env: the JNI interface pointer.
 unsafe extern "C" fn exception_describe(env: *mut JNIEnv) {
+    let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     if let Some(throwing) = int_state.throw() {
-        JavaValue::Object(throwing.into()).cast_throwable().print_stack_trace(jvm, int_state)
+        JavaValue::Object(throwing.into()).cast_throwable().print_stack_trace(jvm, int_state);
     }
     int_state.set_throw(None);
 }
@@ -554,10 +552,10 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
         let int_state = get_interpreter_state(env);
         let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
         let class_view = runtime_class.view();
-        let desc = MethodDescriptor { parameter_types: vec![ClassName::string().into()], return_type: PType::VoidType };
+        let desc = MethodDescriptor { parameter_types: vec![PType::Ref(ReferenceType::Class(ClassName::string()))], return_type: PType::VoidType };
         let constructor_method_id = match class_view.lookup_method("<init>", &desc) {
             None => return -1,
-            Some(constructor) => jvm.method_table.write().unwrap().get_method_id(runtime_class, constructor.method_i() as u16)
+            Some(constructor) => jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), constructor.method_i() as u16)
         };
         let rust_string = match CStr::from_ptr(msg).to_str() {
             Ok(string) => string,
@@ -566,8 +564,9 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
         let java_string = JString::from_rust(jvm, int_state, rust_string);
         (constructor_method_id, to_object(java_string.object().into()))
     };
-    let new_object = env.NewObjectA.as_ref().unwrap();
-    let obj = new_object(env, clazz, transmute(constructor_method_id), &java_string_object as *const jvalue);
+    let new_object = (**env).NewObjectA.as_ref().unwrap();
+    let mut jvalue_ = jvalue { l: java_string_object };
+    let obj = new_object(env, clazz, transmute(constructor_method_id), &jvalue_ as *const jvalue);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     int_state.set_throw(match from_object(obj) {
@@ -625,10 +624,10 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
     let runtime_class = method_obj.get_clazz().as_runtime_class(jvm);
     let param_types = method_obj.parameter_types().iter().map(|param| param.as_runtime_class(jvm).ptypeview()).collect::<Vec<_>>();
     let name = method_obj.get_name().to_rust_string();
-    runtime_class.view().lookup_method_name(&name).iter().find(|candiate_method| {
-        candiate_method.desc().parameter_types == param_types
-    }).map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class, method.method_i() as u16) as jmethodID)
-        .unwrap_or(transmute(-1))
+    runtime_class.clone().view().lookup_method_name(&name).iter().find(|candiate_method| {
+        candiate_method.desc().parameter_types == param_types.iter().map(|from| from.to_ptype()).collect::<Vec<_>>()
+    }).map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16) as jmethodID)
+        .unwrap_or(transmute(-1isize))
 }
 
 unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> jfieldID {
@@ -639,7 +638,7 @@ unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> 
     runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name)
         .map(|field| field.field_i())
         .map(|field_i| jvm.field_table.write().unwrap().get_field_id(runtime_class, field_i as u16) as jfieldID)
-        .unwrap_or(transmute(-1))
+        .unwrap_or(transmute(-1isize))
 }
 
 
@@ -670,7 +669,7 @@ pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into())
 }
 
-unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
+pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let _name_string = CStr::from_ptr(name).to_str().unwrap();//todo unused?

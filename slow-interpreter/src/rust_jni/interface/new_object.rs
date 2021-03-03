@@ -23,8 +23,8 @@ pub unsafe extern "C" fn new_object(env: *mut JNIEnv, _clazz: jclass, jmethod_id
     new_object_impl(env, _clazz, jmethod_id, VarargProvider::Dots(&mut l))
 }
 
-pub unsafe extern "C" fn new_object_a(env: *mut JNIEnv, clazz: jclass, methodID: jmethodID, args: *const jvalue) -> jobject {
-    new_object_impl(env, _clazz, jmethod_id, VarargProvider::Array(args))
+pub unsafe extern "C" fn new_object_a(env: *mut JNIEnv, clazz: jclass, method_id: jmethodID, args: *const jvalue) -> jobject {
+    new_object_impl(env, clazz, method_id, VarargProvider::Array(args))
 }
 
 pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut l: VarargProvider) -> jobject {
@@ -48,7 +48,6 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
         &parsed,
         method_i as usize,
         class.clone(),
-        &classview.method_view_i(method_i as usize),
     );
     new_local_ref_public(obj.unwrap_object(), int_state)
 }

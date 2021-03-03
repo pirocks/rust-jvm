@@ -17,6 +17,7 @@ use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::runtime_class::RuntimeClass;
+use slow_interpreter::rust_jni::interface::field_object_from_view;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::STRING_INTERNMENT;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
@@ -34,9 +35,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut object_array = vec![];
-    class_obj.view().fields().for_each(|f| {
+    class_obj.clone().view().fields().for_each(|f| {
         //todo so this is big and messy put I don't really see a way to simplify
-        let field_object = field_object_from_view(jvm, int_state, class_obj, f);
+        let field_object = field_object_from_view(jvm, int_state, class_obj.clone(), f);
 
         object_array.push(field_object)
     });
