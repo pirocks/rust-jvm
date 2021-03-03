@@ -493,6 +493,10 @@ impl JavaThread {
             Ok(())
         }
     }
+
+    pub fn is_this_thread(&self) -> bool {
+        unsafe { self.underlying_thread.is_this_thread() }
+    }
 }
 
 pub enum SuspendError {

@@ -4,6 +4,8 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::*;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::interpreter_state::AddFrameNotifyError;
+use crate::java_values::JavaValue;
 use crate::jvmti::agent::*;
 use crate::jvmti::allocate::*;
 use crate::jvmti::breakpoint::*;
@@ -26,6 +28,7 @@ use crate::jvmti::threads::suspend_resume::*;
 use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::native_util::from_object;
 
 pub mod event_callbacks;
 
@@ -77,7 +80,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetThreadState: Some(get_thread_state),
         GetCurrentThread: Some(get_current_thread),
         GetFrameLocation: Some(get_frame_location),
-        NotifyFramePop: None,//todo impl
+        NotifyFramePop: Some(notify_frame_pop),
         GetLocalObject: Some(get_local_object),
         GetLocalInt: Some(get_local_int),
         GetLocalLong: Some(get_local_long),
@@ -216,6 +219,73 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
+///Notify Frame Pop
+//
+//     jvmtiError
+//     NotifyFramePop(jvmtiEnv* env,
+//                 jthread thread,
+//                 jint depth)
+//
+// When the frame that is currently at depth is popped from the stack, generate a FramePop event. See the FramePop event for details. Only frames corresponding to non-native Java programming language methods can receive notification.
+//
+// The specified thread must either be the current thread or the thread must be suspended.
+//
+// Phase	Callback Safe	Position	Since
+// may only be called during the live phase 	No 	20	1.0
+//
+// Capabilities
+// Optional Functionality: might not be implemented for all virtual machines. The following capability (as returned by GetCapabilities) must be true to use this function.
+// Capability 	Effect
+// can_generate_frame_pop_events	Can set and thus get FramePop events
+//
+// Parameters
+// Name 	Type 	Description
+// thread	jthread	The thread of the frame for which the frame pop event will be generated. If thread is NULL, the current thread is used.
+// depth	jint	The depth of the frame for which the frame pop event will be generated.
+//
+// Errors
+// This function returns either a universal error or one of the following errors
+// Error 	Description
+// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_generate_frame_pop_events. Use AddCapabilities.
+// JVMTI_ERROR_OPAQUE_FRAME	The frame at depth is executing a native method.
+// JVMTI_ERROR_THREAD_NOT_SUSPENDED	Thread was not suspended and was not the current thread.
+// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
+// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
+// JVMTI_ERROR_ILLEGAL_ARGUMENT	depth is less than zero.
+// JVMTI_ERROR_NO_MORE_FRAMES	There are no stack frames at the specified depth.
+
+unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth: jint) -> jvmtiError {
+    let jvm = get_state(env);
+    //todo check capability
+    let java_thread = get_thread_or_error!(thread_object_raw).get_java_thread(jvm);
+    let action = |int_state: &mut InterpreterStateGuard| {
+        //todo check thread opaque
+        match int_state.add_should_frame_pop_notify(depth as usize) {
+            Ok(_) => jvmtiError_JVMTI_ERROR_NONE,
+            Err(err) => match err {
+                AddFrameNotifyError::Opaque => jvmtiError_JVMTI_ERROR_OPAQUE_FRAME,
+                AddFrameNotifyError::NothingAtDepth => jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
+            }
+        }
+    };
+
+    if java_thread.is_this_thread() {
+        action(get_interpreter_state(env))
+    } else {
+        if !*java_thread.suspended.suspended.lock().unwrap() {
+            return jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED;
+        }
+        //todo check thread suspended
+        let mut int_state_not_ref = InterpreterStateGuard {
+            int_state: Some(java_thread.interpreter_state.write().unwrap()),
+            thread: &java_thread,
+            registered: false,
+        };
+        action(&mut int_state_not_ref)
+    }
+}
+
+
 ///Get Current Thread
 //
 //     jvmtiError
@@ -245,9 +315,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
 unsafe extern "C" fn get_current_thread(env: *mut jvmtiEnv, thread_ptr: *mut jthread) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    if thread_ptr.is_null() {
-        return jvmtiError_JVMTI_ERROR_NULL_POINTER;
-    }
+    null_check!(thread_ptr);
     thread_ptr.write(new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().into(), int_state));
     jvmtiError_JVMTI_ERROR_NONE
 }

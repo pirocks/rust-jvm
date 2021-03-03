@@ -4,14 +4,11 @@ pub mod invoke;
 pub mod throwable {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
-    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+    use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 

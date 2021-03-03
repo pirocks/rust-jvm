@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::mem::transmute;
 use std::sync::{Arc, RwLockWriteGuard};
 
@@ -6,6 +7,7 @@ use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::classfile::CPIndex;
 
+use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntry;
@@ -18,6 +20,7 @@ pub struct InterpreterState {
     pub function_return: bool,
     //todo find some way of clarifying these can only be acessed from one thread
     pub(crate) call_stack: Vec<StackEntry>,
+    pub(crate) should_frame_pop_notify: HashSet<usize>
 }
 
 impl Default for InterpreterState {
@@ -31,6 +34,7 @@ impl Default for InterpreterState {
             suspended_lock: Arc::new(Mutex::new(())),
         }),*/
             call_stack: vec![],
+            should_frame_pop_notify: HashSet::new()
         }
     }
 }
@@ -165,7 +169,13 @@ impl<'l> InterpreterStateGuard<'l> {
 
     pub fn pop_frame(&mut self, mut frame_push_guard: FramePushGuard) {
         frame_push_guard.correctly_exited = true;
-        self.int_state.as_mut().unwrap().call_stack.pop();
+        let int_state = self.int_state.as_mut().unwrap();
+        let depth = int_state.call_stack.len();
+        if int_state.should_frame_pop_notify.contains(&depth) {
+            //todo need jvm pointer here
+            todo!()
+        }
+        int_state.call_stack.pop();
         assert!(self.thread.is_alive());
     }
 
@@ -214,7 +224,30 @@ impl<'l> InterpreterStateGuard<'l> {
     pub fn cloned_stack_snapshot(&self) -> Vec<StackEntry> {
         self.int_state.as_ref().unwrap().call_stack.clone()
     }
+
+    pub fn depth(&self) -> usize {
+        self.int_state.as_ref().unwrap().call_stack.len()
+    }
+
+    pub fn add_should_frame_pop_notify(&mut self, depth: usize) -> Result<(), AddFrameNotifyError> {
+        let int_state = self.int_state.as_mut().unwrap();
+        if depth >= int_state.call_stack.len() {
+            return Err(NothingAtDepth);
+        }
+        let entry = &int_state.call_stack[depth];
+        if entry.is_native() || entry.try_class_pointer().is_none() {
+            return Err(Opaque)
+        }
+        int_state.should_frame_pop_notify.insert(depth);
+        Ok(())
+    }
 }
+
+pub enum AddFrameNotifyError {
+    Opaque,
+    NothingAtDepth,
+}
+
 
 #[must_use = "Must handle frame push guard. "]
 pub struct FramePushGuard {

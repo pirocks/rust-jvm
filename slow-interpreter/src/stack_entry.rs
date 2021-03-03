@@ -179,5 +179,9 @@ impl StackEntry {
     pub fn privileged_frame(&self) -> bool {
         todo!()
     }
+
+    pub fn is_opaque_frame(&self) -> bool {
+        self.try_class_pointer().is_none() || self.try_method_i().is_none() || self.is_native()
+    }
 }
 
