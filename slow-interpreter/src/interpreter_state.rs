@@ -167,15 +167,16 @@ impl<'l> InterpreterStateGuard<'l> {
         FramePushGuard::default()
     }
 
-    pub fn pop_frame(&mut self, mut frame_push_guard: FramePushGuard) {
+    pub fn pop_frame(&mut self, jvm: &JVMState, mut frame_push_guard: FramePushGuard, was_exception: bool) {
         frame_push_guard.correctly_exited = true;
-        let int_state = self.int_state.as_mut().unwrap();
-        let depth = int_state.call_stack.len();
-        if int_state.should_frame_pop_notify.contains(&depth) {
-            //todo need jvm pointer here
-            todo!()
+        let depth = self.int_state.as_mut().unwrap().call_stack.len();
+        if self.int_state.as_mut().unwrap().should_frame_pop_notify.contains(&depth) {
+            let runtime_class = self.current_frame().class_pointer();
+            let method_i = self.current_method_i();
+            let method_id = jvm.method_table.read().unwrap().get_method_id(runtime_class.clone(), method_i);
+            jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.frame_pop(jvm, method_id, u8::from(was_exception), self)
         }
-        int_state.call_stack.pop();
+        self.int_state.as_mut().unwrap().call_stack.pop();
         assert!(self.thread.is_alive());
     }
 

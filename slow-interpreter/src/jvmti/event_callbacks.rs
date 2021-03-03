@@ -47,12 +47,11 @@ pub struct SharedLibJVMTI {
     class_prepare_callback: RwLock<jvmtiEventClassPrepare>,
     garbage_collection_finish_callback: RwLock<jvmtiEventGarbageCollectionFinish>,
     breakpoint_callback: RwLock<jvmtiEventBreakpoint>,
+    frame_pop_callback: RwLock<jvmtiEventFramePop>,
 
     class_load_callback: RwLock<jvmtiEventClassLoad>,
-
     exception_catch_callback: RwLock<jvmtiEventExceptionCatch>,
     single_step_callback: RwLock<jvmtiEventSingleStep>,
-    frame_pop_callback: RwLock<jvmtiEventFramePop>,
     field_access_callback: RwLock<jvmtiEventFieldAccess>,
     field_modification_callback: RwLock<jvmtiEventFieldModification>,
     method_entry_callback: RwLock<jvmtiEventMethodEntry>,
@@ -70,6 +69,7 @@ pub struct ThreadJVMTIEnabledStatus {
     class_prepare_enabled: bool,
     garbage_collection_finish_enabled: bool,
     breakpoint_enabled: bool,
+    frame_pop_enabled: bool,
 }
 
 impl Default for ThreadJVMTIEnabledStatus {
@@ -80,6 +80,7 @@ impl Default for ThreadJVMTIEnabledStatus {
             class_prepare_enabled: false,
             garbage_collection_finish_enabled: false,
             breakpoint_enabled: false,
+            frame_pop_enabled: false
         }
     }
 }
@@ -110,6 +111,13 @@ pub struct BreakpointEvent {
 }
 
 #[derive(Clone)]
+pub struct FramePopEvent {
+    thread: jthread,
+    method: jmethodID,
+    was_popped_by_exception: jboolean,
+}
+
+#[derive(Clone)]
 pub struct ClassPrepareEvent {
     thread: jthread,
     klass: jclass,
@@ -126,22 +134,6 @@ pub struct ExceptionEvent {
 }
 
 impl SharedLibJVMTI {
-    /*fn trigger_event_all_threads(jvm: &JVMState, jvmti_event: &JVMTIEvent) {
-        jvm.thread_state.alive_threads.read().unwrap().values().for_each(|t| {
-            jvm.trigger_jvmti_event(t, jvmti_event.clone())
-        })
-    }*/
-
-    /* fn trigger_event_threads(jvm: &JVMState, threads: &HashMap<JavaThreadId, bool>, jvmti_event: &dyn Fn() -> JVMTIEvent) {
-         threads.iter().for_each(|(tid, enabled)| {
-             if *enabled {
-                 let read_guard = jvm.thread_state.alive_threads.read().unwrap();
-                 let t = read_guard.get(tid).unwrap();
-                 jvm.trigger_jvmti_event(t, jvmti_event())
-             }
-         });
-     }*/
-
     pub fn vm_inited(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, main_thread: Arc<JavaThread>) {
         if *self.vm_init_enabled.read().unwrap() {
             unsafe {
@@ -152,7 +144,7 @@ impl SharedLibJVMTI {
                 };
                 self.VMInit(jvm, int_state, event);
                 assert!(self.thread_start_callback.read().unwrap().is_some());
-                int_state.pop_frame(frame_for_event);
+                int_state.pop_frame(jvm, frame_for_event);
             }
         }
     }
@@ -167,7 +159,7 @@ impl SharedLibJVMTI {
                 let event = ThreadStartEvent { thread };
                 self.ThreadStart(jvm, int_state, event);
             }
-            int_state.pop_frame(event_handling_frame);
+            int_state.pop_frame(jvm, event_handling_frame);
         }
     }
 
@@ -188,7 +180,7 @@ impl SharedLibJVMTI {
                 let klass = to_object(klass_obj.into());
                 let event = ClassPrepareEvent { thread, klass };
                 self.ClassPrepare(jvm, int_state, event);
-                int_state.pop_frame(frame_for_event);
+                int_state.pop_frame(jvm, frame_for_event);
             }
         }
     }
@@ -204,7 +196,23 @@ impl SharedLibJVMTI {
                     method,
                     location,
                 });
-                int_state.pop_frame(frame_for_event);//todo really need some kind of guard for these
+                int_state.pop_frame(jvm, frame_for_event);
+            }
+        }
+    }
+
+    pub fn frame_pop(&self, jvm: &JVMState, method: MethodId, was_popped_by_exception: jboolean, int_state: &mut InterpreterStateGuard) {
+        if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
+            unsafe {
+                let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
+                let thread = new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().into(), int_state);
+                let method = transmute(method);
+                self.FramePop(jvm, int_state, FramePopEvent {
+                    thread,
+                    method,
+                    was_popped_by_exception,
+                });
+                int_state.pop_frame(jvm, frame_for_event);
             }
         }
     }
@@ -252,6 +260,11 @@ pub trait DebuggerEventConsumer {
     unsafe fn Breakpoint(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, event: BreakpointEvent);
     fn Breakpoint_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>);
     fn Breakpoint_disable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>);
+
+
+    unsafe fn FramePop(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, event: FramePopEvent);
+    fn FramePop_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>);
+    fn FramePop_disable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>);
 }
 
 #[allow(non_snake_case)]
@@ -359,7 +372,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let ClassPrepareEvent { thread, klass } = event;
         let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
-        int_state.pop_frame(frame_for_event);
+        int_state.pop_frame(jvm, frame_for_event);
     }
 
     fn ClassPrepare_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {
@@ -405,7 +418,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let guard = self.breakpoint_callback.read().unwrap();
         let func_pointer = guard.as_ref().unwrap();
         (func_pointer)(jvmti_env, jni_env, thread, method, location);
-        int_state.pop_frame(frame_for_event);
+        int_state.pop_frame(jvm, frame_for_event);
     }
 
     fn Breakpoint_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {
@@ -416,6 +429,34 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     }
 
     fn Breakpoint_disable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {
+        let disabler = |jvmti_event_status: &mut ThreadJVMTIEnabledStatus| {
+            jvmti_event_status.breakpoint_enabled = false;
+        };
+        SharedLibJVMTI::disable_impl(jvm, tid, &disabler, "Breakpoint")
+    }
+
+
+    unsafe fn FramePop(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, event: FramePopEvent) {
+        jvm.tracing.trace_event_trigger("FramePop");
+        //todo dup with above
+        let jvmti_env = get_jvmti_interface(jvm, int_state);
+        let jni_env = get_interface(jvm, int_state);
+        let FramePopEvent { thread, method, was_popped_by_exception } = event;
+        let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
+        let guard = self.frame_pop_callback.read().unwrap();
+        let func_pointer = guard.as_ref().unwrap();
+        (func_pointer)(jvmti_env, jni_env, thread, method, was_popped_by_exception);
+        int_state.pop_frame(jvm, frame_for_event);
+    }
+
+    fn FramePop_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {
+        let enabler = |jvmti_event_status: &mut ThreadJVMTIEnabledStatus| {
+            jvmti_event_status.breakpoint_enabled = true;
+        };
+        SharedLibJVMTI::enable_impl(jvm, tid, &enabler, "Breakpoint")
+    }
+
+    fn FramePop_disable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {
         let disabler = |jvmti_event_status: &mut ThreadJVMTIEnabledStatus| {
             jvmti_event_status.breakpoint_enabled = false;
         };
