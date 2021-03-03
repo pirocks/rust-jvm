@@ -118,7 +118,9 @@ pub fn run_native_method(
     }
         ;
     if let Some(m) = monitor.as_ref() { m.unlock(jvm) }
-    int_state.pop_frame(native_call_frame);
+    let was_exception = int_state.throw().is_some();
+    int_state.pop_frame(jvm, native_call_frame, was_exception);
+    //todo need to check excpetion here
     match result {
         None => {}
         Some(res) => {

@@ -144,7 +144,7 @@ impl SharedLibJVMTI {
                 };
                 self.VMInit(jvm, int_state, event);
                 assert!(self.thread_start_callback.read().unwrap().is_some());
-                int_state.pop_frame(jvm, frame_for_event);
+                int_state.pop_frame(jvm, frame_for_event, false);//todo check for pending excpetion anyway
             }
         }
     }
@@ -159,7 +159,7 @@ impl SharedLibJVMTI {
                 let event = ThreadStartEvent { thread };
                 self.ThreadStart(jvm, int_state, event);
             }
-            int_state.pop_frame(jvm, event_handling_frame);
+            int_state.pop_frame(jvm, event_handling_frame, false);//todo check for pending excpetion anyway
         }
     }
 
@@ -180,7 +180,7 @@ impl SharedLibJVMTI {
                 let klass = to_object(klass_obj.into());
                 let event = ClassPrepareEvent { thread, klass };
                 self.ClassPrepare(jvm, int_state, event);
-                int_state.pop_frame(jvm, frame_for_event);
+                int_state.pop_frame(jvm, frame_for_event, false);//todo check for pending excpetion anyway
             }
         }
     }
@@ -196,7 +196,7 @@ impl SharedLibJVMTI {
                     method,
                     location,
                 });
-                int_state.pop_frame(jvm, frame_for_event);
+                int_state.pop_frame(jvm, frame_for_event, false);//todo check for pending excpetion anyway
             }
         }
     }
@@ -212,7 +212,7 @@ impl SharedLibJVMTI {
                     method,
                     was_popped_by_exception,
                 });
-                int_state.pop_frame(jvm, frame_for_event);
+                int_state.pop_frame(jvm, frame_for_event, false);//todo check for pending excpetion anyway
             }
         }
     }
@@ -279,7 +279,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         std::mem::drop(guard);
         let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         f_pointer(jvmti, jni, thread);
-        int_state.pop_frame(frame_for_event);
+        int_state.pop_frame(jvm, frame_for_event, false);//todo check for excpet anyway
     }
 
     fn VMInit_enable(&self, trace: &TracingSettings) {
@@ -315,7 +315,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         if let Some(callback) = self.thread_start_callback.read().unwrap().as_ref() {
             callback(jvmti_env, jni_env, thread)
         }
-        int_state.pop_frame(frame_for_event);
+        int_state.pop_frame(jvm, frame_for_event, false);//todo check for excpet anyway
     }
 
     fn ThreadStart_enable(&self, trace: &TracingSettings) {
@@ -333,7 +333,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let ExceptionEvent { thread, method, location, exception, catch_method, catch_location } = event;
         let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         (self.exception_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, method, location, exception, catch_method, catch_location);
-        int_state.pop_frame(frame_for_event);
+        int_state.pop_frame(jvm, frame_for_event, false);//todo check for excpet anyway
     }
 
     fn Exception_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {
@@ -372,7 +372,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let ClassPrepareEvent { thread, klass } = event;
         let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
-        int_state.pop_frame(jvm, frame_for_event);
+        int_state.pop_frame(jvm, frame_for_event, false);//todo check for pending excpetion anyway
     }
 
     fn ClassPrepare_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {
@@ -418,7 +418,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let guard = self.breakpoint_callback.read().unwrap();
         let func_pointer = guard.as_ref().unwrap();
         (func_pointer)(jvmti_env, jni_env, thread, method, location);
-        int_state.pop_frame(jvm, frame_for_event);
+        int_state.pop_frame(jvm, frame_for_event, false);//todo check for pending excpetion anyway
     }
 
     fn Breakpoint_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {
@@ -446,7 +446,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         let guard = self.frame_pop_callback.read().unwrap();
         let func_pointer = guard.as_ref().unwrap();
         (func_pointer)(jvmti_env, jni_env, thread, method, was_popped_by_exception);
-        int_state.pop_frame(jvm, frame_for_event);
+        int_state.pop_frame(jvm, frame_for_event, false);//todo check for pending exception anyway
     }
 
     fn FramePop_enable(&self, jvm: &JVMState, tid: Option<Arc<JavaThread>>) {

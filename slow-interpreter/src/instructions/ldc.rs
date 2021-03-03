@@ -61,7 +61,8 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
     let function_call_frame = interpreter_state.push_frame(next_entry);
     run_function(jvm, interpreter_state);
-    interpreter_state.pop_frame(function_call_frame);
+    let was_exception = interpreter_state.throw().is_some();
+    interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
     if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
         unimplemented!()
     }
@@ -69,9 +70,6 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     if *function_return {
         *function_return = false;
     }
-    // let interned = unsafe {
-    //     from_object(intern_impl(new_local_ref_public(, interpreter_state)))
-    // };
     interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
 }
 

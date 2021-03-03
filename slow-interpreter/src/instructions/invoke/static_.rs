@@ -85,7 +85,8 @@ pub fn invoke_static_impl(
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let function_call_frame = interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
-        interpreter_state.pop_frame(function_call_frame);
+        let was_exception = interpreter_state.throw().is_some();
+        interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
         if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
             return;
         }

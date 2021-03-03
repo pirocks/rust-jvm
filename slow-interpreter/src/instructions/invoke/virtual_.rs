@@ -73,7 +73,8 @@ fn invoke_virtual_method_i_impl(
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let frame_for_function = interpreter_state.push_frame(next_entry);
         run_function(jvm, interpreter_state);
-        interpreter_state.pop_frame(frame_for_function);
+        let was_exception = interpreter_state.throw().is_some();
+        interpreter_state.pop_frame(jvm, frame_for_function, was_exception);
         if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
             return;
         }

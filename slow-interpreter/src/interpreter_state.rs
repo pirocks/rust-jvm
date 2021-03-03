@@ -173,7 +173,7 @@ impl<'l> InterpreterStateGuard<'l> {
         if self.int_state.as_mut().unwrap().should_frame_pop_notify.contains(&depth) {
             let runtime_class = self.current_frame().class_pointer();
             let method_i = self.current_method_i();
-            let method_id = jvm.method_table.read().unwrap().get_method_id(runtime_class.clone(), method_i);
+            let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
             jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.frame_pop(jvm, method_id, u8::from(was_exception), self)
         }
         self.int_state.as_mut().unwrap().call_stack.pop();

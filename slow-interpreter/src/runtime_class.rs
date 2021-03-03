@@ -217,7 +217,8 @@ pub fn initialize_class(
     //todo these java frames may have to be converted to native?
     let new_function_frame = interpreter_state.push_frame(new_stack);
     run_function(jvm, interpreter_state);
-    interpreter_state.pop_frame(new_function_frame);
+    let was_exception = interpreter_state.throw().is_some();
+    interpreter_state.pop_frame(jvm, new_function_frame, was_exception);
     if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
         interpreter_state.debug_print_stack_trace();
         return None;

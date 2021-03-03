@@ -4,6 +4,7 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::*;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::get_thread_or_error;
 use crate::interpreter_state::AddFrameNotifyError;
 use crate::java_values::JavaValue;
 use crate::jvmti::agent::*;
@@ -257,7 +258,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
 unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth: jint) -> jvmtiError {
     let jvm = get_state(env);
     //todo check capability
-    let java_thread = get_thread_or_error!(thread_object_raw).get_java_thread(jvm);
+    let java_thread = get_thread_or_error!(thread).get_java_thread(jvm);
     let action = |int_state: &mut InterpreterStateGuard| {
         //todo check thread opaque
         match int_state.add_should_frame_pop_notify(depth as usize) {

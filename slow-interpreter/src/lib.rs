@@ -92,7 +92,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
         int_state.debug_print_stack_trace();
         unimplemented!()
     }
-    int_state.pop_frame(main_frame_guard);
+    int_state.pop_frame(jvm, main_frame_guard, false);
     sleep(Duration::new(100, 0));//todo need to wait for other threads or something
     Result::Ok(())
     // }
@@ -128,7 +128,8 @@ fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         let value = JString::from_rust(jvm, int_state, properties[value_i].clone());
         prop_obj.set_property(jvm, int_state, key, value);
     }
-    int_state.pop_frame(frame_for_properties);
+    //todo need to check exception, though I guess its meant to be impossible here
+    int_state.pop_frame(jvm, frame_for_properties, false);
 }
 
 

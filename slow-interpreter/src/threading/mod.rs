@@ -86,10 +86,12 @@ impl ThreadState {
             }
             let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));//todo think this is correct, check
             unsafe { jvm.libjava.load(jvm, &mut int_state); }//todo not sure if this should be here
-            int_state.pop_frame(push_guard);
+            //handle any excpetions from here
+            int_state.pop_frame(jvm, push_guard, false);
             let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));
             run_main(args, jvm, &mut int_state).unwrap();
-            int_state.pop_frame(main_frame_guard);
+            //todo handle exception exit from main
+            int_state.pop_frame(jvm, main_frame_guard, false);
             main_thread.notify_terminated()
         }, box ());
         (main_thread_clone, main_send)
@@ -122,7 +124,8 @@ impl ThreadState {
         let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string());
         System::props(jvm, int_state).set_property(jvm, int_state, key, value);
 
-        int_state.pop_frame(init_frame_guard);
+        //todo should handle excpetions here
+        int_state.pop_frame(jvm, init_frame_guard, false);
     }
 
     pub fn get_main_thread(&self) -> Arc<JavaThread> {
@@ -168,7 +171,7 @@ impl ThreadState {
         let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state, thread_group_class);
         *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
-        new_int_state.pop_frame(frame_for_bootstrapping);
+        new_int_state.pop_frame(jvm, frame_for_bootstrapping, false);
         bootstrap_thread.notify_terminated();
         JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
     }
@@ -236,7 +239,8 @@ impl ThreadState {
 
             let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name));
             java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);
-            interpreter_state_guard.pop_frame(frame_for_run_call);
+            //todo handle thread exiting with exception
+            interpreter_state_guard.pop_frame(jvm, frame_for_run_call, false);
             java_thread.notify_terminated();
         }, box ());//todo is this Data really needed since we have a closure
         recv.recv().unwrap()
