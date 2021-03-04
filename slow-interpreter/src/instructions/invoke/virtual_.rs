@@ -34,7 +34,7 @@ pub fn invoke_virtual_instruction(state: &JVMState, int_state: &mut InterpreterS
     invoke_virtual(state, int_state, &method_name, &expected_descriptor)
 }
 
-pub fn invoke_virtual_method_i(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView) {
+pub fn invoke_virtual_method_i(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView) -> Result<(), WasException> {
     invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method_i, target_method)
 }
 
@@ -45,7 +45,7 @@ fn invoke_virtual_method_i_impl(
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
     target_method: &MethodView,
-) {
+) -> Result<(), WasException> {
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame_mut();
 
@@ -62,7 +62,7 @@ fn invoke_virtual_method_i_impl(
         } else {
             unimplemented!()
         }
-        return;
+        return todo!();
     }
     if target_method.is_native() {
         run_native_method(jvm, interpreter_state, target_class, target_method_i)
@@ -79,13 +79,14 @@ fn invoke_virtual_method_i_impl(
         let was_exception = interpreter_state.throw().is_some();
         interpreter_state.pop_frame(jvm, frame_for_function, was_exception);
         if interpreter_state.throw().is_some() {
-            return;
+            return Err(WasException {});
         }
         let function_return = interpreter_state.function_return_mut();
         if *function_return {
             *function_return = false;
-            return;
+            return Ok(());
         }
+        panic!()
     } else {
         dbg!(target_method.is_abstract());
         panic!()
@@ -203,7 +204,10 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, &method_name, md, c);
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    invoke_virtual_method_i(jvm, int_state, md.clone(), final_target_class.clone(), new_i, target_method)
+    //let the main instruction check int_state instead
+    if let Err(WasException {}) = invoke_virtual_method_i(jvm, int_state, md.clone(), final_target_class.clone(), new_i, target_method) {
+        assert!(int_state.throw().is_some());
+    }
 }
 
 pub fn virtual_method_lookup(

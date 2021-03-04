@@ -30,14 +30,14 @@ pub fn invoke_special_impl(
     parsed_descriptor: &MethodDescriptor,
     target_m_i: usize,
     final_target_class: Arc<RuntimeClass>,
-) {
+) -> Result<(), WasException> {
     let target_m = &final_target_class.view().method_view_i(target_m_i);
     if final_target_class.view().method_view_i(target_m_i).is_signature_polymorphic() {
         interpreter_state.debug_print_stack_trace();
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {
-        run_native_method(jvm, interpreter_state, final_target_class, target_m_i);
+        run_native_method(jvm, interpreter_state, final_target_class, target_m_i)
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;
@@ -46,17 +46,19 @@ pub fn invoke_special_impl(
         let next_entry = StackEntry::new_java_frame(jvm, final_target_class, target_m_i as u16, args);
         let function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state) {
-            Ok(_) => {}
-            Err(_) => todo!()
-        };
-        let was_exception = interpreter_state.throw().is_some();
-        interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
-        if interpreter_state.throw().is_some() {
-            return;
-        }
-        let function_return = interpreter_state.function_return_mut();
-        if *function_return {
-            *function_return = false;
+            Ok(()) => {
+                interpreter_state.pop_frame(jvm, function_call_frame, false);
+                let function_return = interpreter_state.function_return_mut();
+                if *function_return {
+                    *function_return = false;
+                }
+                Ok(())
+            }
+            Err(WasException {}) => {
+                interpreter_state.pop_frame(jvm, function_call_frame, true);
+                assert!(interpreter_state.throw().is_some());
+                Err(WasException)
+            }
         }
     }
 }

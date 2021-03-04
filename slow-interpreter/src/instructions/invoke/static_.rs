@@ -46,7 +46,7 @@ pub fn invoke_static_impl(
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
     target_method: &MethodInfo,
-) {
+) -> Result<(), WasException> {
     let mut args = vec![];
     let current_frame = interpreter_state.current_frame_mut();
     if target_class.view().method_view_i(target_method_i).is_signature_polymorphic() {
@@ -61,6 +61,7 @@ pub fn invoke_static_impl(
             let res = call_vmentry(jvm, interpreter_state, member_name);
             // let _member_name = interpreter_state.pop_current_operand_stack();
             interpreter_state.push_current_operand_stack(res);
+            todo!()
         } else {
             unimplemented!()
         }
@@ -91,14 +92,15 @@ pub fn invoke_static_impl(
         let was_exception = interpreter_state.throw().is_some();
         interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
         if interpreter_state.throw().is_some() {
-            return;
+            return Err(WasException);
         }
         let function_return = interpreter_state.function_return_mut();
         if *function_return {
             *function_return = false;
-            return;
+            return Ok(());
         }
+        panic!()
     } else {
-        run_native_method(jvm, interpreter_state, target_class, target_method_i);
+        run_native_method(jvm, interpreter_state, target_class, target_method_i)
     }
 }

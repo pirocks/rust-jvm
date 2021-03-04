@@ -13,7 +13,7 @@ use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
-use crate::interpreter::monitor_for_function;
+use crate::interpreter::{monitor_for_function, WasException};
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
@@ -23,7 +23,7 @@ pub fn run_native_method(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     class: Arc<RuntimeClass>,
-    method_i: usize) {
+    method_i: usize) -> Result<(), WasException> {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack().len();
     assert_inited_or_initing_class(jvm, int_state, view.name().into());
@@ -121,11 +121,13 @@ pub fn run_native_method(
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
     //todo need to check excpetion here
-    match result {
-        None => {}
-        Some(res) => {
-            int_state.push_current_operand_stack(res)
-        }
+    if let Some(res) = result {
+        int_state.push_current_operand_stack(res);
+    }
+    if was_exception {
+        Err(WasException)
+    } else {
+        Ok(())
     }
 }
 

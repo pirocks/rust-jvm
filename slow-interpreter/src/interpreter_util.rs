@@ -7,6 +7,7 @@ use descriptor_parser::parse_method_descriptor;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_resolved_class;
 use crate::instructions::invoke::special::invoke_special_impl;
+use crate::interpreter::WasException;
 use crate::java_values::{default_value, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 
@@ -59,7 +60,7 @@ pub fn run_constructor(
     target_classfile: Arc<RuntimeClass>,
     full_args: Vec<JavaValue>,
     descriptor: String,
-) {
+) -> Result<(), WasException> {
     let method_view = target_classfile.view().lookup_method(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
     let md = method_view.desc();
     let this_ptr = full_args[0].clone();
@@ -68,5 +69,5 @@ pub fn run_constructor(
     for arg in actual_args {
         int_state.push_current_operand_stack(arg.clone());
     }
-    invoke_special_impl(state, int_state, &md, method_view.method_i(), target_classfile.clone());
+    invoke_special_impl(state, int_state, &md, method_view.method_i(), target_classfile.clone())
 }

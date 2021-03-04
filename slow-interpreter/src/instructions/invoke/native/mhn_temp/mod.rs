@@ -15,6 +15,7 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use crate::interpreter::WasException;
 use crate::interpreter_util::{push_new_object, run_constructor};
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::string::JString;
@@ -78,7 +79,7 @@ pub fn create_method_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
 
 
 //todo this should go in some sort of utils
-pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) {
+pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) -> Result<(), WasException> {
     let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
     let res_fun = class.view().lookup_method(&method_name, &parsed_desc);//todo move this into classview
     let method_view = match res_fun {
@@ -87,17 +88,9 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
     };//todo and if this fails
     let md = method_view.desc();
     if method_view.is_static() {
-        // dbg!(int_state.current_frame().operand_stack_types());
-        // dbg!(&md);
-        // dbg!(method_name);
-        // dbg!(method_view.name());
-        // dbg!(class.view().name());
-        // dbg!(method_view.desc_str());
-        invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info());
-        // dbg!(int_state.current_frame().operand_stack_types());
+        invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), method_view.method_info())
     } else {
-        // invoke_virtual(jvm,int_state,method_name.as_str(),&md);
-        invoke_virtual_method_i(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view);
+        invoke_virtual_method_i(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view)
     }
 }
 
