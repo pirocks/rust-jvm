@@ -1,8 +1,7 @@
 use std::ffi::CStr;
 use std::mem::transmute;
 use std::os::raw::c_char;
-use std::ptr::{null, null_mut};
-use std::str::Utf8Error;
+use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
 
@@ -19,11 +18,11 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
                                        -> jmethodID {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let mut method_name = match CStr::from_ptr(name).to_str() {
+    let method_name = match CStr::from_ptr(name).to_str() {
         Ok(method_name) => method_name,
         Err(_) => return null_mut()
     };
-    let mut method_descriptor_str = match CStr::from_ptr(sig).to_str() {
+    let method_descriptor_str = match CStr::from_ptr(sig).to_str() {
         Ok(method_descriptor_str) => method_descriptor_str,
         Err(_) => return null_mut()
     };

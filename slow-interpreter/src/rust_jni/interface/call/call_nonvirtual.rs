@@ -4,9 +4,7 @@ use std::mem::transmute;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 
 use crate::instructions::invoke::special::invoke_special_impl;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
-use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::call::{push_params_onto_frame, VarargProvider};
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};

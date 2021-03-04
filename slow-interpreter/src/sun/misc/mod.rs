@@ -88,7 +88,6 @@ pub mod launcher {
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java_values::{JavaValue, Object};
         use crate::jvm_state::JVMState;
-        use crate::sun::misc::launcher::Launcher;
 
         pub struct ExtClassLoader {
             normal_object: Arc<Object>

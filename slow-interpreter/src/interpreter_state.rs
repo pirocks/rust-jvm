@@ -15,7 +15,6 @@ use crate::threading::JavaThread;
 
 #[derive(Debug)]
 pub struct InterpreterState {
-    pub terminate: bool,
     pub throw: Option<Arc<Object>>,
     pub function_return: bool,
     //todo find some way of clarifying these can only be acessed from one thread
@@ -26,7 +25,6 @@ pub struct InterpreterState {
 impl Default for InterpreterState {
     fn default() -> Self {
         InterpreterState {
-            terminate: false,
             throw: None,
             function_return: false,
             /*suspended: RwLock::new(SuspendedStatus {
@@ -140,10 +138,6 @@ impl<'l> InterpreterStateGuard<'l> {
         &mut self.int_state.as_mut().unwrap().function_return
     }
 
-    pub fn terminate_mut(&mut self) -> &mut bool {
-        &mut self.int_state.as_mut().unwrap().terminate
-    }
-
 
     pub fn throw(&self) -> Option<Arc<Object>> {
         match self.int_state.as_ref() {
@@ -156,10 +150,6 @@ impl<'l> InterpreterStateGuard<'l> {
 
     pub fn function_return(&self) -> &bool {
         &self.int_state.as_ref().unwrap().function_return
-    }
-
-    pub fn terminate(&self) -> &bool {
-        &self.int_state.as_ref().unwrap().terminate
     }
 
     pub fn push_frame(&mut self, frame: StackEntry) -> FramePushGuard {

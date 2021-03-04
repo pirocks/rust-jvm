@@ -1,19 +1,14 @@
 use std::ffi::VaList;
-use std::mem::transmute;
 
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
-use rust_jvm_common::ptype::PType;
 
 use crate::instructions::invoke::special::invoke_special_impl;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::interpreter_util::push_new_object;
-use crate::java_values::JavaValue;
 use crate::method_table::from_jmethod_id;
 use crate::rust_jni::interface::call::VarargProvider;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::interface::push_type_to_operand_stack;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut args: VaList) -> jobject {
     new_object_impl(env, _clazz, jmethod_id, VarargProvider::VaList(&mut args))

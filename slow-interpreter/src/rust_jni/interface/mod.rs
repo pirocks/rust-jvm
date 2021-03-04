@@ -15,9 +15,8 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jio_vfprintf, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue, JVM_Available, JVM_GetLastErrorString};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue};
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classfile::InstructionInfo::monitorenter;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
@@ -25,17 +24,14 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::create_class_object;
 use crate::class_objects::get_or_create_class_object;
 use crate::field_table::FieldId;
-use crate::instructions::invoke::special::invoke_special_impl;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::class::JClass;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
-use crate::java::lang::throwable::Throwable;
-use crate::java_values::{default_value, JavaValue, Object};
+use crate::java_values::JavaValue;
 use crate::jvm_state::ClassStatus;
-use crate::method_table::MethodId;
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::interface::array::*;
 use crate::rust_jni::interface::array::array_region::*;
@@ -395,7 +391,6 @@ pub unsafe extern "C" fn monitor_exit(env: *mut JNIEnv, obj: jobject) -> jint {
 // Returns a pointer to a Unicode string, or NULL if the operation fails.
 pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const jchar {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
     let string: JString = JavaValue::Object(from_object(str)).cast_string();
     let char_vec = string.value();
@@ -449,10 +444,10 @@ unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
 // SINCE:
 //
 // JDK/JRE 1.2
-unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, cls: jclass, methodID: jmethodID, isStatic: jboolean) -> jobject {
+unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_id: jmethodID, _is_static: jboolean) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let method_id: usize = transmute(methodID);
+    let method_id: usize = transmute(method_id);
     let (runtime_class, index) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
         Some(x) => x,
         None => return null_mut(),
@@ -519,7 +514,7 @@ unsafe extern "C" fn exception_describe(env: *mut JNIEnv) {
 // SINCE:
 //
 // JDK/JRE 1.2
-unsafe extern "C" fn fatal_error(env: *mut JNIEnv, msg: *const ::std::os::raw::c_char) {
+unsafe extern "C" fn fatal_error(_env: *mut JNIEnv, msg: *const ::std::os::raw::c_char) {
     panic!("JNI raised a fatal error.\n JNI MSG: {}", CStr::from_ptr(msg).to_string_lossy())
 }
 
@@ -565,9 +560,8 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
         (constructor_method_id, to_object(java_string.object().into()))
     };
     let new_object = (**env).NewObjectA.as_ref().unwrap();
-    let mut jvalue_ = jvalue { l: java_string_object };
+    let jvalue_ = jvalue { l: java_string_object };
     let obj = new_object(env, clazz, transmute(constructor_method_id), &jvalue_ as *const jvalue);
-    let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     int_state.set_throw(match from_object(obj) {
         None => return -3,
@@ -577,7 +571,7 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
 }
 
 
-unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, cls: jclass, field_id: jfieldID, _is_static: jboolean) -> jobject {
+unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id: jfieldID, _is_static: jboolean) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
 
@@ -642,7 +636,7 @@ unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> 
 }
 
 
-unsafe extern "C" fn get_version(env: *mut JNIEnv) -> jint {
+unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
     return 0x00010008;
 }
 

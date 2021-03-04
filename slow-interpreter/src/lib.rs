@@ -28,7 +28,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
 use crate::class_loading::{check_loaded_class, check_loaded_class_force_loader};
-use crate::interpreter::run_function;
+use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
@@ -87,15 +87,17 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
 
     setup_program_args(&jvm, int_state, args);
     jvm.include_name_field.store(true, Ordering::SeqCst);
-    run_function(&jvm, int_state);
-    if int_state.throw().is_some() || *int_state.terminate() {
-        int_state.debug_print_stack_trace();
-        unimplemented!()
+    match run_function(&jvm, int_state) {
+        Ok(_) => {
+            int_state.pop_frame(jvm, main_frame_guard, false);
+            sleep(Duration::new(100, 0));//todo need to wait for other threads or something
+        }
+        Err(WasException {}) => {
+            int_state.debug_print_stack_trace();
+            todo!()
+        }
     }
-    int_state.pop_frame(jvm, main_frame_guard, false);
-    sleep(Duration::new(100, 0));//todo need to wait for other threads or something
     Result::Ok(())
-    // }
 }
 
 
@@ -109,7 +111,7 @@ fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, arg
         int_state,
         arg_strings,
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
-        jvm.thread_state.new_monitor("arg array monitor".to_string())
+        jvm.thread_state.new_monitor("arg array monitor".to_string()),
     )))));
     let local_vars = int_state.current_frame_mut().local_vars_mut();
     local_vars[0] = arg_array;

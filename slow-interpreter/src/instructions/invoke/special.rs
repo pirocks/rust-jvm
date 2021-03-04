@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::method_view::MethodView;
 use descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
@@ -10,7 +9,7 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::setup_virtual_args;
-use crate::interpreter::run_function;
+use crate::interpreter::{run_function, WasException};
 use crate::runtime_class::RuntimeClass;
 
 pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
@@ -46,10 +45,13 @@ pub fn invoke_special_impl(
         assert!(args[0].unwrap_object().is_some());
         let next_entry = StackEntry::new_java_frame(jvm, final_target_class, target_m_i as u16, args);
         let function_call_frame = interpreter_state.push_frame(next_entry);
-        run_function(jvm, interpreter_state);
+        match run_function(jvm, interpreter_state) {
+            Ok(_) => {}
+            Err(_) => todo!()
+        };
         let was_exception = interpreter_state.throw().is_some();
         interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
-        if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
+        if interpreter_state.throw().is_some() {
             return;
         }
         let function_return = interpreter_state.function_return_mut();

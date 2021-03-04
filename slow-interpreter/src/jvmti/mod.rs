@@ -6,7 +6,6 @@ use jvmti_jni_bindings::*;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::get_thread_or_error;
 use crate::interpreter_state::AddFrameNotifyError;
-use crate::java_values::JavaValue;
 use crate::jvmti::agent::*;
 use crate::jvmti::allocate::*;
 use crate::jvmti::breakpoint::*;

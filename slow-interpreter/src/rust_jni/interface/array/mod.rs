@@ -1,13 +1,11 @@
-use std::mem::size_of;
 use std::os::raw::c_void;
-use std::panic::panic_any;
 
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
 
-use crate::java_values::{ArrayObject, JavaValue, Object};
+use crate::java_values::{JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, to_object};
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
     let non_null_array: &Object = &from_object(array).unwrap();
@@ -85,8 +83,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, arr
     }
 }
 
-pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
-    let jvm = get_state(env);
+pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
     let not_null = from_object(array).unwrap();
     let array = not_null.unwrap_array();
     if !is_copy.is_null() {

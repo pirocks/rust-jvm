@@ -10,7 +10,7 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::call_vmentry;
-use crate::interpreter::run_function;
+use crate::interpreter::{run_function, WasException};
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
@@ -84,10 +84,13 @@ pub fn invoke_static_impl(
         args[0..i].reverse();
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let function_call_frame = interpreter_state.push_frame(next_entry);
-        run_function(jvm, interpreter_state);
+        match run_function(jvm, interpreter_state) {
+            Ok(_) => {}
+            Err(_) => todo!()
+        }
         let was_exception = interpreter_state.throw().is_some();
         interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
-        if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
+        if interpreter_state.throw().is_some() {
             return;
         }
         let function_return = interpreter_state.function_return_mut();

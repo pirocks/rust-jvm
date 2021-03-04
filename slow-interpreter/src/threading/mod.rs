@@ -15,7 +15,7 @@ use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-use crate::interpreter::{run_function, suspend_check};
+use crate::interpreter::{run_function, suspend_check, WasException};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
@@ -110,12 +110,15 @@ impl ThreadState {
         let initialize_system_frame = StackEntry::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
         let init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
-        run_function(&jvm, int_state);
+        match run_function(&jvm, int_state) {
+            Ok(_) => {}
+            Err(_) => todo!()
+        }
         let function_return = int_state.function_return_mut();
         if *function_return {
             *function_return = false;
         }
-        if int_state.throw().is_some() || *int_state.terminate() {
+        if int_state.throw().is_some() {
             unimplemented!()
         }
         set_properties(jvm, int_state);

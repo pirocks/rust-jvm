@@ -36,7 +36,9 @@ use crate::method_table::MethodId;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 
-pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
+pub struct WasException;
+
+pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
     let view = interpreter_state.current_class_view().clone();
     let method_i = interpreter_state.current_method_i();
     let method = view.method_view_i(method_i as usize);
@@ -56,7 +58,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized, &class_name__);
 
 
-    while !*interpreter_state.terminate() && !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
+    while !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
         let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
@@ -100,13 +102,10 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         monitor.unwrap().unlock(jvm);
     }
     jvm.tracing.function_exit_guard(function_enter_guard);
-    // jvm.tracing.trace_function_exit(
-    //     &class_name__,
-    //     &meth_name,
-    //     &method_desc,
-    //     current_depth,
-    //     current_thread_tid,
-    // )
+    if interpreter_state.throw().is_some() {
+        return Err(WasException);
+    }
+    Ok(())
 }
 
 pub fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {

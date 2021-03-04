@@ -15,7 +15,7 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT, run_static_or_virtual};
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::resolved_class;
-use crate::interpreter::run_function;
+use crate::interpreter::{run_function, WasException};
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, Object};
@@ -72,10 +72,13 @@ fn invoke_virtual_method_i_impl(
         setup_virtual_args(interpreter_state, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let frame_for_function = interpreter_state.push_frame(next_entry);
-        run_function(jvm, interpreter_state);
+        match run_function(jvm, interpreter_state) {
+            Ok(_) => {}
+            Err(_) => todo!()
+        }
         let was_exception = interpreter_state.throw().is_some();
         interpreter_state.pop_frame(jvm, frame_for_function, was_exception);
-        if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
+        if interpreter_state.throw().is_some() {
             return;
         }
         let function_return = interpreter_state.function_return_mut();

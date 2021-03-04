@@ -9,7 +9,7 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
-use crate::interpreter::run_function;
+use crate::interpreter::{run_function, WasException};
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
@@ -60,10 +60,13 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
     let function_call_frame = interpreter_state.push_frame(next_entry);
-    run_function(jvm, interpreter_state);
+    match run_function(jvm, interpreter_state) {
+        Ok(_) => {}
+        Err(_) => todo!()
+    }
     let was_exception = interpreter_state.throw().is_some();
     interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
-    if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
+    if interpreter_state.throw().is_some() {
         unimplemented!()
     }
     let function_return = interpreter_state.function_return_mut();

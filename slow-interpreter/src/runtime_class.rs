@@ -10,7 +10,7 @@ use rust_jvm_common::classnames::class_name;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::ldc::from_constant_pool_entry;
-use crate::interpreter::run_function;
+use crate::interpreter::{run_function, WasException};
 use crate::java_values::{default_value, JavaValue};
 use crate::jvm_state::ClassStatus;
 
@@ -216,10 +216,13 @@ pub fn initialize_class(
     let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
     //todo these java frames may have to be converted to native?
     let new_function_frame = interpreter_state.push_frame(new_stack);
-    run_function(jvm, interpreter_state);
+    match run_function(jvm, interpreter_state) {
+        Ok(_) => {}
+        Err(_) => todo!()
+    };
     let was_exception = interpreter_state.throw().is_some();
     interpreter_state.pop_frame(jvm, new_function_frame, was_exception);
-    if interpreter_state.throw().is_some() || *interpreter_state.terminate() {
+    if interpreter_state.throw().is_some() {
         interpreter_state.debug_print_stack_trace();
         return None;
     }

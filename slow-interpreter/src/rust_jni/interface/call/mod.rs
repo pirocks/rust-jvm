@@ -1,7 +1,6 @@
 use std::ffi::{VaList, VaListImpl};
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::PTypeView;
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
 use rust_jvm_common::ptype::PType;
@@ -14,7 +13,6 @@ use crate::java_values::JavaValue;
 use crate::method_table::{from_jmethod_id, MethodId};
 use crate::rust_jni::interface::push_type_to_operand_stack;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
-use crate::StackEntry;
 
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
