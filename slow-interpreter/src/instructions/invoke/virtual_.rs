@@ -31,7 +31,8 @@ pub fn invoke_virtual_instruction(state: &JVMState, int_state: &mut InterpreterS
         None => return,
         Some(o) => { o }
     };
-    invoke_virtual(state, int_state, &method_name, &expected_descriptor)
+    //let the main instruction check int_state instead
+    let _ = invoke_virtual(state, int_state, &method_name, &expected_descriptor);
 }
 
 pub fn invoke_virtual_method_i(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView) -> Result<(), WasException> {
@@ -57,12 +58,12 @@ fn invoke_virtual_method_i_impl(
             //todo do conversion.
             //todo handle void return
             assert_ne!(expected_descriptor.return_type, PType::VoidType);
-            let res = call_vmentry(jvm, interpreter_state, vmentry);
+            let res = call_vmentry(jvm, interpreter_state, vmentry)?;
             interpreter_state.push_current_operand_stack(res);
         } else {
             unimplemented!()
         }
-        return todo!();
+        return Ok(())
     }
     if target_method.is_native() {
         run_native_method(jvm, interpreter_state, target_class, target_method_i)
@@ -73,27 +74,29 @@ fn invoke_virtual_method_i_impl(
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let frame_for_function = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state) {
-            Ok(_) => {}
-            Err(_) => todo!()
+            Ok(()) => {
+                assert!(!interpreter_state.throw().is_some());
+                interpreter_state.pop_frame(jvm, frame_for_function, false);
+                let function_return = interpreter_state.function_return_mut();
+                if *function_return {
+                    *function_return = false;
+                    return Ok(());
+                }
+                panic!()
+            }
+            Err(WasException {}) => {
+                assert!(interpreter_state.throw().is_some());
+                interpreter_state.pop_frame(jvm, frame_for_function, true);
+                return Err(WasException {});
+            }
         }
-        let was_exception = interpreter_state.throw().is_some();
-        interpreter_state.pop_frame(jvm, frame_for_function, was_exception);
-        if interpreter_state.throw().is_some() {
-            return Err(WasException {});
-        }
-        let function_return = interpreter_state.function_return_mut();
-        if *function_return {
-            *function_return = false;
-            return Ok(());
-        }
-        panic!()
     } else {
         dbg!(target_method.is_abstract());
         panic!()
     }
 }
 
-pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, vmentry: MemberName) -> JavaValue {
+pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, vmentry: MemberName) -> Result<JavaValue, WasException> {
     assert_eq!(vmentry.clone().java_value().to_type(), ClassName::member_name().into());
     let flags = vmentry.get_flags() as u32;
     let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
@@ -110,10 +113,10 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let res_method = class.view().method_view_i(method_i as usize);
-        run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str());
+        run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str())?;
         assert!(interpreter_state.throw().is_none());
         let res = interpreter_state.pop_current_operand_stack();
-        res
+        Ok(res)
     } else {
         unimplemented!()
     }
@@ -151,7 +154,7 @@ pub fn setup_virtual_args(int_state: &mut InterpreterStateGuard, expected_descri
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_name: &str, md: &MethodDescriptor) {
+pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_name: &str, md: &MethodDescriptor) -> Result<(), WasException> {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == "<init>" ||
         method_name == "<clinit>" {
@@ -204,10 +207,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, &method_name, md, c);
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    //let the main instruction check int_state instead
-    if let Err(WasException {}) = invoke_virtual_method_i(jvm, int_state, md.clone(), final_target_class.clone(), new_i, target_method) {
-        assert!(int_state.throw().is_some());
-    }
+    invoke_virtual_method_i(jvm, int_state, md.clone(), final_target_class.clone(), new_i, target_method)
 }
 
 pub fn virtual_method_lookup(

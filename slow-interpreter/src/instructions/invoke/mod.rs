@@ -26,8 +26,8 @@ pub mod dynamic {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+    use crate::interpreter::WasException;
     use crate::java::lang::class::JClass;
-    use crate::java::lang::invoke::ExceptionError;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_handle::{Lookup, MethodHandle};
     use crate::java::lang::invoke::method_type::MethodType;
@@ -36,23 +36,26 @@ pub mod dynamic {
     use crate::java_values::JavaValue;
 
     pub fn invoke_dynamic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+        let _ = invoke_dynamic_impl(jvm, int_state, cp);
+    }
+
+    fn invoke_dynamic_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Result<(), WasException> {
         let method_handle_class = check_initing_or_inited_class(
             jvm,
             int_state,
             ClassName::method_handle().into(),
-        ).unwrap();
+        )?;
         let _method_type_class = check_initing_or_inited_class(
             jvm,
             int_state,
             ClassName::method_type().into(),
-        ).unwrap();
+        )?;
         let _call_site_class = check_initing_or_inited_class(
             jvm,
             int_state,
             ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
-        ).unwrap();
+        )?;
         let class_pointer_view = int_state.current_class_view().clone();
-        // dbg!(cp);
         let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
@@ -63,10 +66,7 @@ pub mod dynamic {
 
         let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
         let method_ref = bootstrap_method_view.bootstrap_method_ref();
-        let bootstrap_method_handle = match method_handle_from_method_view(jvm, int_state, &method_ref) {
-            Ok(res) => res,
-            Err(_) => return
-        };
+        let bootstrap_method_handle = method_handle_from_method_view(jvm, int_state, &method_ref)?;
         let arg_iterator = bootstrap_method_view.bootstrap_args();
         let mut args = vec![];
 
@@ -78,11 +78,8 @@ pub mod dynamic {
                 BootstrapArgView::Long(_) => unimplemented!(),
                 BootstrapArgView::Float(_) => unimplemented!(),
                 BootstrapArgView::Double(_) => unimplemented!(),
-                BootstrapArgView::MethodHandle(mh) => match method_handle_from_method_view(jvm, int_state, &mh) {
-                    Ok(method_handle_obj) => method_handle_obj,
-                    Err(_) => return
-                }.java_value(),
-                BootstrapArgView::MethodType(mt) => desc_from_rust_str(jvm, int_state, mt.get_descriptor())
+                BootstrapArgView::MethodHandle(mh) => method_handle_from_method_view(jvm, int_state, &mh)?.java_value(),
+                BootstrapArgView::MethodType(mt) => desc_from_rust_str(jvm, int_state, mt.get_descriptor())?
             })
         }
 
@@ -107,7 +104,7 @@ pub mod dynamic {
 
         //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
         let lookup_for_this = Lookup::trusted_lookup(jvm, int_state);
-        let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.clone());
+        let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.clone())?;
         let name_jstring = JString::from_rust(jvm, int_state, other_name.clone()).java_value();
 
         int_state.push_current_operand_stack(bootstrap_method_handle.java_value());
@@ -122,9 +119,9 @@ pub mod dynamic {
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
-        invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke.method_i(), invoke);
+        invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke.method_i(), invoke)?;
         let call_site = int_state.pop_current_operand_stack().cast_call_site();
-        let target = call_site.get_target(jvm, int_state);
+        let target = call_site.get_target(jvm, int_state)?;
         let method_handle_clone = method_handle_class.clone();
         let lookup_res = method_handle_clone.view().lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
@@ -149,16 +146,17 @@ pub mod dynamic {
 
         let res = int_state.pop_current_operand_stack();
         int_state.push_current_operand_stack(res);
+        Ok(())
     }
 
     //todo this should go in MethodType or something.
-    fn desc_from_rust_str(jvm: &JVMState, int_state: &mut InterpreterStateGuard, desc_str: String) -> JavaValue {
+    fn desc_from_rust_str(jvm: &JVMState, int_state: &mut InterpreterStateGuard, desc_str: String) -> Result<JavaValue, WasException> {
         let desc_str = JString::from_rust(jvm, int_state, desc_str);
-        let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None);
-        method_type.java_value()
+        let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
+        Ok(method_type.java_value())
     }
 
-    fn method_handle_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_ref: &MethodHandleView) -> Result<MethodHandle, ExceptionError> {
+    fn method_handle_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_ref: &MethodHandleView) -> Result<MethodHandle, WasException> {
         let methodref_view = method_ref.clone();
         Ok(match methodref_view.get_reference_data() {
             ReferenceData::InvokeStatic(is) => {
@@ -169,7 +167,7 @@ pub mod dynamic {
                         let lookup = Lookup::trusted_lookup(jvm, int_state);
                         let name = JString::from_rust(jvm, int_state, mr.name_and_type().name());
                         let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str());
-                        let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None);
+                        let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                         let target_class = JClass::from_name(jvm, int_state, mr.class());
                         lookup.find_static(jvm, int_state, target_class, name, method_type)?
                     }
@@ -184,11 +182,11 @@ pub mod dynamic {
                             let lookup = Lookup::trusted_lookup(jvm, int_state);
                             let name = JString::from_rust(jvm, int_state, mr.name_and_type().name());
                             let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str());
-                            let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None);
+                            let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                             let target_class = JClass::from_name(jvm, int_state, mr.class());
                             let not_sure_if_correct_at_all = int_state.current_frame().class_pointer().view().name();
                             let special_caller = JClass::from_name(jvm, int_state, not_sure_if_correct_at_all);
-                            lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)
+                            lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?
                         }
                 }
             }

@@ -1,3 +1,4 @@
+use std::intrinsics::truncf32;
 use std::sync::Arc;
 
 use by_address::ByAddress;
@@ -77,46 +78,13 @@ pub fn run_native_method(
         match call(jvm, int_state, class.clone(), method_i, args.clone(), parsed) {
             Ok(r) => r,
             Err(_) => {
-                let mangled = mangling::mangle(class.clone(), method_i);
-                // state.tracing.trace_dynmaic_link()
-                //todo actually impl these at some point
-                if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
-                    //todo
-                    None
-                } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
-                    MHN_getConstant()
-                } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
-                    MHN_resolve(jvm, int_state, &mut args)
-                } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
-                    MHN_init(jvm, int_state, &mut args)
-                } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
-                    //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-                    shouldBeInitialized(jvm, &mut args)
-                } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
-                    let jclass = args[1].cast_class();
-                    let ptype = jclass.as_runtime_class(jvm).ptypeview();
-                    check_initing_or_inited_class(jvm, int_state, ptype).unwrap();
-                    None
-                } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
-                    Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, &mut args)
-                } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
-                    Java_java_lang_invoke_MethodHandleNatives_getMembers(&mut args)
-                } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
-                    unimplemented!()
-                } else if &mangled == "Java_sun_misc_Perf_registerNatives" {
-                    //todo not really sure what to do here, for now nothing
-                    None
-                } else if &mangled == "Java_sun_misc_Perf_createLong" {
-                    Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8).java_value())//todo this is incorrect and should be implemented properly.
-                } else {
-                    int_state.debug_print_stack_trace();
-                    dbg!(mangled);
-                    panic!()
+                match special_call_overrides(jvm, int_state, class, method_i, &mut args) {
+                    Ok(res) => res,
+                    Err(_) => None
                 }
             }
         }
-    }
-        ;
+    };
     if let Some(m) = monitor.as_ref() { m.unlock(jvm) }
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
@@ -129,6 +97,46 @@ pub fn run_native_method(
     } else {
         Ok(())
     }
+}
+
+fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, method_i: usize, mut args: &mut Vec<JavaValue>) -> Result<Option<JavaValue>, WasException> {
+    let mangled = mangling::mangle(class.clone(), method_i);
+    // state.tracing.trace_dynmaic_link()
+    //todo actually impl these at some point
+    Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
+        //todo
+        None
+    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
+        MHN_getConstant()?.into()
+    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
+        MHN_resolve(jvm, int_state, &mut args)?.into()
+    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
+        MHN_init(jvm, int_state, &mut args)?;
+        None
+    } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
+        //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
+        shouldBeInitialized(jvm, &mut args)?.into()
+    } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
+        let jclass = args[1].cast_class();
+        let ptype = jclass.as_runtime_class(jvm).ptypeview();
+        check_initing_or_inited_class(jvm, int_state, ptype)?;
+        None
+    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
+        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, &mut args)?.into()
+    } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
+        Java_java_lang_invoke_MethodHandleNatives_getMembers(&mut args)?.into()
+    } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
+        unimplemented!()
+    } else if &mangled == "Java_sun_misc_Perf_registerNatives" {
+        //todo not really sure what to do here, for now nothing
+        None
+    } else if &mangled == "Java_sun_misc_Perf_createLong" {
+        Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.java_value())//todo this is incorrect and should be implemented properly.
+    } else {
+        int_state.debug_print_stack_trace();
+        dbg!(mangled);
+        panic!()
+    })
 }
 
 

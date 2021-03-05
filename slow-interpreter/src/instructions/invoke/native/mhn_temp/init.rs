@@ -6,15 +6,16 @@ use rust_jvm_common::classnames::ClassName;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_METHOD, REFERENCE_KIND_SHIFT};
+use crate::interpreter::WasException;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
 use crate::java_values::JavaValue;
 
-pub fn MHN_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn MHN_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<(), WasException> {
     //two params, is a static function.
     let mname = args[0].clone().cast_member_name();
     let target = args[1].clone();
-    let to_string = target.cast_object().to_string(jvm, int_state).to_rust_string();
+    let to_string = target.cast_object().to_string(jvm, int_state)?.to_rust_string();
     let assertion_case = match to_string.as_str() {
         "static void java.lang.invoke.Invokers.checkExactType(java.lang.Object,java.lang.Object)" => {
             InitAssertionCase::CHECK_EXACT_TYPE.into()
@@ -38,7 +39,7 @@ pub enum InitAssertionCase {
 }
 
 
-pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, method_view: Option<&MethodView>, synthetic: bool) -> Option<JavaValue> {
+pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
     if target.unwrap_normal_object().class_pointer.view().name() == ClassName::method() {//todo replace with a try cast
         let target = target.cast_method();
         method_init(jvm, int_state, mname.clone(), target, method_view, synthetic);
@@ -47,7 +48,7 @@ pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Member
         //todo handle constructors and fields
         unimplemented!()
     }
-    None//this is a void method.
+    Ok(())//this is a void method.
 }
 
 /*

@@ -25,6 +25,7 @@ use crate::class_loading::create_class_object;
 use crate::class_objects::get_or_create_class_object;
 use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
+use crate::interpreter::WasException;
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::class::JClass;
 use crate::java::lang::reflect::field::Field;
@@ -640,14 +641,14 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
     return 0x00010008;
 }
 
-pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassView) -> JavaValue {
+pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassView) -> Result<JavaValue, WasException> {
     let class_name = class_view.name();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: Arc::new(class_view),
         static_vars: Default::default(),
         status: RwLock::new(ClassStatus::UNPREPARED),
     }));
-    let class_object = create_class_object(jvm, int_state, None, current_loader);
+    let class_object = create_class_object(jvm, int_state, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
     let current_loader = int_state.current_loader();
     classes.anon_classes.write().unwrap().push(runtime_class.clone());
@@ -660,7 +661,7 @@ pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state).unwrap();
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into())
+    Ok(JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into()))
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
@@ -672,7 +673,10 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     if jvm.store_generated_classes { File::create("unsafe_define_class").unwrap().write_all(slice).unwrap(); }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
-    to_object(define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassView::from(parsed)).unwrap_object())
+    to_object(match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassView::from(parsed)) {
+        Ok(class_) => class_,
+        Err(_) => todo!()
+    }.unwrap_object())
 }
 
 

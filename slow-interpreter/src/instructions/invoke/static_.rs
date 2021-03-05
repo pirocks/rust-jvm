@@ -58,10 +58,10 @@ pub fn invoke_static_impl(
             let member_name = op_stack[op_stack.len() - 1].cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), ClassName::member_name().into());
             interpreter_state.pop_current_operand_stack();
-            let res = call_vmentry(jvm, interpreter_state, member_name);
+            let res = call_vmentry(jvm, interpreter_state, member_name)?;
             // let _member_name = interpreter_state.pop_current_operand_stack();
             interpreter_state.push_current_operand_stack(res);
-            todo!()
+            Ok(())
         } else {
             unimplemented!()
         }
@@ -86,20 +86,20 @@ pub fn invoke_static_impl(
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state) {
-            Ok(_) => {}
-            Err(_) => todo!()
+            Ok(_) => {
+                interpreter_state.pop_frame(jvm, function_call_frame, false);
+                let function_return = interpreter_state.function_return_mut();
+                if *function_return {
+                    *function_return = false;
+                    return Ok(());
+                }
+                panic!()
+            }
+            Err(_) => {
+                interpreter_state.pop_frame(jvm, function_call_frame, true);
+                return Err(WasException);
+            }
         }
-        let was_exception = interpreter_state.throw().is_some();
-        interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
-        if interpreter_state.throw().is_some() {
-            return Err(WasException);
-        }
-        let function_return = interpreter_state.function_return_mut();
-        if *function_return {
-            *function_return = false;
-            return Ok(());
-        }
-        panic!()
     } else {
         run_native_method(jvm, interpreter_state, target_class, target_method_i)
     }

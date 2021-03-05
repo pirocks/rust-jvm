@@ -15,7 +15,7 @@ use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-use crate::interpreter::{run_function, suspend_check, WasException};
+use crate::interpreter::{run_function, suspend_check};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
@@ -256,7 +256,9 @@ impl ThreadState {
 
     pub fn get_all_alive_threads(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Vec<Arc<JavaThread>> {
         self.all_java_threads.read().unwrap().values().filter(|thread| {
-            thread.thread_object().is_alive(jvm, int_state) != 0
+            //don't use is_alive for this
+            todo!()
+            // thread.thread_object().is_alive(jvm, int_state) != 0
         }).cloned().collect::<Vec<_>>()
     }
 

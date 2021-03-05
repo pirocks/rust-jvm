@@ -149,6 +149,7 @@ impl Debug for RuntimeClassClass {
         write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
     }
 }
+
 pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, classfile: Arc<Classfile>, res: &mut HashMap<String, JavaValue>) {
     if let Some(jvmti) = jvm.jvmti_state.as_ref() {
         jvmti.built_in_jdwp.class_prepare(jvm, &class_name(&classfile), int_state)
@@ -176,7 +177,7 @@ pub fn initialize_class(
     runtime_class: Arc<RuntimeClass>,
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
-) -> Option<Arc<RuntimeClass>> {
+) -> Result<Arc<RuntimeClass>, WasException> {
     assert!(interpreter_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -202,7 +203,7 @@ pub fn initialize_class(
     let lookup_res = view.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
     let clinit = match lookup_res.get(0) {
-        None => return runtime_class.into(),
+        None => return Ok(runtime_class),
         Some(x) => x,
     };
     //todo should I really be manipulating the interpreter state like this
@@ -217,20 +218,20 @@ pub fn initialize_class(
     //todo these java frames may have to be converted to native?
     let new_function_frame = interpreter_state.push_frame(new_stack);
     match run_function(jvm, interpreter_state) {
-        Ok(_) => {}
-        Err(_) => todo!()
+        Ok(()) => {
+            interpreter_state.pop_frame(jvm, new_function_frame, true);
+            let function_return = interpreter_state.function_return_mut();
+            if *function_return {
+                *function_return = false;
+                return Ok(runtime_class);
+            }
+            panic!()
+        }
+        Err(WasException {}) => {
+            interpreter_state.pop_frame(jvm, new_function_frame, false);
+            interpreter_state.debug_print_stack_trace();
+            return Err(WasException);
+        }
     };
-    let was_exception = interpreter_state.throw().is_some();
-    interpreter_state.pop_frame(jvm, new_function_frame, was_exception);
-    if interpreter_state.throw().is_some() {
-        interpreter_state.debug_print_stack_trace();
-        return None;
-    }
-    let function_return = interpreter_state.function_return_mut();
-    if *function_return {
-        *function_return = false;
-        return runtime_class.into();
-    }
-    panic!()
 }
 

@@ -2,8 +2,10 @@ use std::ffi::CString;
 
 use jvmti_jni_bindings::*;
 
+use crate::interpreter::WasException;
+use crate::java::lang::class_loader::ClassLoader;
 use crate::java_values::JavaValue;
-use crate::jvmti::{get_interpreter_state, get_state};
+use crate::jvmti::{get_interpreter_state, get_state, universal_error};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::from_object;
 
@@ -134,10 +136,16 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     //todo get thread groups other than system thread group working at some point
     (*info_ptr).thread_group = new_local_ref_public(jvm.thread_state.get_system_thread_group().object().into(), int_state);
     //todo deal with this whole context loader situation
-    let thread_class_object = thread_object
-        .get_class(jvm, int_state);
-    let class_loader = thread_class_object
-        .get_class_loader(jvm, int_state);
+    let thread_class_object = match thread_object
+        .get_class(jvm, int_state) {
+        Ok(thread_class_object) => thread_class_object,
+        Err(_) => return universal_error()
+    };
+    let class_loader = match thread_class_object
+        .get_class_loader(jvm, int_state) {
+        Ok(class_loader) => class_loader,
+        Err(_) => return universal_error()
+    };
     // .expect("Expected thread class to have a class loader");
     let context_class_loader = new_local_ref_public(class_loader.map(|x| x.object()), int_state);
     (*info_ptr).context_class_loader = context_class_loader;

@@ -20,6 +20,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::class_loading::create_class_object;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::{ClassStatus, JVMState};
@@ -60,7 +61,10 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     if jvm.store_generated_classes {
         File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
-    define_class_safe(jvm, int_state, parsed, current_loader, class_view)
+    match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {
+        Ok(res) => res,
+        Err(_) => todo!()
+    }
 }
 
 

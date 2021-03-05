@@ -9,7 +9,7 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
-use crate::interpreter::{run_function, WasException};
+use crate::interpreter::run_function;
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};

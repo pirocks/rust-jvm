@@ -7,12 +7,13 @@ use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
 
-use classfile_view::loading::{ClassLoadingError, LoaderName};
+use classfile_view::loading::LoaderName;
 use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
+use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
@@ -23,7 +24,7 @@ use crate::jvm_state::{ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
 //todo only use where spec says
-pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
     match class.deref() {
         RuntimeClass::Byte => {
@@ -98,12 +99,12 @@ pub fn assert_loaded_class(jvm: &JVMState, _int_state: &mut InterpreterStateGuar
     }
 }
 
-pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
     let loader = int_state.current_loader();
     check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
 }
 
-pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView, loader: LoaderName) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView, loader: LoaderName) -> Result<Arc<RuntimeClass>, WasException> {
 // todo cleanup how these guards work
     let guard = jvm.classes.write().unwrap();
     match guard.initiating_loaders.get(&ptype) {
@@ -153,14 +154,14 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
     }
 }
 
-pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
     let (class_object, runtime_class) = match ptype.clone() {
-        PTypeView::ByteType => (create_class_object(jvm, int_state, ClassName::new("byte").into(), BootstrapLoader), Arc::new(RuntimeClass::Byte)),
-        PTypeView::CharType => (create_class_object(jvm, int_state, ClassName::new("char").into(), BootstrapLoader), Arc::new(RuntimeClass::Char)),
-        PTypeView::DoubleType => (create_class_object(jvm, int_state, ClassName::new("double").into(), BootstrapLoader), Arc::new(RuntimeClass::Double)),
-        PTypeView::FloatType => (create_class_object(jvm, int_state, ClassName::new("float").into(), BootstrapLoader), Arc::new(RuntimeClass::Float)),
-        PTypeView::IntType => (create_class_object(jvm, int_state, ClassName::new("int").into(), BootstrapLoader), Arc::new(RuntimeClass::Int)),
-        PTypeView::LongType => (create_class_object(jvm, int_state, ClassName::new("long").into(), BootstrapLoader), Arc::new(RuntimeClass::Long)),
+        PTypeView::ByteType => (create_class_object(jvm, int_state, ClassName::new("byte").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Byte)),
+        PTypeView::CharType => (create_class_object(jvm, int_state, ClassName::new("char").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Char)),
+        PTypeView::DoubleType => (create_class_object(jvm, int_state, ClassName::new("double").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Double)),
+        PTypeView::FloatType => (create_class_object(jvm, int_state, ClassName::new("float").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Float)),
+        PTypeView::IntType => (create_class_object(jvm, int_state, ClassName::new("int").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Int)),
+        PTypeView::LongType => (create_class_object(jvm, int_state, ClassName::new("long").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Long)),
         PTypeView::Ref(ref_) => match ref_ {
             ReferenceTypeView::Class(class_name) => {
                 let classfile = match jvm.classpath.lookup(&class_name) {
@@ -169,7 +170,7 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                         let class_name_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().clone());
                         let exception = ClassNotFoundException::new(jvm, int_state, class_name_string).object();
                         int_state.set_throw(exception.into());
-                        return Err(ClassLoadingError::ClassNotFoundException);
+                        return Err(WasException);
                     }
                 };
                 let class_view = Arc::new(ClassView::from(classfile.clone()));
@@ -179,7 +180,7 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                     status: ClassStatus::UNPREPARED.into(),
                 }));
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
-                let class_object = create_class_object(jvm, int_state, class_name.into(), BootstrapLoader);
+                let class_object = create_class_object(jvm, int_state, class_name.into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
                 if let Some(super_name) = class_view.super_name() {
                     check_loaded_class(jvm, int_state, super_name.into()).unwrap();
@@ -192,19 +193,19 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
             ReferenceTypeView::Array(sub_type) => {
                 let sub_class = check_resolved_class(jvm, int_state, sub_type.deref().clone()).unwrap();
                 //todo handle class objects for arraus
-                (create_class_object(jvm, int_state, None, BootstrapLoader), Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
+                (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
             }
         },
-        PTypeView::ShortType => (create_class_object(jvm, int_state, ClassName::new("short").into(), BootstrapLoader), Arc::new(RuntimeClass::Short)),
-        PTypeView::BooleanType => (create_class_object(jvm, int_state, ClassName::new("boolean").into(), BootstrapLoader), Arc::new(RuntimeClass::Boolean)),
-        PTypeView::VoidType => (create_class_object(jvm, int_state, ClassName::new("void").into(), BootstrapLoader), Arc::new(RuntimeClass::Void)),
+        PTypeView::ShortType => (create_class_object(jvm, int_state, ClassName::new("short").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Short)),
+        PTypeView::BooleanType => (create_class_object(jvm, int_state, ClassName::new("boolean").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Boolean)),
+        PTypeView::VoidType => (create_class_object(jvm, int_state, ClassName::new("void").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Void)),
         _ => todo!()
     };
     jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
     Ok(runtime_class)
 }
 
-pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: Option<ClassName>, loader: LoaderName) -> Arc<Object> {
+pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: Option<ClassName>, loader: LoaderName) -> Result<Arc<Object>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
             JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into())
@@ -220,11 +221,11 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         fields.insert("reflectionData".to_string(), JavaValue::Object(None));
         fields.insert("genericInfo".to_string(), JavaValue::Object(None));
         fields.insert("classRedefinedCount".to_string(), JavaValue::Int(0));
-        return Arc::new(Object::Object(NormalObject {
+        return Ok(Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             fields: UnsafeCell::new(fields),
             class_pointer: jvm.classes.read().unwrap().class_class.clone(),
-        }));
+        })));
     }
     let class_object = match loader {
         LoaderName::UserDefinedLoader(_idx) => {
@@ -233,7 +234,7 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         BootstrapLoader => {
             JClass::new_bootstrap_loader(jvm, int_state)
         }
-    };
+    }?;
     match name {
         None => {}
         Some(name) => {
@@ -242,11 +243,11 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
             }
         }
     }
-    class_object.object()
+    Ok(class_object.object())
 }
 
 
-pub fn check_resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, ClassLoadingError> {
+pub fn check_resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
     check_loaded_class(jvm, int_state, ptype)
 }
 

@@ -1,4 +1,3 @@
-pub struct ExceptionError;
 
 pub mod method_type {
     use std::cell::UnsafeCell;
@@ -13,6 +12,7 @@ pub mod method_type {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::interpreter::WasException;
     use crate::interpreter_util::push_new_object;
     use crate::java::lang::class::JClass;
     use crate::java::lang::class_loader::ClassLoader;
@@ -31,12 +31,12 @@ pub mod method_type {
     }
 
     impl MethodType {
-        pub fn from_method_descriptor_string(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str: crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> MethodType {
+        pub fn from_method_descriptor_string(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str: crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> Result<MethodType, WasException> {
             int_state.push_current_operand_stack(str.java_value());
             int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(None)));
             let method_type = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
-            crate::instructions::invoke::native::mhn_temp::run_static_or_virtual(jvm, int_state, &method_type, "fromMethodDescriptorString".to_string(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string());
-            int_state.pop_current_operand_stack().cast_method_type()
+            run_static_or_virtual(jvm, int_state, &method_type, "fromMethodDescriptorString".to_string(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string())?;
+            Ok(int_state.pop_current_operand_stack().cast_method_type())
         }
 
         pub fn set_rtype(&self, rtype: JClass) {
@@ -80,12 +80,12 @@ pub mod method_type {
             self.normal_object.unwrap_normal_object().fields_mut().insert("methodDescriptor".to_string(), method_descriptor);
         }
 
-        pub fn parameter_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, int: jint) -> JClass {
+        pub fn parameter_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, int: jint) -> Result<JClass, WasException> {
             let method_type = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(JavaValue::Int(int));
-            run_static_or_virtual(jvm, int_state, &method_type, "parameterType".to_string(), "(I)Ljava/lang/Class;".to_string());
-            int_state.pop_current_operand_stack().cast_class()
+            run_static_or_virtual(jvm, int_state, &method_type, "parameterType".to_string(), "(I)Ljava/lang/Class;".to_string())?;
+            Ok(int_state.pop_current_operand_stack().cast_class())
         }
 
         pub fn new(
@@ -219,8 +219,8 @@ pub mod method_handle {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::interpreter::WasException;
     use crate::java::lang::class::JClass;
-    use crate::java::lang::invoke::ExceptionError;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
@@ -240,35 +240,33 @@ pub mod method_handle {
 
     impl MethodHandle {
         //todo put this in MethodHandle
-        pub fn lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
+        pub fn lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Lookup, WasException> {
             let method_handles_class = assert_inited_or_initing_class(jvm, int_state, ClassName::method_handles().into());
-            run_static_or_virtual(jvm, int_state, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
-            int_state.pop_current_operand_stack().cast_lookup()
+            run_static_or_virtual(jvm, int_state, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
+            Ok(int_state.pop_current_operand_stack().cast_lookup())
         }
-        pub fn public_lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Lookup {
+        pub fn public_lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Lookup, WasException> {
             let method_handles_class = assert_inited_or_initing_class(jvm, int_state, ClassName::method_handles().into());
-            run_static_or_virtual(jvm, int_state, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string());
-            int_state.pop_current_operand_stack().cast_lookup()
+            run_static_or_virtual(jvm, int_state, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
+            Ok(int_state.pop_current_operand_stack().cast_lookup())
         }
 
-        pub fn internal_member_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MemberName {
+        pub fn internal_member_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<MemberName, WasException> {
             let method_handle_class = assert_inited_or_initing_class(jvm, int_state, ClassName::method_handle().into());
             int_state.push_current_operand_stack(self.clone().java_value());
-            dbg!(self.normal_object.unwrap_normal_object().class_pointer.view().name());
-            run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MemberName;".to_string());
-            int_state.pop_current_operand_stack().cast_member_name()
+            run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MemberName;".to_string())?;
+            Ok(int_state.pop_current_operand_stack().cast_member_name())
         }
 
         pub fn type__(&self) -> MethodType {
             self.normal_object.lookup_field("type").cast_method_type()
         }
 
-        pub fn type_(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodType {
+        pub fn type_(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<MethodType, WasException> {
             let method_handle_class = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
             int_state.push_current_operand_stack(self.clone().java_value());
-            dbg!(self.normal_object.unwrap_normal_object().class_pointer.view().name());
-            run_static_or_virtual(jvm, int_state, &method_handle_class, "type".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
-            int_state.pop_current_operand_stack().cast_method_type()
+            run_static_or_virtual(jvm, int_state, &method_handle_class, "type".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
+            Ok(int_state.pop_current_operand_stack().cast_method_type())
         }
 
 
@@ -297,39 +295,36 @@ pub mod method_handle {
             static_vars.get("IMPL_LOOKUP").unwrap().cast_lookup()
         }
 
-        pub fn find_virtual(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> MethodHandle {
+        pub fn find_virtual(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> Result<MethodHandle, WasException> {
             let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(obj.java_value());
             int_state.push_current_operand_stack(name.java_value());
             int_state.push_current_operand_stack(mt.java_value());
-            run_static_or_virtual(jvm, int_state, &lookup_class, "findVirtual".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string());
-            int_state.pop_current_operand_stack().cast_method_handle()
-        }
-
-
-        pub fn find_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> Result<MethodHandle, ExceptionError> {
-            let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
-            int_state.push_current_operand_stack(obj.java_value());
-            int_state.push_current_operand_stack(name.java_value());
-            int_state.push_current_operand_stack(mt.java_value());
-            run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string());
-            if int_state.throw().is_some() {
-                return Err(ExceptionError);
-            }
+            run_static_or_virtual(jvm, int_state, &lookup_class, "findVirtual".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
             Ok(int_state.pop_current_operand_stack().cast_method_handle())
         }
 
-        pub fn find_special(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType, special_caller: JClass) -> MethodHandle {
+
+        pub fn find_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> Result<MethodHandle, WasException> {
+            let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
+            int_state.push_current_operand_stack(self.clone().java_value());
+            int_state.push_current_operand_stack(obj.java_value());
+            int_state.push_current_operand_stack(name.java_value());
+            int_state.push_current_operand_stack(mt.java_value());
+            run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
+            Ok(int_state.pop_current_operand_stack().cast_method_handle())
+        }
+
+        pub fn find_special(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType, special_caller: JClass) -> Result<MethodHandle, WasException> {
             let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(obj.java_value());
             int_state.push_current_operand_stack(name.java_value());
             int_state.push_current_operand_stack(mt.java_value());
             int_state.push_current_operand_stack(special_caller.java_value());
-            run_static_or_virtual(jvm, int_state, &lookup_class, "findSpecial".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;".to_string());
-            int_state.pop_current_operand_stack().cast_method_handle()
+            run_static_or_virtual(jvm, int_state, &lookup_class, "findSpecial".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;".to_string())?;
+            Ok(int_state.pop_current_operand_stack().cast_method_handle())
         }
 
         as_object_or_java_value!();
@@ -354,6 +349,7 @@ pub mod lambda_form {
 
         use crate::class_loading::assert_inited_or_initing_class;
         use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+        use crate::interpreter::WasException;
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java::lang::invoke::method_type::MethodType;
         use crate::java::lang::member_name::MemberName;
@@ -375,11 +371,11 @@ pub mod lambda_form {
             as_object_or_java_value!();
             getter_gen!(member,MemberName,cast_member_name);
 
-            pub fn method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodType { // java.lang.invoke.LambdaForm.NamedFunction
+            pub fn method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<MethodType, WasException> { // java.lang.invoke.LambdaForm.NamedFunction
                 let named_function_type = assert_inited_or_initing_class(jvm, int_state, ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 run_static_or_virtual(jvm, int_state, &named_function_type, "methodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
-                int_state.pop_current_operand_stack().cast_method_type()
+                Ok(int_state.pop_current_operand_stack().cast_method_type())
             }
         }
     }
@@ -491,6 +487,7 @@ pub mod call_site {
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::virtual_::invoke_virtual;
+    use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::invoke::method_handle::MethodHandle;
     use crate::java_values::{JavaValue, Object};
@@ -508,12 +505,11 @@ pub mod call_site {
     }
 
     impl CallSite {
-        pub fn get_target(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> MethodHandle {
+        pub fn get_target(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<MethodHandle, WasException> {
             let _call_site_class = assert_inited_or_initing_class(jvm, int_state, ClassName::Str("java/lang/invoke/CallSite".to_string()).into());
-            // assert_eq!(self.clone().normal_object.unwrap_normal_object().class_pointer.view().name(), call_site_class.view().name());
             int_state.push_current_operand_stack(self.clone().java_value());
-            invoke_virtual(jvm, int_state, "getTarget", &MethodDescriptor { parameter_types: vec![], return_type: PType::Ref(ReferenceType::Class(ClassName::method_handle())) });
-            int_state.pop_current_operand_stack().cast_method_handle()
+            invoke_virtual(jvm, int_state, "getTarget", &MethodDescriptor { parameter_types: vec![], return_type: PType::Ref(ReferenceType::Class(ClassName::method_handle())) })?;
+            Ok(int_state.pop_current_operand_stack().cast_method_handle())
         }
 
         as_object_or_java_value!();

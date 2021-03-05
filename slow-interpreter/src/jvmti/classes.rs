@@ -6,8 +6,10 @@ use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_AR
 
 use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
+use crate::interpreter::WasException;
+use crate::java::lang::class_loader::ClassLoader;
 use crate::java_values::JavaValue;
-use crate::jvmti::{get_interpreter_state, get_state};
+use crate::jvmti::{get_interpreter_state, get_state, universal_error};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, try_from_jclass};
 
@@ -237,7 +239,10 @@ pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, cla
     let jvm = get_state(env);
     let class = from_jclass(klass);
     let int_state = get_interpreter_state(env);
-    let class_loader = class.get_class_loader(jvm, int_state);
+    let class_loader = match class.get_class_loader(jvm, int_state) {
+        Ok(class_loader) => class_loader,
+        Err(WasException {}) => return universal_error()
+    };
     let jobject_ = new_local_ref_public(class_loader.map(|cl| cl.object()), int_state);
     classloader_ptr.write(jobject_);
     jvmtiError_JVMTI_ERROR_NONE

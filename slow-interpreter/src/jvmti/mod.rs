@@ -320,6 +320,35 @@ unsafe extern "C" fn get_current_thread(env: *mut jvmtiEnv, thread_ptr: *mut jth
     jvmtiError_JVMTI_ERROR_NONE
 }
 
+///Universal Errors
+// The following errors may be returned by any function
+//
+// JVMTI_ERROR_NONE (0)
+//     No error has occurred. This is the error code that is returned on successful completion of the function.
+//
+// JVMTI_ERROR_NULL_POINTER (100)
+//     Pointer is unexpectedly NULL.
+//
+// JVMTI_ERROR_OUT_OF_MEMORY (110)
+//     The function attempted to allocate memory and no more memory was available for allocation.
+//
+// JVMTI_ERROR_ACCESS_DENIED (111)
+//     The desired functionality has not been enabled in this virtual machine.
+//
+// JVMTI_ERROR_UNATTACHED_THREAD (115)
+//     The thread being used to call this function is not attached to the virtual machine. Calls must be made from attached threads. See AttachCurrentThread in the JNI invocation API.
+//
+// JVMTI_ERROR_INVALID_ENVIRONMENT (116)
+//     The JVM TI environment provided is no longer connected or is not an environment.
+//
+// JVMTI_ERROR_WRONG_PHASE (112)
+//     The desired functionality is not available in the current phase. Always returned if the virtual machine has completed running.
+//
+// JVMTI_ERROR_INTERNAL (113)
+//     An unexpected internal error has occurred.
+pub fn universal_error() -> jvmtiError {
+    jvmtiError_JVMTI_ERROR_INTERNAL //todo make this better
+}
 
 pub mod object;
 pub mod methods;

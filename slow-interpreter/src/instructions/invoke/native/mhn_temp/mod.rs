@@ -26,9 +26,9 @@ use crate::sun::misc::unsafe_::Unsafe;
 
 pub mod resolve;
 
-pub fn MHN_getConstant() -> Option<JavaValue> {
+pub fn MHN_getConstant() -> Result<JavaValue, WasException> {
 //todo
-    JavaValue::Int(0).into()
+    Ok(JavaValue::Int(0))
 }
 
 pub const BRIDGE: i32 = 64;
@@ -95,21 +95,21 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
 }
 
 
-pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(_args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(_args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
 //static native int getMembers(Class<?> defc, String matchName, String matchSig,
 // //          int matchFlags, Class<?> caller, int skip, MemberName[] results);
 //     dbg!(args);
     //todo nyi
     // unimplemented!();
-    Some(JavaValue::Int(0))
+    Ok(JavaValue::Int(0))
 }
 
-pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Option<JavaValue> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
     let member_name = args[0].cast_member_name();
     let name = member_name.get_name_func(jvm, int_state);
     let clazz = member_name.clazz();
-    let field_type = member_name.get_field_type(jvm, int_state);
+    let field_type = member_name.get_field_type(jvm, int_state)?;
     let empty_string = JString::from_rust(jvm, int_state, "".to_string());
     let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, empty_string, vec![]);
-    Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field).into()
+    Ok(Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field)?)
 }
