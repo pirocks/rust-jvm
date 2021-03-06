@@ -150,7 +150,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         IsMethodSynthetic: Some(is_method_synthetic),
         GetLoadedClasses: Some(get_loaded_classes),
         GetClassLoaderClasses: None,//doesn't need impl not in currently supported capabilities
-        PopFrame: None,//todo impl
+        PopFrame: None,//todo impl. this is really blocking on a bunch of native stuff/jit
         ForceEarlyReturnObject: None,//doesn't need impl not in currently supported capabilities
         ForceEarlyReturnInt: None,//doesn't need impl not in currently supported capabilities
         ForceEarlyReturnLong: None,//doesn't need impl not in currently supported capabilities
@@ -170,7 +170,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         reserved97: std::ptr::null_mut(),
         reserved98: std::ptr::null_mut(),
         reserved99: std::ptr::null_mut(),
-        GetAllStackTraces: None,//todo impl
+        GetAllStackTraces: None,//todo impl this needs to be atomic, so blocking on better thread story
         GetThreadListStackTraces: None,//todo impl
         GetThreadLocalStorage: Some(get_thread_local_storage),
         SetThreadLocalStorage: Some(set_thread_local_storage),
@@ -178,15 +178,15 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         reserved105: std::ptr::null_mut(),
         GetTag: Some(get_tag),
         SetTag: Some(set_tag),
-        ForceGarbageCollection: None,//todo impl
-        IterateOverObjectsReachableFromObject: None,//todo impl
-        IterateOverReachableObjects: None,//todo impl
-        IterateOverHeap: None,//todo impl
-        IterateOverInstancesOfClass: None,//todo impl
+        ForceGarbageCollection: None,//todo impl blocking on gc
+        IterateOverObjectsReachableFromObject: None,//todo impl blocking on gc
+        IterateOverReachableObjects: None,//todo impl blocking on gc
+        IterateOverHeap: None,//todo impl blocking on gc
+        IterateOverInstancesOfClass: None,//todo impl blocking on gc
         reserved113: std::ptr::null_mut(),
         GetObjectsWithTags: None,//todo impl
-        FollowReferences: None,//todo impl
-        IterateThroughHeap: None,//todo impl
+        FollowReferences: None,//todo impl blocking on gc
+        IterateThroughHeap: None,//todo impl blocking on gc
         reserved117: std::ptr::null_mut(),
         reserved118: std::ptr::null_mut(),
         reserved119: std::ptr::null_mut(),
