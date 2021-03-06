@@ -347,7 +347,7 @@ impl ClassView for ArrayView {
     }
 
     fn super_name(&self) -> Option<ClassName> {
-        todo!()
+        None
     }
 
     fn methods(&self) -> MethodIterator {

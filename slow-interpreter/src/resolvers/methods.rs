@@ -3,7 +3,6 @@ use std::sync::Arc;
 use classfile_view::view::ClassView;
 use descriptor_parser::MethodDescriptor;
 
-use crate::interpreter::WasException;
 use crate::InterpreterStateGuard;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;

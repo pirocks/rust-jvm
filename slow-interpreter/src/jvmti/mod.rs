@@ -1,13 +1,19 @@
 use std::mem::transmute;
 use std::ptr::null_mut;
+use std::sync::Arc;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_parser::code::InstructionTypeNum::return_;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::*;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::class_objects::get_or_create_class_object;
+use crate::field_table::FieldId;
 use crate::get_thread_or_error;
+use crate::interpreter::WasException;
 use crate::interpreter_state::AddFrameNotifyError;
-use crate::java_values::JavaValue;
+use crate::java::lang::class::JClass;
+use crate::java_values::{JavaValue, Object};
 use crate::jvmti::agent::*;
 use crate::jvmti::allocate::*;
 use crate::jvmti::breakpoint::*;
@@ -30,7 +36,7 @@ use crate::jvmti::threads::suspend_resume::*;
 use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_jclass, from_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 
 pub mod event_callbacks;
 
@@ -113,7 +119,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetClassSignature: Some(get_class_signature),
         GetClassStatus: Some(get_class_status),
         GetSourceFileName: Some(get_source_file_name),
-        GetClassModifiers: None,//todo impl
+        GetClassModifiers: Some(get_class_modifiers),
         GetClassMethods: Some(get_class_methods),
         GetClassFields: Some(get_class_fields),
         GetImplementedInterfaces: Some(get_implemented_interfaces),
@@ -123,7 +129,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetObjectHashCode: Some(get_object_hash_code),
         GetObjectMonitorUsage: None,//doesn't need impl not in currently supported capabilities
         GetFieldName: Some(get_field_name),
-        GetFieldDeclaringClass: None,//todo impl
+        GetFieldDeclaringClass: Some(get_field_declaring_class),
         GetFieldModifiers: Some(get_field_modifiers),
         IsFieldSynthetic: Some(is_field_synthetic),
         GetMethodName: Some(get_method_name),
@@ -221,6 +227,53 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
     }
 }
 
+//Get Field Declaring Class
+//
+//     jvmtiError
+//     GetFieldDeclaringClass(jvmtiEnv* env,
+//                 jclass klass,
+//                 jfieldID field,
+//                 jclass* declaring_class_ptr)
+//
+// For the field indicated by klass and field return the class that defined it via declaring_class_ptr. The declaring class will either be klass, a superclass, or an implemented interface.
+//
+// Phase	Callback Safe	Position	Since
+// may only be called during the start or the live phase 	No 	61	1.0
+//
+// Capabilities
+// Required Functionality
+//
+// Parameters
+// Name 	Type 	Description
+// klass	jclass	The class to query.
+// field	jfieldID	The field to query.
+// declaring_class_ptr	jclass*	On return, points to the declaring class
+//
+// Agent passes a pointer to a jclass. On return, the jclass has been set. The object returned by declaring_class_ptr is a JNI local reference and must be managed.
+//
+// Errors
+// This function returns either a universal error or one of the following errors
+// Error 	Description
+// JVMTI_ERROR_INVALID_CLASS	klass is not a class object or the class has been unloaded.
+// JVMTI_ERROR_INVALID_FIELDID	field is not a jfieldID.
+// JVMTI_ERROR_NULL_POINTER	declaring_class_ptr is NULL.
+
+unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, klass: jclass, field: jfieldID, declaring_class_ptr: *mut jclass) -> jvmtiError {
+    let jvm = get_state(env);
+    null_check!(declaring_class_ptr);
+    let field_id: FieldId = field as usize;
+    let (runtime_class, index) = jvm.field_table.read().unwrap().lookup(field_id);
+    let type_ = runtime_class.view().field(index as usize).field_type();
+    let int_state = get_interpreter_state(env);
+    let res_object = new_local_ref_public(match get_or_create_class_object(jvm, type_, int_state) {
+        Ok(res) => res,
+        Err(_) => return jvmtiError_JVMTI_ERROR_INTERNAL
+    }.into(), int_state);
+    declaring_class_ptr.write(res_object);
+    return jvmtiError_JVMTI_ERROR_NONE
+}
+
+
 ///Get Class Modifiers
 //
 //     jvmtiError
@@ -256,7 +309,6 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
 // JVMTI_ERROR_NULL_POINTER	modifiers_ptr is NULL.
 unsafe extern "C" fn get_class_modifiers(env: *mut jvmtiEnv, klass: jclass, modifiers_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     null_check!(modifiers_ptr);
     //handle klass invalid
     let runtime_class = from_jclass(klass).as_runtime_class(jvm);
