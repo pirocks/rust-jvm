@@ -13,7 +13,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
-    unimplemented!()
+    u8::from(d.is_nan())
 }
 
 #[no_mangle]
