@@ -1,9 +1,11 @@
 use std::ffi::VaList;
+use std::ptr::null_mut;
 
 use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
 
 use crate::instructions::invoke::special::invoke_special_impl;
+use crate::interpreter::WasException;
 use crate::interpreter_util::push_new_object;
 use crate::method_table::from_jmethod_id;
 use crate::rust_jni::interface::call::VarargProvider;
@@ -38,13 +40,15 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
     for type_ in &parsed.parameter_types {
         push_type_to_operand_stack(int_state, type_, &mut l)
     }
-    invoke_special_impl(
+    if let Err(_) = invoke_special_impl(
         jvm,
         int_state,
         &parsed,
         method_i as usize,
         class.clone(),
-    );
+    ) {
+        return null_mut()
+    };
     new_local_ref_public(obj.unwrap_object(), int_state)
 }
 

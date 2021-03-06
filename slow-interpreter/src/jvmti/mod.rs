@@ -270,7 +270,8 @@ unsafe extern "C" fn get_max_locals(env: *mut jvmtiEnv, method: jmethodID, max_p
         None => return jvmtiError_JVMTI_ERROR_NATIVE_METHOD,
         Some(res) => res
     }.max_locals;
-    max_ptr.write(max_locals);
+    max_ptr.write(max_locals as i32);
+    jvmtiError_JVMTI_ERROR_NONE
 }
 
 
