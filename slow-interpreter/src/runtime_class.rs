@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::classfile::{ACC_STATIC, Classfile};
@@ -36,7 +36,7 @@ pub struct RuntimeClassArray {
 
 
 pub struct RuntimeClassClass {
-    pub class_view: Arc<ClassView>,
+    pub class_view: Arc<ClassBackedView>,
     pub static_vars: RwLock<HashMap<String, JavaValue>>,
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
@@ -62,7 +62,7 @@ impl RuntimeClass {
             }
         }
     }
-    pub fn view(&self) -> &Arc<ClassView> {
+    pub fn view(&self) -> &Arc<ClassBackedView> {
         match self {
             RuntimeClass::Byte => unimplemented!(),
             RuntimeClass::Boolean => unimplemented!(),
@@ -78,7 +78,7 @@ impl RuntimeClass {
         }
     }
 
-    pub fn try_view(&self) -> Option<&Arc<ClassView>> {
+    pub fn try_view(&self) -> Option<&Arc<ClassBackedView>> {
         match self {
             RuntimeClass::Byte => None,
             RuntimeClass::Boolean => None,

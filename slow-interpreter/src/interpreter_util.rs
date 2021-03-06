@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::loading::{ClassLoadingError, LoaderName};
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -30,7 +30,7 @@ fn default_init_fields(
     int_state: &mut InterpreterStateGuard,
     loader: LoaderName,
     object_pointer: Option<Arc<Object>>,
-    view: &ClassView,
+    view: &ClassBackedView,
 ) -> Result<(), ClassLoadingError> {
     if let Some(super_name) = view.super_name() {
         let loaded_super = check_resolved_class(jvm, int_state, super_name.into()).unwrap();//todo pass the error up

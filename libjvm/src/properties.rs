@@ -1,3 +1,4 @@
+use classfile_view::view::ClassView;
 use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;

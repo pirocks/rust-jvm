@@ -4,8 +4,8 @@ use descriptor_parser::{MethodDescriptor, parse_class_name, parse_method_descrip
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
 use rust_jvm_common::classnames::ClassName;
 
+use crate::view::{ClassBackedView, ClassView};
 use crate::view::attribute_view::BootstrapMethodView;
-use crate::view::ClassView;
 use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[derive(Debug)]
@@ -50,7 +50,7 @@ impl ClassPoolElemView {
 
 #[derive(Debug)]
 pub struct StringView<'l> {
-    pub(crate) class_view: &'l ClassView,
+    pub(crate) class_view: &'l ClassBackedView,
     pub(crate) string_index: usize,
 }
 
@@ -62,7 +62,7 @@ impl StringView<'_> {
 
 #[derive(Debug)]
 pub struct FieldrefView<'cl> {
-    pub(crate) class_view: &'cl ClassView,
+    pub(crate) class_view: &'cl ClassBackedView,
     pub(crate) i: usize,
 }
 
@@ -86,7 +86,7 @@ impl FieldrefView<'_> {
 
 #[derive(Debug)]
 pub struct MethodrefView<'cl> {
-    pub(crate) class_view: &'cl ClassView,
+    pub(crate) class_view: &'cl ClassBackedView,
     pub(crate) i: usize,
 }
 
@@ -115,7 +115,7 @@ impl MethodrefView<'_> {
 
 #[derive(Debug)]
 pub struct InterfaceMethodrefView<'cl> {
-    pub(crate) class_view: &'cl ClassView,
+    pub(crate) class_view: &'cl ClassBackedView,
     pub(crate) i: usize,
 }
 
@@ -138,7 +138,7 @@ impl InterfaceMethodrefView<'_> {
 
 #[derive(Debug)]
 pub struct NameAndTypeView<'cl> {
-    pub(crate) class_view: &'cl ClassView,
+    pub(crate) class_view: &'cl ClassBackedView,
     pub(crate) i: usize,
 }
 
@@ -171,7 +171,7 @@ impl NameAndTypeView<'_> {
 
 #[derive(Debug, Clone)]
 pub struct MethodHandleView<'l> {
-    pub(crate) class_view: &'l ClassView,
+    pub(crate) class_view: &'l ClassBackedView,
     pub i: usize,
 }
 
@@ -257,7 +257,7 @@ pub enum InvokeSpecial<'cl> {
 
 #[derive(Debug)]
 pub struct MethodTypeView<'cl> {
-    pub(crate) class_view: &'cl ClassView,
+    pub(crate) class_view: &'cl ClassBackedView,
     pub i: usize,
 }
 
@@ -281,7 +281,7 @@ pub struct DynamicView {
 
 #[derive(Debug)]
 pub struct InvokeDynamicView<'cl> {
-    pub(crate) class_view: &'cl ClassView,
+    pub(crate) class_view: &'cl ClassBackedView,
     pub(crate) bootstrap_method_attr_index: u16,
     pub(crate) name_and_type_index: CPIndex,
 }

@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use classfile_view::loading::ClassWithLoader;
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::vtype::VType;
@@ -409,7 +409,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     standard_exception_frame(locals, flag, nf)
 }
 
-pub fn get_method_descriptor(cp: usize, classfile: &ClassView) -> (PTypeView, String, MethodDescriptor) {
+pub fn get_method_descriptor(cp: usize, classfile: &ClassBackedView) -> (PTypeView, String, MethodDescriptor) {
     let c = &classfile.constant_pool_view(cp);
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantInfoView::Methodref(m) => {

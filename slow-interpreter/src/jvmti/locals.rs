@@ -102,7 +102,7 @@ pub(crate) unsafe fn set_local(env: *mut jvmtiEnv, thread: jthread, depth: jint,
     let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
-    null_check!(value_ptr);
+    null_check!(thread);
     if let Err(err) = set_local_t(jvm, int_state, thread, depth, slot, value) {
         return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err)
     };
@@ -208,8 +208,10 @@ unsafe fn set_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thr
         JThread::current_thread(jvm, int_state)
     };
     let java_thread = jthread.get_java_thread(jvm);
-    let call_stack = &mut java_thread.interpreter_state.read().unwrap().call_stack;
-    let stack_frame: &mut StackEntry = match call_stack.get_mut(call_stack.len() - 1 - depth as usize) {
+    let mut guard = java_thread.interpreter_state.write().unwrap();
+    let call_stack = &mut guard.call_stack;
+    let len = call_stack.len();
+    let stack_frame: &mut StackEntry = match call_stack.get_mut(len - 1 - depth as usize) {
         None => return Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
         Some(entry) => entry,
     };

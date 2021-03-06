@@ -20,6 +20,7 @@ use std::sync::atomic::Ordering;
 use std::thread::sleep;
 use std::time::Duration;
 
+use classfile_view::view::ClassView;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
@@ -104,7 +105,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
 fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: Vec<String>) {
     let mut arg_strings: Vec<JavaValue> = vec![];
     for arg_str in args {
-        arg_strings.push(JString::from_rust(jvm, int_state, arg_str.clone()).java_value());
+        arg_strings.push(JString::from_rust(jvm, int_state, arg_str.clone()).expect("todo").java_value());
     }
     let arg_array = JavaValue::Object(Some(Arc::new(Array(ArrayObject::new_array(
         jvm,
@@ -126,8 +127,8 @@ fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
-        let key = JString::from_rust(jvm, int_state, properties[key_i].clone());
-        let value = JString::from_rust(jvm, int_state, properties[value_i].clone());
+        let key = JString::from_rust(jvm, int_state, properties[key_i].clone()).expect("todo");
+        let value = JString::from_rust(jvm, int_state, properties[value_i].clone()).expect("todo");
         prop_obj.set_property(jvm, int_state, key, value);
     }
     //todo need to check exception, though I guess its meant to be impossible here

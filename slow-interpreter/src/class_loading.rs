@@ -9,7 +9,7 @@ use by_address::ByAddress;
 
 use classfile_view::loading::LoaderName;
 use classfile_view::loading::LoaderName::BootstrapLoader;
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 
@@ -124,7 +124,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
                             match ref_ {
                                 ReferenceTypeView::Class(class_name) => {
                                     drop(guard);
-                                    let java_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().replace("/", ".").clone());
+                                    let java_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().replace("/", ".").clone())?;
                                     class_loader.load_class(jvm, int_state, java_string).as_runtime_class(jvm)
                                 }
                                 ReferenceTypeView::Array(sub_type) => {
@@ -167,13 +167,13 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                 let classfile = match jvm.classpath.lookup(&class_name) {
                     Ok(x) => x,
                     Err(_) => {
-                        let class_name_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().clone());
-                        let exception = ClassNotFoundException::new(jvm, int_state, class_name_string).object();
+                        let class_name_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().clone())?;
+                        let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.object();
                         int_state.set_throw(exception.into());
                         return Err(WasException);
                     }
                 };
-                let class_view = Arc::new(ClassView::from(classfile.clone()));
+                let class_view = Arc::new(ClassBackedView::from(classfile.clone()));
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
                     static_vars: Default::default(),
@@ -239,7 +239,7 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         None => {}
         Some(name) => {
             if jvm.include_name_field.load(Ordering::SeqCst) {
-                class_object.set_name_(JString::from_rust(jvm, int_state, name.get_referred_name().replace("/", ".").to_string()))
+                class_object.set_name_(JString::from_rust(jvm, int_state, name.get_referred_name().replace("/", ".").to_string())?)
             }
         }
     }

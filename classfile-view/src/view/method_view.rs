@@ -2,11 +2,11 @@ use descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descripto
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::view::{ClassView, HasAccessFlags};
+use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 use crate::view::ptype_view::PTypeView;
 
 pub struct MethodView<'cl> {
-    pub(crate) class_view: &'cl ClassView,
+    pub(crate) class_view: &'cl ClassBackedView,
     pub(crate) method_i: usize,
 }
 
@@ -26,11 +26,11 @@ impl HasAccessFlags for MethodView<'_> {
 }
 
 impl MethodView<'_> {
-    fn from(c: &ClassView, i: usize) -> MethodView {
+    fn from(c: &ClassBackedView, i: usize) -> MethodView {
         MethodView { class_view: c, method_i: i }
     }
 
-    pub fn classview(&self) -> &ClassView {
+    pub fn classview(&self) -> &ClassBackedView {
         self.class_view
     }
 
@@ -115,7 +115,7 @@ impl MethodView<'_> {
 
 
 pub struct MethodIterator<'l> {
-    pub(crate) class_view: &'l ClassView,
+    pub(crate) class_view: &'l ClassBackedView,
     pub(crate) i: usize,
 }
 

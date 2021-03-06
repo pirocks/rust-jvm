@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use by_address::ByAddress;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use descriptor_parser::MethodDescriptor;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};

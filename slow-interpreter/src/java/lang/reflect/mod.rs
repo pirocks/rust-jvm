@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::classnames::ClassName;
 
+use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
@@ -65,8 +66,8 @@ fn get_modifiers(method_view: &MethodView) -> jint {
 }
 
 
-fn get_signature(state: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JString {
-    JString::from_rust(state, int_state, method_view.desc_str()).intern(state, int_state)
+fn get_signature(state: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<JString, WasException> {
+    Ok(JString::from_rust(state, int_state, method_view.desc_str())?.intern(state, int_state))
 }
 
 fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
@@ -118,6 +119,7 @@ fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard
 pub mod method {
     use std::sync::Arc;
 
+    use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use jvmti_jni_bindings::jint;
@@ -126,6 +128,7 @@ pub mod method {
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
+    use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
@@ -148,7 +151,7 @@ pub mod method {
     }
 
     impl Method {
-        pub fn method_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Method {
+        pub fn method_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<Method, WasException> {
             let clazz = {
                 let field_class_name = method_view.classview().name();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
@@ -158,9 +161,9 @@ pub mod method {
             let name = {
                 let name = method_view.name();
                 if name == "<init>" {
-                    return Constructor::constructor_object_from_method_view(jvm, int_state, method_view).java_value().cast_method();
+                    return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
                 }
-                JString::from_rust(jvm, int_state, name).intern(jvm, int_state)
+                JString::from_rust(jvm, int_state, name)?.intern(jvm, int_state)
             };
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view);
             let return_type = {
@@ -171,11 +174,11 @@ pub mod method {
             let modifiers = get_modifiers(&method_view);
             //todo what does slot do?
             let slot = -1;
-            let signature = get_signature(jvm, int_state, &method_view);
+            let signature = get_signature(jvm, int_state, &method_view)?;
             let annotations = JavaValue::empty_byte_array(jvm, int_state);
             let parameter_annotations = JavaValue::empty_byte_array(jvm, int_state);
             let annotation_default = JavaValue::empty_byte_array(jvm, int_state);
-            Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)
+            Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default))
         }
 
         pub fn new_method(jvm: &JVMState,
@@ -242,6 +245,7 @@ pub mod method {
 pub mod constructor {
     use std::sync::Arc;
 
+    use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use jvmti_jni_bindings::jint;
@@ -284,7 +288,7 @@ pub mod constructor {
             let modifiers = get_modifiers(&method_view);
             //todo what does slot do?
             let slot = -1;
-            let signature = get_signature(jvm, int_state, &method_view);
+            let signature = get_signature(jvm, int_state, &method_view)?;
             Constructor::new_constructor(jvm, int_state, clazz, parameter_types, exception_types, modifiers, slot, signature)
         }
 

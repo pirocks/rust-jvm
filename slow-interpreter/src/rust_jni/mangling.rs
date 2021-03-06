@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use regex::Regex;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 
 use crate::runtime_class::RuntimeClass;
 

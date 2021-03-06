@@ -1,5 +1,6 @@
 use num_cpus::get;
 
+use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jobjectArray};
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_state};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;

@@ -46,37 +46,65 @@ pub trait HasAccessFlags {
     }
 }
 
+
+pub trait ClassView {
+    fn name(&self) -> ClassName;
+    fn super_name(&self) -> Option<ClassName>;
+    fn methods(&self) -> MethodIterator;
+    fn method_view_i(&self, i: usize) -> MethodView;
+    fn num_methods(&self) -> usize;
+    fn constant_pool_size(&self) -> usize;
+    fn constant_pool_view(&self, i: usize) -> ConstantInfoView;
+    fn field(&self, i: usize) -> FieldView;
+    fn fields(&self) -> FieldIterator;
+    fn interfaces(&self) -> InterfaceIterator;
+    fn num_fields(&self) -> usize;
+    fn num_interfaces(&self) -> usize;
+    fn backing_class(&self) -> Arc<Classfile>;
+    fn bootstrap_methods_attr(&self) -> BootstrapMethodsView;
+    fn sourcefile_attr(&self) -> Option<SourceFileView>;
+    fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
+
+    fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView>;
+    fn lookup_method_name(&self, name: &str) -> Vec<MethodView>;
+
+    fn method_index(&self) -> Arc<MethodIndex>;
+}
+
 #[derive(Debug)]
-pub struct ClassView {
+pub struct ClassBackedView {
     backing_class: Arc<Classfile>,
     method_index: RwLock<Option<Arc<MethodIndex>>>,
     descriptor_index: RwLock<Vec<Option<MethodDescriptor>>>,
 }
 
 
-impl ClassView {
-    pub fn from(c: Arc<Classfile>) -> ClassView {
-        ClassView { backing_class: c.clone(), method_index: RwLock::new(None), descriptor_index: RwLock::new(vec![None; c.methods.len()]) }
+impl ClassBackedView {
+    pub fn from(c: Arc<Classfile>) -> ClassBackedView {
+        ClassBackedView { backing_class: c.clone(), method_index: RwLock::new(None), descriptor_index: RwLock::new(vec![None; c.methods.len()]) }
     }
-    pub fn name(&self) -> ClassName {
+}
+
+impl ClassView for ClassBackedView {
+    fn name(&self) -> ClassName {
         class_name(&self.backing_class)
     }
-    pub fn super_name(&self) -> Option<ClassName> {
+    fn super_name(&self) -> Option<ClassName> {
         self.backing_class.super_class_name()
     }
-    pub fn methods(&self) -> MethodIterator {
+    fn methods(&self) -> MethodIterator {
         MethodIterator { class_view: self, i: 0 }
     }
-    pub fn method_view_i(&self, i: usize) -> MethodView {
+    fn method_view_i(&self, i: usize) -> MethodView {
         MethodView { class_view: self, method_i: i }
     }
-    pub fn num_methods(&self) -> usize {
+    fn num_methods(&self) -> usize {
         self.backing_class.methods.len()
     }
-    pub fn constant_pool_size(&self) -> usize {
+    fn constant_pool_size(&self) -> usize {
         self.backing_class.constant_pool.len()
     }
-    pub fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
+    fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
         let backing_class = self.backing_class.clone();
         match &self.backing_class.constant_pool[i].kind {
             ConstantKind::Utf8(utf8) => ConstantInfoView::Utf8(Utf8View { str: utf8.string.clone() }),
@@ -107,25 +135,25 @@ impl ClassView {
             ConstantKind::LiveObject(idx) => ConstantInfoView::LiveObject(*idx)
         }
     }
-    pub fn field(&self, i: usize) -> FieldView {
+    fn field(&self, i: usize) -> FieldView {
         FieldView::from(self, i)
     }
-    pub fn fields(&self) -> FieldIterator {
+    fn fields(&self) -> FieldIterator {
         FieldIterator { backing_class: &self, i: 0 }
     }
-    pub fn interfaces(&self) -> InterfaceIterator {
+    fn interfaces(&self) -> InterfaceIterator {
         InterfaceIterator { view: &self, i: 0 }
     }
-    pub fn num_fields(&self) -> usize {
+    fn num_fields(&self) -> usize {
         self.backing_class.fields.len()
     }
-    pub fn num_interfaces(&self) -> usize {
+    fn num_interfaces(&self) -> usize {
         self.backing_class.interfaces.len()
     }
-    pub fn backing_class(&self) -> Arc<Classfile> {
+    fn backing_class(&self) -> Arc<Classfile> {
         self.backing_class.clone()
     }
-    pub fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
+    fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
         let (i, _) = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
             match &x.attribute_type {
                 AttributeType::BootstrapMethods(bm) => Some((i, bm)),
@@ -134,7 +162,7 @@ impl ClassView {
         }).next().unwrap();//todo make this a find
         BootstrapMethodsView { backing_class: self, attr_i: i }
     }
-    pub fn sourcefile_attr(&self) -> Option<SourceFileView> {
+    fn sourcefile_attr(&self) -> Option<SourceFileView> {
         let i = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
             match &x.attribute_type {
                 AttributeType::SourceFile(_) => Some(i),
@@ -143,16 +171,16 @@ impl ClassView {
         }).next()?;
         Some(SourceFileView { backing_class: self, i })
     }
-    pub fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
+    fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
             matches!(attr.attribute_type, AttributeType::EnclosingMethod(_))
-        }).map(|(i, _)| { EnclosingMethodView { backing_class: ClassView::from(self.backing_class.clone()), i } })
+        }).map(|(i, _)| { EnclosingMethodView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })
     }
 
-    pub fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
+    fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
         self.method_index().lookup(self, name, desc)
     }
-    pub fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
+    fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
         self.method_index().lookup_method_name(self, name)
     }
 
@@ -178,7 +206,7 @@ pub struct MethodIndex {
 }
 
 impl MethodIndex {
-    fn new(c: &ClassView) -> Self {
+    fn new(c: &ClassBackedView) -> Self {
         let mut res = Self { index: HashMap::new() };
         for method_view in c.methods() {
             let name = method_view.name();
@@ -196,7 +224,7 @@ impl MethodIndex {
         }
         res
     }
-    fn lookup<'cl>(&self, c: &'cl ClassView, name: &str, desc: &MethodDescriptor) -> Option<MethodView<'cl>> {
+    fn lookup<'cl>(&self, c: &'cl ClassBackedView, name: &str, desc: &MethodDescriptor) -> Option<MethodView<'cl>> {
         self.index.get(name)
             .and_then(|x| x.get(desc))
             .map(
@@ -207,7 +235,7 @@ impl MethodIndex {
                     }
             )
     }
-    fn lookup_method_name<'cl>(&self, c: &'cl ClassView, name: &str) -> Vec<MethodView<'cl>> {
+    fn lookup_method_name<'cl>(&self, c: &'cl ClassBackedView, name: &str) -> Vec<MethodView<'cl>> {
         self.index.get(name)
             .map(
                 |methods|
@@ -222,11 +250,175 @@ impl MethodIndex {
 }
 
 
-impl HasAccessFlags for ClassView {
+impl HasAccessFlags for ClassBackedView {
     fn access_flags(&self) -> u16 {
         self.backing_class.access_flags
     }
 }
+
+
+pub enum PrimitiveView {}
+
+impl ClassView for PrimitiveView {
+    fn name(&self) -> ClassName {
+        todo!()
+    }
+
+    fn super_name(&self) -> Option<ClassName> {
+        todo!()
+    }
+
+    fn methods(&self) -> MethodIterator {
+        todo!()
+    }
+
+    fn method_view_i(&self, i: usize) -> MethodView {
+        todo!()
+    }
+
+    fn num_methods(&self) -> usize {
+        todo!()
+    }
+
+    fn constant_pool_size(&self) -> usize {
+        todo!()
+    }
+
+    fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
+        todo!()
+    }
+
+    fn field(&self, i: usize) -> FieldView {
+        todo!()
+    }
+
+    fn fields(&self) -> FieldIterator {
+        todo!()
+    }
+
+    fn interfaces(&self) -> InterfaceIterator {
+        todo!()
+    }
+
+    fn num_fields(&self) -> usize {
+        todo!()
+    }
+
+    fn num_interfaces(&self) -> usize {
+        todo!()
+    }
+
+    fn backing_class(&self) -> Arc<Classfile> {
+        todo!()
+    }
+
+    fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
+        todo!()
+    }
+
+    fn sourcefile_attr(&self) -> Option<SourceFileView> {
+        todo!()
+    }
+
+    fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
+        todo!()
+    }
+
+    fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
+        todo!()
+    }
+
+    fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
+        todo!()
+    }
+
+    fn method_index(&self) -> Arc<MethodIndex> {
+        todo!()
+    }
+}
+
+pub struct ArrayView {
+    sub: Arc<dyn ClassView>
+}
+
+impl ClassView for ArrayView {
+    fn name(&self) -> ClassName {
+        todo!()
+    }
+
+    fn super_name(&self) -> Option<ClassName> {
+        todo!()
+    }
+
+    fn methods(&self) -> MethodIterator {
+        todo!()
+    }
+
+    fn method_view_i(&self, i: usize) -> MethodView {
+        todo!()
+    }
+
+    fn num_methods(&self) -> usize {
+        todo!()
+    }
+
+    fn constant_pool_size(&self) -> usize {
+        todo!()
+    }
+
+    fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
+        todo!()
+    }
+
+    fn field(&self, i: usize) -> FieldView {
+        todo!()
+    }
+
+    fn fields(&self) -> FieldIterator {
+        todo!()
+    }
+
+    fn interfaces(&self) -> InterfaceIterator {
+        todo!()
+    }
+
+    fn num_fields(&self) -> usize {
+        todo!()
+    }
+
+    fn num_interfaces(&self) -> usize {
+        todo!()
+    }
+
+    fn backing_class(&self) -> Arc<Classfile> {
+        todo!()
+    }
+
+    fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
+        todo!()
+    }
+
+    fn sourcefile_attr(&self) -> Option<SourceFileView> {
+        todo!()
+    }
+
+    fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
+        todo!()
+    }
+
+    fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
+        todo!()
+    }
+
+    fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
+        todo!()
+    }
+
+    fn method_index(&self) -> Arc<MethodIndex> {
+        todo!()
+    }
+}
+
 
 pub mod attribute_view;
 pub mod interface_view;

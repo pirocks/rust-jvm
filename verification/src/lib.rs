@@ -6,7 +6,7 @@ use std::sync::Arc;
 use elapsed::measure_time;
 
 use classfile_view::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::vtype::VType;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
@@ -17,7 +17,7 @@ use crate::verifier::TypeSafetyError;
 
 pub mod verifier;
 
-pub fn verify(vf: &VerifierContext, to_verify: &ClassView, loader: LoaderName) -> Result<(), TypeSafetyError> {
+pub fn verify(vf: &VerifierContext, to_verify: &ClassBackedView, loader: LoaderName) -> Result<(), TypeSafetyError> {
     let (_time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify.name(),
         loader,

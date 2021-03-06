@@ -236,6 +236,7 @@ pub mod class {
 
     use by_address::ByAddress;
 
+    use classfile_view::view::ClassView;
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use rust_jvm_common::classnames::ClassName;
 
@@ -631,7 +632,7 @@ pub mod thread {
             let thread_class = assert_inited_or_initing_class(jvm, int_state, ClassName::thread().into());
             push_new_object(jvm, int_state, &thread_class);
             let thread_object = int_state.pop_current_operand_stack();
-            let thread_name = JString::from_rust(jvm, int_state, thread_name);
+            let thread_name = JString::from_rust(jvm, int_state, thread_name)?;
             run_constructor(jvm, int_state, thread_class, vec![thread_object.clone(), thread_group.java_value(), thread_name.java_value()],
                             "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V".to_string())?;
             Ok(thread_object.cast_thread())
@@ -688,7 +689,7 @@ pub mod thread {
             if res.unwrap_object().is_none() {
                 return Ok(None)
             }
-            res.cast_class_loader().into()
+            Ok(res.cast_class_loader().into())
         }
 
         pub fn get_inherited_access_control_context(&self) -> JThread {
@@ -702,6 +703,7 @@ pub mod thread {
 pub mod thread_group {
     use std::sync::Arc;
 
+    use classfile_view::view::ClassView;
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::classnames::ClassName;
 

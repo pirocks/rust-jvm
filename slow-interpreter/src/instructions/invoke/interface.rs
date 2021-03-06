@@ -1,3 +1,4 @@
+use classfile_view::view::ClassView;
 use rust_jvm_common::classfile::InvokeInterface;
 use verification::verifier::instructions::branches::get_method_descriptor;
 

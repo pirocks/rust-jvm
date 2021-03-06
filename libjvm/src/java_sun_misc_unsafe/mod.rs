@@ -3,7 +3,7 @@ use std::intrinsics::transmute;
 use std::ops::Deref;
 use std::ptr::{null, null_mut};
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jbyte, jclass, jint, jlong, JNIEnv, jobject, JVM_CALLER_DEPTH};
 use slow_interpreter::field_table::FieldId;

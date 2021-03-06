@@ -14,10 +14,10 @@ use parking_lot::Mutex;
 
 use classfile_view::view::ptype_view::PTypeView;
 use descriptor_parser::MethodDescriptor;
-use jvmti_jni_bindings::{JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_Available};
+use jvmti_jni_bindings::{_jobject, JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
-use slow_interpreter::interpreter::run_function;
+use slow_interpreter::interpreter::{run_function, WasException};
 use slow_interpreter::interpreter_util::push_new_object;
 use slow_interpreter::invoke_interface::get_env;
 use slow_interpreter::java::lang::string::JString;
@@ -193,36 +193,42 @@ unsafe extern "system" fn JVM_GetThreadStateValues(env: *mut JNIEnv, javaThreadS
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetThreadStateNames(env: *mut JNIEnv, javaThreadState: jint, _values: jintArray) -> jobjectArray {
-    //don't check values for now. They should be correct and from JVM_GetThreadStateValues
+    match GetThreadStateNames_impl(env, javaThreadState) {
+        Ok(res) => res,
+        Err(_) => null_mut()
+    }
+}
 
+unsafe fn GetThreadStateNames_impl(env: *mut JNIEnv, javaThreadState: i32) -> Result<jobject, WasException> {
+    //don't check values for now. They should be correct and from JVM_GetThreadStateValues
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let names = match javaThreadState as u32 {
         JAVA_THREAD_STATE_NEW => {
-            vec![JString::from_rust(jvm, int_state, "NEW".to_string())]
+            vec![JString::from_rust(jvm, int_state, "NEW".to_string())?]
         }
         JAVA_THREAD_STATE_RUNNABLE => {
-            vec![JString::from_rust(jvm, int_state, "RUNNABLE".to_string())]
+            vec![JString::from_rust(jvm, int_state, "RUNNABLE".to_string())?]
         }
         JAVA_THREAD_STATE_BLOCKED => {
-            vec![JString::from_rust(jvm, int_state, "BLOCKED".to_string())]
+            vec![JString::from_rust(jvm, int_state, "BLOCKED".to_string())?]
         }
         JAVA_THREAD_STATE_WAITING => {
-            vec![JString::from_rust(jvm, int_state, "WAITING.OBJECT_WAIT".to_string()),
-                 JString::from_rust(jvm, int_state, "WAITING.PARKED".to_string())]
+            vec![JString::from_rust(jvm, int_state, "WAITING.OBJECT_WAIT".to_string())?,
+                 JString::from_rust(jvm, int_state, "WAITING.PARKED".to_string())?]
         }
         JAVA_THREAD_STATE_TIMED_WAITING => {
-            vec![JString::from_rust(jvm, int_state, "TIMED_WAITING.SLEEPING".to_string()),
-                 JString::from_rust(jvm, int_state, "TIMED_WAITING.OBJECT_WAIT".to_string()),
-                 JString::from_rust(jvm, int_state, "TIMED_WAITING.PARKED".to_string())]
+            vec![JString::from_rust(jvm, int_state, "TIMED_WAITING.SLEEPING".to_string())?,
+                 JString::from_rust(jvm, int_state, "TIMED_WAITING.OBJECT_WAIT".to_string())?,
+                 JString::from_rust(jvm, int_state, "TIMED_WAITING.PARKED".to_string())?]
         }
         JAVA_THREAD_STATE_TERMINATED => {
-            vec![JString::from_rust(jvm, int_state, "TERMINATED".to_string())]
+            vec![JString::from_rust(jvm, int_state, "TERMINATED".to_string())?]
         }
-        _ => return null_mut()
+        _ => return Ok(null_mut())
     }.into_iter().map(|jstring| jstring.java_value()).collect::<Vec<_>>();
     let res = JavaValue::new_vec_from_vec(jvm, names, ClassName::string().into()).unwrap_object();
-    new_local_ref_public(res, int_state)
+    Ok(new_local_ref_public(res, int_state))
 }
 
 

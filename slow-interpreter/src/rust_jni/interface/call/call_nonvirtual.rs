@@ -1,6 +1,7 @@
 use std::ffi::VaList;
 use std::mem::transmute;
 
+use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 
 use crate::instructions::invoke::special::invoke_special_impl;

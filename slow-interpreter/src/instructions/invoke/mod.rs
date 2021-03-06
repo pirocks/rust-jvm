@@ -18,6 +18,7 @@ pub mod static_;
 
 pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
+    use classfile_view::view::ClassView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceData};
     use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
     use rust_jvm_common::classnames::ClassName;
@@ -72,7 +73,7 @@ pub mod dynamic {
 
         for x in arg_iterator {
             args.push(match x {
-                BootstrapArgView::String(s) => JString::from_rust(jvm, int_state, s.string()).java_value(),
+                BootstrapArgView::String(s) => JString::from_rust(jvm, int_state, s.string())?.java_value(),
                 BootstrapArgView::Class(c) => JClass::from_name(jvm, int_state, c.name()).java_value(),
                 BootstrapArgView::Integer(i) => JavaValue::Int(i.int),
                 BootstrapArgView::Long(_) => unimplemented!(),
@@ -105,7 +106,7 @@ pub mod dynamic {
         //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
         let lookup_for_this = Lookup::trusted_lookup(jvm, int_state);
         let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.clone())?;
-        let name_jstring = JString::from_rust(jvm, int_state, other_name.clone()).java_value();
+        let name_jstring = JString::from_rust(jvm, int_state, other_name.clone())?.java_value();
 
         int_state.push_current_operand_stack(bootstrap_method_handle.java_value());
         int_state.push_current_operand_stack(lookup_for_this.java_value());
@@ -151,7 +152,7 @@ pub mod dynamic {
 
     //todo this should go in MethodType or something.
     fn desc_from_rust_str(jvm: &JVMState, int_state: &mut InterpreterStateGuard, desc_str: String) -> Result<JavaValue, WasException> {
-        let desc_str = JString::from_rust(jvm, int_state, desc_str);
+        let desc_str = JString::from_rust(jvm, int_state, desc_str)?;
         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
         Ok(method_type.java_value())
     }
@@ -165,8 +166,8 @@ pub mod dynamic {
                     InvokeStatic::Method(mr) => {
                         // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                         let lookup = Lookup::trusted_lookup(jvm, int_state);
-                        let name = JString::from_rust(jvm, int_state, mr.name_and_type().name());
-                        let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str());
+                        let name = JString::from_rust(jvm, int_state, mr.name_and_type().name())?;
+                        let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                         let target_class = JClass::from_name(jvm, int_state, mr.class());
                         lookup.find_static(jvm, int_state, target_class, name, method_type)?
@@ -180,8 +181,8 @@ pub mod dynamic {
                         {
                             //todo dupe
                             let lookup = Lookup::trusted_lookup(jvm, int_state);
-                            let name = JString::from_rust(jvm, int_state, mr.name_and_type().name());
-                            let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str());
+                            let name = JString::from_rust(jvm, int_state, mr.name_and_type().name())?;
+                            let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                             let target_class = JClass::from_name(jvm, int_state, mr.class());
                             let not_sure_if_correct_at_all = int_state.current_frame().class_pointer().view().name();

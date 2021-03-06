@@ -1,12 +1,12 @@
 use descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::classfile::FieldInfo;
 
-use crate::view::{ClassView, HasAccessFlags};
+use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 use crate::view::constant_info_view::ConstantInfoView;
 use crate::view::ptype_view::PTypeView;
 
 pub struct FieldView<'l> {
-    view: &'l ClassView,
+    view: &'l ClassBackedView,
     i: usize,
 }
 
@@ -24,7 +24,7 @@ impl FieldView<'_> {
         self.field_info().constant_value_attribute_i().map(|i| { self.view.constant_pool_view(i as usize) })
     }
     //todo deprecate this b/c messy
-    pub fn from(c: &ClassView, i: usize) -> FieldView {
+    pub fn from(c: &ClassBackedView, i: usize) -> FieldView {
         FieldView { view: c, i }
     }
     pub fn field_type(&self) -> PTypeView {
@@ -48,7 +48,7 @@ impl HasAccessFlags for FieldView<'_> {
 
 pub struct FieldIterator<'l> {
     //todo create a from and remove pub(crate)
-    pub(crate) backing_class: &'l ClassView,
+    pub(crate) backing_class: &'l ClassBackedView,
     pub(crate) i: usize,
 }
 

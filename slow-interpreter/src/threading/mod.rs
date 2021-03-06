@@ -123,8 +123,8 @@ impl ThreadState {
         }
         set_properties(jvm, int_state);
         //todo read and copy props here
-        let key = JString::from_rust(jvm, int_state, "java.home".to_string());
-        let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string());
+        let key = JString::from_rust(jvm, int_state, "java.home".to_string()).expect("todo");
+        let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string()).expect("todo");
         System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
         //todo should handle excpetions here
@@ -171,9 +171,9 @@ impl ThreadState {
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
         let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::Str("java/lang/ThreadGroup".to_string()).into()).expect("couldn't load thread group class");
-        let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state, thread_group_class);
+        let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state, thread_group_class).expect("todo");
         *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
-        let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string());
+        let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string()).expect("todo");
         new_int_state.pop_frame(jvm, frame_for_bootstrapping, false);
         bootstrap_thread.notify_terminated();
         JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
@@ -228,7 +228,7 @@ impl ThreadState {
 
         let (send, recv) = channel();
         let java_thread = JavaThread::new(jvm, obj.clone(), underlying, invisible_to_java);
-        let loader_name = obj.get_context_class_loader(jvm, int_state).map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
+        let loader_name = obj.get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
             jvm.thread_state.set_current_thread(java_thread.clone());

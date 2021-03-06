@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use classfile_view::view::ClassView;
 use descriptor_parser::MethodDescriptor;
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_NATIVE, ACC_STATIC, MethodInfo};
 use rust_jvm_common::classnames::ClassName;

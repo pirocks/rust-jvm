@@ -2,6 +2,7 @@ use std::mem::transmute;
 use std::ops::Deref;
 use std::sync::Arc;
 
+use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::rust_jni::native_util::{from_object, get_state, to_object};

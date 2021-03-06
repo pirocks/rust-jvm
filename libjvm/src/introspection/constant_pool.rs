@@ -2,11 +2,13 @@ use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_view::loading::ClassLoadingError;
+use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring};
+use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring};
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::Object;
@@ -126,24 +128,38 @@ unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constant
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetStringAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
+    match ConstantPoolGetStringAt_impl(env, constantPoolOop, index) {
+        Ok(res) => res,
+        Err(_) => null_mut()
+    }
+}
+
+unsafe fn ConstantPoolGetStringAt_impl(env: *mut JNIEnv, constantPoolOop: *mut _jobject, index: i32) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::String(string) => to_object(JString::from_rust(jvm, int_state, string.string()).object().into()),
+        ConstantInfoView::String(string) => Ok(to_object(JString::from_rust(jvm, int_state, string.string())?.object().into())),
         _ => todo!("unclear what to do here")
     }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetUTF8At(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
+    match ConstantPoolGetUTF8At_impl(env, constantPoolOop, index) {
+        Ok(res) => res,
+        Err(WasException {}) => null_mut()
+    }
+}
+
+unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject, index: i32) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Utf8(utf8) => to_object(JString::from_rust(jvm, int_state, utf8.str.clone()).object().into()),
+        ConstantInfoView::Utf8(utf8) => Ok(to_object(JString::from_rust(jvm, int_state, utf8.str.clone())?.object().into())),
         _ => todo!("unclear what to do here")
     }
 }

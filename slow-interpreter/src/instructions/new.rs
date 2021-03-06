@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{Atype, MultiNewArray};

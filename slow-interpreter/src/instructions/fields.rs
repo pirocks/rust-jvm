@@ -1,3 +1,4 @@
+use classfile_view::view::ClassView;
 use rust_jvm_common::classnames::ClassName;
 use verification::verifier::instructions::special::extract_field_descriptor;
 

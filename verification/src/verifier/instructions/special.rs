@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use classfile_view::loading::ClassWithLoader;
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
@@ -169,7 +169,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 }
 
 //todo maybe move to impl
-pub fn extract_field_descriptor(cp: CPIndex, class: &ClassView) -> (ClassName, String, FieldDescriptor) {
+pub fn extract_field_descriptor(cp: CPIndex, class: &ClassBackedView) -> (ClassName, String, FieldDescriptor) {
 //    dbg!(cp);
     let current_class = class;
     let field_entry = &current_class.constant_pool_view(cp as usize);

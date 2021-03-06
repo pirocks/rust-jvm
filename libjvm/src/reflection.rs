@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classnames::ClassName;

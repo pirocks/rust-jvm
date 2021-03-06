@@ -1,5 +1,6 @@
 use std::ptr::null_mut;
 
+use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};

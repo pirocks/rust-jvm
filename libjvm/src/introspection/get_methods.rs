@@ -1,16 +1,18 @@
 use std::cell::RefCell;
 use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_view::loading::{LoaderIndex, LoaderName};
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
+use jvmti_jni_bindings::{_jobject, jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
@@ -32,10 +34,13 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let loader = int_state.current_loader().clone();
     let of_class_obj = JavaValue::Object(from_object(ofClass)).cast_class();
     let int_state = get_interpreter_state(env);
-    JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj)
+    match JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj) {
+        Ok(res) => res,
+        Err(_) => null_mut()
+    }
 }
 
-fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, publicOnly: u8, loader: LoaderName, of_class_obj: JClass) -> jobjectArray {
+fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, publicOnly: u8, loader: LoaderName, of_class_obj: JClass) -> Result<jobjectArray, WasException> {
     let class_ptype = &of_class_obj.as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
@@ -54,11 +59,11 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
         }
     }).for_each(|(c, i)| {
         let method_view = c.view().method_view_i(i);
-        let method = Method::method_object_from_method_view(jvm, int_state, &method_view);
+        let method = Method::method_object_from_method_view(jvm, int_state, &method_view).expect("todo");
         object_array.push(method.java_value());
     });
     let res = Arc::new(Object::object_array(jvm, int_state, object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.view().name())))).into();
-    unsafe { new_local_ref_public(res, int_state) }
+    unsafe { Ok(new_local_ref_public(res, int_state)) }
 }
 
 
@@ -90,7 +95,7 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &JVMState, int_state: &mut Interpr
             true
         }
     }).for_each(|m| {
-        let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m);
+        let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
         object_array.push(constructor.java_value())
     });
     let res = Arc::new(Object::object_array(jvm, int_state, object_array, ClassName::constructor().into())).into();

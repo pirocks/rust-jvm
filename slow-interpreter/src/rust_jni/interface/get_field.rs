@@ -4,7 +4,7 @@ use std::mem::transmute;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
 
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     panic!()
 }
 
-unsafe fn get_field_id_impl(env: *mut JNIEnv, name: &String, runtime_class: Arc<RuntimeClass>, view: &Arc<ClassView>) -> Option<jfieldID> {
+unsafe fn get_field_id_impl(env: *mut JNIEnv, name: &String, runtime_class: Arc<RuntimeClass>, view: &Arc<ClassBackedView>) -> Option<jfieldID> {
     for field_i in 0..view.num_fields() {
         //todo check descriptor
         let field_name = view.field(field_i).field_name();

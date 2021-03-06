@@ -3,8 +3,10 @@ use std::sync::Arc;
 use by_address::ByAddress;
 
 use classfile_view::view::attribute_view::SourceFileView;
+use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::runtime_class::RuntimeClass;
@@ -32,7 +34,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         let line_number = match method_view.line_number_table() {
             None => -1,
             Some(line_number_table) => {
-                //todo have a lookup funciton for this
+                //todo have a lookup function for this
                 let mut cur_line = -1;
                 for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
                     if (*start_pc as usize) <= stack_entry.pc() {
@@ -42,9 +44,18 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                 cur_line
             }
         };
-        let declaring_class_name = JString::from_rust(jvm, int_state, declaring_class.view().name().get_referred_name().to_string());
-        let method_name = JString::from_rust(jvm, int_state, method_view.name());
-        let source_file_name = JString::from_rust(jvm, int_state, file);
+        let declaring_class_name = match JString::from_rust(jvm, int_state, declaring_class.view().name().get_referred_name().to_string()) {
+            Ok(declaring_class_name) => declaring_class_name,
+            Err(WasException {}) => todo!()
+        };
+        let method_name = match JString::from_rust(jvm, int_state, method_view.name()) {
+            Ok(method_name) => method_name,
+            Err(WasException {}) => todo!()
+        };
+        let source_file_name = match JString::from_rust(jvm, int_state, file) {
+            Ok(source_file_name) => source_file_name,
+            Err(WasException {}) => todo!()
+        };
 
         Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number))
     }).collect::<Vec<_>>();

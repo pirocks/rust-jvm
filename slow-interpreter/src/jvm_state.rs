@@ -14,7 +14,7 @@ use by_address::ByAddress;
 use libloading::Library;
 
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
-use classfile_view::view::ClassView;
+use classfile_view::view::ClassBackedView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
@@ -180,7 +180,7 @@ impl JVMState {
     fn init_classes(classpath_arc: &Arc<Classpath>) -> RwLock<Classes> {
         //todo turn this into a ::new
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
-            class_view: Arc::new(ClassView::from(classpath_arc.lookup(&ClassName::class()).unwrap())),
+            class_view: Arc::new(ClassBackedView::from(classpath_arc.lookup(&ClassName::class()).unwrap())),
             static_vars: Default::default(),
             status: ClassStatus::UNPREPARED.into(),
         }));

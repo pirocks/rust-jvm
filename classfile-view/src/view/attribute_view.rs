@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, SourceFile};
 
-use crate::view::ClassView;
+use crate::view::{ClassBackedView, ClassView};
 use crate::view::constant_info_view::{ConstantInfoView, DoubleView, FloatView, IntegerView, LongView, MethodHandleView, MethodTypeView, StringView};
 
 #[derive(Clone)]
@@ -26,7 +26,7 @@ impl<'cl> Iterator for BootstrapMethodIterator<'cl> {
 
 #[derive(Clone)]
 pub struct BootstrapMethodsView<'cl> {
-    pub(crate) backing_class: &'cl ClassView,
+    pub(crate) backing_class: &'cl ClassBackedView,
     pub(crate) attr_i: usize,
 }
 
@@ -78,7 +78,7 @@ impl BootstrapMethodView<'_> {
 }
 
 pub struct BootstrapArgViewIterator<'cl> {
-    backing_class: &'cl ClassView,
+    backing_class: &'cl ClassBackedView,
     bootstrap_args: Vec<CPIndex>,
     //todo get rid of clone for this
     i: usize,
@@ -110,7 +110,7 @@ impl<'cl> Iterator for BootstrapArgViewIterator<'cl> {
 // CONSTANT_Float_info, CONSTANT_Double_info,CONSTANT_MethodHandle_info, or CONSTANT_MethodType_info
 pub enum BootstrapArgView<'cl> {
     String(StringView<'cl>),
-    Class(Arc<ClassView>),
+    Class(Arc<ClassBackedView>),
     Integer(IntegerView),
     Long(LongView),
     Float(FloatView),
@@ -122,7 +122,7 @@ pub enum BootstrapArgView<'cl> {
 
 #[allow(dead_code)]
 pub struct EnclosingMethodView {
-    pub(crate) backing_class: ClassView,
+    pub(crate) backing_class: ClassBackedView,
     pub(crate) i: usize,
 }
 
@@ -137,7 +137,7 @@ impl EnclosingMethodView {
 
 
 pub struct SourceFileView<'l> {
-    pub(crate) backing_class: &'l ClassView,
+    pub(crate) backing_class: &'l ClassBackedView,
     pub(crate) i: usize,
 }
 

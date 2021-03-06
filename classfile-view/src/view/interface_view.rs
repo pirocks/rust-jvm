@@ -1,21 +1,21 @@
 use rust_jvm_common::classnames::ClassName;
 
-use crate::view::ClassView;
+use crate::view::{ClassBackedView, ClassView};
 
 pub struct InterfaceView<'l> {
-    view: &'l ClassView,
+    view: &'l ClassBackedView,
     i: usize,
 }
 
 
 pub struct InterfaceIterator<'l> {
-    pub(crate) view: &'l ClassView,
+    pub(crate) view: &'l ClassBackedView,
     pub(crate) i: usize,
 }
 
 
 impl<'l> InterfaceView<'l> {
-    fn from(c: &ClassView, i: usize) -> InterfaceView {
+    fn from(c: &ClassBackedView, i: usize) -> InterfaceView {
         InterfaceView { view: c, i }
     }
     pub fn interface_name(&self) -> ClassName {

@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
+use classfile_view::view::ClassView;
 use descriptor_parser::MethodDescriptor;
 
+use crate::interpreter::WasException;
 use crate::InterpreterStateGuard;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
@@ -24,7 +26,10 @@ pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterSta
 		}
 	});
 	let method_view = res.unwrap();
-	(Method::method_object_from_method_view(jvm, int_state, &method_view), method_view.method_i(), runtime_class.clone())
+	(match Method::method_object_from_method_view(jvm, int_state, &method_view) {
+		Ok(method) => method,
+		Err(_) => todo!()
+	}, method_view.method_i(), runtime_class.clone())
 }
 
 pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName, synthetic: &mut bool) -> Result<(Method, usize, Arc<RuntimeClass>), ResolutionError> {
@@ -49,7 +54,7 @@ pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStat
 	if method_view.is_signature_polymorphic() {
 		*synthetic = true
 	}
-	Ok((Method::method_object_from_method_view(jvm, int_state, method_view), method_view.method_i(), runtime_class))
+	Ok((Method::method_object_from_method_view(jvm, int_state, method_view).expect("todo"), method_view.method_i(), runtime_class))
 }
 
 

@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use classfile_view::loading::*;
 use classfile_view::loading::LoaderName::BootstrapLoader;
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
 use descriptor_parser::{Descriptor, parse_field_descriptor};

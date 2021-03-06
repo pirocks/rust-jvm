@@ -11,7 +11,7 @@ use by_address::ByAddress;
 
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
@@ -454,7 +454,10 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_
         None => return null_mut(),
     };
     let method_view = runtime_class.view().method_view_i(index as usize);
-    let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view);
+    let method_obj = match Method::method_object_from_method_view(jvm, int_state, &method_view) {
+        Ok(method_obj) => method_obj,
+        Err(_) => todo!()
+    };
     to_object(method_obj.object().into())
 }
 
@@ -557,7 +560,10 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
             Ok(string) => string,
             Err(_) => return -2
         }.to_string();
-        let java_string = JString::from_rust(jvm, int_state, rust_string);
+        let java_string = match JString::from_rust(jvm, int_state, rust_string) {
+            Ok(java_string) => java_string,
+            Err(WasException {}) => return -4
+        };
         (constructor_method_id, to_object(java_string.object().into()))
     };
     let new_object = (**env).NewObjectA.as_ref().unwrap();
@@ -597,9 +603,9 @@ pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGu
     let modifiers = f.access_flags() as i32;
     let slot = f.field_i() as i32;
     let clazz = parent_runtime_class.cast_class();
-    let name = JString::from_rust(jvm, int_state, field_name).intern(jvm, int_state);
+    let name = JString::from_rust(jvm, int_state, field_name)?.intern(jvm, int_state);
     let type_ = JClass::from_type(jvm, int_state, PTypeView::from_ptype(&field_type));
-    let signature = JString::from_rust(jvm, int_state, field_desc_str);
+    let signature = JString::from_rust(jvm, int_state, field_desc_str)?;
     let annotations_ = vec![];//todo impl annotations.
 
     Ok(Field::init(
@@ -644,7 +650,7 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
     return 0x00010008;
 }
 
-pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassView) -> Result<JavaValue, WasException> {
+pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue, WasException> {
     let class_name = class_view.name();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: Arc::new(class_view),
@@ -676,7 +682,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     if jvm.store_generated_classes { File::create("unsafe_define_class").unwrap().write_all(slice).unwrap(); }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
-    to_object(match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassView::from(parsed)) {
+    to_object(match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed)) {
         Ok(class_) => class_,
         Err(_) => todo!()
     }.unwrap_object())

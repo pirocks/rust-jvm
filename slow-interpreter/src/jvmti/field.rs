@@ -3,7 +3,7 @@ use std::mem::size_of;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{jboolean, jclass, jfieldID, jint, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::field_table::FieldId;
@@ -21,7 +21,7 @@ pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, f
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-fn get_field(klass: jclass, field: jfieldID, jvm: &JVMState) -> (Arc<ClassView>, u16) {
+fn get_field(klass: jclass, field: jfieldID, jvm: &JVMState) -> (Arc<ClassBackedView>, u16) {
     let field_id: FieldId = field as usize;
     let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
     unsafe { Arc::ptr_eq(&from_jclass(klass).as_runtime_class(jvm), &runtime_class); }

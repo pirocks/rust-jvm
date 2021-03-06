@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
+use classfile_view::view::ClassView;
 use classfile_view::view::interface_view::InterfaceView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{IInc, Wide};

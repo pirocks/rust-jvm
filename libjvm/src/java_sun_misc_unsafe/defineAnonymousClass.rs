@@ -12,7 +12,7 @@ use by_address::ByAddress;
 
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
@@ -57,7 +57,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let current_loader = int_state.current_loader();
 
     let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader };
-    let class_view = ClassView::from(parsed.clone());
+    let class_view = ClassBackedView::from(parsed.clone());
     if jvm.store_generated_classes {
         File::create(class_view.name().get_referred_name().replace("/", ".")).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }

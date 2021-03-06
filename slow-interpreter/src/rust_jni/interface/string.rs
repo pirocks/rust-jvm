@@ -8,6 +8,7 @@ use std::sync::Arc;
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
 
 use crate::instructions::ldc::create_string_on_stack;
+use crate::interpreter::WasException;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
@@ -53,9 +54,10 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let str = CStr::from_ptr(utf);
-    // dbg!(int_state.current_frame().local_vars());
-    // dbg!(int_state.current_frame().operand_stack());
-    new_local_ref_public(JString::from_rust(jvm, int_state, str.to_str().unwrap().to_string()).object().into(), int_state)
+    new_local_ref_public(match JString::from_rust(jvm, int_state, str.to_str().unwrap().to_string()) {
+        Ok(jstring) => jstring,
+        Err(WasException {}) => todo!()
+    }.object().into(), int_state)
 }
 
 pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char, len: usize) -> jstring {

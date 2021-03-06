@@ -1,6 +1,7 @@
 pub mod properties {
     use std::sync::Arc;
 
+    use classfile_view::view::ClassView;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};

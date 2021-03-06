@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
@@ -28,7 +29,7 @@ pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterSt
 fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
     let res_string = s.string();
     assert!(int_state.throw().is_none());
-    let before_intern = JString::from_rust(jvm, int_state, res_string);
+    let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
     let string = before_intern.intern(jvm, int_state).java_value();
     int_state.push_current_operand_stack(string);
 }
@@ -93,8 +94,7 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::String(s) => {
-            let string_value = JString::from_rust(jvm, int_state, s.string()).intern(jvm, int_state).java_value();
-            // dbg!(string_value.cast_string().to_rust_string());
+            let string_value = JString::from_rust(jvm, int_state, s.string()).expect("todo").intern(jvm, int_state).java_value();
             int_state.push_current_operand_stack(string_value)
         }
         ConstantInfoView::Class(c) => load_class_constant(jvm, int_state, &c),

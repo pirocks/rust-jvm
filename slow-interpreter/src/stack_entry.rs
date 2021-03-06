@@ -4,7 +4,7 @@ use bimap::BiMap;
 use by_address::ByAddress;
 
 use classfile_view::loading::LoaderName;
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classfile::CPIndex;

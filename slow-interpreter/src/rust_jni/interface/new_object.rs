@@ -1,5 +1,6 @@
 use std::ffi::VaList;
 
+use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
 
 use crate::instructions::invoke::special::invoke_special_impl;

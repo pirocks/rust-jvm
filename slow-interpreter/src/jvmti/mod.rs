@@ -1,6 +1,7 @@
 use std::mem::transmute;
 use std::ptr::null_mut;
 
+use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::*;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -29,7 +30,7 @@ use crate::jvmti::threads::suspend_resume::*;
 use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::from_object;
+use crate::rust_jni::native_util::{from_jclass, from_object};
 
 pub mod event_callbacks;
 
@@ -106,7 +107,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         ClearFieldAccessWatch: None,//doesn't need impl not in currently supported capabilities
         SetFieldModificationWatch: None, //doesn't need impl not in currently supported capabilities
         ClearFieldModificationWatch: None,//doesn't need impl not in currently supported capabilities
-        IsModifiableClass: None,//todo impl
+        IsModifiableClass: None,//doesn't need impl not in currently supported capabilities
         Allocate: Some(allocate),
         Deallocate: Some(deallocate),
         GetClassSignature: Some(get_class_signature),
@@ -218,6 +219,49 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetObjectSize: None,//todo impl
         GetLocalInstance: None,//todo impl
     }
+}
+
+///Get Class Modifiers
+//
+//     jvmtiError
+//     GetClassModifiers(jvmtiEnv* env,
+//                 jclass klass,
+//                 jint* modifiers_ptr)
+//
+// For the class indicated by klass, return the access flags via modifiers_ptr. Access flags are defined in The Java™ Virtual Machine Specification, Chapter 4.
+//
+// If the class is an array class, then its public, private, and protected modifiers are the same as those of its component type. For arrays of primitives, this component type is represented by one of the primitive classes (for example, java.lang.Integer.TYPE).
+//
+// If the class is a primitive class, its public modifier is always true, and its protected and private modifiers are always false.
+//
+// If the class is an array class or a primitive class then its final modifier is always true and its interface modifier is always false. The values of its other modifiers are not determined by this specification.
+//
+// Phase	Callback Safe	Position	Since
+// may only be called during the start or the live phase 	No 	51	1.0
+//
+// Capabilities
+// Required Functionality
+//
+// Parameters
+// Name 	Type 	Description
+// klass	jclass	The class to query.
+// modifiers_ptr	jint*	On return, points to the current access flags of this class.
+//
+// Agent passes a pointer to a jint. On return, the jint has been set.
+//
+// Errors
+// This function returns either a universal error or one of the following errors
+// Error 	Description
+// JVMTI_ERROR_INVALID_CLASS	klass is not a class object or the class has been unloaded.
+// JVMTI_ERROR_NULL_POINTER	modifiers_ptr is NULL.
+unsafe extern "C" fn get_class_modifiers(env: *mut jvmtiEnv, klass: jclass, modifiers_ptr: *mut jint) -> jvmtiError {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    null_check!(modifiers_ptr);
+    //handle klass invalid
+    let runtime_class = from_jclass(klass).as_runtime_class(jvm);
+    modifiers_ptr.write(runtime_class.view().access_flags() as u32 as i32);
+    jvmtiError_JVMTI_ERROR_NONE
 }
 
 
