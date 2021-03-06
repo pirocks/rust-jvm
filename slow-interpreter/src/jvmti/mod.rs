@@ -5,6 +5,7 @@ use std::sync::Arc;
 use classfile_parser::code::InstructionTypeNum::return_;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::*;
+use rust_jvm_common::classfile::Code;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
@@ -35,6 +36,7 @@ use crate::jvmti::threads::*;
 use crate::jvmti::threads::suspend_resume::*;
 use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
+use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
 
@@ -136,7 +138,7 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetMethodDeclaringClass: Some(get_method_declaring_class),
         GetMethodModifiers: Some(get_method_modifiers),
         reserved67: std::ptr::null_mut(),
-        GetMaxLocals: None,//todo impl
+        GetMaxLocals: Some(get_max_locals),
         GetArgumentsSize: Some(get_arguments_size),
         GetLineNumberTable: Some(get_line_number_table),
         GetMethodLocation: Some(get_method_location),
@@ -226,6 +228,51 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetLocalInstance: None,//todo impl
     }
 }
+
+///Get Max Locals
+//
+//     jvmtiError
+//     GetMaxLocals(jvmtiEnv* env,
+//                 jmethodID method,
+//                 jint* max_ptr)
+//
+// For the method indicated by method, return the number of local variable slots used by the method, including the local variables used to pass parameters to the method on its invocation.
+//
+// See max_locals in The Java™ Virtual Machine Specification, Chapter 4.7.3.
+//
+// Phase	Callback Safe	Position	Since
+// may only be called during the start or the live phase 	No 	68	1.0
+//
+// Capabilities
+// Required Functionality
+//
+// Parameters
+// Name 	Type 	Description
+// method	jmethodID	The method to query.
+// max_ptr	jint*	On return, points to the maximum number of local slots
+//
+// Agent passes a pointer to a jint. On return, the jint has been set.
+//
+// Errors
+// This function returns either a universal error or one of the following errors
+// Error 	Description
+// JVMTI_ERROR_INVALID_METHODID	method is not a jmethodID.
+// JVMTI_ERROR_NATIVE_METHOD	method is a native method.
+// JVMTI_ERROR_NULL_POINTER	max_ptr is NULL.
+unsafe extern "C" fn get_max_locals(env: *mut jvmtiEnv, method: jmethodID, max_ptr: *mut jint) -> jvmtiError {
+    null_check!(max_ptr);
+    let jvm = get_state(env);
+    let (runtime_class, index) = match jvm.method_table.read().unwrap().try_lookup(method as usize) {
+        None => return jvmtiError_JVMTI_ERROR_INVALID_METHODID,
+        Some(method_id) => method_id
+    };
+    let max_locals = match runtime_class.view().method_view_i(index as usize).code_attribute() {
+        None => return jvmtiError_JVMTI_ERROR_NATIVE_METHOD,
+        Some(res) => res
+    }.max_locals;
+    max_ptr.write(max_locals);
+}
+
 
 //Get Field Declaring Class
 //

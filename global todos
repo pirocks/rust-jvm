@@ -1,2 +1,2 @@
-have all strong constants moved to a global string pool for memory etc.
+have all string constants moved to a global string pool for memory etc.
 all places that where previously panics should have warnings
