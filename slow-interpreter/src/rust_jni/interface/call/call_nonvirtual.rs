@@ -60,27 +60,30 @@ pub unsafe extern "C" fn call_nonvirtual_boolean_method_a(env: *mut JNIEnv, obj:
     }.unwrap_boolean()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_byte_method(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut l: ...) -> jbyte {
     let mut vararg_provider = VarargProvider::Dots(&mut l);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return i8::from(0xde)
+        Err(WasException {}) => return 0xdei8
     }.unwrap_byte()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_byte_method_v(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut args: VaList) -> jbyte {
     let mut vararg_provider = VarargProvider::VaList(&mut args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return i8::from(0xde)
+        Err(WasException {}) => return 0xdei8
     }.unwrap_byte()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_byte_method_a(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, args: *const jvalue) -> jbyte {
     let mut vararg_provider = VarargProvider::Array(args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return i8::from(0xde)
+        Err(WasException {}) => return 0xdei8
     }.unwrap_byte()
 }
 
@@ -88,7 +91,7 @@ pub unsafe extern "C" fn call_nonvirtual_char_method(env: *mut JNIEnv, obj: jobj
     let mut vararg_provider = VarargProvider::Dots(&mut l);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return u16::from(0xdead)
+        Err(WasException {}) => return 0xdeadu16
     }.unwrap_char()
 }
 
@@ -96,7 +99,7 @@ pub unsafe extern "C" fn call_nonvirtual_char_method_v(env: *mut JNIEnv, obj: jo
     let mut vararg_provider = VarargProvider::VaList(&mut args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return u16::from(0xdead)
+        Err(WasException {}) => return 0xdeadu16
     }.unwrap_char()
 }
 
@@ -104,34 +107,38 @@ pub unsafe extern "C" fn call_nonvirtual_char_method_a(env: *mut JNIEnv, obj: jo
     let mut vararg_provider = VarargProvider::Array(args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return u16::from(0xdead)
+        Err(WasException {}) => return 0xdeadu16
     }.unwrap_char()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_short_method(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut l: ...) -> jshort {
     let mut vararg_provider = VarargProvider::Dots(&mut l);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return i16::from(0xdead)
+        Err(WasException {}) => return 0xdeadi16
     }.unwrap_short()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_short_method_v(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut args: VaList) -> jshort {
     let mut vararg_provider = VarargProvider::VaList(&mut args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return i16::from(0xdead)
+        Err(WasException {}) => return 0xdeadi16
     }.unwrap_short()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_short_method_a(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, args: *const jvalue) -> jshort {
     let mut vararg_provider = VarargProvider::Array(args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
         Ok(res) => res,
-        Err(WasException {}) => return i16::from(0xdead)
+        Err(WasException {}) => return 0xdeadi16
     }.unwrap_short()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_int_method(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut l: ...) -> jint {
     let mut vararg_provider = VarargProvider::Dots(&mut l);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
@@ -140,6 +147,7 @@ pub unsafe extern "C" fn call_nonvirtual_int_method(env: *mut JNIEnv, obj: jobje
     }.unwrap_int()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_int_method_v(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut args: VaList) -> jint {
     let mut vararg_provider = VarargProvider::VaList(&mut args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
@@ -148,6 +156,7 @@ pub unsafe extern "C" fn call_nonvirtual_int_method_v(env: *mut JNIEnv, obj: job
     }.unwrap_int()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_int_method_a(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, args: *const jvalue) -> jint {
     let mut vararg_provider = VarargProvider::Array(args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
@@ -156,6 +165,7 @@ pub unsafe extern "C" fn call_nonvirtual_int_method_a(env: *mut JNIEnv, obj: job
     }.unwrap_int()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_long_method(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut l: ...) -> jlong {
     let mut vararg_provider = VarargProvider::Dots(&mut l);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
@@ -164,6 +174,7 @@ pub unsafe extern "C" fn call_nonvirtual_long_method(env: *mut JNIEnv, obj: jobj
     }.unwrap_long()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_long_method_v(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut args: VaList) -> jlong {
     let mut vararg_provider = VarargProvider::VaList(&mut args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
@@ -172,6 +183,7 @@ pub unsafe extern "C" fn call_nonvirtual_long_method_v(env: *mut JNIEnv, obj: jo
     }.unwrap_long()
 }
 
+#[allow(overflowing_literals)]
 pub unsafe extern "C" fn call_nonvirtual_long_method_a(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, args: *const jvalue) -> jlong {
     let mut vararg_provider = VarargProvider::Array(args);
     match call_non_virtual(env, obj, clazz, method_id, &mut vararg_provider, false) {
