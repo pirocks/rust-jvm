@@ -6,6 +6,7 @@ use jvmti_jni_bindings::*;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::get_thread_or_error;
 use crate::interpreter_state::AddFrameNotifyError;
+use crate::java_values::JavaValue;
 use crate::jvmti::agent::*;
 use crate::jvmti::allocate::*;
 use crate::jvmti::breakpoint::*;
@@ -86,11 +87,11 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetLocalLong: Some(get_local_long),
         GetLocalFloat: Some(get_local_float),
         GetLocalDouble: Some(get_local_double),
-        SetLocalObject: None,//todo impl
-        SetLocalInt: None,//todo impl
-        SetLocalLong: None,//todo impl
-        SetLocalFloat: None,//todo impl
-        SetLocalDouble: None,//todo impl
+        SetLocalObject: Some(set_local_object),
+        SetLocalInt: Some(set_local_int),
+        SetLocalLong: Some(set_local_long),
+        SetLocalFloat: Some(set_local_float),
+        SetLocalDouble: Some(set_local_double),
         CreateRawMonitor: Some(create_raw_monitor),
         DestroyRawMonitor: Some(destroy_raw_monitor),
         RawMonitorEnter: Some(raw_monitor_enter),
@@ -218,6 +219,28 @@ fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
         GetLocalInstance: None,//todo impl
     }
 }
+
+
+unsafe extern "C" fn set_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jobject) -> jvmtiError {
+    set_local(env, thread, depth, slot, JavaValue::Object(from_object(value)))
+}
+
+unsafe extern "C" fn set_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jint) -> jvmtiError {
+    set_local(env, thread, depth, slot, JavaValue::Int(value))
+}
+
+unsafe extern "C" fn set_local_long(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jlong) -> jvmtiError {
+    set_local(env, thread, depth, slot, JavaValue::Long(value))
+}
+
+unsafe extern "C" fn set_local_double(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jdouble) -> jvmtiError {
+    set_local(env, thread, depth, slot, JavaValue::Double(value))
+}
+
+unsafe extern "C" fn set_local_float(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jfloat) -> jvmtiError {
+    set_local(env, thread, depth, slot, JavaValue::Float(value))
+}
+
 
 ///Notify Frame Pop
 //

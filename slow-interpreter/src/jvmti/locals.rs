@@ -62,7 +62,6 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
         Ok(var) => var,
         Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
-    // dbg!(&var);
     match var {
         JavaValue::Top => value_ptr.write(null_mut()),//todo is this correct?
         _ => {
@@ -96,6 +95,20 @@ unsafe fn get_local_primitive_type<T>(env: *mut jvmtiEnv, thread: jthread, depth
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
+
+
+pub(crate) unsafe fn set_local(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: JavaValue) -> jvmtiError {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
+    assert!(jvm.vm_live());
+    null_check!(value_ptr);
+    if let Err(err) = set_local_t(jvm, int_state, thread, depth, slot, value) {
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err)
+    };
+    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+}
+
 
 ///Get Local Variable - Int
 ///
@@ -176,7 +189,36 @@ unsafe fn get_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thr
     if stack_frame.is_native() {
         return Result::Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
     }
-    // dbg!(stack_frame.local_vars());
     let var = stack_frame.local_vars().get(slot as usize).cloned();
     var.map(Result::Ok).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
+}
+
+
+unsafe fn set_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thread: jthread, depth: jint, slot: jint, to_set: JavaValue) -> Result<(), jvmtiError> {
+    if depth < 0 {
+        return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
+    }
+
+    let jthread = if !thread.is_null() {
+        match JavaValue::Object(from_object(thread)).try_cast_thread() {
+            None => return Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
+            Some(jt) => jt,
+        }
+    } else {
+        JThread::current_thread(jvm, int_state)
+    };
+    let java_thread = jthread.get_java_thread(jvm);
+    let call_stack = &mut java_thread.interpreter_state.read().unwrap().call_stack;
+    let stack_frame: &mut StackEntry = match call_stack.get_mut(call_stack.len() - 1 - depth as usize) {
+        None => return Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
+        Some(entry) => entry,
+    };
+    if stack_frame.is_native() {
+        return Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
+    }
+    let var = stack_frame.local_vars_mut().get_mut(slot as usize);
+    match var.map(|jv| *jv = to_set) {
+        None => Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT),
+        Some(_) => Ok(())
+    }
 }
