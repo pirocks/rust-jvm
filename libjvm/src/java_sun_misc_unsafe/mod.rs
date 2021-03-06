@@ -71,7 +71,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(
     address: jlong,
     len: jlong,
 ) {
-    let nonnull = from_object(src_obj).unwrap();
+    let nonnull = from_object(src_obj).unwrap();//todo handle npe
     let as_array = nonnull.unwrap_array();//not defined for non-byte-array objects
     assert_eq!(as_array.elem_type, PTypeView::ByteType);
     let array_mut = as_array.mut_array();

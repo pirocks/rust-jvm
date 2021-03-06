@@ -71,8 +71,8 @@ mod resolvers;
 pub mod class_loading;
 
 pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
-    let launcher = Launcher::get_launcher(jvm, int_state);
-    let loader_obj = launcher.get_loader(jvm, int_state);
+    let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
+    let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
 
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader).expect("failed to load main class");
@@ -147,7 +147,7 @@ fn locate_main_method(main: &Arc<Classfile>) -> usize {
     let string_array = PTypeView::Ref(ReferenceTypeView::Array(string_class.into()));
     let psvms = main.lookup_method_name(&"main".to_string());
     for (i, m) in psvms {
-        let desc = MethodDescriptor::from_legacy(m, main);
+        let desc = MethodDescriptor::from_legacy(m, main);//todo get rid of from_legacy
         if m.is_static() && desc.parameter_types == vec![string_array.to_ptype()] && desc.return_type == PType::VoidType {
             return i;
         }

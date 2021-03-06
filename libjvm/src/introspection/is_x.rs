@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
 #[no_mangle]
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
-    is_array_impl(jvm, cls).unwrap()
+    is_array_impl(jvm, cls).unwrap() //todo handle the errors
 }
 
 

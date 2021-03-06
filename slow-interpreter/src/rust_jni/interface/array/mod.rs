@@ -8,7 +8,7 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, to_object};
 
 pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
-    let non_null_array: &Object = &from_object(array).unwrap();
+    let non_null_array: &Object = &from_object(array).unwrap();//todo handle npe
     let len = match non_null_array {
         Object::Array(a) => {
             a.mut_array().len()
@@ -21,7 +21,7 @@ pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> j
 }
 
 pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize) -> jobject {
-    let notnull = from_object(array).unwrap();
+    let notnull = from_object(array).unwrap();//todo handle npe
     let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
     let borrow = array.mut_array();
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
 }
 
 pub unsafe extern "C" fn set_object_array_element(_env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
-    let notnull = from_object(array).unwrap();
+    let notnull = from_object(array).unwrap();//todo handle npe
     let array = notnull.unwrap_array();
     let borrow_mut = array.mut_array();
     borrow_mut[index as usize] = from_object(val).into();
@@ -45,7 +45,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, arr
         return;
     }
     //todo handle JNI_COMMIT
-    let not_null = from_object(array).unwrap();
+    let not_null = from_object(array).unwrap();//todo handle npe
     let array = not_null.unwrap_array();
     let array_type = &array.elem_type;
     let array = array.mut_array();
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, arr
 }
 
 pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
-    let not_null = from_object(array).unwrap();
+    let not_null = from_object(array).unwrap();//todo handle npe
     let array = not_null.unwrap_array();
     if !is_copy.is_null() {
         is_copy.write(true as jboolean);

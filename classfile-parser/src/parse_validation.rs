@@ -72,7 +72,7 @@ impl ValidatorSettings {
         }
         if self.allowable_major_versions.contains(&c.major_version) {
             //if this unwrap fails that means that the validator settings are wringly created
-            let allowable_minors = self.allowable_minor_versions.get(&c.major_version).unwrap();
+            let allowable_minors = self.allowable_minor_versions.get(&c.major_version).unwrap(); //todo get rid of this unwrap
             if !allowable_minors.contains(&c.minor_version) {
                 return Result::Err(ClassfileError::BadMinorVersion);
             }

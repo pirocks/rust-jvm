@@ -42,7 +42,7 @@ impl LibJavaLoading {
         let xawt_path = path.replace("libjava.so", "libawt_xawt.so");
         let zip_path = path.replace("libjava.so", "libzip.so");
         let libfontmanager_path = path.replace("libjava.so", "libfontmanager.so");
-        let nio_lib = Library::new(nio_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
+        let nio_lib = Library::new(nio_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap(); //todo make these expects
         let libawt = Library::new(awt_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
         let libxawt = Library::new(xawt_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
         let libzip = Library::new(zip_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();

@@ -79,6 +79,7 @@ pub fn aaload(int_state: &mut InterpreterStateGuard) {
 }
 
 fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    //todo get binds for this in java lang
     let bounds_class = assert_inited_or_initing_class(
         jvm,
         int_state,
@@ -86,8 +87,9 @@ fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGua
     );
     push_new_object(jvm, int_state, &bounds_class);
     let obj = int_state.current_frame_mut().pop();
-    run_constructor(jvm, int_state, bounds_class, vec![obj.clone()], "()V".to_string());
-    int_state.set_throw(obj.unwrap_object());
+    if let Ok(_) = run_constructor(jvm, int_state, bounds_class, vec![obj.clone()], "()V".to_string()) {
+        int_state.set_throw(obj.unwrap_object());
+    };
 }
 
 pub fn caload(state: &JVMState, int_state: &mut InterpreterStateGuard) {

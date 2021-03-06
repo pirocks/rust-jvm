@@ -35,9 +35,9 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     assert_eq!(obj, std::ptr::null_mut());//non-static methods not supported atm.
-    let method_obj = from_object(method).unwrap();
+    let method_obj = from_object(method).unwrap();//todo handle npe
     // dbg!(JavaValue::Object(method_obj.clone().into()).cast_method().to_string(jvm,int_state).to_rust_string());
-    let args_not_null = from_object(args0).unwrap();
+    let args_not_null = from_object(args0).unwrap();//todo handle npe
     let args_refcell = args_not_null.unwrap_array().mut_array();
     let args = args_refcell.deref();
     let method_name = string_obj_to_string(method_obj.lookup_field("name").unwrap_object());
@@ -49,7 +49,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_initing_or_inited_class(jvm, int_state, target_class_name.into()).unwrap();
+    let target_runtime_class = check_initing_or_inited_class(jvm, int_state, target_class_name.into()).unwrap();//todo handle exception
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {
@@ -58,13 +58,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
 
     //todo clean this up
     let parsed_md = parse_method_descriptor(&signature).unwrap();
-    // if !args.is_empty(){
-    //     dbg!(args[0].unwrap_normal_object().class_pointer.view().name());
-    // }
     let is_virtual = !target_runtime_class.view().lookup_method(&method_name, &parsed_md).unwrap().is_static();
-    // dbg!(is_virtual);
-    // dbg!(&method_name);
-    // dbg!(&parsed_md);
     if is_virtual {
         invoke_virtual(jvm, int_state, &method_name, &parsed_md);
     } else {
@@ -81,7 +75,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let args = if args0.is_null() {
         vec![]
     } else {
-        let temp_1 = from_object(args0).unwrap();
+        let temp_1 = from_object(args0).unwrap();//todo handle npe
         let array_temp = temp_1.unwrap_array().borrow();
         let elems_refcell = array_temp.mut_array();
         elems_refcell.clone().iter().map(|jv| match jv {
@@ -99,10 +93,10 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             _ => jv.clone()
         }).collect::<Vec<_>>()
     };
-    let constructor_obj = from_object(c).unwrap();
+    let constructor_obj = from_object(c).unwrap();//todo handle npe
     let signature_str_obj = constructor_obj.lookup_field("signature");
     let temp_4 = constructor_obj.lookup_field("clazz");
-    let clazz = class_object_to_runtime_class(&temp_4.cast_class(), jvm, int_state).unwrap();
+    let clazz = class_object_to_runtime_class(&temp_4.cast_class(), jvm, int_state).unwrap();//todo handle npe
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
     push_new_object(jvm, int_state, &clazz);
     let obj = int_state.pop_current_operand_stack();

@@ -12,8 +12,6 @@ use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     let view = &int_state.current_frame_mut().class_pointer().view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
-    // int_state.print_stack_trace();
-    // dbg!(target_class_name);
     let target_classfile = check_initing_or_inited_class(jvm,
                                                          int_state, target_class_name.clone().into()).unwrap();
     push_new_object(jvm, int_state, &target_classfile);
@@ -29,7 +27,6 @@ pub fn anewarray(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u1
     let cp_entry = &view.constant_pool_view(cp as usize);
     match cp_entry {
         ConstantInfoView::Class(c) => {
-            // int_state.print_stack_trace();
             //todo rename class_name
             let type_ = PTypeView::Ref(c.class_name());
             a_new_array_from_name(state, int_state, len, type_)
@@ -42,13 +39,11 @@ pub fn anewarray(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u1
 }
 
 pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, len: i32, t: PTypeView) {
-    // if let Some(name) = t.unwrap_type_to_name(){
     check_resolved_class(
         jvm,
         int_state,
         t.clone(),
-    ).unwrap();
-    // }
+    ).unwrap();//todo pass the error up
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t);
     int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap())))
 }
@@ -92,12 +87,10 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
-    check_resolved_class(jvm, int_state, PTypeView::Ref(type_.clone())).unwrap();
+    check_resolved_class(jvm, int_state, PTypeView::Ref(type_.clone())).unwrap();//todo pass the error up
     //todo need to start doing this at some point
     let mut dimensions = vec![];
-    // dbg!(&type_);
     let mut unwrapped_type: PTypeView = PTypeView::Ref(type_);
-    // dbg!(dims);
     for _ in 0..dims {
         dimensions.push(int_state.current_frame_mut().pop().unwrap_int());
     }
@@ -105,7 +98,7 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         unwrapped_type = unwrapped_type.unwrap_array_type()
     }
     let mut current = JavaValue::Object(None);
-    let mut current_type = unwrapped_type;//todo fix this as a matter of urgency
+    let mut current_type = unwrapped_type;
     for len in dimensions {
         let next_type = PTypeView::Ref(ReferenceTypeView::Array(Box::new(current_type)));
         let mut new_vec = vec![];
@@ -121,6 +114,5 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         ))).into());
         current_type = next_type;
     }
-    // dbg!(&current);
     int_state.push_current_operand_stack(current);
 }

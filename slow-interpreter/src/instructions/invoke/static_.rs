@@ -26,10 +26,10 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         jvm,
         int_state,
         class_name.into(),
-    ).unwrap();
+    ).unwrap();//todo pass the error up
     let (target_method_i, final_target_method) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
 
-    invoke_static_impl(
+    let _ = invoke_static_impl(
         jvm,
         int_state,
         expected_descriptor,

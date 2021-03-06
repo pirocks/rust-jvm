@@ -374,7 +374,7 @@ pub mod lambda_form {
             pub fn method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<MethodType, WasException> { // java.lang.invoke.LambdaForm.NamedFunction
                 let named_function_type = assert_inited_or_initing_class(jvm, int_state, ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into());
                 int_state.push_current_operand_stack(self.clone().java_value());
-                run_static_or_virtual(jvm, int_state, &named_function_type, "methodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string());
+                run_static_or_virtual(jvm, int_state, &named_function_type, "methodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
                 Ok(int_state.pop_current_operand_stack().cast_method_type())
             }
         }
@@ -500,7 +500,7 @@ pub mod call_site {
 
     impl JavaValue {
         pub fn cast_call_site(&self) -> CallSite {
-            CallSite { normal_object: self.unwrap_object_nonnull() }
+            CallSite { normal_object: self.unwrap_object_nonnull() }//todo every cast is an implicit npe
         }
     }
 

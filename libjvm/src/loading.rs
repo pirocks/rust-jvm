@@ -4,6 +4,7 @@ use std::sync::Arc;
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::class_loader::ClassLoader;
 use slow_interpreter::java_values::Object;
@@ -101,7 +102,10 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
             return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object()), int_state);
         }
     }
-    return new_local_ref_public(ExtClassLoader::get_ext_class_loader(jvm, int_state).object().into(), int_state);
+    return new_local_ref_public(match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
+        Ok(res) => res,
+        Err(_) => todo!()
+    }.object().into(), int_state);
 }
 
 #[no_mangle]

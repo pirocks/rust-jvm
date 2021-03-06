@@ -21,10 +21,7 @@ fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, 
 }
 
 pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: PTypeView) {
-    let object = get_or_create_class_object(jvm, res_class_type, int_state).unwrap();
-    // dbg!(object.clone().lookup_field("name"));
-    // dbg!(object.clone());
-    // dbg!(object.unwrap_normal_object().fields.borrow());
+    let object = get_or_create_class_object(jvm, res_class_type, int_state).unwrap();//todo pass the error up
     int_state.current_frame_mut().push(JavaValue::Object(object.into()));
 }
 

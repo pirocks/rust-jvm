@@ -15,10 +15,10 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let action = from_object(action);
-    let unwrapped_action = action.clone().unwrap();
+    let unwrapped_action = action.clone().unwrap();//todo handle npe
     let runtime_class = &unwrapped_action.unwrap_normal_object().class_pointer;
     let class_view = &runtime_class.view();
-    let run_method = class_view.lookup_method(&"run".to_string(), &parse_method_descriptor("()Ljava/lang/Object;").unwrap()).unwrap();
+    let run_method = class_view.lookup_method(&"run".to_string(), &parse_method_descriptor("()Ljava/lang/Object;").unwrap()).unwrap();//todo figure out if these unwraps are okay
     let expected_descriptor = MethodDescriptor {
         parameter_types: vec![],
         return_type: PType::Ref(ReferenceType::Class(ClassName::object())),

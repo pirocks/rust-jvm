@@ -49,7 +49,7 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
         // it appears we should ignore any errors here.
         //todo unclear what happens when one calls start on stopped thread. javadoc says terminate immediately, but what does that mean/ do we do this
     }
-    target_thread.interpreter_state.write().unwrap().throw = from_object(exception);
+    target_thread.interpreter_state.write().unwrap().throw = from_object(exception); //todo use set_throw? //todo handle npe
 }
 
 #[no_mangle]

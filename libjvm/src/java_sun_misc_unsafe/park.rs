@@ -20,7 +20,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: j
     }
     if is_absolute != 0 {
         let now = SystemTime::now();
-        let unix_time = now.duration_since(UNIX_EPOCH).unwrap().as_millis();
+        let unix_time = now.duration_since(UNIX_EPOCH).unwrap().as_millis(); //todo maybe we should handle being in the past
         let amount_to_wait = time as u128 - unix_time;
         current_thread.park(amount_to_wait as u64)
     } else {

@@ -61,9 +61,9 @@ pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobje
 
 pub unsafe fn new_local_ref_public(rust_obj: Option<Arc<Object>>, interpreter_state: &mut InterpreterStateGuard) -> jobject {
     if rust_obj.is_none() {
-        return null_mut()
+        return null_mut();
     }
-    new_local_ref_internal(rust_obj.unwrap(), interpreter_state)
+    new_local_ref_internal(rust_obj.unwrap(), interpreter_state)//todo use match
 }
 
 unsafe fn new_local_ref_internal(rust_obj: Arc<Object>, interpreter_state: &mut InterpreterStateGuard) -> jobject {

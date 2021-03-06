@@ -19,9 +19,9 @@ pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp:
         jvm,
         int_state,
         method_class_name.into(),
-    ).unwrap();
+    ).unwrap();//todo pass the error up
     let (target_m_i, final_target_class) = find_target_method(jvm, int_state, method_name, &parsed_descriptor, target_class);
-    invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone());
+    let _ = invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone());
 }
 
 pub fn invoke_special_impl(

@@ -568,7 +568,7 @@ impl ArrayObject {
     }
 
     pub fn new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>) -> Self {
-        check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone()))).unwrap();
+        check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone()))).unwrap();//todo pass the error up
         Self {
             elems: UnsafeCell::new(elems),
             elem_type: type_,

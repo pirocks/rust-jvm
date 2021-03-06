@@ -7,7 +7,6 @@ use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_AR
 use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::WasException;
-use crate::java::lang::class_loader::ClassLoader;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
@@ -153,7 +152,7 @@ pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr:
 pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
-    let notnull_class = from_object(transmute(klass)).unwrap();
+    let notnull_class = from_object(transmute(klass)).unwrap();//todo handle npe
     let class_object_ptype = JavaValue::Object(notnull_class.into()).cast_class().as_type(jvm);
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {

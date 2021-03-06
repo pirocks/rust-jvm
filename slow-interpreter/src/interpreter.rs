@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use classfile_parser::code::{CodeParserContext, parse_instruction};
-use classfile_parser::code::InstructionTypeNum::l2d;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
@@ -82,7 +81,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
                         let catch_runtime_name = interpreter_state.current_class_view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_name().unwrap_name();
                         let saved_throw = interpreter_state.throw().clone();
                         interpreter_state.set_throw(None);
-                        let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into()).unwrap();
+                        let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into()).unwrap();//todo pass the error up
                         interpreter_state.set_throw(saved_throw);
                         if inherits_from(jvm, interpreter_state, &throw_class, &catch_class) {
                             interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));

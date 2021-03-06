@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let interface_vec = from_jclass(cls).as_runtime_class(jvm).view().interfaces().map(|interface| {
-        let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state).unwrap();
+        let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state).unwrap();//todo pass the error up
         JavaValue::Object(Some(class_obj))
     }).collect::<Vec<_>>();
     //todo helper function for this:
@@ -88,7 +88,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
         let obj = from_object(cls);
         let type_ = JavaValue::Object(obj).cast_class().as_type(jvm);
         let name = type_.unwrap_type_to_name().unwrap();
-        let class_for_access_flags = check_initing_or_inited_class(jvm, int_state, name.into()).unwrap();
+        let class_for_access_flags = check_initing_or_inited_class(jvm, int_state, name.into()).unwrap(); //todo pass the error up
         (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
     } else {
         jclass.as_runtime_class(jvm).view().access_flags() as jint

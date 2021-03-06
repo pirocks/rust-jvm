@@ -18,7 +18,7 @@ pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
                                              name: jstring,
                                              is_copy: *mut jboolean) -> *const c_char {
     //todo this could be replaced with string_obj_to_string, though prob wise to have some kind of streaming impl or something
-    let str_obj_o = from_object(name).unwrap();
+    let str_obj_o = from_object(name).unwrap();//todo handle npe
     let possibly_uninit = str_obj_o.lookup_field("value").unwrap_object();
     let char_array: Vec<JavaValue> = match possibly_uninit {
         None => {
@@ -86,7 +86,7 @@ pub unsafe fn intern_impl(str_unsafe: jstring) -> jstring {
         Some(_) => {}
     };
     let str_obj = from_object(str_unsafe);
-    let char_array_ptr = str_obj.clone().unwrap().lookup_field("value").unwrap_object().unwrap();
+    let char_array_ptr = str_obj.clone().unwrap().lookup_field("value").unwrap_object().unwrap();//todo handle npe
     let char_array = char_array_ptr.unwrap_array().mut_array();
     let mut native_string_bytes = Vec::with_capacity(char_array.len());
     for char_ in &*char_array {
@@ -103,9 +103,9 @@ pub unsafe fn intern_impl(str_unsafe: jstring) -> jstring {
 
 
 pub unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -> jsize {
-    let str_obj = from_object(str).unwrap();
+    let str_obj = from_object(str).unwrap();//todo handle npe
     //todo use length function.
-    let char_object = str_obj.lookup_field("value").unwrap_object().unwrap();
+    let char_object = str_obj.lookup_field("value").unwrap_object().unwrap();//todo handle npe
     let chars = char_object.unwrap_array();
     let borrowed_elems = chars.mut_array();
     borrowed_elems.len() as i32
@@ -113,9 +113,9 @@ pub unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -
 
 
 pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
-    let str_obj = from_object(str).unwrap();
+    let str_obj = from_object(str).unwrap();//todo handle npe
     //todo maybe use string_obj_to_string in future.
-    let char_object = str_obj.lookup_field("value").unwrap_object().unwrap();
+    let char_object = str_obj.lookup_field("value").unwrap_object().unwrap();//todo handle npe
     let chars = char_object.unwrap_array();
     let borrowed_elems = chars.mut_array();
     for i in 0..len {
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len
 }
 
 pub unsafe extern "C" fn get_string_region(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut jchar) {
-    let temp = from_object(str).unwrap().lookup_field("value").unwrap_object().unwrap();
+    let temp = from_object(str).unwrap().lookup_field("value").unwrap_object().unwrap();//todo handle npe
     let char_array = &temp.unwrap_array().mut_array();
     let mut str_ = Vec::new();
     for char_ in char_array.iter() {

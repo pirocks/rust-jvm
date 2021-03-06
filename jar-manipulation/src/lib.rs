@@ -20,7 +20,7 @@ pub struct JarHandle<R: Read + io::Seek> {
 
 impl Clone for JarHandle<File> {
     fn clone(&self) -> Self {
-        let f = File::open(&self.path).unwrap();
+        let f = File::open(&self.path).unwrap(); //todo handle not existing jar
         let zip_archive = zip::ZipArchive::new(f).unwrap();
         Self
         {

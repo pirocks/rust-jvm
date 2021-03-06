@@ -249,6 +249,7 @@ pub mod constructor {
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
+    use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
@@ -270,7 +271,7 @@ pub mod constructor {
     }
 
     impl Constructor {
-        pub fn constructor_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Constructor {
+        pub fn constructor_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<Constructor, WasException> {
             let clazz = {
                 let field_class_name = method_view.classview().name();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
@@ -297,16 +298,16 @@ pub mod constructor {
             modifiers: jint,
             slot: jint,
             signature: JString,
-        ) -> Constructor {
-            let constructor_class = check_initing_or_inited_class(jvm, int_state, ClassName::constructor().into()).unwrap();
+        ) -> Result<Constructor, WasException> {
+            let constructor_class = check_initing_or_inited_class(jvm, int_state, ClassName::constructor().into()).unwrap();//todo pass the error up
             //todo impl these
             push_new_object(jvm, int_state, &constructor_class);
             let constructor_object = int_state.pop_current_operand_stack();
 
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state);
             let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
-            run_constructor(jvm, int_state, constructor_class, full_args, CONSTRUCTOR_SIGNATURE.to_string());
-            constructor_object.cast_constructor()
+            run_constructor(jvm, int_state, constructor_class, full_args, CONSTRUCTOR_SIGNATURE.to_string())?;
+            Ok(constructor_object.cast_constructor())
         }
 
         as_object_or_java_value!();
@@ -322,6 +323,7 @@ pub mod field {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
@@ -348,8 +350,8 @@ pub mod field {
             slot: jint,
             signature: JString,
             annotations: Vec<JavaValue>,
-        ) -> Self {
-            let field_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::field().into()).unwrap();
+        ) -> Result<Self, WasException> {
+            let field_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::field().into()).unwrap();//todo pass the error up
             push_new_object(jvm, int_state, &field_classfile);
             let field_object = int_state.pop_current_operand_stack();
 
@@ -372,8 +374,8 @@ pub mod field {
                 field_classfile,
                 vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations],
                 "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),
-            );
-            field_object.cast_field()
+            )?;
+            Ok(field_object.cast_field())
         }
 
         pub fn name(&self) -> JString {
@@ -412,7 +414,7 @@ pub mod constant_pool {
 
     impl ConstantPool {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JClass) -> ConstantPool {
-            let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/reflect/ConstantPool").into()).unwrap();
+            let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/reflect/ConstantPool").into()).unwrap();//todo pass the error up
             push_new_object(jvm, int_state, &constant_pool_classfile);
             let constant_pool_object = int_state.pop_current_operand_stack();
             let res = constant_pool_object.cast_constant_pool();

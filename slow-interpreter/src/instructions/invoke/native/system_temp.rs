@@ -4,10 +4,10 @@ use crate::java_values::JavaValue;
 
 pub fn system_array_copy(args: &mut Vec<JavaValue>) {
     let src_o = args[0].clone().unwrap_object();
-    let src = src_o.as_ref().unwrap().unwrap_array();
+    let src = src_o.as_ref().unwrap().unwrap_array();//todo handle npe
     let src_pos = args[1].clone().unwrap_int();
     let dest_o = args[2].clone().unwrap_object();
-    let dest = dest_o.as_ref().unwrap().unwrap_array();
+    let dest = dest_o.as_ref().unwrap().unwrap_array();//todo handle npe
     let dest_pos = args[3].clone().unwrap_int();
     let length = args[4].clone().unwrap_int();
     if src_pos < 0

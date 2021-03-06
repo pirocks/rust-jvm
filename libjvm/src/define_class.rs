@@ -23,7 +23,7 @@ unsafe extern "system" fn JVM_DefineClass(env: *mut JNIEnv, name: *const ::std::
 unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize, _pd: jobject, _source: *const ::std::os::raw::c_char) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_string = CStr::from_ptr(name).to_str().unwrap();
+    let name_string = CStr::from_ptr(name).to_str().unwrap(); //todo handle bad utf8, with to lossy or something
     let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
     if jvm.store_generated_classes { File::create("withsource").unwrap().write_all(slice).unwrap(); }

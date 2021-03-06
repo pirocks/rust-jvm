@@ -28,43 +28,43 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
     match class.deref() {
         RuntimeClass::Byte => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::byte().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::byte().into())?;
             return Ok(class);
         }
         RuntimeClass::Boolean => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::boolean().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::boolean().into())?;
             return Ok(class);
         }
         RuntimeClass::Short => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::short().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::short().into())?;
             return Ok(class);
         }
         RuntimeClass::Char => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::character().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::character().into())?;
             return Ok(class);
         }
         RuntimeClass::Int => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::int().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::int().into())?;
             return Ok(class);
         }
         RuntimeClass::Long => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::long().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::long().into())?;
             return Ok(class);
         }
         RuntimeClass::Float => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::float().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::float().into())?;
             return Ok(class);
         }
         RuntimeClass::Double => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::double().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::double().into())?;
             return Ok(class);
         }
         RuntimeClass::Void => {
-            check_initing_or_inited_class(jvm, int_state, ClassName::void().into()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, ClassName::void().into())?;
             return Ok(class);
         }
         RuntimeClass::Array(a) => {
-            check_initing_or_inited_class(jvm, int_state, a.sub_class.ptypeview()).unwrap();
+            check_initing_or_inited_class(jvm, int_state, a.sub_class.ptypeview())?;
         }
         _ => {}
     }
@@ -77,13 +77,13 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
         ClassStatus::PREPARED => {
             class.set_status(ClassStatus::INITIALIZING);
             if let Some(super_name) = class.view().super_name() {
-                check_initing_or_inited_class(jvm, int_state, super_name.into()).unwrap();
+                check_initing_or_inited_class(jvm, int_state, super_name.into())?;
             }
             for interface in class.view().interfaces() {
-                check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap();
+                check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
             }
             assert!(int_state.throw().is_none());
-            let res = initialize_class(class, jvm, int_state).unwrap();
+            let res = initialize_class(class, jvm, int_state)?;
             res.set_status(ClassStatus::INITIALIZED);
             Ok(res)
         }
@@ -183,15 +183,15 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                 let class_object = create_class_object(jvm, int_state, class_name.into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
                 if let Some(super_name) = class_view.super_name() {
-                    check_loaded_class(jvm, int_state, super_name.into()).unwrap();
+                    check_loaded_class(jvm, int_state, super_name.into())?;
                 }
                 for interface in class_view.interfaces() {
-                    check_loaded_class(jvm, int_state, interface.interface_name().into()).unwrap();
+                    check_loaded_class(jvm, int_state, interface.interface_name().into())?;
                 }
                 (class_object, res)
             }
             ReferenceTypeView::Array(sub_type) => {
-                let sub_class = check_resolved_class(jvm, int_state, sub_type.deref().clone()).unwrap();
+                let sub_class = check_resolved_class(jvm, int_state, sub_type.deref().clone())?;
                 //todo handle class objects for arraus
                 (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
             }

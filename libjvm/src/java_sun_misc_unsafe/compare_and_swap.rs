@@ -19,7 +19,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
     let view = rc.view();
     let field = view.field(field_i as usize);
     let field_name = field.field_name();
-    let notnull = from_object(target_obj).unwrap();
+    let notnull = from_object(target_obj).unwrap(); //todo handle npe
     let normal_obj = notnull.unwrap_normal_object();
     let mut fields_borrow = normal_obj.fields_mut();
     let curval = fields_borrow.get(field_name.as_str()).unwrap();
@@ -44,7 +44,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
     let view = rc.view();
     let field = view.field(field_i as usize);
     let field_name = field.field_name();
-    let notnull = from_object(target_obj).unwrap();
+    let notnull = from_object(target_obj).unwrap();//todo handle npe
     let normal_obj = notnull.unwrap_normal_object();
     let mut fields_borrow = normal_obj.fields_mut();
     let curval = fields_borrow.get(field_name.as_str()).unwrap();
@@ -69,7 +69,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
 //TODO MAJOR DUP
     //and even more b/c array v. object
     let jvm = get_state(env);
-    let notnull = from_object(target_obj).unwrap();
+    let notnull = from_object(target_obj).unwrap();//todo handle npe
     match notnull.deref() {
         Object::Array(arr) => {
             //todo there is somewhere else where unwrap_mut isn't done todo
@@ -79,7 +79,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
             ((if (curval.unwrap_object().is_none() && old.is_none()) || (
                 curval.unwrap_object().is_some() &&
                     old.is_some() &&
-                    Arc::ptr_eq(&curval.unwrap_object_nonnull(), &old.unwrap())) {
+                    Arc::ptr_eq(&curval.unwrap_object_nonnull(), &old.unwrap())) {//todo handle npe
                 *curval = JavaValue::Object(from_object(new));
                 1
             } else {
@@ -94,7 +94,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
             let mut fields_borrow = normal_obj.fields_mut();
             let curval = fields_borrow.get(field_name.as_str()).unwrap();
             let old = from_object(old);
-            ((if (curval.unwrap_object().is_none() && old.is_none()) || (curval.unwrap_object().is_some() && old.is_some() && Arc::ptr_eq(&curval.unwrap_object().unwrap(), &old.unwrap())) {
+            ((if (curval.unwrap_object().is_none() && old.is_none()) || (curval.unwrap_object().is_some() && old.is_some() && Arc::ptr_eq(&curval.unwrap_object().unwrap(), &old.unwrap())) {//todo handle npe
                 fields_borrow.insert(field_name, JavaValue::Object(from_object(new)));
                 1
             } else {

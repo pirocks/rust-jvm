@@ -6,6 +6,7 @@ pub mod properties {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+    use crate::interpreter::WasException;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
 
@@ -22,13 +23,14 @@ pub mod properties {
     }
 
     impl Properties {
-        pub fn set_property(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, key: JString, value: JString) {
+        pub fn set_property(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, key: JString, value: JString) -> Result<(), WasException> {
             let properties_class = assert_inited_or_initing_class(jvm, int_state, ClassName::properties().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(key.java_value());
             int_state.push_current_operand_stack(value.java_value());
-            run_static_or_virtual(jvm, int_state, &properties_class, "setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string());
+            run_static_or_virtual(jvm, int_state, &properties_class, "setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string())?;
             int_state.pop_current_operand_stack();
+            Ok(())
         }
     }
 }

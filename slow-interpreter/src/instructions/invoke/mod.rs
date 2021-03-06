@@ -140,7 +140,7 @@ pub mod dynamic {
         //todo not passing final call args?
         // int_state.print_stack_trace();
         // dbg!(&args);
-        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke.method_i(), invoke);
+        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke.method_i(), invoke)?;
 
         assert!(int_state.throw().is_none());
 
@@ -202,14 +202,14 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
             ReferenceTypeView::Class(c) => c,
             ReferenceTypeView::Array(_a) => if expected_method_name == *"clone" {
                 //todo replace with proper native impl
-                let temp = int_state.pop_current_operand_stack().unwrap_object().unwrap();
+                let temp = int_state.pop_current_operand_stack().unwrap_object().unwrap();//todo handle npe
                 let ArrayObject { elems: _, elem_type, monitor: _monitor } = temp.unwrap_array();
                 let array_object = ArrayObject::new_array(
                     jvm,
                     int_state,
                     temp.unwrap_array().mut_array().clone(),
                     elem_type.clone(),
-                    jvm.thread_state.new_monitor("monitor for cloned object".to_string())
+                    jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
                 );
                 int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(array_object)))));
                 return None;
@@ -224,7 +224,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         jvm,
         int_state,
         class_name_.into(),
-    ).unwrap();
+    ).unwrap();//todo pass the error up
     (resolved_class, expected_method_name, expected_descriptor).into()
 }
 

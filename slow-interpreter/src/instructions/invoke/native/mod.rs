@@ -1,4 +1,3 @@
-use std::intrinsics::truncf32;
 use std::sync::Arc;
 
 use by_address::ByAddress;

@@ -10,7 +10,7 @@ unsafe fn set_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val:
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
-    let notnull = from_object(obj).unwrap();
+    let notnull = from_object(obj).unwrap();//todo pass the error up
     let mut field_borrow = notnull.unwrap_normal_object().fields_mut();
     field_borrow.deref_mut().insert(name, val);
 }

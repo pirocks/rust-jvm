@@ -13,7 +13,7 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let unwrapped = from_object(obj).unwrap();
+    let unwrapped = from_object(obj).unwrap();//todo handle npe
     let class_object = match unwrapped.deref() {
         Object::Array(a) => {
             get_or_create_class_object(jvm, PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), int_state)
@@ -21,7 +21,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
         Object::Object(o) => {
             get_or_create_class_object(jvm, PTypeView::Ref(ReferenceTypeView::Class(o.class_pointer.view().name())), int_state)
         }
-    }.unwrap();
+    }.unwrap();//todo pass the error up
 
     new_local_ref_public(class_object.into(), int_state) as jclass
 }
@@ -54,7 +54,7 @@ pub unsafe fn from_object(obj: jobject) -> Option<Arc<Object>> {
 }
 
 pub unsafe fn from_jclass(obj: jclass) -> JClass {
-    try_from_jclass(obj).unwrap()
+    try_from_jclass(obj).unwrap()//todo handle npe
 }
 
 pub unsafe fn try_from_jclass(obj: jclass) -> Option<JClass> {

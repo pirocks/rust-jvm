@@ -9,6 +9,7 @@ use jvmti_jni_bindings::{jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectAr
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
@@ -37,7 +38,10 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let mut object_array = vec![];
     class_obj.clone().view().fields().for_each(|f| {
         //todo so this is big and messy put I don't really see a way to simplify
-        let field_object = field_object_from_view(jvm, int_state, class_obj.clone(), f);
+        let field_object = match field_object_from_view(jvm, int_state, class_obj.clone(), f) {
+            Ok(field_object) => field_object,
+            Err(_) => todo!()
+        };
 
         object_array.push(field_object)
     });

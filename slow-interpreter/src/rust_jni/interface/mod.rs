@@ -578,10 +578,13 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 
     let field_id: FieldId = transmute(field_id);
     let (rc, i) = jvm.field_table.write().unwrap().lookup(field_id);
-    to_object(field_object_from_view(jvm, int_state, rc.clone(), rc.view().field(i as usize)).unwrap_object())
+    to_object(match field_object_from_view(jvm, int_state, rc.clone(), rc.view().field(i as usize)) {
+        Ok(res) => res,
+        Err(_) => todo!()
+    }.unwrap_object())
 }
 
-pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: Arc<RuntimeClass>, f: FieldView) -> JavaValue {
+pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: Arc<RuntimeClass>, f: FieldView) -> Result<JavaValue, WasException> {
     let field_class_name_ = class_obj.clone().view().name();
     load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
     let parent_runtime_class = int_state.pop_current_operand_stack();
@@ -599,7 +602,7 @@ pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGu
     let signature = JString::from_rust(jvm, int_state, field_desc_str);
     let annotations_ = vec![];//todo impl annotations.
 
-    Field::init(
+    Ok(Field::init(
         jvm,
         int_state,
         clazz,
@@ -609,7 +612,7 @@ pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGu
         slot,
         signature,
         annotations_,
-    ).java_value()
+    )?.java_value())
 }
 
 
@@ -659,7 +662,7 @@ pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     prepare_class(jvm, int_state, parsed.clone(), &mut *runtime_class.static_vars());
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
-    initialize_class(runtime_class.clone(), jvm, int_state).unwrap();
+    initialize_class(runtime_class.clone(), jvm, int_state).unwrap();//todo pass the error up
     runtime_class.set_status(ClassStatus::INITIALIZED);
     Ok(JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into()))
 }

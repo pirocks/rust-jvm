@@ -11,9 +11,6 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
     let target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
     let stack = int_state.current_frame_mut().operand_stack_mut();
     let field_value = stack.pop().unwrap();
-    if field_name.as_str() == "NF_internalMemberName" {
-        field_value.unwrap_object().unwrap();
-    }
     target_classfile.static_vars().insert(field_name, field_value);
 }
 
@@ -27,7 +24,7 @@ pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) 
     match object_ref {
         JavaValue::Object(o) => {
             {
-                o.unwrap().unwrap_normal_object().fields_mut().insert(field_name, val);
+                o.unwrap().unwrap_normal_object().fields_mut().insert(field_name, val);//todo handle npe
             }
         }
         _ => {
@@ -50,7 +47,7 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
 }
 
 fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_class_name: &ClassName, field_name: &str) -> Option<JavaValue> {
-    let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();
+    let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();//todo pass the error up
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
         let interface_lookup_res = get_static_impl(jvm, int_state, &interfaces.interface_name(), field_name);

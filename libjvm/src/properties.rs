@@ -23,7 +23,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jo
     let key = int_state.pop_current_operand_stack();
     create_string_on_stack(jvm, int_state, val);
     let val = int_state.pop_current_operand_stack();
-    let prop_obj = from_object(p).unwrap();
+    let prop_obj = from_object(p).unwrap();//todo handle npe
     let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
     let class_view = &runtime_class.view();
     let candidate_meth = class_view.lookup_method_name(&"setProperty".to_string());

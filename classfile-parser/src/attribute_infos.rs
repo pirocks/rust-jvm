@@ -487,7 +487,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> Result<PType, Cla
             };
             let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8();
             if type_descriptor.starts_with('[') {
-                let res_descriptor = parse_field_descriptor(type_descriptor.as_str()).unwrap();
+                let res_descriptor = parse_field_descriptor(type_descriptor.as_str()).unwrap();//todo handle this error
                 res_descriptor.field_type
             } else {
                 PType::Ref(ReferenceType::Class(ClassName::Str(type_descriptor)))

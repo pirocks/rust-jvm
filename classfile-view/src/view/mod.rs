@@ -131,7 +131,7 @@ impl ClassView {
                 AttributeType::BootstrapMethods(bm) => Some((i, bm)),
                 _ => None
             }
-        }).next().unwrap();
+        }).next().unwrap();//todo make this a find
         BootstrapMethodsView { backing_class: self, attr_i: i }
     }
     pub fn sourcefile_attr(&self) -> Option<SourceFileView> {

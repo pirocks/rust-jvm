@@ -170,7 +170,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
-                            let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into()).unwrap();//todo loaders
+                            let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into()).unwrap();//todo loaders //todo pass the error up
                             push_new_object(jvm, int_state, &linkage_error);
                             let object = int_state.pop_current_operand_stack().unwrap_object();
                             int_state.set_throw(object);
@@ -180,13 +180,13 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 };
                 let method_id = jvm.method_table.write().unwrap().get_method_id(class.clone(), method_i as u16);
                 jvm.resolved_method_handles.write().unwrap().insert(ByAddress(member_name.clone().object()), method_id);
-                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), synthetic);
+                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), synthetic)?;
             } else if ref_kind == JVM_REF_invokeInterface {
                 unimplemented!()
             } else if ref_kind == JVM_REF_invokeSpecial {
                 //todo this is incorrect b/c it will get the virtual function
                 let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone());
-                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false);
+                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false)?;
             } else {
                 panic!()
             }

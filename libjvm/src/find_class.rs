@@ -25,7 +25,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_str = CStr::from_ptr(name).to_str().unwrap().to_string();
+    let name_str = CStr::from_ptr(name).to_str().unwrap().to_string();//todo handle utf8 here
     //todo duplication
     let class_name = ClassName::Str(name_str);
 
@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
-            let runtime_class = bootstrap_load(jvm, int_state, class_name.into()).unwrap();
+            let runtime_class = bootstrap_load(jvm, int_state, class_name.into()).unwrap(); //todo handle exception
             let ptype = runtime_class.ptypeview();
             let mut guard = jvm.classes.write().unwrap();
             guard.initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, runtime_class.clone()));//todo wrong loader?
@@ -74,7 +74,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         None => null_mut(),
         Some(view) => {
             // todo what if name is long/int etc.
-            let res = get_or_create_class_object(jvm, PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state).unwrap();
+            let res = get_or_create_class_object(jvm, PTypeView::Ref(ReferenceTypeView::Class(class_name)), int_state).unwrap();//todo handle exception
             new_local_ref_public(res.into(), int_state)
         }
     }
@@ -86,7 +86,7 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     assert_ne!(utf, std::ptr::null());
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let float = CString::new("float").unwrap();
+    let float = CString::new("float").unwrap();//todo make these expects
     let float_cstr = float.into_raw();
     let double = CString::new("double").unwrap();
     let double_cstr = double.into_raw();
@@ -127,7 +127,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         unimplemented!()
     };
 
-    let res = get_or_create_class_object(jvm, ptype, int_state).unwrap();//todo what if not using bootstap loader
-    // dbg!(JavaValue::Object(res.clone().into()).cast_class().get_name(jvm, int_state).to_rust_string());
+    let res = get_or_create_class_object(jvm, ptype, int_state).unwrap();//todo what if not using bootstap loader, todo handle exception
     new_local_ref_public(res.into(), int_state)
 }

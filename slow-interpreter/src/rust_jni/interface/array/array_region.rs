@@ -29,7 +29,7 @@ pub unsafe extern "C" fn get_int_array_region(_env: *mut JNIEnv, array: jintArra
 
 
 unsafe fn array_region_integer_types<T: NumCast>(array: jarray, start: jsize, len: jsize, buf: *mut T) {
-    let non_null_array_obj = from_object(array).unwrap();
+    let non_null_array_obj = from_object(array).unwrap();//todo handle npe
     let array_ref = non_null_array_obj.unwrap_array().mut_array();
     let array = array_ref.deref();
     for i in 0..len {
@@ -40,7 +40,7 @@ unsafe fn array_region_integer_types<T: NumCast>(array: jarray, start: jsize, le
 
 //a lot of duplication here, but hard to template out.
 pub unsafe extern "C" fn get_float_array_region(_env: *mut JNIEnv, array: jfloatArray, start: jsize, len: jsize, buf: *mut jfloat) {
-    let non_null_array_obj = from_object(array).unwrap();
+    let non_null_array_obj = from_object(array).unwrap();//todo handle npe
     let array_ref = non_null_array_obj.unwrap_array().mut_array();
     let array = array_ref.deref();
     for i in 0..len {
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn get_float_array_region(_env: *mut JNIEnv, array: jfloat
 }
 
 pub unsafe extern "C" fn get_double_array_region(_env: *mut JNIEnv, array: jdoubleArray, start: jsize, len: jsize, buf: *mut jdouble) {
-    let non_null_array_obj = from_object(array).unwrap();
+    let non_null_array_obj = from_object(array).unwrap();//todo handle npe
     let array_ref = non_null_array_obj.unwrap_array().mut_array();
     let array = array_ref.deref();
     for i in 0..len {
@@ -60,7 +60,7 @@ pub unsafe extern "C" fn get_double_array_region(_env: *mut JNIEnv, array: jdoub
 }
 
 pub unsafe extern "C" fn get_long_array_region(_env: *mut JNIEnv, array: jlongArray, start: jsize, len: jsize, buf: *mut jlong) {
-    let non_null_array_obj = from_object(array).unwrap();
+    let non_null_array_obj = from_object(array).unwrap();//todo handle npe
     let array_ref = non_null_array_obj.unwrap_array().mut_array();
     let array = array_ref.deref();
     for i in 0..len {
@@ -123,8 +123,7 @@ pub unsafe extern "C" fn set_long_array_region(_env: *mut JNIEnv, array: jdouble
 
 
 unsafe fn set_array_region(array: jarray, start: i32, len: i32, java_value_getter: &mut dyn FnMut(isize) -> JavaValue) {
-    let non_nullarray = from_object(array)
-        .unwrap();
+    let non_nullarray = from_object(array).unwrap();//todo handle npe
     let vec_mut = non_nullarray
         .unwrap_array().mut_array();
     for i in 0..len {

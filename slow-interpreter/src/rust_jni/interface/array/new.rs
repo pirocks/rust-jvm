@@ -11,7 +11,7 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
     let jvm = get_state(env);
     let type_ = from_jclass(clazz).as_type(jvm);
     let res = new_array(env, len, type_);
-    let res_safe = from_object(res).unwrap();
+    let res_safe = from_object(res).unwrap();//todo handle npe
     for jv in res_safe.unwrap_array().mut_array().iter_mut() {
         *jv = JavaValue::Object(from_object(init));
     }

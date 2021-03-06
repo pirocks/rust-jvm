@@ -11,7 +11,7 @@ pub struct MethodDescriptor { pub parameter_types: Vec<PType>, pub return_type: 
 
 impl MethodDescriptor {
     pub fn from_legacy(method_info: &MethodInfo, classfile: &Classfile) -> Self {
-        parse_method_descriptor(method_info.descriptor_str(classfile).as_str()).unwrap()
+        parse_method_descriptor(method_info.descriptor_str(classfile).as_str()).unwrap()//todo get rid of this unwrap and this function
     }
 }
 
@@ -179,10 +179,10 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PType)> {
 
 pub fn parse_class_name(str_: &str) -> PType {
     if let Some(subtype_descriptor) = str_.strip_prefix('[') {
-        let field_descriptor = parse_field_descriptor(subtype_descriptor).unwrap().field_type;
+        let field_descriptor = parse_field_descriptor(subtype_descriptor).unwrap().field_type;//todo pass the error up
         PType::Ref(ReferenceType::Array(box field_descriptor))
     } else if str_.ends_with(';') {
-        parse_field_descriptor(&str_).unwrap().field_type
+        parse_field_descriptor(&str_).unwrap().field_type//todo pass the error up
     } else {
         PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))
     }

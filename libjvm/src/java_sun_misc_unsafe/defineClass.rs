@@ -15,7 +15,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _the_unsafe: jobject, name: jstring, bytes: jbyteArray, off: jint, len: jint, loader: jobject, protection_domain: jobject) -> jclass {
     //todo handle protection domain
     assert_eq!(off, 0);
-    let mut byte_array = from_object(bytes).unwrap().unwrap_array().unwrap_byte_array().iter().map(|byte| *byte as u8).collect::<Vec<_>>();
+    let mut byte_array = from_object(bytes).unwrap().unwrap_array().unwrap_byte_array().iter().map(|byte| *byte as u8).collect::<Vec<_>>();//todo handle npe
     let jname = JavaValue::Object(from_object(name)).cast_string();
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);

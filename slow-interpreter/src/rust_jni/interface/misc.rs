@@ -57,10 +57,8 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    // let frame = int_state.current_frame_mut();
-
-    let sub_not_null = from_object(sub).unwrap();
-    let sup_not_null = from_object(sup).unwrap();
+    let sub_not_null = from_object(sub).unwrap();//todo handle npe
+    let sup_not_null = from_object(sup).unwrap();//todo handle npe
 
     let sub_type = JavaValue::Object(sub_not_null.into()).cast_class().as_type(jvm);
     let sup_type = JavaValue::Object(sup_not_null.into()).cast_class().as_type(jvm);
@@ -177,18 +175,17 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
 
 pub fn get_all_methods(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Vec<(Arc<RuntimeClass>, usize)> {
     let mut res = vec![];
-    // dbg!(&class.class_view.name());
     class.view().methods().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into()).unwrap();
+        let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into()).unwrap();//todo pass the error up
         object.view().methods().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
-        let name = class.view().super_name().unwrap();
-        let super_ = check_initing_or_inited_class(jvm, int_state, name.into()).unwrap();
+        let name = class.view().super_name().unwrap();//todo use  a match
+        let super_ = check_initing_or_inited_class(jvm, int_state, name.into()).unwrap();//todo pass the error up
         for (c, i) in get_all_methods(jvm, int_state, super_) {
             res.push((c, i));
         }
@@ -204,13 +201,13 @@ pub fn get_all_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cla
         res.push((class.clone(), i));
     });
     if class.view().super_name().is_none() {
-        let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into()).unwrap();
+        let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into()).unwrap();//todo pass the error up
         object.view().fields().enumerate().for_each(|(i, _)| {
             res.push((object.clone(), i));
         });
     } else {
-        let name = class.view().super_name();
-        let super_ = check_initing_or_inited_class(jvm, int_state, name.unwrap().into()).unwrap();
+        let name = class.view().super_name();//todo use a match
+        let super_ = check_initing_or_inited_class(jvm, int_state, name.unwrap().into()).unwrap();//todo pass the error up
         for (c, i) in get_all_fields(jvm, int_state, super_) {
             res.push((c, i));//todo accidental O(n^2)
         }

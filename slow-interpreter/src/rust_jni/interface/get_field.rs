@@ -68,7 +68,7 @@ unsafe fn get_java_value_field(env: *mut JNIEnv, obj: *mut _jobject, field_id_ra
     let (rc, field_i) = get_state(env).field_table.read().unwrap().lookup(field_id_raw as usize);
     let view = &rc.view();
     let name = view.field(field_i as usize).field_name();
-    let notnull = from_object(obj).unwrap();
+    let notnull = from_object(obj).unwrap();//todo handle npe
     let normal_obj = notnull.unwrap_normal_object();
     let fields_borrow = normal_obj.fields_mut();
     fields_borrow.deref().get(&name).unwrap().clone()
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     match view.super_name() {
         None => {}
         Some(super_) => {
-            let runtime_class = check_initing_or_inited_class(jvm, int_state, super_.clone().into()).unwrap();
+            let runtime_class = check_initing_or_inited_class(jvm, int_state, super_.clone().into()).unwrap();//todo pass the error up
             return get_field_id_impl(env, &name.to_string(), runtime_class.clone(), runtime_class.view()).unwrap()//todo fix this incorrecdtness
         }
     }
@@ -128,7 +128,7 @@ pub unsafe extern "C" fn get_static_method_id(
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = from_object(clazz);
     //todo dup
-    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj_o).cast_class(), jvm, int_state).unwrap();
+    let runtime_class = class_object_to_runtime_class(&JavaValue::Object(class_obj_o).cast_class(), jvm, int_state).unwrap();//todo pass the error up
     let view = &runtime_class.view();
     let method = view.lookup_method(&method_name, &parse_method_descriptor(method_descriptor_str.as_str()).unwrap()).unwrap();
     assert!(method.is_static());
@@ -153,10 +153,8 @@ unsafe fn get_static_field(env: *mut JNIEnv, klass: jclass, field_id_raw: jfield
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
     let jclass = from_jclass(klass);
-    // dbg!(&name);
-    // dbg!(view.name());
     let rc = jclass.as_runtime_class(jvm);
-    check_initing_or_inited_class(jvm, int_state, rc.ptypeview()).unwrap();
+    check_initing_or_inited_class(jvm, int_state, rc.ptypeview()).unwrap();//todo pass the error up
     let guard = rc.static_vars();
     guard.borrow().get(&name).unwrap().clone()
 }

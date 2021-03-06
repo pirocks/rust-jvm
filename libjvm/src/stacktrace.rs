@@ -49,14 +49,14 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number))
     }).collect::<Vec<_>>();
     let mut stack_traces_guard = jvm.stacktraces_by_throwable.write().unwrap();
-    stack_traces_guard.insert(ByAddress(from_object(throwable).unwrap()), stack_entry_objs);
+    stack_traces_guard.insert(ByAddress(from_object(throwable).unwrap()), stack_entry_objs);//todo handle npe
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jobject) -> jint {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(from_object(throwable).unwrap())) {
+    match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(from_object(throwable).unwrap())) {//todo handle npe
         Some(x) => x,
         None => return JNI_ERR,
     }.len() as i32
@@ -66,7 +66,7 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
 unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: jobject, index: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(from_object(throwable).unwrap())) {
+    match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(from_object(throwable).unwrap())) {//todo handle npe
         Some(x) => x,
         None => todo!(),
     }.get(index as usize) {

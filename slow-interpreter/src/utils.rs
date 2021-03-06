@@ -26,7 +26,7 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
     assert!(filtered.len() <= 1);
     match filtered.iter().next() {
         None => {
-            let class_name = class.view().super_name().unwrap();
+            let class_name = class.view().super_name().unwrap();//todo is this unwrap safe?
             let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));
             let super_class = assert_inited_or_initing_class(jvm, int_state, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
             lookup_method_parsed_impl(jvm, int_state, super_class, name, descriptor)
@@ -40,7 +40,7 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
 
 //todo make this an impl method on Object
 pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
-    let temp = str_obj.unwrap().lookup_field("value");
+    let temp = str_obj.unwrap().lookup_field("value");//todo pass the error up
     let chars = temp.unwrap_array();
     let borrowed_elems = chars.mut_array();
     let mut res = String::new();

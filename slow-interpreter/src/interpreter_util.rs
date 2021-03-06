@@ -21,7 +21,7 @@ pub fn push_new_object(
     let object_pointer = JavaValue::new_object(jvm, target_classfile.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
     let loader = jvm.classes.read().unwrap().get_initiating_loader(target_classfile);
-    default_init_fields(jvm, int_state, loader, object_pointer, target_classfile.view()).unwrap();
+    default_init_fields(jvm, int_state, loader, object_pointer, target_classfile.view()).unwrap();//todo pass the error up
     int_state.current_frame_mut().push(new_obj);
 }
 
@@ -33,8 +33,8 @@ fn default_init_fields(
     view: &ClassView,
 ) -> Result<(), ClassLoadingError> {
     if let Some(super_name) = view.super_name() {
-        let loaded_super = check_resolved_class(jvm, int_state, super_name.into()).unwrap();
-        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &loaded_super.view()).unwrap();
+        let loaded_super = check_resolved_class(jvm, int_state, super_name.into()).unwrap();//todo pass the error up
+        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &loaded_super.view()).unwrap();//todo pass the error up
     }
     for field in view.fields() {
         if !field.is_static() {
