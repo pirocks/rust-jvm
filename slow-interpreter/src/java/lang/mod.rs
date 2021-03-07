@@ -237,7 +237,6 @@ pub mod class {
 
     use by_address::ByAddress;
 
-    use classfile_view::view::ClassView;
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use rust_jvm_common::classnames::ClassName;
 
@@ -690,7 +689,6 @@ pub mod thread {
 pub mod thread_group {
     use std::sync::Arc;
 
-    use classfile_view::view::ClassView;
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::classnames::ClassName;
 

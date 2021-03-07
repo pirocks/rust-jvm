@@ -1,11 +1,10 @@
 use std::alloc::Layout;
-use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
+use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
 
 use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter::WasException;

@@ -4,7 +4,7 @@ use std::mem::transmute;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use classfile_view::view::{ClassView, HasAccessFlags};
 use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
 
@@ -81,7 +81,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
     let view = runtime_class.view();
 
-    if let Some(fieldid) = get_field_id_impl(env, &name, runtime_class.clone(), view) {
+    if let Some(fieldid) = get_field_id_impl(env, &name, runtime_class.clone(), &**view) {
         return fieldid;
     }
     let int_state = get_interpreter_state(env);
@@ -89,7 +89,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
         None => {}
         Some(super_) => {
             let runtime_class = check_initing_or_inited_class(jvm, int_state, super_.clone().into()).unwrap();//todo pass the error up
-            return get_field_id_impl(env, &name.to_string(), runtime_class.clone(), runtime_class.view()).unwrap()//todo fix this incorrecdtness
+            return get_field_id_impl(env, &name.to_string(), runtime_class.clone(), &**runtime_class.view()).unwrap()//todo fix this incorrecdtness
         }
     }
     int_state.debug_print_stack_trace();
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     panic!()
 }
 
-unsafe fn get_field_id_impl(env: *mut JNIEnv, name: &String, runtime_class: Arc<RuntimeClass>, view: &Arc<ClassBackedView>) -> Option<jfieldID> {
+unsafe fn get_field_id_impl(env: *mut JNIEnv, name: &String, runtime_class: Arc<RuntimeClass>, view: &dyn ClassView) -> Option<jfieldID> {
     for field_i in 0..view.num_fields() {
         //todo check descriptor
         let field_name = view.field(field_i).field_name();

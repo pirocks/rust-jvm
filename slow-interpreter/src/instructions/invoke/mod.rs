@@ -197,7 +197,7 @@ pub mod dynamic {
 
 fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let view = int_state.current_class_view();
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, view);
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &**view);
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => match r {
             ReferenceTypeView::Class(c) => c,

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::loading::{ClassLoadingError, LoaderName};
-use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use classfile_view::view::{ClassView, HasAccessFlags};
 use descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -16,12 +16,12 @@ use crate::runtime_class::RuntimeClass;
 pub fn push_new_object(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
-    target_classfile: &Arc<RuntimeClass>
+    runtime_class: &Arc<RuntimeClass>
 ) {
-    let object_pointer = JavaValue::new_object(jvm, target_classfile.clone());
+    let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
-    let loader = jvm.classes.read().unwrap().get_initiating_loader(target_classfile);
-    default_init_fields(jvm, int_state, loader, object_pointer, target_classfile.view()).unwrap();//todo pass the error up
+    let loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
+    default_init_fields(jvm, int_state, loader, object_pointer, &**runtime_class.view()).unwrap();//todo pass the error up
     int_state.current_frame_mut().push(new_obj);
 }
 
@@ -30,11 +30,11 @@ fn default_init_fields(
     int_state: &mut InterpreterStateGuard,
     loader: LoaderName,
     object_pointer: Option<Arc<Object>>,
-    view: &ClassBackedView,
+    view: &dyn ClassView,
 ) -> Result<(), ClassLoadingError> {
     if let Some(super_name) = view.super_name() {
         let loaded_super = check_resolved_class(jvm, int_state, super_name.into()).unwrap();//todo pass the error up
-        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &loaded_super.view()).unwrap();//todo pass the error up
+        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &**loaded_super.view()).unwrap();//todo pass the error up
     }
     for field in view.fields() {
         if !field.is_static() {

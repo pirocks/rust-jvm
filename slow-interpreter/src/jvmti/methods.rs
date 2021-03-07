@@ -1,6 +1,6 @@
 use std::ffi::CString;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, jint, jlocation, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 

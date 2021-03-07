@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use classfile_parser::code::{CodeParserContext, parse_instruction};
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};

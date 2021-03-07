@@ -1,4 +1,3 @@
-use classfile_view::view::ClassView;
 use rust_jvm_common::classnames::ClassName;
 use verification::verifier::instructions::special::extract_field_descriptor;
 
@@ -7,8 +6,8 @@ use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_init
 use crate::java_values::JavaValue;
 
 pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let view = &int_state.current_class_view();
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
+    let view = int_state.current_class_view();
+    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &**view);
     let target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
     let stack = int_state.current_frame_mut().operand_stack_mut();
     let field_value = stack.pop().unwrap();
@@ -16,8 +15,8 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
 }
 
 pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let view = &int_state.current_class_view();
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
+    let view = int_state.current_class_view();
+    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &**view);
     let _target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into());//todo sus this should be assert
     let stack = &mut int_state.current_frame_mut().operand_stack_mut();
     let val = stack.pop().unwrap();
@@ -38,8 +37,8 @@ pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) 
 pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     //todo make sure class pointer is updated correctly
 
-    let view = &int_state.current_class_view();
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
+    let view = int_state.current_class_view();
+    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &**view);
     let field_value = match get_static_impl(jvm, int_state, &field_class_name, &field_name) {
         None => { return; }
         Some(val) => val
@@ -75,8 +74,8 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_
 
 pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
     let current_frame: &mut StackEntry = int_state.current_frame_mut();
-    let view = &current_frame.class_pointer().view();
-    let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, view);
+    let view = current_frame.class_pointer().view();
+    let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &**view);
     let object_ref = current_frame.pop();
     match object_ref {
         JavaValue::Object(o) => {

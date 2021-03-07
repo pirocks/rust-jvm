@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use classfile_view::view::ClassView;
 use descriptor_parser::MethodDescriptor;
 
 use crate::InterpreterStateGuard;

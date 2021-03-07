@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use classfile_view::loading::ClassWithLoader;
-use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;

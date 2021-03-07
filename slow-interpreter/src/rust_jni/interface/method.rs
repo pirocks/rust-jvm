@@ -3,7 +3,6 @@ use std::mem::transmute;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 
-use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
 
 use crate::rust_jni::interface::misc::get_all_methods;

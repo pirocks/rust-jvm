@@ -1,4 +1,3 @@
-use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jclass, JNI_FALSE, JNI_TRUE, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::jvm_state::JVMState;

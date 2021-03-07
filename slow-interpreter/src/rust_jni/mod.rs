@@ -15,7 +15,7 @@ use libloading::Library;
 use libloading::os::unix::RTLD_NOW;
 use libloading::Symbol;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
 use jvmti_jni_bindings::jobject;

@@ -4,7 +4,7 @@ use std::mem::transmute;
 use std::sync::{Arc, RwLockWriteGuard};
 
 use classfile_view::loading::LoaderName;
-use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::classfile::CPIndex;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
@@ -76,7 +76,7 @@ impl<'l> InterpreterStateGuard<'l> {
         self.current_frame().loader()
     }
 
-    pub fn current_class_view(&self) -> &Arc<ClassBackedView> {
+    pub fn current_class_view(&self) -> &Arc<dyn ClassView> {
         self.current_frame().class_pointer().view()
     }
 

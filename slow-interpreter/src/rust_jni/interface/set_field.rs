@@ -1,6 +1,5 @@
 use std::ops::DerefMut;
 
-use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
 use crate::java_values::JavaValue;

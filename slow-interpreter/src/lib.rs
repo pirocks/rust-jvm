@@ -23,8 +23,6 @@ use std::time::Duration;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::MethodDescriptor;
-use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
@@ -79,7 +77,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader).expect("failed to load main class");
     check_loaded_class(jvm, int_state, main.ptypeview()).expect("failed to init main class");
     let main_view = main.view();
-    let main_i = locate_main_method(&main_view.backing_class());
+    let main_i = locate_main_method(&main_view);
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
@@ -150,7 +148,7 @@ fn locate_main_method(main: &Arc<dyn ClassView>) -> usize {
     for m in psvms {
         let desc = m.desc();
         if m.is_static() && desc.parameter_types == vec![string_array.to_ptype()] && desc.return_type == PType::VoidType {
-            return i;
+            return m.method_i();
         }
     }
     panic!("No psvms found in class: {}", main.name().get_referred_name());

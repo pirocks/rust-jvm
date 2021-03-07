@@ -47,7 +47,7 @@ pub trait HasAccessFlags {
 }
 
 
-pub trait ClassView {
+pub trait ClassView: HasAccessFlags {
     fn name(&self) -> ClassName;
     fn super_name(&self) -> Option<ClassName>;
     fn methods(&self) -> MethodIterator;
@@ -259,6 +259,12 @@ impl HasAccessFlags for ClassBackedView {
 
 pub enum PrimitiveView {}
 
+impl HasAccessFlags for PrimitiveView {
+    fn access_flags(&self) -> u16 {
+        todo!()
+    }
+}
+
 impl ClassView for PrimitiveView {
     fn name(&self) -> ClassName {
         todo!()
@@ -339,6 +345,12 @@ impl ClassView for PrimitiveView {
 
 pub struct ArrayView {
     sub: Arc<dyn ClassView>
+}
+
+impl HasAccessFlags for ArrayView {
+    fn access_flags(&self) -> u16 {
+        todo!()
+    }
 }
 
 impl ClassView for ArrayView {

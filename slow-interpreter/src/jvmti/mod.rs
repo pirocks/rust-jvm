@@ -1,7 +1,6 @@
 use std::mem::transmute;
 use std::ptr::null_mut;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::*;
 
 use crate::{InterpreterStateGuard, JVMState};

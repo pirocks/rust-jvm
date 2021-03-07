@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use classfile_view::loading::ClassWithLoader;
-use classfile_view::view::{ClassBackedView, ClassView};
+use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::vtype::VType;
@@ -147,7 +147,7 @@ fn count_is_valid(count: usize, input_frame_stack_map_size: usize, output_frame:
 }
 
 pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf, env.method.class));
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &*get_class(&env.vf, env.method.class));
     let method_class_name = match method_class_type {
         PTypeView::Ref(ReferenceTypeView::Class(c)) => c,
         _ => panic!()
@@ -334,7 +334,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
 
 pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class_view = get_class(&env.vf, env.method.class);
-    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &method_class_view);
+    let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &*method_class_view);
     if method_name.contains("arrayOf") || method_name.contains('[') || &method_name == "<init>" || &method_name == "<clinit>" {
         unimplemented!();
     }
@@ -372,7 +372,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
 }
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &get_class(&env.vf, env.method.class));
+    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &*get_class(&env.vf, env.method.class));
     let (class_name, method_class) = match class_type {
         PTypeView::Ref(r) => {
             match r {
@@ -409,7 +409,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
     standard_exception_frame(locals, flag, nf)
 }
 
-pub fn get_method_descriptor(cp: usize, classfile: &ClassBackedView) -> (PTypeView, String, MethodDescriptor) {
+pub fn get_method_descriptor(cp: usize, classfile: &dyn ClassView) -> (PTypeView, String, MethodDescriptor) {
     let c = &classfile.constant_pool_view(cp);
     let (class_name, method_name, parsed_descriptor) = match c {
         ConstantInfoView::Methodref(m) => {
@@ -426,7 +426,7 @@ pub fn get_method_descriptor(cp: usize, classfile: &ClassBackedView) -> (PTypeVi
             let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc_method());
             (class_name, method_name, descriptor)
         }
-        _ => unimplemented!("{:?}", c)
+        _ => todo!("{:?}", c)
     };
     (PTypeView::Ref(possibly_array_to_type(&class_name)), method_name, parsed_descriptor)
 }
