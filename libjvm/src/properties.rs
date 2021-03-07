@@ -33,7 +33,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> jo
     int_state.push_current_operand_stack(JavaValue::Object(prop_obj.clone().into()));
     int_state.push_current_operand_stack(key);
     int_state.push_current_operand_stack(val);
-    invoke_virtual_method_i(jvm, int_state, md, runtime_class.clone(), meth.method_i(), meth);
+    invoke_virtual_method_i(jvm, int_state, md, runtime_class.clone(), meth);
     int_state.pop_current_operand_stack();
     p
 }

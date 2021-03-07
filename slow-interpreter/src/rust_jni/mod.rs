@@ -16,6 +16,7 @@ use libloading::os::unix::RTLD_NOW;
 use libloading::Symbol;
 
 use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
 use jvmti_jni_bindings::jobject;
@@ -64,11 +65,11 @@ pub fn call(
     state: &JVMState,
     int_state: &mut InterpreterStateGuard,
     classfile: Arc<RuntimeClass>,
-    method_i: usize,
+    method_view: MethodView,
     args: Vec<JavaValue>,
     md: MethodDescriptor,
 ) -> Result<Option<JavaValue>, libloading::Error> {
-    let mangled = mangling::mangle(classfile.clone(), method_i);
+    let mangled = mangling::mangle(&method_view);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
             match state.libjava.libjava.get(mangled.as_bytes()) {
@@ -107,7 +108,7 @@ pub fn call(
         };
         *symbol.deref()
     };
-    if classfile.view().method_view_i(method_i).is_static() {
+    if method_view.is_static() {
         Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, false))
     } else {
         Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, true))

@@ -28,7 +28,7 @@ pub fn run_native_method(
     let before = int_state.current_frame().operand_stack().len();
     assert_inited_or_initing_class(jvm, int_state, view.name().into());
     assert_eq!(before, int_state.current_frame().operand_stack().len());
-    let method = &view.method_view_i(method_i);
+    let method = view.method_view_i(method_i);
     if !method.is_static() {
         assert_ne!(before, 0);
     }
@@ -52,7 +52,7 @@ pub fn run_native_method(
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()));
     assert!(int_state.current_frame_mut().is_native());
 
-    let monitor = monitor_for_function(jvm, int_state, method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
+    let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
     if let Some(m) = monitor.as_ref() {
         m.lock(jvm)
     }
@@ -74,10 +74,10 @@ pub fn run_native_method(
         };
         call_impl(jvm, int_state, class.clone(), args, parsed, &res_fn, !method.is_static())
     } else {
-        match call(jvm, int_state, class.clone(), method_i, args.clone(), parsed) {
+        match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed) {
             Ok(r) => r,
             Err(_) => {
-                match special_call_overrides(jvm, int_state, class, method_i, &mut args) {
+                match special_call_overrides(jvm, int_state, &class.view().method_view_i(method_i), &mut args) {
                     Ok(res) => res,
                     Err(_) => None
                 }
@@ -98,9 +98,8 @@ pub fn run_native_method(
     }
 }
 
-fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, method_i: usize, mut args: &mut Vec<JavaValue>) -> Result<Option<JavaValue>, WasException> {
-    let mangled = mangling::mangle(class.clone(), method_i);
-    // state.tracing.trace_dynmaic_link()
+fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView, mut args: &mut Vec<JavaValue>) -> Result<Option<JavaValue>, WasException> {
+    let mangled = mangling::mangle(method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
         //todo

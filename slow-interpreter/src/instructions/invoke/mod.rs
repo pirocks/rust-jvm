@@ -121,7 +121,7 @@ pub mod dynamic {
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
-        invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke.method_i(), invoke)?;
+        invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke)?;
         let call_site = int_state.pop_current_operand_stack().cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
         let method_handle_clone = method_handle_class.clone();
@@ -142,7 +142,7 @@ pub mod dynamic {
         //todo not passing final call args?
         // int_state.print_stack_trace();
         // dbg!(&args);
-        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke.method_i(), invoke)?;
+        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke)?;
 
         assert!(int_state.throw().is_none());
 

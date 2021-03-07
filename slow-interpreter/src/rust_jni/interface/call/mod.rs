@@ -34,7 +34,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     for type_ in &parsed.parameter_types {
         push_type_to_operand_stack(int_state, type_, &mut l)
     }
-    invoke_virtual_method_i(jvm, int_state, parsed, class, method_i as usize, &method)?;
+    invoke_virtual_method_i(jvm, int_state, parsed, class, &method)?;
     assert!(int_state.throw().is_none());
     Ok(if method.desc().return_type == PType::VoidType {
         None

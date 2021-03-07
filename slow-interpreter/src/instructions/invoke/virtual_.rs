@@ -35,8 +35,8 @@ pub fn invoke_virtual_instruction(state: &JVMState, int_state: &mut InterpreterS
     let _ = invoke_virtual(state, int_state, &method_name, &expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method_i: usize, target_method: &MethodView) -> Result<(), WasException> {
-    invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method_i, target_method)
+pub fn invoke_virtual_method_i(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method: &MethodView) -> Result<(), WasException> {
+    invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method)
 }
 
 fn invoke_virtual_method_i_impl(
@@ -44,9 +44,9 @@ fn invoke_virtual_method_i_impl(
     interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
-    target_method_i: usize,
     target_method: &MethodView,
 ) -> Result<(), WasException> {
+    let target_method_i = target_method.method_i();
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame_mut();
 
@@ -209,7 +209,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, &method_name, md, c);
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    invoke_virtual_method_i(jvm, int_state, md.clone(), final_target_class.clone(), new_i, target_method)
+    invoke_virtual_method_i(jvm, int_state, md.clone(), final_target_class.clone(), target_method)
 }
 
 pub fn virtual_method_lookup(
