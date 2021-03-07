@@ -15,7 +15,8 @@ pub fn lookup_method_parsed(state: &JVMState, int_state: &mut InterpreterStateGu
 }
 
 pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
-    let posible_methods = class.view().lookup_method_name(&name);
+    let view = class.view();
+    let posible_methods = view.lookup_method_name(&name);
     let filtered = posible_methods.into_iter().filter(|m| {
         if m.is_signature_polymorphic() {
             true

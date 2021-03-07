@@ -148,7 +148,8 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
             let typejclass = member_name.get_type().cast_class();
             let target_ptype = typejclass.as_type(jvm);
             let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
-                let field = c.view().field(*i);
+                let view = c.view();
+                let field = view.field(*i);
                 field.field_name() == name &&
                     field.field_type() == target_ptype
             }).unwrap();

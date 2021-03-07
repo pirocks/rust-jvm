@@ -126,7 +126,8 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
             // return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
             let int_state = get_interpreter_state(env);
             let thread_class = assert_inited_or_initing_class(jvm, int_state, ClassName::thread().into());
-            let possible_starts = thread_class.view().lookup_method_name(&"start".to_string());
+            let thread_class_view = thread_class.view();
+            let possible_starts = thread_class_view.lookup_method_name(&"start".to_string());
             let thread_start_view = possible_starts.get(0).unwrap();
             jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
         }
@@ -218,7 +219,8 @@ pub unsafe extern "C" fn get_local_variable_table(
         }
         Some(pair) => pair
     };
-    let method_view = class.view().method_view_i(method_i as usize);
+    let class_view = class.view();
+    let method_view = class_view.method_view_i(method_i as usize);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
     if method_view.is_native() {
         return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NATIVE_METHOD);
@@ -328,7 +330,8 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
         },
         Some(method) => method,
     };//todo
-    let method_view = class.view().method_view_i(method_i as usize);
+    let class_view = class.view();
+    let method_view = class_view.method_view_i(method_i as usize);
     if method_view.is_native() {
         return jvmtiError_JVMTI_ERROR_NATIVE_METHOD;
     }

@@ -22,8 +22,9 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
     let stack_entry_objs = stacktrace.iter().flat_map(|stack_entry| {
         let declaring_class = stack_entry.try_class_pointer()?;
 
-        let method_view = declaring_class.view().method_view_i(stack_entry.method_i() as usize);
-        let file = match declaring_class.view().sourcefile_attr() {
+        let declaring_class_view = declaring_class.view();
+        let method_view = declaring_class_view.method_view_i(stack_entry.method_i() as usize);
+        let file = match declaring_class_view.sourcefile_attr() {
             None => {
                 "unknown_source".to_string()
             }
@@ -44,7 +45,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                 cur_line
             }
         };
-        let declaring_class_name = match JString::from_rust(jvm, int_state, declaring_class.view().name().get_referred_name().to_string()) {
+        let declaring_class_name = match JString::from_rust(jvm, int_state, declaring_class_view.name().get_referred_name().to_string()) {
             Ok(declaring_class_name) => declaring_class_name,
             Err(WasException {}) => todo!()
         };

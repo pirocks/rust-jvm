@@ -218,7 +218,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
         None => {
             let field_id = field_id_and_array_idx as FieldId;
             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
-            let field_view = runtime_class.view().field(i as usize);
+            let runtime_class_view = runtime_class.view();
+            let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
             let res = runtime_class.static_vars().get(&name).unwrap().clone();
@@ -244,7 +245,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
         None => {
             let field_id = offset as FieldId;
             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
-            let field_view = runtime_class.view().field(i as usize);
+            let runtime_class_view = runtime_class.view();
+            let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
             let mut static_vars_guard = runtime_class.static_vars();
@@ -261,7 +263,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
                 Object::Object(obj) => {
                     let field_id = offset as FieldId;
                     let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
-                    let field_view = runtime_class.view().field(i as usize);
+                    let runtime_class_view = runtime_class.view();
+                    let field_view = runtime_class_view.field(i as usize);
                     assert!(!field_view.is_static());
                     let name = field_view.field_name();
                     obj.fields_mut().insert(name, JavaValue::Object(from_object(to_put)));

@@ -13,7 +13,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::runtime_class::RuntimeClass;
 
 pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &**int_state.current_frame_mut().class_pointer().view());
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &*int_state.current_frame_mut().class_pointer().view());
     let method_class_name = method_class_type.unwrap_class_type();
     let target_class = check_initing_or_inited_class(
         jvm,
@@ -31,8 +31,9 @@ pub fn invoke_special_impl(
     target_m_i: usize,
     final_target_class: Arc<RuntimeClass>,
 ) -> Result<(), WasException> {
-    let target_m = &final_target_class.view().method_view_i(target_m_i);
-    if final_target_class.view().method_view_i(target_m_i).is_signature_polymorphic() {
+    let final_target_view = final_target_class.view();
+    let target_m = &final_target_view.method_view_i(target_m_i);
+    if final_target_view.method_view_i(target_m_i).is_signature_polymorphic() {
         interpreter_state.debug_print_stack_trace();
         dbg!(target_m.name());
         unimplemented!()

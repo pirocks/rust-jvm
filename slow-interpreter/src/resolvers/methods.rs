@@ -15,7 +15,8 @@ pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterSta
 	let method_descriptor = MethodDescriptor { parameter_types, return_type };
 	let runtime_class = member_name.get_clazz().as_runtime_class(jvm);
 	//todo dup
-	let temp = runtime_class.view().lookup_method_name(&member_name.get_name().to_rust_string());
+	let runtime_class_view = runtime_class.view();
+	let temp = runtime_class_view.lookup_method_name(&member_name.get_name().to_rust_string());
 	let res = temp.iter().find(|candidate| {
 		if candidate.is_signature_polymorphic() {
 			true
@@ -36,7 +37,8 @@ pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStat
 	let parameter_types = method_type.get_ptypes_as_types(jvm);
 	let runtime_class = member_name.get_clazz().as_runtime_class(jvm);
 	let method_descriptor = MethodDescriptor { parameter_types, return_type };
-	let res = runtime_class.view().lookup_method_name(&member_name.get_name().to_rust_string()).iter().find(|m| {
+	let runtime_class_view = runtime_class.view();
+	let res = runtime_class_view.lookup_method_name(&member_name.get_name().to_rust_string()).iter().find(|m| {
 		if m.is_signature_polymorphic() {
 			//todo more comprehensive polymorphism sanity checks.
 			true

@@ -19,7 +19,7 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
 //todo handle monitor enter and exit
 //handle init cases
     let view = int_state.current_class_view();
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &**view);
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
     let class_name = class_name_type.unwrap_class_type();
     //todo  spec says where check_ is allowed. need to match that
     let target_class = check_initing_or_inited_class(
@@ -49,8 +49,9 @@ pub fn invoke_static_impl(
 ) -> Result<(), WasException> {
     let mut args = vec![];
     let current_frame = interpreter_state.current_frame_mut();
-    if target_class.view().method_view_i(target_method_i).is_signature_polymorphic() {
-        let method_view = target_class.view().method_view_i(target_method_i);
+    let target_class_view = target_class.view();
+    if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
+        let method_view = target_class_view.method_view_i(target_method_i);
         let name = method_view.name();
         if name == "linkToStatic" {
             let op_stack = interpreter_state.current_frame().operand_stack();

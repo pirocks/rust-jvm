@@ -134,12 +134,6 @@ fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Resu
 }
 
 
-fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {
-    let system_class = system.view();
-    let method_views = system_class.lookup_method_name(&"initializeSystemClass".to_string());
-    method_views.first().unwrap().clone()
-}
-
 fn locate_main_method(main: &Arc<dyn ClassView>) -> usize {
     let string_name = ClassName::string();
     let string_class = PTypeView::Ref(ReferenceTypeView::Class(string_name));

@@ -18,7 +18,8 @@ pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodName");
     let method_id = from_jmethod_id(method);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
-    let mv = class.view().method_view_i(method_i as usize);
+    let class_view = class.view();
+    let mv = class_view.method_view_i(method_i as usize);
     let name = mv.name();
     let desc_str = mv.desc_str();
     if !generic_ptr.is_null() {
@@ -42,7 +43,8 @@ pub unsafe extern "C" fn get_arguments_size(
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetArgumentsSize");
     let method_id = from_jmethod_id(method);
     let (rc, i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
-    let mv = rc.view().method_view_i(i as usize);
+    let rc_view = rc.view();
+    let mv = rc_view.method_view_i(i as usize);
     size_ptr.write(mv.num_args() as i32);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
@@ -169,7 +171,8 @@ pub unsafe extern "C" fn is_method_native(
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodObsolete");
     let method_id = from_jmethod_id(method);//todo find a way to get rid of these transmutes
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-    let mv = rc.view().method_view_i(method_i as usize);
+    let rc_view = rc.view();
+    let mv = rc_view.method_view_i(method_i as usize);
     null_check!(is_native_ptr);
     is_native_ptr.write(mv.is_native() as jboolean);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)

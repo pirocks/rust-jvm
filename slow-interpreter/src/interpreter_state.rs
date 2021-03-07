@@ -76,7 +76,7 @@ impl<'l> InterpreterStateGuard<'l> {
         self.current_frame().loader()
     }
 
-    pub fn current_class_view(&self) -> &Arc<dyn ClassView> {
+    pub fn current_class_view(&self) -> Arc<dyn ClassView> {
         self.current_frame().class_pointer().view()
     }
 
@@ -198,7 +198,8 @@ impl<'l> InterpreterStateGuard<'l> {
         for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
             if stack_entry.try_method_i().is_some() && stack_entry.method_i() > 0 {
                 let name = stack_entry.class_pointer().view().name();
-                let method_view = stack_entry.class_pointer().view().method_view_i(stack_entry.method_i() as usize);
+                let view = stack_entry.class_pointer().view();
+                let method_view = view.method_view_i(stack_entry.method_i() as usize);
                 let meth_name = method_view.name();
                 if method_view.is_native() {
                     println!("{}.{} {} {}", name.get_referred_name(), meth_name, method_view.desc_str(), i)

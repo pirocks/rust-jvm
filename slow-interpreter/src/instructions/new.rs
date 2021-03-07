@@ -84,7 +84,8 @@ pub fn newarray(jvm: &JVMState, int_state: &mut InterpreterStateGuard, a_type: A
 
 pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: MultiNewArray) {
     let dims = cp.dims;
-    let temp = int_state.current_frame_mut().class_pointer().view().constant_pool_view(cp.index as usize);
+    let view = int_state.current_frame_mut().class_pointer().view();
+    let temp = view.constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_name();
 
     check_resolved_class(jvm, int_state, PTypeView::Ref(type_.clone())).unwrap();//todo pass the error up

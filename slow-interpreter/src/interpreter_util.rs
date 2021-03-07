@@ -21,7 +21,7 @@ pub fn push_new_object(
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
     let loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
-    default_init_fields(jvm, int_state, loader, object_pointer, &**runtime_class.view()).unwrap();//todo pass the error up
+    default_init_fields(jvm, int_state, loader, object_pointer, &*runtime_class.view()).unwrap();//todo pass the error up
     int_state.current_frame_mut().push(new_obj);
 }
 
@@ -34,7 +34,7 @@ fn default_init_fields(
 ) -> Result<(), ClassLoadingError> {
     if let Some(super_name) = view.super_name() {
         let loaded_super = check_resolved_class(jvm, int_state, super_name.into()).unwrap();//todo pass the error up
-        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &**loaded_super.view()).unwrap();//todo pass the error up
+        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &*loaded_super.view()).unwrap();//todo pass the error up
     }
     for field in view.fields() {
         if !field.is_static() {
@@ -61,7 +61,8 @@ pub fn run_constructor(
     full_args: Vec<JavaValue>,
     descriptor: String,
 ) -> Result<(), WasException> {
-    let method_view = target_classfile.view().lookup_method(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
+    let target_classfile_view = target_classfile.view();
+    let method_view = target_classfile_view.lookup_method(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
     let md = method_view.desc();
     let this_ptr = full_args[0].clone();
     let actual_args = &full_args[1..];

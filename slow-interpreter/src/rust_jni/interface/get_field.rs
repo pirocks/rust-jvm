@@ -81,7 +81,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
     let view = runtime_class.view();
 
-    if let Some(fieldid) = get_field_id_impl(env, &name, runtime_class.clone(), &**view) {
+    if let Some(fieldid) = get_field_id_impl(env, &name, runtime_class.clone(), &*view) {
         return fieldid;
     }
     let int_state = get_interpreter_state(env);
@@ -89,7 +89,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
         None => {}
         Some(super_) => {
             let runtime_class = check_initing_or_inited_class(jvm, int_state, super_.clone().into()).unwrap();//todo pass the error up
-            return get_field_id_impl(env, &name.to_string(), runtime_class.clone(), &**runtime_class.view()).unwrap()//todo fix this incorrecdtness
+            return get_field_id_impl(env, &name.to_string(), runtime_class.clone(), &*runtime_class.view()).unwrap()//todo fix this incorrecdtness
         }
     }
     int_state.debug_print_stack_trace();

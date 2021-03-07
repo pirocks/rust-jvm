@@ -112,7 +112,8 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         let by_address = ByAddress(vmentry.clone().object());
         let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-        let res_method = class.view().method_view_i(method_i as usize);
+        let class_view = class.view();
+        let res_method = class_view.method_view_i(method_i as usize);
         run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str())?;
         assert!(interpreter_state.throw().is_none());
         let res = interpreter_state.pop_current_operand_stack();
@@ -177,7 +178,8 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
         None => {
             int_state.debug_print_stack_trace();
             let method_i = int_state.current_frame().method_i();
-            let method_view = int_state.current_frame().class_pointer().view().method_view_i(method_i as usize);
+            let class_view = int_state.current_frame().class_pointer().view();
+            let method_view = class_view.method_view_i(method_i as usize);
             dbg!(&method_view.code_attribute().unwrap().code);
             dbg!(&int_state.current_frame().operand_stack_types());
             dbg!(&int_state.current_frame().local_vars_types());
@@ -219,7 +221,8 @@ pub fn virtual_method_lookup(
 ) -> (Arc<RuntimeClass>, usize) {
     let all_methods = get_all_methods(state, int_state, c.clone());
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
-        let method_view = c.view().method_view_i(*i);
+        let final_target_class_view = c.view();
+        let method_view = final_target_class_view.method_view_i(*i);
         let cur_name = method_view.name();
         let cur_desc = method_view.desc();
         let expected_name = &method_name;

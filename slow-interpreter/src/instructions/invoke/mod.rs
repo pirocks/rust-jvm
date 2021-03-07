@@ -116,7 +116,8 @@ pub mod dynamic {
             int_state.push_current_operand_stack(arg);//todo check order is correct
         }
         let method_handle_clone = method_handle_class.clone();
-        let lookup_res = method_handle_clone.view().lookup_method_name("invoke");
+        let method_handle_view = method_handle_clone.view();
+        let lookup_res = method_handle_view.lookup_method_name("invoke");
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
@@ -124,7 +125,7 @@ pub mod dynamic {
         let call_site = int_state.pop_current_operand_stack().cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
         let method_handle_clone = method_handle_class.clone();
-        let lookup_res = method_handle_clone.view().lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
+        let lookup_res = method_handle_view.lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
         let (num_args, args) = if int_state.current_frame().operand_stack().is_empty() {
             (0, vec![])
@@ -197,7 +198,7 @@ pub mod dynamic {
 
 fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
     let view = int_state.current_class_view();
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &**view);
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => match r {
             ReferenceTypeView::Class(c) => c,

@@ -453,7 +453,8 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_
         Some(x) => x,
         None => return null_mut(),
     };
-    let method_view = runtime_class.view().method_view_i(index as usize);
+    let runtime_class_view = runtime_class.view();
+    let method_view = runtime_class_view.method_view_i(index as usize);
     let method_obj = match Method::method_object_from_method_view(jvm, int_state, &method_view) {
         Ok(method_obj) => method_obj,
         Err(_) => todo!()

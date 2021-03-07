@@ -257,7 +257,17 @@ impl HasAccessFlags for ClassBackedView {
 }
 
 
-pub enum PrimitiveView {}
+pub enum PrimitiveView {
+    Byte,
+    Boolean,
+    Short,
+    Char,
+    Int,
+    Long,
+    Float,
+    Double,
+    Void,
+}
 
 impl HasAccessFlags for PrimitiveView {
     fn access_flags(&self) -> u16 {

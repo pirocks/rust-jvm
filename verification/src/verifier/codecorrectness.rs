@@ -3,8 +3,8 @@ use std::option::Option::Some;
 use std::rc::Rc;
 
 use classfile_view::loading::*;
-use classfile_view::view::HasAccessFlags;
 use classfile_view::view::constant_info_view::ConstantInfoView;
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
 use descriptor_parser::MethodDescriptor;
@@ -22,13 +22,8 @@ use crate::verifier::TypeSafetyError;
 
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
     let Frame { locals, stack_map: input_operand_stack, flag_this_uninit } = input_frame;
-    // dbg!("17");
-    // dbg!(&expected_types_on_stack);
-    // dbg!(&input_operand_stack);
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
-    // dbg!("18");
     let next_operand_stack = push_operand_stack(&env.vf, interim_operand_stack, &result_type);
-    // dbg!("19");
     if operand_stack_has_legal_length(env, &next_operand_stack) {
         Result::Ok(Frame { locals, stack_map: next_operand_stack, flag_this_uninit })
     } else {
@@ -42,7 +37,7 @@ pub fn pop_matching_list(vf: &VerifierContext, pop_from: OperandStack, pop: Vec<
 
 pub fn pop_matching_list_impl(vf: &VerifierContext, mut pop_from: OperandStack, pop: &[VType]) -> Result<OperandStack, TypeSafetyError> {
     if pop.is_empty() {
-        Result::Ok(pop_from)//todo inefficent copying
+        Result::Ok(pop_from)//todo inefficient copying
     } else {
         let to_pop = pop.first().unwrap();
         pop_matching_type(vf, &mut pop_from, to_pop)?;
@@ -132,7 +127,7 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
         if left.flag_this_uninit {
             right.flag_this_uninit
         } else {
-            true//todo realisitically I shouldn't check this b/c no way of knowing from stackmapframes.
+            true//todo realistically I shouldn't check this b/c no way of knowing from stackmapframes.
         }*/ {
         Result::Ok(())
     } else {
@@ -163,13 +158,6 @@ pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method
 }
 
 pub struct ParsedCodeAttribute<'l> {
-    //    pub class_name: NameReference,
-//    pub frame_size: u16,
-//    pub max_stack: u16,
-//    pub code: &'l Vec<Instruction>,
-//    pub exception_table: Vec<Handler>,
-//    todo
-//    pub stackmap_frames: Vec<&'l StackMap<'l>>,//todo
     pub method: &'l ClassWithLoaderMethod<'l>
 }
 
@@ -211,22 +199,10 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
     let handlers = get_handlers(vf, class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, class, method_info);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().collect());
-    // dbg!("3");
     let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size);
-    // dbg!("4");
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf };
     handlers_are_legal(&env)?;
-    // dbg!("5");
-    merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(frame))?;/*{
-        Ok(_) => Result::Ok(()),
-        Err(_) => {
-            //then maybe we need to try alternate initial_this_type
-            let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size,true);
-            let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf.clone() };
-            handlers_are_legal(&env)?;
-            merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(&frame))
-        },
-    }*/
+    merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(frame))?;
     Result::Ok(())
 }
 

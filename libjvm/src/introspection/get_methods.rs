@@ -46,11 +46,13 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
         unimplemented!()
     }
     let runtime_class = of_class_obj.as_runtime_class(jvm);
-    let methods = runtime_class.view().methods().map(|method| (runtime_class.clone(), method.method_i()));
+    let runtime_class_view = runtime_class.view();
+    let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
     let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into()).unwrap(); //todo pass the error up
     let mut object_array = vec![];
     methods.filter(|(c, i)| {
-        let method_view = c.view().method_view_i(*i);
+        let c_view = c.view();
+        let method_view = c_view.method_view_i(*i);
         if publicOnly > 0 {
             method_view.is_public()
         } else {
@@ -58,7 +60,8 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
             name != "<clinit>" && name != "<init>"
         }
     }).for_each(|(c, i)| {
-        let method_view = c.view().method_view_i(i);
+        let c_view = c.view();
+        let method_view = c_view.method_view_i(i);
         let method = Method::method_object_from_method_view(jvm, int_state, &method_view).expect("todo");
         object_array.push(method.java_value());
     });

@@ -13,7 +13,7 @@ use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 use threads::{Thread, Threads};
 
-use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
+use crate::{InterpreterStateGuard, JVMState, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::interpreter::{run_function, suspend_check, WasException};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
@@ -102,7 +102,10 @@ impl ThreadState {
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         let system_class = assert_inited_or_initing_class(jvm, int_state, ClassName::system().into());
 
-        let init_method_view = locate_init_system_class(&system_class);
+        let system = &system_class;
+        let system_view = system.view();
+        let method_views = system_view.lookup_method_name(&"initializeSystemClass".to_string());
+        let init_method_view = method_views.first().unwrap().clone();
         let mut locals = vec![];
         for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
             locals.push(JavaValue::Top);

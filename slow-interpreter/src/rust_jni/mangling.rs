@@ -7,11 +7,12 @@ use classfile_view::view::HasAccessFlags;
 use crate::runtime_class::RuntimeClass;
 
 pub fn mangle(classfile: Arc<RuntimeClass>, method_i: usize) -> String {
-    let method = &classfile.view().method_view_i(method_i);
+    let view = classfile.view();
+    let method = &view.method_view_i(method_i);
     let method_name = method.name();
-    let class_name_ = classfile.view().name();
+    let class_name_ = view.name();
     let class_name = class_name_.get_referred_name();
-    let multiple_same_name_methods = classfile.view().lookup_method_name(&method_name).iter().filter(|m| {
+    let multiple_same_name_methods = view.lookup_method_name(&method_name).iter().filter(|m| {
         m.is_native()
     }).count() > 1;
     if multiple_same_name_methods {

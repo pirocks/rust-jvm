@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::{ClassView, HasAccessFlags, PrimitiveView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::classfile::{ACC_STATIC, Classfile};
@@ -62,35 +62,19 @@ impl RuntimeClass {
             }
         }
     }
-    pub fn view(&self) -> &Arc<dyn ClassView> {
+    pub fn view(&self) -> Arc<dyn ClassView> {
         match self {
-            RuntimeClass::Byte => unimplemented!(),
-            RuntimeClass::Boolean => unimplemented!(),
-            RuntimeClass::Short => unimplemented!(),
-            RuntimeClass::Char => unimplemented!(),
-            RuntimeClass::Int => unimplemented!(),
-            RuntimeClass::Long => unimplemented!(),
-            RuntimeClass::Float => unimplemented!(),
-            RuntimeClass::Double => unimplemented!(),
-            RuntimeClass::Void => unimplemented!(),
+            RuntimeClass::Byte => Arc::new(PrimitiveView::Byte),
+            RuntimeClass::Boolean => Arc::new(PrimitiveView::Boolean),
+            RuntimeClass::Short => Arc::new(PrimitiveView::Short),
+            RuntimeClass::Char => Arc::new(PrimitiveView::Char),
+            RuntimeClass::Int => Arc::new(PrimitiveView::Int),
+            RuntimeClass::Long => Arc::new(PrimitiveView::Long),
+            RuntimeClass::Float => Arc::new(PrimitiveView::Float),
+            RuntimeClass::Double => Arc::new(PrimitiveView::Double),
+            RuntimeClass::Void => Arc::new(PrimitiveView::Void),
             RuntimeClass::Array(_) => unimplemented!(),
-            RuntimeClass::Object(o) => &o.class_view,
-        }
-    }
-
-    pub fn try_view(&self) -> Option<&Arc<dyn ClassView>> {
-        match self {
-            RuntimeClass::Byte => None,
-            RuntimeClass::Boolean => None,
-            RuntimeClass::Short => None,
-            RuntimeClass::Char => None,
-            RuntimeClass::Int => None,
-            RuntimeClass::Long => None,
-            RuntimeClass::Float => None,
-            RuntimeClass::Double => None,
-            RuntimeClass::Void => None,
-            RuntimeClass::Array(_) => None,
-            RuntimeClass::Object(o) => (&o.class_view).into(),
+            RuntimeClass::Object(o) => o.class_view.clone(),
         }
     }
 

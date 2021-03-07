@@ -31,7 +31,8 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let all_methods = get_all_methods(jvm, int_state, runtime_class);
 
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
-        let method_view = &c.view().method_view_i(*i);
+        let c_view = c.view();
+        let method_view = &c_view.method_view_i(*i);
         let cur_desc = method_view.desc_str();
         let cur_method_name = method_view.name();
         cur_method_name == method_name &&

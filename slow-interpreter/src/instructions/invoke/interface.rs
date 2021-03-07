@@ -9,7 +9,7 @@ use crate::instructions::invoke::virtual_::{invoke_virtual_method_i, setup_virtu
 pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, invoke_interface: InvokeInterface) {
     // invoke_interface.count;//todo use this?
     let view = &int_state.current_class_view();
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &***view);
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &**view);
     let class_name_ = class_name_type.unwrap_class_type();
     let _target_class = check_initing_or_inited_class(jvm, int_state, class_name_.into());
     let mut args = vec![];
