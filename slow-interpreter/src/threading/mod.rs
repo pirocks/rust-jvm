@@ -241,10 +241,14 @@ impl ThreadState {
             }
 
             let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name));
-            match java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
-                Ok(()) => {}
-                Err(WasException {}) => todo!(" handle thread exiting with exception")
+            if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
+                JavaValue::Object(int_state.throw()).cast_throwable().print_stack_trace(jvm, int_state).expect("Exception occured while printing exception. Something is pretty messed up");
+                int_state.set_throw(None);
             };
+            if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, int_state) {
+                eprintln!("Exception occured exiting thread, something is pretty messed up");
+                panic!()
+            }
 
             interpreter_state_guard.pop_frame(jvm, frame_for_run_call, false);
             java_thread.notify_terminated();

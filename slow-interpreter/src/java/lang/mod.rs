@@ -603,6 +603,12 @@ pub mod thread {
             run_static_or_virtual(jvm, int_state, &thread_class, "run".to_string(), "()V".to_string())
         }
 
+        pub fn exit(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+            let thread_class = self.normal_object.unwrap_normal_object().class_pointer.clone();
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            run_static_or_virtual(jvm, int_state, &thread_class, "exit".to_string(), "()V".to_string())
+        }
+
         pub fn name(&self) -> JString {
             self.normal_object.lookup_field("name").cast_string()
         }
