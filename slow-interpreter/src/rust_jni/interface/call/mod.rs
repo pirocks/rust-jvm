@@ -54,7 +54,7 @@ pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmet
     let _name = method.name();
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
     push_params_onto_frame(&mut l, int_state, &parsed);
-    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i as usize, method.method_info())?;
+    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i as usize, method)?;
     Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {

@@ -34,8 +34,7 @@ impl MethodView<'_> {
         self.class_view
     }
 
-    //todo shouldn't be public but needs to be
-    pub fn method_info(&self) -> &MethodInfo {
+    fn method_info(&self) -> &MethodInfo {
         &self.class_view.backing_class.methods[self.method_i]
     }
 

@@ -21,7 +21,6 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
@@ -34,7 +33,6 @@ use crate::java::lang::system::System;
 use crate::java_values::{ArrayObject, JavaValue};
 use crate::java_values::Object::Array;
 use crate::jvm_state::JVMState;
-use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntry;
 use crate::sun::misc::launcher::Launcher;
 use crate::threading::JavaThread;

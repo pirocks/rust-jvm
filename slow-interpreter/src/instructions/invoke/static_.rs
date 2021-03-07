@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
+use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
 use descriptor_parser::MethodDescriptor;
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_NATIVE, ACC_STATIC, MethodInfo};
 use rust_jvm_common::classnames::ClassName;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
@@ -35,7 +36,7 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         expected_descriptor,
         final_target_method.clone(),
         target_method_i,
-        &final_target_method.view().method_view_i(target_method_i).method_info(),
+        &final_target_method.view().method_view_i(target_method_i),
     );
 }
 
@@ -45,7 +46,7 @@ pub fn invoke_static_impl(
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
     target_method_i: usize,
-    target_method: &MethodInfo,
+    target_method: &MethodView,
 ) -> Result<(), WasException> {
     let mut args = vec![];
     let current_frame = interpreter_state.current_frame_mut();
@@ -66,9 +67,9 @@ pub fn invoke_static_impl(
         } else {
             unimplemented!()
         }
-    } else if target_method.access_flags & ACC_NATIVE == 0 {
-        assert!(target_method.access_flags & ACC_STATIC > 0);
-        assert_eq!(target_method.access_flags & ACC_ABSTRACT, 0);
+    } else if !target_method.is_native() {
+        assert!(target_method.is_static());
+        assert!(!target_method.is_abstract());
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         for _ in 0..max_locals {
             args.push(JavaValue::Top);
