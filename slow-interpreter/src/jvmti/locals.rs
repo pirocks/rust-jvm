@@ -204,7 +204,7 @@ unsafe fn set_local_t(jvm: &JVMState, thread: jthread, depth: jint, slot: jint, 
         return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
 
-    let java_thread = get_thread_from_obj_or_current(jvm, thread);
+    let java_thread = get_thread_from_obj_or_current(jvm, thread)?;
     let mut guard = java_thread.interpreter_state.write().unwrap();
     let call_stack = &mut guard.call_stack;
     let len = call_stack.len();
