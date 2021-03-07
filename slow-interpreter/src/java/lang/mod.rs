@@ -453,19 +453,17 @@ pub mod string {
             Ok(string_object.cast_string())
         }
 
-        pub fn intern(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JString {
-            //todo this should be pure native to avoid exception handling
+        pub fn intern(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JString, WasException> {
             int_state.push_current_operand_stack(self.clone().java_value());
-            //todo fix these incorrect variable names
-            let thread_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into()).unwrap();//todo replace these unwraps
+            let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into())?;
             run_static_or_virtual(
                 jvm,
                 int_state,
-                &thread_class,
+                &string_class,
                 "intern".to_string(),
                 "()Ljava/lang/String;".to_string(),
-            );
-            int_state.pop_current_operand_stack().cast_string()
+            )?;
+            Ok(int_state.pop_current_operand_stack().cast_string())
         }
 
         pub fn value(&self) -> Vec<jchar> {

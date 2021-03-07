@@ -606,7 +606,7 @@ pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGu
     let modifiers = f.access_flags() as i32;
     let slot = f.field_i() as i32;
     let clazz = parent_runtime_class.cast_class();
-    let name = JString::from_rust(jvm, int_state, field_name)?.intern(jvm, int_state);
+    let name = JString::from_rust(jvm, int_state, field_name)?.intern(jvm, int_state)?;
     let type_ = JClass::from_type(jvm, int_state, PTypeView::from_ptype(&field_type));
     let signature = JString::from_rust(jvm, int_state, field_desc_str)?;
     let annotations_ = vec![];//todo impl annotations.

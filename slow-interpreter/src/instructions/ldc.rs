@@ -14,6 +14,7 @@ use crate::interpreter::run_function;
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
+use crate::rust_jni::interface::string::intern_safe;
 
 fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
     let res_class_name = c.class_name();
@@ -30,8 +31,8 @@ fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s
     let res_string = s.string();
     assert!(int_state.throw().is_none());
     let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
-    let string = before_intern.intern(jvm, int_state).java_value();
-    int_state.push_current_operand_stack(string);
+    let string = intern_safe(jvm, before_intern.object().into());
+    int_state.push_current_operand_stack(string.java_value());
 }
 
 pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
@@ -94,7 +95,7 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::String(s) => {
-            let string_value = JString::from_rust(jvm, int_state, s.string()).expect("todo").intern(jvm, int_state).java_value();
+            let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, s.string()).expect("todo").object().into()).java_value();
             int_state.push_current_operand_stack(string_value)
         }
         ConstantInfoView::Class(c) => load_class_constant(jvm, int_state, &c),
@@ -123,7 +124,7 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState, int_state:
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
             let string_value = int_state.pop_current_operand_stack();
-            string_value.cast_string().intern(jvm, int_state).java_value()
+            intern_safe(jvm, string_value.cast_string().object().into()).java_value()
         }
         _ => panic!()
     }

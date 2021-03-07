@@ -67,7 +67,7 @@ fn get_modifiers(method_view: &MethodView) -> jint {
 
 
 fn get_signature(state: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<JString, WasException> {
-    Ok(JString::from_rust(state, int_state, method_view.desc_str())?.intern(state, int_state))
+    Ok(JString::from_rust(state, int_state, method_view.desc_str())?.intern(state, int_state)?)
 }
 
 fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
@@ -163,7 +163,7 @@ pub mod method {
                 if name == "<init>" {
                     return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
                 }
-                JString::from_rust(jvm, int_state, name)?.intern(jvm, int_state)
+                JString::from_rust(jvm, int_state, name)?.intern(jvm, int_state)?
             };
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view);
             let return_type = {

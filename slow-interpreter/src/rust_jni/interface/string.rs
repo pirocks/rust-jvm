@@ -5,12 +5,13 @@ use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
+use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
 
 use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter::WasException;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, Object};
+use crate::jvm_state::JVMState;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 
@@ -79,27 +80,33 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 }
 
 
-pub static mut STRING_INTERNMENT: Option<HashMap<Vec<u16>, Arc<Object>>> = None;
-
-pub unsafe fn intern_impl(str_unsafe: jstring) -> jstring {
-    //todo fix this entire function
-    match &STRING_INTERNMENT {
-        None => { STRING_INTERNMENT = Some(HashMap::new()) }
-        Some(_) => {}
-    };
+pub unsafe fn intern_impl_unsafe(jvm: &JVMState, str_unsafe: jstring) -> jstring {
     let str_obj = from_object(str_unsafe);
-    let char_array_ptr = str_obj.clone().unwrap().lookup_field("value").unwrap_object().unwrap();//todo handle npe
+    to_object(intern_safe(jvm, str_obj).object().into())
+}
+
+pub fn intern_safe(jvm: &JVMState, str_obj: Option<Arc<Object>>) -> JString {
+    let char_array_ptr = match str_obj.clone().unwrap().lookup_field("value").unwrap_object() {
+        None => {
+            eprintln!("Weird malformed string encountered. Not interning.");
+            return JavaValue::Object(str_obj).cast_string()//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
+        }
+        Some(char_array_ptr) => char_array_ptr
+    };
     let char_array = char_array_ptr.unwrap_array().mut_array();
     let mut native_string_bytes = Vec::with_capacity(char_array.len());
     for char_ in &*char_array {
         native_string_bytes.push(char_.unwrap_char());
     }
-    if STRING_INTERNMENT.as_ref().unwrap().contains_key(&native_string_bytes) {
-        let res = STRING_INTERNMENT.as_ref().unwrap().get(&native_string_bytes).unwrap().clone();
-        to_object(res.into())
-    } else {
-        STRING_INTERNMENT.as_mut().unwrap().insert(native_string_bytes, str_obj.as_ref().unwrap().clone());
-        to_object(str_obj)
+    let mut guard = jvm.string_internment.write().unwrap();
+    match guard.strings.get(&native_string_bytes) {
+        None => {
+            guard.strings.insert(native_string_bytes, str_obj.as_ref().unwrap().clone());
+            JavaValue::Object(str_obj).cast_string()
+        }
+        Some(res) => {
+            JavaValue::Object(res.clone().into()).cast_string()
+        }
     }
 }
 

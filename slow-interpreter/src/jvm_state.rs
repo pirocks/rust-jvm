@@ -45,6 +45,7 @@ pub struct JVMState {
     // pub bootstrap_loader: LoaderArc,//todo what Should this be?
     pub system_domain_loader: bool,
     pub string_pool: StringPool,
+    pub string_internment: RwLock<StringInternment>,
     pub start_instant: Instant,
     pub libjava: LibJavaLoading,
 
@@ -137,6 +138,7 @@ impl JVMState {
             system_domain_loader: true,
             libjava: LibJavaLoading::new_java_loading(libjava),
             string_pool,
+            string_internment: RwLock::new(StringInternment { strings: HashMap::new() }),
             start_instant: Instant::now(),
             classes,
             class_loaders: RwLock::new(BiMap::new()),
@@ -306,4 +308,9 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
         self.jvm.classpath.lookup(&class).unwrap()
     }
+}
+
+
+pub struct StringInternment {
+    pub strings: HashMap<Vec<u16>, Arc<Object>>
 }
