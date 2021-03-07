@@ -85,7 +85,8 @@ pub enum ClassfileParsingError {
     WrongStackMapFrameType,
     WrongTag,
     WromngCPEntry,
-    UTFValidationError(ValidationError)
+    UTFValidationError(ValidationError),
+    WrongDescriptor
 }
 
 impl From<ValidationError> for ClassfileParsingError {
