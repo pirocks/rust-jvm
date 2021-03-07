@@ -1,4 +1,5 @@
 use std::ptr::null_mut;
+use std::sync::Arc;
 
 use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_SLOT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OPAQUE_FRAME, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH};
 
@@ -9,6 +10,7 @@ use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::from_object;
 use crate::stack_entry::StackEntry;
+use crate::threading::JavaThread;
 
 ///Get Local Variable - Object
 ///
@@ -58,7 +60,7 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(value_ptr);
-    let var = match get_local_t(jvm, int_state, thread, depth, slot) {
+    let var = match get_local_t(jvm, thread, depth, slot) {
         Ok(var) => var,
         Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
@@ -83,7 +85,7 @@ unsafe fn get_local_primitive_type<T>(env: *mut jvmtiEnv, thread: jthread, depth
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(value_ptr);
-    let var = match get_local_t(jvm, int_state, thread, depth, slot) {
+    let var = match get_local_t(jvm, thread, depth, slot) {
         Ok(var) => { var }
         Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
@@ -103,7 +105,7 @@ pub(crate) unsafe fn set_local(env: *mut jvmtiEnv, thread: jthread, depth: jint,
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(thread);
-    if let Err(err) = set_local_t(jvm, int_state, thread, depth, slot, value) {
+    if let Err(err) = set_local_t(jvm, thread, depth, slot, value) {
         return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err)
     };
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -167,21 +169,23 @@ pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, dep
 }
 
 
-unsafe fn get_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue, jvmtiError> {
+unsafe fn get_thread_from_obj_or_current(jvm: &JVMState, thread: jthread) -> Result<Arc<JavaThread>, jvmtiError> {
+    Ok(if !thread.is_null() {
+        match JavaValue::Object(from_object(thread)).try_cast_thread() {
+            None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
+            Some(jt) => jt,
+        }.get_java_thread(jvm)
+    } else {
+        jvm.thread_state.get_current_thread()
+    })
+}
+
+unsafe fn get_local_t(jvm: &JVMState, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue, jvmtiError> {
     if depth < 0 {
         return Result::Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
 
-    let jthread = if !thread.is_null() {
-        match JavaValue::Object(from_object(thread)).try_cast_thread() {
-            None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
-            Some(jt) => jt,
-        }
-    } else {
-        //todo don't use this
-        JThread::current_thread(jvm, int_state)
-    };
-    let java_thread = jthread.get_java_thread(jvm);
+    let java_thread = get_thread_from_obj_or_current(jvm, thread)?;
     let call_stack = &java_thread.interpreter_state.read().unwrap().call_stack;
     let stack_frame: &StackEntry = match call_stack.get(call_stack.len() - 1 - depth as usize) {
         None => return Result::Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
@@ -195,20 +199,12 @@ unsafe fn get_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thr
 }
 
 
-unsafe fn set_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thread: jthread, depth: jint, slot: jint, to_set: JavaValue) -> Result<(), jvmtiError> {
+unsafe fn set_local_t(jvm: &JVMState, thread: jthread, depth: jint, slot: jint, to_set: JavaValue) -> Result<(), jvmtiError> {
     if depth < 0 {
         return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
 
-    let jthread = if !thread.is_null() {
-        match JavaValue::Object(from_object(thread)).try_cast_thread() {
-            None => return Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
-            Some(jt) => jt,
-        }
-    } else {
-        JThread::current_thread(jvm, int_state)
-    };
-    let java_thread = jthread.get_java_thread(jvm);
+    let java_thread = get_thread_from_obj_or_current(jvm, thread);
     let mut guard = java_thread.interpreter_state.write().unwrap();
     let call_stack = &mut guard.call_stack;
     let len = call_stack.len();

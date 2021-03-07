@@ -15,7 +15,7 @@ use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, locate_init_system_class, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-use crate::interpreter::{run_function, suspend_check};
+use crate::interpreter::{run_function, suspend_check, WasException};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
@@ -241,8 +241,11 @@ impl ThreadState {
             }
 
             let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name));
-            java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard);
-            //todo handle thread exiting with exception
+            match java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
+                Ok(()) => {}
+                Err(WasException {}) => todo!(" handle thread exiting with exception")
+            };
+
             interpreter_state_guard.pop_frame(jvm, frame_for_run_call, false);
             java_thread.notify_terminated();
         }, box ());//todo is this Data really needed since we have a closure
