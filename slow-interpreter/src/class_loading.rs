@@ -125,7 +125,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
                                 ReferenceTypeView::Class(class_name) => {
                                     drop(guard);
                                     let java_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().replace("/", ".").clone())?;
-                                    class_loader.load_class(jvm, int_state, java_string).as_runtime_class(jvm)
+                                    class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)
                                 }
                                 ReferenceTypeView::Array(sub_type) => {
                                     drop(guard);

@@ -121,7 +121,7 @@ impl ThreadState {
         if int_state.throw().is_some() {
             unimplemented!()
         }
-        set_properties(jvm, int_state);
+        set_properties(jvm, int_state).expect("todo");
         //todo read and copy props here
         let key = JString::from_rust(jvm, int_state, "java.home".to_string()).expect("todo");
         let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string()).expect("todo");

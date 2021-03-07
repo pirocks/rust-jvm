@@ -1,20 +1,15 @@
 use std::mem::transmute;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
-use classfile_parser::code::InstructionTypeNum::return_;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::*;
-use rust_jvm_common::classfile::Code;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::field_table::FieldId;
 use crate::get_thread_or_error;
-use crate::interpreter::WasException;
 use crate::interpreter_state::AddFrameNotifyError;
-use crate::java::lang::class::JClass;
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::JavaValue;
 use crate::jvmti::agent::*;
 use crate::jvmti::allocate::*;
 use crate::jvmti::breakpoint::*;
@@ -36,9 +31,8 @@ use crate::jvmti::threads::*;
 use crate::jvmti::threads::suspend_resume::*;
 use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
-use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_jclass, from_object, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object};
 
 pub mod event_callbacks;
 

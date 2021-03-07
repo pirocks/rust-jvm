@@ -5,7 +5,6 @@ use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
 
 use crate::instructions::invoke::special::invoke_special_impl;
-use crate::interpreter::WasException;
 use crate::interpreter_util::push_new_object;
 use crate::method_table::from_jmethod_id;
 use crate::rust_jni::interface::call::VarargProvider;

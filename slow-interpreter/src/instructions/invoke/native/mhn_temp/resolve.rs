@@ -163,7 +163,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
                 let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone());
-                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false);
+                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false)?;
             } else if ref_kind == JVM_REF_invokeStatic {
                 let mut synthetic = false;
                 let (resolve_result, method_i, class) = match resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic) {

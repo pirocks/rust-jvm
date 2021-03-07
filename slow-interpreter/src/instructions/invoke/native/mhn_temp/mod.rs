@@ -107,7 +107,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(_args: &mut Vec<Java
 
 pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
     let member_name = args[0].cast_member_name();
-    let name = member_name.get_name_func(jvm, int_state);
+    let name = member_name.get_name_func(jvm, int_state)?;
     let clazz = member_name.clazz();
     let field_type = member_name.get_field_type(jvm, int_state)?;
     let empty_string = JString::from_rust(jvm, int_state, "".to_string())?;

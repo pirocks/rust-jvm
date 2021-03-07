@@ -133,7 +133,7 @@ pub mod dynamic {
             let args = method_type.get_ptypes_as_types(jvm);
             let form: LambdaForm = target.get_form();
             let member_name: MemberName = form.get_vmentry();
-            let static_: bool = member_name.is_static(jvm, int_state);
+            let static_: bool = member_name.is_static(jvm, int_state)?;
             (args.len() + if static_ { 0 } else { 1 }, args)
         }; //todo also sketch
         let operand_stack_len = int_state.current_frame().operand_stack().len();

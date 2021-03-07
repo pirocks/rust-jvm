@@ -8,6 +8,7 @@ use rust_jvm_common::ptype::PType;
 // use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::method_table::{from_jmethod_id, MethodId};
@@ -18,7 +19,7 @@ pub mod call_nonstatic;
 pub mod call_nonvirtual;
 
 
-unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
+unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue>, WasException> {
     let method_id = from_jmethod_id(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -33,16 +34,16 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     for type_ in &parsed.parameter_types {
         push_type_to_operand_stack(int_state, type_, &mut l)
     }
-    invoke_virtual_method_i(jvm, int_state, parsed, class, method_i as usize, &method);
-    assert!(int_state.throw().is_none());//todo
-    if method.desc().return_type == PType::VoidType {
+    invoke_virtual_method_i(jvm, int_state, parsed, class, method_i as usize, &method)?;
+    assert!(int_state.throw().is_none());
+    Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {
         int_state.pop_current_operand_stack().into()
-    }
+    })
 }
 
-pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Option<JavaValue> {
+pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue>, WasException> {
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
@@ -53,12 +54,12 @@ pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmet
     let _name = method.name();
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
     push_params_onto_frame(&mut l, int_state, &parsed);
-    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i as usize, method.method_info());
-    if method.desc().return_type == PType::VoidType {
+    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i as usize, method.method_info())?;
+    Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {
         int_state.pop_current_operand_stack().into()
-    }
+    })
 }
 
 unsafe fn push_params_onto_frame(

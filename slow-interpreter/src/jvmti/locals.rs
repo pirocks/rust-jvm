@@ -178,6 +178,7 @@ unsafe fn get_local_t(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thr
             Some(jt) => jt,
         }
     } else {
+        //todo don't use this
         JThread::current_thread(jvm, int_state)
     };
     let java_thread = jthread.get_java_thread(jvm);

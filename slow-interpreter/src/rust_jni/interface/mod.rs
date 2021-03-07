@@ -488,9 +488,12 @@ unsafe extern "C" fn exception_describe(env: *mut JNIEnv) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     if let Some(throwing) = int_state.throw() {
-        JavaValue::Object(throwing.into()).cast_throwable().print_stack_trace(jvm, int_state);
+        int_state.set_throw(None);
+        match JavaValue::Object(throwing.into()).cast_throwable().print_stack_trace(jvm, int_state) {
+            Ok(_) => {}
+            Err(WasException {}) => {}
+        };
     }
-    int_state.set_throw(None);
 }
 
 

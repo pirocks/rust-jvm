@@ -58,7 +58,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         };
 
         Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number))
-    }).collect::<Vec<_>>();
+    }).collect::<Result<Vec<_>, WasException>>().expect("todo");
     let mut stack_traces_guard = jvm.stacktraces_by_throwable.write().unwrap();
     stack_traces_guard.insert(ByAddress(from_object(throwable).unwrap()), stack_entry_objs);//todo handle npe
 }

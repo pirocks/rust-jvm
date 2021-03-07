@@ -119,7 +119,7 @@ fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, arg
 }
 
 
-fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
     let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
@@ -129,10 +129,10 @@ fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         let value_i = 2 * i + 1;
         let key = JString::from_rust(jvm, int_state, properties[key_i].clone()).expect("todo");
         let value = JString::from_rust(jvm, int_state, properties[value_i].clone()).expect("todo");
-        prop_obj.set_property(jvm, int_state, key, value);
+        prop_obj.set_property(jvm, int_state, key, value)?;
     }
-    //todo need to check exception, though I guess its meant to be impossible here
     int_state.pop_frame(jvm, frame_for_properties, false);
+    Ok(())
 }
 
 

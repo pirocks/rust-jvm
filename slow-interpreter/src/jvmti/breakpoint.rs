@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
-use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{jlocation, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::jvmti::get_state;
@@ -11,9 +10,6 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SetBreakpoint");
     let method_id = from_jmethod_id(method);
-    // dbg!(&method_id);
-    let lookup_res = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
-    let mv = lookup_res.0.view().method_view_i(lookup_res.1 as usize);
     let mut breakpoint_guard = jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap();
     match breakpoint_guard.get_mut(&method_id) {
         None => {

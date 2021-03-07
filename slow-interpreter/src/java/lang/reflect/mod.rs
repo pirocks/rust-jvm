@@ -178,7 +178,7 @@ pub mod method {
             let annotations = JavaValue::empty_byte_array(jvm, int_state);
             let parameter_annotations = JavaValue::empty_byte_array(jvm, int_state);
             let annotation_default = JavaValue::empty_byte_array(jvm, int_state);
-            Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default))
+            Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)?)
         }
 
         pub fn new_method(jvm: &JVMState,
@@ -194,7 +194,7 @@ pub mod method {
                           annotations: JavaValue,
                           parameter_annotations: JavaValue,
                           annotation_default: JavaValue,
-        ) -> Method {
+        ) -> Result<Method, WasException> {
             let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
             push_new_object(jvm, int_state, &method_class);
             let method_object = int_state.pop_current_operand_stack();
@@ -211,8 +211,8 @@ pub mod method {
                                  parameter_annotations,
                                  annotation_default];
             //todo replace with wrapper object
-            run_constructor(jvm, int_state, method_class, full_args, METHOD_SIGNATURE.to_string());
-            method_object.cast_method()
+            run_constructor(jvm, int_state, method_class, full_args, METHOD_SIGNATURE.to_string())?;
+            Ok(method_object.cast_method())
         }
 
 
