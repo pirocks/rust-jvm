@@ -20,7 +20,7 @@ use std::sync::atomic::Ordering;
 use std::thread::sleep;
 use std::time::Duration;
 
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
@@ -142,17 +142,17 @@ fn locate_init_system_class(system: &Arc<RuntimeClass>) -> MethodView {
     method_views.first().unwrap().clone()
 }
 
-fn locate_main_method(main: &Arc<Classfile>) -> usize {
+fn locate_main_method(main: &Arc<dyn ClassView>) -> usize {
     let string_name = ClassName::string();
     let string_class = PTypeView::Ref(ReferenceTypeView::Class(string_name));
     let string_array = PTypeView::Ref(ReferenceTypeView::Array(string_class.into()));
     let psvms = main.lookup_method_name(&"main".to_string());
-    for (i, m) in psvms {
-        let desc = MethodDescriptor::from_legacy(m, main);//todo get rid of from_legacy
+    for m in psvms {
+        let desc = m.desc();
         if m.is_static() && desc.parameter_types == vec![string_array.to_ptype()] && desc.return_type == PType::VoidType {
             return i;
         }
     }
-    panic!();
+    panic!("No psvms found in class: {}", main.name().get_referred_name());
 }
 

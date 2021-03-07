@@ -63,11 +63,10 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, PType)> {
     match str_.chars().next()? {
         'L' => {
             let str_without_l = eat_one(str_);
-            let end_index = str_without_l.find(';').expect("unterminated object in descriptor") + 1;
+            let end_index = str_without_l.find(';').expect("unterminated object in descriptor") + 1;//todo this needs to be a result
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
-            //todo handle of these cases, and how do I convey these are also classes
             let sub_type = if class_name == "int" {
                 PType::IntType
             } else if class_name == "boolean" {
@@ -179,10 +178,10 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PType)> {
 
 pub fn parse_class_name(str_: &str) -> PType {
     if let Some(subtype_descriptor) = str_.strip_prefix('[') {
-        let field_descriptor = parse_field_descriptor(subtype_descriptor).unwrap().field_type;//todo pass the error up
+        let field_descriptor = parse_field_descriptor(subtype_descriptor).expect("Invalid field descriptor but this should have been validated when classnames etc where validated").field_type;
         PType::Ref(ReferenceType::Array(box field_descriptor))
     } else if str_.ends_with(';') {
-        parse_field_descriptor(&str_).unwrap().field_type//todo pass the error up
+        parse_field_descriptor(&str_).expect("Invalid field descriptor but this should have been validated when classnames etc where validated").field_type
     } else {
         PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))
     }
