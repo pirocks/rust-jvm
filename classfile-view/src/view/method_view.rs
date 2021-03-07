@@ -60,7 +60,7 @@ impl MethodView<'_> {
     }
 
     pub fn code_attribute(&self) -> Option<&Code> {
-        self.method_info().code_attribute()//todo get a Code view
+        self.method_info().code_attribute()//don't thing code view is needed.
     }
 
     pub fn local_variable_attribute(&self) -> Option<Vec<LocalVariableView>> {

@@ -4,9 +4,6 @@ use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use classfile_view::view::{ClassView, HasAccessFlags, PrimitiveView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::parse_field_descriptor;
-use rust_jvm_common::classfile::{ACC_STATIC, Classfile};
-use rust_jvm_common::classnames::class_name;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::ldc::from_constant_pool_entry;
@@ -134,18 +131,15 @@ impl Debug for RuntimeClassClass {
     }
 }
 
-pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, classfile: Arc<Classfile>, res: &mut HashMap<String, JavaValue>) {
+pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, classfile: Arc<dyn ClassView>, res: &mut HashMap<String, JavaValue>) {
     if let Some(jvmti) = jvm.jvmti_state.as_ref() {
-        jvmti.built_in_jdwp.class_prepare(jvm, &class_name(&classfile), int_state)
+        jvmti.built_in_jdwp.class_prepare(jvm, &classfile.name(), int_state)
     }
 
-    for field in &classfile.fields {
-        if (field.access_flags & ACC_STATIC) > 0 {
-            let name = classfile.constant_pool[field.name_index as usize].extract_string_from_utf8();
-            let field_descriptor_string = classfile.constant_pool[field.descriptor_index as usize].extract_string_from_utf8();
-            let parsed = parse_field_descriptor(field_descriptor_string.as_str()).unwrap();//todo we should really have two pass parsing
-            let val = default_value(PTypeView::from_ptype(&parsed.field_type));
-            res.insert(name, val);
+    for field in classfile.fields() {
+        if field.is_static() {
+            let val = default_value(field.field_type());
+            res.insert(field.field_name(), val);
         }
     }
 }

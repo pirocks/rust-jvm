@@ -30,9 +30,6 @@ impl FieldView<'_> {
     pub fn field_type(&self) -> PTypeView {
         PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)
     }
-    pub fn fields(&self) -> FieldIterator {
-        unimplemented!()
-    }
 
     pub fn field_i(&self) -> usize {
         self.i

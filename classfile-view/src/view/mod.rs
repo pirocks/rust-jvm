@@ -60,15 +60,12 @@ pub trait ClassView: HasAccessFlags {
     fn interfaces(&self) -> InterfaceIterator;
     fn num_fields(&self) -> usize;
     fn num_interfaces(&self) -> usize;
-    fn backing_class(&self) -> Arc<Classfile>;
     fn bootstrap_methods_attr(&self) -> BootstrapMethodsView;
     fn sourcefile_attr(&self) -> Option<SourceFileView>;
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
 
     fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView>;
     fn lookup_method_name(&self, name: &str) -> Vec<MethodView>;
-
-    fn method_index(&self) -> Arc<MethodIndex>;
 }
 
 #[derive(Debug)]
@@ -82,6 +79,23 @@ pub struct ClassBackedView {
 impl ClassBackedView {
     pub fn from(c: Arc<Classfile>) -> ClassBackedView {
         ClassBackedView { backing_class: c.clone(), method_index: RwLock::new(None), descriptor_index: RwLock::new(vec![None; c.methods.len()]) }
+    }
+
+    fn backing_class(&self) -> Arc<Classfile> {
+        self.backing_class.clone()
+    }
+
+    fn method_index(&self) -> Arc<MethodIndex> {
+        let read_guard = self.method_index.read().unwrap();
+        match read_guard.as_ref() {
+            None => {
+                let res = MethodIndex::new(self);
+                std::mem::drop(read_guard);
+                self.method_index.write().unwrap().replace(Arc::new(res));
+                self.method_index()
+            }
+            Some(index) => { index.clone() }
+        }
     }
 }
 
@@ -150,16 +164,13 @@ impl ClassView for ClassBackedView {
     fn num_interfaces(&self) -> usize {
         self.backing_class.interfaces.len()
     }
-    fn backing_class(&self) -> Arc<Classfile> {
-        self.backing_class.clone()
-    }
     fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
-        let (i, _) = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
+        let (i, _) = self.backing_class.attributes.iter().enumerate().find(|(i, x)| {
             match &x.attribute_type {
-                AttributeType::BootstrapMethods(bm) => Some((i, bm)),
-                _ => None
+                AttributeType::BootstrapMethods(bm) => true,
+                _ => false
             }
-        }).next().unwrap();//todo make this a find
+        }).unwrap();
         BootstrapMethodsView { backing_class: self, attr_i: i }
     }
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
@@ -182,19 +193,6 @@ impl ClassView for ClassBackedView {
     }
     fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
         self.method_index().lookup_method_name(self, name)
-    }
-
-    fn method_index(&self) -> Arc<MethodIndex> {
-        let read_guard = self.method_index.read().unwrap();
-        match read_guard.as_ref() {
-            None => {
-                let res = MethodIndex::new(self);
-                std::mem::drop(read_guard);
-                self.method_index.write().unwrap().replace(Arc::new(res));
-                self.method_index()
-            }
-            Some(index) => { index.clone() }
-        }
     }
 }
 
@@ -271,17 +269,27 @@ pub enum PrimitiveView {
 
 impl HasAccessFlags for PrimitiveView {
     fn access_flags(&self) -> u16 {
-        todo!()
+        0x3F6 //value found experimentally w/ hotspot.
     }
 }
 
 impl ClassView for PrimitiveView {
     fn name(&self) -> ClassName {
-        todo!()
+        match self {
+            PrimitiveView::Byte => ClassName::raw_byte(),
+            PrimitiveView::Boolean => ClassName::raw_boolean(),
+            PrimitiveView::Short => ClassName::raw_short(),
+            PrimitiveView::Char => ClassName::raw_char(),
+            PrimitiveView::Int => ClassName::raw_int(),
+            PrimitiveView::Long => ClassName::raw_long(),
+            PrimitiveView::Float => ClassName::raw_float(),
+            PrimitiveView::Double => ClassName::raw_double(),
+            PrimitiveView::Void => ClassName::raw_void()
+        }
     }
 
     fn super_name(&self) -> Option<ClassName> {
-        todo!()
+        None
     }
 
     fn methods(&self) -> MethodIterator {
@@ -289,23 +297,23 @@ impl ClassView for PrimitiveView {
     }
 
     fn method_view_i(&self, i: usize) -> MethodView {
-        todo!()
+        panic!()
     }
 
     fn num_methods(&self) -> usize {
-        todo!()
+        0
     }
 
     fn constant_pool_size(&self) -> usize {
-        todo!()
+        0
     }
 
     fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
-        todo!()
+        panic!()
     }
 
     fn field(&self, i: usize) -> FieldView {
-        todo!()
+        panic!()
     }
 
     fn fields(&self) -> FieldIterator {
@@ -317,15 +325,11 @@ impl ClassView for PrimitiveView {
     }
 
     fn num_fields(&self) -> usize {
-        todo!()
+        0
     }
 
     fn num_interfaces(&self) -> usize {
-        todo!()
-    }
-
-    fn backing_class(&self) -> Arc<Classfile> {
-        todo!()
+        0
     }
 
     fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
@@ -333,23 +337,19 @@ impl ClassView for PrimitiveView {
     }
 
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
-        todo!()
+        None
     }
 
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
-        todo!()
+        None
     }
 
     fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
-        todo!()
+        None
     }
 
     fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
-        todo!()
-    }
-
-    fn method_index(&self) -> Arc<MethodIndex> {
-        todo!()
+        vec![]
     }
 }
 
@@ -412,9 +412,6 @@ impl ClassView for ArrayView {
         todo!()
     }
 
-    fn backing_class(&self) -> Arc<Classfile> {
-        todo!()
-    }
 
     fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
         todo!()
@@ -433,10 +430,6 @@ impl ClassView for ArrayView {
     }
 
     fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
-        todo!()
-    }
-
-    fn method_index(&self) -> Arc<MethodIndex> {
         todo!()
     }
 }
