@@ -87,13 +87,12 @@ pub fn run_native_method(
     if let Some(m) = monitor.as_ref() { m.unlock(jvm) }
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
-    //todo need to check excpetion here
-    if let Some(res) = result {
-        int_state.push_current_operand_stack(res);
-    }
     if was_exception {
         Err(WasException)
     } else {
+        if let Some(res) = result {
+            int_state.push_current_operand_stack(res);
+        }
         Ok(())
     }
 }

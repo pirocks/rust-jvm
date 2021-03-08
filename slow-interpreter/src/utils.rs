@@ -39,9 +39,8 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
 }
 
 
-//todo make this an impl method on Object
 pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
-    let temp = str_obj.unwrap().lookup_field("value");//todo pass the error up
+    let temp = str_obj.unwrap().lookup_field("value");//todo handle npe
     let chars = temp.unwrap_array();
     let borrowed_elems = chars.mut_array();
     let mut res = String::new();

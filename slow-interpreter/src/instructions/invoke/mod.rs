@@ -124,7 +124,6 @@ pub mod dynamic {
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke)?;
         let call_site = int_state.pop_current_operand_stack().cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
-        let method_handle_clone = method_handle_class.clone();
         let lookup_res = method_handle_view.lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
         let (num_args, args) = if int_state.current_frame().operand_stack().is_empty() {

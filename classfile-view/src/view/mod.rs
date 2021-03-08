@@ -9,7 +9,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, SourceFileView};
 use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, DoubleView, FieldrefView, FloatView, IntegerView, InterfaceMethodrefView, InvokeDynamicView, LongView, MethodHandleView, MethodrefView, MethodTypeView, NameAndTypeView, StringView, Utf8View};
 use crate::view::field_view::{FieldIterator, FieldView};
-use crate::view::interface_view::InterfaceIterator;
+use crate::view::interface_view::{InterfaceIterator, InterfaceView};
 use crate::view::method_view::{MethodIterator, MethodView};
 
 pub trait HasAccessFlags {
@@ -165,7 +165,7 @@ impl ClassView for ClassBackedView {
         self.backing_class.interfaces.len()
     }
     fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
-        let (i, _) = self.backing_class.attributes.iter().enumerate().find(|(i, x)| {
+        let (i, _) = self.backing_class.attributes.iter().enumerate().find(|(_, x)| {
             match &x.attribute_type {
                 AttributeType::BootstrapMethods(bm) => true,
                 _ => false
@@ -296,7 +296,7 @@ impl ClassView for PrimitiveView {
         todo!()
     }
 
-    fn method_view_i(&self, i: usize) -> MethodView {
+    fn method_view_i(&self, _i: usize) -> MethodView {
         panic!()
     }
 
@@ -308,11 +308,11 @@ impl ClassView for PrimitiveView {
         0
     }
 
-    fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
+    fn constant_pool_view(&self, _i: usize) -> ConstantInfoView {
         panic!()
     }
 
-    fn field(&self, i: usize) -> FieldView {
+    fn field(&self, _i: usize) -> FieldView {
         panic!()
     }
 
@@ -344,11 +344,11 @@ impl ClassView for PrimitiveView {
         None
     }
 
-    fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
+    fn lookup_method(&self, _name: &str, _desc: &MethodDescriptor) -> Option<MethodView> {
         None
     }
 
-    fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
+    fn lookup_method_name(&self, _name: &str) -> Vec<MethodView> {
         vec![]
     }
 }
@@ -377,23 +377,23 @@ impl ClassView for ArrayView {
     }
 
     fn method_view_i(&self, i: usize) -> MethodView {
-        todo!()
+        panic!()
     }
 
     fn num_methods(&self) -> usize {
-        todo!()
+        0
     }
 
     fn constant_pool_size(&self) -> usize {
-        todo!()
+        0
     }
 
     fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
-        todo!()
+        panic!()
     }
 
     fn field(&self, i: usize) -> FieldView {
-        todo!()
+        panic!()
     }
 
     fn fields(&self) -> FieldIterator {

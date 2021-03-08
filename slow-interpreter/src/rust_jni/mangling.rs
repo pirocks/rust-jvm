@@ -1,11 +1,7 @@
-use std::sync::Arc;
-
 use regex::Regex;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-
-use crate::runtime_class::RuntimeClass;
 
 pub fn mangle(method: &MethodView) -> String {
     let method_name = method.name();

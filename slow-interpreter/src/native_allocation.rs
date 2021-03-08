@@ -63,6 +63,9 @@ impl NativeAllocator {
     }
 
     pub unsafe fn free(&self, ptr: *mut c_void) {
+        if ptr.is_null() {
+            return; // this is needed to be correct w/ malloc of zero size
+        }
         let allocation_type = self.allocations.read().unwrap().get(&(ptr as usize)).unwrap().clone();
         match allocation_type {
             AllocationType::BoxLeak => {

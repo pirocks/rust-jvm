@@ -17,7 +17,6 @@ use crate::threading::JavaThread;
 pub struct InterpreterState {
     pub throw: Option<Arc<Object>>,
     pub function_return: bool,
-    //todo find some way of clarifying these can only be acessed from one thread
     pub(crate) call_stack: Vec<StackEntry>,
     pub(crate) should_frame_pop_notify: HashSet<usize>
 }
@@ -68,7 +67,7 @@ impl<'l> InterpreterStateGuard<'l> {
         Self {
             int_state: thread.interpreter_state.write().unwrap().into(),
             thread,
-            registered: true,//todo this is probably redundant due to CURRENT_INT_STATE_GUARD_VALID
+            registered: true,
         }
     }
 

@@ -299,7 +299,7 @@ unsafe extern "C" fn get_max_locals(env: *mut jvmtiEnv, method: jmethodID, max_p
 // JVMTI_ERROR_INVALID_FIELDID	field is not a jfieldID.
 // JVMTI_ERROR_NULL_POINTER	declaring_class_ptr is NULL.
 
-unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, klass: jclass, field: jfieldID, declaring_class_ptr: *mut jclass) -> jvmtiError {
+unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, _klass: jclass, field: jfieldID, declaring_class_ptr: *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     null_check!(declaring_class_ptr);
     let field_id: FieldId = field as usize;

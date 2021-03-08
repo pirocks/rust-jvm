@@ -17,7 +17,7 @@ pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
 
 pub struct MethodTable {
     table: Vec<(Arc<RuntimeClass>, u16)>,
-    //todo at a later date will contain compiled code etc.
+    //at a later date will contain compiled code etc.
     index: HashMap<ByAddress<Arc<RuntimeClass>>, HashMap<u16, MethodTableIndex>>,
 }
 

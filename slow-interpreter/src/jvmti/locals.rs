@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_SLOT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OPAQUE_FRAME, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH};
 
-use crate::JVMState;
 use crate::java_values::JavaValue;
+use crate::JVMState;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::from_object;
@@ -80,7 +80,6 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
 
 unsafe fn get_local_primitive_type<T>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut T, unwrap_function: fn(JavaValue) -> Option<T>) -> jvmtiError {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(value_ptr);
@@ -100,7 +99,6 @@ unsafe fn get_local_primitive_type<T>(env: *mut jvmtiEnv, thread: jthread, depth
 
 pub(crate) unsafe fn set_local(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: JavaValue) -> jvmtiError {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(thread);
