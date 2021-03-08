@@ -9,7 +9,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, SourceFileView};
 use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, DoubleView, FieldrefView, FloatView, IntegerView, InterfaceMethodrefView, InvokeDynamicView, LongView, MethodHandleView, MethodrefView, MethodTypeView, NameAndTypeView, StringView, Utf8View};
 use crate::view::field_view::{FieldIterator, FieldView};
-use crate::view::interface_view::{InterfaceIterator, InterfaceView};
+use crate::view::interface_view::InterfaceIterator;
 use crate::view::method_view::{MethodIterator, MethodView};
 
 pub trait HasAccessFlags {

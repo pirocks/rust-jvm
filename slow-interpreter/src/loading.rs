@@ -35,8 +35,14 @@ impl Classpath {
 
     pub fn lookup_cache_miss(&self, class_name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         for x in &self.classpath_base {
-            for dir_member in x.read_dir().unwrap() {//todo pass the error up
-                let dir_member = dir_member.unwrap();//todo pass the error up
+            for dir_member in match x.read_dir() {
+                Ok(dir) => dir,
+                Err(_) => continue,//java ignores invalid classpath entries
+            } {
+                let dir_member = match dir_member {
+                    Ok(dir_member) => dir_member,
+                    Err(_) => continue
+                };
                 let is_jar = dir_member.path().extension().map(|x| { &x.to_string_lossy() == "jar" }).unwrap_or(false);
                 if is_jar {
                     let mut cache_write_guard = self.jar_cache.write().unwrap();
