@@ -259,7 +259,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
                                     let method_class = get_class(&env.vf, env.method.class);
                                     match &method_class.constant_pool_view(this as usize) {
                                         ConstantInfoView::Class(c) => {
-                                            let class_name = c.class_name().unwrap_name();
+                                            let class_name = c.class_ref_type().unwrap_name();
                                             Result::Ok(ClassWithLoader { class_name, loader: env.class_loader.clone() })
                                         }
                                         _ => { unimplemented!() }

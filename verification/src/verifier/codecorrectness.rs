@@ -170,7 +170,7 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
             let classfile = get_class(vf, class);
             let catch_type_name = match &classfile.constant_pool_view(f.catch_type as usize) {
                 ConstantInfoView::Class(c) => {
-                    c.class_name()
+                    c.class_ref_type()
                 }
                 _ => panic!()
             };

@@ -16,7 +16,7 @@ use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
 
 fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
-    let res_class_name = c.class_name();
+    let res_class_name = c.class_ref_type();
     let type_ = PTypeView::Ref(res_class_name);
     load_class_constant_by_type(state, int_state, type_);
 }

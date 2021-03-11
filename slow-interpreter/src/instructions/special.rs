@@ -8,6 +8,7 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
+use crate::interpreter::WasException;
 use crate::java_values;
 use crate::java_values::JavaValue;
 use crate::java_values::Object::{Array, Object};
@@ -31,7 +32,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
     match object.deref() {
         Object(o) => {
             let view = &int_state.current_frame_mut().class_pointer().view();
-            let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_name().unwrap_name();
+            let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
             let instanceof_class = check_initing_or_inited_class(jvm, int_state, instance_of_class_name.into()).unwrap();//todo pass the error up
             let object_class = o.class_pointer.clone();
             if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
@@ -47,7 +48,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
             let current_frame_class = &int_state.current_frame_mut().class_pointer().view();
             let instance_of_class = current_frame_class
                 .constant_pool_view(cp as usize)
-                .unwrap_class().class_name();
+                .unwrap_class().class_ref_type();
             let expected_type_wrapped = PTypeView::Ref(instance_of_class);
 
             let expected_type = expected_type_wrapped.unwrap_array_type();
@@ -81,11 +82,13 @@ pub fn invoke_instanceof(state: &JVMState, int_state: &mut InterpreterStateGuard
     }
     let unwrapped = possibly_null.unwrap();//todo pass the error up
     let view = &int_state.current_class_view();
-    let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_name();
-    instance_of_impl(state, int_state, unwrapped, instance_of_class_type);
+    let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type();
+    if let Err(WasException {}) = instance_of_impl(state, int_state, unwrapped, instance_of_class_type) {
+        return;
+    }
 }
 
-pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) {
+pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) -> Result<(), WasException> {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -107,7 +110,7 @@ pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, u
         Object(object) => {
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
-                    let instanceof_class = check_resolved_class(jvm, int_state, instance_of_class_name.into()).unwrap();//todo check if this should be here//todo pass the error up
+                    let instanceof_class = check_resolved_class(jvm, int_state, instance_of_class_name.into())?;//todo check if this should be here
                     let object_class = object.class_pointer.clone();
                     if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
                         int_state.push_current_operand_stack(JavaValue::Int(1))
@@ -119,6 +122,7 @@ pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, u
             }
         }
     };
+    Ok(())
 }
 
 fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {

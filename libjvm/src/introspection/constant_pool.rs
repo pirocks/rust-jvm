@@ -38,7 +38,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
     let view = rc.view();
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => {
-            match get_or_create_class_object(jvm, PTypeView::Ref(c.class_name()), int_state) {
+            match get_or_create_class_object(jvm, PTypeView::Ref(c.class_ref_type()), int_state) {
                 Ok(class_obj) => to_object(class_obj.into()),
                 Err(_) => null_mut()
             }

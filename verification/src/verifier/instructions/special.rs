@@ -70,7 +70,7 @@ fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> PTypeV
     let class = get_class(&env.vf, &env.method.class);
     let class_name = match &class.constant_pool_view(cp as usize) {
         ConstantInfoView::Class(c) => {
-            c.class_name()
+            c.class_ref_type()
         }
         _ => panic!()
     };
@@ -114,7 +114,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
     let class = get_class(&env.vf, env.method.class);
     let result_type = match &class.constant_pool_view(index) {
         ConstantInfoView::Class(c) => {
-            let name = c.class_name();
+            let name = c.class_ref_type();
             PTypeView::Ref(name).to_verification_type(&env.class_loader)
         }
         _ => panic!()
@@ -207,7 +207,7 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: Fra
 
 pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let classfile = get_class(&env.vf, env.method.class);
-    let expected_type = PTypeView::Ref(classfile.constant_pool_view(cp).unwrap_class().class_name());//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
+    let expected_type = PTypeView::Ref(classfile.constant_pool_view(cp).unwrap_class().class_ref_type());//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
     if class_dimension(env, &expected_type.to_verification_type(&env.class_loader)) != dim {
         return Result::Err(unknown_error_verifying!());
     }

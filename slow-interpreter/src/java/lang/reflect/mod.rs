@@ -80,7 +80,7 @@ fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         .map(|x| if x == 0 {
             ReferenceTypeView::Class(ClassName::throwable())
         } else {
-            method_view.classview().constant_pool_view(x as usize).unwrap_class().class_name()
+            method_view.classview().constant_pool_view(x as usize).unwrap_class().class_ref_type()
         })
         .map(|x| {
             PTypeView::Ref(x)

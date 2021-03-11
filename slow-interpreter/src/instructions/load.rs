@@ -153,9 +153,13 @@ pub fn baload(current_frame: &mut StackEntry) {
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.mut_array();
-    let as_byte = match array_refcell[index as usize] {
-        JavaValue::Byte(i) => i,
-        _ => panic!(),
+    let as_byte = match &array_refcell[index as usize] {
+        JavaValue::Byte(i) => *i,
+        val => {
+            dbg!(&unborrowed.elem_type);
+            dbg!(val);
+            panic!()
+        }
     };
     current_frame.push(JavaValue::Int(as_byte as i32))
 }

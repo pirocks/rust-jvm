@@ -40,7 +40,7 @@ pub struct ClassPoolElemView {
 }
 
 impl ClassPoolElemView {
-    pub fn class_name(&self) -> ReferenceTypeView {
+    pub fn class_ref_type(&self) -> ReferenceTypeView {
         let name_str = self.backing_class.constant_pool[self.name_index].extract_string_from_utf8();
         //todo parse_class_name needs to be used more elsewhere
         let type_ = PTypeView::from_ptype(&parse_class_name(&name_str));
