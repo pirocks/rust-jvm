@@ -448,7 +448,7 @@ checksum = "b7282d924be3275cec7f6756ff4121987bc6481325397dde6ba3e7802b1a8b1c"
 [[package]]
 name = "libffi"
 version = "0.9.1-alpha.0"
-source = "git+https://github.com/pirocks/libffi-rs.git#4f2ca54aea59efb1b70720b1cf9c8fba71d986f8"
+source = "git+https://github.com/pirocks/libffi-rs.git#5160cba9f28b27efb215928087be5663d51e5c02"
 dependencies = [
  "abort_on_panic",
  "libc",

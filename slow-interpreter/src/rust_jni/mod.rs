@@ -30,7 +30,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::dlopen::{RTLD_GLOBAL, RTLD_LAZY};
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::from_object;
-use crate::rust_jni::value_conversion::{to_native, to_native_type};
+use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};
 
 pub mod value_conversion;
 pub mod mangling;
@@ -133,23 +133,24 @@ pub fn call_impl(
         vec![Arg::new(&env)]
     } else {
         load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(classfile.view().name())));
-        let res = vec![Arg::new(&env), to_native(int_state.pop_current_operand_stack(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype())];
+        let res = vec![Arg::new(&env), unsafe { to_native(int_state.pop_current_operand_stack(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()) }];
         res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 
+    let temp_vec = vec![PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()];
     let args_and_type = if suppress_runtime_class {
         args
             .iter()
-            .zip(vec![PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()]
+            .zip(temp_vec
                 .iter()
-                .chain(md.parameter_types.iter()))
+                .chain(md.parameter_types.iter())).collect::<Vec<_>>()
     } else {
-        args.iter().zip(md.parameter_types.iter())
+        args.iter().zip(md.parameter_types.iter()).collect::<Vec<_>>()
     };
-    for (j, t) in args_and_type {
+    for (j, t) in args_and_type.iter() {
         args_type.push(to_native_type(&t));
-        c_args.push(to_native(j.clone(), &t));
+        unsafe { c_args.push(to_native((*j).clone(), &t)); }
     }
     let cif = Cif::new(args_type.into_iter(), Type::usize());
     let fn_ptr = CodePtr::from_fun(*raw);
@@ -164,10 +165,10 @@ pub fn call_impl(
             Some(JavaValue::Byte(cif_res as i8))
         }
         PTypeView::FloatType => {
-            Some(JavaValue::Float(unsafe { transmute(cif_res) }))
+            Some(JavaValue::Float(unsafe { transmute(cif_res as usize as u32) }))
         }
         PTypeView::DoubleType => {
-            Some(JavaValue::Double(unsafe { transmute(cif_res) }))
+            Some(JavaValue::Double(unsafe { transmute(cif_res as u64) }))
         }
         PTypeView::ShortType => {
             Some(JavaValue::Short(cif_res as jshort))
@@ -194,8 +195,12 @@ pub fn call_impl(
             panic!()
         }
     };
-    for (i, (j, t)) in args_and_type.enumerate() {
-        args
+    unsafe {
+        for (i, (j, t)) in args_and_type.iter().enumerate() {
+            let offset = if suppress_runtime_class { 1 } else { 2 };
+            let to_free = &mut c_args[i + offset];
+            free_native((*j).clone(), t, to_free)
+        }
     }
     res
 }

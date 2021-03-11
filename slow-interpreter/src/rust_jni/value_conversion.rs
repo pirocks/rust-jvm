@@ -5,7 +5,7 @@ use std::sync::Arc;
 use libffi::middle::Arg;
 use libffi::middle::Type;
 
-use jvmti_jni_bindings::jclass;
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::ptype::PType;
 
 use crate::java_values::{JavaValue, Object};
@@ -27,7 +27,6 @@ pub unsafe fn native_to_runtime_class(clazz: jclass) -> Arc<RuntimeClass> {
 
 
 pub fn to_native_type(t: &PType) -> Type {
-
     match t {
         PType::ByteType => Type::i8(),
         PType::CharType => Type::u16(),
@@ -43,88 +42,70 @@ pub fn to_native_type(t: &PType) -> Type {
 }
 
 
-pub fn to_native(j: JavaValue, t: &PType) -> Arg {
+pub unsafe fn to_native(j: JavaValue, t: &PType) -> Arg {
     match t {
         PType::ByteType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_int() as i8)))//todo free after call
+            Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i8)).as_ref().unwrap() as &jbyte)
         }
         PType::CharType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_int() as u16)))//todo free after call
+            Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u16)).as_ref().unwrap() as &jchar)
         }
         PType::DoubleType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_double())))//todo free after call
+            Arg::new(Box::into_raw(Box::new(j.unwrap_double())).as_ref().unwrap() as &jdouble)
         }
         PType::FloatType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_float())))//todo free after call
+            Arg::new(Box::into_raw(Box::new(j.unwrap_float())).as_ref().unwrap() as &jfloat)
         }
         PType::IntType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_int())))//todo free after call
+            Arg::new(Box::into_raw(Box::new(j.unwrap_int())).as_ref().unwrap() as &jint)
         }
         PType::LongType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_long())))//todo free after call
+            Arg::new(Box::into_raw(Box::new(j.unwrap_long())).as_ref().unwrap() as &jlong)
         }
         PType::Ref(_) => {
-            match j.unwrap_object() {
-                None => Arg::new(&(std::ptr::null() as *const Object)),
-                Some(op) => {
-                    unsafe {
-                        let object_ptr = to_object(op.into()) as *mut c_void;
-                        let ref_box = Box::new(object_ptr);
-                        //todo don;t forget to free later, and/or do this with lifetimes
-                        Arg::new/*::<*mut c_void>*/(Box::leak(ref_box))
-                    }
-                }
-            }
+            let object_ptr = to_object(j.unwrap_object());
+            let ref_box = Box::new(object_ptr);
+            Arg::new(Box::into_raw(ref_box).as_ref().unwrap() as &jobject)
         }
         PType::ShortType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_int() as i16)))//todo free after call
+            Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i16)).as_ref().unwrap() as &jshort)
         }
         PType::BooleanType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_int() as u8)))//todo free after call
+            Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u8)).as_ref().unwrap() as &jboolean)
         }
         _ => panic!(),
     }
 }
 
 
-pub fn free_native(j: JavaValue, t: &PType, to_free: &mut Arg) {
+pub unsafe fn free_native(j: JavaValue, t: &PType, to_free: &mut Arg) {
     match t {
         PType::ByteType => {
-            Box::from_raw::<i8>(to_free.0)
+            Box::<jbyte>::from_raw(to_free.0 as *mut jbyte);
         }
         PType::CharType => {
-            Box::from_raw::<u16>(to_free.0)
+            Box::<jchar>::from_raw(to_free.0 as *mut jchar);
         }
         PType::DoubleType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_double())))//todo free after call
+            Box::<jdouble>::from_raw(to_free.0 as *mut jdouble);
         }
         PType::FloatType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_float())))//todo free after call
+            Box::<jfloat>::from_raw(to_free.0 as *mut jfloat);
         }
         PType::IntType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_int())))//todo free after call
+            Box::<jint>::from_raw(to_free.0 as *mut jint);
         }
         PType::LongType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_long())))//todo free after call
+            Box::<jlong>::from_raw(to_free.0 as *mut jlong);
         }
         PType::Ref(_) => {
-            match j.unwrap_object() {
-                None => Arg::new(&(std::ptr::null() as *const Object)),
-                Some(op) => {
-                    unsafe {
-                        let object_ptr = to_object(op.into()) as *mut c_void;
-                        let ref_box = Box::new(object_ptr);
-                        //todo don;t forget to free later, and/or do this with lifetimes
-                        Arg::new/*::<*mut c_void>*/(Box::leak(ref_box))
-                    }
-                }
-            }
+            Box::<jobject>::from_raw(to_free.0 as *mut jobject);
         }
         PType::ShortType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_int() as i16)))//todo free after call
+            Box::<jshort>::from_raw(to_free.0 as *mut jshort);
         }
         PType::BooleanType => {
-            Arg::new(Box::leak(Box::new(j.unwrap_int() as u8)))//todo free after call
+            Box::<jshort>::from_raw(to_free.0 as *mut jshort);
         }
         _ => panic!(),
     }

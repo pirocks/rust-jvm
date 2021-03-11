@@ -858,7 +858,6 @@ pub mod array_out_of_bounds_exception {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 

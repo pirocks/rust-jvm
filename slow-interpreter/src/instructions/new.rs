@@ -9,7 +9,6 @@ use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
 use crate::interpreter::WasException;
 use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
-use crate::runtime_class::RuntimeClass;
 
 pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
     let view = &int_state.current_frame_mut().class_pointer().view();
@@ -48,7 +47,7 @@ pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGua
         t.clone(),
     )?;
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t);
-    int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap())))
+    Ok(int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap()))))
 }
 
 

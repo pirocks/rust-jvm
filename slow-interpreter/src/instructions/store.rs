@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use classfile_view::view::ptype_view::PTypeView;
 
 use crate::interpreter_state::InterpreterStateGuard;

@@ -182,7 +182,7 @@ unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject,
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index)?;
+        throw_array_out_of_bounds_res(jvm, int_state, index)?;
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Utf8(utf8) => Ok(to_object(JString::from_rust(jvm, int_state, utf8.str.clone())?.object().into())),

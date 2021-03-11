@@ -1,6 +1,7 @@
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 
 use crate::instructions::special::instance_of_impl;
+use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 
@@ -14,6 +15,9 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         None => unimplemented!(),
         Some(ref_type) => ref_type,
     };
-    instance_of_impl(jvm, int_state, java_obj.unwrap(), type_.clone());//todo handle npe
+    match instance_of_impl(jvm, int_state, java_obj.unwrap(), type_.clone()) {
+        Ok(_) => {}
+        Err(WasException {}) => todo!()
+    };//todo handle npe
     (int_state.pop_current_operand_stack().unwrap_int() != 0) as jboolean
 }
