@@ -3,10 +3,12 @@ use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
+use jvmti_jni_bindings::jint;
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
+use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java_values::Object;
 use crate::JVMState;
@@ -66,4 +68,21 @@ pub fn throw_npe(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         }
     }.object().into();
     int_state.set_throw(npe_object);
+}
+
+
+pub fn throw_array_out_of_bounds_res(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> Result<(), WasException> {
+    throw_array_out_of_bounds(jvm, int_state, index);
+    Err(WasException)
+}
+
+pub fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) {
+    let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
+        Ok(npe) => npe,
+        Err(WasException {}) => {
+            eprintln!("Warning error encountered creating NPE");
+            return;
+        }
+    }.object().into();
+    int_state.set_throw(bounds_object);
 }

@@ -847,6 +847,46 @@ pub mod null_pointer_exception {
     }
 }
 
+
+pub mod array_out_of_bounds_exception {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::jint;
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::string::JString;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct ArrayOutOfBoundsException {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_array_out_of_bounds_exception(&self) -> ArrayOutOfBoundsException {
+            ArrayOutOfBoundsException { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl ArrayOutOfBoundsException {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> Result<ArrayOutOfBoundsException, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Int(index)],
+                            "(I)V".to_string())?;
+            Ok(this.cast_array_out_of_bounds_exception())
+        }
+    }
+}
+
+
 pub mod system;
 
 pub mod reflect;

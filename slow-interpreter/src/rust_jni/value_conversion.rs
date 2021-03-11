@@ -28,16 +28,6 @@ pub unsafe fn native_to_runtime_class(clazz: jclass) -> Arc<RuntimeClass> {
 
 pub fn to_native_type(t: &PType) -> Type {
 
-//    pub type jint = i32;
-//    pub type jlong = i64;
-//    pub type jbyte = i8;
-//    pub type jboolean = u8;
-//    pub type jchar = u16;
-//    pub type jshort = i16;
-//    pub type jfloat = f32;
-//    pub type jdouble = f64;
-//    pub type jsize = jint;
-
     match t {
         PType::ByteType => Type::i8(),
         PType::CharType => Type::u16(),
@@ -48,12 +38,7 @@ pub fn to_native_type(t: &PType) -> Type {
         PType::ShortType => Type::i16(),
         PType::BooleanType => Type::u8(),
         PType::Ref(_) => Type::pointer(),
-        PType::VoidType => unimplemented!(),
-        PType::TopType => unimplemented!(),
-        PType::NullType => unimplemented!(),
-        PType::Uninitialized(_) => unimplemented!(),
-        PType::UninitializedThis => unimplemented!(),
-        PType::UninitializedThisOrClass(_) => unimplemented!(),
+        _ => panic!(),
     }
 }
 
@@ -97,34 +82,50 @@ pub fn to_native(j: JavaValue, t: &PType) -> Arg {
         PType::BooleanType => {
             Arg::new(Box::leak(Box::new(j.unwrap_int() as u8)))//todo free after call
         }
-        PType::VoidType => panic!(),
-        PType::TopType => panic!(),
-        PType::NullType => panic!(),
-        PType::Uninitialized(_) => panic!(),
-        PType::UninitializedThis => panic!(),
-        PType::UninitializedThisOrClass(_) => panic!(),
+        _ => panic!(),
     }
-    /*match j {
-        //todo suspect primitive types don't work
-        JavaValue::Long(l) => Arg::new(&l),
-        JavaValue::Int(i) => Arg::new(&i),
-        JavaValue::Short(s) => Arg::new(&s),
-        JavaValue::Byte(b) => Arg::new(&b),
-        JavaValue::Boolean(b) => Arg::new(&b),
-        JavaValue::Char(c) => Arg::new(&c),
-        JavaValue::Float(f) => Arg::new(&f),
-        JavaValue::Double(d) => Arg::new(&d),
-        JavaValue::Object(o) => match o {
-            None => Arg::new(&(std::ptr::null() as *const Object)),
-            Some(op) => {
-                unsafe {
-                    let object_ptr = to_object(op.into()) as *mut c_void;
-                    let ref_box = Box::new(object_ptr);
-                    //todo don;t forget to free later, and/or do this with lifetimes
-                    Arg::new*//*::<*mut c_void>*//*(Box::leak(ref_box))
+}
+
+
+pub fn free_native(j: JavaValue, t: &PType, to_free: &mut Arg) {
+    match t {
+        PType::ByteType => {
+            Box::from_raw::<i8>(to_free.0)
+        }
+        PType::CharType => {
+            Box::from_raw::<u16>(to_free.0)
+        }
+        PType::DoubleType => {
+            Arg::new(Box::leak(Box::new(j.unwrap_double())))//todo free after call
+        }
+        PType::FloatType => {
+            Arg::new(Box::leak(Box::new(j.unwrap_float())))//todo free after call
+        }
+        PType::IntType => {
+            Arg::new(Box::leak(Box::new(j.unwrap_int())))//todo free after call
+        }
+        PType::LongType => {
+            Arg::new(Box::leak(Box::new(j.unwrap_long())))//todo free after call
+        }
+        PType::Ref(_) => {
+            match j.unwrap_object() {
+                None => Arg::new(&(std::ptr::null() as *const Object)),
+                Some(op) => {
+                    unsafe {
+                        let object_ptr = to_object(op.into()) as *mut c_void;
+                        let ref_box = Box::new(object_ptr);
+                        //todo don;t forget to free later, and/or do this with lifetimes
+                        Arg::new/*::<*mut c_void>*/(Box::leak(ref_box))
+                    }
                 }
             }
-        },
-        JavaValue::Top => panic!()
-    }*/
+        }
+        PType::ShortType => {
+            Arg::new(Box::leak(Box::new(j.unwrap_int() as i16)))//todo free after call
+        }
+        PType::BooleanType => {
+            Arg::new(Box::leak(Box::new(j.unwrap_int() as u8)))//todo free after call
+        }
+        _ => panic!(),
+    }
 }

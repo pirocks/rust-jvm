@@ -10,13 +10,20 @@ use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
 unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let action = from_object(action);
-    let unwrapped_action = action.clone().unwrap();//todo handle npe
+    let unwrapped_action = match action.clone() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return null_mut()
+        },
+    };
     let runtime_class = &unwrapped_action.unwrap_normal_object().class_pointer;
     let class_view = &runtime_class.view();
     let run_method = class_view.lookup_method(&"run".to_string(), &parse_method_descriptor("()Ljava/lang/Object;").unwrap()).unwrap();//todo figure out if these unwraps are okay

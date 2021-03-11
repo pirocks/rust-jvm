@@ -48,7 +48,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
     let runtime_class = of_class_obj.as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
     let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
-    let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into()).unwrap(); //todo pass the error up
+    let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into())?;
     let mut object_array = vec![];
     methods.filter(|(c, i)| {
         let c_view = c.view();

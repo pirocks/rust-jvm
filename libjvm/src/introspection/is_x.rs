@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jboolean, jclass, jdouble, JNIEnv, JVM_Available, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
+use jvmti_jni_bindings::{jboolean, jclass, jdouble, JNIEnv, JVM_Available, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED, jvmtiError_JVMTI_ERROR_INVALID_CLASS};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::java_values::JavaValue;
@@ -41,7 +41,15 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
 #[no_mangle]
 unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
-    is_array_impl(jvm, cls).unwrap() //todo handle the errors
+    match is_array_impl(jvm, cls) {
+        Ok(res) => res,
+        Err(error) => {
+            if error == jvmtiError_JVMTI_ERROR_INVALID_CLASS {
+                panic!("this should never happen since this is only called for valid classes")
+            }
+            panic!("Unexpected error from is_array_impl")
+        }
+    }
 }
 
 

@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -35,15 +36,16 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut object_array = vec![];
-    class_obj.clone().view().fields().for_each(|f| {
-        //todo so this is big and messy put I don't really see a way to simplify
+    for f in class_obj.clone().view().fields() {
         let field_object = match field_object_from_view(jvm, int_state, class_obj.clone(), f) {
             Ok(field_object) => field_object,
-            Err(_) => todo!()
+            Err(WasException {}) => {
+                return null_mut()
+            }
         };
 
         object_array.push(field_object)
-    });
+    }
     let res = Some(Arc::new(
         Object::Array(ArrayObject::new_array(
             jvm,

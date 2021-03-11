@@ -19,7 +19,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
-use jvmti_jni_bindings::jobject;
+use jvmti_jni_bindings::{jchar, jobject, jshort};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -138,49 +138,49 @@ pub fn call_impl(
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 
-    if suppress_runtime_class {
-        for (j, t) in args
+    let args_and_type = if suppress_runtime_class {
+        args
             .iter()
             .zip(vec![PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()]
                 .iter()
-                .chain(md.parameter_types.iter())) {
-            args_type.push(to_native_type(&t));
-            c_args.push(to_native(j.clone(), &t));
-        }
+                .chain(md.parameter_types.iter()))
     } else {
-        for (j, t) in args.iter().zip(md.parameter_types.iter()) {
-            args_type.push(to_native_type(&t));
-            c_args.push(to_native(j.clone(), &t));
-        }
+        args.iter().zip(md.parameter_types.iter())
+    };
+    for (j, t) in args_and_type {
+        args_type.push(to_native_type(&t));
+        c_args.push(to_native(j.clone(), &t));
     }
     let cif = Cif::new(args_type.into_iter(), Type::usize());
-//todo what if float
     let fn_ptr = CodePtr::from_fun(*raw);
-    // trace!("----NATIVE ENTER----");
-    // int_state.print_stack_trace();
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
-    // trace!("----NATIVE EXIT ----");
-    match PTypeView::from_ptype(&md.return_type) {
+    let res = match PTypeView::from_ptype(&md.return_type) {
         PTypeView::VoidType => {
             None
         }
         PTypeView::ByteType => {
-            Some(JavaValue::Byte(cif_res as usize as i8))//todo is this correct?
+            Some(JavaValue::Byte(cif_res as i8))
         }
-//            ParsedType::CharType => {}
+        PTypeView::FloatType => {
+            Some(JavaValue::Float(unsafe { transmute(cif_res) }))
+        }
         PTypeView::DoubleType => {
             Some(JavaValue::Double(unsafe { transmute(cif_res) }))
         }
-//            ParsedType::FloatType => {}
+        PTypeView::ShortType => {
+            Some(JavaValue::Short(cif_res as jshort))
+        }
+        PTypeView::CharType => {
+            Some(JavaValue::Char(cif_res as jchar))
+        }
         PTypeView::IntType => {
             Some(JavaValue::Int(cif_res as i32))
         }
         PTypeView::LongType => {
             Some(JavaValue::Long(cif_res as i64))
         }
-//            ParsedType::ShortType => {}
         PTypeView::BooleanType => {
             Some(JavaValue::Boolean(cif_res as u8))
         }
@@ -189,15 +189,15 @@ pub fn call_impl(
                 Some(JavaValue::Object(from_object(cif_res as jobject)))
             }
         }
-//            ParsedType::TopType => {}
-//            ParsedType::NullType => {}
-//            ParsedType::Uninitialized(_) => {}
-//            ParsedType::UninitializedThis => {}
         _ => {
             dbg!(md.return_type);//todo
             panic!()
         }
+    };
+    for (i, (j, t)) in args_and_type.enumerate() {
+        args
     }
+    res
 }
 
 pub mod native_util;
