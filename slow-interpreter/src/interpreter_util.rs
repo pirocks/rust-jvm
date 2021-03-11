@@ -31,10 +31,10 @@ fn default_init_fields(
     loader: LoaderName,
     object_pointer: Option<Arc<Object>>,
     view: &dyn ClassView,
-) -> Result<(), ClassLoadingError> {
+) -> Result<(), WasException> {
     if let Some(super_name) = view.super_name() {
-        let loaded_super = check_resolved_class(jvm, int_state, super_name.into()).unwrap();//todo pass the error up
-        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &*loaded_super.view()).unwrap();//todo pass the error up
+        let loaded_super = check_resolved_class(jvm, int_state, super_name.into())?;
+        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &*loaded_super.view())?;
     }
     for field in view.fields() {
         if !field.is_static() {

@@ -7,7 +7,7 @@ use crate::view::ptype_view::PTypeView;
 #[derive(Eq, PartialEq)]
 pub enum VType {
     //VType for VerificationType
-    // todo perhaps this should reside in the verifier
+    // this doesn't reside in the verifier b/c class view needs to_verification_type on PTypeView
     DoubleType,
     FloatType,
     IntType,

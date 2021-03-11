@@ -1,11 +1,13 @@
+use std::alloc::handle_alloc_error;
 use std::ffi::CStr;
 use std::mem::transmute;
-use std::os::raw::{c_int, c_void};
+use std::os::raw::{c_char, c_int, c_void};
 
 use jvmti_jni_bindings::{JavaVM, JNI_VERSION_1_8};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_void {
+    dbg!(CStr::from_ptr(name as *const c_char).to_string_lossy());
     unimplemented!()
 }
 
@@ -21,8 +23,8 @@ unsafe extern "system" fn provide_jni_version(jvm: *mut *mut JavaVM, something: 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut ::std::os::raw::c_void, name: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_void {
-//    unimplemented!();
     //todo not implemented for now
-    // dbg!(CStr::from_ptr(name).to_str().unwrap());
+    dbg!(CStr::from_ptr(handle as *const c_char).to_string_lossy());
+    dbg!(CStr::from_ptr(name as *const c_char).to_string_lossy());
     transmute(provide_jni_version as *mut c_void)
 }

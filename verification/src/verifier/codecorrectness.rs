@@ -323,7 +323,7 @@ fn expand_type_list(vf: &VerifierContext, list: Vec<VType>) -> Vec<VType> {
         if size_of(vf, x) == 1 {
             vec![x.clone()]
         } else {
-            assert!(size_of(vf, x) == 2);
+            assert_eq!(size_of(vf, x), 2);
             vec![x.clone(), VType::TopType]
         }
     }).collect();
