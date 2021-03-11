@@ -67,9 +67,9 @@ pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
@@ -84,9 +84,9 @@ pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn fastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_float();
     let index = current_frame.pop().unwrap_int();
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
@@ -100,9 +100,9 @@ pub fn fastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn dastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_double();
     let index = current_frame.pop().unwrap_int();
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
@@ -116,9 +116,9 @@ pub fn dastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let arrar_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
@@ -133,9 +133,9 @@ pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn aastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let val = current_frame.pop();
     let index = current_frame.pop().unwrap_int();
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let arrary_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
@@ -159,9 +159,9 @@ pub fn istore(current_frame: &mut StackEntry, n: u8) {
 
 
 pub fn lastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_long();
     let index = current_frame.pop().unwrap_int();
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let arrar_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
