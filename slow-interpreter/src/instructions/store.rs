@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use classfile_view::view::ptype_view::PTypeView;
 
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::JavaValue;
+use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::StackEntry;
 use crate::utils::throw_npe;
@@ -64,48 +66,83 @@ pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     array_ref[index as usize] = JavaValue::Char(char_);
 }
 
-pub fn bastore(current_frame: &mut StackEntry) {
+pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
-    let array_ref_o = current_frame.pop().unwrap_object().unwrap();//todo handle npe
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let array_ref_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        },
+    };
     assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
     array_ref[index as usize] = JavaValue::Byte(val as i8);
 }
 
 
-pub fn fastore(current_frame: &mut StackEntry) {
+pub fn fastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let val = current_frame.pop().unwrap_float();
     let index = current_frame.pop().unwrap_int();
-    let array_ref_o = current_frame.pop().unwrap_object().unwrap();//todo handle npe
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let array_ref_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        },
+    };
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
     array_ref[index as usize] = JavaValue::Float(val);
 }
 
 
-pub fn dastore(current_frame: &mut StackEntry) {
+pub fn dastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let val = current_frame.pop().unwrap_double();
     let index = current_frame.pop().unwrap_int();
-    let array_ref_o = current_frame.pop().unwrap_object().unwrap();//todo handle npe
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let array_ref_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        }
+    };
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
     array_ref[index as usize] = JavaValue::Double(val);
 }
 
 
-pub fn iastore(current_frame: &mut StackEntry) {
+pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
-    let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();//todo handle npe
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let arrar_ref_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        },
+    };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let int_ = val;
     array_ref[index as usize] = JavaValue::Int(int_);
 }
 
 
-pub fn aastore(current_frame: &mut StackEntry) {
+pub fn aastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let val = current_frame.pop();
     let index = current_frame.pop().unwrap_int();
-    let arrary_ref_o = current_frame.pop().unwrap_object().unwrap();//todo handle npe
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let arrary_ref_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        },
+    };
     let array_ref = arrary_ref_o.unwrap_array().mut_array();
     match val {
         JavaValue::Object(_) => {}
@@ -121,10 +158,17 @@ pub fn istore(current_frame: &mut StackEntry, n: u8) {
 }
 
 
-pub fn lastore(current_frame: &mut StackEntry) {
+pub fn lastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let val = current_frame.pop().unwrap_long();
     let index = current_frame.pop().unwrap_int();
-    let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();//todo handle npe
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let arrar_ref_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        },
+    };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let long = val;
     array_ref[index as usize] = JavaValue::Long(long);
