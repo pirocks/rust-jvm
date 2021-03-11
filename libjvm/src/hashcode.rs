@@ -2,12 +2,16 @@ use std::mem::transmute;
 use std::sync::Arc;
 
 use jvmti_jni_bindings::{jint, JNIEnv, jobject};
-use slow_interpreter::rust_jni::native_util::from_object;
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
+use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IHashCode(env: *mut JNIEnv, obj: jobject) -> jint {
     let object = from_object(obj);
     if object.is_none() {
+        let int_state = get_interpreter_state(env);
+        let jvm = get_state(env);
+        throw_npe(jvm, int_state);
         return 0;
     }
     // todo handle npe, though invoke virtual should handle

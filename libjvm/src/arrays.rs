@@ -37,7 +37,6 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
-    //todo is this name even correct?
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let array_type_name = from_jclass(eltClass).as_runtime_class(jvm).ptypeview();
