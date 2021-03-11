@@ -1,7 +1,10 @@
 use classfile_view::view::ptype_view::PTypeView;
 
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
+use crate::jvm_state::JVMState;
 use crate::StackEntry;
+use crate::utils::throw_npe;
 
 pub fn astore(current_frame: &mut StackEntry, n: usize) {
     let object_ref = current_frame.pop();
@@ -45,10 +48,17 @@ pub fn fstore(current_frame: &mut StackEntry, n: usize) {
     current_frame.local_vars_mut()[n] = jv;
 }
 
-pub fn castore(current_frame: &mut StackEntry) {
+pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
-    let arrar_ref_o = current_frame.pop().unwrap_object().unwrap();//todo handle npe
+    let arrar_ref_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        },
+    };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let char_ = val as u16;
     array_ref[index as usize] = JavaValue::Char(char_);

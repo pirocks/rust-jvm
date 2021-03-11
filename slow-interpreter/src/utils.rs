@@ -5,7 +5,9 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use descriptor_parser::MethodDescriptor;
 
 use crate::class_loading::assert_inited_or_initing_class;
+use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
+use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java_values::Object;
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
@@ -48,4 +50,20 @@ pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
         res.push(char_.unwrap_char() as u8 as char);
     }
     res
+}
+
+pub fn throw_npe_res(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    throw_npe(jvm, int_state);
+    Err(WasException)
+}
+
+pub fn throw_npe(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let npe_object = match NullPointerException::new(jvm, int_state) {
+        Ok(npe) => npe,
+        Err(WasException {}) => {
+            eprintln!("Warning error encountered creating NPE");
+            return;
+        }
+    }.object().into();
+    int_state.set_throw(npe_object);
 }

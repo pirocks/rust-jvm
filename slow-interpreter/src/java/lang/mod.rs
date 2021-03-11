@@ -799,12 +799,50 @@ pub mod class_not_found_exception {
         as_object_or_java_value!();
 
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JString) -> Result<ClassNotFoundException, WasException> {
-            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into()).unwrap();//todo pass the error up
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), class.java_value()],
                             "(Ljava/lang/String;)V".to_string())?;
             Ok(this.cast_class_not_found_exception())
+        }
+    }
+}
+
+pub mod null_pointer_exception {
+    use std::sync::Arc;
+
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::string::JString;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct NullPointerException {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_null_pointer_exception(&self) -> NullPointerException {
+            NullPointerException { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl NullPointerException {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<NullPointerException, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            let message = JString::from_rust(jvm, int_state, "This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string())?;
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), message.java_value()],
+                            "(Ljava/lang/String;)V".to_string())?;
+            Ok(this.cast_null_pointer_exception())
         }
     }
 }
