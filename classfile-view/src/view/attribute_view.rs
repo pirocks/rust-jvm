@@ -54,13 +54,11 @@ pub struct BootstrapMethodView<'cl> {
 impl BootstrapMethodView<'_> {
     fn get_raw(&self) -> &BootstrapMethod {
         let bootstrap_methods = self.backing.get_bootstrap_methods_raw();
-        // dbg!(&bootstrap_methods);
         &bootstrap_methods[self.i]
     }
 
     pub fn bootstrap_method_ref(&self) -> MethodHandleView {
         let i = self.get_raw().bootstrap_method_ref;
-        // dbg!(i);
         let res = self.backing.backing_class.constant_pool_view(i as usize);
         match res {
             ConstantInfoView::MethodHandle(mh) => { mh }
@@ -80,7 +78,7 @@ impl BootstrapMethodView<'_> {
 pub struct BootstrapArgViewIterator<'cl> {
     backing_class: &'cl ClassBackedView,
     bootstrap_args: Vec<CPIndex>,
-    //todo get rid of clone for this
+    //myabe get rid of clone for this but its not really an issue
     i: usize,
 }
 
@@ -95,7 +93,6 @@ impl<'cl> Iterator for BootstrapArgViewIterator<'cl> {
             ConstantInfoView::MethodType(mt) => BootstrapArgView::MethodType(mt),
             ConstantInfoView::MethodHandle(mh) => BootstrapArgView::MethodHandle(mh),
             ConstantInfoView::String(s) => BootstrapArgView::String(s),
-            // ConstantInfoView::Class(cpelem) => BootstrapArgView::Class(cpelem),
             other => {
                 dbg!(other);
                 unimplemented!()

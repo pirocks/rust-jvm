@@ -141,11 +141,6 @@ pub struct NameAndTypeView<'cl> {
     pub(crate) i: usize,
 }
 
-#[derive(Debug)]
-pub struct FieldDescriptorView {
-    //todo
-}
-
 impl NameAndTypeView<'_> {
     fn name_and_type(&self) -> &NameAndType {
         match &self.class_view.backing_class.constant_pool[self.i as usize].kind {
@@ -188,7 +183,7 @@ impl MethodHandleView<'_> {
         self.get_raw().reference_kind.clone()
     }
 
-    pub fn get_reference_data(&self) -> ReferenceData {
+    pub fn get_reference_data(&self) -> ReferenceInvokeKind {
         match self.get_raw().reference_kind {
             ReferenceKind::GetField => unimplemented!(),
             ReferenceKind::GetStatic => unimplemented!(),
@@ -211,7 +206,7 @@ impl MethodHandleView<'_> {
                         panic!()
                     }
                 };
-                ReferenceData::InvokeStatic(invoke_static)
+                ReferenceInvokeKind::InvokeStatic(invoke_static)
             }
             ReferenceKind::InvokeSpecial => {
                 assert!(self.class_view.backing_class.major_version >= 52);
@@ -224,7 +219,7 @@ impl MethodHandleView<'_> {
                         panic!()
                     }
                 };
-                ReferenceData::InvokeSpecial(invoke_special)
+                ReferenceInvokeKind::InvokeSpecial(invoke_special)
             }
             ReferenceKind::NewInvokeSpecial => unimplemented!(),
             ReferenceKind::InvokeInterface => unimplemented!(),
@@ -232,8 +227,7 @@ impl MethodHandleView<'_> {
     }
 }
 
-//todo need a better name
-pub enum ReferenceData<'cl> {
+pub enum ReferenceInvokeKind<'cl> {
     InvokeStatic(InvokeStatic<'cl>),
     InvokeSpecial(InvokeSpecial<'cl>),
 }
@@ -244,9 +238,6 @@ pub enum InvokeStatic<'cl> {
     Method(MethodrefView<'cl>),
 }
 
-impl InvokeStatic<'_> {
-    // pub fn
-}
 
 pub enum InvokeSpecial<'cl> {
     Interface(InterfaceMethodrefView<'cl>),

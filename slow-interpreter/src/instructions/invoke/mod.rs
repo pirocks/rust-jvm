@@ -19,7 +19,7 @@ pub mod static_;
 pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::ClassView;
-    use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceData};
+    use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
     use classfile_view::view::ptype_view::PTypeView;
     use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
@@ -90,7 +90,7 @@ pub mod dynamic {
         // obtain a reference to an instance of java.lang.invoke.MethodHandle (§5.4.3.5)
         let ref_data = method_ref.get_reference_data();
         let desc_str = match ref_data {
-            ReferenceData::InvokeStatic(is) => {
+            ReferenceInvokeKind::InvokeStatic(is) => {
                 match is {
                     InvokeStatic::Interface(_) => unimplemented!(),
                     InvokeStatic::Method(m) => {
@@ -98,7 +98,7 @@ pub mod dynamic {
                     }
                 }
             }
-            ReferenceData::InvokeSpecial(is) => match is {
+            ReferenceInvokeKind::InvokeSpecial(is) => match is {
                 InvokeSpecial::Interface(_) => todo!(),
                 InvokeSpecial::Method(_) => todo!()
             }
@@ -161,7 +161,7 @@ pub mod dynamic {
     fn method_handle_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_ref: &MethodHandleView) -> Result<MethodHandle, WasException> {
         let methodref_view = method_ref.clone();
         Ok(match methodref_view.get_reference_data() {
-            ReferenceData::InvokeStatic(is) => {
+            ReferenceInvokeKind::InvokeStatic(is) => {
                 match is {
                     InvokeStatic::Interface(_) => unimplemented!(),
                     InvokeStatic::Method(mr) => {
@@ -175,7 +175,7 @@ pub mod dynamic {
                     }
                 }
             }
-            ReferenceData::InvokeSpecial(is) => {
+            ReferenceInvokeKind::InvokeSpecial(is) => {
                 match is {
                     InvokeSpecial::Interface(_) => todo!(),
                     InvokeSpecial::Method(mr) =>
