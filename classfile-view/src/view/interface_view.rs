@@ -37,7 +37,7 @@ impl<'l> Iterator for InterfaceIterator<'l> {
                 if *i >= view.num_interfaces() {
                     return None;
                 }
-                let res = InterfaceView::from(self.view, self.i);
+                let res = InterfaceView::from(view, *i);
                 *i += 1;
                 Some(res)
             }

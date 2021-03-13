@@ -130,7 +130,7 @@ impl<'cl> Iterator for MethodIterator<'cl> {
                 if *i >= class_view.num_methods() {
                     return None;
                 }
-                let res = MethodView::from(self.class_view, self.i);
+                let res = MethodView::from(class_view, *i);
                 *i += 1;
                 Some(res)
             }
