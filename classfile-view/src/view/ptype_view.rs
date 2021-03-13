@@ -90,10 +90,7 @@ impl PTypeView {
             PTypeView::UninitializedThis => VType::UninitializedThis,
             PTypeView::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(Box::new(c.to_verification_type(loader))),
             PTypeView::Ref(r) => {
-                match r {
-                    ReferenceTypeView::Class(c) => { VType::Class(ClassWithLoader { class_name: c.clone(), loader: loader.clone() }) }
-                    ReferenceTypeView::Array(p) => { VType::ArrayReferenceType(p.deref().clone()) }
-                }
+                r.to_verification_type(loader)
             }
         }
     }
@@ -280,7 +277,20 @@ pub enum ReferenceTypeView {
     Array(Box<PTypeView>),
 }
 
+impl From<ClassName> for ReferenceTypeView {
+    fn from(cn: ClassName) -> Self {
+        ReferenceTypeView::Class(cn)
+    }
+}
+
 impl ReferenceTypeView {
+    pub fn to_verification_type(&self, loader: &LoaderName) -> VType {
+        match self {
+            ReferenceTypeView::Class(c) => { VType::Class(ClassWithLoader { class_name: c.clone(), loader: loader.clone() }) }
+            ReferenceTypeView::Array(p) => { VType::ArrayReferenceType(p.deref().clone()) }
+        }
+    }
+
     pub fn to_reference_type(&self) -> ReferenceType {
         match self {
             ReferenceTypeView::Class(c) => ReferenceType::Class(c.clone()),
@@ -383,14 +393,17 @@ impl PTypeView {
         }
     }
     pub fn unwrap_class_type(&self) -> ClassName {
+        self.try_unwrap_class_type().unwrap()
+    }
+    pub fn try_unwrap_class_type(&self) -> Option<ClassName> {
         match self {
             PTypeView::Ref(r) => {
                 match r {
-                    ReferenceTypeView::Class(c) => c.clone(),
-                    ReferenceTypeView::Array(_) => panic!(),
+                    ReferenceTypeView::Class(c) => c.clone().into(),
+                    ReferenceTypeView::Array(_) => None,
                 }
             }
-            _ => panic!()
+            _ => None
         }
     }
     pub fn unwrap_ref_type(&self) -> &ReferenceTypeView {

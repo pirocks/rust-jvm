@@ -148,7 +148,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let int_state = get_interpreter_state(env);
     let possibly_class_pointer = int_state.previous_previous_frame().try_class_pointer();
     let type_ = if let Some(class_pointer) = possibly_class_pointer {
-        PTypeView::Ref(ReferenceTypeView::Class(class_pointer.view().name()))
+        class_pointer.ptypeview()
     } else {
         return null_mut();
     };

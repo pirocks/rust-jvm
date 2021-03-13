@@ -153,9 +153,9 @@ pub mod method {
     impl Method {
         pub fn method_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<Method, WasException> {
             let clazz = {
-                let field_class_name = method_view.classview().name();
+                let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
-                load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name)));
+                load_class_constant_by_type(jvm, int_state, field_class_type);
                 int_state.pop_current_operand_stack().cast_class()
             };
             let name = {
@@ -277,9 +277,9 @@ pub mod constructor {
     impl Constructor {
         pub fn constructor_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<Constructor, WasException> {
             let clazz = {
-                let field_class_name = method_view.classview().name();
+                let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
-                load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name.clone())));
+                load_class_constant_by_type(jvm, int_state, field_class_type);
                 int_state.pop_current_operand_stack().cast_class()
             };
 

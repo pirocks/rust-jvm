@@ -259,7 +259,7 @@ pub mod class {
 
     impl JavaValue {
         pub fn cast_class(&self) -> JClass {
-            assert_eq!(self.unwrap_normal_object().class_pointer.view().name(), ClassName::class());
+            assert_eq!(self.unwrap_normal_object().class_pointer.view().name(), ClassName::class().into());
             JClass { normal_object: self.unwrap_object_nonnull() }
         }
     }
@@ -713,7 +713,7 @@ pub mod thread_group {
         pub fn try_cast_thread_group(&self) -> Option<JThreadGroup> {
             match self.try_unwrap_normal_object() {
                 Some(normal_object) => {
-                    if normal_object.class_pointer.view().name() == ClassName::thread_group() {
+                    if normal_object.class_pointer.view().name() == ClassName::thread_group().into() {
                         return JThreadGroup { normal_object: self.unwrap_object_nonnull() }.into();
                     }
                     None

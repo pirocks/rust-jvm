@@ -138,7 +138,7 @@ fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
 fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> VType {
     let class_view = get_class(vf, class);
     let class_name = class_view.name();
-    VType::Class(ClassWithLoader { class_name, loader: class.loader.clone() })
+    class_name.to_verification_type(&class.loader)
 }
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> Result<(), TypeSafetyError> {

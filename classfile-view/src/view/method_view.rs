@@ -85,7 +85,7 @@ impl MethodView<'_> {
         // •  It has a single formal parameter of type Object[].
         // •  It has a return type of Object.
         // •  It has the ACC_VARARGS and ACC_NATIVE flags set.
-        self.class_view.name() == ClassName::method_handle() &&
+        self.class_view.name() == ClassName::method_handle().into() &&
             self.desc().parameter_types.len() == 1 &&
             self.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
             self.desc().return_type == PTypeView::object().to_ptype() &&

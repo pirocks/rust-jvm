@@ -26,7 +26,7 @@ pub fn run_native_method(
     method_i: usize) -> Result<(), WasException> {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack().len();
-    assert_inited_or_initing_class(jvm, int_state, view.name().into());
+    assert_inited_or_initing_class(jvm, int_state, view.type_());
     assert_eq!(before, int_state.current_frame().operand_stack().len());
     let method = view.method_view_i(method_i);
     if !method.is_static() {
@@ -52,7 +52,7 @@ pub fn run_native_method(
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()));
     assert!(int_state.current_frame_mut().is_native());
 
-    let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0, &class.view().name());
+    let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);
     if let Some(m) = monitor.as_ref() {
         m.lock(jvm)
     }

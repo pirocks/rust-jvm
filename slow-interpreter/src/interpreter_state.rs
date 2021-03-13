@@ -196,15 +196,15 @@ impl<'l> InterpreterStateGuard<'l> {
     pub fn debug_print_stack_trace(&self) {
         for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
             if stack_entry.try_method_i().is_some() && stack_entry.method_i() > 0 {
-                let name = stack_entry.class_pointer().view().name();
+                let type_ = stack_entry.class_pointer().view().type_();
                 let view = stack_entry.class_pointer().view();
                 let method_view = view.method_view_i(stack_entry.method_i() as usize);
                 let meth_name = method_view.name();
                 if method_view.is_native() {
-                    println!("{}.{} {} {}", name.get_referred_name(), meth_name, method_view.desc_str(), i)
+                    println!("{:?}.{} {} {}", type_, meth_name, method_view.desc_str(), i)
                 } else {
-                    println!("{}.{} {} {} pc: {} {}", name
-                        .get_referred_name(), meth_name,
+                    println!("{:?}.{} {} {} pc: {} {}", type_
+                             , meth_name,
                              method_view.desc_str(), i, stack_entry
                                  .pc(), stack_entry.loader())
                 }

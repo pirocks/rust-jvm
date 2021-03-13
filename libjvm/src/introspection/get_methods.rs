@@ -65,7 +65,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
         let method = Method::method_object_from_method_view(jvm, int_state, &method_view).expect("todo");
         object_array.push(method.java_value());
     });
-    let res = Arc::new(Object::object_array(jvm, int_state, object_array, PTypeView::Ref(ReferenceTypeView::Class(method_class.view().name())))).into();
+    let res = Arc::new(Object::object_array(jvm, int_state, object_array, method_class.view().type_())).into();
     unsafe { Ok(new_local_ref_public(res, int_state)) }
 }
 

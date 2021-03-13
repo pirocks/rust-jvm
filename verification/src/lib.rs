@@ -19,7 +19,7 @@ pub mod verifier;
 
 pub fn verify(vf: &VerifierContext, to_verify: &ClassBackedView, loader: LoaderName) -> Result<(), TypeSafetyError> {
     let (_time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
-        class_name: to_verify.name(),
+        class_name: to_verify.name().unwrap_name(),
         loader,
     }) {
         Ok(_) => Result::Ok(()),

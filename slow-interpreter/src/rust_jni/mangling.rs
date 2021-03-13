@@ -6,8 +6,7 @@ use classfile_view::view::method_view::MethodView;
 pub fn mangle(method: &MethodView) -> String {
     let method_name = method.name();
     let class_view = method.classview();
-    let class_name_ = class_view.name();
-    let class_name = class_name_.get_referred_name();
+    let class_name = class_view.type_().class_name_representation();
     let multiple_same_name_methods = class_view.lookup_method_name(&method_name).iter().filter(|m| {
         m.is_native()
     }).count() > 1;
@@ -15,9 +14,9 @@ pub fn mangle(method: &MethodView) -> String {
         let descriptor_str = method.desc_str();
         let rg = Regex::new(r"\(([A-Za-z/;]*)\)").unwrap();
         let extracted_descriptor = rg.captures(descriptor_str.as_str()).unwrap().get(1).unwrap().as_str().to_string();
-        format!("Java_{}_{}__{}", escape(class_name), escape(&method_name), escape(&extracted_descriptor))
+        format!("Java_{}_{}__{}", escape(&class_name), escape(&method_name), escape(&extracted_descriptor))
     } else {
-        format!("Java_{}_{}", escape(class_name), escape(&method_name))
+        format!("Java_{}_{}", escape(&class_name), escape(&method_name))
     }
 }
 

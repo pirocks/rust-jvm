@@ -40,7 +40,7 @@ pub enum InitAssertionCase {
 
 
 pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
-    if target.unwrap_normal_object().class_pointer.view().name() == ClassName::method() {//todo replace with a try cast
+    if target.unwrap_normal_object().class_pointer.view().name() == ClassName::method().into() {//todo replace with a try cast
         let target = target.cast_method();
         method_init(jvm, int_state, mname.clone(), target, method_view, synthetic);
     } else {

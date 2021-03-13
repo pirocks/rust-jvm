@@ -11,6 +11,8 @@ use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, Doubl
 use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
 use crate::view::method_view::{MethodIterator, MethodView};
+use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
+use crate::view::ptype_view::PTypeView::Ref;
 
 pub trait HasAccessFlags {
     fn access_flags(&self) -> u16;
@@ -48,7 +50,8 @@ pub trait HasAccessFlags {
 
 
 pub trait ClassView: HasAccessFlags {
-    fn name(&self) -> ClassName;
+    fn name(&self) -> ReferenceTypeView;
+    fn type_(&self) -> PTypeView;
     fn super_name(&self) -> Option<ClassName>;
     fn methods(&self) -> MethodIterator;
     fn method_view_i(&self, i: usize) -> MethodView;
@@ -100,9 +103,14 @@ impl ClassBackedView {
 }
 
 impl ClassView for ClassBackedView {
-    fn name(&self) -> ClassName {
-        class_name(&self.backing_class)
+    fn name(&self) -> ReferenceTypeView {
+        ReferenceTypeView::Class(class_name(&self.backing_class))
     }
+
+    fn type_(&self) -> PTypeView {
+        PTypeView::Ref(self.name())
+    }
+
     fn super_name(&self) -> Option<ClassName> {
         self.backing_class.super_class_name()
     }
@@ -270,14 +278,15 @@ pub enum PrimitiveView {
 impl HasAccessFlags for PrimitiveView {
     fn access_flags(&self) -> u16 {
         0x3F6 //value found experimentally w/ hotspot.
+        // should be the same as public, final
     }
 }
 
 //todo perhaps devirtualize this and go for sum types instead
 
 impl ClassView for PrimitiveView {
-    fn name(&self) -> ClassName {
-        match self {
+    fn name(&self) -> ReferenceTypeView {
+        ReferenceTypeView::Class(match self {
             PrimitiveView::Byte => ClassName::raw_byte(),
             PrimitiveView::Boolean => ClassName::raw_boolean(),
             PrimitiveView::Short => ClassName::raw_short(),
@@ -287,6 +296,20 @@ impl ClassView for PrimitiveView {
             PrimitiveView::Float => ClassName::raw_float(),
             PrimitiveView::Double => ClassName::raw_double(),
             PrimitiveView::Void => ClassName::raw_void()
+        })
+    }
+
+    fn type_(&self) -> PTypeView {
+        match self {
+            PrimitiveView::Byte => todo!(),
+            PrimitiveView::Boolean => todo!(),
+            PrimitiveView::Short => todo!(),
+            PrimitiveView::Char => todo!(),
+            PrimitiveView::Int => todo!(),
+            PrimitiveView::Long => todo!(),
+            PrimitiveView::Float => todo!(),
+            PrimitiveView::Double => todo!(),
+            PrimitiveView::Void => todo!()
         }
     }
 
@@ -362,13 +385,22 @@ pub struct ArrayView {
 
 impl HasAccessFlags for ArrayView {
     fn access_flags(&self) -> u16 {
-        todo!()
+        let sub_protected = self.sub.is_protected();
+        let sub_private = self.sub.is_private();
+        let sub_public = self.sub.is_public();
+        (ACC_FINAL | (if sub_protected { ACC_PROTECTED } else { 0 }) |
+            (if sub_private { ACC_PRIVATE } else { 0 }) |
+            (if sub_public { ACC_PUBLIC } else { 0 })) & !ACC_INTERFACE
     }
 }
 
 impl ClassView for ArrayView {
-    fn name(&self) -> ClassName {
+    fn name(&self) -> ReferenceTypeView {
         todo!()
+    }
+
+    fn type_(&self) -> PTypeView {
+        PTypeView::Ref(ReferenceTypeView::Array(box self.type_()))
     }
 
     fn super_name(&self) -> Option<ClassName> {

@@ -1,5 +1,6 @@
 use std::sync::RwLock;
 
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
 
@@ -61,7 +62,7 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_function_enter<'l>(&self, classname: &'l ClassName, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
+    pub fn trace_function_enter<'l>(&self, classname: &'l PTypeView, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
         if *self.trace_function_start.read().unwrap() {
             println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
         }
@@ -203,7 +204,7 @@ impl Drop for JVMTIEnterExitTraceGuard {
 }
 
 pub struct FunctionEnterExitTraceGuard<'l> {
-    classname: &'l ClassName,
+    classname: &'l PTypeView,
     meth_name: &'l str,
     method_desc: &'l str,
     current_depth: usize,

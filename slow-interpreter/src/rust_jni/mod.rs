@@ -132,7 +132,7 @@ pub fn call_impl(
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(classfile.view().name())));
+        load_class_constant_by_type(jvm, int_state, classfile.view().type_());
         let res = vec![Arg::new(&env), unsafe { to_native(int_state.pop_current_operand_stack(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()) }];
         res
     };

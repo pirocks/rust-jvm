@@ -143,6 +143,7 @@ fn locate_main_method(main: &Arc<dyn ClassView>) -> usize {
             return m.method_i();
         }
     }
-    panic!("No psvms found in class: {}", main.name().get_referred_name());
+    //todo validate that main class isn't an array class
+    panic!("No psvms found in class: {}", main.name().unwrap_name().get_referred_name());
 }
 

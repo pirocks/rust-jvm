@@ -19,7 +19,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
             get_or_create_class_object(jvm, PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), int_state)
         }
         Object::Object(o) => {
-            get_or_create_class_object(jvm, PTypeView::Ref(ReferenceTypeView::Class(o.class_pointer.view().name())), int_state)
+            get_or_create_class_object(jvm, o.class_pointer.view().type_(), int_state)
         }
     }.unwrap();//todo pass the error up
 

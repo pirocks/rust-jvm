@@ -92,10 +92,9 @@ impl CycleDetectingDebug for Object {
 impl CycleDetectingDebug for NormalObject {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
         let o = self;
-        if o.class_pointer.view().name() == ClassName::class() {
+        if o.class_pointer.view().name() == ClassName::class().into() {
             write!(f, "need a jvm pointer here to give more info on class object")?;
-            // write!(f, "(Class Object:{:?})", o.class_object_type.as_ref().unwrap().ptypeview())?;//todo needs a JClass type interface
-        } else if o.class_pointer.view().name() == ClassName::string() {
+        } else if o.class_pointer.view().name() == ClassName::string().into() {
             let fields_borrow = o.fields_mut();
             let value_field = fields_borrow.get("value").unwrap();
             match &value_field.unwrap_object() {

@@ -45,7 +45,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                 cur_line
             }
         };
-        let declaring_class_name = match JString::from_rust(jvm, int_state, declaring_class_view.name().get_referred_name().to_string()) {
+        let declaring_class_name = match JString::from_rust(jvm, int_state, declaring_class_view.type_().class_name_representation()) {
             Ok(declaring_class_name) => declaring_class_name,
             Err(WasException {}) => todo!()
         };

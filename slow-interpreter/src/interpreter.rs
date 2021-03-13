@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use classfile_parser::code::{CodeParserContext, parse_instruction};
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
@@ -46,7 +47,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let synchronized = method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
     let meth_name = method.name();
-    let class_name__ = view.name();
+    let class_name__ = view.type_();
 
     let method_desc = method.desc_str();
     let current_depth = interpreter_state.call_stack_depth();
@@ -56,7 +57,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let class_pointer = interpreter_state.current_frame().class_pointer();
     let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
-    let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized, &class_name__);
+    let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized);
 
 
     while !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
@@ -163,13 +164,12 @@ pub fn monitor_for_function(
     int_state: &mut InterpreterStateGuard,
     method: &MethodView,
     synchronized: bool,
-    class_name: &ClassName,
 ) -> Option<Arc<Monitor>> {
     if synchronized {
         let monitor = if method.is_static() {
             let class_object = get_or_create_class_object(
                 jvm,
-                class_name.clone().into(),
+                method.classview().type_(),
                 int_state,
             ).unwrap();
             class_object.unwrap_normal_object().monitor.clone()

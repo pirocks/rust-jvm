@@ -388,7 +388,7 @@ fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoad
     let method_name = method_name_.deref();
     if method_name == "<init>" {
         if class.class_name == ClassName::object() {
-            Result::Ok(VType::Class(ClassWithLoader { class_name: get_class(vf, class).name(), loader: class.loader.clone() }))
+            Result::Ok(VType::Class(ClassWithLoader { class_name: get_class(vf, class).name().unwrap_name(), loader: class.loader.clone() }))
         } else {
             let mut chain = vec![];
             super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
@@ -399,6 +399,6 @@ fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoad
             }
         }
     } else {
-        Result::Ok(VType::Class(ClassWithLoader { class_name: get_class(vf, class).name(), loader: class.loader.clone() }))
+        Result::Ok(get_class(vf, class).name().to_verification_type(&class.loader.clone()))
     }
 }

@@ -17,7 +17,7 @@ pub mod properties {
     impl JavaValue {
         pub fn cast_properties(&self) -> Properties {
             let res = Properties { normal_object: self.unwrap_object_nonnull() };
-            assert_eq!(res.normal_object.unwrap_normal_object().class_pointer.view().name(), ClassName::properties());
+            assert_eq!(res.normal_object.unwrap_normal_object().class_pointer.view().name(), ClassName::properties().into());
             res
         }
     }

@@ -83,8 +83,8 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
                 if let Some(o) = o {
                     if let Object::Object(obj) = o.deref() {
                         //todo handle others
-                        if obj.class_pointer.view().name() == ClassName::Str("java/lang/Integer".to_string()) {
-                            return obj.fields_mut().get("value").unwrap().clone()
+                        if obj.class_pointer.view().name() == ClassName::Str("java/lang/Integer".to_string()).into() {
+                            return obj.fields_mut().get("value").unwrap().clone();
                         }
                     }
                 }

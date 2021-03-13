@@ -595,8 +595,8 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 }
 
 pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: Arc<RuntimeClass>, f: FieldView) -> Result<JavaValue, WasException> {
-    let field_class_name_ = class_obj.clone().view().name();
-    load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(field_class_name_)));
+    let field_class_name_ = class_obj.clone().ptypeview();
+    load_class_constant_by_type(jvm, int_state, field_class_name_);
     let parent_runtime_class = int_state.pop_current_operand_stack();
 
     let field_name = f.field_name();
@@ -655,7 +655,7 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
 }
 
 pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue, WasException> {
-    let class_name = class_view.name();
+    let class_name = class_view.name().unwrap_name();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: Arc::new(class_view),
         static_vars: Default::default(),

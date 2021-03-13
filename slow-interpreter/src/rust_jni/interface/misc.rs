@@ -133,20 +133,23 @@ pub unsafe extern "C" fn register_natives(env: *mut JNIEnv,
                                           clazz: jclass,
                                           methods: *const JNINativeMethod,
                                           n_methods: jint) -> jint {
-    // println!("Call to register_natives, n_methods: {}", n_methods);
     let jvm = get_state(env);
     for to_register_i in 0..n_methods {
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
         let runtime_class: Arc<RuntimeClass> = from_jclass(clazz).as_runtime_class(jvm);
+        let class_name = match runtime_class.ptypeview().try_unwrap_class_type() {
+            None => { return JNI_ERR; }
+            Some(cn) => cn,
+        };
+        let view = runtime_class.view();
         let jni_context = &jvm.libjava;
-        let view = &runtime_class.view();
         view.methods().enumerate().for_each(|(i, method_info)| {
             let descriptor_str = method_info.desc_str();
             let current_name = method_info.name();
             if current_name == expected_name && descriptor == descriptor_str {
-                jvm.tracing.trace_jni_register(&view.name(), expected_name.as_str());
+                jvm.tracing.trace_jni_register(&class_name, expected_name.as_str());
                 register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
             }
         });

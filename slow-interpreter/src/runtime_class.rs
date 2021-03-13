@@ -55,7 +55,7 @@ impl RuntimeClass {
                 PTypeView::Ref(ReferenceTypeView::Array(box arr.sub_class.ptypeview()))
             }
             RuntimeClass::Object(o) => {
-                PTypeView::Ref(ReferenceTypeView::Class(o.class_view.name()))
+                PTypeView::Ref(ReferenceTypeView::Class(o.class_view.name().unwrap_name()))
             }
         }
     }
@@ -133,7 +133,11 @@ impl Debug for RuntimeClassClass {
 
 pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, classfile: Arc<dyn ClassView>, res: &mut HashMap<String, JavaValue>) {
     if let Some(jvmti) = jvm.jvmti_state.as_ref() {
-        jvmti.built_in_jdwp.class_prepare(jvm, &classfile.name(), int_state)
+        if let PTypeView::Ref(ref_) = classfile.type_() {
+            if let ReferenceTypeView::Class(cn) = ref_ {
+                jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)
+            }
+        }
     }
 
     for field in classfile.fields() {
