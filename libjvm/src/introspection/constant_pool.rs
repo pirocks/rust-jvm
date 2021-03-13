@@ -2,7 +2,9 @@ use std::hint::unreachable_unchecked;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use classfile_view::loading::ClassLoadingError;
+use by_address::ByAddress;
+
+use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
@@ -13,6 +15,7 @@ use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::Object;
+use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
 
@@ -27,8 +30,8 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject) -> jint {
     let jvm = get_state(env);
-    let runtimec_lass = from_jclass(constantPoolOop).as_runtime_class(jvm);
-    let view = runtimec_lass.view();
+    let runtime_class = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = runtime_class.view();
     view.constant_pool_size() as jint
 }
 
@@ -55,7 +58,24 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null_mut();
+    }
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Class(c) => {
+            let classes_guard = jvm.classes.read().unwrap();
+            match classes_guard.get_class_obj(rc.ptypeview()) {
+                None => null_mut(),
+                Some(obj) => to_object(obj.into())
+            }
+        }
+        _ => null_mut()
+    }
 }
 
 #[no_mangle]
@@ -255,11 +275,11 @@ unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jcla
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int, calledClass: jclass) -> jint {
+unsafe extern "system" fn JVM_GetCPFieldModifiers(env: *mut JNIEnv, cb: jclass, index: jint, calledClass: jclass) -> jint {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodModifiers(env: *mut JNIEnv, cb: jclass, index: ::std::os::raw::c_int, calledClass: jclass) -> jint {
+unsafe extern "system" fn JVM_GetCPMethodModifiers(env: *mut JNIEnv, cb: jclass, index: jint, calledClass: jclass) -> jint {
     unimplemented!()
 }

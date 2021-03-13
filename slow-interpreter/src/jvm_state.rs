@@ -103,11 +103,14 @@ impl Classes {
 
     pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass>) -> LoaderName {
         let (res, actual_class) = self.initiating_loaders.get(&class_.ptypeview()).unwrap();
-        // dbg!(res);
-        // dbg!(class_.view().name());
-        // dbg!(actual_class.view().name());
         assert!(Arc::ptr_eq(class_, actual_class));
         *res
+    }
+
+    pub fn get_class_obj(&self, ptypeview: PTypeView) -> Option<Arc<Object>> {
+        let runtime_class = self.initiating_loaders.get(&PTypeView::Ref(c.class_ref_type()))?.1.clone();
+        let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().0;
+        Some(obj)
     }
 }
 
