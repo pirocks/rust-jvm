@@ -108,7 +108,7 @@ impl Classes {
     }
 
     pub fn get_class_obj(&self, ptypeview: PTypeView) -> Option<Arc<Object>> {
-        let runtime_class = self.initiating_loaders.get(&PTypeView::Ref(c.class_ref_type()))?.1.clone();
+        let runtime_class = self.initiating_loaders.get(&ptypeview)?.1.clone();
         let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().0;
         Some(obj)
     }

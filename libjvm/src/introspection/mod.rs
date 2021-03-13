@@ -47,17 +47,17 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     }).collect::<Result<Vec<_>, WasException>>() {
         Ok(interface_vec) => interface_vec,
         Err(WasException {}) => {
-            return null_mut()
+            return null_mut();
         }
     };
-    let res = Some(Arc::new(Array(ArrayObject::new_array(jvm, int_state, interface_vec, ClassName::class().into(), jvm.thread_state.new_monitor("".to_string()))));
+    let res = Some(Arc::new(Array(ArrayObject::new_array(jvm, int_state, interface_vec, ClassName::class().into(), jvm.thread_state.new_monitor("".to_string())))));
     new_local_ref_public(res, int_state)
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassSigners(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
-    unimplemented!()
+    null_mut()// not supporting class signing atm.
 }
 
 #[no_mangle]
@@ -81,19 +81,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let jclass = from_jclass(cls);
-    let type_ = jclass.as_type(jvm);
-    if type_.is_primitive() {
-        // is primitive
-        // essentially an abstract class of the non-primitive version
-        //todo find a better way to do this
-        let obj = from_object(cls);
-        let type_ = JavaValue::Object(obj).cast_class().as_type(jvm);
-        let name = type_.unwrap_type_to_name().unwrap();
-        let class_for_access_flags = check_initing_or_inited_class(jvm, int_state, name.into()).unwrap(); //todo pass the error up
-        (class_for_access_flags.view().access_flags() | ACC_ABSTRACT) as jint
-    } else {
-        jclass.as_runtime_class(jvm).view().access_flags() as jint
-    }
+    jclass.as_runtime_class(jvm).view().access_flags() as jint
 }
 
 #[no_mangle]
