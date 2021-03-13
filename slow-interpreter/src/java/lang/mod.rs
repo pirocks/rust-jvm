@@ -889,7 +889,6 @@ pub mod array_out_of_bounds_exception {
 pub mod illegal_argument_exception {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;

@@ -83,10 +83,6 @@ impl ClassBackedView {
         ClassBackedView { backing_class: c.clone(), method_index: RwLock::new(None), descriptor_index: RwLock::new(vec![None; c.methods.len()]) }
     }
 
-    fn backing_class(&self) -> Arc<Classfile> {
-        self.backing_class.clone()
-    }
-
     fn method_index(&self) -> Arc<MethodIndex> {
         let read_guard = self.method_index.read().unwrap();
         match read_guard.as_ref() {
@@ -174,7 +170,7 @@ impl ClassView for ClassBackedView {
     fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView> {
         let (i, _) = self.backing_class.attributes.iter().enumerate().find(|(_, x)| {
             match &x.attribute_type {
-                AttributeType::BootstrapMethods(bm) => true,
+                AttributeType::BootstrapMethods(_) => true,
                 _ => false
             }
         })?;
