@@ -25,6 +25,7 @@ use slow_interpreter::java::lang::class_not_found_exception::ClassNotFoundExcept
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
+use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
@@ -161,7 +162,6 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     loader: jobject,
     caller: jclass,
 ) -> jclass {
-    //todo handle loader
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
@@ -176,17 +176,16 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
         int_state,
         loader_name,
     );
-    //todo exception making code maybe should be here idk
     match class_lookup_result {
         Ok(class_object) => {
             if init != 0 {
-                check_initing_or_inited_class(jvm, int_state, p_type);
+                if let Err(WasException {}) = check_initing_or_inited_class(jvm, int_state, p_type) {
+                    return null_mut()
+                };
             }
-
-
             new_local_ref_public(Some(class_object), int_state)
         }
-        Err(err) => {
+        Err(WasException {}) => {
             null_mut()
         }
     }
