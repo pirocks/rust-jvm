@@ -18,6 +18,7 @@ use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::class_not_found_exception::ClassNotFoundException;
@@ -40,16 +41,16 @@ pub mod method_annotations;
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let interface_vec = from_jclass(cls).as_runtime_class(jvm).view().interfaces().map(|interface| {
-        let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state).unwrap();//todo pass the error up
-        JavaValue::Object(Some(class_obj))
-    }).collect::<Vec<_>>();
-    //todo helper function for this:
-    let res = Some(Arc::new(Array(ArrayObject {
-        elems: UnsafeCell::new(interface_vec),
-        elem_type: ClassName::class().into(),
-        monitor: jvm.thread_state.new_monitor("".to_string()),
-    })));
+    let interface_vec = match from_jclass(cls).as_runtime_class(jvm).view().interfaces().map(|interface| {
+        let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?;
+        Ok(JavaValue::Object(Some(class_obj)))
+    }).collect::<Result<Vec<_>, WasException>>() {
+        Ok(interface_vec) => interface_vec,
+        Err(WasException {}) => {
+            return null_mut()
+        }
+    };
+    let res = Some(Arc::new(Array(ArrayObject::new_array(jvm, int_state, interface_vec, ClassName::class().into(), jvm.thread_state.new_monitor("".to_string()))));
     new_local_ref_public(res, int_state)
 }
 
