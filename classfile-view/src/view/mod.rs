@@ -301,15 +301,15 @@ impl ClassView for PrimitiveView {
 
     fn type_(&self) -> PTypeView {
         match self {
-            PrimitiveView::Byte => todo!(),
-            PrimitiveView::Boolean => todo!(),
-            PrimitiveView::Short => todo!(),
-            PrimitiveView::Char => todo!(),
-            PrimitiveView::Int => todo!(),
-            PrimitiveView::Long => todo!(),
-            PrimitiveView::Float => todo!(),
-            PrimitiveView::Double => todo!(),
-            PrimitiveView::Void => todo!()
+            PrimitiveView::Byte => PTypeView::ByteType,
+            PrimitiveView::Boolean => PTypeView::BooleanType,
+            PrimitiveView::Short => PTypeView::ShortType,
+            PrimitiveView::Char => PTypeView::CharType,
+            PrimitiveView::Int => PTypeView::IntType,
+            PrimitiveView::Long => PTypeView::LongType,
+            PrimitiveView::Float => PTypeView::FloatType,
+            PrimitiveView::Double => PTypeView::DoubleType,
+            PrimitiveView::Void => PTypeView::VoidType
         }
     }
 
