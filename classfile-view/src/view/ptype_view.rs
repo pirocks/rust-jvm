@@ -245,7 +245,7 @@ impl PTypeView {
                     }
                 }
             }
-            PTypeView::ShortType => res.push('S'),//todo shouldn't these be panics
+            PTypeView::ShortType => res.push('S'),
             PTypeView::BooleanType => res.push('Z'),
             PTypeView::VoidType => res.push('V'),
             _ => panic!(),

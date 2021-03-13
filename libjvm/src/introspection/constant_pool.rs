@@ -1,3 +1,4 @@
+use std::hint::unreachable_unchecked;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
@@ -13,7 +14,7 @@ use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
-use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res};
+use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass) -> jobject {
@@ -39,7 +40,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds(jvm, int_state, index);
-        return null_mut()
+        return null_mut();
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => {
@@ -90,11 +91,14 @@ unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoo
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds(jvm, int_state, index);
-        return 0
+        return 0;
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Integer(int_) => int_.int,
-        _ => todo!("unclear what to do here")
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return -1;
+        }
     }
 }
 
@@ -106,11 +110,14 @@ unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPo
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds(jvm, int_state, index);
-        return 0
+        return 0;
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Long(long_) => long_.long,
-        _ => todo!("unclear what to do here")//should throw illregal arg exception
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return -1;
+        }
     }
 }
 
@@ -122,11 +129,14 @@ unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantP
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds(jvm, int_state, index);
-        return 0f32
+        return -1f32;
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Float(float_) => float_.float,
-        _ => todo!("unclear what to do here")
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return -1f32;
+        }
     }
 }
 
@@ -138,11 +148,14 @@ unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constant
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds(jvm, int_state, index);
-        return 0f64;
+        return -1f64;
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Double(double_) => double_.double,
-        _ => todo!("unclear what to do here")
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return -1f64;
+        }
     }
 }
 
@@ -164,7 +177,10 @@ unsafe fn ConstantPoolGetStringAt_impl(env: *mut JNIEnv, constantPoolOop: *mut _
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::String(string) => Ok(to_object(JString::from_rust(jvm, int_state, string.string())?.object().into())),
-        _ => todo!("unclear what to do here")
+        _ => {
+            throw_illegal_arg_res(jvm, int_state)?;
+            Ok(unreachable!())
+        }
     }
 }
 
@@ -186,7 +202,10 @@ unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject,
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Utf8(utf8) => Ok(to_object(JString::from_rust(jvm, int_state, utf8.str.clone())?.object().into())),
-        _ => todo!("unclear what to do here")
+        _ => {
+            throw_illegal_arg_res(jvm, int_state)?;
+            Ok(unreachable!())
+        }
     }
 }
 

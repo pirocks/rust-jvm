@@ -836,7 +836,7 @@ pub mod null_pointer_exception {
         as_object_or_java_value!();
 
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<NullPointerException, WasException> {
-            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into())?;
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/NullPointerException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack();
             let message = JString::from_rust(jvm, int_state, "This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string())?;
@@ -875,12 +875,50 @@ pub mod array_out_of_bounds_exception {
         as_object_or_java_value!();
 
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> Result<ArrayOutOfBoundsException, WasException> {
-            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into())?;
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ArrayOutOfBoundsException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Int(index)],
                             "(I)V".to_string())?;
             Ok(this.cast_array_out_of_bounds_exception())
+        }
+    }
+}
+
+
+pub mod illegal_argument_exception {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::jint;
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct IllegalArgumentException {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_illegal_argument_exception(&self) -> IllegalArgumentException {
+            IllegalArgumentException { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl IllegalArgumentException {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<IllegalArgumentException, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/IllegalArgumentException".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone()],
+                            "()V".to_string())?;
+            Ok(this.cast_illegal_argument_exception())
         }
     }
 }

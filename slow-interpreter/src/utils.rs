@@ -9,6 +9,7 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
+use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
 use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java_values::Object;
 use crate::JVMState;
@@ -80,7 +81,23 @@ pub fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStat
     let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
         Err(WasException {}) => {
-            eprintln!("Warning error encountered creating NPE");
+            eprintln!("Warning error encountered creating Array out of bounds");
+            return;
+        }
+    }.object().into();
+    int_state.set_throw(bounds_object);
+}
+
+pub fn throw_illegal_arg_res(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    throw_illegal_arg(jvm, int_state);
+    Err(WasException)
+}
+
+pub fn throw_illegal_arg(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let bounds_object = match IllegalArgumentException::new(jvm, int_state) {
+        Ok(npe) => npe,
+        Err(WasException {}) => {
+            eprintln!("Warning error encountered creating illegal arg exception");
             return;
         }
     }.object().into();
