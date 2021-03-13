@@ -633,7 +633,6 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
         }
         ConstantInfoView::MethodHandle(_) => unimplemented!(),
         ConstantInfoView::MethodType(_) => unimplemented!(),
-        ConstantInfoView::Dynamic(_) => unimplemented!(),
         ConstantInfoView::InvokeDynamic(_) => unimplemented!(),
         ConstantInfoView::LiveObject(idx) => {
             let type_ = vf.live_pool_getter.elem_type(*idx);

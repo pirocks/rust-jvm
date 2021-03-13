@@ -43,7 +43,6 @@ pub struct ClassPoolElemView {
 impl ClassPoolElemView {
     pub fn class_ref_type(&self) -> ReferenceTypeView {
         let name_str = self.backing_class.constant_pool[self.name_index].extract_string_from_utf8();
-        //todo parse_class_name needs to be used more elsewhere
         let type_ = PTypeView::from_ptype(&parse_class_name(&name_str));
         type_.unwrap_ref_type().clone()
     }
@@ -276,11 +275,6 @@ impl MethodTypeView<'_> {
 }
 
 #[derive(Debug)]
-pub struct DynamicView {
-    //todo
-}
-
-#[derive(Debug)]
 pub struct InvokeDynamicView<'cl> {
     pub(crate) class_view: &'cl ClassBackedView,
     pub(crate) bootstrap_method_attr_index: u16,
@@ -315,7 +309,6 @@ pub enum ConstantInfoView<'cl> {
     NameAndType(NameAndTypeView<'cl>),
     MethodHandle(MethodHandleView<'cl>),
     MethodType(MethodTypeView<'cl>),
-    Dynamic(DynamicView),
     InvokeDynamic(InvokeDynamicView<'cl>),
     LiveObject(usize),
 }
