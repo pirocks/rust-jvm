@@ -3,10 +3,8 @@ use std::sync::Arc;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
-use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
 use crate::class_objects::get_or_create_class_object;

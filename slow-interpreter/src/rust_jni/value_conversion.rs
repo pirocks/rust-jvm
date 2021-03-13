@@ -1,4 +1,3 @@
-use std::ffi::c_void;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -8,7 +7,7 @@ use libffi::middle::Type;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::ptype::PType;
 
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::native_util::to_object;
 
@@ -78,7 +77,7 @@ pub unsafe fn to_native(j: JavaValue, t: &PType) -> Arg {
 }
 
 
-pub unsafe fn free_native(j: JavaValue, t: &PType, to_free: &mut Arg) {
+pub unsafe fn free_native(_j: JavaValue, t: &PType, to_free: &mut Arg) {
     match t {
         PType::ByteType => {
             Box::<jbyte>::from_raw(to_free.0 as *mut jbyte);

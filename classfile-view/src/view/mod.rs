@@ -12,7 +12,6 @@ use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
 use crate::view::method_view::{MethodIterator, MethodView};
 use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
-use crate::view::ptype_view::PTypeView::Ref;
 
 pub trait HasAccessFlags {
     fn access_flags(&self) -> u16;
@@ -314,7 +313,7 @@ impl ClassView for PrimitiveView {
     }
 
     fn super_name(&self) -> Option<ClassName> {
-        Some(ClassName::object())
+        None
     }
 
     /// in general for this view methods trying to keep things consistent with reflection output, though this will make method lookups possibly messier
@@ -396,23 +395,25 @@ impl HasAccessFlags for ArrayView {
 
 impl ClassView for ArrayView {
     fn name(&self) -> ReferenceTypeView {
-        todo!()
+        self.type_().unwrap_ref_type().clone()
     }
 
     fn type_(&self) -> PTypeView {
-        PTypeView::Ref(ReferenceTypeView::Array(box self.type_()))
+        PTypeView::Ref(ReferenceTypeView::Array(box self.sub.type_()))
     }
 
+    /// this is doing the heavy lifting to get all the desired methods here
+    /// there is still the question of clone/serializable
     fn super_name(&self) -> Option<ClassName> {
-        None
+        Some(ClassName::object())
     }
 
     fn methods(&self) -> MethodIterator {
-        todo!()
+        MethodIterator::Empty {}
     }
 
-    fn method_view_i(&self, i: usize) -> MethodView {
-        todo!()
+    fn method_view_i(&self, _i: usize) -> MethodView {
+        panic!()
     }
 
     fn num_methods(&self) -> usize {
@@ -423,28 +424,28 @@ impl ClassView for ArrayView {
         0
     }
 
-    fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
-        todo!()
+    fn constant_pool_view(&self, _i: usize) -> ConstantInfoView {
+        panic!()
     }
 
-    fn field(&self, i: usize) -> FieldView {
-        todo!()
+    fn field(&self, _i: usize) -> FieldView {
+        panic!()
     }
 
     fn fields(&self) -> FieldIterator {
-        todo!()
+        FieldIterator::Empty
     }
 
     fn interfaces(&self) -> InterfaceIterator {
-        todo!()
+        InterfaceIterator::CloneableAndSerializable { i: 0 }
     }
 
     fn num_fields(&self) -> usize {
-        todo!()
+        0
     }
 
     fn num_interfaces(&self) -> usize {
-        todo!()
+        2
     }
 
 
@@ -460,12 +461,12 @@ impl ClassView for ArrayView {
         None
     }
 
-    fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
-        todo!()
+    fn lookup_method(&self, _name: &str, _desc: &MethodDescriptor) -> Option<MethodView> {
+        panic!()
     }
 
-    fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
-        todo!()
+    fn lookup_method_name(&self, _name: &str) -> Vec<MethodView> {
+        panic!()
     }
 }
 

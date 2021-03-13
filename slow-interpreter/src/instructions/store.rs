@@ -1,7 +1,7 @@
 use classfile_view::view::ptype_view::PTypeView;
 
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::StackEntry;
 use crate::utils::throw_npe;

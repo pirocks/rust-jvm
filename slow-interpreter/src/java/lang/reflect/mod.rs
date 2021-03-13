@@ -121,7 +121,7 @@ pub mod method {
 
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
-    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
     use type_safe_proc_macro_utils::getter_gen;
@@ -247,7 +247,6 @@ pub mod constructor {
 
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
-    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
