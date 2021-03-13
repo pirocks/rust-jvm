@@ -9,9 +9,12 @@ pub struct InterfaceView<'l> {
 }
 
 
-pub struct InterfaceIterator<'l> {
-    pub(crate) view: &'l ClassBackedView,
-    pub(crate) i: usize,
+pub enum InterfaceIterator<'l> {
+    ClassBacked {
+        view: &'l ClassBackedView,
+        i: usize,
+    },
+    Empty,
 }
 
 
@@ -29,11 +32,18 @@ impl<'l> Iterator for InterfaceIterator<'l> {
     type Item = InterfaceView<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.i >= self.view.num_interfaces() {
-            return None;
+        match self {
+            InterfaceIterator::ClassBacked { view, i } => {
+                if *i >= view.num_interfaces() {
+                    return None;
+                }
+                let res = InterfaceView::from(self.view, self.i);
+                *i += 1;
+                Some(res)
+            }
+            InterfaceIterator::Empty => {
+                None
+            }
         }
-        let res = InterfaceView::from(self.view, self.i);
-        self.i += 1;
-        Some(res)
     }
 }

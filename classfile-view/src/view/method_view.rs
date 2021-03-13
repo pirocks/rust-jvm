@@ -113,21 +113,31 @@ impl MethodView<'_> {
 }
 
 
-pub struct MethodIterator<'l> {
-    pub(crate) class_view: &'l ClassBackedView,
-    pub(crate) i: usize,
+pub enum MethodIterator<'l> {
+    ClassBacked {
+        class_view: &'l ClassBackedView,
+        i: usize,
+    },
+    Empty {},
 }
 
 impl<'cl> Iterator for MethodIterator<'cl> {
     type Item = MethodView<'cl>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.i >= self.class_view.num_methods() {
-            return None;
+        match self {
+            MethodIterator::ClassBacked { class_view, i } => {
+                if *i >= class_view.num_methods() {
+                    return None;
+                }
+                let res = MethodView::from(self.class_view, self.i);
+                *i += 1;
+                Some(res)
+            }
+            MethodIterator::Empty { .. } => {
+                None
+            }
         }
-        let res = MethodView::from(self.class_view, self.i);
-        self.i += 1;
-        Some(res)
     }
 }
 

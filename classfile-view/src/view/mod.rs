@@ -60,7 +60,7 @@ pub trait ClassView: HasAccessFlags {
     fn interfaces(&self) -> InterfaceIterator;
     fn num_fields(&self) -> usize;
     fn num_interfaces(&self) -> usize;
-    fn bootstrap_methods_attr(&self) -> BootstrapMethodsView;
+    fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView>;
     fn sourcefile_attr(&self) -> Option<SourceFileView>;
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
 
@@ -107,7 +107,7 @@ impl ClassView for ClassBackedView {
         self.backing_class.super_class_name()
     }
     fn methods(&self) -> MethodIterator {
-        MethodIterator { class_view: self, i: 0 }
+        MethodIterator::ClassBacked { class_view: self, i: 0 }
     }
     fn method_view_i(&self, i: usize) -> MethodView {
         MethodView { class_view: self, method_i: i }
@@ -153,10 +153,10 @@ impl ClassView for ClassBackedView {
         FieldView::from(self, i)
     }
     fn fields(&self) -> FieldIterator {
-        FieldIterator { backing_class: &self, i: 0 }
+        FieldIterator::ClassBacked { backing_class: &self, i: 0 }
     }
     fn interfaces(&self) -> InterfaceIterator {
-        InterfaceIterator { view: &self, i: 0 }
+        InterfaceIterator::ClassBacked { view: &self, i: 0 }
     }
     fn num_fields(&self) -> usize {
         self.backing_class.fields.len()
@@ -164,14 +164,14 @@ impl ClassView for ClassBackedView {
     fn num_interfaces(&self) -> usize {
         self.backing_class.interfaces.len()
     }
-    fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
+    fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView> {
         let (i, _) = self.backing_class.attributes.iter().enumerate().find(|(_, x)| {
             match &x.attribute_type {
                 AttributeType::BootstrapMethods(bm) => true,
                 _ => false
             }
-        }).unwrap();
-        BootstrapMethodsView { backing_class: self, attr_i: i }
+        })?;
+        BootstrapMethodsView { backing_class: self, attr_i: i }.into()
     }
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
         let i = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
@@ -273,6 +273,8 @@ impl HasAccessFlags for PrimitiveView {
     }
 }
 
+//todo perhaps devirtualize this and go for sum types instead
+
 impl ClassView for PrimitiveView {
     fn name(&self) -> ClassName {
         match self {
@@ -289,11 +291,12 @@ impl ClassView for PrimitiveView {
     }
 
     fn super_name(&self) -> Option<ClassName> {
-        None
+        Some(ClassName::object())
     }
 
+    /// in general for this view methods trying to keep things consistent with reflection output, though this will make method lookups possibly messier
     fn methods(&self) -> MethodIterator {
-        todo!()
+        MethodIterator::Empty {}
     }
 
     fn method_view_i(&self, _i: usize) -> MethodView {
@@ -317,11 +320,11 @@ impl ClassView for PrimitiveView {
     }
 
     fn fields(&self) -> FieldIterator {
-        todo!()
+        FieldIterator::Empty
     }
 
     fn interfaces(&self) -> InterfaceIterator {
-        todo!()
+        InterfaceIterator::Empty
     }
 
     fn num_fields(&self) -> usize {
@@ -332,8 +335,8 @@ impl ClassView for PrimitiveView {
         0
     }
 
-    fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
-        todo!()
+    fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView> {
+        None
     }
 
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
@@ -377,7 +380,7 @@ impl ClassView for ArrayView {
     }
 
     fn method_view_i(&self, i: usize) -> MethodView {
-        panic!()
+        todo!()
     }
 
     fn num_methods(&self) -> usize {
@@ -389,11 +392,11 @@ impl ClassView for ArrayView {
     }
 
     fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
-        panic!()
+        todo!()
     }
 
     fn field(&self, i: usize) -> FieldView {
-        panic!()
+        todo!()
     }
 
     fn fields(&self) -> FieldIterator {
@@ -413,16 +416,16 @@ impl ClassView for ArrayView {
     }
 
 
-    fn bootstrap_methods_attr(&self) -> BootstrapMethodsView {
-        todo!()
+    fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView> {
+        None
     }
 
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
-        todo!()
+        None
     }
 
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
-        todo!()
+        None
     }
 
     fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {

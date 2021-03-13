@@ -23,7 +23,6 @@ impl FieldView<'_> {
     pub fn constant_value_attribute(&self) -> Option<ConstantInfoView> {
         self.field_info().constant_value_attribute_i().map(|i| { self.view.constant_pool_view(i as usize) })
     }
-    //todo deprecate this b/c messy
     pub fn from(c: &ClassBackedView, i: usize) -> FieldView {
         FieldView { view: c, i }
     }
@@ -43,10 +42,12 @@ impl HasAccessFlags for FieldView<'_> {
 }
 
 
-pub struct FieldIterator<'l> {
-    //todo create a from and remove pub(crate)
-    pub(crate) backing_class: &'l ClassBackedView,
-    pub(crate) i: usize,
+pub enum FieldIterator<'l> {
+    ClassBacked {
+        backing_class: &'l ClassBackedView,
+        i: usize,
+    },
+    Empty,
 }
 
 
@@ -54,11 +55,18 @@ impl<'l> Iterator for FieldIterator<'l> {
     type Item = FieldView<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.i >= self.backing_class.num_fields() {
-            return None;
+        match self {
+            FieldIterator::ClassBacked { i, backing_class } => {
+                if *i >= backing_class.num_fields() {
+                    return None;
+                }
+                let res = FieldView::from(backing_class, *i);
+                *i += 1;
+                Some(res)
+            }
+            FieldIterator::Empty => {
+                None
+            }
         }
-        let res = FieldView::from(self.backing_class, self.i);
-        self.i += 1;
-        Some(res)
     }
 }

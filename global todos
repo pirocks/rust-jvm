@@ -1,2 +1,4 @@
 have all string constants moved to a global string pool for memory etc.
 all places that where previously panics should have warnings
+
+should views hold arc refs, rcs or regular refs
