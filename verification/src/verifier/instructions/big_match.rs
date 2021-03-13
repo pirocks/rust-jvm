@@ -12,7 +12,6 @@ use crate::verifier::instructions::stores::*;
 use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    // dbg!(&instruction.instruction);
     match &instruction.instruction {
         InstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
         InstructionInfo::aastore => instruction_is_type_safe_aastore(env, stack_frame),
@@ -231,7 +230,9 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::multianewarray(m) => instruction_is_type_safe_multianewarray(m.index as usize, m.dims as usize, env, stack_frame),
         InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize, offset, env, stack_frame),
         InstructionInfo::newarray(type_code) => instruction_is_type_safe_newarray(*type_code as usize, env, stack_frame),
-        InstructionInfo::nop => { unimplemented!() }
+        InstructionInfo::nop => {
+            unimplemented!()
+        }
         InstructionInfo::pop => instruction_is_type_safe_pop(env, stack_frame),
         InstructionInfo::pop2 => instruction_is_type_safe_pop2(env, stack_frame),
         InstructionInfo::putfield(cp) => instruction_is_type_safe_putfield(*cp, env, stack_frame),

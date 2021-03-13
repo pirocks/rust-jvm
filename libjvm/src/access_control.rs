@@ -6,7 +6,7 @@ use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
-use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
+use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
@@ -24,16 +24,12 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
             return null_mut()
         },
     };
-    let runtime_class = &unwrapped_action.unwrap_normal_object().class_pointer;
-    let class_view = &runtime_class.view();
-    let run_method = class_view.lookup_method(&"run".to_string(), &parse_method_descriptor("()Ljava/lang/Object;").unwrap()).unwrap();//todo figure out if these unwraps are okay
     let expected_descriptor = MethodDescriptor {
         parameter_types: vec![],
         return_type: PType::Ref(ReferenceType::Class(ClassName::object())),
     };
     int_state.push_current_operand_stack(JavaValue::Object(action));
-    //todo shouldn't this be invoke_virtual
-    invoke_virtual_method_i(jvm, int_state, expected_descriptor, runtime_class.clone(), &run_method);
+    invoke_virtual(jvm, int_state, "run", &expected_descriptor);
     if int_state.throw().is_some() {
         return null_mut();
     }
