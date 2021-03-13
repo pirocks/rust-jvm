@@ -3,9 +3,9 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
@@ -56,7 +56,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         int_state.push_current_operand_stack(arg.clone());
     }
 
-    //todo clean this up
+    //todo clean this up, and handle invoke special
     let parsed_md = parse_method_descriptor(&signature).unwrap();
     let is_virtual = !target_runtime_class.view().lookup_method(&method_name, &parsed_md).unwrap().is_static();
     if is_virtual {

@@ -2,8 +2,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::MethodDescriptor;
 use jvmti_jni_bindings::jint;
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::WasException;

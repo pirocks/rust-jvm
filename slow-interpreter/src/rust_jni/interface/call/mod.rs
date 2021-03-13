@@ -1,8 +1,8 @@
 use std::ffi::{VaList, VaListImpl};
 
 use classfile_view::view::HasAccessFlags;
-use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
+use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::ptype::PType;
 
 // use log::trace;

@@ -1,10 +1,8 @@
-#![feature(box_syntax)]
-
 use std::hash::{Hash, Hasher};
 
-use rust_jvm_common::classfile::{Classfile, MethodInfo};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::ptype::{PType, ReferenceType};
+use crate::classfile::{Classfile, MethodInfo};
+use crate::classnames::ClassName;
+use crate::ptype::{PType, ReferenceType};
 
 #[derive(Debug, Eq, Clone)]
 pub struct MethodDescriptor { pub parameter_types: Vec<PType>, pub return_type: PType }
@@ -22,7 +20,7 @@ impl PartialEq for MethodDescriptor {
     }
 }
 
-impl Hash for MethodDescriptor{
+impl Hash for MethodDescriptor {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for ptype in &self.parameter_types {
             ptype.hash(state)

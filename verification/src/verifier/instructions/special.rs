@@ -6,10 +6,10 @@ use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
-use descriptor_parser::{Descriptor, FieldDescriptor, parse_field_descriptor};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::{Descriptor, FieldDescriptor, parse_field_descriptor};
 
 use crate::OperandStack;
 use crate::verifier::{Frame, standard_exception_frame};

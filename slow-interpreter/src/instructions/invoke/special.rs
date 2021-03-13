@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
-use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};

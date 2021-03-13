@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;

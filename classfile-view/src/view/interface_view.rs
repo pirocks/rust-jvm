@@ -1,4 +1,5 @@
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ptype::PType;
 
 use crate::view::{ClassBackedView, ClassView};
 
@@ -19,7 +20,7 @@ impl<'l> InterfaceView<'l> {
         InterfaceView { view: c, i }
     }
     pub fn interface_name(&self) -> ClassName {
-        ClassName::Str(self.view.backing_class.extract_class_from_constant_pool_name(self.view.backing_class.interfaces[self.i]))
+        PType::Ref(self.view.backing_class.extract_class_from_constant_pool_name(self.view.backing_class.interfaces[self.i])).unwrap_class_type()
     }
 }
 

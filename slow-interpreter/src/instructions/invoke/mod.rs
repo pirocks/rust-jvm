@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -20,8 +20,9 @@ pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::ClassView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceData};
-    use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+    use classfile_view::view::ptype_view::PTypeView;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
     use rust_jvm_common::ptype::{PType, ReferenceType};
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -169,7 +170,7 @@ pub mod dynamic {
                         let name = JString::from_rust(jvm, int_state, mr.name_and_type().name())?;
                         let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                        let target_class = JClass::from_name(jvm, int_state, mr.class());
+                        let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()));
                         lookup.find_static(jvm, int_state, target_class, name, method_type)?
                     }
                 }
@@ -184,7 +185,7 @@ pub mod dynamic {
                             let name = JString::from_rust(jvm, int_state, mr.name_and_type().name())?;
                             let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                            let target_class = JClass::from_name(jvm, int_state, mr.class());
+                            let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()));
                             let not_sure_if_correct_at_all = int_state.current_frame().class_pointer().view().name();
                             let special_caller = JClass::from_name(jvm, int_state, not_sure_if_correct_at_all);
                             lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?

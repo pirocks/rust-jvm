@@ -14,10 +14,10 @@ use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
 use crate::{InterpreterStateGuard, JVMState};

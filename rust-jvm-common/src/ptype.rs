@@ -72,6 +72,13 @@ impl PType {
             _ => panic!()
         }
     }
+
+    pub fn unwrap_ref_type(&self) -> ReferenceType {
+        match self {
+            PType::Ref(ref_) => ref_.clone(),
+            _ => panic!()
+        }
+    }
 }
 
 impl Clone for PType {

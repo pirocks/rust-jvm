@@ -5,8 +5,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use descriptor_parser::parse_method_descriptor;
 use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
+use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::class_loading::check_initing_or_inited_class;
 use crate::java_values::JavaValue;

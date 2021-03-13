@@ -18,9 +18,9 @@ use libloading::Symbol;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::MethodDescriptor;
 use jvmti_jni_bindings::{jchar, jobject, jshort};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::ldc::load_class_constant_by_type;

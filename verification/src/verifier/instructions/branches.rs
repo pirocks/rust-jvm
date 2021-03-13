@@ -6,9 +6,9 @@ use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::vtype::VType;
-use descriptor_parser::{Descriptor, MethodDescriptor, parse_field_descriptor};
 use rust_jvm_common::classfile::{InstructionInfo, UninitializedVariableInfo};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::{Descriptor, MethodDescriptor, parse_field_descriptor};
 
 use crate::OperandStack;
 use crate::verifier::{Frame, get_class, standard_exception_frame};
@@ -112,20 +112,19 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
 
 pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, env.method.class);
-    let ((method_name, descriptor), class_index) = match &method_class.constant_pool_view(cp) {
+    let ((method_name, descriptor), ref_type) = match &method_class.constant_pool_view(cp) {
         ConstantInfoView::InterfaceMethodref(i) => {
             ((i.name_and_type().name(), i.name_and_type().desc_method()), i.class())
         }
         _ => panic!()
     };
-    let method_intf_name = class_index.get_referred_name();
     if &method_name == "<init>" || &method_name == "<clinit>" {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
     }
     let mut operand_arg_list: Vec<_> = descriptor.parameter_types.iter().rev().map(|x| { PTypeView::to_verification_type(&PTypeView::from_ptype(&x), &env.class_loader) }).collect();
     let return_type = PTypeView::from_ptype(&descriptor.return_type).to_verification_type(&env.class_loader);
     let current_loader = env.class_loader.clone();
-    operand_arg_list.push(VType::Class(ClassWithLoader { class_name: ClassName::Str(method_intf_name.clone()), loader: current_loader }));
+    operand_arg_list.push(PTypeView::Ref(ref_type).to_verification_type(&current_loader));
     let stack_arg_list = operand_arg_list;
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -411,24 +410,20 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
 
 pub fn get_method_descriptor(cp: usize, classfile: &dyn ClassView) -> (PTypeView, String, MethodDescriptor) {
     let c = &classfile.constant_pool_view(cp);
-    let (class_name, method_name, parsed_descriptor) = match c {
+    let (ref_type, method_name, parsed_descriptor) = match c {
         ConstantInfoView::Methodref(m) => {
-            let class_name_ = m.class();
-            let class_name = class_name_.get_referred_name().clone();
-            //todo ideally for name we would return weak ref.
+            let ref_type = m.class();
             let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc_method());
-            (class_name, method_name, descriptor)
+            (ref_type, method_name, descriptor)
         }
         ConstantInfoView::InterfaceMethodref(m) => {
-            //todo dup?
-            let class_name_ = m.class();
-            let class_name = class_name_.get_referred_name().clone();
+            let ref_type = m.class();
             let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc_method());
-            (class_name, method_name, descriptor)
+            (ref_type, method_name, descriptor)
         }
         _ => todo!("{:?}", c)
     };
-    (PTypeView::Ref(possibly_array_to_type(&class_name)), method_name, parsed_descriptor)
+    (PTypeView::Ref(ref_type), method_name, parsed_descriptor)
 }
 
 pub fn possibly_array_to_type(class_name: &str) -> ReferenceTypeView {

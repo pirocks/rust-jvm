@@ -8,6 +8,8 @@ use crate::classfile::Class;
 use crate::classfile::Classfile;
 use crate::classfile::Code;
 use crate::classnames::ClassName;
+use crate::descriptor_parser::parse_class_name;
+use crate::ptype::ReferenceType;
 
 impl ConstantInfo {
     pub fn extract_string_from_utf8(&self) -> String {
@@ -51,7 +53,8 @@ impl Classfile {
     }
 
     //todo this could be better used to reduce duplication
-    pub fn extract_class_from_constant_pool_name(&self, i: u16) -> String {
+    //todo needs to correctly parse res, duplication.
+    pub fn extract_class_from_constant_pool_name(&self, i: u16) -> ReferenceType {
         let name_index = match &self.constant_pool[i as usize].kind {
             ConstantKind::Class(c) => {
                 c.name_index
@@ -61,7 +64,8 @@ impl Classfile {
             }
         };
         let name_entry = &self.constant_pool[name_index as usize];
-        name_entry.extract_string_from_utf8()
+        let string = name_entry.extract_string_from_utf8();
+        parse_class_name(string.as_str()).unwrap_ref_type()
     }
 
     pub fn extract_class_from_constant_pool(&self, i: u16) -> &Class {

@@ -5,9 +5,9 @@ use by_address::ByAddress;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use descriptor_parser::MethodDescriptor;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::PType;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};

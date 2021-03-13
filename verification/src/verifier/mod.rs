@@ -5,8 +5,8 @@ use classfile_view::loading::*;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
-use descriptor_parser::Descriptor;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::Descriptor;
 
 use crate::OperandStack;
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
-use descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_resolved_class;

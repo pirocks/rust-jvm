@@ -5,6 +5,7 @@ use std::hash::Hasher;
 use std::sync::Weak;
 
 use crate::classfile::Classfile;
+use crate::ptype::ReferenceType;
 
 #[derive(Debug)]
 pub struct NameReference {
@@ -233,5 +234,8 @@ impl ClassName {
 
 
 pub fn class_name(class: &Classfile) -> ClassName {
-    ClassName::Str(class.extract_class_from_constant_pool_name(class.this_class))
+    match class.extract_class_from_constant_pool_name(class.this_class) {
+        ReferenceType::Class(c) => c,
+        ReferenceType::Array(_) => todo!()
+    }
 }

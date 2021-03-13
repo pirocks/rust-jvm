@@ -2,9 +2,9 @@ use std::ptr::null_mut;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use slow_interpreter::java_values::JavaValue;

@@ -17,20 +17,20 @@ macro_rules! as_object_or_java_value {
              jvm,
              int_state,
              &"toString".to_string(),
-             &descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::string()))}
+             &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::string()))}
              )?;
             Ok(int_state.current_frame_mut().pop().cast_string())
         }
 
         pub fn get_class<'l>(&self, state: &crate::jvm_state::JVMState, int_state: &'l mut crate::InterpreterStateGuard) -> Result<crate::java::lang::class::JClass,crate::WasException> {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
-            crate::instructions::invoke::virtual_::invoke_virtual(state, int_state,&"getClass".to_string(), &descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::class()))})?;
+            crate::instructions::invoke::virtual_::invoke_virtual(state, int_state,&"getClass".to_string(), &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::class()))})?;
             Ok(int_state.current_frame_mut().pop().cast_class())
         }
 
         pub fn hash_code<'l>(&self, state: &crate::jvm_state::JVMState, int_state: &'l mut crate::InterpreterStateGuard<'l>) -> Result<i32,crate::WasException> {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
-            crate::instructions::invoke::virtual_::invoke_virtual(state,int_state,&"hashCode".to_string(), &descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::IntType})?;
+            crate::instructions::invoke::virtual_::invoke_virtual(state,int_state,&"hashCode".to_string(), &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::IntType})?;
             Ok(int_state.current_frame_mut().pop().unwrap_int())
         }
     };

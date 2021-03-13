@@ -11,4 +11,3 @@ edition = "2018"
 [dependencies]
 rust-jvm-common = {path = "../rust-jvm-common"}
 classfile-parser = {path = "../classfile-parser"}
-descriptor-parser = {path = "../descriptor-parser"}

@@ -5,8 +5,8 @@ use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
-use descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use crate::verifier::TypeSafetyError;

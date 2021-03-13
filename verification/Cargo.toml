@@ -12,7 +12,6 @@ edition = "2018"
 rust-jvm-common = {path = "../rust-jvm-common"}
 classfile-parser = {path = "../classfile-parser"}
 classfile-view = {path = "../classfile-view"}
-descriptor-parser = {path = "../descriptor-parser"}
 elapsed = "0.1"
 
 [dev-dependencies]

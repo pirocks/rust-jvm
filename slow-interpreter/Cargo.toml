@@ -11,7 +11,6 @@ rust-jvm-common = { path = "../rust-jvm-common" }
 classfile-parser = { path = "../classfile-parser" }
 verification = { path = "../verification" }
 classfile-view = { path = "../classfile-view" }
-descriptor-parser = { path = "../descriptor-parser" }
 jar-manipulation = { path = "../jar-manipulation" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 threads = { path = "../threads" }

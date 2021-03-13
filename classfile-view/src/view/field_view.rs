@@ -1,5 +1,5 @@
-use descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::classfile::FieldInfo;
+use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 use crate::view::constant_info_view::ConstantInfoView;

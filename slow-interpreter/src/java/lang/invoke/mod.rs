@@ -481,8 +481,8 @@ pub mod lambda_form {
 pub mod call_site {
     use std::sync::Arc;
 
-    use descriptor_parser::MethodDescriptor;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::descriptor_parser::MethodDescriptor;
     use rust_jvm_common::ptype::{PType, ReferenceType};
 
     use crate::class_loading::assert_inited_or_initing_class;

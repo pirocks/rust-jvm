@@ -197,7 +197,6 @@ dependencies = [
 name = "classfile-parser"
 version = "0.1.0"
 dependencies = [
- "descriptor-parser",
  "ntest_timeout",
  "num-derive",
  "num-traits",
@@ -211,7 +210,6 @@ name = "classfile-view"
 version = "0.1.0"
 dependencies = [
  "classfile-parser",
- "descriptor-parser",
  "rust-jvm-common",
 ]
 
@@ -237,13 +235,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81156fece84ab6a9f2afdb109ce3ae577e42b1228441eded99bd77f627953b1a"
 dependencies = [
  "cfg-if 1.0.0",
-]
-
-[[package]]
-name = "descriptor-parser"
-version = "0.1.0"
-dependencies = [
- "rust-jvm-common",
 ]
 
 [[package]]
@@ -406,7 +397,6 @@ dependencies = [
  "by_address",
  "classfile-parser",
  "classfile-view",
- "descriptor-parser",
  "heapsize",
  "jvmti-jni-bindings",
  "libc",
@@ -886,7 +876,6 @@ dependencies = [
  "argparse",
  "classfile-parser",
  "classfile-view",
- "descriptor-parser",
  "jar-manipulation",
  "jvm",
  "jvmti-jni-bindings",
@@ -1001,7 +990,6 @@ dependencies = [
  "by_address",
  "classfile-parser",
  "classfile-view",
- "descriptor-parser",
  "errno",
  "futures-intrusive",
  "jar-manipulation",
@@ -1294,7 +1282,6 @@ version = "0.1.0"
 dependencies = [
  "classfile-parser",
  "classfile-view",
- "descriptor-parser",
  "elapsed",
  "jar-manipulation",
  "ntest_timeout",

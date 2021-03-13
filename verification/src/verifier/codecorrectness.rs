@@ -7,9 +7,9 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
-use descriptor_parser::MethodDescriptor;
 use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use descriptor_parser::MethodDescriptor;
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::InterpreterStateGuard;
 use crate::java::lang::member_name::MemberName;

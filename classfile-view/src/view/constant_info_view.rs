@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use descriptor_parser::{MethodDescriptor, parse_class_name, parse_method_descriptor};
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_class_name, parse_method_descriptor};
+use rust_jvm_common::ptype::PType;
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::attribute_view::BootstrapMethodView;
@@ -101,9 +102,9 @@ impl MethodrefView<'_> {
         }
     }
 
-    pub fn class(&self) -> ClassName {
+    pub fn class(&self) -> ReferenceTypeView {
         let class_index = self.get_raw().class_index;
-        ClassName::Str(self.class_view.backing_class.extract_class_from_constant_pool_name(class_index))
+        PTypeView::from_ptype(&PType::Ref(self.class_view.backing_class.extract_class_from_constant_pool_name(class_index))).unwrap_ref_type().clone()
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
         NameAndTypeView {
@@ -128,8 +129,8 @@ impl InterfaceMethodrefView<'_> {
             _ => panic!(),
         }
     }
-    pub fn class(&self) -> ClassName {
-        ClassName::Str(self.class_view.backing_class.extract_class_from_constant_pool_name(self.interface_method_ref().class_index))
+    pub fn class(&self) -> ReferenceTypeView {
+        PTypeView::from_ptype(&PType::Ref(self.class_view.backing_class.extract_class_from_constant_pool_name(self.interface_method_ref().class_index))).unwrap_ref_type().clone()
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
         NameAndTypeView { class_view: self.class_view, i: self.interface_method_ref().nt_index as usize }
@@ -326,5 +327,4 @@ impl ConstantInfoView<'_> {
             _ => panic!(),
         }
     }
-
 }
