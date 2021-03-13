@@ -59,7 +59,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader };
     let class_view = ClassBackedView::from(parsed.clone());
     if jvm.store_generated_classes {
-        File::create(class_view.type_().class_name_representation().replace("/", ".")).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
+        File::create(class_view.type_().class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
     match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {
         Ok(res) => res,

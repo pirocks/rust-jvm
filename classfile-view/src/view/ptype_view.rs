@@ -181,7 +181,7 @@ impl PTypeView {
             PTypeView::Ref(ref_) => {
                 match ref_ {
                     ReferenceTypeView::Class(c) => {
-                        res.push_str(c.get_referred_name());
+                        res.push_str(c.get_referred_name().replace("/", ".").as_str());
                     }
                     ReferenceTypeView::Array(subtype) => {
                         res.push('[');
@@ -209,7 +209,7 @@ impl PTypeView {
                 match ref_ {
                     ReferenceTypeView::Class(c) => {
                         res.push('L');
-                        res.push_str(c.get_referred_name());
+                        res.push_str(c.get_referred_name().replace("/", ".").as_str());
                         res.push(';')
                     }
                     ReferenceTypeView::Array(subtype) => {

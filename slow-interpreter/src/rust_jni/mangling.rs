@@ -6,7 +6,7 @@ use classfile_view::view::method_view::MethodView;
 pub fn mangle(method: &MethodView) -> String {
     let method_name = method.name();
     let class_view = method.classview();
-    let class_name = class_view.type_().class_name_representation();
+    let class_name = class_view.type_().class_name_representation().replace(".", "/");
     let multiple_same_name_methods = class_view.lookup_method_name(&method_name).iter().filter(|m| {
         m.is_native()
     }).count() > 1;

@@ -197,7 +197,7 @@ unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jst
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let obj = from_jclass(cls).as_runtime_class(jvm);
-    let full_name = &obj.ptypeview().class_name_representation().replace("/", ".");//todo need a standard way of doing this
+    let full_name = &obj.ptypeview().class_name_representation();
     new_string_with_string(env, full_name.to_string())
 }
 
