@@ -263,8 +263,8 @@ fn run_single_instruction(
         InstructionInfo::fload_2 => fload(interpreter_state.current_frame_mut(), 2),
         InstructionInfo::fload_3 => fload(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::fmul => fmul(interpreter_state.current_frame_mut()),
-        InstructionInfo::fneg => unimplemented!(),
-        InstructionInfo::frem => unimplemented!(),
+        InstructionInfo::fneg => fneg(interpreter_state.current_frame_mut()),
+        InstructionInfo::frem => frem(interpreter_state.current_frame_mut()),
         InstructionInfo::freturn => freturn(jvm, interpreter_state),
         InstructionInfo::fstore(i) => fstore(interpreter_state.current_frame_mut(), i as usize),
         InstructionInfo::fstore_0 => fstore(interpreter_state.current_frame_mut(), 0),
@@ -405,6 +405,18 @@ fn run_single_instruction(
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
     }
+}
+
+fn frem(current_frame: &mut StackEntry) {
+    let value2 = current_frame.pop().unwrap_float();
+    let value1 = current_frame.pop().unwrap_float();
+    let res = drem_impl(value2 as f64, value1 as f64) as f32;
+    current_frame.push(JavaValue::Float(res));
+}
+
+fn fneg(current_frame: &mut StackEntry) {
+    let val = current_frame.pop().unwrap_float();
+    current_frame.push(JavaValue::Float(-val))
 }
 
 fn drem(current_frame: &mut StackEntry) {
