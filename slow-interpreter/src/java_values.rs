@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use jvmti_jni_bindings::jbyte;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
@@ -199,8 +200,8 @@ impl JavaValue {
 
     pub fn unwrap_byte(&self) -> i8 {
         let res = self.unwrap_int();
-        assert!(res <= i8::MAX as i32);
-        assert!(res >= i8::MIN as i32);
+        assert!(res <= jbyte::MAX as i32);
+        assert!(res >= jbyte::MIN as i32);
         res as i8
     }
 
@@ -570,10 +571,8 @@ impl ArrayObject {
 
 pub struct NormalObject {
     pub monitor: Arc<Monitor>,
-    //I guess this never changes so unneeded?
-    //todo this refcell is unsafe
     pub fields: UnsafeCell<HashMap<String, JavaValue>>,
-    //todo this refcell should be for the elememts.
+    //todo this refcell should be by class pointer, to avoid same name clashes.
     pub class_pointer: Arc<RuntimeClass>,
 }
 
@@ -620,9 +619,9 @@ impl ArrayObject {
     pub fn unwrap_object_array_nonnull(&self) -> Vec<Arc<Object>> {
         self.mut_array().iter().map(|x| { x.unwrap_object_nonnull() }).collect()
     }
-    pub fn unwrap_byte_array(&self) -> Vec<i8> {//todo in future use jbyte for this kinda thing, and in all places where this is an issue
+    pub fn unwrap_byte_array(&self) -> Vec<jbyte> {
         assert_eq!(self.elem_type, PTypeView::ByteType);
-        self.mut_array().iter().map(|x| { x.unwrap_int() as i8 }).collect()
+        self.mut_array().iter().map(|x| { x.unwrap_byte() }).collect()
     }
     pub fn unwrap_char_array(&self) -> String {
         assert_eq!(self.elem_type, PTypeView::CharType);
