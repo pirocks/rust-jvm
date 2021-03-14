@@ -16,6 +16,7 @@ use verification::VerifierContext;
 
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use crate::instructions::ldc::load_class_constant_by_type;
+use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::JavaValue;
@@ -35,7 +36,9 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let jvm = get_state(env);
     let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
     assert!(remaining.is_empty());
-    load_class_constant_by_type(jvm, int_state, PTypeView::from_ptype(&type_));
+    if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::from_ptype(&type_)) {
+        return null_mut()
+    };
     let obj = int_state.pop_current_operand_stack().unwrap_object();
     new_local_ref_public(obj, int_state)
 }
@@ -49,7 +52,9 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
     let _inited_class = assert_loaded_class(jvm, int_state, super_name.clone().into());
-    load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name)));
+    if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name))) {
+        return null_mut()
+    };
     new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
 }
 

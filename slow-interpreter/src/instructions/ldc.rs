@@ -9,21 +9,23 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
-use crate::interpreter::run_function;
+use crate::interpreter::{run_function, WasException};
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
 
-fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) {
+fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) -> Result<(), WasException> {
     let res_class_name = c.class_ref_type();
     let type_ = PTypeView::Ref(res_class_name);
-    load_class_constant_by_type(state, int_state, type_);
+    load_class_constant_by_type(state, int_state, type_)?;
+    Ok(())
 }
 
-pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: PTypeView) {
-    let object = get_or_create_class_object(jvm, res_class_type, int_state).unwrap();//todo pass the error up
+pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: PTypeView) -> Result<(), WasException> {
+    let object = get_or_create_class_object(jvm, res_class_type, int_state)?;
     int_state.current_frame_mut().push(JavaValue::Object(object.into()));
+    Ok(())
 }
 
 fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
@@ -43,7 +45,7 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     );
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
-    push_new_object(jvm, interpreter_state, &string_class);//todo what if stack overflows here, like creating the exception
+    push_new_object(jvm, interpreter_state, &string_class);
     let string_object = interpreter_state.pop_current_operand_stack();
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
@@ -97,7 +99,9 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
             let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, s.string()).expect("todo").object().into()).java_value();
             int_state.push_current_operand_stack(string_value)
         }
-        ConstantInfoView::Class(c) => load_class_constant(jvm, int_state, &c),
+        ConstantInfoView::Class(c) => if let Err(WasException {}) = load_class_constant(jvm, int_state, &c) {
+            return
+        },
         ConstantInfoView::Float(f) => {
             let float: f32 = f.float;
             int_state.push_current_operand_stack(JavaValue::Float(float));

@@ -24,6 +24,7 @@ use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::ldc::load_class_constant_by_type;
+use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::jvm_state::LibJavaLoading;
 use crate::runtime_class::RuntimeClass;
@@ -68,7 +69,7 @@ pub fn call(
     method_view: MethodView,
     args: Vec<JavaValue>,
     md: MethodDescriptor,
-) -> Result<Option<JavaValue>, libloading::Error> {
+) -> Result<Result<Option<JavaValue>, libloading::Error>, WasException> {
     let mangled = mangling::mangle(&method_view);
     let raw = {
         let symbol: Symbol<unsafe extern fn()> = unsafe {
@@ -92,7 +93,7 @@ pub fn call(
                                                     match state.libjava.libfontmanager.get(mangled.as_bytes()) {
                                                         Ok(o) => o,
                                                         Err(e) => {
-                                                            return Result::Err(e);
+                                                            return Ok(Err(e));
                                                         }
                                                     }
                                                 }
@@ -108,11 +109,11 @@ pub fn call(
         };
         *symbol.deref()
     };
-    if method_view.is_static() {
-        Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, false))
+    Ok(if method_view.is_static() {
+        Ok(call_impl(state, int_state, classfile, args, md, &raw, false)?)
     } else {
-        Result::Ok(call_impl(state, int_state, classfile, args, md, &raw, true))
-    }
+        Ok(call_impl(state, int_state, classfile, args, md, &raw, true)?)
+    })
 }
 
 pub fn call_impl(
@@ -122,7 +123,7 @@ pub fn call_impl(
     args: Vec<JavaValue>,
     md: MethodDescriptor,
     raw: &unsafe extern "C" fn(),
-    suppress_runtime_class: bool) -> Option<JavaValue> {
+    suppress_runtime_class: bool) -> Result<Option<JavaValue>, WasException> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
@@ -132,7 +133,7 @@ pub fn call_impl(
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        load_class_constant_by_type(jvm, int_state, classfile.view().type_());
+        load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
         let res = vec![Arg::new(&env), unsafe { to_native(int_state.pop_current_operand_stack(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()) }];
         res
     };
@@ -202,7 +203,10 @@ pub fn call_impl(
             free_native((*j).clone(), t, to_free)
         }
     }
-    res
+    if int_state.throw().is_some() {
+        return Err(WasException {});
+    }
+    Ok(res)
 }
 
 pub mod native_util;

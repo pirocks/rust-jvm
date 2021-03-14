@@ -596,7 +596,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 
 pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: Arc<RuntimeClass>, f: FieldView) -> Result<JavaValue, WasException> {
     let field_class_name_ = class_obj.clone().ptypeview();
-    load_class_constant_by_type(jvm, int_state, field_class_name_);
+    load_class_constant_by_type(jvm, int_state, field_class_name_)?;
     let parent_runtime_class = int_state.pop_current_operand_stack();
 
     let field_name = f.field_name();
@@ -608,7 +608,7 @@ pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGu
     let slot = f.field_i() as i32;
     let clazz = parent_runtime_class.cast_class();
     let name = JString::from_rust(jvm, int_state, field_name)?.intern(jvm, int_state)?;
-    let type_ = JClass::from_type(jvm, int_state, PTypeView::from_ptype(&field_type));
+    let type_ = JClass::from_type(jvm, int_state, PTypeView::from_ptype(&field_type))?;
     let signature = JString::from_rust(jvm, int_state, field_desc_str)?;
     let annotations_ = vec![];//todo impl annotations.
 

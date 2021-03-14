@@ -70,8 +70,8 @@ fn get_signature(state: &JVMState, int_state: &mut InterpreterStateGuard, method
     Ok(JString::from_rust(state, int_state, method_view.desc_str())?.intern(state, int_state)?)
 }
 
-fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
-    let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
+fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<JavaValue, WasException> {
+    let class_type = ClassName::class().into();
     let exception_table: Vec<JavaValue> = method_view.code_attribute()
         .map(|x| &x.exception_table)
         .unwrap_or(&vec![])
@@ -86,33 +86,33 @@ fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
             PTypeView::Ref(x)
         })
         .map(|x| {
-            JClass::from_type(jvm, int_state, x).java_value()
+            Ok(JClass::from_type(jvm, int_state, x)?.java_value())
         })
-        .collect();
-    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+        .collect::<Result<Vec<_>, WasException>>()?;
+    Ok(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
         jvm,
         int_state,
         exception_table,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
-    )))))
+    ))))))
 }
 
-fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> JavaValue {
-    let class_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::class()));//todo this should be a global const
+fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<JavaValue, WasException> {
+    let class_type = ClassName::class().into();
     let mut res = vec![];
     let parsed = method_view.desc();
     for param_type in parsed.parameter_types {
-        res.push(JClass::from_type(jvm, int_state, PTypeView::from_ptype(&param_type)).java_value());
+        res.push(JClass::from_type(jvm, int_state, PTypeView::from_ptype(&param_type))?.java_value());
     }
 
-    JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+    Ok(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
         jvm,
         int_state,
         res,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
-    )))))
+    ))))))
 }
 
 
@@ -155,7 +155,7 @@ pub mod method {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
-                load_class_constant_by_type(jvm, int_state, field_class_type);
+                load_class_constant_by_type(jvm, int_state, field_class_type)?;
                 int_state.pop_current_operand_stack().cast_class()
             };
             let name = {
@@ -165,12 +165,12 @@ pub mod method {
                 }
                 JString::from_rust(jvm, int_state, name)?.intern(jvm, int_state)?
             };
-            let parameter_types = parameters_type_objects(jvm, int_state, &method_view);
+            let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
             let return_type = {
                 let rtype = method_view.desc().return_type;
-                JClass::from_type(jvm, int_state, PTypeView::from_ptype(&rtype))
+                JClass::from_type(jvm, int_state, PTypeView::from_ptype(&rtype))?
             };
-            let exception_types = exception_types_table(jvm, int_state, &method_view);
+            let exception_types = exception_types_table(jvm, int_state, &method_view)?;
             let modifiers = get_modifiers(&method_view);
             //todo what does slot do?
             let slot = -1;
@@ -278,12 +278,12 @@ pub mod constructor {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
-                load_class_constant_by_type(jvm, int_state, field_class_type);
+                load_class_constant_by_type(jvm, int_state, field_class_type)?;
                 int_state.pop_current_operand_stack().cast_class()
             };
 
-            let parameter_types = parameters_type_objects(jvm, int_state, &method_view);
-            let exception_types = exception_types_table(jvm, int_state, &method_view);
+            let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
+            let exception_types = exception_types_table(jvm, int_state, &method_view)?;
             let modifiers = get_modifiers(&method_view);
             //todo what does slot do?
             let slot = -1;

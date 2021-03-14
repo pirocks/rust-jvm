@@ -72,9 +72,9 @@ pub fn run_native_method(
             let reg_natives_for_class = reg_natives.get(&ByAddress(class.clone())).unwrap().read().unwrap();
             *reg_natives_for_class.get(&(method_i as u16)).unwrap()
         };
-        call_impl(jvm, int_state, class.clone(), args, parsed, &res_fn, !method.is_static())
+        call_impl(jvm, int_state, class.clone(), args, parsed, &res_fn, !method.is_static())?
     } else {
-        match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed) {
+        match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed)? {
             Ok(r) => r,
             Err(_) => {
                 match special_call_overrides(jvm, int_state, &class.view().method_view_i(method_i), &mut args) {

@@ -309,10 +309,10 @@ pub mod class {
             JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().into()).cast_class()
         }
 
-        pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> JClass {
-            load_class_constant_by_type(jvm, int_state, ptype);
+        pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<JClass, WasException> {
+            load_class_constant_by_type(jvm, int_state, ptype)?;
             let res = int_state.pop_current_operand_stack().unwrap_object();
-            JavaValue::Object(res).cast_class()
+            Ok(JavaValue::Object(res).cast_class())
         }
 
         pub fn get_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JString, WasException> {

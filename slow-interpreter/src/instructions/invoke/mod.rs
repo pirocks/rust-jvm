@@ -75,7 +75,7 @@ pub mod dynamic {
         for x in arg_iterator {
             args.push(match x {
                 BootstrapArgView::String(s) => JString::from_rust(jvm, int_state, s.string())?.java_value(),
-                BootstrapArgView::Class(c) => JClass::from_type(jvm, int_state, c.type_()).java_value(),
+                BootstrapArgView::Class(c) => JClass::from_type(jvm, int_state, c.type_())?.java_value(),
                 BootstrapArgView::Integer(i) => JavaValue::Int(i.int),
                 BootstrapArgView::Long(_) => unimplemented!(),
                 BootstrapArgView::Float(_) => unimplemented!(),
@@ -170,7 +170,7 @@ pub mod dynamic {
                         let name = JString::from_rust(jvm, int_state, mr.name_and_type().name())?;
                         let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                        let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()));
+                        let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()))?;
                         lookup.find_static(jvm, int_state, target_class, name, method_type)?
                     }
                 }
@@ -185,9 +185,9 @@ pub mod dynamic {
                             let name = JString::from_rust(jvm, int_state, mr.name_and_type().name())?;
                             let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                            let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()));
+                            let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()))?;
                             let not_sure_if_correct_at_all = int_state.current_frame().class_pointer().ptypeview();
-                            let special_caller = JClass::from_type(jvm, int_state, not_sure_if_correct_at_all);
+                            let special_caller = JClass::from_type(jvm, int_state, not_sure_if_correct_at_all)?;
                             lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?
                         }
                 }
