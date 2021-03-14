@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::cell::{RefCell, UnsafeCell};
 use std::ffi::CStr;
 use std::ops::Deref;
+use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
@@ -173,8 +174,9 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const ::std::os::raw::c_char {
-    unimplemented!()
+unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const c_char {
+    let jstring = JavaValue::Object(from_object(JVM_GetClassName(env, cb))).cast_string();
+    let rust_string = jstring.to_rust_string();
 }
 
 pub mod fields;

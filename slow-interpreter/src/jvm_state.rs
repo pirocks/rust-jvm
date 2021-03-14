@@ -70,6 +70,7 @@ pub struct JVMState {
     pub include_name_field: AtomicBool,
     pub store_generated_classes: bool,
     pub debug_print_exceptions: bool,
+    pub assertions_enabled: bool,
 
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<Arc<Object>>, Vec<StackTraceElement>>>,
 }
