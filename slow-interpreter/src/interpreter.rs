@@ -216,7 +216,7 @@ fn run_single_instruction(
         InstructionInfo::dadd => dadd(interpreter_state.current_frame_mut()),
         InstructionInfo::daload => daload(interpreter_state.current_frame_mut()),
         InstructionInfo::dastore => dastore(jvm, interpreter_state),
-        InstructionInfo::dcmpg => unimplemented!(),
+        InstructionInfo::dcmpg => dcmpg(interpreter_state.current_frame_mut()),
         InstructionInfo::dcmpl => dcmpl(interpreter_state.current_frame_mut()),
         InstructionInfo::dconst_0 => dconst_0(interpreter_state.current_frame_mut()),
         InstructionInfo::dconst_1 => dconst_1(interpreter_state.current_frame_mut()),
@@ -397,8 +397,7 @@ fn run_single_instruction(
         InstructionInfo::saload => saload(interpreter_state.current_frame_mut()),
         InstructionInfo::sastore => sastore(jvm, interpreter_state),
         InstructionInfo::sipush(val) => sipush(interpreter_state.current_frame_mut(), val),
-        InstructionInfo::swap =>
-            swap(interpreter_state.current_frame_mut()),
+        InstructionInfo::swap => swap(interpreter_state.current_frame_mut()),
         InstructionInfo::tableswitch(switch) => tableswitch(switch, interpreter_state.current_frame_mut()),
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
@@ -422,16 +421,31 @@ fn dcmpl(current_frame: &mut StackEntry) {
     let val2 = current_frame.pop().unwrap_double();
     let val1 = current_frame.pop().unwrap_double();
     if val2.is_nan() || val1.is_nan() {
-        unimplemented!()
+        current_frame.push(JavaValue::Int(-1));
     }
+    dcmp_common(current_frame, val2, val1);
+}
+
+fn dcmp_common(current_frame: &mut StackEntry, val2: f64, val1: f64) {
     let res = if val1 > val2 {
         1
     } else if val1 == val2 {
         0
-    } else {
+    } else if val1 < val2 {
         -1
+    } else {
+        unreachable!()
     };
     current_frame.push(JavaValue::Int(res));
+}
+
+fn dcmpg(current_frame: &mut StackEntry) {
+    let val2 = current_frame.pop().unwrap_double();
+    let val1 = current_frame.pop().unwrap_double();
+    if val2.is_nan() || val1.is_nan() {
+        current_frame.push(JavaValue::Int(-1));
+    }
+    dcmp_common(current_frame, val2, val1)
 }
 
 fn athrow(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
