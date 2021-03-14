@@ -377,7 +377,7 @@ pub mod class_loader {
                     loaders_guard.insert(new_loader_id, ByAddress(self.normal_object.clone()));
                     //todo this whole mess needs a register class loader function which addes to approprate classes data structure
                     new_loader_id
-                },
+                }
             })
         }
 
@@ -673,7 +673,7 @@ pub mod thread {
             )?;
             let res = int_state.pop_current_operand_stack();
             if res.unwrap_object().is_none() {
-                return Ok(None)
+                return Ok(None);
             }
             Ok(res.cast_class_loader().into())
         }
@@ -922,7 +922,310 @@ pub mod illegal_argument_exception {
     }
 }
 
+pub mod long {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::jlong;
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Long {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_long(&self) -> Long {
+            Long { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Long {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jlong) -> Result<Long, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Long".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Long(param)],
+                            "(J)V".to_string())?;
+            Ok(this.cast_long())
+        }
+    }
+}
+
+pub mod int {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::{jint, jlong};
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Int {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_int(&self) -> Int {
+            Int { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Int {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jint) -> Result<Int, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Int".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Int(param)],
+                            "(I)V".to_string())?;
+            Ok(this.cast_int())
+        }
+    }
+}
+
+pub mod short {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::{jlong, jshort};
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Short {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_short(&self) -> Short {
+            Short { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Short {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jshort) -> Result<Short, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Short".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Short(param)],
+                            "(S)V".to_string())?;
+            Ok(this.cast_short())
+        }
+    }
+}
+
+pub mod byte {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::{jbyte, jlong};
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Byte {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_byte(&self) -> Byte {
+            Byte { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Byte {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jbyte) -> Result<Byte, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Byte".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Byte(param)],
+                            "(B)V".to_string())?;
+            Ok(this.cast_byte())
+        }
+    }
+}
+
+pub mod boolean {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::{jboolean, jlong};
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Boolean {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_boolean(&self) -> Boolean {
+            Boolean { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Boolean {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jboolean) -> Result<Boolean, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Boolean".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Boolean(param)],
+                            "(Z)V".to_string())?;
+            Ok(this.cast_boolean())
+        }
+    }
+}
+
+pub mod char {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::{jchar, jlong};
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Char {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_char(&self) -> Char {
+            Char { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Char {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jchar) -> Result<Char, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Char".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Char(param)],
+                            "(C)V".to_string())?;
+            Ok(this.cast_char())
+        }
+    }
+}
+
+pub mod float {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::{jfloat, jlong};
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Float {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_float(&self) -> Float {
+            Float { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Float {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jfloat) -> Result<Float, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Float".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Float(param)],
+                            "(F)V".to_string())?;
+            Ok(this.cast_float())
+        }
+    }
+}
+
+pub mod double {
+    use std::sync::Arc;
+
+    use jvmti_jni_bindings::{jdouble, jlong};
+    use rust_jvm_common::classnames::ClassName;
+
+    use crate::class_loading::check_initing_or_inited_class;
+    use crate::interpreter::WasException;
+    use crate::interpreter_state::InterpreterStateGuard;
+    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+    use crate::java_values::{JavaValue, Object};
+    use crate::jvm_state::JVMState;
+
+    pub struct Double {
+        normal_object: Arc<Object>
+    }
+
+    impl JavaValue {
+        pub fn cast_double(&self) -> Double {
+            Double { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl Double {
+        as_object_or_java_value!();
+
+        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jdouble) -> Result<Double, WasException> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Double".to_string()).into())?;
+            push_new_object(jvm, int_state, &class_not_found_class);
+            let this = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Double(param)],
+                            "(D)V".to_string())?;
+            Ok(this.cast_double())
+        }
+    }
+}
+
 
 pub mod system;
-
 pub mod reflect;

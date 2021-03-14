@@ -1,13 +1,25 @@
 use std::ops::Deref;
+use std::panic::panic_any;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use slow_interpreter::instructions::new::a_new_array_from_name;
 use slow_interpreter::interpreter::WasException;
+use slow_interpreter::interpreter_state::InterpreterStateGuard;
+use slow_interpreter::java::lang::boolean::Boolean;
+use slow_interpreter::java::lang::byte::Byte;
+use slow_interpreter::java::lang::char::Char;
+use slow_interpreter::java::lang::double::Double;
+use slow_interpreter::java::lang::float::Float;
+use slow_interpreter::java::lang::int::Int;
+use slow_interpreter::java::lang::long::Long;
+use slow_interpreter::java::lang::short::Short;
 use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
-use slow_interpreter::utils::{throw_illegal_arg_res, throw_npe, throw_npe_res};
+use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, currClass: jclass, length: jint) -> jobject {
@@ -48,8 +60,22 @@ unsafe fn get_array(env: *mut JNIEnv, arr: jobject) -> Result<JavaValue, WasExce
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, index: jint) -> jobject {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    match get_array(env, arr) {
+        Ok(jv) => {
+            let len = jv.unwrap_array().mut_array().len() as i32;
+            if index < 0 || index >= len {
+                throw_array_out_of_bounds_res(jvm, int_state, index)?;
+                unreachable!()
+            }
+            let java_value = jv.unwrap_array().mut_array()[index as usize].clone();
+            new_local_ref_public(java_value_to_boxed_object(jvm, int_state, java_value), int_state)
+        }
+        Err(WasException {}) => null_mut()
+    }
 }
+
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetPrimitiveArrayElement(env: *mut JNIEnv, arr: jobject, index: jint, wCode: jint) -> jvalue {

@@ -9,9 +9,17 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
+use crate::java::lang::boolean::Boolean;
+use crate::java::lang::byte::Byte;
+use crate::java::lang::char::Char;
+use crate::java::lang::double::Double;
+use crate::java::lang::float::Float;
 use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
+use crate::java::lang::int::Int;
+use crate::java::lang::long::Long;
 use crate::java::lang::null_pointer_exception::NullPointerException;
-use crate::java_values::Object;
+use crate::java::lang::short::Short;
+use crate::java_values::{JavaValue, Object};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
@@ -102,4 +110,19 @@ pub fn throw_illegal_arg(jvm: &JVMState, int_state: &mut InterpreterStateGuard) 
         }
     }.object().into();
     int_state.set_throw(bounds_object);
+}
+
+pub fn java_value_to_boxed_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, java_value: JavaValue) -> Option<Arc<Object>> {
+    match java_value {
+        JavaValue::Long(param) => Long::new(jvm, int_state, param).object().into(),
+        JavaValue::Int(param) => Int::new(jvm, int_state, param).object().into(),
+        JavaValue::Short(param) => Short::new(jvm, int_state, param).object().into(),
+        JavaValue::Byte(param) => Byte::new(jvm, int_state, param).object().into(),
+        JavaValue::Boolean(param) => Boolean::new(jvm, int_state, param).object().into(),
+        JavaValue::Char(param) => Char::new(jvm, int_state, param).object().into(),
+        JavaValue::Float(param) => Float::new(jvm, int_state, param).object().into(),
+        JavaValue::Double(param) => Double::new(jvm, int_state, param).object().into(),
+        JavaValue::Object(obj) => obj,
+        JavaValue::Top => panic!()
+    }
 }
