@@ -32,6 +32,7 @@ use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::sun::reflect::reflection::Reflection;
 use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
 
@@ -184,7 +185,12 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclass, class2: jclass) -> jboolean {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    match Reflection::is_same_class_package(jvm, int_state, from_jclass(class1), from_jclass(class2)) {
+        Ok(res) => res,
+        Err(WasException {}) => return jboolean::MAX
+    }
 }
 
 
