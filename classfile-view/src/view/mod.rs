@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::{Arc, RwLock};
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, InnerClasses};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
-use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, SourceFileView};
+use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, InnerClassesView, InnerClassView, SourceFileView};
 use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, DoubleView, FieldrefView, FloatView, IntegerView, InterfaceMethodrefView, InvokeDynamicView, LongView, MethodHandleView, MethodrefView, MethodTypeView, NameAndTypeView, StringView, Utf8View};
 use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
@@ -65,6 +65,7 @@ pub trait ClassView: HasAccessFlags {
     fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView>;
     fn sourcefile_attr(&self) -> Option<SourceFileView>;
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
+    fn inner_classes_view(&self) -> Option<InnerClassesView>;
 
     fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView>;
     fn lookup_method_name(&self, name: &str) -> Vec<MethodView>;
@@ -189,6 +190,12 @@ impl ClassView for ClassBackedView {
         self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
             matches!(attr.attribute_type, AttributeType::EnclosingMethod(_))
         }).map(|(i, _)| { EnclosingMethodView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })
+    }
+
+    fn inner_classes_view(&self) -> Option<InnerClassesView> {
+        self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
+            matches!(attr.attribute_type, AttributeType::InnerClasses(_))
+        }).map(|(i, _)| { InnerClassesView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })
     }
 
     fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
@@ -365,6 +372,10 @@ impl ClassView for PrimitiveView {
         None
     }
 
+    fn inner_classes_view(&self) -> Option<InnerClassesView> {
+        None
+    }
+
     fn lookup_method(&self, _name: &str, _desc: &MethodDescriptor) -> Option<MethodView> {
         None
     }
@@ -454,6 +465,10 @@ impl ClassView for ArrayView {
     }
 
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
+        None
+    }
+
+    fn inner_classes_view(&self) -> Option<InnerClassesView> {
         None
     }
 

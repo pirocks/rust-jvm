@@ -1,3 +1,4 @@
+use std::alloc::Global;
 use std::borrow::Borrow;
 use std::cell::{RefCell, UnsafeCell};
 use std::ffi::CStr;
@@ -10,6 +11,7 @@ use num_cpus::get;
 
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::attribute_view::InnerClassesView;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
@@ -97,8 +99,19 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
 #[no_mangle]
 unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let class = from_jclass(ofClass).as_runtime_class(jvm);
-    class.view()
+    let res_array = match class.view().inner_classes_view() {
+        None => vec![].into_iter(),
+        Some(inner_classes) => {
+            inner_classes.classes().map(|inner_class| PTypeView::Ref(inner_class.inner_name()))
+        }
+    }.map(|ptype| Ok(JavaValue::Object(get_or_create_class_object(jvm, ptype, int_state)?.into()))).collect::<Result<Vec<_>, _>>();
+    let res_jv = JavaValue::new_vec_from_vec(jvm, match res_array {
+        Ok(obj_array) => obj_array,
+        Err(WasException {}) => return null_mut(),
+    }, ClassName::class().into());
+    new_local_ref_public(res_jv.unwrap_object(), int_state)
 }
 
 #[no_mangle]

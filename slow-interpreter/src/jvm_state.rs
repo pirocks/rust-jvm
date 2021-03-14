@@ -146,6 +146,7 @@ impl JVMState {
             start_instant: Instant::now(),
             classes,
             class_loaders: RwLock::new(BiMap::new()),
+            protection_domains: RwLock::new(BiMap::new()),
             main_class_name,
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),

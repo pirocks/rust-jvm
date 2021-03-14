@@ -1,9 +1,14 @@
+use std::arch::x86_64::_mm_extract_si64;
+use std::ffi::c_void;
 use std::sync::Arc;
 
-use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, SourceFile};
+use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, ConstantKind, CPIndex, InnerClass, InnerClasses, SourceFile};
+use rust_jvm_common::classfile::InstructionInfo::baload;
+use rust_jvm_common::descriptor_parser::parse_class_name;
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::constant_info_view::{ConstantInfoView, DoubleView, FloatView, IntegerView, LongView, MethodHandleView, MethodTypeView, StringView};
+use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[derive(Clone)]
 pub struct BootstrapMethodIterator<'cl> {
@@ -123,13 +128,33 @@ pub struct EnclosingMethodView {
     pub(crate) i: usize,
 }
 
-impl EnclosingMethodView {
-    // fn get_raw(&self) -> &EnclosingMethod{
-    //     match &self.backing_class.backing_class.attributes[self.i].attribute_type{
-    //         AttributeType::EnclosingMethod(em) => em,
-    //         _ => panic!()
-    //     }
-    // }
+pub struct InnerClassesView {
+    pub(crate) backing_class: ClassBackedView,
+    pub(crate) i: usize,
+}
+
+impl InnerClassesView {
+    fn raw(&self) -> &InnerClasses {
+        match &self.backing_class.backing_class.attributes[self.i].attribute_type {
+            AttributeType::InnerClasses(ic) => { ic }
+            _ => panic!()
+        }
+    }
+
+    pub fn classes(&self) -> impl Iterator<Item=InnerClassView> {
+        self.raw().classes.iter().map(move |class| InnerClassView { backing_class: &self.backing_class, class })
+    }
+}
+
+pub struct InnerClassView<'l> {
+    backing_class: &'l ClassBackedView,
+    class: &'l InnerClass,
+}
+
+impl InnerClassView<'_> {
+    pub fn inner_name(&self) -> ReferenceTypeView {
+        PTypeView::from_ptype(&parse_class_name(&self.backing_class.backing_class.constant_pool[self.class.inner_name_index as usize].extract_string_from_utf8())).unwrap_ref_type().clone()
+    }
 }
 
 
