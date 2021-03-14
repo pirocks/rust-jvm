@@ -247,7 +247,7 @@ fn run_single_instruction(
         InstructionInfo::dup2_x2 => dup2_x2(interpreter_state.current_frame_mut()),
         InstructionInfo::f2d => f2d(interpreter_state.current_frame_mut()),
         InstructionInfo::f2i => f2i(interpreter_state.current_frame_mut()),
-        InstructionInfo::f2l => unimplemented!(),
+        InstructionInfo::f2l => f2l(interpreter_state.current_frame_mut()),
         InstructionInfo::fadd => fadd(interpreter_state.current_frame_mut()),
         InstructionInfo::faload => faload(interpreter_state.current_frame_mut()),
         InstructionInfo::fastore => fastore(jvm, interpreter_state),
@@ -405,6 +405,22 @@ fn run_single_instruction(
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
     }
+}
+
+fn f2l(current_frame: &mut StackEntry) {
+    let val = current_frame.pop().unwrap_float();
+    let res = if val.is_infinite() {
+        if val.is_sign_positive() {
+            i64::MAX
+        } else {
+            i64::MIN
+        }
+    } else if val.is_nan() {
+        0i64
+    } else {
+        val as i64
+    };
+    current_frame.push(JavaValue::Long(res))
 }
 
 fn dup2_x2(current_frame: &mut StackEntry) {
