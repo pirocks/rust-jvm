@@ -112,17 +112,18 @@ pub fn throw_illegal_arg(jvm: &JVMState, int_state: &mut InterpreterStateGuard) 
     int_state.set_throw(bounds_object);
 }
 
-pub fn java_value_to_boxed_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, java_value: JavaValue) -> Option<Arc<Object>> {
-    match java_value {
-        JavaValue::Long(param) => Long::new(jvm, int_state, param).object().into(),
-        JavaValue::Int(param) => Int::new(jvm, int_state, param).object().into(),
-        JavaValue::Short(param) => Short::new(jvm, int_state, param).object().into(),
-        JavaValue::Byte(param) => Byte::new(jvm, int_state, param).object().into(),
-        JavaValue::Boolean(param) => Boolean::new(jvm, int_state, param).object().into(),
-        JavaValue::Char(param) => Char::new(jvm, int_state, param).object().into(),
-        JavaValue::Float(param) => Float::new(jvm, int_state, param).object().into(),
-        JavaValue::Double(param) => Double::new(jvm, int_state, param).object().into(),
+pub fn java_value_to_boxed_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, java_value: JavaValue) -> Result<Option<Arc<Object>>, WasException> {
+    Ok(match java_value {
+        //todo what about that same object optimization
+        JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),
+        JavaValue::Int(param) => Int::new(jvm, int_state, param)?.object().into(),
+        JavaValue::Short(param) => Short::new(jvm, int_state, param)?.object().into(),
+        JavaValue::Byte(param) => Byte::new(jvm, int_state, param)?.object().into(),
+        JavaValue::Boolean(param) => Boolean::new(jvm, int_state, param)?.object().into(),
+        JavaValue::Char(param) => Char::new(jvm, int_state, param)?.object().into(),
+        JavaValue::Float(param) => Float::new(jvm, int_state, param)?.object().into(),
+        JavaValue::Double(param) => Double::new(jvm, int_state, param)?.object().into(),
         JavaValue::Object(obj) => obj,
         JavaValue::Top => panic!()
-    }
+    })
 }

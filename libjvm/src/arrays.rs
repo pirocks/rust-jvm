@@ -19,7 +19,7 @@ use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
-use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
+use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, currClass: jclass, length: jint) -> jobject {
@@ -66,11 +66,14 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
         Ok(jv) => {
             let len = jv.unwrap_array().mut_array().len() as i32;
             if index < 0 || index >= len {
-                throw_array_out_of_bounds_res(jvm, int_state, index)?;
-                unreachable!()
+                throw_array_out_of_bounds(jvm, int_state, index);
+                return null_mut()
             }
             let java_value = jv.unwrap_array().mut_array()[index as usize].clone();
-            new_local_ref_public(java_value_to_boxed_object(jvm, int_state, java_value), int_state)
+            new_local_ref_public(match java_value_to_boxed_object(jvm, int_state, java_value) {
+                Ok(boxed) => boxed,
+                Err(WasException {}) => None
+            }, int_state)
         }
         Err(WasException {}) => null_mut()
     }

@@ -1,14 +1,17 @@
+use std::env::current_exe;
 use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::interface_view::InterfaceView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classfile::{IInc, Wide};
+use rust_jvm_common::classfile::{IInc, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
-use crate::interpreter::WasException;
+use crate::instructions::load::{aload, dload, fload, iload, lload};
+use crate::instructions::store::{astore, dstore, fstore, istore, lstore};
+use crate::interpreter::{ret, WasException};
 use crate::java_values;
 use crate::java_values::JavaValue;
 use crate::java_values::Object::{Array, Object};
@@ -163,38 +166,38 @@ pub fn inherits_from(state: &JVMState, int_state: &mut InterpreterStateGuard, in
 
 pub fn wide(current_frame: &mut StackEntry, w: Wide) {
     match w {
-        Wide::Iload(_) => {
-            unimplemented!()
+        Wide::Iload(WideIload { index }) => {
+            iload(current_frame, index as usize)
         }
-        Wide::Fload(_) => {
-            unimplemented!()
+        Wide::Fload(WideFload { index }) => {
+            fload(current_frame, index as usize)
         }
-        Wide::Aload(_) => {
-            unimplemented!()
+        Wide::Aload(WideAload { index }) => {
+            aload(current_frame, index as usize)
         }
-        Wide::Lload(_) => {
-            unimplemented!()
+        Wide::Lload(WideLload { index }) => {
+            lload(current_frame, index as usize)
         }
-        Wide::Dload(_) => {
-            unimplemented!()
+        Wide::Dload(WideDload { index }) => {
+            dload(current_frame, index as usize)
         }
-        Wide::Istore(_) => {
-            unimplemented!()
+        Wide::Istore(WideIstore { index }) => {
+            istore(current_frame, index as usize)
         }
-        Wide::Fstore(_) => {
-            unimplemented!()
+        Wide::Fstore(WideFstore { index }) => {
+            fstore(current_frame, index as usize)
         }
-        Wide::Astore(_) => {
-            unimplemented!()
+        Wide::Astore(WideAstore { index }) => {
+            astore(current_frame, index as usize)
         }
-        Wide::Lstore(_) => {
-            unimplemented!()
+        Wide::Lstore(WideLstore { index }) => {
+            lstore(current_frame, index as usize)
         }
-        Wide::Ret(_) => {
-            unimplemented!()
+        Wide::Ret(WideRet { index }) => {
+            ret(current_frame, index as usize)
         }
-        Wide::Dstore(_) => {
-            unimplemented!()
+        Wide::Dstore(WideDstore { index }) => {
+            dstore(current_frame, index as usize)
         }
         Wide::IInc(iinc) => {
             let IInc { index, const_ } = iinc;

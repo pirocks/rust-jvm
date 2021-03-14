@@ -336,7 +336,7 @@ fn run_single_instruction(
         InstructionInfo::ireturn => ireturn(jvm, interpreter_state),
         InstructionInfo::ishl => ishl(interpreter_state.current_frame_mut()),
         InstructionInfo::ishr => ishr(interpreter_state.current_frame_mut()),
-        InstructionInfo::istore(n) => istore(interpreter_state.current_frame_mut(), n),
+        InstructionInfo::istore(n) => istore(interpreter_state.current_frame_mut(), n as usize),
         InstructionInfo::istore_0 => istore(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::istore_1 => istore(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::istore_2 => istore(interpreter_state.current_frame_mut(), 2),
@@ -395,7 +395,7 @@ fn run_single_instruction(
         InstructionInfo::pop2 => pop2(interpreter_state.current_frame_mut()),
         InstructionInfo::putfield(cp) => putfield(jvm, interpreter_state, cp),
         InstructionInfo::putstatic(cp) => putstatic(jvm, interpreter_state, cp),
-        InstructionInfo::ret(local_var_index) => ret(interpreter_state, local_var_index),
+        InstructionInfo::ret(local_var_index) => ret(interpreter_state.current_frame_mut(), local_var_index as usize),
         InstructionInfo::return_ => return_(interpreter_state),
         InstructionInfo::saload => saload(interpreter_state.current_frame_mut()),
         InstructionInfo::sastore => sastore(jvm, interpreter_state),
@@ -413,7 +413,7 @@ fn l2d(current_frame: &mut StackEntry) {
 }
 
 fn jsr(interpreter_state: &mut InterpreterStateGuard, target: i32) {
-    let next_instruct = (interpreter_state.current_pc() + interpreter_state.current_pc_offset()) as i64;
+    let next_instruct = (interpreter_state.current_pc() as isize + interpreter_state.current_pc_offset()) as i64;
     interpreter_state.push_current_operand_stack(JavaValue::Long(next_instruct));
     *interpreter_state.current_pc_offset_mut() = target as isize
 }
@@ -530,10 +530,10 @@ fn swap(current_frame: &mut StackEntry) {
     current_frame.push(second);
 }
 
-fn ret(interpreter_state: &mut InterpreterStateGuard, local_var_index: u8) {
-    let ret = interpreter_state.current_frame().local_vars()[local_var_index as usize].unwrap_long();
-    *interpreter_state.current_frame().pc_mut() = ret as usize;
-    *interpreter_state.current_frame().pc_offset() = 0;
+pub fn ret(current_frame: &mut StackEntry, local_var_index: usize) {
+    let ret = current_frame.local_vars()[local_var_index].unwrap_long();
+    *current_frame.pc_mut() = ret as usize;
+    *current_frame.pc_offset_mut() = 0;
 }
 
 fn dcmpl(current_frame: &mut StackEntry) {

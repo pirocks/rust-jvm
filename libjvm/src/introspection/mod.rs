@@ -158,7 +158,7 @@ pub mod methods;
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let mut stack = int_state.cloned_stack_snapshot().iter().rev();
+    let mut stack = int_state.cloned_stack_snapshot().into_iter().rev();
     let possibly_class_pointer = stack.find_map(|entry| {
         let class_pointer = entry.try_class_pointer()?;
         let view = class_pointer.view();

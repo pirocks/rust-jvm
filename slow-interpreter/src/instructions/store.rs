@@ -168,9 +168,9 @@ pub fn aastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn istore(current_frame: &mut StackEntry, n: u8) {
+pub fn istore(current_frame: &mut StackEntry, n: usize) {
     let object_ref = current_frame.pop();
-    current_frame.local_vars_mut()[n as usize] = JavaValue::Int(object_ref.unwrap_int());
+    current_frame.local_vars_mut()[n] = JavaValue::Int(object_ref.unwrap_int());
 }
 
 

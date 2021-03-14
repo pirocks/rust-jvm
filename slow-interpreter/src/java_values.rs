@@ -267,7 +267,7 @@ impl JavaValue {
                 })
             }
             JavaValue::Top => panic!(),
-            jv => jv.clone()
+            jv => (*jv).clone()
         }
     }
     pub fn empty_byte_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
