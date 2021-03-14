@@ -392,16 +392,22 @@ fn run_single_instruction(
         InstructionInfo::pop2 => pop2(interpreter_state.current_frame_mut()),
         InstructionInfo::putfield(cp) => putfield(jvm, interpreter_state, cp),
         InstructionInfo::putstatic(cp) => putstatic(jvm, interpreter_state, cp),
-        InstructionInfo::ret(_) => unimplemented!(),
+        InstructionInfo::ret(local_var_index) => ret(interpreter_state, local_var_index),
         InstructionInfo::return_ => return_(interpreter_state),
-        InstructionInfo::saload => unimplemented!(),
-        InstructionInfo::sastore => unimplemented!(),
+        InstructionInfo::saload => saload(interpreter_state.current_frame_mut()),
+        InstructionInfo::sastore => sastore(jvm, interpreter_state),
         InstructionInfo::sipush(val) => sipush(interpreter_state.current_frame_mut(), val),
         InstructionInfo::swap => unimplemented!(),
         InstructionInfo::tableswitch(switch) => tableswitch(switch, interpreter_state.current_frame_mut()),
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
-        InstructionInfo::EndOfCode => unimplemented!(),
+        InstructionInfo::EndOfCode => panic!(),
     }
+}
+
+fn ret(interpreter_state: &mut InterpreterStateGuard, local_var_index: u8) {
+    let ret = interpreter_state.current_frame().local_vars()[local_var_index as usize].unwrap_long();
+    *interpreter_state.current_frame().pc_mut() = ret as usize;
+    *interpreter_state.current_frame().pc_offset() = 0;
 }
 
 fn dcmpl(current_frame: &mut StackEntry) {

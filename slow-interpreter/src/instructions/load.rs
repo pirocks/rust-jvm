@@ -148,6 +148,16 @@ pub fn daload(current_frame: &mut StackEntry) {
 }
 
 
+pub fn saload(current_frame: &mut StackEntry) {
+    let index = current_frame.pop().unwrap_int();
+    let temp = current_frame.pop();
+    let unborrowed = temp.unwrap_array();
+    let array_refcell = unborrowed.mut_array();
+    let d = array_refcell[index as usize].clone().unwrap_short();
+    current_frame.push(JavaValue::Short(d))
+}
+
+
 pub fn baload(current_frame: &mut StackEntry) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();

@@ -1,4 +1,5 @@
 use classfile_view::view::ptype_view::PTypeView;
+use jvmti_jni_bindings::jbyte;
 
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
@@ -66,7 +67,7 @@ pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let current_frame: &mut StackEntry = int_state.current_frame_mut();
-    let val = current_frame.pop().unwrap_int();
+    let val = current_frame.pop().unwrap_byte();
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
@@ -77,7 +78,24 @@ pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     };
     assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
-    array_ref[index as usize] = JavaValue::Byte(val as i8);
+    array_ref[index as usize] = JavaValue::Byte(val);
+}
+
+
+pub fn sastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let val = current_frame.pop().unwrap_short();
+    let index = current_frame.pop().unwrap_int();
+    let array_ref_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        },
+    };
+    assert_eq!(array_ref_o.unwrap_array().elem_type, PTypeView::ShortType);
+    let array_ref = &mut array_ref_o.unwrap_array().mut_array();
+    array_ref[index as usize] = JavaValue::Short(val);
 }
 
 
