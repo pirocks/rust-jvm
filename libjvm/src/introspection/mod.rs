@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::cell::{RefCell, UnsafeCell};
-use std::ffi::CStr;
+use std::ffi::{c_void, CStr};
 use std::ops::Deref;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
@@ -18,6 +18,7 @@ use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEn
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
+use sketch_jvm_version_of_utf8::JVMString;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
@@ -165,18 +166,27 @@ unsafe extern "system" fn JVM_ClassDepth(env: *mut JNIEnv, name: jstring) -> jin
 unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jclasses = int_state.cloned_stack_snapshot().into_iter().rev().flat_map(|entry| {
+    let jclasses = match int_state.cloned_stack_snapshot().into_iter().rev().flat_map(|entry| {
         Some(entry.try_class_pointer()?.ptypeview())
     }).map(|ptype| {
         get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(elem.into()))
-    }).collect::<Result<Vec<_>, WasException>>()?;
+    }).collect::<Result<Vec<_>, WasException>>() {
+        Ok(jclasses) => jclasses,
+        Err(WasException {}) => return null_mut()
+    };
     new_local_ref_public(JavaValue::new_vec_from_vec(jvm, jclasses, ClassName::class().into()).unwrap_object(), int_state)
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const c_char {
+    let jvm = get_state(env);
     let jstring = JavaValue::Object(from_object(JVM_GetClassName(env, cb))).cast_string();
     let rust_string = jstring.to_rust_string();
+    let sketch_string = JVMString::from_regular_string(rust_string.as_str());
+    let mut len = 0;
+    let mut data_ptr: *mut u8 = null_mut();
+    jvm.native_interface_allocations.allocate_and_write_vec(sketch_string.buf.clone(), &mut len as *mut jint, &mut data_ptr as *mut *mut u8);
+    data_ptr as *const c_char
 }
 
 pub mod fields;

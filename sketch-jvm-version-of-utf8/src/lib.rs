@@ -1,19 +1,22 @@
+#![feature(assoc_char_funcs)]
+
 use std::char::from_u32;
 use std::string::FromUtf8Error;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct JVMString {
-    buf: Vec<u8>
+    pub buf: Vec<u8>
 }
 
 impl JVMString {
     pub fn from_regular_string(str: &str) -> Self {
         let buf = str.chars().flat_map(|char_| {
+            let char_ = char_ as u32;
             if char_ >= 0x1 && char_ <= 0x7F {
                 vec![char_ as u8]
             } else if char_ >= 0x80 && char_ <= 0x7FF {
                 let x = 0b1100_0000 | (0b0001_1111 & ((char_ >> 6) as u8));
-                let y = 0b1000_0000 | (0b0011_1111 & (char as u8));
+                let y = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
                 vec![x, y]
             } else if char_ >= 0x800 && char_ <= 0xFFFF {
                 let x = 0b1110_0000 | (0b0000_1111 & ((char_ >> 12) as u8));

@@ -30,6 +30,7 @@ fn main() {
     let mut unittest_mode = false;
     let mut store_generated_options = false;
     let mut debug_print_exceptions = false;
+    let mut assertions_enabled: bool = false;
     let mut libjdwp: String = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjdwp.so".to_string();
     {
         let mut ap = ArgumentParser::new();
@@ -65,7 +66,7 @@ fn main() {
 
     let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
-    let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions);
+    let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions, assertions_enabled);
 
     let (args, jvm) = JVMState::new(jvm_options);
     unsafe { JVM = (jvm).into() }

@@ -9,12 +9,13 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-rust-jvm-common = {path = "../rust-jvm-common"}
-slow-interpreter = {path = "../slow-interpreter"}
-jvmti-jni-bindings = {path = "../jvmti-jni-bindings"}
-classfile-parser = {path = "../classfile-parser"}
-classfile-view = {path = "../classfile-view"}
+rust-jvm-common = { path = "../rust-jvm-common" }
+slow-interpreter = { path = "../slow-interpreter" }
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+classfile-parser = { path = "../classfile-parser" }
+classfile-view = { path = "../classfile-view" }
 verification = { path = "../verification" }
+sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 heapsize = "0.4.2"
 libc = "0.2.66"
 num_cpus = "1.0"

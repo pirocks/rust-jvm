@@ -11,7 +11,6 @@ pub struct JVMOptions {
     pub(crate) main_class_name: ClassName,
     pub(crate) classpath: Classpath,
     pub(crate) args: Vec<String>,
-    //todo args not implemented yet
     pub(crate) shared_libs: SharedLibraryPaths,
     pub(crate) enable_tracing: bool,
     pub(crate) enable_jvmti: bool,
@@ -19,6 +18,7 @@ pub struct JVMOptions {
     pub(crate) unittest_mode: bool,
     pub(crate) store_generated_classes: bool,
     pub(crate) debug_print_exceptions: bool,
+    pub(crate) assertions_enabled: bool
 }
 
 impl JVMOptions {
@@ -33,6 +33,7 @@ impl JVMOptions {
                unittest_mode: bool,
                store_generated_classes: bool,
                debug_print_exceptions: bool,
+               assertions_enabled: bool
     ) -> Self {
         Self {
             main_class_name,
@@ -44,7 +45,8 @@ impl JVMOptions {
             properties,
             unittest_mode,
             store_generated_classes,
-            debug_print_exceptions
+            debug_print_exceptions,
+            assertions_enabled,
         }
     }
 }
