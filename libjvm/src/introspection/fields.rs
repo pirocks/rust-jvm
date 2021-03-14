@@ -24,7 +24,8 @@ use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
-    unimplemented!()
+    let jvm = get_state(env);
+    from_jclass(cb).as_runtime_class(jvm).view().num_fields() as i32
 }
 
 
