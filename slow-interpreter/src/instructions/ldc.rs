@@ -113,17 +113,6 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
             let int: i32 = i.int;
             int_state.push_current_operand_stack(JavaValue::Int(int));
         }
-        ConstantInfoView::Fieldref(ref_) => {
-            dbg!(ref_.class());
-            dbg!(ref_.name_and_type().name());
-            dbg!(ref_.name_and_type().desc_str());
-            int_state.debug_print_stack_trace();
-            let method_i = int_state.current_method_i();
-            dbg!(method_i);
-            dbg!(int_state.current_pc());
-            dbg!(&int_state.current_class_view().method_view_i(method_i as usize).code_attribute().unwrap().code);
-            panic!()
-        }
         _ => {
             dbg!(cp);
             int_state.debug_print_stack_trace();

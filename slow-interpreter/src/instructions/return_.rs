@@ -53,8 +53,6 @@ pub fn lreturn(_jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     match res {
         JavaValue::Long(_) => {}
         _ => {
-            // interpreter_state.get_current_frame().print_stack_trace();
-            // dbg!(res);
             panic!()
         }
     }

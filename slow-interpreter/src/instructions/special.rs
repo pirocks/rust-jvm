@@ -156,7 +156,6 @@ pub fn inherits_from(state: &JVMState, int_state: &mut InterpreterStateGuard, in
     (match runtime_super_class(state, int_state, inherits) {
         None => false,
         Some(super_) => {
-            //todo why is this not an impl function?
             super_.view().name() == parent.view().name() ||
                 inherits_from(state, int_state, &super_, parent)
         }

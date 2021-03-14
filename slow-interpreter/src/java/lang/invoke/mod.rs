@@ -1,4 +1,3 @@
-
 pub mod method_type {
     use std::cell::UnsafeCell;
     use std::sync::Arc;
@@ -222,6 +221,7 @@ pub mod method_handle {
     use crate::interpreter::WasException;
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
+    use crate::java::lang::invoke::method_handles::lookup::Lookup;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
     use crate::java::lang::string::JString;
@@ -239,7 +239,6 @@ pub mod method_handle {
     }
 
     impl MethodHandle {
-        //todo put this in MethodHandle
         pub fn lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Lookup, WasException> {
             let method_handles_class = assert_inited_or_initing_class(jvm, int_state, ClassName::method_handles().into());
             run_static_or_virtual(jvm, int_state, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
@@ -275,62 +274,79 @@ pub mod method_handle {
 
         as_object_or_java_value!();
     }
-
-    //todo this is in the wrong place
-    #[derive(Clone)]
-    pub struct Lookup {
-        normal_object: Arc<Object>
-    }
-
-    impl JavaValue {
-        pub fn cast_lookup(&self) -> Lookup {
-            Lookup { normal_object: self.unwrap_object_nonnull() }
-        }
-    }
-
-    impl Lookup {
-        pub fn trusted_lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Self {
-            let lookup = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
-            let static_vars = lookup.static_vars();
-            static_vars.get("IMPL_LOOKUP").unwrap().cast_lookup()
-        }
-
-        pub fn find_virtual(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> Result<MethodHandle, WasException> {
-            let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
-            int_state.push_current_operand_stack(obj.java_value());
-            int_state.push_current_operand_stack(name.java_value());
-            int_state.push_current_operand_stack(mt.java_value());
-            run_static_or_virtual(jvm, int_state, &lookup_class, "findVirtual".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_method_handle())
-        }
-
-
-        pub fn find_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> Result<MethodHandle, WasException> {
-            let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
-            int_state.push_current_operand_stack(obj.java_value());
-            int_state.push_current_operand_stack(name.java_value());
-            int_state.push_current_operand_stack(mt.java_value());
-            run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_method_handle())
-        }
-
-        pub fn find_special(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType, special_caller: JClass) -> Result<MethodHandle, WasException> {
-            let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
-            int_state.push_current_operand_stack(obj.java_value());
-            int_state.push_current_operand_stack(name.java_value());
-            int_state.push_current_operand_stack(mt.java_value());
-            int_state.push_current_operand_stack(special_caller.java_value());
-            run_static_or_virtual(jvm, int_state, &lookup_class, "findSpecial".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_method_handle())
-        }
-
-        as_object_or_java_value!();
-    }
 }
 
+pub mod method_handles {
+    pub mod lookup {
+        use std::sync::Arc;
+
+        use rust_jvm_common::classnames::ClassName;
+
+        use crate::class_loading::assert_inited_or_initing_class;
+        use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
+        use crate::interpreter::WasException;
+        use crate::interpreter_state::InterpreterStateGuard;
+        use crate::java::lang::class::JClass;
+        use crate::java::lang::invoke::method_handle::MethodHandle;
+        use crate::java::lang::invoke::method_type::MethodType;
+        use crate::java::lang::string::JString;
+        use crate::java_values::{JavaValue, Object};
+        use crate::jvm_state::JVMState;
+
+        #[derive(Clone)]
+        pub struct Lookup {
+            normal_object: Arc<Object>
+        }
+
+        impl JavaValue {
+            pub fn cast_lookup(&self) -> Lookup {
+                Lookup { normal_object: self.unwrap_object_nonnull() }
+            }
+        }
+
+        impl Lookup {
+            pub fn trusted_lookup(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Self {
+                let lookup = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
+                let static_vars = lookup.static_vars();
+                static_vars.get("IMPL_LOOKUP").unwrap().cast_lookup()
+            }
+
+            pub fn find_virtual(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> Result<MethodHandle, WasException> {
+                let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
+                int_state.push_current_operand_stack(self.clone().java_value());
+                int_state.push_current_operand_stack(obj.java_value());
+                int_state.push_current_operand_stack(name.java_value());
+                int_state.push_current_operand_stack(mt.java_value());
+                run_static_or_virtual(jvm, int_state, &lookup_class, "findVirtual".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
+                Ok(int_state.pop_current_operand_stack().cast_method_handle())
+            }
+
+
+            pub fn find_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType) -> Result<MethodHandle, WasException> {
+                let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
+                int_state.push_current_operand_stack(self.clone().java_value());
+                int_state.push_current_operand_stack(obj.java_value());
+                int_state.push_current_operand_stack(name.java_value());
+                int_state.push_current_operand_stack(mt.java_value());
+                run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
+                Ok(int_state.pop_current_operand_stack().cast_method_handle())
+            }
+
+            pub fn find_special(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, obj: JClass, name: JString, mt: MethodType, special_caller: JClass) -> Result<MethodHandle, WasException> {
+                let lookup_class = assert_inited_or_initing_class(jvm, int_state, ClassName::lookup().into());
+                int_state.push_current_operand_stack(self.clone().java_value());
+                int_state.push_current_operand_stack(obj.java_value());
+                int_state.push_current_operand_stack(name.java_value());
+                int_state.push_current_operand_stack(mt.java_value());
+                int_state.push_current_operand_stack(special_caller.java_value());
+                run_static_or_virtual(jvm, int_state, &lookup_class, "findSpecial".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;".to_string())?;
+                Ok(int_state.pop_current_operand_stack().cast_method_handle())
+            }
+
+            as_object_or_java_value!();
+        }
+    }
+}
 
 pub mod lambda_form {
     use std::sync::Arc;

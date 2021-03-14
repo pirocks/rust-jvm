@@ -31,7 +31,8 @@ pub mod dynamic {
     use crate::interpreter::WasException;
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
-    use crate::java::lang::invoke::method_handle::{Lookup, MethodHandle};
+    use crate::java::lang::invoke::method_handle::MethodHandle;
+    use crate::java::lang::invoke::method_handles::lookup::Lookup;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
     use crate::java::lang::string::JString;

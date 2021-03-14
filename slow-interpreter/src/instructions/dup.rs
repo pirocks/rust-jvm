@@ -15,8 +15,6 @@ pub fn dup_x1(current_frame: &mut StackEntry) {
     current_frame.push(value1);
 }
 
-//todo add impl methods on JavaValue to indicate size
-
 pub fn dup_x2(current_frame: &mut StackEntry) {
     let value1 = current_frame.pop();
     let value2 = current_frame.pop();

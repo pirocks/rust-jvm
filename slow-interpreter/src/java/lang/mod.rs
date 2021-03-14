@@ -445,7 +445,7 @@ pub mod string {
                 elem_type: ClassName::string().into(),
                 monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
             };
-            //todo what about check_initied_class for this array type
+            //todo what about check_inited_class for this array type
             let array = JavaValue::Object(Some(Arc::new(Object::Array(array_object))));
             run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array],
                             "([C)V".to_string())?;
@@ -555,7 +555,6 @@ pub mod thread {
     }
 
     impl JavaValue {
-        //todo these shouldn't silently error
         pub fn cast_thread(&self) -> JThread {
             JThread { normal_object: self.unwrap_object_nonnull() }
         }
