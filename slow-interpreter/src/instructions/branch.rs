@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
-pub fn goto_(current_frame: &mut StackEntry, target: i16) {
+pub fn goto_(current_frame: &mut StackEntry, target: i32) {
     *current_frame.pc_offset_mut() = target as isize;
 }
 
