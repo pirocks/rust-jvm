@@ -51,6 +51,7 @@ pub struct JVMState {
 
     pub classes: RwLock<Classes>,
     pub class_loaders: RwLock<BiMap<LoaderIndex, ByAddress<Arc<Object>>>>,
+    pub protection_domains: RwLock<BiMap<ByAddress<Arc<RuntimeClass>>, ByAddress<Arc<Object>>>>,
     pub main_class_name: ClassName,
 
     pub classpath: Arc<Classpath>,
