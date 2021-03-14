@@ -257,14 +257,6 @@ impl JavaValue {
 
     pub fn deep_clone(&self, jvm: &JVMState) -> Self {
         match &self {
-            JavaValue::Long(_) => unimplemented!(),
-            JavaValue::Int(_) => unimplemented!(),
-            JavaValue::Short(_) => unimplemented!(),
-            JavaValue::Byte(_) => unimplemented!(),
-            JavaValue::Boolean(_) => unimplemented!(),
-            JavaValue::Char(_) => unimplemented!(),
-            JavaValue::Float(_) => unimplemented!(),
-            JavaValue::Double(_) => unimplemented!(),
             JavaValue::Object(o) => {
                 JavaValue::Object(match o {
                     None => None,
@@ -273,7 +265,8 @@ impl JavaValue {
                     }
                 })
             }
-            JavaValue::Top => unimplemented!(),
+            JavaValue::Top => panic!(),
+            jv => jv.clone()
         }
     }
     pub fn empty_byte_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
