@@ -1,9 +1,6 @@
-use std::arch::x86_64::_mm_extract_si64;
-use std::ffi::c_void;
 use std::sync::Arc;
 
-use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, ConstantKind, CPIndex, InnerClass, InnerClasses, SourceFile};
-use rust_jvm_common::classfile::InstructionInfo::baload;
+use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, InnerClass, InnerClasses, SourceFile};
 use rust_jvm_common::descriptor_parser::parse_class_name;
 
 use crate::view::{ClassBackedView, ClassView};

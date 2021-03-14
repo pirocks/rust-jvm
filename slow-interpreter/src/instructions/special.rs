@@ -1,4 +1,3 @@
-use std::env::current_exe;
 use std::ops::Deref;
 use std::sync::Arc;
 

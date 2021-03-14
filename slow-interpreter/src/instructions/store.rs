@@ -67,7 +67,7 @@ pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let current_frame: &mut StackEntry = int_state.current_frame_mut();
-    let val = current_frame.pop().unwrap_byte();
+    let val = current_frame.pop().unwrap_int() as jbyte;// int value is truncated
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,

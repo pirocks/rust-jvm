@@ -932,7 +932,6 @@ pub mod long {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -963,14 +962,13 @@ pub mod long {
 pub mod int {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::{jint, jlong};
+    use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -1001,14 +999,13 @@ pub mod int {
 pub mod short {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::{jlong, jshort};
+    use jvmti_jni_bindings::jshort;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -1039,14 +1036,13 @@ pub mod short {
 pub mod byte {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::{jbyte, jlong};
+    use jvmti_jni_bindings::jbyte;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -1077,14 +1073,13 @@ pub mod byte {
 pub mod boolean {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::{jboolean, jlong};
+    use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -1115,14 +1110,13 @@ pub mod boolean {
 pub mod char {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::{jchar, jlong};
+    use jvmti_jni_bindings::jchar;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -1153,14 +1147,13 @@ pub mod char {
 pub mod float {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::{jfloat, jlong};
+    use jvmti_jni_bindings::jfloat;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -1191,14 +1184,13 @@ pub mod float {
 pub mod double {
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::{jdouble, jlong};
+    use jvmti_jni_bindings::jdouble;
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java::lang::illegal_argument_exception::IllegalArgumentException;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 

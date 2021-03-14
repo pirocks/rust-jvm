@@ -1,16 +1,7 @@
 pub mod protection_domain {
     use std::sync::Arc;
 
-    use classfile_view::view::ptype_view::PTypeView;
-    use jvmti_jni_bindings::{jbyte, jint};
-    use rust_jvm_common::classnames::ClassName;
-
-    use crate::class_loading::assert_inited_or_initing_class;
-    use crate::interpreter::WasException;
-    use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{ArrayObject, JavaValue, Object};
-    use crate::jvm_state::JVMState;
+    use crate::java_values::{JavaValue, Object};
 
     pub struct ProtectionDomain {
         normal_object: Arc<Object>
@@ -30,8 +21,6 @@ pub mod protection_domain {
 pub mod access_control_context {
     use std::sync::Arc;
 
-    use classfile_view::view::ptype_view::PTypeView;
-    use jvmti_jni_bindings::{jbyte, jint};
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;
@@ -39,7 +28,7 @@ pub mod access_control_context {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::security::protection_domain::ProtectionDomain;
-    use crate::java_values::{ArrayObject, JavaValue, Object};
+    use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct AccessControlContext {

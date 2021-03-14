@@ -9,7 +9,6 @@ pub mod reflection {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
-    use crate::java::lang::class_loader::ClassLoader;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
