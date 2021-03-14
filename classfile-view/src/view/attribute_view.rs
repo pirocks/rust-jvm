@@ -152,8 +152,12 @@ pub struct InnerClassView<'l> {
 }
 
 impl InnerClassView<'_> {
-    pub fn inner_name(&self) -> ReferenceTypeView {
-        PTypeView::from_ptype(&parse_class_name(&self.backing_class.backing_class.constant_pool[self.class.inner_name_index as usize].extract_string_from_utf8())).unwrap_ref_type().clone()
+    pub fn inner_name(&self) -> Option<ReferenceTypeView> {
+        let inner_name_index = self.class.inner_name_index as usize;
+        if inner_name_index == 0 {
+            return None;
+        }
+        PTypeView::from_ptype(&parse_class_name(&self.backing_class.backing_class.constant_pool[inner_name_index].extract_string_from_utf8())).unwrap_ref_type().clone().into()
     }
 }
 

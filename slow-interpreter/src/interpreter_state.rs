@@ -115,12 +115,6 @@ impl<'l> InterpreterStateGuard<'l> {
         &call_stack[len - 2]
     }
 
-    pub fn previous_previous_frame(&self) -> &StackEntry {
-        let call_stack = &self.int_state.as_ref().unwrap().call_stack;
-        let len = call_stack.len();
-        &call_stack[len - 3]
-    }
-
     pub fn set_throw(&mut self, val: Option<Arc<Object>>) {
         match self.int_state.as_mut() {
             None => {

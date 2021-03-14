@@ -73,7 +73,7 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls
     let stack = int_state.cloned_stack_snapshot();
     let protection_domains = jvm.protection_domains.read().unwrap();
     let protection_domains = stack.iter().rev().flat_map(|entry| {
-        match protection_domains.get_by_left(&ByAddress(entry.class_pointer().clone())) {
+        match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer()?.clone())) {
             None => None,
             Some(domain) => { JavaValue::Object(domain.clone().0.into()).cast_protection_domain().into() }
         }

@@ -1,4 +1,3 @@
-use std::alloc::Global;
 use std::borrow::Borrow;
 use std::cell::{RefCell, UnsafeCell};
 use std::ffi::CStr;
@@ -102,11 +101,11 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
     let int_state = get_interpreter_state(env);
     let class = from_jclass(ofClass).as_runtime_class(jvm);
     let res_array = match class.view().inner_classes_view() {
-        None => vec![].into_iter(),
+        None => vec![],
         Some(inner_classes) => {
-            inner_classes.classes().map(|inner_class| PTypeView::Ref(inner_class.inner_name()))
+            inner_classes.classes().flat_map(|inner_class| Some(PTypeView::Ref(inner_class.inner_name()?))).collect::<Vec<_>>()
         }
-    }.map(|ptype| Ok(JavaValue::Object(get_or_create_class_object(jvm, ptype, int_state)?.into()))).collect::<Result<Vec<_>, _>>();
+    }.into_iter().map(|ptype| Ok(JavaValue::Object(get_or_create_class_object(jvm, ptype, int_state)?.into()))).collect::<Result<Vec<_>, _>>();
     let res_jv = JavaValue::new_vec_from_vec(jvm, match res_array {
         Ok(obj_array) => obj_array,
         Err(WasException {}) => return null_mut(),
@@ -156,11 +155,22 @@ pub mod methods;
 
 #[no_mangle]
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
-    /*todo, so this is needed for booting but it is what could best be described as an advanced feature.
-    Therefore it only sorta works*/
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let possibly_class_pointer = int_state.previous_previous_frame().try_class_pointer();
+    let mut stack = int_state.cloned_stack_snapshot().iter().rev();
+    let possibly_class_pointer = stack.find_map(|entry| {
+        let class_pointer = entry.try_class_pointer()?;
+        let view = class_pointer.view();
+        if entry.is_native() || entry.is_opaque_frame() {
+            return None;
+        }
+        if let Some(name) = view.name().try_unwrap_name() {
+            if name == ClassName::method() && view.method_view_i(entry.method_i() as usize).name() == "invoke" {
+                return None;
+            }
+        }
+        Some(class_pointer.clone())
+    });
     let type_ = if let Some(class_pointer) = possibly_class_pointer {
         class_pointer.ptypeview()
     } else {
