@@ -1,4 +1,7 @@
+use std::ops::Rem;
 use std::sync::Arc;
+
+use num::Zero;
 
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -228,7 +231,7 @@ fn run_single_instruction(
         InstructionInfo::dload_3 => dload(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::dmul => dmul(interpreter_state.current_frame_mut()),
         InstructionInfo::dneg => dneg(interpreter_state.current_frame_mut()),
-        InstructionInfo::drem => unimplemented!(),
+        InstructionInfo::drem => drem(interpreter_state.current_frame_mut()),
         InstructionInfo::dreturn => dreturn(jvm, interpreter_state),
         InstructionInfo::dstore(i) => dstore(interpreter_state.current_frame_mut(), i as usize),
         InstructionInfo::dstore_0 => dstore(interpreter_state.current_frame_mut(), 0 as usize),
@@ -402,6 +405,36 @@ fn run_single_instruction(
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
     }
+}
+
+fn drem(current_frame: &mut StackEntry) {
+    let value2 = current_frame.pop().unwrap_double();//divisor
+    let value1 = current_frame.pop().unwrap_double();
+    let res = drem_impl(value2, value1);
+    current_frame.push(JavaValue::Double(res))
+}
+
+fn drem_impl(value2: f64, value1: f64) -> f64 {
+    let res = if value1.is_nan() || value2.is_nan() {
+        f64::NAN
+    } else if value2.is_zero() || value1.is_infinite() {
+        if value1.is_sign_negative() {
+            f64::NEG_INFINITY
+        } else {
+            f64::INFINITY
+        }
+    } else if value2.is_infinite() {
+        value1
+    } else if value1.is_zero() {
+        value1
+    } else {
+        if (value1 / value2).is_sign_negative() {
+            -value1.rem(value2).abs()
+        } else {
+            value1.rem(value2).abs()
+        }
+    };
+    res
 }
 
 fn dneg(current_frame: &mut StackEntry) {
