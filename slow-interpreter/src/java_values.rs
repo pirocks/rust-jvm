@@ -155,7 +155,7 @@ impl JavaValue {
                 *i as i32
             }
             _ => {
-                return None
+                return None;
             }
         }.into()
     }
@@ -276,7 +276,7 @@ impl JavaValue {
             int_state,
             vec![],
             PTypeView::ByteType,
-            jvm.thread_state.new_monitor("".to_string())
+            jvm.thread_state.new_monitor("".to_string()),
         )))))
     }
     pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
@@ -298,7 +298,7 @@ impl JavaValue {
             int_state,
             buf,
             elem_type,
-            jvm.thread_state.new_monitor("array object monitor".to_string())
+            jvm.thread_state.new_monitor("array object monitor".to_string()),
         ))))
     }
 
@@ -368,6 +368,19 @@ impl JavaValue {
             }
             JavaValue::Top => PTypeView::TopType
         }
+    }
+
+    pub fn is_size_2(&self) -> bool {
+        match self {
+            JavaValue::Long(_) => true,
+            JavaValue::Double(_) => true,
+            _ => false,
+        }
+    }
+
+
+    pub fn is_size_1(&self) -> bool {
+        !self.is_size_2()
     }
 }
 
@@ -475,6 +488,7 @@ pub enum Object {
 
 //todo should really fix this
 unsafe impl Send for Object {}
+
 unsafe impl Sync for Object {}
 
 impl Object {

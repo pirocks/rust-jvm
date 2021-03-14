@@ -244,7 +244,7 @@ fn run_single_instruction(
         InstructionInfo::dup_x2 => dup_x2(interpreter_state.current_frame_mut()),
         InstructionInfo::dup2 => dup2(interpreter_state.current_frame_mut()),
         InstructionInfo::dup2_x1 => dup2_x1(interpreter_state.current_frame_mut()),
-        InstructionInfo::dup2_x2 => unimplemented!(),
+        InstructionInfo::dup2_x2 => dup2_x2(interpreter_state.current_frame_mut()),
         InstructionInfo::f2d => f2d(interpreter_state.current_frame_mut()),
         InstructionInfo::f2i => f2i(interpreter_state.current_frame_mut()),
         InstructionInfo::f2l => unimplemented!(),
@@ -404,6 +404,48 @@ fn run_single_instruction(
         InstructionInfo::tableswitch(switch) => tableswitch(switch, interpreter_state.current_frame_mut()),
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
+    }
+}
+
+fn dup2_x2(current_frame: &mut StackEntry) {
+    let value1 = current_frame.pop();
+    let value2 = current_frame.pop();
+    if value1.is_size_2() {
+        if value2.is_size_2() {
+            //form 4
+            current_frame.push(value1.clone());
+            current_frame.push(value2);
+            current_frame.push(value1);
+        } else {
+            //form 2
+            let value3 = current_frame.pop();
+            assert!(value3.is_size_1());
+            current_frame.push(value1.clone());
+            current_frame.push(value3);
+            current_frame.push(value2);
+            current_frame.push(value1);
+        }
+    } else {
+        assert!(value2.is_size_1());
+        let value3 = current_frame.pop();
+        if value3.is_size_2() {
+            //form 3
+            current_frame.push(value2.clone());
+            current_frame.push(value1.clone());
+            current_frame.push(value3);
+            current_frame.push(value2);
+            current_frame.push(value1);
+        } else {
+            //form 1
+            let value4 = current_frame.pop();
+            assert!(value4.is_size_1());
+            current_frame.push(value2.clone());
+            current_frame.push(value1.clone());
+            current_frame.push(value4);
+            current_frame.push(value3);
+            current_frame.push(value2);
+            current_frame.push(value1);
+        }
     }
 }
 
