@@ -227,7 +227,7 @@ fn run_single_instruction(
         InstructionInfo::dload_2 => dload(interpreter_state.current_frame_mut(), 2),
         InstructionInfo::dload_3 => dload(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::dmul => dmul(interpreter_state.current_frame_mut()),
-        InstructionInfo::dneg => unimplemented!(),
+        InstructionInfo::dneg => dneg(interpreter_state.current_frame_mut()),
         InstructionInfo::drem => unimplemented!(),
         InstructionInfo::dreturn => dreturn(jvm, interpreter_state),
         InstructionInfo::dstore(i) => dstore(interpreter_state.current_frame_mut(), i as usize),
@@ -402,6 +402,11 @@ fn run_single_instruction(
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
     }
+}
+
+fn dneg(current_frame: &mut StackEntry) {
+    let val = current_frame.pop().unwrap_double();
+    current_frame.push(JavaValue::Double(-val))
 }
 
 fn swap(current_frame: &mut StackEntry) {
