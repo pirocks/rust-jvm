@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
+use by_address::ByAddress;
 use num_cpus::get;
 
 use classfile_view::loading::{ClassLoadingError, LoaderName};
@@ -63,7 +64,15 @@ unsafe extern "system" fn JVM_GetClassSigners(env: *mut JNIEnv, cls: jclass) -> 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass) -> jobject {
-    null_mut()//todo actually implement
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let class = from_jclass(cls).as_runtime_class(jvm);
+    match jvm.protection_domains.read().unwrap().get_by_left(&ByAddress(class)) {
+        None => null_mut(),
+        Some(pd_obj) => {
+            new_local_ref_public(pd_obj.clone().0.into(), int_state)
+        }
+    }
 }
 
 
@@ -180,7 +189,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
         Ok(class_object) => {
             if init != 0 {
                 if let Err(WasException {}) = check_initing_or_inited_class(jvm, int_state, p_type) {
-                    return null_mut()
+                    return null_mut();
                 };
             }
             new_local_ref_public(Some(class_object), int_state)
