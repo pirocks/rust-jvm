@@ -125,7 +125,14 @@ unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclas
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -> jstring {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+
+    let ptype = from_jclass(cls).as_runtime_class(jvm).ptypeview();
+    match JString::from_rust(jvm, int_state, ptype.jvm_representation()) {
+        Ok(jstring) => new_local_ref_public(jstring.object().into(), int_state),
+        Err(WasException) => null_mut()
+    }
 }
 
 pub mod get_methods;
