@@ -99,8 +99,11 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
             let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, s.string()).expect("todo").object().into()).java_value();
             int_state.push_current_operand_stack(string_value)
         }
-        ConstantInfoView::Class(c) => if let Err(WasException {}) = load_class_constant(jvm, int_state, &c) {
-            return
+        ConstantInfoView::Class(c) => match load_class_constant(jvm, int_state, &c) {
+            Err(WasException {}) => {
+                return;
+            }
+            Ok(()) => {}
         },
         ConstantInfoView::Float(f) => {
             let float: f32 = f.float;
@@ -110,7 +113,19 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
             let int: i32 = i.int;
             int_state.push_current_operand_stack(JavaValue::Int(int));
         }
+        ConstantInfoView::Fieldref(ref_) => {
+            dbg!(ref_.class());
+            dbg!(ref_.name_and_type().name());
+            dbg!(ref_.name_and_type().desc_str());
+            int_state.debug_print_stack_trace();
+            let method_i = int_state.current_method_i();
+            dbg!(method_i);
+            dbg!(int_state.current_pc());
+            dbg!(&int_state.current_class_view().method_view_i(method_i as usize).code_attribute().unwrap().code);
+            panic!()
+        }
         _ => {
+            dbg!(cp);
             int_state.debug_print_stack_trace();
             dbg!(&pool_entry);
             unimplemented!()

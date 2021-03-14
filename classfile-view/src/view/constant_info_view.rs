@@ -158,6 +158,7 @@ impl NameAndTypeView<'_> {
         self.class_view.backing_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8()
     }
     pub fn desc_method(&self) -> MethodDescriptor {
+        //todo this is incorrect, name and types aren't always method descirpotrs
         let desc_str = self.class_view.backing_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8();
         parse_method_descriptor(desc_str.as_str()).unwrap()//in future parse
     }

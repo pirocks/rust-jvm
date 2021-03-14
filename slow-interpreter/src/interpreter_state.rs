@@ -247,7 +247,7 @@ impl Default for FramePushGuard {
 
 impl Drop for FramePushGuard {
     fn drop(&mut self) {
-        // assert!(self.correctly_exited)
+        assert!(self.correctly_exited)
     }
 }
 
