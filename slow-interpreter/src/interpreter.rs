@@ -344,9 +344,9 @@ fn run_single_instruction(
         InstructionInfo::isub => isub(interpreter_state.current_frame_mut()),
         InstructionInfo::iushr => iushr(interpreter_state.current_frame_mut()),
         InstructionInfo::ixor => ixor(interpreter_state.current_frame_mut()),
-        InstructionInfo::jsr(_) => unimplemented!(),
-        InstructionInfo::jsr_w(_) => unimplemented!(),
-        InstructionInfo::l2d => unimplemented!(),
+        InstructionInfo::jsr(target) => jsr(interpreter_state, target as i32),
+        InstructionInfo::jsr_w(target) => jsr(interpreter_state, target),
+        InstructionInfo::l2d => l2d(interpreter_state.current_frame_mut()),
         InstructionInfo::l2f => l2f(interpreter_state.current_frame_mut()),
         InstructionInfo::l2i => l2i(interpreter_state.current_frame_mut()),
         InstructionInfo::ladd => ladd(interpreter_state.current_frame_mut()),
@@ -405,6 +405,17 @@ fn run_single_instruction(
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
     }
+}
+
+fn l2d(current_frame: &mut StackEntry) {
+    let val = current_frame.pop().unwrap_long();
+    current_frame.push(JavaValue::Double(val as f64))
+}
+
+fn jsr(interpreter_state: &mut InterpreterStateGuard, target: i32) {
+    let next_instruct = (interpreter_state.current_pc() + interpreter_state.current_pc_offset()) as i64;
+    interpreter_state.push_current_operand_stack(JavaValue::Long(next_instruct));
+    *interpreter_state.current_pc_offset_mut() = target as isize
 }
 
 fn f2l(current_frame: &mut StackEntry) {
