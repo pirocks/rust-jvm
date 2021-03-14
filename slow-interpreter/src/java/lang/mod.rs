@@ -63,7 +63,7 @@ pub mod stack_trace_element {
 
     impl StackTraceElement {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, declaring_class: JString, method_name: JString, file_name: JString, line_number: jint) -> Result<StackTraceElement, WasException> {
-            let class_ = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/StackTraceElement").into()).unwrap();//todo replace these unwraps
+            let class_ = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/StackTraceElement").into())?;
             push_new_object(jvm, int_state, &class_);
             let res = int_state.pop_current_operand_stack();
             let full_args = vec![res.clone(), declaring_class.java_value(), method_name.java_value(), file_name.java_value(), JavaValue::Int(
@@ -288,7 +288,7 @@ pub mod class {
         }
 
         pub fn new_bootstrap_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Self, WasException> {
-            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into()).unwrap();//todo replace these unwraps
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::Object(None)], "(Ljava/lang/ClassLoader;)V".to_string())?;
@@ -297,7 +297,7 @@ pub mod class {
 
 
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, loader: ClassLoader) -> Result<Self, WasException> {
-            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into()).unwrap();//todo replace these unwraps
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], "(Ljava/lang/ClassLoader;)V".to_string())?;
