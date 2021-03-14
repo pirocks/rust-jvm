@@ -147,12 +147,29 @@ unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass)
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ClassDepth(env: *mut JNIEnv, name: jstring) -> jint {
-    unimplemented!()
+    unreachable!("As far as I can tell this is never actually used. But I guess if you see this I was wrong. ")
 }
 
+////**
+//      * Returns the current execution stack as an array of classes.
+//      * <p>
+//      * The length of the array is the number of methods on the execution
+//      * stack. The element at index <code>0</code> is the class of the
+//      * currently executing method, the element at index <code>1</code> is
+//      * the class of that method's caller, and so on.
+//      *
+//      * @return  the execution stack.
+//      */
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let jclasses = int_state.cloned_stack_snapshot().into_iter().rev().flat_map(|entry| {
+        Some(entry.try_class_pointer()?.ptypeview())
+    }).map(|ptype| {
+        get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(elem.into()))
+    }).collect::<Result<Vec<_>, WasException>>()?;
+    new_local_ref_public(JavaValue::new_vec_from_vec(jvm, jclasses, ClassName::class().into()).unwrap_object(), int_state)
 }
 
 #[no_mangle]
