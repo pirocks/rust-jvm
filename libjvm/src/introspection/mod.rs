@@ -96,7 +96,9 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
-    unimplemented!()
+    let jvm = get_state(env);
+    let class = from_jclass(ofClass).as_runtime_class(jvm);
+    class.view()
 }
 
 #[no_mangle]

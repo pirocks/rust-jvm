@@ -375,7 +375,7 @@ impl ClassView for PrimitiveView {
 }
 
 pub struct ArrayView {
-    sub: Arc<dyn ClassView>
+    pub sub: Arc<dyn ClassView>
 }
 
 impl HasAccessFlags for ArrayView {

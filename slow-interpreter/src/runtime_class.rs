@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
-use classfile_view::view::{ClassView, HasAccessFlags, PrimitiveView};
+use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -70,23 +70,27 @@ impl RuntimeClass {
             RuntimeClass::Float => Arc::new(PrimitiveView::Float),
             RuntimeClass::Double => Arc::new(PrimitiveView::Double),
             RuntimeClass::Void => Arc::new(PrimitiveView::Void),
-            RuntimeClass::Array(_) => unimplemented!(),
+            RuntimeClass::Array(arr) => {
+                Arc::new(ArrayView {
+                    sub: arr.sub_class.view()
+                })
+            }
             RuntimeClass::Object(o) => o.class_view.clone(),
         }
     }
 
     pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue>> {
         match self {
-            RuntimeClass::Byte => unimplemented!(),
-            RuntimeClass::Boolean => unimplemented!(),
-            RuntimeClass::Short => unimplemented!(),
-            RuntimeClass::Char => unimplemented!(),
-            RuntimeClass::Int => unimplemented!(),
-            RuntimeClass::Long => unimplemented!(),
-            RuntimeClass::Float => unimplemented!(),
-            RuntimeClass::Double => unimplemented!(),
-            RuntimeClass::Void => unimplemented!(),
-            RuntimeClass::Array(_) => unimplemented!(),
+            RuntimeClass::Byte => panic!(),
+            RuntimeClass::Boolean => panic!(),
+            RuntimeClass::Short => panic!(),
+            RuntimeClass::Char => panic!(),
+            RuntimeClass::Int => panic!(),
+            RuntimeClass::Long => panic!(),
+            RuntimeClass::Float => panic!(),
+            RuntimeClass::Double => panic!(),
+            RuntimeClass::Void => panic!(),
+            RuntimeClass::Array(_) => panic!(),
             RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
         }
     }
