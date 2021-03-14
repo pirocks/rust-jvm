@@ -7,6 +7,36 @@ pub struct JVMString {
 }
 
 impl JVMString {
+    pub fn from_regular_string(str: &str) -> Self {
+        let buf = str.chars().flat_map(|char_| {
+            if char_ >= 0x1 && char_ <= 0x7F {
+                vec![char_ as u8]
+            } else if char_ >= 0x80 && char_ <= 0x7FF {
+                let x = 0b1100_0000 | (0b0001_1111 & ((char_ >> 6) as u8));
+                let y = 0b1000_0000 | (0b0011_1111 & (char as u8));
+                vec![x, y]
+            } else if char_ >= 0x800 && char_ <= 0xFFFF {
+                let x = 0b1110_0000 | (0b0000_1111 & ((char_ >> 12) as u8));
+                let y = 0b1000_0000 | (0b0011_1111 & ((char_ >> 6) as u8));
+                let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
+                vec![x, y, z]
+            } else {
+                assert!(char_ > 0xFFFF);
+                let u = 0b1110_1101;
+                let v = 0b1010_0000 | (0b1111_0000 & ((char_ >> 16) as u8 - 1));
+                let w = 0b1000_0000 | (0b1100_0000 & ((char_ >> 10) as u8));
+                let x = 0b1110_1101;
+                let y = 0b1011_0000 | (0b0000_1111 & ((char_ >> 6) as u8));
+                let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
+                vec![u, v, w, x, y, z]
+            }
+        }).collect::<Vec<_>>();
+        Self {
+            buf
+        }
+    }
+
+
     pub fn to_string(&self) -> Result<String, ValidationError> {
         let buf = PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8()?;
         Ok(String::from_utf8(buf)?)

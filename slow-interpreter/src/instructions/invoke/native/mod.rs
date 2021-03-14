@@ -58,9 +58,7 @@ pub fn run_native_method(
     }
 
     let meth_name = method.name();
-    let result = if meth_name == *"desiredAssertionStatus0" {//todo and descriptor matches and class matches
-        JavaValue::Boolean(0).into()
-    } else if meth_name == *"arraycopy" {
+    let result = if meth_name == *"arraycopy" {//todo and descriptor matches and class matches
         system_array_copy(&mut args);
         None
     } else if jvm.libjava.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
@@ -148,14 +146,6 @@ fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
     })
 }
 
-
-//todo needed?
-pub fn call_signature_polymorphic(_jvm: &JVMState,
-                                  _int_state: &mut InterpreterStateGuard,
-                                  _method_view: &MethodView,
-) {
-    unimplemented!()
-}
 
 pub mod mhn_temp;
 pub mod unsafe_temp;
