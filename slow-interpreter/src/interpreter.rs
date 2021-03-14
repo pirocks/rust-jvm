@@ -397,11 +397,19 @@ fn run_single_instruction(
         InstructionInfo::saload => saload(interpreter_state.current_frame_mut()),
         InstructionInfo::sastore => sastore(jvm, interpreter_state),
         InstructionInfo::sipush(val) => sipush(interpreter_state.current_frame_mut(), val),
-        InstructionInfo::swap => unimplemented!(),
+        InstructionInfo::swap =>
+            swap(interpreter_state.current_frame_mut()),
         InstructionInfo::tableswitch(switch) => tableswitch(switch, interpreter_state.current_frame_mut()),
         InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
     }
+}
+
+fn swap(current_frame: &mut StackEntry) {
+    let first = current_frame.pop();
+    let second = current_frame.pop();
+    current_frame.push(first);
+    current_frame.push(second);
 }
 
 fn ret(interpreter_state: &mut InterpreterStateGuard, local_var_index: u8) {
