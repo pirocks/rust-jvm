@@ -6,6 +6,7 @@ use std::ptr::null_mut;
 use std::sync::RwLock;
 
 use jvmti_jni_bindings::jint;
+use sketch_jvm_version_of_utf8::JVMString;
 
 #[derive(Clone)]
 pub enum AllocationType {
@@ -60,6 +61,15 @@ impl NativeAllocator {
 
     pub unsafe fn allocate_string(&self, cstr: String) -> *mut i8 {
         self.allocate_cstring(CString::new(cstr).unwrap())
+    }
+
+
+    pub unsafe fn allocate_modified_string(&self, cstr: String) -> *mut i8 {
+        let buf = JVMString::from_regular_string(cstr.as_str()).buf.clone();
+        let mut len = 0;
+        let mut ptr: *mut u8 = null_mut();
+        self.allocate_and_write_vec(buf, &mut len as *mut jint, &mut ptr as *mut *mut u8)
+        ptr as *mut i8
     }
 
     pub unsafe fn free(&self, ptr: *mut c_void) {

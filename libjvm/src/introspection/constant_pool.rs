@@ -1,6 +1,6 @@
 use std::hint::unreachable_unchecked;
 use std::os::raw::{c_char, c_uchar};
-use std::ptr::null_mut;
+use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
 use by_address::ByAddress;
@@ -27,6 +27,8 @@ use slow_interpreter::rust_jni::interface::field_object_from_view;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
+
+//todo lots of duplication here, idk if should fix though
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass) -> jobject {
@@ -418,37 +420,138 @@ unsafe extern "system" fn JVM_GetClassCPEntriesCount(env: *mut JNIEnv, cb: jclas
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null();
+    }
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return null();
+        }
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null();
+    }
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return null();
+        }
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null();
+    }
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str()),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str()),
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return null();
+        }
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null();
+    }
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str()),
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return null();
+        }
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null();
+    }
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Class(class_) => jvm.native_interface_allocations.allocate_modified_string(PTypeView::Ref(class_.class_ref_type()).class_name_representation()),
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return null();
+        }
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null();
+    }
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return null();
+        }
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null();
+    }
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return null();
+        }
+    }
 }
 
 #[no_mangle]

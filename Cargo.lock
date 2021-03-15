@@ -1004,6 +1004,7 @@ dependencies = [
  "parking_lot 0.11.1",
  "regex",
  "rust-jvm-common",
+ "sketch-jvm-version-of-utf8",
  "thread-priority",
  "threads",
  "type-safe-proc-macro-utils",
