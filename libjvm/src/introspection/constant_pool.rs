@@ -384,7 +384,7 @@ unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject,
 unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, types: *mut c_uchar) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     for (i, constant_pool) in (0..view.constant_pool_size()).map(|i| (i, view.constant_pool_view(i))) {
         types.offset(i as isize).write(match constant_pool {
@@ -409,7 +409,11 @@ unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, type
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassCPEntriesCount(env: *mut JNIEnv, cb: jclass) -> jint {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    view.constant_pool_size() as i32
 }
 
 #[no_mangle]
