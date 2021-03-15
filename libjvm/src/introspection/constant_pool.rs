@@ -11,6 +11,7 @@ use classfile_view::view::constant_info_view::{ConstantInfoView, InterfaceMethod
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, lchmod};
+use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::WasException;
@@ -60,7 +61,10 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
                 Err(_) => null_mut()
             }
         }
-        _ => null_mut()
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            null_mut()
+        }
     }
 }
 
@@ -82,7 +86,10 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
                 Some(obj) => to_object(obj.into())
             }
         }
-        _ => null_mut()
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            null_mut()
+        }
     }
 }
 
@@ -199,7 +206,52 @@ unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(env: *mut JNIEnv, c
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobjectArray {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return null_mut();
+    }
+    let (class, name, desc_str) = match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Methodref(ref_) => {
+            let class = PTypeView::Ref(ref_.class()).class_name_representation().replace(".", "/");
+            let name = ref_.name_and_type().name();
+            let desc_str = ref_.name_and_type().desc_str();
+            (class, name, desc_str)
+        }
+        ConstantInfoView::InterfaceMethodref(ref_) => {
+            let class = PTypeView::Ref(ref_.class()).class_name_representation().replace(".", "/");
+            let name = ref_.name_and_type().name();
+            let desc_str = ref_.name_and_type().desc_str();
+            (class, name, desc_str)
+        }
+        ConstantInfoView::Fieldref(ref_) => {
+            let class = ref_.class();
+            let name = ref_.name_and_type().name();
+            let desc_str = ref_.name_and_type().desc_str();
+            (class, name, desc_str)
+        }
+        _ => {
+            throw_illegal_arg(jvm, int_state);
+            return null_mut();
+        }
+    };
+    let jv_vec = vec![
+        match JString::from_rust(jvm, int_state, class) {
+            Ok(class) => class.java_value(),
+            Err(WasException {}) => return null_mut()
+        },
+        match JString::from_rust(jvm, int_state, name) {
+            Ok(name) => name.java_value(),
+            Err(WasException {}) => return null_mut()
+        },
+        match JString::from_rust(jvm, int_state, desc_str) {
+            Ok(desc_str) => desc_str.java_value(),
+            Err(WasException {}) => return null_mut()
+        }];
+    new_local_ref_public(JavaValue::new_vec_from_vec(jvm, jv_vec, ClassName::string().into()).unwrap_object(), int_state)
 }
 
 #[no_mangle]
