@@ -435,8 +435,6 @@ pub mod string {
         pub fn from_rust(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> Result<JString, WasException> {
             let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into()).unwrap();//todo replace these unwraps
             push_new_object(jvm, int_state, &string_class);
-            // dbg!(int_state.current_frame().local_vars());
-            // dbg!(int_state.current_frame().operand_stack());
             let string_object = int_state.pop_current_operand_stack();
 
             let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>();

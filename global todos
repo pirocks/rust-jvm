@@ -4,3 +4,6 @@ all places that where previously panics should have warnings
 should views hold arc refs, rcs or regular refs
 
 distinguish between ptype and actual jvm type.
+use private static volatile Map<Class<?>,String[]> fieldFilterMap;
+        private static volatile Map<Class<?>,String[]> methodFilterMap;
+in sun.reflect.Reflection

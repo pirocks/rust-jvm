@@ -1,4 +1,5 @@
 use std::hint::unreachable_unchecked;
+use std::os::raw::{c_char, c_uchar};
 use std::ptr::null_mut;
 use std::sync::Arc;
 
@@ -6,16 +7,21 @@ use by_address::ByAddress;
 
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::ClassView;
-use classfile_view::view::constant_info_view::ConstantInfoView;
+use classfile_view::view::constant_info_view::{ConstantInfoView, InterfaceMethodrefView, MethodrefView};
+use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring};
+use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, lchmod};
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::WasException;
+use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
+use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java::lang::string::JString;
-use slow_interpreter::java_values::Object;
+use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::runtime_class::RuntimeClass;
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
 
@@ -78,16 +84,70 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
     }
 }
 
+
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
+    match get_method(env, constantPoolOop, index, true) {
+        Ok(method) => method,
+        Err(WasException {}) => null_mut()
+    }
+}
+
+fn get_class_from_type_maybe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, load_class: bool) -> Result<Option<Arc<RuntimeClass>>, WasException> {
+    Ok(if load_class {
+        Some(check_initing_or_inited_class(jvm, int_state, PTypeView::Ref(method_ref.class()))?)
+    } else {
+        match jvm.classes.read().unwrap().get_class_obj(PTypeView::Ref(method_ref.class())) {
+            None => return Ok(None),
+            Some(rc) => Some(JavaValue::Object(rc.into()).cast_class().as_runtime_class(jvm))
+        }
+    })
+}
+
+unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load_class: bool) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let view =
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds_res(jvm, int_state, index)?;
+        unreachable!()
+    }
+    let method_view = match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Methodref(method_ref) => {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, load_class)? {
+                None => return Ok(null_mut()),
+                Some(method_ref_class) => method_ref_class
+            };
+            let name = method_ref.name_and_type().name();
+            let method_desc = method_ref.name_and_type().desc_method();
+            method_ref_class.view().lookup_method(name.as_str(), &method_desc).unwrap()
+        }
+        ConstantInfoView::InterfaceMethodref(method_ref) => {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, load_class)? {
+                None => return Ok(null_mut()),
+                Some(method_ref_class) => method_ref_class
+            };
+            let name = method_ref.name_and_type().name();
+            let method_desc = method_ref.name_and_type().desc_method();
+            method_ref_class.view().lookup_method(name.as_str(), &method_desc).unwrap()
+        }
+        _ => {
+            throw_illegal_arg_res(jvm, int_state)?;
+            unreachable!();
+        }
+    };
+
+    let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view)?;
+    Ok(new_local_ref_public(method_obj.object().into(), int_state))
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetMethodAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
-    unimplemented!()
+    match get_method(env, constantPoolOop, index, false) {
+        Ok(method) => method,
+        Err(WasException {}) => null_mut()
+    }
 }
 
 #[no_mangle]
@@ -232,7 +292,7 @@ unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject,
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, types: *mut ::std::os::raw::c_uchar) {
+unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, types: *mut c_uchar) {
     unimplemented!()
 }
 
@@ -242,37 +302,37 @@ unsafe extern "system" fn JVM_GetClassCPEntriesCount(env: *mut JNIEnv, cb: jclas
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
+unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
+unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
+unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
+unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
+unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
+unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const ::std::os::raw::c_char {
+unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
