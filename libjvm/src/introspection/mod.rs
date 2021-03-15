@@ -40,8 +40,6 @@ use slow_interpreter::threading::monitors::Monitor;
 
 pub mod constant_pool;
 pub mod is_x;
-pub mod index;
-pub mod method_annotations;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {

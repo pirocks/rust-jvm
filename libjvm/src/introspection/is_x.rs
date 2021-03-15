@@ -62,23 +62,3 @@ unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) ->
     let type_ = JavaValue::Object(from_object(cls)).cast_class().as_type(jvm);
     type_.is_primitive() as jboolean
 }
-
-
-#[no_mangle]
-unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let rc = from_jclass(cb).as_runtime_class(jvm);
-    let view = rc.view();
-    if index >= view.num_methods() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return u8::from(false);
-    }
-    u8::from(view.method_view_i(index as usize).name() == "<init>")
-}
-
-#[no_mangle]
-unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
-    u8::from(false)
-}
-
