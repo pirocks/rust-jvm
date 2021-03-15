@@ -16,11 +16,13 @@ use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
+use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::runtime_class::RuntimeClass;
+use slow_interpreter::rust_jni::interface::field_object_from_view;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
@@ -83,7 +85,6 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
         _ => null_mut()
     }
 }
-
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
@@ -150,14 +151,50 @@ unsafe extern "system" fn JVM_ConstantPoolGetMethodAtIfLoaded(env: *mut JNIEnv, 
     }
 }
 
+
+unsafe fn get_field(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load_class: bool) -> Result<jobject, WasException> {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds_res(jvm, int_state, index)?;
+        unreachable!()
+    }
+    let (field_rc, field_view) = match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Fieldref(method_ref) => {
+            let field_rc = match get_class_from_type_maybe(jvm, int_state, load_class)? {
+                None => return Ok(null_mut()),
+                Some(field_rc) => field_rc
+            };
+            let name = method_ref.name_and_type().name();
+            (field_rc.clone(), field_rc.view().fields().find(|f| f.field_name().as_str() == name.as_str()).unwrap())
+        }
+        _ => {
+            throw_illegal_arg_res(jvm, int_state)?;
+            unreachable!();
+        }
+    };
+
+    let method_obj = field_object_from_view(jvm, int_state, field_rc, field_view)?;
+    Ok(new_local_ref_public(method_obj.object().into(), int_state))
+}
+
+
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetFieldAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
-    unimplemented!()
+    match get_field(env, constantPoolOop, index, true) {
+        Ok(method) => method,
+        Err(WasException {}) => null_mut()
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
-    unimplemented!()
+    match get_field(env, constantPoolOop, index, false) {
+        Ok(method) => method,
+        Err(WasException {}) => null_mut()
+    }
 }
 
 #[no_mangle]

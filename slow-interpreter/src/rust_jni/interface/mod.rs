@@ -594,6 +594,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
     }.unwrap_object())
 }
 
+//shouldn't take class as arg and should be an impl method on Field
 pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: Arc<RuntimeClass>, f: FieldView) -> Result<JavaValue, WasException> {
     let field_class_name_ = class_obj.clone().ptypeview();
     load_class_constant_by_type(jvm, int_state, field_class_name_)?;
