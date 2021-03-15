@@ -5,16 +5,26 @@ use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jch
 
 use crate::java_values::{JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, to_object};
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use crate::utils::{throw_illegal_arg, throw_npe, throw_npe_res};
 
-pub unsafe extern "C" fn get_array_length(_env: *mut JNIEnv, array: jarray) -> jsize {
-    let non_null_array: &Object = &from_object(array).unwrap();//todo handle npe
+pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let non_null_array: &Object = &match from_object(array) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return jsize::MAX
+        },
+    };
     let len = match non_null_array {
         Object::Array(a) => {
             a.mut_array().len()
         }
         Object::Object(_o) => {
-            unimplemented!()
+            throw_illegal_arg(jvm, int_state);
+            return jsize::MAX
         }
     };
     len as jsize
