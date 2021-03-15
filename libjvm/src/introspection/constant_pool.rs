@@ -12,6 +12,7 @@ use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_Methodref, JVM_CONSTANT_MethodType, JVM_CONSTANT_NameAndType, JVM_CONSTANT_String, JVM_CONSTANT_Unicode, JVM_CONSTANT_Utf8, lchmod};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::WasException;
@@ -103,11 +104,11 @@ unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constant
     }
 }
 
-fn get_class_from_type_maybe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, load_class: bool) -> Result<Option<Arc<RuntimeClass>>, WasException> {
+fn get_class_from_type_maybe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView, load_class: bool) -> Result<Option<Arc<RuntimeClass>>, WasException> {
     Ok(if load_class {
-        Some(check_initing_or_inited_class(jvm, int_state, PTypeView::Ref(method_ref.class()))?)
+        Some(check_initing_or_inited_class(jvm, int_state, ptype)?)
     } else {
-        match jvm.classes.read().unwrap().get_class_obj(PTypeView::Ref(method_ref.class())) {
+        match jvm.classes.read().unwrap().get_class_obj(ptype) {
             None => return Ok(None),
             Some(rc) => Some(JavaValue::Object(rc.into()).cast_class().as_runtime_class(jvm))
         }
@@ -123,24 +124,28 @@ unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, loa
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
         unreachable!()
     }
-    let method_view = match view.constant_pool_view(index as usize) {
+    let method_obj = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(method_ref) => {
-            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, load_class)? {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, PTypeView::Ref(method_ref.class()), load_class)? {
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class
             };
             let name = method_ref.name_and_type().name();
             let method_desc = method_ref.name_and_type().desc_method();
-            method_ref_class.view().lookup_method(name.as_str(), &method_desc).unwrap()
+            let view = method_ref_class.view();
+            let method_view = view.lookup_method(name.as_str(), &method_desc).unwrap();
+            Method::method_object_from_method_view(jvm, int_state, &method_view)?
         }
         ConstantInfoView::InterfaceMethodref(method_ref) => {
-            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, load_class)? {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, PTypeView::Ref(method_ref.class()), load_class)? {
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class
             };
             let name = method_ref.name_and_type().name();
             let method_desc = method_ref.name_and_type().desc_method();
-            method_ref_class.view().lookup_method(name.as_str(), &method_desc).unwrap()
+            let view = method_ref_class.view();
+            let method_view = view.lookup_method(name.as_str(), &method_desc).unwrap();
+            Method::method_object_from_method_view(jvm, int_state, &method_view)?
         }
         _ => {
             throw_illegal_arg_res(jvm, int_state)?;
@@ -148,7 +153,7 @@ unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, loa
         }
     };
 
-    let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view)?;
+
     Ok(new_local_ref_public(method_obj.object().into(), int_state))
 }
 
@@ -170,23 +175,23 @@ unsafe fn get_field(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
         unreachable!()
     }
-    let (field_rc, field_view) = match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Fieldref(method_ref) => {
-            let field_rc = match get_class_from_type_maybe(jvm, int_state, load_class)? {
+    match view.constant_pool_view(index as usize) {
+        ConstantInfoView::Fieldref(field_ref) => {
+            let field_rc = match get_class_from_type_maybe(jvm, int_state, PTypeView::from_ptype(&parse_field_descriptor(field_ref.class().as_str()).unwrap().field_type), load_class)? {
                 None => return Ok(null_mut()),
                 Some(field_rc) => field_rc
             };
-            let name = method_ref.name_and_type().name();
-            (field_rc.clone(), field_rc.view().fields().find(|f| f.field_name().as_str() == name.as_str()).unwrap())
+            let name = field_ref.name_and_type().name();
+            let view = field_rc.view();
+            let field_view = view.fields().find(|f| f.field_name().as_str() == name.as_str()).unwrap();
+            let method_obj = field_object_from_view(jvm, int_state, field_rc, field_view)?;
+            Ok(new_local_ref_public(method_obj.unwrap_object(), int_state))
         }
         _ => {
             throw_illegal_arg_res(jvm, int_state)?;
             unreachable!();
         }
-    };
-
-    let method_obj = field_object_from_view(jvm, int_state, field_rc, field_view)?;
-    Ok(new_local_ref_public(method_obj.object().into(), int_state))
+    }
 }
 
 

@@ -1,9 +1,7 @@
 use std::os::raw::c_int;
 
 use classfile_view::view::ClassView;
-use jvmti_jni_bindings::{jclass, jint, JNIEnv, JVM_ExceptionTableEntryType};
-use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jobjectArray};
-use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject};
+use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::utils::throw_array_out_of_bounds;

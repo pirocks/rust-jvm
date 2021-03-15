@@ -68,7 +68,7 @@ impl NativeAllocator {
         let buf = JVMString::from_regular_string(cstr.as_str()).buf.clone();
         let mut len = 0;
         let mut ptr: *mut u8 = null_mut();
-        self.allocate_and_write_vec(buf, &mut len as *mut jint, &mut ptr as *mut *mut u8)
+        self.allocate_and_write_vec(buf, &mut len as *mut jint, &mut ptr as *mut *mut u8);
         ptr as *mut i8
     }
 
