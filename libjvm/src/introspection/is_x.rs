@@ -2,6 +2,7 @@ use std::intrinsics::transmute;
 use std::ops::Deref;
 use std::os::raw::c_int;
 
+use classfile_parser::code::InstructionTypeNum::f2d;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, jdouble, JNIEnv, JVM_Available, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED, jvmtiError_JVMTI_ERROR_INVALID_CLASS};
@@ -10,7 +11,8 @@ use rust_jvm_common::classnames::class_name;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvmti::is::is_array_impl;
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{from_object, get_state};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
+use slow_interpreter::utils::throw_array_out_of_bounds;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
@@ -64,7 +66,15 @@ unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) ->
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    if index >= view.num_methods() as jint {
+        throw_array_out_of_bounds(jvm, int_state, index);
+        return u8::from(false);
+    }
+    u8::from(view.method_view_i(index as usize).name() == "<init>")
 }
 
 #[no_mangle]
