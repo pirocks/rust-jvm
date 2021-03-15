@@ -10,7 +10,7 @@ use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InterfaceMethodrefView, MethodrefView};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, lchmod};
+use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_Methodref, JVM_CONSTANT_MethodType, JVM_CONSTANT_NameAndType, JVM_CONSTANT_String, JVM_CONSTANT_Unicode, JVM_CONSTANT_Utf8, lchmod};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
@@ -382,7 +382,29 @@ unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject,
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, types: *mut c_uchar) {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
+    let view = rc.view();
+    for (i, constant_pool) in (0..view.constant_pool_size()).map(|i| (i, view.constant_pool_view(i))) {
+        types.offset(i as isize).write(match constant_pool {
+            ConstantInfoView::Utf8(_) => JVM_CONSTANT_Utf8,
+            ConstantInfoView::Integer(_) => JVM_CONSTANT_Integer,
+            ConstantInfoView::Float(_) => JVM_CONSTANT_Float,
+            ConstantInfoView::Long(_) => JVM_CONSTANT_Long,
+            ConstantInfoView::Double(_) => JVM_CONSTANT_Double,
+            ConstantInfoView::Class(_) => JVM_CONSTANT_Class,
+            ConstantInfoView::String(_) => JVM_CONSTANT_String,
+            ConstantInfoView::Fieldref(_) => JVM_CONSTANT_Fieldref,
+            ConstantInfoView::Methodref(_) => JVM_CONSTANT_Methodref,
+            ConstantInfoView::InterfaceMethodref(_) => JVM_CONSTANT_InterfaceMethodref,
+            ConstantInfoView::NameAndType(_) => JVM_CONSTANT_NameAndType,
+            ConstantInfoView::MethodHandle(_) => JVM_CONSTANT_MethodHandle,
+            ConstantInfoView::MethodType(_) => JVM_CONSTANT_MethodType,
+            ConstantInfoView::InvokeDynamic(_) => JVM_CONSTANT_InvokeDynamic,
+            ConstantInfoView::LiveObject(_) => panic!()
+        } as c_uchar)
+    }
 }
 
 #[no_mangle]
