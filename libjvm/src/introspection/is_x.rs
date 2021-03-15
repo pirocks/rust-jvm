@@ -69,6 +69,6 @@ unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, inde
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
-    unimplemented!()
+    u8::from(false)
 }
 
