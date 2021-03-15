@@ -219,12 +219,10 @@ pub mod method_handle {
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
-    use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_handles::lookup::Lookup;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
-    use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
 
     #[derive(Clone, Debug)]

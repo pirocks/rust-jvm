@@ -57,7 +57,7 @@ fn main() {
         ap.refer(&mut unittest_mode).add_option(&["--unittest-mode"], StoreTrue, "Enable Unittest mode. This causes the main class to be ignored");
         ap.refer(&mut store_generated_options).add_option(&["--store-anon-class"], StoreTrue, "Enables writing out of classes defined with Unsafe.defineClass");
         ap.refer(&mut debug_print_exceptions).add_option(&["--debug-exceptions"], StoreTrue, "print excpetions even if caught");
-        ap.refer(&mut assertions_enabled).add_option(&["-ea"], StoreTrue, "enable assertions");
+        ap.refer(&mut assertions_enabled).add_option(&["--ea"], StoreTrue, "enable assertions");
         ap.parse_args_or_exit();
     }
 

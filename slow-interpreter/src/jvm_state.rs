@@ -42,7 +42,6 @@ pub static mut JVM: Option<JVMState> = None;
 
 pub struct JVMState {
     pub(crate) properties: Vec<String>,
-    // pub bootstrap_loader: LoaderArc,//todo what Should this be?
     pub system_domain_loader: bool,
     pub string_pool: StringPool,
     pub string_internment: RwLock<StringInternment>,

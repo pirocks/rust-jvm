@@ -114,17 +114,9 @@ impl RuntimeClass {
 
     pub fn set_status(&self, status: ClassStatus) {
         match self {
-            RuntimeClass::Byte => todo!(),
-            RuntimeClass::Boolean => todo!(),
-            RuntimeClass::Short => todo!(),
-            RuntimeClass::Char => todo!(),
-            RuntimeClass::Int => todo!(),
-            RuntimeClass::Long => todo!(),
-            RuntimeClass::Float => todo!(),
-            RuntimeClass::Double => todo!(),
-            RuntimeClass::Void => todo!(),
             RuntimeClass::Array(a) => a.sub_class.set_status(status),
             RuntimeClass::Object(o) => *o.status.write().unwrap() = status,
+            _ => {}
         }
     }
 }
