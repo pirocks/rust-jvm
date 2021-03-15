@@ -1,4 +1,5 @@
 use std::os::raw::c_void;
+use std::ptr::null_mut;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
@@ -31,15 +32,31 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
 }
 
 pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize) -> jobject {
-    let notnull = from_object(array).unwrap();//todo handle npe
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let notnull = match from_object(array) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return null_mut()
+        },
+    };
     let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
     let borrow = array.mut_array();
     new_local_ref_public(borrow[index as usize].unwrap_object(), int_state)
 }
 
-pub unsafe extern "C" fn set_object_array_element(_env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
-    let notnull = from_object(array).unwrap();//todo handle npe
+pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let notnull = match from_object(array) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return
+        },
+    };
     let array = notnull.unwrap_array();
     let borrow_mut = array.mut_array();
     borrow_mut[index as usize] = from_object(val).into();
@@ -49,13 +66,21 @@ pub mod array_region;
 pub mod new;
 
 
-pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, array: jarray, carray: *mut ::std::os::raw::c_void, mode: jint) {
+pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, array: jarray, carray: *mut ::std::os::raw::c_void, mode: jint) {
     // assert_eq!(mode, 0);
     if mode == JNI_ABORT as i32 {
         return;
     }
     //todo handle JNI_COMMIT
-    let not_null = from_object(array).unwrap();//todo handle npe
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let not_null = match from_object(array) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return
+        },
+    };
     let array = not_null.unwrap_array();
     let array_type = &array.elem_type;
     let array = array.mut_array();
@@ -93,8 +118,16 @@ pub unsafe extern "C" fn release_primitive_array_critical(_env: *mut JNIEnv, arr
     }
 }
 
-pub unsafe extern "C" fn get_primitive_array_critical(_env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
-    let not_null = from_object(array).unwrap();//todo handle npe
+pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let not_null = match from_object(array) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return null_mut()
+        },
+    };
     let array = not_null.unwrap_array();
     if !is_copy.is_null() {
         is_copy.write(true as jboolean);
