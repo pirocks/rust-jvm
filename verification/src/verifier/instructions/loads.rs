@@ -42,7 +42,7 @@ pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, stack_fra
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::Reference, stack_frame)?;
-    standard_exception_frame(locals, flag, next_frame)//todo duplication with lload
+    standard_exception_frame(locals, flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_baload(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -64,7 +64,7 @@ pub fn instruction_is_type_safe_dload(index: usize, env: &Environment, stack_fra
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::DoubleType, stack_frame)?;
-    standard_exception_frame(locals, flag, next_frame)//todo duplication with lload
+    standard_exception_frame(locals, flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_faload(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -76,7 +76,7 @@ pub fn instruction_is_type_safe_fload(index: usize, env: &Environment, stack_fra
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::FloatType, stack_frame)?;
-    standard_exception_frame(locals, flag, next_frame)//todo duplication with lload
+    standard_exception_frame(locals, flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_iaload(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -88,7 +88,7 @@ pub fn instruction_is_type_safe_iload(index: usize, env: &Environment, stack_fra
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::IntType, stack_frame)?;
-    standard_exception_frame(locals, flag, next_frame)//todo duplication with lload
+    standard_exception_frame(locals, flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_laload(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
