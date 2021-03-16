@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -9,12 +10,13 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::invoke::native::mhn_temp::run_static_or_virtual;
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
-use slow_interpreter::utils::string_obj_to_string;
+use slow_interpreter::utils::{string_obj_to_string, throw_npe};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {
@@ -28,16 +30,23 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
-    //todo need to convert lots of these to unwrap_or_throw
-    // dbg!(args0);
-    // dbg!(method);
-    // dbg!(obj);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     assert_eq!(obj, std::ptr::null_mut());//non-static methods not supported atm.
-    let method_obj = from_object(method).unwrap();//todo handle npe
-    // dbg!(JavaValue::Object(method_obj.clone().into()).cast_method().to_string(jvm,int_state).to_rust_string());
-    let args_not_null = from_object(args0).unwrap();//todo handle npe
+    let method_obj = match from_object(method) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return null_mut()
+        },
+    };
+    let args_not_null = match from_object(args0) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return null_mut()
+        },
+    };
     let args_refcell = args_not_null.unwrap_array().mut_array();
     let args = args_refcell.deref();
     let method_name = string_obj_to_string(method_obj.lookup_field("name").unwrap_object());
@@ -49,7 +58,10 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = check_initing_or_inited_class(jvm, int_state, target_class_name.into()).unwrap();//todo handle exception
+    let target_runtime_class = match check_initing_or_inited_class(jvm, int_state, target_class_name.into()) {
+        Ok(x) => x,
+        Err(WasException {}) => return null_mut(),
+    };
 
     //todo this arg array setup is almost certainly wrong.
     for arg in args {
@@ -75,7 +87,13 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let args = if args0.is_null() {
         vec![]
     } else {
-        let temp_1 = from_object(args0).unwrap();//todo handle npe
+        let temp_1 = match from_object(args0) {
+            Some(x) => x,
+            None => {
+                throw_npe(jvm, int_state);
+                return null_mut()
+            },
+        };
         let array_temp = temp_1.unwrap_array().borrow();
         let elems_refcell = array_temp.mut_array();
         elems_refcell.clone().iter().map(|jv| match jv {
@@ -93,10 +111,22 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             _ => jv.clone()
         }).collect::<Vec<_>>()
     };
-    let constructor_obj = from_object(c).unwrap();//todo handle npe
+    let constructor_obj = match from_object(c) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return null_mut()
+        },
+    };
     let signature_str_obj = constructor_obj.lookup_field("signature");
     let temp_4 = constructor_obj.lookup_field("clazz");
-    let clazz = class_object_to_runtime_class(&temp_4.cast_class(), jvm, int_state).unwrap();//todo handle npe
+    let clazz = match class_object_to_runtime_class(&temp_4.cast_class(), jvm, int_state) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return null_mut()
+        },
+    };
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
     push_new_object(jvm, int_state, &clazz);
     let obj = int_state.pop_current_operand_stack();
