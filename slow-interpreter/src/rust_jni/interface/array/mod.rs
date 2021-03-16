@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
 
@@ -12,13 +13,14 @@ use crate::utils::{throw_illegal_arg, throw_npe, throw_npe_res};
 pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_null_array: &Object = &match from_object(array) {
+    let temp = match from_object(array) {
         Some(x) => x,
         None => {
             throw_npe(jvm, int_state);
             return jsize::MAX
         },
     };
+    let non_null_array: &Object = temp.deref();
     let len = match non_null_array {
         Object::Array(a) => {
             a.mut_array().len()

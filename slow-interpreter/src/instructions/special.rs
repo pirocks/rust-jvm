@@ -17,7 +17,7 @@ use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
 use crate::utils::throw_npe;
 
-pub fn arraylength(int_state: &mut InterpreterStateGuard) {
+pub fn arraylength(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let current_frame = int_state.current_frame_mut();
     let array_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
@@ -53,7 +53,10 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
                 Err(WasException {}) => return,
             };
             let object_class = o.class_pointer.clone();
-            if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
+            if match inherits_from(jvm, int_state, &object_class, &instanceof_class) {
+                Ok(x) => x,
+                Err(WasException {}) => return
+            } {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
             } else {
                 int_state.debug_print_stack_trace();
@@ -81,7 +84,10 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
                         Ok(x) => x,
                         Err(WasException {}) => return,
                     };
-                    inherits_from(jvm, int_state, &actual_runtime_class, &expected_runtime_class)
+                    match inherits_from(jvm, int_state, &actual_runtime_class, &expected_runtime_class) {
+                        Ok(res) => res,
+                        Err(WasException {}) => return
+                    }
                 }
                 _ => {
                     a.elem_type == expected_type
@@ -136,7 +142,7 @@ pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, u
                 ReferenceTypeView::Class(instance_of_class_name) => {
                     let instanceof_class = check_resolved_class(jvm, int_state, instance_of_class_name.into())?;//todo check if this should be here
                     let object_class = object.class_pointer.clone();
-                    if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
+                    if inherits_from(jvm, int_state, &object_class, &instanceof_class)? {
                         int_state.push_current_operand_stack(JavaValue::Int(1))
                     } else {
                         int_state.push_current_operand_stack(JavaValue::Int(0))
@@ -149,39 +155,39 @@ pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, u
     Ok(())
 }
 
-fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Option<Arc<RuntimeClass>> {
-    if inherits.view().super_name().is_some() {
-        Some(check_initing_or_inited_class(jvm, int_state, inherits.view().super_name().unwrap().into()).unwrap())//todo pass the error up
+fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Result<Option<Arc<RuntimeClass>>, WasException> {
+    Ok(if inherits.view().super_name().is_some() {
+        Some(check_initing_or_inited_class(jvm, int_state, inherits.view().super_name().unwrap().into())?)
     } else {
         None
-    }
+    })
 }
 
-fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i: InterfaceView) -> Arc<RuntimeClass> {
+fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i: InterfaceView) -> Result<Arc<RuntimeClass>, WasException> {
     let intf_name = i.interface_name();
-    check_initing_or_inited_class(jvm, int_state, intf_name.into()).unwrap()//todo pass the error up
+    check_initing_or_inited_class(jvm, int_state, intf_name.into())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from(state: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> bool {
+pub fn inherits_from(state: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> Result<bool, WasException> {
     if inherits.view().name() == parent.view().name() {
-        return true;
+        return Ok(true);
     }
     let mut interfaces_match = false;
 
     for (_, i) in inherits.view().interfaces().enumerate() {
-        let interface = runtime_interface_class(state, int_state, i);
+        let interface = runtime_interface_class(state, int_state, i)?;
         interfaces_match |= interface.view().name() == parent.view().name();
     }
 
 
-    (match runtime_super_class(state, int_state, inherits) {
+    Ok((match runtime_super_class(state, int_state, inherits)? {
         None => false,
         Some(super_) => {
             super_.view().name() == parent.view().name() ||
-                inherits_from(state, int_state, &super_, parent)
+                inherits_from(state, int_state, &super_, parent)?
         }
-    }) || interfaces_match
+    }) || interfaces_match)
 }
 
 pub fn wide(current_frame: &mut StackEntry, w: Wide) {

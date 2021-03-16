@@ -85,7 +85,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
                         interpreter_state.set_throw(None);
                         let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into()).unwrap();//todo pass the error up
                         interpreter_state.set_throw(saved_throw);
-                        if inherits_from(jvm, interpreter_state, &throw_class, &catch_class) {
+                        if inherits_from(jvm, interpreter_state, &throw_class, &catch_class)? {
                             interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                             interpreter_state.set_throw(None);
                             *interpreter_state.current_pc_mut() = excep_table.handler_pc as usize;
@@ -200,7 +200,7 @@ fn run_single_instruction(
         InstructionInfo::aload_3 => aload(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::anewarray(cp) => anewarray(jvm, interpreter_state, cp),
         InstructionInfo::areturn => areturn(jvm, interpreter_state),
-        InstructionInfo::arraylength => arraylength(interpreter_state),
+        InstructionInfo::arraylength => arraylength(jvm, interpreter_state),
         InstructionInfo::astore(n) => astore(interpreter_state.current_frame_mut(), n as usize),
         InstructionInfo::astore_0 => astore(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::astore_1 => astore(interpreter_state.current_frame_mut(), 1),
