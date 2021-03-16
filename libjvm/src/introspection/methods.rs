@@ -63,9 +63,21 @@ unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass)
 }
 
 
+
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let view = rc.view();
+    let code_attr = match view.method_view_i(method_index as usize).code_attribute() {
+        Some(x) => x,
+        None => {
+            throw_illegal_arg(jvm, int_state);
+            return i32::MAX;
+        }
+    };
+    code_attr.exception_table.len() as i32
 }
 
 #[no_mangle]
