@@ -1,3 +1,4 @@
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use by_address::ByAddress;
@@ -11,6 +12,7 @@ use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobject) {
@@ -47,28 +49,40 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         };
         let declaring_class_name = match JString::from_rust(jvm, int_state, declaring_class_view.type_().class_name_representation()) {
             Ok(declaring_class_name) => declaring_class_name,
-            Err(WasException {}) => todo!()
+            Err(WasException {}) => return
         };
         let method_name = match JString::from_rust(jvm, int_state, method_view.name()) {
             Ok(method_name) => method_name,
-            Err(WasException {}) => todo!()
+            Err(WasException {}) => return
         };
         let source_file_name = match JString::from_rust(jvm, int_state, file) {
             Ok(source_file_name) => source_file_name,
-            Err(WasException {}) => todo!()
+            Err(WasException {}) => return
         };
 
         Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number))
     }).collect::<Result<Vec<_>, WasException>>().expect("todo");
     let mut stack_traces_guard = jvm.stacktraces_by_throwable.write().unwrap();
-    stack_traces_guard.insert(ByAddress(from_object(throwable).unwrap()), stack_entry_objs);//todo handle npe
+    stack_traces_guard.insert(ByAddress(match from_object(throwable) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        }
+    }), stack_entry_objs);
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jobject) -> jint {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(from_object(throwable).unwrap())) {//todo handle npe
+    match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(match from_object(throwable) {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return i32::MAX;
+        }
+    })) {
         Some(x) => x,
         None => return JNI_ERR,
     }.len() as i32
@@ -78,11 +92,23 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
 unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: jobject, index: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(from_object(throwable).unwrap())) {//todo handle npe
+    match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(match from_object(throwable) {
         Some(x) => x,
-        None => todo!(),
+        None => {
+            throw_npe(jvm, int_state);
+            return null_mut();
+        }
+    })) {
+        Some(x) => x,
+        None => {
+            throw_illegal_arg(jvm, int_state);
+            return null_mut();
+        }
     }.get(index as usize) {
-        None => todo!(),
+        None => {
+            throw_array_out_of_bounds(jvm, int_state, index);
+            return null_mut();
+        }
         Some(element) => to_object(element.clone().object().into())
     }
 }
