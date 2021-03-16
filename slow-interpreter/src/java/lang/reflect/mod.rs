@@ -237,6 +237,7 @@ pub mod method {
         }
 
         getter_gen!(slot,jint,unwrap_int);
+        getter_gen!(returnType,JClass,cast_class);
 
         as_object_or_java_value!();
     }
