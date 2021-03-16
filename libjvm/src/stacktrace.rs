@@ -21,8 +21,11 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
     let int_state = get_interpreter_state(env);
     let stacktrace = int_state.cloned_stack_snapshot();
 
-    let stack_entry_objs = stacktrace.iter().flat_map(|stack_entry| {
-        let declaring_class = stack_entry.try_class_pointer()?;
+    let stack_entry_objs = stacktrace.iter().map(|stack_entry| {
+        let declaring_class = match stack_entry.try_class_pointer() {
+            None => return Ok(None),
+            Some(declaring_class) => declaring_class
+        };
 
         let declaring_class_view = declaring_class.view();
         let method_view = declaring_class_view.method_view_i(stack_entry.method_i() as usize);
@@ -47,21 +50,12 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                 cur_line
             }
         };
-        let declaring_class_name = match JString::from_rust(jvm, int_state, declaring_class_view.type_().class_name_representation()) {
-            Ok(declaring_class_name) => declaring_class_name,
-            Err(WasException {}) => return
-        };
-        let method_name = match JString::from_rust(jvm, int_state, method_view.name()) {
-            Ok(method_name) => method_name,
-            Err(WasException {}) => return
-        };
-        let source_file_name = match JString::from_rust(jvm, int_state, file) {
-            Ok(source_file_name) => source_file_name,
-            Err(WasException {}) => return
-        };
+        let declaring_class_name = JString::from_rust(jvm, int_state, declaring_class_view.type_().class_name_representation())?;
+        let method_name = JString::from_rust(jvm, int_state, method_view.name())?;
+        let source_file_name = JString::from_rust(jvm, int_state, file)?;
 
-        Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number))
-    }).collect::<Result<Vec<_>, WasException>>().expect("todo");
+        Ok(Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?))
+    }).collect::<Result<Vec<Option<_>>, WasException>>().expect("todo").into_iter().flatten().collect::<Vec<_>>();
     let mut stack_traces_guard = jvm.stacktraces_by_throwable.write().unwrap();
     stack_traces_guard.insert(ByAddress(match from_object(throwable) {
         Some(x) => x,
