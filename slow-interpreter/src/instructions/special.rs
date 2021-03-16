@@ -15,10 +15,17 @@ use crate::java_values;
 use crate::java_values::JavaValue;
 use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
+use crate::utils::throw_npe;
 
 pub fn arraylength(int_state: &mut InterpreterStateGuard) {
     let current_frame = int_state.current_frame_mut();
-    let array_o = current_frame.pop().unwrap_object().unwrap();//todo handle npe
+    let array_o = match current_frame.pop().unwrap_object() {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        }
+    };
     let array = array_o.unwrap_array();
     current_frame.push(JavaValue::Int(array.mut_array().len() as i32));
 }
@@ -30,12 +37,21 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
         int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
         return;
     }
-    let object = possibly_null.unwrap();//todo handle npe
+    let object = match possibly_null {
+        Some(x) => x,
+        None => {
+            throw_npe(jvm, int_state);
+            return;
+        }
+    };
     match object.deref() {
         Object(o) => {
             let view = &int_state.current_frame_mut().class_pointer().view();
             let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
-            let instanceof_class = check_initing_or_inited_class(jvm, int_state, instance_of_class_name.into()).unwrap();//todo pass the error up
+            let instanceof_class = match check_initing_or_inited_class(jvm, int_state, instance_of_class_name.into()) {
+                Ok(x) => x,
+                Err(WasException {}) => return,
+            };
             let object_class = o.class_pointer.clone();
             if inherits_from(jvm, int_state, &object_class, &instanceof_class) {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
@@ -57,8 +73,14 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
             let cast_succeeds = match &a.elem_type {
                 PTypeView::Ref(_) => {
                     //todo wrong for varying depth arrays?
-                    let actual_runtime_class = check_initing_or_inited_class(jvm, int_state, a.elem_type.unwrap_class_type().into()).unwrap();//todo pass the error up
-                    let expected_runtime_class = check_initing_or_inited_class(jvm, int_state, expected_type.unwrap_class_type().into()).unwrap();//todo pass the error up
+                    let actual_runtime_class = match check_initing_or_inited_class(jvm, int_state, a.elem_type.unwrap_class_type().into()) {
+                        Ok(x) => x,
+                        Err(WasException {}) => return,
+                    };
+                    let expected_runtime_class = match check_initing_or_inited_class(jvm, int_state, expected_type.unwrap_class_type().into()) {
+                        Ok(x) => x,
+                        Err(WasException {}) => return,
+                    };
                     inherits_from(jvm, int_state, &actual_runtime_class, &expected_runtime_class)
                 }
                 _ => {
@@ -78,14 +100,14 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
 
 pub fn invoke_instanceof(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let possibly_null = int_state.pop_current_operand_stack().unwrap_object();
-    if possibly_null.is_none() {
+    if let Some(unwrapped) = possibly_null {
+        let view = &int_state.current_class_view();
+        let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type();
+        if let Err(WasException {}) = instance_of_impl(state, int_state, unwrapped, instance_of_class_type) {
+            return;
+        }
+    } else {
         int_state.push_current_operand_stack(JavaValue::Int(0));
-        return;
-    }
-    let unwrapped = possibly_null.unwrap();//todo pass the error up
-    let view = &int_state.current_class_view();
-    let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type();
-    if let Err(WasException {}) = instance_of_impl(state, int_state, unwrapped, instance_of_class_type) {
         return;
     }
 }
