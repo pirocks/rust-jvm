@@ -22,8 +22,7 @@ unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobj
     let int_state = get_interpreter_state(env);
     let method = JavaValue::Object(Some(match from_object(method) {
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut();
+            return throw_npe(jvm, int_state);
         }
         Some(method_obj) => method_obj
     })).cast_method();
@@ -207,8 +206,7 @@ unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, inde
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.num_methods() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return u8::from(false);
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     u8::from(view.method_view_i(index as usize).name() == "<init>")
 }

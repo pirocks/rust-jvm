@@ -54,8 +54,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null_mut();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => {
@@ -77,8 +76,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null_mut();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => {
@@ -214,8 +212,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null_mut();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     let (class, name, desc_str) = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(ref_) => {
@@ -263,8 +260,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoo
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return 0;
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Integer(int_) => int_.int,
@@ -281,8 +277,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPo
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return 0;
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Long(long_) => long_.long,
@@ -299,8 +294,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantP
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return -1f32;
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Float(float_) => float_.float,
@@ -317,8 +311,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constant
     let rc = from_jclass(constantPoolOop).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return -1f64;
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Double(double_) => double_.double,
@@ -419,8 +412,7 @@ unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, in
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
@@ -437,8 +429,7 @@ unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, i
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
@@ -456,8 +447,7 @@ unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jcla
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str()),
@@ -475,8 +465,7 @@ unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclas
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str()),
@@ -493,8 +482,7 @@ unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, in
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(class_) => jvm.native_interface_allocations.allocate_modified_string(PTypeView::Ref(class_.class_ref_type()).class_name_representation()),
@@ -511,8 +499,7 @@ unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclas
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),
@@ -529,8 +516,7 @@ unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jcla
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return null();
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name()),

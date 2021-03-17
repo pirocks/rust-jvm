@@ -1,5 +1,6 @@
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
 use std::ptr::{null, null_mut};
@@ -714,6 +715,12 @@ impl ExceptionReturn for jobject {
 impl ExceptionReturn for *const i8 {
     fn invalid_default() -> Self {
         null()
+    }
+}
+
+impl ExceptionReturn for *mut c_void {
+    fn invalid_default() -> Self {
+        null_mut()
     }
 }
 

@@ -56,8 +56,7 @@ pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let arrar_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         },
     };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
@@ -72,8 +71,7 @@ pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         },
     };
     assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
@@ -89,8 +87,7 @@ pub fn sastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         },
     };
     assert_eq!(array_ref_o.unwrap_array().elem_type, PTypeView::ShortType);
@@ -106,8 +103,7 @@ pub fn fastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         },
     };
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
@@ -122,8 +118,7 @@ pub fn dastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let array_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         }
     };
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
@@ -138,8 +133,7 @@ pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let arrar_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         },
     };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
@@ -155,8 +149,7 @@ pub fn aastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let arrary_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         },
     };
     let array_ref = arrary_ref_o.unwrap_array().mut_array();
@@ -181,8 +174,7 @@ pub fn lastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let arrar_ref_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         },
     };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();

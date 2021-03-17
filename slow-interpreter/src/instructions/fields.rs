@@ -28,8 +28,7 @@ pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) 
                 match o {
                     Some(x) => x,
                     None => {
-                        throw_npe(jvm, int_state);
-                        return;
+                        return throw_npe(jvm, int_state);
                     },
                 }.unwrap_normal_object().fields_mut().insert(field_name, val);
             }

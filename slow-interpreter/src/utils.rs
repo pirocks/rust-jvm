@@ -2,9 +2,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jint, jobject};
+use jvmti_jni_bindings::jint;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
-use sketch_jvm_version_of_utf8::ValidationError::UnexpectedEndOfString;
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::WasException;
@@ -64,41 +63,43 @@ pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
     res
 }
 
-pub fn throw_npe_res(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
-    throw_npe(jvm, int_state);
+pub fn throw_npe_res<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<T, WasException> {
+    let _ = throw_npe::<T>(jvm, int_state);
     Err(WasException)
 }
 
-pub fn throw_npe(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn throw_npe<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> T {
     let npe_object = match NullPointerException::new(jvm, int_state) {
         Ok(npe) => npe,
         Err(WasException {}) => {
             eprintln!("Warning error encountered creating NPE");
-            return;
+            return T::invalid_default();
         }
     }.object().into();
     int_state.set_throw(npe_object);
+    T::invalid_default()
 }
 
 
-pub fn throw_array_out_of_bounds_res(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> Result<(), WasException> {
-    throw_array_out_of_bounds(jvm, int_state, index);
+pub fn throw_array_out_of_bounds_res<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> Result<T, WasException> {
+    let _ = throw_array_out_of_bounds::<T>(jvm, int_state, index);
     Err(WasException)
 }
 
-pub fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) {
+pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> T {
     let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
         Err(WasException {}) => {
             eprintln!("Warning error encountered creating Array out of bounds");
-            return;
+            return T::invalid_default();
         }
     }.object().into();
     int_state.set_throw(bounds_object);
+    T::invalid_default()
 }
 
 pub fn throw_illegal_arg_res<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<T, WasException> {
-    let _ = throw_illegal_arg::<jobject>(jvm, int_state);
+    let _ = throw_illegal_arg::<T>(jvm, int_state);
     Err(WasException)
 }
 

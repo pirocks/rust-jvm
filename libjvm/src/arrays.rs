@@ -65,8 +65,7 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
         Ok(jv) => {
             let len = jv.unwrap_array().mut_array().len() as i32;
             if index < 0 || index >= len {
-                throw_array_out_of_bounds(jvm, int_state, index);
-                return null_mut()
+                return throw_array_out_of_bounds(jvm, int_state, index);
             }
             let java_value = jv.unwrap_array().mut_array()[index as usize].clone();
             new_local_ref_public(match java_value_to_boxed_object(jvm, int_state, java_value) {

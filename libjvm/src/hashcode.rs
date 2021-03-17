@@ -11,8 +11,7 @@ unsafe extern "system" fn JVM_IHashCode(env: *mut JNIEnv, obj: jobject) -> jint 
     if object.is_none() {
         let int_state = get_interpreter_state(env);
         let jvm = get_state(env);
-        throw_npe(jvm, int_state);
-        return 0;
+        return throw_npe(jvm, int_state);
     }
     let _64bit: u64 = Arc::as_ptr(&object.unwrap()) as u64;
     let hashcode = ((_64bit >> 32) as i32 | _64bit as i32);

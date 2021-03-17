@@ -1,6 +1,5 @@
 use std::ops::Deref;
 use std::os::raw::c_void;
-use std::ptr::null_mut;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
@@ -8,7 +7,7 @@ use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jch
 use crate::java_values::{JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
-use crate::utils::{throw_illegal_arg, throw_npe, throw_npe_res};
+use crate::utils::{throw_illegal_arg, throw_npe};
 
 pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
     let jvm = get_state(env);
@@ -16,8 +15,7 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
     let temp = match from_object(array) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return jsize::MAX
+            return throw_npe(jvm, int_state);
         },
     };
     let non_null_array: &Object = temp.deref();
@@ -38,8 +36,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
     let notnull = match from_object(array) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut()
+            return throw_npe(jvm, int_state);
         },
     };
     let int_state = get_interpreter_state(env);
@@ -54,8 +51,7 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
     let notnull = match from_object(array) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return
+            return throw_npe(jvm, int_state);
         },
     };
     let array = notnull.unwrap_array();
@@ -78,8 +74,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     let not_null = match from_object(array) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return
+            return throw_npe(jvm, int_state);
         },
     };
     let array = not_null.unwrap_array();
@@ -125,8 +120,7 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
     let not_null = match from_object(array) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut()
+            return throw_npe(jvm, int_state);
         },
     };
     let array = not_null.unwrap_array();

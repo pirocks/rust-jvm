@@ -22,8 +22,7 @@ pub fn arraylength(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let array_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         }
     };
     let array = array_o.unwrap_array();
@@ -40,8 +39,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
     let object = match possibly_null {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         }
     };
     match object.deref() {

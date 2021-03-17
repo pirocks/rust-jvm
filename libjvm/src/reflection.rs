@@ -36,15 +36,13 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     let method_obj = match from_object(method) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut()
+            return throw_npe(jvm, int_state);
         },
     };
     let args_not_null = match from_object(args0) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut()
+            return throw_npe(jvm, int_state);
         },
     };
     let args_refcell = args_not_null.unwrap_array().mut_array();
@@ -90,8 +88,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         let temp_1 = match from_object(args0) {
             Some(x) => x,
             None => {
-                throw_npe(jvm, int_state);
-                return null_mut()
+                return throw_npe(jvm, int_state);
             },
         };
         let array_temp = temp_1.unwrap_array().borrow();
@@ -114,8 +111,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let constructor_obj = match from_object(c) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut()
+            return throw_npe(jvm, int_state);
         },
     };
     let signature_str_obj = constructor_obj.lookup_field("signature");
@@ -123,8 +119,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let clazz = match class_object_to_runtime_class(&temp_4.cast_class(), jvm, int_state) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut()
+            return throw_npe(jvm, int_state);
         },
     };
     let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());

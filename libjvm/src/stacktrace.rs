@@ -60,8 +60,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
     stack_traces_guard.insert(ByAddress(match from_object(throwable) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return;
+            return throw_npe(jvm, int_state);
         }
     }), stack_entry_objs);
 }
@@ -73,8 +72,7 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
     match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(match from_object(throwable) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return i32::MAX;
+            return throw_npe(jvm, int_state);
         }
     })) {
         Some(x) => x,
@@ -89,8 +87,7 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
     match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(match from_object(throwable) {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut();
+            return throw_npe(jvm, int_state);
         }
     })) {
         Some(x) => x,
@@ -99,8 +96,7 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
         }
     }.get(index as usize) {
         None => {
-            throw_array_out_of_bounds(jvm, int_state, index);
-            return null_mut();
+            return throw_array_out_of_bounds(jvm, int_state, index);
         }
         Some(element) => to_object(element.clone().object().into())
     }

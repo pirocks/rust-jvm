@@ -7,7 +7,7 @@ use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
-use slow_interpreter::utils::throw_npe;
+use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
 unsafe fn get_obj_and_name(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<Object>, String), WasException> {
@@ -19,8 +19,8 @@ unsafe fn get_obj_and_name(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jo
     let field_name = field.field_name();
     let notnull = match from_object(target_obj) {
         None => {
-            throw_npe(jvm, int_state);
-            return Err(WasException);
+            throw_npe_res(jvm, int_state)?;
+            unreachable!()
         }
         Some(notnull) => notnull
     };
@@ -85,8 +85,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
     let int_state = get_interpreter_state(env);
     let notnull = match from_object(target_obj) {
         None => {
-            throw_npe(jvm, int_state);
-            return jboolean::MAX;
+            return throw_npe(jvm, int_state);
         }
         Some(notnull) => notnull
     };

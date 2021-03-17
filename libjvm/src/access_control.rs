@@ -25,8 +25,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let unwrapped_action = match action.clone() {
         Some(x) => x,
         None => {
-            throw_npe(jvm, int_state);
-            return null_mut();
+            return throw_npe(jvm, int_state);
         }
     };
     let expected_descriptor = MethodDescriptor {
