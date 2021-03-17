@@ -1078,10 +1078,6 @@ pub enum InstructionInfo {
 }
 
 
-//#[repr(u16)]
-//pub enum ClassAccessFlags {
-//TODO THIS NEEDS TO BE DIFFERENT FOR DIFFERNT TYPES
-//maybe not but at very least is incomplete
 pub const ACC_PUBLIC: u16 = 0x0001;
 pub const ACC_PRIVATE: u16 = 0x0002;
 pub const ACC_PROTECTED: u16 = 0x0004;
