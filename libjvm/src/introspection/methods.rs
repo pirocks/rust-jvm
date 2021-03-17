@@ -124,7 +124,7 @@ unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(env: *mut JNIEnv, cb: jc
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    match get_code_attr(env, cb, method_index, |code| {
+    match get_code_attr(env, cb, index, |code| {
         Ok(code.exception_table.len() as jint)
     }) {
         Ok(res) => res,
@@ -134,7 +134,7 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    match get_method_view(env, cb, method_index, |method_view| {
+    match get_method_view(env, cb, index, |method_view| {
         Ok(method_view.access_flags() as jint)
     }) {
         Ok(res) => res,
@@ -144,7 +144,7 @@ unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass,
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    match get_code_attr(env, cb, method_index, |code| {
+    match get_code_attr(env, cb, index, |code| {
         Ok(code.max_locals as jint)
     }) {
         Ok(res) => res,
@@ -154,7 +154,7 @@ unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclas
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    match get_method_view(env, cb, method_index, |method_view| {
+    match get_method_view(env, cb, index, |method_view| {
         Ok(method_view.num_args() as jint)
     }) {
         Ok(res) => res,
@@ -164,7 +164,7 @@ unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    match get_code_attr(env, cb, method_index, |code| {
+    match get_code_attr(env, cb, index, |code| {
         Ok(code.max_stack as jint)
     }) {
         Ok(res) => res,
