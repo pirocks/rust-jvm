@@ -624,12 +624,6 @@ pub struct MethodType {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
-pub struct Dynamic {
-    //todo
-}
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
 pub struct InvokeDynamic {
     pub bootstrap_method_attr_index: CPIndex,
     pub name_and_type_index: CPIndex,
@@ -985,17 +979,11 @@ pub enum InstructionInfo {
     if_acmpeq(i16),
     if_acmpne(i16),
     if_icmpeq(i16),
-    //todo dup
     if_icmpne(i16),
-    //todo dup
     if_icmplt(i16),
-    //todo dup
     if_icmpge(i16),
-    //todo dup
     if_icmpgt(i16),
-    //todo dup
     if_icmple(i16),
-    //todo dup
     ifeq(i16),
     ifne(i16),
     iflt(i16),
@@ -1134,7 +1122,6 @@ pub struct Classfile {
     pub this_class: CPIndex,
     pub super_class: CPIndex,
     pub interfaces: Vec<Interface>,
-    //todo why is this only used 3 times?
     pub fields: Vec<FieldInfo>,
     pub methods: Vec<MethodInfo>,
     pub attributes: Vec<AttributeInfo>,
@@ -1161,19 +1148,15 @@ impl std::cmp::PartialEq for Classfile {
 impl std::hash::Hash for Classfile {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write(class_name(self).get_referred_name().as_bytes());
-        // state.write_u32(self.magic);
-        // state.write_u16(self.minor_version);
-        // state.write_u16(self.major_version);
-        // todo constant_pool
-        // state.write_u16(self.access_flags);
-        // state.write_u16(self.this_class);
-        // state.write_u16(self.super_class);
-        // for interface in &self.interfaces {
-        //     state.write_u16(*interface)
-        // }
-        //todo fields
-        //todo methods
-        //todo attributes
+        state.write_u32(self.magic);
+        state.write_u16(self.minor_version);
+        state.write_u16(self.major_version);
+        state.write_u16(self.access_flags);
+        state.write_u16(self.this_class);
+        state.write_u16(self.super_class);
+        for interface in &self.interfaces {
+            state.write_u16(*interface)
+        }
     }
 }
 
