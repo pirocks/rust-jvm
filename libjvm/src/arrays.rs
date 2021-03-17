@@ -50,8 +50,7 @@ unsafe fn get_array(env: *mut JNIEnv, arr: jobject) -> Result<JavaValue, WasExce
                     Ok(JavaValue::Object(from_object(arr)))
                 }
                 Object::Object(obj) => {
-                    throw_illegal_arg_res(jvm, int_state)?;
-                    unreachable!()
+                    return throw_illegal_arg_res(jvm, int_state);
                 }
             }
         }

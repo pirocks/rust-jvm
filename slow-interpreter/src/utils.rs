@@ -2,8 +2,9 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::jint;
+use jvmti_jni_bindings::{jint, jobject};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use sketch_jvm_version_of_utf8::ValidationError::UnexpectedEndOfString;
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::WasException;
@@ -19,7 +20,7 @@ use crate::java::lang::int::Int;
 use crate::java::lang::long::Long;
 use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java::lang::short::Short;
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::{ExceptionReturn, JavaValue, Object};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
@@ -96,20 +97,21 @@ pub fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStat
     int_state.set_throw(bounds_object);
 }
 
-pub fn throw_illegal_arg_res(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
-    throw_illegal_arg(jvm, int_state);
+pub fn throw_illegal_arg_res<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<T, WasException> {
+    let _ = throw_illegal_arg::<jobject>(jvm, int_state);
     Err(WasException)
 }
 
-pub fn throw_illegal_arg(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> T {
     let bounds_object = match IllegalArgumentException::new(jvm, int_state) {
         Ok(npe) => npe,
         Err(WasException {}) => {
             eprintln!("Warning error encountered creating illegal arg exception");
-            return;
+            return T::invalid_default();
         }
     }.object().into();
     int_state.set_throw(bounds_object);
+    T::invalid_default()
 }
 
 pub fn java_value_to_boxed_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, java_value: JavaValue) -> Result<Option<Arc<Object>>, WasException> {

@@ -2,10 +2,11 @@ use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
+use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::jbyte;
+use jvmti_jni_bindings::{jbyte, jobject};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
@@ -648,5 +649,82 @@ impl ArrayObject {
 impl std::convert::From<Option<Arc<Object>>> for JavaValue {
     fn from(f: Option<Arc<Object>>) -> Self {
         JavaValue::Object(f)
+    }
+}
+
+
+pub trait ExceptionReturn {
+    fn invalid_default() -> Self;
+}
+
+impl ExceptionReturn for i64 {
+    fn invalid_default() -> Self {
+        i64::MAX
+    }
+}
+
+impl ExceptionReturn for i32 {
+    fn invalid_default() -> Self {
+        i32::MAX
+    }
+}
+
+impl ExceptionReturn for i16 {
+    fn invalid_default() -> Self {
+        i16::MAX
+    }
+}
+
+impl ExceptionReturn for i8 {
+    fn invalid_default() -> Self {
+        i8::MAX
+    }
+}
+
+impl ExceptionReturn for u8 {
+    fn invalid_default() -> Self {
+        u8::MAX
+    }
+}
+
+impl ExceptionReturn for u16 {
+    fn invalid_default() -> Self {
+        u16::MAX
+    }
+}
+
+impl ExceptionReturn for f32 {
+    fn invalid_default() -> Self {
+        f32::MAX
+    }
+}
+
+impl ExceptionReturn for f64 {
+    fn invalid_default() -> Self {
+        f64::MAX
+    }
+}
+
+impl ExceptionReturn for jobject {
+    fn invalid_default() -> Self {
+        null_mut()
+    }
+}
+
+impl ExceptionReturn for *const i8 {
+    fn invalid_default() -> Self {
+        null()
+    }
+}
+
+impl ExceptionReturn for JavaValue {
+    fn invalid_default() -> Self {
+        JavaValue::Top
+    }
+}
+
+impl ExceptionReturn for () {
+    fn invalid_default() -> Self {
+        ()
     }
 }

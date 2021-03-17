@@ -26,8 +26,7 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
             a.mut_array().len()
         }
         Object::Object(_o) => {
-            throw_illegal_arg(jvm, int_state);
-            return jsize::MAX
+            return throw_illegal_arg(jvm, int_state);
         }
     };
     len as jsize

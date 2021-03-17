@@ -95,8 +95,7 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
     })) {
         Some(x) => x,
         None => {
-            throw_illegal_arg(jvm, int_state);
-            return null_mut();
+            return throw_illegal_arg(jvm, int_state);
         }
     }.get(index as usize) {
         None => {
