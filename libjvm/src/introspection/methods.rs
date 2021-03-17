@@ -3,7 +3,7 @@ use std::os::raw::{c_char, c_int, c_uchar, c_ushort};
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use classfile_view::view::ClassView;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use rust_jvm_common::classfile::Code;
@@ -74,6 +74,7 @@ unsafe fn get_method_view<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, meth
     and_then(&method_view)
 }
 
+//todo should just return T, no need to handle result
 unsafe fn get_code_attr<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method_index: jint, and_then: impl Fn(&Code) -> Result<T, WasException>) -> Result<T, WasException> {
     get_method_view(env, cb, method_index, |method_view| {
         let jvm = get_state(env);
@@ -113,32 +114,62 @@ unsafe extern "system" fn JVM_GetMethodIxByteCode(env: *mut JNIEnv, cb: jclass, 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {
-    unimplemented!()
+    match get_code_attr(env, cb, method_index, |code| {
+        Ok(code.code_raw.len() as jint)
+    }) {
+        Ok(res) => res,
+        Err(WasException {}) => return jint::invalid_default()
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    unimplemented!()
+    match get_code_attr(env, cb, method_index, |code| {
+        Ok(code.exception_table.len() as jint)
+    }) {
+        Ok(res) => res,
+        Err(WasException {}) => return jint::invalid_default()
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    unimplemented!()
+    match get_method_view(env, cb, method_index, |method_view| {
+        Ok(method_view.access_flags() as jint)
+    }) {
+        Ok(res) => res,
+        Err(WasException {}) => return jint::invalid_default()
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    unimplemented!()
+    match get_code_attr(env, cb, method_index, |code| {
+        Ok(code.max_locals as jint)
+    }) {
+        Ok(res) => res,
+        Err(WasException {}) => return jint::invalid_default()
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    unimplemented!()
+    match get_method_view(env, cb, method_index, |method_view| {
+        Ok(method_view.num_args() as jint)
+    }) {
+        Ok(res) => res,
+        Err(WasException {}) => return jint::invalid_default()
+    }
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
-    unimplemented!()
+    match get_code_attr(env, cb, method_index, |code| {
+        Ok(code.max_stack as jint)
+    }) {
+        Ok(res) => res,
+        Err(WasException {}) => return jint::invalid_default()
+    }
 }
 
 
